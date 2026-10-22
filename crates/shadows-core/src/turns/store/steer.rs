@@ -2,7 +2,7 @@
 
 use super::queue::{SCOPE, event, take_queued_in};
 use crate::db::{Actor, CommandContext, Storage, StorageError, classify, now, record_command};
-use crate::threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, append_entry_in};
+use crate::threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId, SentNow};
 
 impl Storage {
@@ -34,7 +34,7 @@ impl Storage {
                     return Ok(ThreadEntryId::from_stored(id.to_owned()));
                 }
                 take_queued_in(conn, &thread, &row).await?;
-                let entry = append_entry_in(
+                let entry = Threads::append_entry_in(
                     conn,
                     &thread,
                     NewThreadEntry {

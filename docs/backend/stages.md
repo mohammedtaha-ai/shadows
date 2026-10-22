@@ -175,7 +175,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test aylul_profiles --test aylul_extensions --test aylul_usage --test profile_migration --test secret_env --test aylul_session` and `cargo test -p shadows-http --lib` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-15 · Prepare the service boundary: threads
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-15
 - Read: threads/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/threads/ and the `append_entry_in`/`profile_in`/`title_from_*` call sites in design/, plans/, turns/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)

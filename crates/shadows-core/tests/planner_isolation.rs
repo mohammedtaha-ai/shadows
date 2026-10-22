@@ -49,12 +49,17 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
         request_fingerprint: fingerprint("thread.create", &params),
         ..ctx
     };
-    runtime
-        .storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap()
-        .id
+    shadows_core::Threads::create_planning_thread_for_test(
+        &runtime.storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id
 }
 
 async fn wait_for_status(runtime: &Runtime, op: &OperationId, wanted: &str) -> Operation {

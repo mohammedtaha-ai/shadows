@@ -59,7 +59,9 @@ fn queue_body(prompt: &str) -> Value {
 
 /// Lets the `wait-for-release` turn finish: fake-acp looks for this file.
 async fn release(app: &app::App) {
-    let context = app.storage.turn_context(&app.thread).await.unwrap();
+    let context = shadows_core::Threads::turn_context_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
     let dir = context.project_directory.expect("a project directory");
     std::fs::write(dir.join("release"), "").unwrap();
 }

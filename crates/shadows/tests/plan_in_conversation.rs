@@ -72,7 +72,9 @@ async fn wait_running(app: &App, op: &OperationId) {
 }
 
 async fn release(l: &Listening, op: &OperationId) {
-    let context = l.app.storage.turn_context(&l.app.thread).await.unwrap();
+    let context = shadows_core::Threads::turn_context_for_test(&l.app.storage, &l.app.thread)
+        .await
+        .unwrap();
     let dir = context.project_directory.expect("a project directory");
     std::fs::write(dir.join("release"), "").unwrap();
     assert_eq!(wait_terminal(&l.app, op).await.status_kind, "Completed");
@@ -361,18 +363,16 @@ async fn a_thread_grant_can_read_and_show_any_plan_in_its_project() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
     let v2 = draft_on(&l.app, &l.app.thread, "start-2").await.workflow_id;
-    let other = l
-        .app
-        .storage
-        .create_planning_thread(
-            &app::ctx("other-thread-in-project", "thread.create"),
-            &l.app.project,
-            "Other",
-            shadows_agent::policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap();
+    let other = shadows_core::Threads::create_planning_thread_for_test(
+        &l.app.storage,
+        &app::ctx("other-thread-in-project", "thread.create"),
+        &l.app.project,
+        "Other",
+        shadows_agent::policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap();
     let other_plan = draft_on(&l.app, &other.id, "other-plan").await.workflow_id;
     let planner = thread_client(&l, &l.app.thread).await;
 

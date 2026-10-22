@@ -134,13 +134,7 @@ impl Storage {
                 if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
                     return Ok(QueueAnswer::Waiting(serde_json::from_str(&outcome)?));
                 }
-                let live: Option<i64> = sqlx::query_scalar(
-                    "SELECT 1 FROM planning_thread WHERE id = ? AND removed_at IS NULL",
-                )
-                .bind(thread.as_str())
-                .fetch_optional(&mut *conn)
-                .await?;
-                live.ok_or(StorageError::NotFound("planning_thread"))?;
+                crate::threads::Threads::require_live_in(conn, &thread).await?;
                 if !has_open_operation(conn, &thread).await? {
                     return Ok(QueueAnswer::Idle);
                 }

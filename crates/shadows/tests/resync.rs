@@ -62,10 +62,16 @@ async fn seed(storage: &std::sync::Arc<Storage>) -> (Project, PlanningThread) {
         request_fingerprint: fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     (project, thread)
 }
 
@@ -91,10 +97,13 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
     let mid = storage.current_cursor().await.unwrap();
 
     for body in ["one", "two", "three"] {
-        storage
-            .append_thread_entry(&thread.id, user_message(body))
-            .await
-            .unwrap();
+        shadows_core::Threads::append_thread_entry_for_test(
+            &storage,
+            &thread.id,
+            user_message(body),
+        )
+        .await
+        .unwrap();
     }
 
     let tail = storage
@@ -132,8 +141,7 @@ async fn a_zero_cursor_replays_the_whole_thread() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
-    storage
-        .append_thread_entry(&thread.id, user_message("hi"))
+    shadows_core::Threads::append_thread_entry_for_test(&storage, &thread.id, user_message("hi"))
         .await
         .unwrap();
 
@@ -161,10 +169,13 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
     for body in ["one", "two"] {
-        storage
-            .append_thread_entry(&thread.id, user_message(body))
-            .await
-            .unwrap();
+        shadows_core::Threads::append_thread_entry_for_test(
+            &storage,
+            &thread.id,
+            user_message(body),
+        )
+        .await
+        .unwrap();
     }
     let live = Live::start(storage).await;
     let mut stream = live.open(&thread.id).await;
@@ -206,10 +217,13 @@ async fn a_durable_event_committed_after_the_handoff_arrives_live() {
     let mut stream = live.open(&thread.id).await;
     stream.read_until("event: caught-up").await;
 
-    storage
-        .append_thread_entry(&thread.id, user_message("after the handoff"))
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("after the handoff"),
+    )
+    .await
+    .unwrap();
     let seq = storage.current_cursor().await.unwrap().0;
 
     let text = stream.read_until(&format!("\"seq\":{seq}")).await;
@@ -228,20 +242,26 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     let live = Live::start(storage.clone()).await;
     let mut stream = live.open(&thread.id).await;
 
-    storage
-        .append_thread_entry(&thread.id, user_message("during the replay"))
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("during the replay"),
+    )
+    .await
+    .unwrap();
     let seq = storage.current_cursor().await.unwrap().0;
 
     // A marker committed after the handoff: once it is read, the replay, the
     // handoff and the live re-read triggered by the first commit have all had
     // their turn, so any repeat would already be on the stream.
     stream.read_until("event: caught-up").await;
-    storage
-        .append_thread_entry(&thread.id, user_message("marker"))
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("marker"),
+    )
+    .await
+    .unwrap();
     let marker = storage.current_cursor().await.unwrap().0;
     let text = stream.read_until(&format!("\"seq\":{marker}")).await;
 
@@ -264,10 +284,13 @@ async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
-    storage
-        .append_thread_entry(&thread.id, user_message("before"))
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("before"),
+    )
+    .await
+    .unwrap();
     let live = Live::start(storage.clone()).await;
 
     let mut first = live.open(&thread.id).await;
@@ -276,10 +299,13 @@ async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
     drop(first);
 
     for body in ["while away", "and again"] {
-        storage
-            .append_thread_entry(&thread.id, user_message(body))
-            .await
-            .unwrap();
+        shadows_core::Threads::append_thread_entry_for_test(
+            &storage,
+            &thread.id,
+            user_message(body),
+        )
+        .await
+        .unwrap();
     }
     let missed: Vec<i64> = storage
         .read_events_after(EventCursor(stopped_at), &thread.id, 100)
@@ -313,10 +339,16 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (project, thread_a) = seed(&storage).await;
-    let thread_b = storage
-        .create_planning_thread(&thread_ctx("c3"), &project.id, "B", "claude-code", None)
-        .await
-        .unwrap();
+    let thread_b = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &thread_ctx("c3"),
+        &project.id,
+        "B",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     let live = Live::start(storage).await;
     let mut stream = live.open(&thread_a.id).await;
     stream.read_until("event: caught-up").await;

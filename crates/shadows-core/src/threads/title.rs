@@ -1,4 +1,4 @@
-//! One job: the text a title taken from a conversation may read (spec §4.2).
+//! One job: the text a title taken from a conversation may read.
 //!
 //! A title is one line: whitespace collapsed, at most `TITLE_MAX_CHARS`
 //! characters, cut with an ellipsis. An empty one is no title.
@@ -7,15 +7,19 @@
 pub(crate) const TITLE_MAX_CHARS: usize = 60;
 
 /// The first non-blank line of a thread's first message, as a title.
-pub(crate) fn from_first_message(message: &str) -> Option<String> {
-    one_line(message.lines().find(|l| !l.trim().is_empty())?)
+impl super::Threads {
+    pub(super) fn title_from_first_message(message: &str) -> Option<String> {
+        one_line(message.lines().find(|l| !l.trim().is_empty())?)
+    }
 }
 
 /// A title the harness generated, as Shadows keeps it. A placeholder is no
 /// title: Claude Code's generator answers "New session" for a conversation too
 /// short to name ("hi"), and that must not replace the first message.
-pub(crate) fn from_harness(title: &str) -> Option<String> {
-    one_line(title).filter(|t| !is_placeholder(t))
+impl super::Threads {
+    pub(crate) fn harness_title(title: &str) -> Option<String> {
+        one_line(title).filter(|t| !is_placeholder(t))
+    }
 }
 
 /// The generic names a harness gives a session it could not name.
@@ -39,14 +43,14 @@ fn one_line(text: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::Threads;
 
     #[test]
     fn a_placeholder_from_the_harness_is_no_title() {
-        assert_eq!(from_harness("New session"), None);
-        assert_eq!(from_harness("  new   Session. "), None);
+        assert_eq!(Threads::harness_title("New session"), None);
+        assert_eq!(Threads::harness_title("  new   Session. "), None);
         assert_eq!(
-            from_harness("New session handling in Shadows").as_deref(),
+            Threads::harness_title("New session handling in Shadows").as_deref(),
             Some("New session handling in Shadows")
         );
     }

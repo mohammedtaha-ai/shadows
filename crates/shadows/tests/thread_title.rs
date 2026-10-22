@@ -19,11 +19,10 @@ async fn title(app: &App) -> String {
 }
 
 async fn title_of(app: &App, thread: &ThreadId) -> String {
-    let threads = app
-        .storage
-        .list_threads_for_project(&app.project)
-        .await
-        .unwrap();
+    let threads =
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
+            .await
+            .unwrap();
     let found = threads.iter().find(|t| &t.id == thread).unwrap();
     found.title.clone()
 }
@@ -135,11 +134,13 @@ async fn a_title_a_person_gave_is_never_replaced() {
         .await
         .unwrap();
     start_and_finish(&app, "the first message", default_settings()).await;
-    let changed = app
-        .storage
-        .title_from_harness(&app.thread, "From the harness")
-        .await
-        .unwrap();
+    let changed = shadows_core::Threads::title_from_harness_for_test(
+        &app.storage,
+        &app.thread,
+        "From the harness",
+    )
+    .await
+    .unwrap();
     assert!(!changed);
     assert_eq!(
         (title(&app).await, source(&app).await),
@@ -153,18 +154,17 @@ async fn a_title_a_person_gave_is_never_replaced() {
 #[tokio::test]
 async fn a_plan_thread_keeps_its_plan_title() {
     let app = test_app().await;
-    let thread = app
-        .storage
-        .create_planning_thread(
-            &ctx("t2", "thread.create"),
-            &app.project,
-            "x",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("t2", "thread.create"),
+        &app.project,
+        "x",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     sqlx::query("UPDATE planning_thread SET title = 'Search', title_source = 'plan' WHERE id = ?")
         .bind(thread.as_str())
         .execute(app.storage.reader())
@@ -178,11 +178,13 @@ async fn a_plan_thread_keeps_its_plan_title() {
         default_settings(),
     )
     .await;
-    let changed = app
-        .storage
-        .title_from_harness(&thread, "From the harness")
-        .await
-        .unwrap();
+    let changed = shadows_core::Threads::title_from_harness_for_test(
+        &app.storage,
+        &thread,
+        "From the harness",
+    )
+    .await
+    .unwrap();
     assert!(!changed);
     assert_eq!(title_of(&app, &thread).await, "Search");
 }

@@ -1,13 +1,21 @@
-//! One job: threads' SQLite queries — the thread row (`thread`), its entries
-//! (`entry`), a fork of it (`fork`), and its title after creation (`title`).
+//! Threads' private persistence over the shared database handle.
 
 mod entry;
 mod fork;
+mod records;
 mod remove;
 mod thread;
 mod title;
 
-// What another write calls inside its own transaction (spec §14.6).
-pub(crate) use entry::append_entry_in;
-pub(crate) use thread::profile_in;
-pub(crate) use title::title_from_first_message_in;
+use crate::db::Storage;
+use std::sync::Arc;
+
+pub(super) struct ThreadsStore {
+    pub(super) storage: Arc<Storage>,
+}
+
+impl ThreadsStore {
+    pub(super) fn with_storage(storage: Arc<Storage>) -> Self {
+        Self { storage }
+    }
+}

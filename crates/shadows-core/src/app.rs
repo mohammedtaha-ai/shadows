@@ -82,7 +82,7 @@ pub struct CoreParts {
 /// | `Turns` | turn execution lifecycle | `crates/shadows-core/src/turns` | `crates/shadows-core/src/turns/contract.yaml` |
 /// | `Harness` | thread harness sessions | `crates/shadows-core/src/harness` | `crates/shadows-core/src/harness/contract.yaml` |
 /// | `Projects` | project directory registration | `crates/shadows-core/src/projects` | `crates/shadows-core/src/projects/contract.yaml` |
-/// | `Threads` | planning thread records | `crates/shadows-core/src/threads` | `crates/shadows-core/src/threads/contract.yaml` |
+/// | `Threads` | planning thread lifecycle | `crates/shadows-core/src/threads` | `crates/shadows-core/src/threads/contract.yaml` |
 /// | `Instructions` | versioned Planner instructions | `crates/shadows-core/src/instructions` | `crates/shadows-core/src/instructions/contract.yaml` |
 /// | `Events` | thread or project event subscriptions | `crates/shadows-core/src/events` | `crates/shadows-core/src/events/contract.yaml` |
 /// | `Code` | project code indexing | `crates/shadows-core/src/code` | `crates/shadows-core/src/code/contract.yaml` |
@@ -96,6 +96,8 @@ pub struct CoreParts {
 /// agent is `Harness`'s, since it closes live adapters); `Harness` shares
 /// `Sessions`, and the stored `Grants` is the one that revoked thread grants at
 /// startup. No service receives `AppCore`.
+/// `Threads` owns a private store; transaction-local callers use `Threads::*_in`
+/// over the shared connection, without depending on its retained lifecycle effects.
 pub struct AppCore {
     secrets: Arc<Secrets>,
     providers: Arc<Providers>,

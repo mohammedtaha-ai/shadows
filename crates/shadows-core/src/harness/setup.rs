@@ -195,7 +195,16 @@ impl Setups {
         thread: &ThreadId,
         operation: &OperationId,
     ) -> Result<Option<String>, CoreError> {
-        let context = self.storage.turn_context(thread).await?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?;
         if context.harness == policy::AYLUL {
             return Ok(None);
         }
@@ -270,7 +279,16 @@ impl Setups {
 
     /// The stage line every person's message carries (§23.4).
     pub(crate) async fn stage_line(&self, thread: &ThreadId) -> Result<String, StorageError> {
-        let context = self.storage.turn_context(thread).await?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?;
         if context.harness == policy::AYLUL {
             return Ok(String::new());
         }

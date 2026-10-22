@@ -1,3 +1,4 @@
+# Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns starting and stopping a Planner turn (spec §12.3, §12.7, §14.4): the
 # "turn.start" command from its replay to its run, Stop as the local user, and
 # the arbitration between a turn's own ending and a Stop (`turn.rs`), plus

@@ -41,10 +41,16 @@ async fn fixture() -> (
         request_fingerprint: shadows_core::testing::fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     (tmp, storage, runtime, thread.id)
 }
 

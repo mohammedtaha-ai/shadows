@@ -24,22 +24,20 @@ async fn the_planner_approves_a_vision_card_and_replay_appends_nothing() {
     )
     .await;
     // Same durable entry shape committed by Send now, within the current operation.
-    let steered = l
-        .app
-        .storage
-        .append_thread_entry(
-            &l.app.thread,
-            shadows_core::testing::NewThreadEntry {
-                kind: shadows_core::ThreadEntryKind::UserMessage,
-                author: shadows_core::Actor::user("local"),
-                body: "Approve this now",
-                refs: &[],
-                card: None,
-                operation_id: Some(&op),
-            },
-        )
-        .await
-        .unwrap();
+    let steered = shadows_core::Threads::append_thread_entry_for_test(
+        &l.app.storage,
+        &l.app.thread,
+        shadows_core::testing::NewThreadEntry {
+            kind: shadows_core::ThreadEntryKind::UserMessage,
+            author: shadows_core::Actor::user("local"),
+            body: "Approve this now",
+            refs: &[],
+            card: None,
+            operation_id: Some(&op),
+        },
+    )
+    .await
+    .unwrap();
     let args = json!({"proposal_id":p["id"]});
     let first = ok(&c, "vision_approve", args.clone()).await;
     let cursor = l.app.storage.current_cursor().await.unwrap();

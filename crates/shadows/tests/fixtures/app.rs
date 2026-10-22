@@ -133,17 +133,17 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
         true => Some(storage.seed_roadmap_for_tests(&project.id).await.unwrap()),
         false => None,
     };
-    let thread = storage
-        .create_planning_thread(
-            &ctx("c2", "thread.create"),
-            &project.id,
-            "T",
-            policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx("c2", "thread.create"),
+        &project.id,
+        "T",
+        policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let secrets = shadows_core::testing::secrets(
         storage.clone(),
         config
@@ -256,18 +256,17 @@ pub async fn other_project(app: &App) -> (ProjectId, ThreadId) {
     .await
     .unwrap()
     .id;
-    let thread = app
-        .storage
-        .create_planning_thread(
-            &ctx("other-thread", "thread.create"),
-            &project,
-            "Other",
-            policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("other-thread", "thread.create"),
+        &project,
+        "Other",
+        policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     (project, thread)
 }
 
@@ -345,7 +344,9 @@ pub async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
 }
 
 pub async fn entries_on(app: &App, thread: &ThreadId) -> Vec<ThreadEntry> {
-    app.storage.list_thread_entries(thread).await.unwrap()
+    shadows_core::Threads::list_thread_entries_for_test(&app.storage, thread)
+        .await
+        .unwrap()
 }
 
 pub async fn entries(app: &App) -> Vec<ThreadEntry> {

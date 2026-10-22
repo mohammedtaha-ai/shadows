@@ -1,3 +1,4 @@
+# Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns plan versions under the rules of spec §13: every read, start, edit,
 # showing and approval of a plan ends in a `Plans` method, whether a person
 # asked over HTTP or an agent over MCP (§14.4).

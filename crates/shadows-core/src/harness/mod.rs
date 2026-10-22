@@ -122,7 +122,16 @@ impl Harness {
     /// Opens the thread's harness session (spec §12.2) and answers what it
     /// offers. Idempotent: an open session answers what it holds.
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError> {
-        let context = self.storage.turn_context(thread).await?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?;
         self.sessions.check_context(&context).await?;
         if !self.sessions.harness_available(&context.harness).await? {
             return Err(CoreError::HarnessUnavailable(context.harness));
@@ -180,7 +189,16 @@ impl Harness {
     /// available, then no operation is open on it, then its session is opened.
     /// Answers the harness kind and the open session.
     async fn open_idle(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError> {
-        let context = self.storage.turn_context(thread).await?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?;
         self.sessions.check_context(&context).await?;
         if !self.sessions.harness_available(&context.harness).await? {
             return Err(CoreError::HarnessUnavailable(context.harness));
@@ -198,7 +216,16 @@ impl Harness {
     /// The context breakdown of the thread's session, read on demand (spec
     /// §12.8): the categories, or none with the reason. Nothing is written.
     pub async fn context(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError> {
-        self.storage.turn_context(thread).await?;
+        crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?;
         Ok(match self.sessions.context(thread).await {
             Ok(categories) => ContextBreakdown {
                 categories: Some(categories),
@@ -239,7 +266,12 @@ impl Harness {
     /// turn's watcher recorded before it published the usage that asks. `None`
     /// when unknown, or when the thread or the limits cannot be read.
     pub(crate) async fn limits_of(&self, thread: &ThreadId) -> Option<AccountLimits> {
-        let context = self.storage.turn_context(thread).await.ok()?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self.storage.reader().begin().await.ok()?,
+            thread,
+        )
+        .await
+        .ok()?;
         self.storage
             .latest_limits(&context.harness)
             .await
@@ -255,7 +287,16 @@ impl Harness {
         thread: &ThreadId,
         offered: &Offered,
     ) -> Result<SessionChoices, CoreError> {
-        let context = self.storage.turn_context(thread).await?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?;
         let allowed = self
             .projects
             .allowed_modes(&context.project_id, &context.harness)

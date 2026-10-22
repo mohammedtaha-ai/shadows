@@ -76,14 +76,13 @@ impl Storage {
         let (thread, ts) = (thread.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
-                let project: String = sqlx::query_scalar(
-                    "SELECT project_id FROM planning_thread WHERE id = ? AND removed_at IS NULL",
-                )
-                .bind(thread.as_str())
-                .fetch_optional(&mut *conn)
-                .await?
-                .ok_or(StorageError::NotFound("thread"))?;
-                let project = ProjectId::from_stored(project);
+                crate::threads::Threads::require_live_in(conn, &thread)
+                    .await
+                    .map_err(|error| match error {
+                        StorageError::NotFound(_) => StorageError::NotFound("thread"),
+                        other => other,
+                    })?;
+                let project = crate::threads::Threads::project_in(conn, &thread).await?;
                 insert_grant(conn, &project, Some(&thread), Actor::system(), &ts).await
             })
         })

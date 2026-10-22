@@ -182,7 +182,17 @@ impl Sessions {
     /// Closes every live adapter of a deleted agent's threads. A close that fails is
     /// logged and does not undo the deletion.
     pub(crate) async fn close_agent(&self, slug: &str) -> Result<(), crate::CoreError> {
-        for thread in self.storage.list_threads_for_profile(slug).await? {
+        for thread in crate::threads::Threads::list_for_profile_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(StorageError::from)?,
+            slug,
+        )
+        .await?
+        {
             if let Err(error) = self.terminate(&thread.id).await {
                 tracing::warn!(thread_id=%thread.id, %error, "agent.adapter_close_failed");
             }

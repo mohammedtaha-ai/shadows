@@ -91,17 +91,16 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
     let v1 = draft(&app).await;
     edit(&app, &v1.workflow_id, 0, &[add(1)]).await;
     let plan = app.storage.get_plan(&v1.workflow_id).await.unwrap();
-    let other = app
-        .storage
-        .create_planning_thread(
-            &ctx("other", "thread.create"),
-            &app.project,
-            "Other",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap();
+    let other = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("other", "thread.create"),
+        &app.project,
+        "Other",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     let mut body = app::default_settings();
     body["command_id"] = json!("focus-shared");
     body["prompt"] = json!("report");
@@ -110,7 +109,9 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
     assert_eq!(status, 202, "{answer}");
     let op = OperationId::from_literal(answer["operation_id"].as_str().unwrap());
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
-    let entries = app.storage.list_thread_entries(&other.id).await.unwrap();
+    let entries = shadows_core::Threads::list_thread_entries_for_test(&app.storage, &other.id)
+        .await
+        .unwrap();
     assert!(entries.iter().any(|e| {
         e.refs
             .contains(&shadows_core::EntryRef::Task(plan.tasks[0].id.clone()))

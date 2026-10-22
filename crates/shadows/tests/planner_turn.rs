@@ -81,11 +81,17 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         request_fingerprint: fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap()
-        .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
 
     let sessions = Sessions::new(adapter, storage.clone(), acp::test_config());
     let handles = Arc::new(LiveHandles::default());
@@ -182,9 +188,7 @@ async fn wait_running(app: &App, op: &OperationId) {
 }
 
 async fn entries(app: &App) -> Vec<ThreadEntry> {
-    app.runtime
-        .storage
-        .list_thread_entries(&app.thread)
+    shadows_core::Threads::list_thread_entries_for_test(&app.runtime.storage, &app.thread)
         .await
         .unwrap()
 }
@@ -248,10 +252,7 @@ async fn a_turn_streams_and_stores_one_entry_per_message() {
 async fn the_first_turn_records_the_session_and_the_next_resumes_it() {
     let app = test_app().await;
     wait_terminal(&app, &start_prompt(&app, "hi").await).await;
-    let session = app
-        .runtime
-        .storage
-        .turn_context(&app.thread)
+    let session = shadows_core::Threads::turn_context_for_test(&app.runtime.storage, &app.thread)
         .await
         .unwrap()
         .harness_session_id

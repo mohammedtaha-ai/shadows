@@ -136,17 +136,16 @@ async fn a_remembered_model_the_harness_no_longer_offers_is_dropped() {
 #[tokio::test]
 async fn a_codex_thread_cannot_open_a_session() {
     let app = test_app().await;
-    let t = app
-        .storage
-        .create_planning_thread(
-            &ctx("c9", "thread.create"),
-            &app.project,
-            "x",
-            policy::CODEX,
-            None,
-        )
-        .await
-        .unwrap();
+    let t = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("c9", "thread.create"),
+        &app.project,
+        "x",
+        policy::CODEX,
+        None,
+    )
+    .await
+    .unwrap();
     let (s, b) = post(&app, &format!("/api/threads/{}/session", t.id), json!({})).await;
     assert_eq!((s, b["code"].as_str()), (422, Some("HARNESS_UNAVAILABLE")));
     assert_eq!(app.sessions.live_count().await, 0, "nothing was started");

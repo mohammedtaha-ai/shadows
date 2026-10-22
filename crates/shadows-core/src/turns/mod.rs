@@ -270,7 +270,16 @@ impl Turns {
             mode,
             effort,
         };
-        let context = self.storage.turn_context(&thread_id).await?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            &thread_id,
+        )
+        .await?;
         let continue_plan = match &plan {
             Some(plan_id) => Some(
                 self.storage

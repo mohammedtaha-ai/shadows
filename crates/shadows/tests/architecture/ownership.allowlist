@@ -8,7 +8,6 @@ crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: un
 crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: unknown table sqlite_schema [b22bec229f27366b] #1
 crates/shadows-core/src/db/write_observer.rs :: DatabaseWrites::version SQL review: unsupported statement [bec5d39792ff9942] #1
 crates/shadows-core/src/design/map_rules.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows-core/src/design/proposals.rs :: Design::planner_approver Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/design/stage.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/design/store/agreement_review.rs :: review cross-owner store call shadows_core::plans::store::binding_participants::agreement_participants_in [cc2e5afa953991cc] #1
 crates/shadows-core/src/design/store/agreement_write.rs :: Storage::edit_design_agreement cross-owner store call shadows_core::grants::store::check_writer [c2f69b6fa16683f6] #1
@@ -18,9 +17,7 @@ crates/shadows-core/src/design/store/hierarchy.rs :: check_parent SQL review: dy
 crates/shadows-core/src/design/store/hierarchy.rs :: place SQL review: dynamic or indirect query [85e0b3962b00c80b] #1
 crates/shadows-core/src/design/store/hierarchy.rs :: place SQL review: dynamic or indirect query [e347697642165d0b] #1
 crates/shadows-core/src/design/store/map_proposal_shape.rs :: pinned SQL table agent_invocation belongs to turns [b9941ec6a69bb2cd] #1
-crates/shadows-core/src/design/store/map_proposals.rs :: Storage::propose_map_in SQL table thread_entry belongs to threads [8e652ee5699cd129] #1
 crates/shadows-core/src/design/store/map_proposals.rs :: Storage::propose_map_in cross-owner store call shadows_core::grants::store::check_writer [06d726efd269db63] #1
-crates/shadows-core/src/design/store/map_proposals.rs :: Storage::propose_map_in cross-owner store call shadows_core::threads::store::entry::append_entry_in [9b3e3d9421c74931] #1
 crates/shadows-core/src/design/store/map_proposals.rs :: Storage::propose_map_in cross-owner store call shadows_core::turns::store::turn::check_running_turn_in [266bfbdbaab490fa] #1
 crates/shadows-core/src/design/store/outcome_edit.rs :: apply SQL review: dynamic or indirect query [7c021e09ecd4baa6] #1
 crates/shadows-core/src/design/store/outcome_edit.rs :: apply SQL review: dynamic or indirect query [7c021e09ecd4baa6] #2
@@ -31,13 +28,9 @@ crates/shadows-core/src/design/store/parts.rs :: Storage::design_part cross-owne
 crates/shadows-core/src/design/store/parts.rs :: revision SQL table project belongs to projects [1aa29d60f93a93ed] #1
 crates/shadows-core/src/design/store/proposal_read.rs :: live_vision SQL table project belongs to projects [71f0f0a5dfba0a86] #1
 crates/shadows-core/src/design/store/proposals.rs :: Storage::propose_vision_in SQL table agent_invocation belongs to turns [2d2e0f1167990108] #1
-crates/shadows-core/src/design/store/proposals.rs :: Storage::propose_vision_in SQL table thread_entry belongs to threads [d4d22d8f3f360f37] #1
 crates/shadows-core/src/design/store/proposals.rs :: Storage::propose_vision_in cross-owner store call shadows_core::grants::store::check_writer [7404a855de16cd2c] #1
-crates/shadows-core/src/design/store/proposals.rs :: Storage::propose_vision_in cross-owner store call shadows_core::threads::store::entry::append_entry_in [7517fae009333324] #1
 crates/shadows-core/src/design/store/proposals.rs :: Storage::propose_vision_in cross-owner store call shadows_core::turns::store::turn::check_running_turn_in [266bfbdbaab490fa] #1
-crates/shadows-core/src/design/store/roadmap_proposals.rs :: Storage::propose_roadmap_in SQL table thread_entry belongs to threads [cbcf0bc44402089f] #1
 crates/shadows-core/src/design/store/roadmap_proposals.rs :: Storage::propose_roadmap_in cross-owner store call shadows_core::grants::store::check_writer [06d726efd269db63] #1
-crates/shadows-core/src/design/store/roadmap_proposals.rs :: Storage::propose_roadmap_in cross-owner store call shadows_core::threads::store::entry::append_entry_in [45c955653718d3f4] #1
 crates/shadows-core/src/design/store/roadmap_proposals.rs :: Storage::propose_roadmap_in cross-owner store call shadows_core::turns::store::turn::check_running_turn_in [266bfbdbaab490fa] #1
 crates/shadows-core/src/design/store/roadmap_shape.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/design/store/stage.rs :: Storage::project_stage SQL table project belongs to projects [71f0f0a5dfba0a86] #1
@@ -51,7 +44,6 @@ crates/shadows-core/src/events/store.rs :: Storage::read_project_events_after SQ
 crates/shadows-core/src/grants/store.rs :: Storage::grant_for_token SQL review: dynamic or indirect query [8dd43896d90f52b4] #1
 crates/shadows-core/src/grants/store.rs :: Storage::grant_for_token SQL review: interpolated SQL [143f8bbe55411f1d] #1
 crates/shadows-core/src/grants/store.rs :: Storage::issue_project_grant SQL table project belongs to projects [f64d9359f0ec141b] #1
-crates/shadows-core/src/grants/store.rs :: Storage::issue_thread_grant SQL table planning_thread belongs to threads [ff539465e8bac064] #1
 crates/shadows-core/src/grants/store.rs :: Storage::list_project_grants SQL table project belongs to projects [f21f94831f4433b8] #1
 crates/shadows-core/src/grants/store.rs :: Storage::prepare_draft SQL table draft_intent belongs to plans [99277bc3e215c193] #1
 crates/shadows-core/src/grants/store.rs :: Storage::revoke_all_thread_grants SQL review: dynamic or indirect query [023768981d6e49c5] #1
@@ -64,24 +56,13 @@ crates/shadows-core/src/grants/store.rs :: revoke_project_grants_in SQL review: 
 crates/shadows-core/src/grants/store.rs :: revoke_thread_grants_in SQL review: dynamic or indirect query [4b8be31e2e59b74a] #1
 crates/shadows-core/src/grants/store.rs :: revoke_thread_grants_in SQL review: interpolated SQL [b340141a8af3961b] #1
 crates/shadows-core/src/harness/commands.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows-core/src/harness/live.rs :: Sessions::open_live Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/mod.rs :: Harness::choices Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/mod.rs :: Harness::context Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/mod.rs :: Harness::limits_of Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::thread_is_busy belongs to turns [8a453cd297f33f2a] #1
-crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/mod.rs :: Harness::open_session Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/sessions.rs :: Sessions::close_agent Storage::list_threads_for_profile belongs to threads [2e909abbfba98b74] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::instructions::Instructions outside composition root [daa13b010d06c56f] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::secrets::Secrets outside composition root [f5c64cc928b70c3d] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
-crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::for_opening Storage::issue_thread_grant belongs to grants [78f1bb2eace18ef6] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::forget Storage::revoke_thread_grant belongs to grants [32fd61864ad5e9c3] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::stage_line Storage::project_stage belongs to design [2eec35a57c9c632f] #1
-crates/shadows-core/src/harness/setup.rs :: Setups::stage_line Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/titles.rs :: keep_titles Storage::title_from_harness belongs to threads [de9e2676b0e2addd] #1
-crates/shadows-core/src/plans/mod.rs :: Plans::approve_as_planner Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/plans/mod.rs :: Plans::prepare_draft Storage::prepare_draft belongs to grants [19508bfedb3c08d5] #1
 crates/shadows-core/src/plans/store/bindings.rs :: validate cross-owner store call shadows_core::design::store::agreement_binding::check_agreement_binding_in [de3faaaebba280a8] #1
 crates/shadows-core/src/plans/store/draft.rs :: Storage::start_draft cross-owner store call shadows_core::design::store::roadmap_gate::link_plan_parts_in [65e963269036540d] #1
@@ -90,7 +71,6 @@ crates/shadows-core/src/plans/store/draft.rs :: Storage::start_draft cross-owner
 crates/shadows-core/src/plans/store/draft.rs :: Storage::start_draft cross-owner store call shadows_core::grants::store::check_writer [9001f9f102969dba] #1
 crates/shadows-core/src/plans/store/edit.rs :: Storage::approve_plan_with cross-owner store call shadows_core::design::store::roadmap_gate::plan_has_part_in [47d1b614b5fc1a38] #1
 crates/shadows-core/src/plans/store/edit.rs :: Storage::approve_plan_with cross-owner store call shadows_core::design::store::roadmap_gate::require_roadmap_in [45025ab7ab9d21a0] #1
-crates/shadows-core/src/plans/store/edit.rs :: Storage::approve_plan_with cross-owner store call shadows_core::threads::store::entry::append_entry_in [d370ea3e397e9008] #1
 crates/shadows-core/src/plans/store/edit.rs :: Storage::edit_plan cross-owner store call shadows_core::design::store::roadmap_gate::require_roadmap_in [45025ab7ab9d21a0] #1
 crates/shadows-core/src/plans/store/edit.rs :: Storage::edit_plan cross-owner store call shadows_core::grants::store::check_writer [9001f9f102969dba] #1
 crates/shadows-core/src/plans/store/graph.rs :: owner SQL table project belongs to projects [f6a155958f9fc5ae] #1
@@ -102,9 +82,7 @@ crates/shadows-core/src/plans/store/notifications.rs :: notify_plan SQL table pr
 crates/shadows-core/src/plans/store/notifications.rs :: notify_project_dependencies_in SQL table project belongs to projects [ffdf28118be9c22f] #1
 crates/shadows-core/src/plans/store/plan.rs :: load_plan_versions SQL table project belongs to projects [ba67f7f2f990e9c7] #1
 crates/shadows-core/src/plans/store/read.rs :: written_by SQL table agent_invocation belongs to turns [a60039ee53ce489e] #1
-crates/shadows-core/src/plans/store/read.rs :: written_by SQL table planning_thread belongs to threads [54081ef5986d2963] #1
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::grants::store::check_writer [a000eca87c3e2f49] #1
-crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::threads::store::entry::append_entry_in [611e232f289650a2] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove SQL table planning_thread belongs to threads [5f4deecc4f5c3ae9] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::grants::store::revoke_project_grants_in [e22e94a631af841b] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [08c71ab7fba6d631] #1
@@ -117,40 +95,22 @@ crates/shadows-core/src/runtime/store.rs :: Storage::stop_runtime_instance SQL t
 crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
 crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
-crates/shadows-core/src/threads/mod.rs :: Threads::operations Storage::list_operations_for_thread belongs to turns [5c4a7ca094c6059d] #1
-crates/shadows-core/src/threads/store/fork.rs :: Storage::fork_thread cross-owner store call shadows_core::turns::store::turn::has_open_operation [c1e06cea881e792a] #1
+crates/shadows-core/src/threads/mod.rs :: Threads::operations Storage::list_operations_for_thread belongs to turns [968e1239d5bf9a04] #1
 crates/shadows-core/src/threads/store/fork.rs :: fork_point SQL table operation belongs to turns [01777ce6f5443355] #1
-crates/shadows-core/src/threads/store/remove.rs :: Storage::remove_thread SQL table project belongs to projects [f64d9359f0ec141b] #1
-crates/shadows-core/src/threads/store/remove.rs :: Storage::remove_thread cross-owner store call shadows_core::grants::store::revoke_thread_grants_in [3e4a94b0bc558f0b] #1
-crates/shadows-core/src/threads/store/thread.rs :: Storage::turn_context SQL table project belongs to projects [3bb654c212d48178] #1
+crates/shadows-core/src/threads/store/fork.rs :: super::ThreadsStore::fork_thread cross-owner store call shadows_core::turns::store::turn::has_open_operation [c1e06cea881e792a] #1
+crates/shadows-core/src/threads/store/remove.rs :: super::ThreadsStore::remove_thread cross-owner store call shadows_core::grants::store::revoke_thread_grants_in [3e4a94b0bc558f0b] #1
 crates/shadows-core/src/threads/store/thread.rs :: has_operation SQL table operation belongs to turns [5dd083b85aca1e88] #1
-crates/shadows-core/src/threads/store/thread.rs :: insert_thread SQL table project belongs to projects [0f8a823c37dc6d03] #1
-crates/shadows-core/src/threads/title.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/turns/entries.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::list_plans belongs to plans [7c2e971023ae016a] #1
-crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::turn_context belongs to threads [11c0a5ed9f661928] #1
 crates/shadows-core/src/turns/store/operation.rs :: insert_pending SQL table runtime_instance belongs to runtime [a8a3048c43c686b3] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queue_message SQL review: dynamic or indirect query [7d829bdfee6bff72] #1
-crates/shadows-core/src/turns/store/queue.rs :: Storage::queue_message SQL table planning_thread belongs to threads [009b0e0a074ac1ba] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queued_message SQL review: dynamic or indirect query [4dcdfbd051210c52] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queued_messages SQL review: dynamic or indirect query [4463baf3a2c71b00] #1
-# A-17: invocation ownership moves to Harness; retain its thread-project lookup until then.
-crates/shadows-core/src/turns/store/standards.rs :: Turns::standards_for_invocation_in SQL table planning_thread belongs to threads [3787a1db64365d88] #1
-crates/shadows-core/src/turns/store/steer.rs :: Storage::steered_entry cross-owner store call shadows_core::threads::store::entry::append_entry_in [0ecae1f7bded6f7c] #1
-crates/shadows-core/src/turns/store/turn.rs :: Storage::latest_invocation_versions SQL table thread_entry belongs to threads [dc8d7b9b1290c6e6] #1
-crates/shadows-core/src/turns/store/turn.rs :: Storage::start_turn SQL table planning_thread belongs to threads [009b0e0a074ac1ba] #1
 crates/shadows-core/src/turns/store/turn.rs :: Storage::start_turn cross-owner store call shadows_core::harness::store::remember_settings [202f80cf4dc75148] #1
-crates/shadows-core/src/turns/store/turn.rs :: Storage::start_turn cross-owner store call shadows_core::threads::store::entry::append_entry_in [5d657eb89aeff0b2] #1
-crates/shadows-core/src/turns/store/turn.rs :: Storage::start_turn cross-owner store call shadows_core::threads::store::thread::profile_in [4683dbaad62b082f] #1
-crates/shadows-core/src/turns/store/turn.rs :: Storage::start_turn cross-owner store call shadows_core::threads::store::title::title_from_first_message_in [ebde0c51408fbfa1] #1
-crates/shadows-core/src/turns/store/turn.rs :: check_running_turn_in SQL table planning_thread belongs to threads [699a18ccc2d11b00] #1
-crates/shadows-core/src/turns/store/turn.rs :: focused SQL table plan belongs to plans [b6b94bf0b28c63df] #1
-crates/shadows-core/src/turns/store/turn.rs :: focused SQL table planning_thread belongs to threads [b6b94bf0b28c63df] #1
-crates/shadows-core/src/turns/store/turn.rs :: focused SQL table workflow belongs to plans [b6b94bf0b28c63df] #1
+crates/shadows-core/src/turns/store/turn.rs :: focused SQL table plan belongs to plans [1efd83c86379fa29] #1
+crates/shadows-core/src/turns/store/turn.rs :: focused SQL table workflow belongs to plans [1efd83c86379fa29] #1
 crates/shadows-core/src/turns/store/turn.rs :: focused cross-owner store call shadows_core::plans::store::task::task_of [bf5e42b95549d951] #1
 crates/shadows-core/src/turns/turn.rs :: accept Storage::record_limits belongs to harness [b5718fff25db21b1] #1
-crates/shadows-core/src/turns/turn.rs :: persist Storage::append_thread_entry belongs to threads [3825a9b3f6bc5dcf] #1
-crates/shadows-core/src/turns/turn.rs :: watch_turn Storage::record_harness_session belongs to threads [dd36e96c6dd0bd10] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::app::CoreParts [eb819e5a3702e515] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::db::Storage [715c5f6d2efaef96] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::harness::sessions::Sessions [715c5f6d2efaef96] #1

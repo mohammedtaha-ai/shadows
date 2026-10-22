@@ -45,17 +45,47 @@ version: 1
 status: current
 source: crates/shadows-core/src/threads
 
+modules:
+  mod.rs: thread command boundary
+  model.rs: public thread values
+  error.rs: thread refusal mapping
+  title.rs: conversation title normalization
+  testing.rs: test-only command-context entry points
+  store/mod.rs: private ThreadsStore handle
+  store/thread.rs: planning thread records
+  store/entry.rs: ordinal entry persistence
+  store/fork.rs: completed-entry forks
+  store/remove.rs: atomic thread removal
+  store/title.rs: title replacement persistence
+  store/records.rs: transaction-local thread reads
+
+dependencies:
+  projects: crates/shadows-core/src/projects/contract.yaml
+  code: crates/shadows-core/src/code/contract.yaml
+  agents: crates/shadows-core/src/agents/contract.yaml
+
+# Deferred by the A-15 rulings: session close (A-17), removal effects (A-18),
+# operation checks/listing (A-17b), and model id imports (A-19).
+# Other services use associated Threads::*_in methods in their existing snapshot.
+# All journal writes use foundation JournalEntry values, with string subject ids.
+# HarnessLocked and ForkPointNotSupported map beside ThreadsError to CoreError::Refused;
+# HTTP keeps 409 HARNESS_LOCKED and 422 FORK_POINT_NOT_SUPPORTED with the same messages.
+
 
 shapes:
   Threads:
-    storage: Arc<Storage>
+    store: ThreadsStore
+    projects: Projects
     # The core's own `Harness`, shared: a harness change closes its session.
     harness: Arc<Harness>
     # A clone of the core's `Code`: `list` touches the project (§15.6).
     code: Code
     # Stops the turn only after the removal write, without holding a session slot.
     stopper: ThreadStopper
+  ThreadsStore:
+    storage: Arc<Storage> # Private to threads; uses the existing shared handle.
   PlanningThread:
+    profile: Option<String>
     id: ThreadId
     project_id: ProjectId
     title: String
@@ -68,6 +98,7 @@ shapes:
     # and its `title_source` the source's.
     forked_from_thread: Option<ThreadId>
   TurnContext:
+    profile: Option<String>
     # What a turn inherits from durable state, never from its caller.
     project_directory: Option<PathBuf>
     harness_session_id: Option<String>
@@ -84,6 +115,7 @@ shapes:
     author: Actor
     body: String
     refs: Vec<EntryRef>
+    card: Option<serde_json::Value>
     created_at: String
     # A fork's copied entries keep the source's: provenance only.
     operation_id: Option<OperationId>
@@ -119,6 +151,8 @@ shapes:
 
 functions:
   service:
+    record_harness_session:
+      signature: "(&self, thread: &ThreadId, session: &str) -> Result<bool, CoreError>"
     list_for_profile: Read live agent conversations newest first by created_at then id.
     list:
       signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError>"
@@ -168,21 +202,20 @@ functions:
       # The inverse of `as_str`; `None` for text no variant names.
   store:
     create_planning_thread:
-      signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, StorageError>"
+      signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, CoreError>"
       # One write: classify (scope Project) → insert_thread → record_command.
     set_thread_harness:
-      signature: "(&self, ctx, thread, harness) -> Result<PlanningThread, StorageError>"
+      signature: "(&self, ctx, thread, harness) -> Result<PlanningThread, ThreadsError>"
       # One write: classify (scope Thread; a replay answers the thread) →
       # load → fork or any operation is HarnessLocked → UPDATE (the trigger's
       # refusal also HarnessLocked) → `PlanningThreadHarnessChanged` →
       # record_command.
     turn_context:
       signature: "(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>"
-      # NotFound for an unknown or removed thread. Read by Turns, Harness and Sessions.
+      # Private wrapper for set_harness and test fixtures; delegates to turn_context_in.
     record_harness_session:
       signature: "(&self, thread_id, session_id) -> Result<bool, StorageError>"
-      # Written once: only while NULL. A turn's watcher calls it; no command,
-      # no event.
+      # Written once through record_harness_session_in: only while NULL; no command or event.
     list_threads_for_project:
       signature: "(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>"
       # Removed threads are omitted.
@@ -194,17 +227,16 @@ functions:
       signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
     append_thread_entry:
       signature: "(&self, thread_id, entry: NewThreadEntry) -> Result<ThreadEntry, StorageError>"
-      # Its own write around `append_entry_in`; no command. A turn's watcher
-      # appends the agent's entries through it.
+      # Test-only write around `append_entry_in`; no command.
     list_thread_entries:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>"
     fork_thread:
-      signature: "(&self, ctx, source, at_entry) -> Result<PlanningThread, StorageError>"
+      signature: "(&self, ctx, source, at_entry) -> Result<PlanningThread, ThreadsError>"
       # One write: classify (scope Thread, the source) → load and refuse removed → busy →
       # fork_point → the row → `PlanningThreadCreated` with the fork's
       # provenance → copy_entries → next ordinal → record_command.
     fork_point:
-      signature: "(conn, source, at) -> Result<(i64, String), StorageError>"
+      signature: "(conn, source, at) -> Result<(i64, String), ThreadsError>"
       private: true
     copy_entries:
       signature: "(conn, source, fork, upto, ts) -> Result<i64, StorageError>"
@@ -223,12 +255,12 @@ functions:
       # `ThreadEntryAppended` { ordinal, kind }.
     title_from_first_message_in:
       signature: "(conn, thread, entry: &ThreadEntryId, message: &str, actor: Actor, ts) -> Result<(), StorageError>"
-      # `title::from_first_message`; nothing for a blank message. One UPDATE
+      # `Threads::title_from_first_message`; nothing for a blank message. One UPDATE
       # WHERE title_source = 'client' and no other UserMessage than `entry`
       # → `ThreadRetitled` { title, source: "first_message" } by `actor`.
-    title_from_harness:
-      signature: "(&self, thread: &ThreadId, title: &str) -> Result<bool, StorageError>"
-      # `title::from_harness`; `false` for an empty title or a placeholder ("New session" and the like). Its own write: one
+    title_from_harness_in:
+      signature: "(conn: &mut SqliteConnection, thread: &ThreadId, title: &str, ts: &str) -> Result<bool, StorageError>"
+      # `Threads::harness_title`; `false` for an empty title or a placeholder ("New session" and the like). In the caller's write: one
       # UPDATE WHERE title <> it AND title_source IN (client, first_message,
       # harness) → `ThreadRetitled` { title, source: "harness" } by System.
       # Answers whether the title changed.
@@ -236,10 +268,10 @@ functions:
       signature: "(conn, project, thread, title, source, actor, ts) -> Result<(), StorageError>"
       private: true
   title:
-    from_first_message:
+    title_from_first_message:
       signature: "(message: &str) -> Option<String>"
       # The first non-blank line, through `one_line`.
-    from_harness:
+    harness_title:
       signature: "(title: &str) -> Option<String>"
       # `one_line`, then a placeholder is dropped (`is_placeholder`).
     is_placeholder:
@@ -250,8 +282,21 @@ functions:
       private: true
       # Whitespace collapsed; over `TITLE_MAX_CHARS` (60) cut to 59 and "…";
       # `None` when empty.
+  transaction_reads:
+    get_in: "(conn, thread) -> Result<PlanningThread, StorageError>; retained historical metadata"
+    project_in: "(conn, thread) -> Result<ProjectId, StorageError>; retained project id"
+    is_live_in: "(conn, thread) -> Result<bool, StorageError>"
+    require_live_in: "(conn, thread) -> Result<(), StorageError>; NotFound(planning_thread)"
+    turn_context_in: "(conn, thread) -> Result<TurnContext, StorageError>; same snapshot as Projects::get_in"
+    list_for_profile_in: "(conn, slug) -> Result<Vec<PlanningThread>, StorageError>; live threads newest first"
+    card_in: "(conn, entry) -> Result<String, StorageError>; immutable proposal replay payload"
+    user_operations_in: "(conn, thread) -> Result<Vec<String>, StorageError>; UserMessage operation ids by descending ordinal"
+    record_harness_session_in: "(conn, thread, session) -> Result<bool, StorageError>; first write wins"
 
 enums:
+  ThreadsError:
+    source: crate::threads::error::ThreadsError
+    values: [HarnessLocked, ForkPointNotSupported, Storage]
   CoreError:
     source: crate::error::CoreError
     values: []
@@ -273,17 +318,28 @@ enums:
 
 
 shared_in_transaction:
+  get_in: Plans reads retained thread metadata for historical attribution.
+  project_in: Turns and Grants read the thread's owning project in their transaction.
+  is_live_in: Turns checks thread liveness with the exact running operation.
+  require_live_in: Grants and Turns refuse removed or missing threads before writes.
+  turn_context_in: Harness, Turns, Design and Plans read thread facts in one snapshot.
+  list_for_profile_in: Harness finds a deleted agent's live thread adapters.
+  card_in: Design reads an immutable entry card during proposal command replay.
+  user_operations_in: Turns reads user-entry operation ids in descending ordinal order.
+  record_harness_session_in: Turns records the first completed session without replacing it.
+  title_from_harness_in: Harness writes generated titles in dispatch order in its own transaction.
   profile_in: Turns reads the immutable profile to remember agent-scoped settings.
   append_entry_in: "Design's vision proposal write (design/store/proposals.rs propose_vision_in), Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
   title_from_first_message_in: "Turns' start (turns/store/turn.rs start_turn): the thread is titled after its first message in the write that appends that message, so a refused or replayed start titles nothing"
 
 
 called_by_other_services:
-  list_threads_for_profile: Harness closes live adapters after an agent is deleted.
-  turn_context: "Harness (harness/mod.rs open_session, change_model, context, choices, limits_of; harness/sessions.rs open_live; harness/setup.rs context_before_turn) and Turns (turns/mod.rs send): the thread's project and harness, read before any session or turn work; NotFound for an unknown thread"
-  append_thread_entry: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
-  record_harness_session: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"
-  title_from_harness: "Harness (harness/titles.rs keep_titles): the title a session's harness sends (§12.3), written in the order it sent them, outside any turn: the adapter sends it after the turn has answered"
+  harness_title: Harness skips empty or placeholder titles before opening a write transaction.
+  list_for_profile_in: Harness closes live adapters after an agent is deleted.
+  turn_context_in: "Harness (mod.rs, live.rs, setup.rs), Turns::send_with, Design::planner_approver and Plans::approve_as_planner read thread facts before session or turn work; NotFound for an unknown or removed thread"
+  append_entry_in: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
+  record_harness_session_in: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"
+  title_from_harness_in: "Harness (harness/titles.rs keep_titles): the title a session's harness sends (§12.3), written in the order it sent them, outside any turn: the adapter sends it after the turn has answered"
 
 
 obligations:

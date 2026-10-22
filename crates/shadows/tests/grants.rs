@@ -404,7 +404,8 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     }
     assert_eq!(draft_ref_binding(&app, &fresh).await, None);
     assert_eq!(draft_ref_binding(&app, &expired).await, None);
-    let threads = app.storage.list_threads_for_project(&app.project).await;
+    let threads =
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project).await;
     assert_eq!(threads.unwrap().len(), 1, "a refused start made no thread");
 
     // Its own grant starts a plan with it, and the ref is bound to that plan.

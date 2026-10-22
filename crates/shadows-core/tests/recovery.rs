@@ -262,12 +262,12 @@ impl Daemon {
             let loaded = self.runtime.storage.get_operation(&op).await.unwrap();
             if loaded.finished_at.is_some() {
                 assert_eq!(loaded.status_kind, "Completed", "{loaded:?}");
-                let entries = self
-                    .runtime
-                    .storage
-                    .list_thread_entries(thread)
-                    .await
-                    .unwrap();
+                let entries = shadows_core::Threads::list_thread_entries_for_test(
+                    &self.runtime.storage,
+                    thread,
+                )
+                .await
+                .unwrap();
                 return entries.last().unwrap().body.clone();
             }
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -327,21 +327,20 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
     )
     .await
     .unwrap();
-    let thread = storage
-        .create_planning_thread(
-            &ctx("c2", "thread.create"),
-            &project.id,
-            "T",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        storage,
+        &ctx("c2", "thread.create"),
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
 
     first.turn(&thread, "hi").await;
-    let session = storage
-        .turn_context(&thread)
+    let session = shadows_core::Threads::turn_context_for_test(storage, &thread)
         .await
         .unwrap()
         .harness_session_id

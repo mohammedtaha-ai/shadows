@@ -155,11 +155,10 @@ async fn a_draft_ref_binds_in_both_paths() {
     }
     let plans = app.storage.list_plans(&app.project, true).await.unwrap();
     assert_eq!(plans.len(), 2, "the refused starts created no plan");
-    let threads = app
-        .storage
-        .list_threads_for_project(&app.project)
-        .await
-        .unwrap();
+    let threads =
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
+            .await
+            .unwrap();
     assert_eq!(
         threads.len(),
         1,
@@ -218,18 +217,17 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
     let app = test_app().await;
     let v1 = draft(&app).await.workflow_id;
     let foreign = other_project(&app).await;
-    let other = app
-        .storage
-        .create_planning_thread(
-            &ctx("t2", "thread.create"),
-            &foreign,
-            "O",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let other = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("t2", "thread.create"),
+        &foreign,
+        "O",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let grant = insert_grant(&app, "thread", &foreign, Some(&other)).await;
     let planner = Writer::Planner {
         thread: other,
@@ -314,11 +312,10 @@ async fn an_external_start_from_scratch_creates_a_plan_and_no_thread() {
     .unwrap();
     assert_eq!(started.version, 1);
 
-    let threads = app
-        .storage
-        .list_threads_for_project(&app.project)
-        .await
-        .unwrap();
+    let threads =
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
+            .await
+            .unwrap();
     assert_eq!(threads.len(), 1, "only the app's own thread");
     let plan = app.storage.get_plan(&started.workflow_id).await.unwrap();
     assert_eq!(
@@ -390,8 +387,7 @@ async fn external_draft_starts_require_a_draft_ref() {
         1
     );
     assert_eq!(
-        app.storage
-            .list_threads_for_project(&app.project)
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
             .await
             .unwrap()
             .len(),

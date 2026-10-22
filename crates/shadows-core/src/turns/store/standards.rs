@@ -3,7 +3,7 @@
 use sqlx::SqliteConnection;
 
 use crate::db::StorageError;
-use crate::projects::{ProjectId, Projects};
+use crate::projects::Projects;
 use crate::standards::{EffectiveStandards, Standards};
 use crate::turns::{OperationId, Turns};
 
@@ -14,15 +14,23 @@ impl Turns {
         operation: &OperationId,
     ) -> Result<EffectiveStandards, StorageError> {
         let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT t.project_id,i.standards_additions_version_id
+            "SELECT o.thread_id,i.standards_additions_version_id
              FROM operation o JOIN agent_invocation i ON i.operation_id=o.id
-             JOIN planning_thread t ON t.id=o.thread_id WHERE o.id=?",
+             WHERE o.id=?",
         )
         .bind(operation.as_str())
         .fetch_optional(&mut *conn)
         .await?;
-        let (project, pin) = row.ok_or(StorageError::NotFound("invocation"))?;
-        let project = ProjectId::from_stored(project);
+        let (thread, pin) = row.ok_or(StorageError::NotFound("invocation"))?;
+        let project = crate::threads::Threads::project_in(
+            conn,
+            &crate::threads::ThreadId::from_stored(thread),
+        )
+        .await
+        .map_err(|error| match error {
+            StorageError::NotFound(_) => StorageError::NotFound("invocation"),
+            other => other,
+        })?;
         Projects::require_live_in(conn, &project)
             .await
             .map_err(|error| match error {

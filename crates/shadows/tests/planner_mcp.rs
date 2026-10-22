@@ -117,7 +117,9 @@ async fn save_instructions(app: &App, command: &str, body: &str) {
 }
 
 async fn project_dir(app: &App) -> std::path::PathBuf {
-    let context = app.storage.turn_context(&app.thread).await.unwrap();
+    let context = shadows_core::Threads::turn_context_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
     context.project_directory.expect("a project directory")
 }
 
@@ -199,19 +201,17 @@ async fn a_second_conversation_carries_the_plan_on() {
         .await
         .unwrap();
 
-    let thread_b = l
-        .app
-        .storage
-        .create_planning_thread(
-            &app::ctx("thread-b", "thread.create"),
-            &l.app.project,
-            "B",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let thread_b = shadows_core::Threads::create_planning_thread_for_test(
+        &l.app.storage,
+        &app::ctx("thread-b", "thread.create"),
+        &l.app.project,
+        "B",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let listing = reply_on(&l.app, &thread_b, "mcp workflow_list {}").await;
     let listing: Value = serde_json::from_str(&listing).expect(&listing);
     assert_eq!(listing.as_array().unwrap().len(), 1, "{listing}");

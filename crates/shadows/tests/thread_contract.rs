@@ -60,16 +60,16 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
     )
     .await
     .unwrap();
-    let thread = storage
-        .create_planning_thread(
-            &ctx_kind("cmd-t", "thread.create", &params),
-            &project.id,
-            "T",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx_kind("cmd-t", "thread.create", &params),
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
 
     let mut handles = Vec::new();
     for w in 0..8 {
@@ -77,20 +77,20 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
         let thread_id = thread.id.clone();
         handles.push(tokio::spawn(async move {
             for i in 0..25 {
-                storage
-                    .append_thread_entry(
-                        &thread_id,
-                        NewThreadEntry {
-                            kind: ThreadEntryKind::UserMessage,
-                            author: Actor::user("local"),
-                            body: &format!("w{w}-i{i}"),
-                            refs: &[],
-                            card: None,
-                            operation_id: None,
-                        },
-                    )
-                    .await
-                    .unwrap();
+                shadows_core::Threads::append_thread_entry_for_test(
+                    &storage,
+                    &thread_id,
+                    NewThreadEntry {
+                        kind: ThreadEntryKind::UserMessage,
+                        author: Actor::user("local"),
+                        body: &format!("w{w}-i{i}"),
+                        refs: &[],
+                        card: None,
+                        operation_id: None,
+                    },
+                )
+                .await
+                .unwrap();
             }
         }));
     }
@@ -138,34 +138,36 @@ async fn entries_are_read_in_ordinal_order() {
     )
     .await
     .unwrap();
-    let thread = storage
-        .create_planning_thread(
-            &ctx_kind("cmd-t", "thread.create", &params),
-            &project.id,
-            "T",
-            "claude-code",
-            None,
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx_kind("cmd-t", "thread.create", &params),
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
+
+    for body in ["first", "second", "third"] {
+        shadows_core::Threads::append_thread_entry_for_test(
+            &storage,
+            &thread.id,
+            NewThreadEntry {
+                kind: ThreadEntryKind::UserMessage,
+                author: Actor::user("local"),
+                body,
+                refs: &[],
+                card: None,
+                operation_id: None,
+            },
         )
         .await
         .unwrap();
-
-    for body in ["first", "second", "third"] {
-        storage
-            .append_thread_entry(
-                &thread.id,
-                NewThreadEntry {
-                    kind: ThreadEntryKind::UserMessage,
-                    author: Actor::user("local"),
-                    body,
-                    refs: &[],
-                    card: None,
-                    operation_id: None,
-                },
-            )
-            .await
-            .unwrap();
     }
-    let entries = storage.list_thread_entries(&thread.id).await.unwrap();
+    let entries = shadows_core::Threads::list_thread_entries_for_test(&storage, &thread.id)
+        .await
+        .unwrap();
     assert_eq!(
         entries.iter().map(|e| e.body.as_str()).collect::<Vec<_>>(),
         vec!["first", "second", "third"]
@@ -193,38 +195,40 @@ async fn entry_refs_round_trip_through_storage() {
     )
     .await
     .unwrap();
-    let thread = storage
-        .create_planning_thread(
-            &ctx_kind("cmd-t", "thread.create", &params),
-            &project.id,
-            "T",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx_kind("cmd-t", "thread.create", &params),
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     let refs = vec![
         EntryRef::Decision("decision-1".into()),
         EntryRef::Operation(OperationId::from_literal("operation-1")),
     ];
 
-    let appended = storage
-        .append_thread_entry(
-            &thread.id,
-            NewThreadEntry {
-                kind: ThreadEntryKind::UserMessage,
-                author: Actor::user("local"),
-                body: "hello",
-                refs: &refs,
-                card: None,
-                operation_id: None,
-            },
-        )
-        .await
-        .unwrap();
+    let appended = shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        NewThreadEntry {
+            kind: ThreadEntryKind::UserMessage,
+            author: Actor::user("local"),
+            body: "hello",
+            refs: &refs,
+            card: None,
+            operation_id: None,
+        },
+    )
+    .await
+    .unwrap();
     assert_eq!(appended.refs, refs);
 
-    let listed = storage.list_thread_entries(&thread.id).await.unwrap();
+    let listed = shadows_core::Threads::list_thread_entries_for_test(&storage, &thread.id)
+        .await
+        .unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].refs, refs);
 }
@@ -247,16 +251,16 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
     )
     .await
     .unwrap();
-    let thread = storage
-        .create_planning_thread(
-            &ctx_kind("cmd-t", "thread.create", &params),
-            &project.id,
-            "T",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx_kind("cmd-t", "thread.create", &params),
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
 
     sqlx::query(
         "CREATE TRIGGER reject_thread_entry BEFORE INSERT ON thread_entry
@@ -265,39 +269,39 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
     .execute(storage.reader())
     .await
     .unwrap();
-    storage
-        .append_thread_entry(
-            &thread.id,
-            NewThreadEntry {
-                kind: ThreadEntryKind::UserMessage,
-                author: Actor::user("local"),
-                body: "lost",
-                refs: &[],
-                card: None,
-                operation_id: None,
-            },
-        )
-        .await
-        .expect_err("the trigger must reject the entry insert");
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        NewThreadEntry {
+            kind: ThreadEntryKind::UserMessage,
+            author: Actor::user("local"),
+            body: "lost",
+            refs: &[],
+            card: None,
+            operation_id: None,
+        },
+    )
+    .await
+    .expect_err("the trigger must reject the entry insert");
     sqlx::query("DROP TRIGGER reject_thread_entry")
         .execute(storage.reader())
         .await
         .unwrap();
 
-    let entry = storage
-        .append_thread_entry(
-            &thread.id,
-            NewThreadEntry {
-                kind: ThreadEntryKind::UserMessage,
-                author: Actor::user("local"),
-                body: "kept",
-                refs: &[],
-                card: None,
-                operation_id: None,
-            },
-        )
-        .await
-        .unwrap();
+    let entry = shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        NewThreadEntry {
+            kind: ThreadEntryKind::UserMessage,
+            author: Actor::user("local"),
+            body: "kept",
+            refs: &[],
+            card: None,
+            operation_id: None,
+        },
+    )
+    .await
+    .unwrap();
     assert_eq!(
         entry.ordinal, 1,
         "failed insertion must not consume an ordinal"
@@ -329,16 +333,16 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
     {
         let command = format!("c{i}");
         let params = serde_json::json!({ "title": command });
-        let thread = storage
-            .create_planning_thread(
-                &ctx_kind(&command, "thread.create", &params),
-                &project.id,
-                &command,
-                "claude-code",
-                None,
-            )
-            .await
-            .unwrap();
+        let thread = shadows_core::Threads::create_planning_thread_for_test(
+            &storage,
+            &ctx_kind(&command, "thread.create", &params),
+            &project.id,
+            &command,
+            "claude-code",
+            None,
+        )
+        .await
+        .unwrap();
         sqlx::query("UPDATE planning_thread SET created_at = ? WHERE id = ?")
             .bind(stamp)
             .bind(thread.id.as_str())
@@ -347,13 +351,13 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
             .unwrap();
         created.push(thread.id);
     }
-    let listed: Vec<_> = storage
-        .list_threads_for_project(&project.id)
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
+    let listed: Vec<_> =
+        shadows_core::Threads::list_threads_for_project_for_test(&storage, &project.id)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
     assert_eq!(listed, created);
 }
 
@@ -376,20 +380,20 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
         ThreadEntryKind::PlanApproved,
     ];
     for kind in all {
-        app.storage
-            .append_thread_entry(
-                &thread_id,
-                NewThreadEntry {
-                    kind,
-                    author: Actor::system(),
-                    body: "b",
-                    refs: &[],
-                    card: None,
-                    operation_id: None,
-                },
-            )
-            .await
-            .unwrap();
+        shadows_core::Threads::append_thread_entry_for_test(
+            &app.storage,
+            &thread_id,
+            NewThreadEntry {
+                kind,
+                author: Actor::system(),
+                body: "b",
+                refs: &[],
+                card: None,
+                operation_id: None,
+            },
+        )
+        .await
+        .unwrap();
     }
     let kinds: Vec<_> = entries_on(&app, &thread_id)
         .await
@@ -429,20 +433,20 @@ async fn a_task_reference_round_trips() {
         EntryRef::Workflow(WorkflowId::from_literal("w1")),
         EntryRef::Task(TaskId::from_literal("t1")),
     ];
-    app.storage
-        .append_thread_entry(
-            &thread_id,
-            NewThreadEntry {
-                kind: ThreadEntryKind::UserMessage,
-                author: Actor::user("local"),
-                body: "change this",
-                refs: &refs,
-                card: None,
-                operation_id: None,
-            },
-        )
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &app.storage,
+        &thread_id,
+        NewThreadEntry {
+            kind: ThreadEntryKind::UserMessage,
+            author: Actor::user("local"),
+            body: "change this",
+            refs: &refs,
+            card: None,
+            operation_id: None,
+        },
+    )
+    .await
+    .unwrap();
     assert_eq!(entries_on(&app, &thread_id).await[0].refs, refs.to_vec());
 
     let stored: String = sqlx::query_scalar(
@@ -468,28 +472,26 @@ async fn a_task_reference_round_trips() {
 #[tokio::test]
 async fn an_unknown_stored_kind_is_a_constraint_failure() {
     let app = test_app().await;
-    app.storage
-        .append_thread_entry(
-            &app.thread,
-            NewThreadEntry {
-                kind: ThreadEntryKind::UserMessage,
-                author: Actor::user("local"),
-                body: "b",
-                refs: &[],
-                card: None,
-                operation_id: None,
-            },
-        )
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &app.storage,
+        &app.thread,
+        NewThreadEntry {
+            kind: ThreadEntryKind::UserMessage,
+            author: Actor::user("local"),
+            body: "b",
+            refs: &[],
+            card: None,
+            operation_id: None,
+        },
+    )
+    .await
+    .unwrap();
     sqlx::query("UPDATE thread_entry SET kind = 'Bogus' WHERE thread_id = ?")
         .bind(app.thread.as_str())
         .execute(app.storage.reader())
         .await
         .unwrap();
-    let error = app
-        .storage
-        .list_thread_entries(&app.thread)
+    let error = shadows_core::Threads::list_thread_entries_for_test(&app.storage, &app.thread)
         .await
         .expect_err("an unknown kind must not read");
     assert!(

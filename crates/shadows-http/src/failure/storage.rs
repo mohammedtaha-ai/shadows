@@ -28,9 +28,6 @@ impl From<StorageError> for Failure {
             StorageError::NotFound(_) => {
                 return own(StatusCode::NOT_FOUND, ErrorCode::InvalidCommand);
             }
-            StorageError::HarnessLocked => {
-                return own(StatusCode::CONFLICT, ErrorCode::HarnessLocked);
-            }
             StorageError::ThreadBusy => return own(StatusCode::CONFLICT, ErrorCode::ThreadBusy),
             StorageError::QueuedMessageGone => {
                 return own(StatusCode::NOT_FOUND, ErrorCode::QueuedMessageGone);
@@ -80,12 +77,6 @@ impl From<StorageError> for Failure {
             }
             StorageError::TaskNotInPlan(_) => {
                 return own(StatusCode::UNPROCESSABLE_ENTITY, ErrorCode::InvalidCommand);
-            }
-            StorageError::ForkPointNotSupported => {
-                return own(
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    ErrorCode::ForkPointNotSupported,
-                );
             }
             StorageError::TransitionConflict { .. } => (
                 StatusCode::CONFLICT,

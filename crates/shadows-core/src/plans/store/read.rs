@@ -298,12 +298,9 @@ pub(super) async fn written_by(
     }
     let thread = thread
         .ok_or_else(|| StorageError::Constraint(format!("plan version {id} has no writer")))?;
-    let (thread_title, removed_at): (String, Option<String>) =
-        sqlx::query_as("SELECT title, removed_at FROM planning_thread WHERE id = ?")
-            .bind(&thread)
-            .fetch_optional(&mut *conn)
-            .await?
-            .ok_or(StorageError::NotFound("planning_thread"))?;
+    let metadata =
+        crate::threads::Threads::get_in(conn, &ThreadId::from_stored(thread.clone())).await?;
+    let (thread_title, removed_at) = (metadata.title, metadata.removed_at);
     let invocation: Option<(String, String)> = match operation {
         Some(op) => {
             sqlx::query_as(

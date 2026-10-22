@@ -56,16 +56,16 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
     .unwrap();
     let mut threads = Vec::new();
     for id in ["c2", "c3"] {
-        let thread = storage
-            .create_planning_thread(
-                &ctx(id, "thread.create"),
-                &project.id,
-                id,
-                "claude-code",
-                None,
-            )
-            .await
-            .unwrap();
+        let thread = shadows_core::Threads::create_planning_thread_for_test(
+            &storage,
+            &ctx(id, "thread.create"),
+            &project.id,
+            id,
+            "claude-code",
+            None,
+        )
+        .await
+        .unwrap();
         threads.push(thread.id);
     }
     let sessions = acp::fake_sessions(storage.clone());
@@ -110,12 +110,10 @@ impl Fixture {
     async fn session_of_a_turn(&self, thread: &ThreadId) -> (String, String) {
         let op = self.start(thread, "report").await;
         assert_eq!(self.wait_for_terminal(&op).await, "Completed");
-        let entries = self
-            .runtime
-            .storage
-            .list_thread_entries(thread)
-            .await
-            .unwrap();
+        let entries =
+            shadows_core::Threads::list_thread_entries_for_test(&self.runtime.storage, thread)
+                .await
+                .unwrap();
         let reply = entries
             .iter()
             .rev()
@@ -129,9 +127,7 @@ impl Fixture {
     }
 
     async fn recorded(&self, thread: &ThreadId) -> Option<String> {
-        self.runtime
-            .storage
-            .turn_context(thread)
+        shadows_core::Threads::turn_context_for_test(&self.runtime.storage, thread)
             .await
             .unwrap()
             .harness_session_id

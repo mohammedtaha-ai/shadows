@@ -1,5 +1,4 @@
-//! One job: the planning threads and what they recorded (spec §4, §12.6,
-//! §12.9, §14.4) — the `Threads` service.
+//! One job: the planning threads and what they recorded — the `Threads` service.
 //!
 //! A thread's harness is one Shadows knows, `claude-code` when none is named;
 //! it changes only before the thread's first operation, never on a fork, and
@@ -11,8 +10,11 @@
 //! `model` holds the types, `title` what a title taken from the conversation reads, and `store` the
 //! queries.
 
+mod error;
 mod model;
 mod store;
+#[cfg(feature = "test-support")]
+mod testing;
 mod title;
 
 use std::sync::Arc;
@@ -23,10 +25,6 @@ pub use model::{
     EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind,
     ThreadId, TurnContext,
 };
-// What another write calls inside its own transaction (spec §14.6): a turn,
-// an approval or a shown plan appends an entry, and a turn titles its thread
-// after its first message.
-pub(crate) use store::{append_entry_in, profile_in, title_from_first_message_in};
 
 use crate::code::Code;
 use crate::db::{CommandContext, Storage};
@@ -35,11 +33,13 @@ use crate::harness::Harness;
 use crate::projects::{ProjectId, Projects};
 use crate::turns::Operation;
 use crate::turns::{StopOutcome, ThreadStopper};
+pub(crate) use error::ThreadsError;
+use store::ThreadsStore;
 
 /// Threads: what storage holds, the harness whose session a harness change
-/// closes, and the code index a listed project is touched in (§15.6).
+/// closes, and the code index a listed project is touched in.
 pub struct Threads {
-    storage: Arc<Storage>,
+    store: ThreadsStore,
     harness: Arc<Harness>,
     code: Code,
     projects: Projects,
@@ -55,7 +55,7 @@ impl Threads {
         stopper: ThreadStopper,
     ) -> Self {
         Self {
-            storage,
+            store: ThreadsStore::with_storage(storage),
             harness,
             code,
             projects,
@@ -64,9 +64,9 @@ impl Threads {
     }
 
     /// A project's planning threads, oldest first. An unknown project has none.
-    /// The web client opening a project lists them: the project is used (§15.6).
+    /// Opening a project lists its threads, so the project is touched in Code.
     pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError> {
-        let threads = self.storage.list_threads_for_project(project).await?;
+        let threads = self.store.list_threads_for_project(project).await?;
         self.code.touch(project).await;
         Ok(threads)
     }
@@ -95,24 +95,23 @@ impl Threads {
         let mut params = serde_json::json!({
             "project": project, "title": title, "harness": harness,
         });
-        // Only an agent's thread names one, so a Planner thread's fingerprint
-        // stays what it was before agents existed.
+        // Only an agent's thread names one; Planner fingerprints omit the profile.
         if let Some(profile) = profile {
             params["profile"] = profile.into();
         }
         let c = CommandContext::user(command_id, "thread.create", params);
-        self.storage
+        self.store
             .create_planning_thread(&c, project, title, harness, profile)
             .await
     }
 
     pub async fn list_for_profile(&self, slug: &str) -> Result<Vec<PlanningThread>, CoreError> {
-        Ok(self.storage.list_threads_for_profile(slug).await?)
+        Ok(self.store.list_threads_for_profile(slug).await?)
     }
 
-    /// Changes the thread's harness before its first turn (spec §12.6):
+    /// Changes the thread's harness before its first turn:
     /// "thread.harness", params { "thread_id", "harness" }. When the harness
-    /// changed, the thread's session is closed (§12.2); a failure to close is
+    /// changed, the thread's session is closed; a failure to close is
     /// logged and the change still answers.
     pub async fn set_harness(
         &self,
@@ -121,14 +120,14 @@ impl Threads {
         harness: &str,
     ) -> Result<PlanningThread, CoreError> {
         Projects::known_harness(harness)?;
-        let context = self.storage.turn_context(thread).await?;
+        let context = self.store.turn_context(thread).await?;
         self.projects
             .harness_fits(&context.project_id, harness)
             .await?;
         let before = context.harness;
         let params = serde_json::json!({ "thread_id": thread, "harness": harness });
         let c = CommandContext::user(command_id, "thread.harness", params);
-        let updated = self.storage.set_thread_harness(&c, thread, harness).await?;
+        let updated = self.store.set_thread_harness(&c, thread, harness).await?;
         if updated.harness != before
             && let Err(error) = self.harness.close_session(thread).await
         {
@@ -137,7 +136,7 @@ impl Threads {
         Ok(updated)
     }
 
-    /// Forks the thread from its last completed entry (spec §12.9):
+    /// Forks the thread from its last completed entry:
     /// "thread.fork", params { "thread_id", "at_entry_id" }.
     pub async fn fork(
         &self,
@@ -147,20 +146,24 @@ impl Threads {
     ) -> Result<PlanningThread, CoreError> {
         let params = serde_json::json!({ "thread_id": thread, "at_entry_id": at });
         let c = CommandContext::user(command_id, "thread.fork", params);
-        Ok(self.storage.fork_thread(&c, thread, at).await?)
+        Ok(self.store.fork_thread(&c, thread, at).await?)
     }
 
     /// A thread's entries in ordinal order.
     pub async fn entries(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError> {
-        Ok(self.storage.list_thread_entries(thread).await?)
+        Ok(self.store.list_thread_entries(thread).await?)
     }
 
     /// A thread's operations — its turns — newest first, each as it now stands.
     pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError> {
-        Ok(self.storage.list_operations_for_thread(thread).await?)
+        Ok(self
+            .store
+            .storage
+            .list_operations_for_thread(thread)
+            .await?)
     }
 
-    /// Remove first, then stop the turn, then close its adapter (§16.5).
+    /// Remove first, then stop the turn, then close its adapter.
     pub async fn remove(
         &self,
         command_id: String,
@@ -171,7 +174,7 @@ impl Threads {
             "thread.remove",
             serde_json::json!({ "thread_id": thread }),
         );
-        let removed = self.storage.remove_thread(&c, thread).await?;
+        let removed = self.store.remove_thread(&c, thread).await?;
         match self.stopper.stop_running(thread).await {
             Ok(StopOutcome::TerminationFailed) => {
                 tracing::error!(thread_id = %thread, "thread.remove_stop_failed");
@@ -189,6 +192,14 @@ impl Threads {
 
     /// One thread, including a removed one, for historical plan links.
     pub async fn get(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError> {
-        Ok(self.storage.get_thread(thread).await?)
+        Ok(self.store.get_thread(thread).await?)
+    }
+    /// Records the session once; a racing first completion cannot replace it.
+    pub async fn record_harness_session(
+        &self,
+        thread: &ThreadId,
+        session: &str,
+    ) -> Result<bool, CoreError> {
+        Ok(self.store.record_harness_session(thread, session).await?)
     }
 }

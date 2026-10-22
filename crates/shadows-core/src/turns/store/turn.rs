@@ -16,10 +16,7 @@ use crate::harness::remember_settings;
 use crate::plans::Focus;
 use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
-use crate::threads::{
-    EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, append_entry_in,
-    title_from_first_message_in,
-};
+use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId};
 use shadows_agent::TurnSettings;
 
@@ -107,11 +104,10 @@ async fn focused(
 ) -> Result<(u32, String), StorageError> {
     let in_project: Option<i64> = sqlx::query_scalar(
         "SELECT 1 FROM workflow w JOIN plan p ON p.id = w.plan_id
-            JOIN planning_thread t ON t.project_id = p.project_id
-            WHERE w.id = ? AND t.id = ?",
+            WHERE w.id = ? AND p.project_id = ?",
     )
     .bind(focus.workflow_id.as_str())
-    .bind(thread.as_str())
+    .bind(Threads::project_in(conn, thread).await?.as_str())
     .fetch_optional(&mut *conn)
     .await?;
     if in_project.is_none() {
@@ -148,15 +144,14 @@ pub(crate) async fn check_running_turn_in(
     operation: &OperationId,
 ) -> Result<(), StorageError> {
     let found: Option<i64> = sqlx::query_scalar(
-        "SELECT 1 FROM operation o JOIN planning_thread t ON t.id=o.thread_id
-         WHERE o.id=? AND o.thread_id=? AND o.status_kind='Running'
-           AND t.removed_at IS NULL",
+        "SELECT 1 FROM operation o
+         WHERE o.id=? AND o.thread_id=? AND o.status_kind='Running' ",
     )
     .bind(operation.as_str())
     .bind(thread.as_str())
-    .fetch_optional(conn)
+    .fetch_optional(&mut *conn)
     .await?;
-    if found.is_none() {
+    if found.is_none() || !Threads::is_live_in(conn, thread).await? {
         return Err(StorageError::Constraint(
             "the proposal's turn is no longer running".into(),
         ));
@@ -203,13 +198,7 @@ impl Storage {
                     if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
                         return Ok((recorded(&outcome)?, None));
                     }
-                    let live: Option<i64> = sqlx::query_scalar(
-                        "SELECT 1 FROM planning_thread WHERE id = ? AND removed_at IS NULL",
-                    )
-                    .bind(thread.as_str())
-                    .fetch_optional(&mut *conn)
-                    .await?;
-                    live.ok_or(StorageError::NotFound("planning_thread"))?;
+                    crate::threads::Threads::require_live_in(conn, &thread).await?;
                     if has_open_operation(conn, &thread).await? {
                         return Err(StorageError::ThreadBusy);
                     }
@@ -229,7 +218,7 @@ impl Storage {
                     let refs: Vec<EntryRef> = refs.collect();
                     let op = OperationId::generate();
                     let transition = insert_pending(conn, &op, &thread, &runtime, &ts).await?;
-                    let entry = append_entry_in(
+                    let entry = Threads::append_entry_in(
                         conn,
                         &thread,
                         NewThreadEntry {
@@ -244,8 +233,10 @@ impl Storage {
                     )
                     .await?;
                     let author = Actor::user(&ctx.principal_id);
-                    title_from_first_message_in(conn, &thread, &entry.id, &prompt, author, &ts)
-                        .await?;
+                    Threads::title_from_first_message_in(
+                        conn, &thread, &entry.id, &prompt, author, &ts,
+                    )
+                    .await?;
                     let [
                         role,
                         kind,
@@ -296,7 +287,7 @@ impl Storage {
                         .execute(&mut *conn)
                         .await?;
                     }
-                    let profile = crate::threads::profile_in(conn, &thread).await?;
+                    let profile = Threads::profile_in(conn, &thread).await?;
                     let preference = crate::harness::preference_key(kind, profile.as_deref());
                     remember_settings(conn, &preference, &settings, &ts).await?;
                     let outcome = serde_json::json!({
@@ -369,19 +360,41 @@ impl Storage {
         &self,
         thread: &ThreadId,
     ) -> Result<Option<InvocationVersions>, StorageError> {
-        Ok(sqlx::query_as(
-            "SELECT i.prompt_version AS prompt, i.planner_instructions_version_id AS instructions,
-                    i.standards_version AS standards, i.standards_additions_version_id AS additions
-               FROM agent_invocation i
-               JOIN operation o ON o.id = i.operation_id
-               JOIN thread_entry e ON e.operation_id = o.id AND e.thread_id = o.thread_id
-              WHERE o.thread_id = ? AND o.started_at IS NOT NULL AND e.kind = 'UserMessage'
-              ORDER BY e.ordinal DESC
-              LIMIT 1",
+        let mut conn = self.reader().begin().await?;
+        let operations = Threads::user_operations_in(&mut conn, thread).await?;
+        type Row = (
+            String,
+            Option<String>,
+            Option<String>,
+            Option<i64>,
+            Option<String>,
+        );
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT o.id,i.prompt_version,i.planner_instructions_version_id,
+                    i.standards_version,i.standards_additions_version_id
+               FROM agent_invocation i JOIN operation o ON o.id=i.operation_id
+              WHERE o.thread_id=? AND o.started_at IS NOT NULL ORDER BY o.id",
         )
         .bind(thread.as_str())
-        .fetch_optional(self.reader())
-        .await?)
+        .fetch_all(&mut *conn)
+        .await?;
+        let mut delivered: std::collections::HashMap<_, _> = rows
+            .into_iter()
+            .map(|(id, prompt, instructions, standards, additions)| {
+                (
+                    id,
+                    InvocationVersions {
+                        prompt,
+                        instructions,
+                        standards,
+                        additions,
+                    },
+                )
+            })
+            .collect();
+        Ok(operations
+            .into_iter()
+            .find_map(|operation| delivered.remove(&operation)))
     }
 
     /// Whether the thread has a turn that has not ended: checked before a new

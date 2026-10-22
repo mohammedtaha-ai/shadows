@@ -1,3 +1,4 @@
+# Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns the harnesses and each thread's open session (spec §12.2–§12.4, §12.8,
 # §14.4): the harness list, opening a thread's session and answering its
 # choices, a person's model or effort change, the remembered model and

@@ -73,16 +73,16 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
     )
     .await
     .unwrap();
-    let thread = storage
-        .create_planning_thread(
-            &ctx("c2", "thread.create"),
-            &project.id,
-            "T",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx("c2", "thread.create"),
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     let op = storage
         .create_pending_operation(&thread.id, &runtime_id)
         .await

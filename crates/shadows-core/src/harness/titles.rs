@@ -24,7 +24,25 @@ pub(super) fn keep_titles(
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
     tokio::spawn(async move {
         while let Some(title) = rx.recv().await {
-            match storage.title_from_harness(&thread, &title).await {
+            let Some(title) = crate::threads::Threads::harness_title(&title) else {
+                continue;
+            };
+            let owned_thread = thread.clone();
+            let ts = crate::db::now();
+            let result = storage
+                .write_txn(move |conn| {
+                    Box::pin(async move {
+                        crate::threads::Threads::title_from_harness_in(
+                            conn,
+                            &owned_thread,
+                            &title,
+                            &ts,
+                        )
+                        .await
+                    })
+                })
+                .await;
+            match result {
                 Ok(changed) => {
                     tracing::debug!(thread_id = %thread, changed, "thread.harness_title")
                 }

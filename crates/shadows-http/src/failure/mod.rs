@@ -137,11 +137,14 @@ impl Failure {
         }
     }
 
-    /// A refusal whose code and text a service wrote. 422: the request was
-    /// understood and refused. No HTTP route produces one in Milestone 2.5.
+    /// A refusal whose code and text a service wrote. A fixed thread harness
+    /// conflicts with the thread's state; other refusals are invalid requests.
     pub(super) fn refused(code: ErrorCode, message: String) -> Self {
         Failure {
-            status: StatusCode::UNPROCESSABLE_ENTITY,
+            status: match code {
+                ErrorCode::HarnessLocked => StatusCode::CONFLICT,
+                _ => StatusCode::UNPROCESSABLE_ENTITY,
+            },
             code,
             message,
             cause: None,

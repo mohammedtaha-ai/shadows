@@ -2,7 +2,7 @@
 use crate::command::Writer;
 use crate::db::{CommandContext, Storage, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
-use crate::threads::{NewThreadEntry, ThreadEntryKind, append_entry_in};
+use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError, VisionContent, VisionField};
 
 impl Storage {
@@ -28,13 +28,15 @@ impl Storage {
                 };
                 crate::grants::check_writer(conn, &writer, &project).await?;
                 if let Some(id) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
-                    let json: String = sqlx::query_scalar(
-                        "SELECT e.card_json FROM thread_entry e
-                    JOIN design_vision_proposal p ON p.entry_id=e.id WHERE p.id=?",
+                    let entry: String = sqlx::query_scalar(
+                        "SELECT entry_id FROM design_vision_proposal WHERE id=?",
                     )
                     .bind(id)
                     .fetch_one(&mut *conn)
                     .await?;
+                    let json =
+                        Threads::card_in(conn, &crate::threads::ThreadEntryId::from_stored(entry))
+                            .await?;
                     return Ok(serde_json::from_str(&json)?);
                 }
                 crate::turns::check_running_turn_in(conn, thread, &turn).await?;
@@ -110,7 +112,7 @@ impl Storage {
                         .or(p.item_id.as_deref())
                         .unwrap_or_default()
                 );
-                let entry = append_entry_in(
+                let entry = Threads::append_entry_in(
                     conn,
                     thread,
                     NewThreadEntry {

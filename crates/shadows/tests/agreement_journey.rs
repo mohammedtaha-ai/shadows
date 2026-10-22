@@ -91,18 +91,17 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         )
         .await
         .unwrap();
-    let front_thread = a
-        .storage
-        .create_planning_thread(
-            &app::ctx("front", "thread.create"),
-            &a.project,
-            "Frontend",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let front_thread = shadows_core::Threads::create_planning_thread_for_test(
+        &a.storage,
+        &app::ctx("front", "thread.create"),
+        &a.project,
+        "Frontend",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let backend = plan::draft(&a).await;
     let frontend = plan::draft_on(&a, &front_thread, "frontend").await;
     let binding = |part, role, version| AgreementBinding {

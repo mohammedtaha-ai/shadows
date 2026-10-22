@@ -1,3 +1,4 @@
+# Thread grant issue reads live thread ownership through Threads in its write transaction.
 # Owns MCP grants from issue to revocation (spec §13.7): a person's issue and
 # revoke of an external agent's project grant, the bearer check `/mcp` asks of
 # every request, and startup's revocation of every thread grant an earlier

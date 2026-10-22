@@ -285,16 +285,16 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
     assert_eq!(order().await, vec![created[1].clone(), created[0].clone()]);
 
     let idle_params = serde_json::json!({ "thread": "idle" });
-    storage
-        .create_planning_thread(
-            &ctx_kind("idle", "thread.create", &idle_params),
-            &created[0],
-            "Idle",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap();
+    shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx_kind("idle", "thread.create", &idle_params),
+        &created[0],
+        "Idle",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         order().await,
         vec![created[1].clone(), created[0].clone()],
@@ -303,16 +303,16 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
 
     let runtime = storage.register_runtime_instance("test").await.unwrap();
     let thread_params = serde_json::json!({ "thread": "t" });
-    let thread = storage
-        .create_planning_thread(
-            &ctx_kind("t", "thread.create", &thread_params),
-            &created[0],
-            "T",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx_kind("t", "thread.create", &thread_params),
+        &created[0],
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     storage
         .create_pending_operation(&thread.id, &runtime)
         .await
@@ -320,10 +320,13 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
     assert_eq!(order().await, created);
 
     let remove_params = serde_json::json!({ "thread": thread.id });
-    storage
-        .remove_thread(&ctx_kind("rm", "thread.remove", &remove_params), &thread.id)
-        .await
-        .unwrap();
+    shadows_core::Threads::remove_thread_for_test(
+        &storage,
+        &ctx_kind("rm", "thread.remove", &remove_params),
+        &thread.id,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         order().await,
         created,

@@ -123,20 +123,29 @@ pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
                 None,
             ),
         };
+        let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
+        let ts = crate::db::now();
         if let Err(error) = w
             .runtime
             .storage
-            .append_thread_entry(
-                &w.thread_id,
-                NewThreadEntry {
-                    kind,
-                    author,
-                    body: &body,
-                    refs: &[],
-                    card: card.as_ref(),
-                    operation_id: Some(&w.op_id),
-                },
-            )
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    crate::threads::Threads::append_entry_in(
+                        conn,
+                        &thread,
+                        NewThreadEntry {
+                            kind,
+                            author,
+                            body: &body,
+                            refs: &[],
+                            card: card.as_ref(),
+                            operation_id: Some(&operation),
+                        },
+                        &ts,
+                    )
+                    .await
+                })
+            })
             .await
         {
             tracing::error!(%error, "planner.append_thread_entry_failed");
@@ -266,15 +275,23 @@ pub(crate) fn watch_turn(
             ));
             // A new session, or a fork's, is recorded when its first turn ends
             // (§12.3, §12.9); a resumed one is already the thread's.
-            if answer.is_ok()
-                && w.opened.how != "resume"
-                && let Err(error) = w
+            if answer.is_ok() && w.opened.how != "resume" {
+                let (thread, session) = (w.thread_id.clone(), w.opened.session_id.clone());
+                if let Err(error) = w
                     .runtime
                     .storage
-                    .record_harness_session(&w.thread_id, &w.opened.session_id)
+                    .write_txn(move |conn| {
+                        Box::pin(async move {
+                            crate::threads::Threads::record_harness_session_in(
+                                conn, &thread, &session,
+                            )
+                            .await
+                        })
+                    })
                     .await
-            {
-                tracing::error!(%error, "planner.record_session_failed");
+                {
+                    tracing::error!(%error, "planner.record_session_failed");
+                }
             }
             if matches!(answer, Ok(TurnEnd::Ended)) {
                 w.sessions.mark_answered(&w.thread_id, &w.opened).await;

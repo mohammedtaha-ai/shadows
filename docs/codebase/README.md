@@ -179,9 +179,12 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/projects/harness_policy.rs` | which harness a thread or a project's modes may name | `crates/shadows-core/src/projects/harness_policy.rs` |
 | `crates/shadows-core/src/projects/browse.rs` | showing a person the directories they can choose from | `crates/shadows-core/src/projects/browse.rs` |
 | `crates/shadows-core/src/threads/` | the planning threads, what they recorded included | `crates/shadows-core/src/threads/mod.rs` |
+| `crates/shadows-core/src/threads/error.rs` | stable thread refusals | `crates/shadows-core/src/threads/contract.yaml` |
+| `crates/shadows-core/src/threads/testing.rs` | test-only thread command contexts | `crates/shadows-core/src/threads/contract.yaml` |
+| `crates/shadows-core/src/threads/store/records.rs` | snapshot-local thread facts | `crates/shadows-core/src/threads/contract.yaml` |
 | `crates/shadows-core/src/threads/model.rs` | the planning thread types callers meet | `crates/shadows-core/src/threads/model.rs` |
 | `crates/shadows-core/src/threads/title.rs` | the text a title taken from a conversation may read | `crates/shadows-core/src/threads/title.rs` |
-| `crates/shadows-core/src/threads/store/` | threads' SQLite queries | `crates/shadows-core/src/threads/store/thread.rs` |
+| `crates/shadows-core/src/threads/store/` | private ThreadsStore persistence | `crates/shadows-core/src/threads/store/thread.rs` |
 | `crates/shadows-core/src/threads/store/remove.rs` | atomic removal of a planning thread | `crates/shadows-core/src/threads/store/remove.rs` |
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |

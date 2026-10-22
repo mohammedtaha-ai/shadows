@@ -43,7 +43,16 @@ impl Sessions {
         let mut live = slot.lock().await;
         // Deletion commits before Stop/close. Even a cached adapter cannot
         // make a removed thread available to a new opening in that interval.
-        let context = self.storage.turn_context(thread).await?;
+        let context = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?;
         self.check_context(&context).await?;
         if let Some(current) = live.as_mut() {
             if !current.handle.has_exited() && !current.opened.connection.is_closed() {

@@ -74,11 +74,16 @@ async fn fixture() -> Fixture {
         request_fingerprint: fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = runtime
-        .storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &runtime.storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     let sessions = acp::fake_sessions(runtime.storage.clone());
     Fixture {
         _tmp: tmp,
@@ -393,11 +398,9 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         .await
         .unwrap();
     assert!(operations.is_empty(), "{operations:?}");
-    let entries = f
-        .runtime
-        .storage
-        .list_thread_entries(&f.thread)
-        .await
-        .unwrap();
+    let entries =
+        shadows_core::Threads::list_thread_entries_for_test(&f.runtime.storage, &f.thread)
+            .await
+            .unwrap();
     assert!(entries.is_empty(), "a refused turn records no prompt");
 }

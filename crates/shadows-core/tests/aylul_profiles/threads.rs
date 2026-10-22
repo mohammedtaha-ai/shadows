@@ -76,8 +76,7 @@ async fn aylul_thread_requires_a_live_agent() {
         .unwrap();
     assert_eq!(t.profile.as_deref(), Some("work"));
     assert_eq!(
-        w.storage
-            .turn_context(&t.id)
+        shadows_core::Threads::turn_context_for_test(&w.storage, &t.id)
             .await
             .unwrap()
             .profile
@@ -209,10 +208,12 @@ async fn legacy_aylul_threads_map_to_aylul() {
     .unwrap();
     pool.close().await;
     let storage = testing::Storage::open(&db).await.unwrap();
-    let t = storage
-        .get_thread(&shadows_core::ThreadId::from_literal("t"))
-        .await
-        .unwrap();
+    let t = shadows_core::Threads::get_thread_for_test(
+        &storage,
+        &shadows_core::ThreadId::from_literal("t"),
+    )
+    .await
+    .unwrap();
     assert_eq!(t.profile.as_deref(), Some("aylul"));
 }
 
@@ -244,23 +245,21 @@ async fn fork_keeps_profile() {
     .execute(w.storage.reader())
     .await
     .unwrap();
-    let entry = w
-        .storage
-        .append_thread_entry(
-            &t.id,
-            testing::NewThreadEntry {
-                kind: shadows_core::ThreadEntryKind::AgentMessage,
-                author: shadows_core::Actor::system(),
-                body: "Completed",
-                refs: &[],
-                card: None,
-                operation_id: Some(&shadows_core::OperationId::from_literal("op")),
-            },
-        )
-        .await
-        .unwrap();
-    w.storage
-        .record_harness_session(&t.id, "synthetic-session")
+    let entry = shadows_core::Threads::append_thread_entry_for_test(
+        &w.storage,
+        &t.id,
+        testing::NewThreadEntry {
+            kind: shadows_core::ThreadEntryKind::AgentMessage,
+            author: shadows_core::Actor::system(),
+            body: "Completed",
+            refs: &[],
+            card: None,
+            operation_id: Some(&shadows_core::OperationId::from_literal("op")),
+        },
+    )
+    .await
+    .unwrap();
+    shadows_core::Threads::record_harness_session_for_test(&w.storage, &t.id, "synthetic-session")
         .await
         .unwrap();
     let fork = core
@@ -270,8 +269,7 @@ async fn fork_keeps_profile() {
         .unwrap();
     assert_eq!(fork.profile.as_deref(), Some("work"));
     assert_eq!(
-        w.storage
-            .turn_context(&fork.id)
+        shadows_core::Threads::turn_context_for_test(&w.storage, &fork.id)
             .await
             .unwrap()
             .profile

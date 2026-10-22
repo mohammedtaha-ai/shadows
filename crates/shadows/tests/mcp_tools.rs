@@ -45,17 +45,17 @@ async fn turn_running(app: &App) {
 }
 
 async fn second_thread(app: &App) -> ThreadId {
-    app.storage
-        .create_planning_thread(
-            &ctx("second-thread", "thread.create"),
-            &app.project,
-            "Second",
-            policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap()
-        .id
+    shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("second-thread", "thread.create"),
+        &app.project,
+        "Second",
+        policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap()
+    .id
 }
 
 #[tokio::test]

@@ -1,3 +1,4 @@
+# HarnessLocked and ForkPointNotSupported belong to ThreadsError, mapped by Threads.
 # The foundation: what belongs to no service. Every service's write records its
 # command and appends its event through these, inside its own transaction.
 #

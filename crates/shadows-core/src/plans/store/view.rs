@@ -11,7 +11,7 @@ use crate::db::{
 use crate::grants::check_writer;
 use crate::plans::conversation::{Place, PlanShown};
 use crate::plans::model::WorkflowId;
-use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, append_entry_in};
+use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use crate::turns::OperationId;
 
 impl Storage {
@@ -73,7 +73,7 @@ impl Storage {
                     card: None,
                     operation_id: Some(&turn),
                 };
-                let entry = append_entry_in(conn, &thread, entry, &ts).await?;
+                let entry = Threads::append_entry_in(conn, &thread, entry, &ts).await?;
                 let shown = PlanShown {
                     workflow_id: workflow.clone(),
                     version: plan.version,

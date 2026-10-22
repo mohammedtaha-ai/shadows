@@ -124,7 +124,17 @@ impl Plans {
                 code: crate::ErrorCode::InvalidCommand,
                 message: "no turn is running".into(),
             })?;
-        let harness = self.storage.turn_context(thread).await?.harness;
+        let harness = crate::threads::Threads::turn_context_in(
+            &mut *self
+                .storage
+                .reader()
+                .begin()
+                .await
+                .map_err(crate::db::StorageError::from)?,
+            thread,
+        )
+        .await?
+        .harness;
         let approver = crate::command::Approver::Planner {
             writer,
             turn,

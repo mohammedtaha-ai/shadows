@@ -19,7 +19,7 @@ use crate::grants::check_writer;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::{PlanOp, apply};
 use crate::projects::ProjectId;
-use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, append_entry_in};
+use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use crate::turns::OperationId;
 
 impl Storage {
@@ -214,7 +214,7 @@ impl Storage {
                         card: None,
                         operation_id: None,
                     };
-                    append_entry_in(conn, thread, entry, &ts).await?;
+                    Threads::append_entry_in(conn, thread, entry, &ts).await?;
                 }
                 let approved = Approved {
                     workflow_id: workflow.clone(),
