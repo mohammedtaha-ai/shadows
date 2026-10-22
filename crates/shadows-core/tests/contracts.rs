@@ -115,6 +115,44 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
     (all, public)
 }
 
+fn agreement_exists(src: &Path, declared: &BTreeSet<String>, path: &str) -> bool {
+    let Some((service, symbol)) = path.split_once("::") else {
+        return declared.contains(path);
+    };
+    // Compare directory entries exactly so Windows rejects paths Linux cannot resolve.
+    std::fs::read_dir(src).unwrap().any(|entry| {
+        let entry = entry.unwrap();
+        entry.file_name() == service
+            && entry.path().is_dir()
+            && symbols(&entry.path()).0.contains(symbol)
+    })
+}
+
+#[test]
+fn agreement_paths_require_exact_service_directory_case() {
+    let root = tempfile::tempdir().unwrap();
+    let operations = root.path().join("operations");
+    std::fs::create_dir(&operations).unwrap();
+    std::fs::write(operations.join("mod.rs"), "fn thread_is_busy() {}").unwrap();
+    let declared = BTreeSet::from(["start_turn".to_owned()]);
+    assert!(agreement_exists(root.path(), &declared, "start_turn"));
+    assert!(agreement_exists(
+        root.path(),
+        &declared,
+        "operations::thread_is_busy"
+    ));
+    assert!(!agreement_exists(
+        root.path(),
+        &declared,
+        "Operations::thread_is_busy"
+    ));
+    assert!(!agreement_exists(
+        root.path(),
+        &declared,
+        "operations::missing_method"
+    ));
+}
+
 /// `pub(crate)`, exactly: neither `pub(super)` nor `pub(in …)` nor `pub`.
 fn crate_visible(vis: &syn::Visibility) -> bool {
     matches!(
@@ -293,10 +331,7 @@ fn every_contract_matches_its_service() {
                 // A path in another service is written `harness::change_model` and looked up
                 // in that folder.
                 for s in &between {
-                    let found = match s.split_once("::") {
-                        Some((svc, sym)) => symbols(&src.join(svc)).0.contains(sym),
-                        None => declared.contains(*s),
-                    };
+                    let found = agreement_exists(&src, &declared, s);
                     if !found {
                         problems.push(format!("{name}: agreement path `{s}` does not exist"))
                     }

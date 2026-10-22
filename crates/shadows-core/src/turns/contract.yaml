@@ -684,13 +684,13 @@ obligations:
 
 
 agreements:
-  - between: [Operations::thread_is_busy, start_turn]
+  - between: [operations::thread_is_busy, start_turn]
     must: >
       judge a thread busy identically: the early check and the transaction's
       check refuse the same threads
     holds: true
     why: >
-      Both call `has_open_operation`, one on a read connection, one inside
+      Both call `Operations::has_open_in`, one on a read connection, one inside
       the write transaction; nothing else decides busyness on this path.
     tested_by:
       - a_busy_thread_is_refused_before_its_session_opens
