@@ -336,7 +336,7 @@ These rows are decisions. A builder applies them and does not reopen them. If a 
 
 **New owners.** These are controller decisions. None of them is a helper or a facade.
 - **`standards`:** the project standards and their additions.
-- **`operations`:** operation rows, `LiveHandles`, the running-turn check, stop, and recovery. Recovery leaves `runtime`, and `runtime` keeps only register and stop.
+- **`operations`:** the durable operation lifecycle: operation rows, transitions, the running-turn check, and recovery. Recovery leaves `runtime`. (Amended 2026-10-22 on A-17b's blocker: `LiveHandles` and stop stay with `turns`, because a live turn holds harness's `OpenSession` and turns' `SteerRequest`, and stopping it closes the harness session; in `operations` they would make a cycle or need a callback. Turns sits above harness and operations, so it owns the live turn and calls `Operations` to record the transitions.)
 - **`project-removal`:** removing a project. Inside one transaction it checks threads, invalidates plan dependencies, cleans code and revokes grants. After the commit it stops the code worker. Every service it touches sits below it, so `projects` stays a lower service. A "renamed registry" would not be an owner. This is a use case with its own rule (`ProjectHasThreads`) and its own test (`project_remove.rs`).
 
 **The service cycles found and how each is cut:**
