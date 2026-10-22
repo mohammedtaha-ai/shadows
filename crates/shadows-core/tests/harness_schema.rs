@@ -40,16 +40,16 @@ async fn fixture() -> (Fixture, ThreadId) {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let dir = ProjectDirectory::resolve(tmp.path()).unwrap();
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &dir,
-            &policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &dir,
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let thread = storage
         .create_planning_thread(
             &ctx("c2", "thread.create"),
@@ -136,13 +136,19 @@ async fn a_project_is_created_with_the_policy_modes_and_they_can_be_replaced() {
     assert_eq!(p.allowed_modes["claude-code"], vec!["acceptEdits", "auto"]);
     let only: BTreeMap<_, _> =
         [("claude-code".to_string(), vec!["acceptEdits".to_string()])].into();
-    let p2 = fx
-        .storage
-        .set_project_modes(&ctx("m1", "project.modes"), &p.id, &only)
+    let p2 = shadows_core::testing::set_project_modes(
+        &fx.storage,
+        &ctx("m1", "project.modes"),
+        &p.id,
+        &only,
+    )
+    .await
+    .unwrap();
+    assert_eq!(p2.allowed_modes["claude-code"], vec!["acceptEdits"]);
+    let listed = shadows_core::testing::projects(fx.storage.clone())
+        .list()
         .await
         .unwrap();
-    assert_eq!(p2.allowed_modes["claude-code"], vec!["acceptEdits"]);
-    let listed = fx.storage.list_projects().await.unwrap();
     assert_eq!(listed[0].allowed_modes["claude-code"], vec!["acceptEdits"]);
     assert_eq!(
         listed[0].allowed_modes["codex"],

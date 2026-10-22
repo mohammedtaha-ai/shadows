@@ -5,9 +5,14 @@ use shadows_core::ThreadId;
 use shadows_core::testing::FailureStage;
 use shadows_core::testing::Storage;
 
-async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) {
+async fn fixture() -> (
+    tempfile::TempDir,
+    std::sync::Arc<Storage>,
+    RuntimeInstanceId,
+    ThreadId,
+) {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let runtime = storage.register_runtime_instance("test").await.unwrap();
     let dir = shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap();
     let params = serde_json::json!({ "slug": "demo" });
@@ -20,16 +25,16 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         command_schema_ver: 1,
         request_fingerprint: shadows_core::testing::fingerprint("project.create", &params),
     };
-    let project = storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &dir,
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx,
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = shadows_core::testing::CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),

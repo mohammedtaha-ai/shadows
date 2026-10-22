@@ -41,7 +41,6 @@ crates/shadows-agent/src/policy.rs :: module comment [c14786d518dee97a] #1
 crates/shadows-core/src/app.rs :: AppCore comment [092405e4799ce6f2] #1
 crates/shadows-core/src/app.rs :: AppCore comment [a3d3bb44c9fd0cdf] #1
 crates/shadows-core/src/app.rs :: AppCore comment [e5322b68a5e815a6] #1
-crates/shadows-core/src/app.rs :: AppCore::assemble_services comment [9e74b98b3fd91f2c] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [7d820f3723980281] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [8ae80de3a64f652c] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [93d4c198c5a906f7] #1
@@ -349,16 +348,15 @@ crates/shadows-core/src/projects/directory.rs :: module comment [b5466fbdfc79cee
 crates/shadows-core/src/projects/mod.rs :: Projects comment [b4f426079e57c343] #1
 crates/shadows-core/src/projects/mod.rs :: Projects comment [fee43ab496282847] #1
 crates/shadows-core/src/projects/mod.rs :: Projects::create comment [e2770c5128099f78] #1
-crates/shadows-core/src/projects/mod.rs :: module comment [1c0f7e182177ccc7] #1
 crates/shadows-core/src/projects/mod.rs :: module comment [954c4f6e033402a5] #1
 crates/shadows-core/src/projects/mod.rs :: module comment [cc62d4093700a21a] #1
 crates/shadows-core/src/projects/model.rs :: Project comment [81088cef37f25415] #1
 crates/shadows-core/src/projects/model.rs :: Project comment [f62a4ea16ef252ea] #1
 crates/shadows-core/src/projects/model.rs :: module comment [2e3e8754146bae4f] #1
 crates/shadows-core/src/projects/model.rs :: module comment [80f2a97e1598e288] #1
-crates/shadows-core/src/projects/store.rs :: Storage comment [080b699755af304e] #1
-crates/shadows-core/src/projects/store.rs :: Storage comment [95945141dfb2fa80] #1
-crates/shadows-core/src/projects/store.rs :: Storage comment [a4c805232a6ec4d2] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore comment [080b699755af304e] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore comment [95945141dfb2fa80] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore comment [a4c805232a6ec4d2] #1
 crates/shadows-core/src/runtime/mod.rs :: module comment [3a3e6ea3dc4775ac] #1
 crates/shadows-core/src/runtime/mod.rs :: module comment [5bec332cd077e9b4] #1
 crates/shadows-core/src/runtime/store.rs :: ReconcileReport comment [296a694a1d03e02b] #1

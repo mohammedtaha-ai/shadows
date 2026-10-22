@@ -8,12 +8,10 @@
 //! thread is titled after its first message, then by its harness, never over
 //! a name a person gave it.
 //!
-//! `model` holds the types, `rules` the harness check `Projects` shares,
-//! `title` what a title taken from the conversation reads, and `store` the
+//! `model` holds the types, `title` what a title taken from the conversation reads, and `store` the
 //! queries.
 
 mod model;
-mod rules;
 mod store;
 mod title;
 
@@ -25,8 +23,6 @@ pub use model::{
     EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind,
     ThreadId, TurnContext,
 };
-use rules::harness_fits_project;
-pub(crate) use rules::known_harness;
 // What another write calls inside its own transaction (spec §14.6): a turn,
 // an approval or a shown plan appends an entry, and a turn titles its thread
 // after its first message.
@@ -36,7 +32,7 @@ use crate::code::Code;
 use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::harness::Harness;
-use crate::projects::ProjectId;
+use crate::projects::{ProjectId, Projects};
 use crate::turns::Operation;
 use crate::turns::{StopOutcome, ThreadStopper};
 
@@ -46,6 +42,7 @@ pub struct Threads {
     storage: Arc<Storage>,
     harness: Arc<Harness>,
     code: Code,
+    projects: Projects,
     stopper: ThreadStopper,
 }
 
@@ -54,12 +51,14 @@ impl Threads {
         storage: Arc<Storage>,
         harness: Arc<Harness>,
         code: Code,
+        projects: Projects,
         stopper: ThreadStopper,
     ) -> Self {
         Self {
             storage,
             harness,
             code,
+            projects,
             stopper,
         }
     }
@@ -83,10 +82,8 @@ impl Threads {
         profile: Option<&str>,
     ) -> Result<PlanningThread, CoreError> {
         let harness = harness.unwrap_or(policy::CLAUDE_CODE);
-        known_harness(harness)?;
-        if let Ok(found) = self.storage.get_project(project).await {
-            harness_fits_project(harness, found.assistant)?;
-        }
+        Projects::known_harness(harness)?;
+        self.projects.harness_fits(project, harness).await?;
         if harness != policy::AYLUL && profile.is_some() {
             return Err(CoreError::ProfileInvalid(
                 "Planner threads cannot name an agent".into(),
@@ -124,11 +121,11 @@ impl Threads {
         thread: &ThreadId,
         harness: &str,
     ) -> Result<PlanningThread, CoreError> {
-        known_harness(harness)?;
+        Projects::known_harness(harness)?;
         let context = self.storage.turn_context(thread).await?;
-        if let Ok(found) = self.storage.get_project(&context.project_id).await {
-            harness_fits_project(harness, found.assistant)?;
-        }
+        self.projects
+            .harness_fits(&context.project_id, harness)
+            .await?;
         let before = context.harness;
         let params = serde_json::json!({ "thread_id": thread, "harness": harness });
         let c = CommandContext::user(command_id, "thread.harness", params);

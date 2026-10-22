@@ -317,16 +317,16 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
     };
     let dir = shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap();
     let storage = &first.runtime.storage;
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &dir,
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let thread = storage
         .create_planning_thread(
             &ctx("c2", "thread.create"),

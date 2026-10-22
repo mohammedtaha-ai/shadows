@@ -275,7 +275,7 @@ impl Code {
     ) -> Result<u32, CoreError> {
         let started = Instant::now();
         let storage = &self.inner.storage;
-        let Some(directory) = storage.get_project(project).await?.directory else {
+        let Some(directory) = self.inner.projects.get(project).await?.directory else {
             return Ok(0);
         };
         let dir = PathBuf::from(directory);

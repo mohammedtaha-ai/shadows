@@ -119,16 +119,16 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
     let storage = Arc::new(Storage::open(&db).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let runtime = Arc::new(runtime);
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &ProjectDirectory::resolve(dir).unwrap(),
-            &policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &ProjectDirectory::resolve(dir).unwrap(),
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let part = match roadmap {
         true => Some(storage.seed_roadmap_for_tests(&project.id).await.unwrap()),
         false => None,
@@ -245,18 +245,17 @@ pub async fn get_json<T: DeserializeOwned>(app: &App, path: &str) -> T {
 /// A second project, on the system's temp directory, with one thread of its
 /// own: what a test needs to show something stays inside its own project.
 pub async fn other_project(app: &App) -> (ProjectId, ThreadId) {
-    let project = app
-        .storage
-        .create_project(
-            &ctx("other-project", "project.create"),
-            "other",
-            "Other",
-            &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
-            &policy::default_modes(),
-        )
-        .await
-        .unwrap()
-        .id;
+    let project = shadows_core::testing::create_project(
+        &app.storage,
+        &ctx("other-project", "project.create"),
+        "other",
+        "Other",
+        &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap()
+    .id;
     let thread = app
         .storage
         .create_planning_thread(

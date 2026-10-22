@@ -77,7 +77,7 @@ impl Turns {
                 detail: None,
             });
         }
-        let project = self.storage.get_project(&context.project_id).await?;
+        let project = self.projects.get(&context.project_id).await?;
         let allowed = project.allowed_modes.get(&context.harness);
         if !allowed.is_some_and(|modes| modes.contains(&settings.mode)) {
             return Err(CoreError::ModeNotAllowed(settings.mode.clone()));

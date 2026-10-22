@@ -28,7 +28,7 @@ pub(crate) use store::{project_reachable_in, selected_project_in};
 
 use crate::db::Storage;
 use crate::error::CoreError;
-use crate::projects::ProjectId;
+use crate::projects::{ProjectId, Projects};
 use active::Active;
 use store::ScopeRow;
 pub(crate) use store::{delete_code_index_in, delete_code_links_in};
@@ -41,6 +41,7 @@ const RECHECK_WAIT: Duration = Duration::from_secs(2);
 
 struct Inner {
     storage: Arc<Storage>,
+    projects: Projects,
     active: tokio::sync::Mutex<Active>,
 }
 
@@ -52,10 +53,11 @@ pub struct Code {
 }
 
 impl Code {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
+    pub(crate) fn new(storage: Arc<Storage>, projects: Projects) -> Self {
         Self {
             inner: Arc::new(Inner {
                 storage,
+                projects,
                 active: Default::default(),
             }),
         }
@@ -192,7 +194,7 @@ impl Code {
 
     /// How the project's index stands. It does not touch the project.
     pub async fn status(&self, project: &ProjectId) -> Result<ProjectStatus, CoreError> {
-        let p = self.inner.storage.get_project(project).await?;
+        let p = self.inner.projects.get(project).await?;
         self.status_of(&(p.id, p.slug, p.directory)).await
     }
 

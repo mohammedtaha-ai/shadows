@@ -51,10 +51,14 @@ async fn patch_modes(app: &App, modes: &[&str]) {
         modes.iter().map(|m| m.to_string()).collect(),
     )]
     .into();
-    app.storage
-        .set_project_modes(&ctx("modes", "project.modes"), &app.project, &modes)
-        .await
-        .unwrap();
+    shadows_core::testing::set_project_modes(
+        &app.storage,
+        &ctx("modes", "project.modes"),
+        &app.project,
+        &modes,
+    )
+    .await
+    .unwrap();
 }
 
 fn thread(app: &App) -> String {

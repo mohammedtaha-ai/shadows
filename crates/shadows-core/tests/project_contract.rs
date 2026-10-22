@@ -35,29 +35,29 @@ fn ctx_kind(command_id: &str, kind: &str, params: &serde_json::Value) -> Command
 #[tokio::test]
 async fn replaying_an_identical_command_returns_the_stored_outcome() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
 
-    let first = storage
-        .create_project(
-            &ctx("cmd-1", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
-    let second = storage
-        .create_project(
-            &ctx("cmd-1", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let first = shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-1", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
+    let second = shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-1", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(first.id, second.id, "replay must return the same entity");
 
@@ -80,31 +80,31 @@ async fn replaying_an_identical_command_returns_the_stored_outcome() {
 #[tokio::test]
 async fn the_same_command_id_with_a_different_request_is_a_conflict() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
 
     let first_params = serde_json::json!({ "slug": "demo", "name": "Demo" });
-    storage
-        .create_project(
-            &ctx("cmd-1", &first_params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-1", &first_params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
 
     let other_params = serde_json::json!({ "slug": "other", "name": "Other" });
-    let err = storage
-        .create_project(
-            &ctx("cmd-1", &other_params),
-            "other",
-            "Other",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .expect_err("a reused command id with a different request must be refused");
+    let err = shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-1", &other_params),
+        "other",
+        "Other",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .expect_err("a reused command id with a different request must be refused");
     assert!(matches!(err, shadows_core::StorageError::CommandConflict));
 
     let projects: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
@@ -159,19 +159,19 @@ fn the_fingerprint_changes_when_a_value_changes() {
 #[tokio::test]
 async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
 
-    storage
-        .create_project(
-            &ctx("cmd-1", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-1", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
 
     let mut bumped = ctx("cmd-1", &params);
     bumped.command_schema_ver = 2;
@@ -181,16 +181,16 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
         "the version is the only difference; the fingerprint must still match"
     );
 
-    let err = storage
-        .create_project(
-            &bumped,
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .expect_err("a reused command id under a new schema version must be refused");
+    let err = shadows_core::testing::create_project(
+        &storage,
+        &bumped,
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .expect_err("a reused command id under a new schema version must be refused");
     assert!(matches!(err, shadows_core::StorageError::CommandConflict));
 
     let projects: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
@@ -213,7 +213,7 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
 #[tokio::test]
 async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let mut created = Vec::new();
     for (i, stamp) in ["2026-01-01T00:00:00.5Z", "2026-01-01T00:00:00.45Z"]
         .into_iter()
@@ -221,16 +221,16 @@ async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
     {
         let slug = format!("p{i}");
         let params = serde_json::json!({ "slug": slug });
-        let project = storage
-            .create_project(
-                &ctx(&slug, &params),
-                &slug,
-                &slug,
-                &dir(),
-                &shadows_agent::policy::default_modes(),
-            )
-            .await
-            .unwrap();
+        let project = shadows_core::testing::create_project(
+            &storage,
+            &ctx(&slug, &params),
+            &slug,
+            &slug,
+            &dir(),
+            &shadows_agent::policy::default_modes(),
+        )
+        .await
+        .unwrap();
         sqlx::query("UPDATE project SET created_at = ? WHERE id = ?")
             .bind(stamp)
             .bind(project.id.as_str())
@@ -239,12 +239,65 @@ async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
             .unwrap();
         created.push(project.id);
     }
-    let listed: Vec<_> = storage
-        .list_projects()
+    let listed: Vec<_> = shadows_core::testing::projects(storage.clone())
+        .list()
         .await
         .unwrap()
         .into_iter()
         .map(|p| p.id)
         .collect();
     assert_eq!(listed, created);
+}
+
+/// Projects come back most recently used first, read from the journal: a new
+/// project is ahead of an older one until the older one's thread starts an
+/// operation.
+#[tokio::test]
+async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let mut created = Vec::new();
+    for slug in ["old", "new"] {
+        let params = serde_json::json!({ "slug": slug });
+        let project = shadows_core::testing::create_project(
+            &storage,
+            &ctx(slug, &params),
+            slug,
+            slug,
+            &dir(),
+            &shadows_agent::policy::default_modes(),
+        )
+        .await
+        .unwrap();
+        created.push(project.id);
+    }
+    let projects = shadows_core::testing::projects(storage.clone());
+    let order = async || -> Vec<_> {
+        projects
+            .by_recent_activity()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|p| p.id)
+            .collect()
+    };
+    assert_eq!(order().await, vec![created[1].clone(), created[0].clone()]);
+
+    let runtime = storage.register_runtime_instance("test").await.unwrap();
+    let thread_params = serde_json::json!({ "thread": "t" });
+    let thread = storage
+        .create_planning_thread(
+            &ctx_kind("t", "thread.create", &thread_params),
+            &created[0],
+            "T",
+            "claude-code",
+            None,
+        )
+        .await
+        .unwrap();
+    storage
+        .create_pending_operation(&thread.id, &runtime)
+        .await
+        .unwrap();
+    assert_eq!(order().await, created);
 }

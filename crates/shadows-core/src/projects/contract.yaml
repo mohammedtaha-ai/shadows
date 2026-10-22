@@ -9,7 +9,7 @@
 # fingerprint is over the canonical text, never the text the caller sent.
 #
 # `set_modes` normalizes before the fingerprint too: every harness must be
-# known (`threads::known_harness`, the one rule Threads also uses), every
+# known (`Projects::known_harness`, the one rule Threads also calls), every
 # mode in `policy::allowed_modes` of its harness, and each list is
 # deduplicated and sorted. A harness not named keeps its modes.
 #
@@ -18,8 +18,8 @@
 # session (Harness), not here.
 # `remove` is a soft remove (§4.2): the row stays, since the journal
 # references it ON DELETE RESTRICT, and `removed_at` is set. Every read of a
-# project (`get_project`, `list_projects`, `require_live_in`, which
-# Instructions calls, and the direct reads in Threads, Grants and Code)
+# project (`get`, `list`, `by_recent_activity`, `require_live_in`, which
+# Instructions calls, and the direct reads in Grants and Code)
 # leaves a removed one out, so it answers NotFound everywhere; its slug
 # stays taken. One write takes
 # the index, the links both ways and the live project grants with it.
@@ -36,10 +36,14 @@ source: crates/shadows-core/src/projects
 
 shapes:
   Projects:
-    storage: Arc<Storage>
+    # Private: the service's SQL (`ProjectsStore`), over the shared storage.
+    store: ProjectsStore
     # A clone of the core's `Code`: `create` touches the new project
-    # (§15.6), `remove` forgets the removed one (§15.4).
-    code: Code
+    # (§15.6), `remove` forgets the removed one (§15.4). `None` in the copy
+    # the readers hold (`Projects::new`); `with_code` gives it to the one
+    # `AppCore` serves, because Code reads projects and so is built over the
+    # copy without it. Goes with removal in the project-removal task.
+    code: Option<Code>
   Project:
     id: ProjectId
     slug: String
@@ -84,34 +88,51 @@ functions:
   service:
     list:
       signature: "(&self) -> Result<Vec<Project>, CoreError>"
-      # `list_projects`: oldest first by the `ProjectCreated` event's seq.
+      # Oldest first by the `ProjectCreated` event's seq. Also read by
+      # Profiles (`assistant_project`).
+    get:
+      signature: "(&self, id: &ProjectId) -> Result<Project, CoreError>"
+      # NotFound for a removed project. Read by Turns (a turn's mode check),
+      # Harness (`choices`), Code (`status`, a scan), Events
+      # (`subscribe_project` refuses unknown or removed projects) and
+      # `harness_fits`.
+    by_recent_activity:
+      signature: "(&self) -> Result<Vec<Project>, CoreError>"
+      # Live projects, most recently used first, from the journal alone: the
+      # newest `OperationCreated` seq among the project's threads, else its
+      # `ProjectCreated` seq, else 0; ties by id. An operation event carries
+      # its thread but not its project, so a thread's project is the one on
+      # its `PlanningThreadCreated` event (written by create and by fork);
+      # no `operation` or `planning_thread` row is read. Projects with no
+      # directory are included; the caller filters. Code's start order
+      # calls it.
     ensure_assistant:
       signature: "(&self, slug: &str, name: &str, directory: &Path) -> Result<Project, CoreError>"
       # AYLUL's project. A live project already holding `slug` is returned
       # as is (never claimed unless it is already `assistant`); else created
       # as "project.create" with a fixed command id over the resolved
-      # directory, then marked by `mark_assistant_project`. Idempotent.
+      # directory, then marked by the store's `mark_assistant`. Idempotent.
       # A removed assistant project (its slug stays taken) is restored by
-      # `restore_assistant_project` instead of created again.
+      # `restore_assistant` instead of created again.
     create:
       signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>"
       # resolve (DirectoryError → CoreError::Directory) → "project.create",
       # principal User/local, schema 1, params { slug, name, directory:
-      # canonical } → `create_project` with `policy::default_modes()`.
-      # Then `Code::touch` of the project, a replay included (§15.6); it
-      # never fails the create.
+      # canonical } → the store's `create` with `policy::default_modes()`.
+      # Then `Code::touch` of the project, a replay included (§15.6), when
+      # this copy holds the code index; it never fails the create.
       # Refusals: Directory; CommandConflict; Constraint (the slug in use).
     set_modes:
       signature: "(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, CoreError>"
-      # known_harness (SettingNotOffered "harness") → each mode in policy
+      # `Self::known_harness` (SettingNotOffered "harness") → each mode in policy
       # (SettingNotOffered "mode", the first offending one) → dedup, sort →
       # "project.modes", params { project, allowed_modes: normalized } →
-      # `set_project_modes`. Refusals also: NotFound (no such project);
+      # the store's `set_modes`. Refusals also: NotFound (no such project);
       # CommandConflict.
     remove:
       signature: "(&self, command_id: String, project: &ProjectId) -> Result<Project, CoreError>"
       # "project.remove", principal User/local, schema 1, params { project }
-      # → `remove_project`, then `Code::forget` of the project on its own
+      # → the store's `remove`, then `Code::forget` of the project on its own
       # task, awaited, so a caller dropped after the commit still stops the
       # worker; it never fails the remove. Refusals: NotFound (no such project, or removed);
       # ProjectHasThreads; CommandConflict.
@@ -147,26 +168,40 @@ functions:
     blocking:
       signature: "(work) -> Result<T, DirectoryError>"
       private: true
+  harness_policy:
+    known_harness:
+      signature: "(harness: &str) -> Result<(), CoreError>"
+      # An associated function: SettingNotOffered { "harness", id, None }
+      # unless `policy::is_known`. Called by `set_modes` and by Threads
+      # (create, set_harness).
+    harness_fits:
+      signature: "(&self, project: &ProjectId, harness: &str) -> Result<(), CoreError>"
+      # AYLUL's harness lives only in the project marked `assistant`, and that
+      # project runs nothing else; otherwise SettingNotOffered { "harness", id,
+      # Some(reason) }. A project that is unknown or removed is not judged:
+      # the write that follows answers it. Called by Threads (create,
+      # set_harness).
   store:
-    create_project:
+    create:
       signature: "(&self, ctx: &CommandContext, slug, name, directory: &ProjectDirectory, default_modes) -> Result<Project, StorageError>"
       # One write: classify (scope Global) → the row, its modes,
       # `ProjectCreated` { slug, name, directory }, record_command.
-    list_projects:
+    list:
       signature: "(&self) -> Result<Vec<Project>, StorageError>"
       # Removed projects left out.
-    get_project:
+    by_recent_activity:
+      signature: "(&self) -> Result<Vec<Project>, StorageError>"
+      # Removed projects left out; the order is `Projects::by_recent_activity`.
+    get:
       signature: "(&self, id: &ProjectId) -> Result<Project, StorageError>"
-      # NotFound for a removed project. Also read by Turns (a turn's mode
-      # check), Harness (`choices`), Code (`status`, a scan), and Events
-      # (subscribe_project refuses unknown or removed projects).
-    set_project_modes:
+      # NotFound for a removed project.
+    set_modes:
       signature: "(&self, ctx, project_id, modes) -> Result<Project, StorageError>"
       # One write: classify (scope Project) → the project must exist, not
       # removed (`require_live_in`) → replace the named harnesses' rows →
       # `ProjectModesChanged` → record_command. A replay answers the project
       # as it now stands.
-    remove_project:
+    remove:
       signature: "(&self, ctx: &CommandContext, project_id: &ProjectId) -> Result<Project, StorageError>"
       # One write: classify (scope Project; a replay answers the row as it
       # stands, removed) → `require_live_in` → any nonremoved `planning_thread` row
@@ -178,8 +213,8 @@ functions:
       signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>"
       # An associated function in the caller's transaction or connection:
       # NotFound("project") unless the row exists with `removed_at` NULL.
-      # The one liveness check: `get_project`, `remove_project` and
-      # `set_project_modes` use it, and Instructions' save and current call
+      # The one liveness check: `get`, `remove` and
+      # `set_modes` use it, and Instructions' save and current call
       # it instead of reading `project`.
     load_project:
       signature: "(conn, id: &ProjectId) -> Result<Project, StorageError>"
@@ -201,7 +236,11 @@ enums:
 
 called_by_other_services:
   require_live_in: "Instructions (instructions/store.rs save and current): the liveness check inside its own write or read"
-  get_project: "Turns (turns/mod.rs record, the mode check), Harness (harness/mod.rs choices), Code (status, scan), and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
+  get: "Turns (turns/record.rs, the mode check), Harness (harness/mod.rs choices), Code (status, scan), and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
+  list: "Profiles (assistant_project): the live project marked assistant"
+  by_recent_activity: "Code (start order), from the code task on"
+  known_harness: "Threads (create, set_harness): the one rule for a known harness"
+  harness_fits: "Threads (create, set_harness): the rule that AYLUL runs only in the AYLUL project"
 
 
 obligations:
@@ -215,7 +254,7 @@ obligations:
       - replaying_an_identical_command_returns_the_stored_outcome
       - the_same_command_id_with_a_different_request_is_a_conflict
     note: >
-      The last two drive `create_project` at the store and count the rows
+      The last two drive the store's `create` (through `testing::create_project`) and count the rows
       and events a replay and a conflict leave.
 
   - rule: >
@@ -293,13 +332,19 @@ obligations:
     tested_by: a_removed_project_is_not_found
     note: >
       Grant issue, instructions save, links, turns and choices reach the same
-      NotFound through `get_project`, `require_live_in` or their own
+      NotFound through `get`, `require_live_in` or their own
       `removed_at IS NULL` check; no test asks each.
 
   - rule: >
       Projects are listed in creation order, by the durable sequence of their
       `ProjectCreated` event, never by `created_at` text.
     tested_by: projects_are_listed_in_creation_order_whatever_their_timestamp_text
+
+  - rule: >
+      Recent activity is read from the journal alone: a project whose thread
+      started the newest operation is first; with no operation, the newest
+      project is.
+    tested_by: projects_are_ordered_by_the_newest_operation_in_the_journal
 
   - rule: >
       A listing holds only subdirectories, sorted without case, hidden ones
@@ -326,8 +371,8 @@ agreements:
     must: judge whether a harness is known identically
     holds: true
     why: >
-      Both call `threads::known_harness` (`threads/rules.rs`), the one rule,
-      which answers SettingNotOffered { "harness", id, None }.
+      Both call `Projects::known_harness` (`projects/harness_policy.rs`), the
+      one rule, which answers SettingNotOffered { "harness", id, None }.
     tested_by: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
     note: >
       The test proves Threads' side (create and change) with "gemini"; no
@@ -403,6 +448,10 @@ tests:
       and `definitions` on it are 404 INVALID_COMMAND.
   - name: projects_are_listed_in_creation_order_whatever_their_timestamp_text
     checks: Two projects whose created_at text sorts backwards list in creation order.
+  - name: projects_are_ordered_by_the_newest_operation_in_the_journal
+    checks: >
+      Two projects list newest first; after a pending operation on the older
+      one's thread it is first.
   - name: a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones
     checks: >
       Four directories and a file list as .hidden, alpha, beta, Zeta with

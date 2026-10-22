@@ -34,7 +34,7 @@ use shadows_core::testing::acp;
 
 /// A project and a planning thread, which between them have already written
 /// two durable events: `ProjectCreated` (no thread) and `PlanningThreadCreated`.
-async fn seed(storage: &Storage) -> (Project, PlanningThread) {
+async fn seed(storage: &std::sync::Arc<Storage>) -> (Project, PlanningThread) {
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
         agent: None,
@@ -46,16 +46,16 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         request_fingerprint: fingerprint("project.create", &params),
     };
     let dir = shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
-    let project = storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &dir,
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        storage,
+        &ctx,
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
@@ -85,7 +85,7 @@ fn user_message(body: &str) -> NewThreadEntry<'_> {
 #[tokio::test]
 async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
 
     let mid = storage.current_cursor().await.unwrap();
@@ -130,7 +130,7 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
 #[tokio::test]
 async fn a_zero_cursor_replays_the_whole_thread() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
     storage
         .append_thread_entry(&thread.id, user_message("hi"))

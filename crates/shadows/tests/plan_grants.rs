@@ -52,17 +52,17 @@ fn ref_command(r: &str) -> String {
 }
 
 async fn other_project(app: &App) -> ProjectId {
-    app.storage
-        .create_project(
-            &ctx("p2", "project.create"),
-            "other",
-            "Other",
-            &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap()
-        .id
+    shadows_core::testing::create_project(
+        &app.storage,
+        &ctx("p2", "project.create"),
+        "other",
+        "Other",
+        &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap()
+    .id
 }
 
 #[tokio::test]

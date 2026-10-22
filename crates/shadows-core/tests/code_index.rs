@@ -54,7 +54,7 @@ async fn eventually<F: Future<Output = bool>>(check: impl Fn() -> F) {
     panic!("not true within 10 s");
 }
 
-async fn new_project(storage: &Storage, slug: &str, dir: &std::path::Path) -> ProjectId {
+async fn new_project(storage: &Arc<Storage>, slug: &str, dir: &std::path::Path) -> ProjectId {
     let ctx = CommandContext {
         agent: None,
         principal_kind: "User".into(),
@@ -64,17 +64,17 @@ async fn new_project(storage: &Storage, slug: &str, dir: &std::path::Path) -> Pr
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &serde_json::json!({})),
     };
-    storage
-        .create_project(
-            &ctx,
-            slug,
-            slug,
-            &ProjectDirectory::resolve(dir).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap()
-        .id
+    shadows_core::testing::create_project(
+        storage,
+        &ctx,
+        slug,
+        slug,
+        &ProjectDirectory::resolve(dir).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap()
+    .id
 }
 
 async fn core_over(storage: Arc<Storage>) -> Arc<AppCore> {

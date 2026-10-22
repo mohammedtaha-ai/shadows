@@ -65,16 +65,16 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let project = storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx,
+        "demo",
+        "Demo",
+        &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),

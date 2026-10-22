@@ -33,17 +33,16 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let project = runtime
-        .storage
-        .create_project(
-            &ctx,
-            slug,
-            slug,
-            &shadows_core::testing::ProjectDirectory::resolve(dir).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &runtime.storage,
+        &ctx,
+        slug,
+        slug,
+        &shadows_core::testing::ProjectDirectory::resolve(dir).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: format!("{slug}-thread"),
         command_kind: "thread.create".into(),

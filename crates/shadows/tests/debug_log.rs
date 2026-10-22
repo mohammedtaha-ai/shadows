@@ -237,17 +237,16 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let project = runtime
-        .storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &runtime.storage,
+        &ctx,
+        "demo",
+        "Demo",
+        &shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),

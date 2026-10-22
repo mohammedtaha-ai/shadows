@@ -44,16 +44,16 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
         request_fingerprint: fingerprint(kind, &serde_json::json!({ "id": id })),
     };
     let dir = ProjectDirectory::resolve(tmp.path()).unwrap();
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &dir,
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let mut threads = Vec::new();
     for id in ["c2", "c3"] {
         let thread = storage

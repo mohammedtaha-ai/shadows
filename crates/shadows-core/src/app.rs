@@ -137,10 +137,12 @@ impl AppCore {
         tracing::info!(adapter_version, claude_version = %version, "harness.versions");
         // Every Planner session opens with the `/mcp` of the address actually
         // bound (§13.8), which differs from the configured one on port 0.
+        let projects = Projects::new(storage.clone());
         let profiles = crate::Profiles::new(
             storage.clone(),
             secrets.clone(),
             config.aylul.as_ref().map(|c| c.home_root.clone()),
+            projects.clone(),
         );
         let instructions = Instructions::new(storage.clone());
         let sessions = Sessions::with_profiles(
@@ -177,6 +179,7 @@ impl AppCore {
             profiles,
             grants,
             instructions,
+            projects,
         );
         // §15.8: the active set is chosen and the workers spawned; `serve`
         // waits for no scan. The index never stops the daemon (§15.4).
@@ -193,7 +196,8 @@ impl AppCore {
         let profiles = parts.sessions.profiles.clone();
         let grants = Grants::new(parts.storage.clone(), parts.mcp_url.clone());
         let instructions = Instructions::new(parts.storage.clone());
-        Self::assemble_services(parts, profiles, grants, instructions)
+        let projects = Projects::new(parts.storage.clone());
+        Self::assemble_services(parts, profiles, grants, instructions, projects)
     }
 
     /// The services over parts and the three services built before them.
@@ -202,6 +206,7 @@ impl AppCore {
         profiles: Arc<crate::Profiles>,
         grants: Grants,
         instructions: Instructions,
+        projects: Projects,
     ) -> Arc<AppCore> {
         let CoreParts {
             secrets,
@@ -214,12 +219,29 @@ impl AppCore {
             // `mcp_url`, under `test-support`: `grants` was built over it.
             ..
         } = parts;
-        // Before the three services that hold it to call `touch` (§15.8).
-        let code = Code::new(storage.clone());
-        let harness = Arc::new(Harness::new(storage.clone(), sessions.clone()));
+        // Before the three services that hold it to call `touch`. The projects
+        // it reads are the copy that holds no code index.
+        let code = Code::new(storage.clone(), projects.clone());
+        let harness = Arc::new(Harness::new(
+            storage.clone(),
+            sessions.clone(),
+            projects.clone(),
+        ));
         let stopper = ThreadStopper::new(runtime.clone(), handles.clone(), sessions.clone());
-        let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
-        let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
+        let threads = Threads::new(
+            storage.clone(),
+            harness.clone(),
+            code.clone(),
+            projects.clone(),
+            stopper,
+        );
+        let events = Events::new(
+            storage.clone(),
+            harness.clone(),
+            projects.clone(),
+            bus.clone(),
+            ui.clone(),
+        );
         Arc::new(AppCore {
             profiles,
             secrets,
@@ -234,9 +256,10 @@ impl AppCore {
                 bus.clone(),
                 code.clone(),
                 instructions.clone(),
+                projects.clone(),
             ),
             harness,
-            projects: Projects::new(storage.clone(), code.clone()),
+            projects: projects.with_code(code.clone()),
             threads,
             instructions,
             events,

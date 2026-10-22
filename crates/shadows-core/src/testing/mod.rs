@@ -29,7 +29,39 @@ pub fn profiles(
     secrets: Arc<crate::Secrets>,
     home_root: std::path::PathBuf,
 ) -> Arc<crate::Profiles> {
-    crate::Profiles::new(storage, secrets, Some(home_root))
+    let projects = projects(storage.clone());
+    crate::Profiles::new(storage, secrets, Some(home_root), projects)
+}
+
+/// The projects service over `storage`, for a test that has no `AppCore`.
+pub fn projects(storage: Arc<Storage>) -> crate::Projects {
+    crate::Projects::new(storage)
+}
+
+/// A project written with the command context the test built.
+pub async fn create_project(
+    storage: &Arc<Storage>,
+    ctx: &CommandContext,
+    slug: &str,
+    name: &str,
+    directory: &ProjectDirectory,
+    default_modes: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Result<crate::Project, crate::StorageError> {
+    projects(storage.clone())
+        .create_for_test(ctx, slug, name, directory, default_modes)
+        .await
+}
+
+/// A project's allowed modes replaced with the command context the test built.
+pub async fn set_project_modes(
+    storage: &Arc<Storage>,
+    ctx: &CommandContext,
+    project: &crate::ProjectId,
+    modes: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Result<crate::Project, crate::StorageError> {
+    projects(storage.clone())
+        .set_modes_for_test(ctx, project, modes)
+        .await
 }
 
 /// The restricted fixture: `AppCore` over a database at `db_path`, built by

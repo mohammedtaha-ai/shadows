@@ -1,6 +1,7 @@
 //! One job: a project's rows — the project itself and the modes it allows.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use sqlx::SqliteConnection;
 
@@ -15,8 +16,18 @@ use crate::events::DurableEvent;
 use crate::grants::revoke_project_grants_in;
 use shadows_agent::policy;
 
-impl Storage {
-    pub async fn create_project(
+/// The service's SQL, over the shared storage handle.
+#[derive(Clone)]
+pub(super) struct ProjectsStore {
+    storage: Arc<Storage>,
+}
+
+impl ProjectsStore {
+    pub(super) fn new(storage: Arc<Storage>) -> Self {
+        Self { storage }
+    }
+
+    pub(super) async fn create(
         &self,
         ctx: &CommandContext,
         slug: &str,
@@ -32,41 +43,42 @@ impl Storage {
             default_modes.clone(),
             now(),
         );
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                if let Some(existing_id) = classify(conn, &ctx, "Global", "").await? {
-                    return load_project(conn, &ProjectId::from_stored(existing_id)).await;
-                }
-                let id = ProjectId::generate();
-                sqlx::query(
-                    "INSERT INTO project (id, slug, name, directory, created_at) \
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if let Some(existing_id) = classify(conn, &ctx, "Global", "").await? {
+                        return load_project(conn, &ProjectId::from_stored(existing_id)).await;
+                    }
+                    let id = ProjectId::generate();
+                    sqlx::query(
+                        "INSERT INTO project (id, slug, name, directory, created_at) \
                      VALUES (?,?,?,?,?)",
-                )
-                .bind(id.as_str())
-                .bind(&slug)
-                .bind(&name)
-                .bind(&directory)
-                .bind(&ts)
-                .execute(&mut *conn)
-                .await?;
-                replace_modes(conn, &id, &modes).await?;
+                    )
+                    .bind(id.as_str())
+                    .bind(&slug)
+                    .bind(&name)
+                    .bind(&directory)
+                    .bind(&ts)
+                    .execute(&mut *conn)
+                    .await?;
+                    replace_modes(conn, &id, &modes).await?;
 
-                append_event(
-                    conn,
-                    &DurableEvent::new("ProjectCreated", Actor::user(&ctx.principal_id))
-                        .with_project(&id)
-                        .with_payload(serde_json::json!({
-                            "slug": slug, "name": name, "directory": directory,
-                        })),
-                    &ts,
-                )
-                .await?;
+                    append_event(
+                        conn,
+                        &DurableEvent::new("ProjectCreated", Actor::user(&ctx.principal_id))
+                            .with_project(&id)
+                            .with_payload(serde_json::json!({
+                                "slug": slug, "name": name, "directory": directory,
+                            })),
+                        &ts,
+                    )
+                    .await?;
 
-                record_command(conn, &ctx, "Global", "", "Project", id.as_str(), &ts).await?;
-                load_project(conn, &id).await
+                    record_command(conn, &ctx, "Global", "", "Project", id.as_str(), &ts).await?;
+                    load_project(conn, &id).await
+                })
             })
-        })
-        .await
+            .await
     }
 
     /// Oldest first, by the durable sequence of each project's `ProjectCreated`
@@ -74,7 +86,7 @@ impl Storage {
     /// `created_at`, whose RFC 3339 text with trimmed zeros does not sort in
     /// time order within a second (CLAUDE.md: ordering is explicit). `LEFT`
     /// so a project could never be hidden by a missing event; there is none.
-    pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError> {
+    pub(super) async fn list(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
             "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant
                FROM project p
@@ -83,76 +95,95 @@ impl Storage {
               WHERE p.removed_at IS NULL
               ORDER BY e.seq, p.id",
         )
-        .fetch_all(self.reader())
+        .fetch_all(self.storage.reader())
         .await?;
-        let mut modes = all_modes(self.reader()).await?;
-        Ok(rows
-            .into_iter()
-            .map(|row| {
-                let allowed = modes.remove(&row.0).unwrap_or_default();
-                project(row, allowed)
-            })
-            .collect())
+        with_modes(self.storage.reader(), rows).await
+    }
+
+    /// Live projects, most recently used first: by the durable sequence of the
+    /// newest `OperationCreated` among the project's threads, or of its
+    /// `ProjectCreated` for one with no operation. Read from the journal only:
+    /// a thread belongs to the project named by its `PlanningThreadCreated`
+    /// event, so no table another service owns is joined. The sequence, not
+    /// `created_at`, whose RFC 3339 text with trimmed zeros does not sort in
+    /// time order within a second (CLAUDE.md: ordering is explicit).
+    pub(super) async fn by_recent_activity(&self) -> Result<Vec<Project>, StorageError> {
+        let rows: Vec<ProjectRow> = sqlx::query_as(
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant
+               FROM project p
+              WHERE p.removed_at IS NULL
+              ORDER BY COALESCE(
+                (SELECT MAX(o.seq) FROM durable_event o
+                  WHERE o.kind = 'OperationCreated'
+                    AND o.thread_id IN (
+                      SELECT c.thread_id FROM durable_event c
+                       WHERE c.project_id = p.id AND c.kind = 'PlanningThreadCreated')),
+                (SELECT MAX(e.seq) FROM durable_event e
+                  WHERE e.project_id = p.id AND e.kind = 'ProjectCreated'),
+                0) DESC, p.id",
+        )
+        .fetch_all(self.storage.reader())
+        .await?;
+        with_modes(self.storage.reader(), rows).await
     }
 
     /// Marks the live project `slug` as AYLUL's home. Idempotent; `None`
     /// when no live project has that slug.
-    pub async fn mark_assistant_project(
-        &self,
-        slug: &str,
-    ) -> Result<Option<Project>, StorageError> {
+    pub(super) async fn mark_assistant(&self, slug: &str) -> Result<Option<Project>, StorageError> {
         let slug = slug.to_string();
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                let id: Option<String> = sqlx::query_scalar(
-                    "SELECT id FROM project WHERE slug = ? AND removed_at IS NULL",
-                )
-                .bind(&slug)
-                .fetch_optional(&mut *conn)
-                .await?;
-                let Some(id) = id else { return Ok(None) };
-                let id = ProjectId::from_stored(id);
-                sqlx::query("UPDATE project SET assistant = 1 WHERE id = ?")
-                    .bind(id.as_str())
-                    .execute(&mut *conn)
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let id: Option<String> = sqlx::query_scalar(
+                        "SELECT id FROM project WHERE slug = ? AND removed_at IS NULL",
+                    )
+                    .bind(&slug)
+                    .fetch_optional(&mut *conn)
                     .await?;
-                Ok(Some(load_project(conn, &id).await?))
+                    let Some(id) = id else { return Ok(None) };
+                    let id = ProjectId::from_stored(id);
+                    sqlx::query("UPDATE project SET assistant = 1 WHERE id = ?")
+                        .bind(id.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    Ok(Some(load_project(conn, &id).await?))
+                })
             })
-        })
-        .await
+            .await
     }
 
     /// Brings back the removed project `slug` when it was AYLUL's (a slug
     /// stays taken after a removal). `None` when there is no such project.
-    pub async fn restore_assistant_project(
+    pub(super) async fn restore_assistant(
         &self,
         slug: &str,
     ) -> Result<Option<Project>, StorageError> {
         let slug = slug.to_string();
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                let id: Option<String> = sqlx::query_scalar(
-                    "SELECT id FROM project \
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let id: Option<String> = sqlx::query_scalar(
+                        "SELECT id FROM project \
                      WHERE slug = ? AND assistant = 1 AND removed_at IS NOT NULL",
-                )
-                .bind(&slug)
-                .fetch_optional(&mut *conn)
-                .await?;
-                let Some(id) = id else { return Ok(None) };
-                let id = ProjectId::from_stored(id);
-                sqlx::query("UPDATE project SET removed_at = NULL WHERE id = ?")
-                    .bind(id.as_str())
-                    .execute(&mut *conn)
+                    )
+                    .bind(&slug)
+                    .fetch_optional(&mut *conn)
                     .await?;
-                Ok(Some(load_project(conn, &id).await?))
+                    let Some(id) = id else { return Ok(None) };
+                    let id = ProjectId::from_stored(id);
+                    sqlx::query("UPDATE project SET removed_at = NULL WHERE id = ?")
+                        .bind(id.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    Ok(Some(load_project(conn, &id).await?))
+                })
             })
-        })
-        .await
+            .await
     }
 
     /// The project, NotFound once removed (§4.2).
-    pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError> {
-        let mut conn = self.reader().acquire().await?;
+    pub(super) async fn get(&self, id: &ProjectId) -> Result<Project, StorageError> {
+        let mut conn = self.storage.reader().acquire().await?;
         Projects::require_live_in(&mut conn, id).await?;
         load_project(&mut conn, id).await
     }
@@ -162,98 +193,100 @@ impl Storage {
     /// planning thread. One write: its index, its links both ways and its
     /// live project grants go with it. A replay answers the project as the
     /// command left it.
-    pub async fn remove_project(
+    pub(super) async fn remove(
         &self,
         ctx: &CommandContext,
         project_id: &ProjectId,
     ) -> Result<Project, StorageError> {
         let (ctx, id, ts) = (ctx.clone(), project_id.clone(), now());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                if classify(conn, &ctx, "Project", id.as_str())
-                    .await?
-                    .is_some()
-                {
-                    return load_project(conn, &id).await;
-                }
-                Projects::require_live_in(conn, &id).await?;
-                let threads: i64 = sqlx::query_scalar(
-                    "SELECT COUNT(*) FROM planning_thread \
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if classify(conn, &ctx, "Project", id.as_str())
+                        .await?
+                        .is_some()
+                    {
+                        return load_project(conn, &id).await;
+                    }
+                    Projects::require_live_in(conn, &id).await?;
+                    let threads: i64 = sqlx::query_scalar(
+                        "SELECT COUNT(*) FROM planning_thread \
                          WHERE project_id = ? AND removed_at IS NULL",
-                )
-                .bind(id.as_str())
-                .fetch_one(&mut *conn)
-                .await?;
-                if threads > 0 {
-                    return Err(StorageError::ProjectHasThreads);
-                }
-                sqlx::query("UPDATE project SET removed_at = ? WHERE id = ?")
-                    .bind(&ts)
+                    )
                     .bind(id.as_str())
-                    .execute(&mut *conn)
+                    .fetch_one(&mut *conn)
                     .await?;
-                let actor = Actor::user(&ctx.principal_id);
-                crate::plans::notify_project_dependencies_in(conn, &id, &actor, &ts).await?;
-                delete_code_index_in(conn, &id).await?;
-                delete_code_links_in(conn, &id).await?;
-                revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
-                append_event(
-                    conn,
-                    &DurableEvent::new("ProjectRemoved", actor).with_project(&id),
-                    &ts,
-                )
-                .await?;
-                let key = id.as_str();
-                record_command(conn, &ctx, "Project", key, "Project", key, &ts).await?;
-                load_project(conn, &id).await
+                    if threads > 0 {
+                        return Err(StorageError::ProjectHasThreads);
+                    }
+                    sqlx::query("UPDATE project SET removed_at = ? WHERE id = ?")
+                        .bind(&ts)
+                        .bind(id.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    let actor = Actor::user(&ctx.principal_id);
+                    crate::plans::notify_project_dependencies_in(conn, &id, &actor, &ts).await?;
+                    delete_code_index_in(conn, &id).await?;
+                    delete_code_links_in(conn, &id).await?;
+                    revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
+                    append_event(
+                        conn,
+                        &DurableEvent::new("ProjectRemoved", actor).with_project(&id),
+                        &ts,
+                    )
+                    .await?;
+                    let key = id.as_str();
+                    record_command(conn, &ctx, "Project", key, "Project", key, &ts).await?;
+                    load_project(conn, &id).await
+                })
             })
-        })
-        .await
+            .await
     }
 
     /// Replaces the modes the project allows for each harness named in
     /// `modes` (spec §12.5); harnesses not named keep theirs. An idempotent
     /// command: a replay answers the project as it now stands. The caller
     /// checks every mode is in its harness's policy.
-    pub async fn set_project_modes(
+    pub(super) async fn set_modes(
         &self,
         ctx: &CommandContext,
         project_id: &ProjectId,
         modes: &BTreeMap<String, Vec<String>>,
     ) -> Result<Project, StorageError> {
         let (ctx, id, modes, ts) = (ctx.clone(), project_id.clone(), modes.clone(), now());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                if classify(conn, &ctx, "Project", id.as_str())
-                    .await?
-                    .is_some()
-                {
-                    return load_project(conn, &id).await;
-                }
-                Projects::require_live_in(conn, &id).await?;
-                replace_modes(conn, &id, &modes).await?;
-                append_event(
-                    conn,
-                    &DurableEvent::new("ProjectModesChanged", Actor::user(&ctx.principal_id))
-                        .with_project(&id)
-                        .with_payload(serde_json::json!({ "allowed_modes": modes })),
-                    &ts,
-                )
-                .await?;
-                record_command(
-                    conn,
-                    &ctx,
-                    "Project",
-                    id.as_str(),
-                    "Project",
-                    id.as_str(),
-                    &ts,
-                )
-                .await?;
-                load_project(conn, &id).await
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if classify(conn, &ctx, "Project", id.as_str())
+                        .await?
+                        .is_some()
+                    {
+                        return load_project(conn, &id).await;
+                    }
+                    Projects::require_live_in(conn, &id).await?;
+                    replace_modes(conn, &id, &modes).await?;
+                    append_event(
+                        conn,
+                        &DurableEvent::new("ProjectModesChanged", Actor::user(&ctx.principal_id))
+                            .with_project(&id)
+                            .with_payload(serde_json::json!({ "allowed_modes": modes })),
+                        &ts,
+                    )
+                    .await?;
+                    record_command(
+                        conn,
+                        &ctx,
+                        "Project",
+                        id.as_str(),
+                        "Project",
+                        id.as_str(),
+                        &ts,
+                    )
+                    .await?;
+                    load_project(conn, &id).await
+                })
             })
-        })
-        .await
+            .await
     }
 }
 
@@ -282,6 +315,21 @@ async fn replace_modes(
         }
     }
     Ok(())
+}
+
+/// The rows as projects, each with the modes it allows.
+async fn with_modes(
+    pool: &sqlx::SqlitePool,
+    rows: Vec<ProjectRow>,
+) -> Result<Vec<Project>, StorageError> {
+    let mut modes = all_modes(pool).await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let allowed = modes.remove(&row.0).unwrap_or_default();
+            project(row, allowed)
+        })
+        .collect())
 }
 
 /// Every known harness with no mode: the base each project's rows fill in.

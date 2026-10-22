@@ -19,6 +19,7 @@ pub use probe::{ListedModel, ProviderTest, ProviderTestOutcome, SavedProviderTes
 mod store;
 
 use crate::db::Storage;
+use crate::projects::Projects;
 use crate::secrets::Secrets;
 use crate::{CoreError, ProjectId};
 pub use model::{
@@ -33,7 +34,7 @@ pub struct Profiles {
     extension_lock: Arc<tokio::sync::Mutex<()>>,
     storage: Arc<Storage>,
     secrets: Arc<Secrets>,
-
+    projects: Projects,
     home_root: Option<PathBuf>,
 }
 
@@ -42,11 +43,13 @@ impl Profiles {
         storage: Arc<Storage>,
         secrets: Arc<Secrets>,
         home_root: Option<PathBuf>,
+        projects: Projects,
     ) -> Arc<Self> {
         Arc::new(Self {
             extension_lock: Arc::default(),
             storage,
             secrets,
+            projects,
             home_root,
         })
     }
@@ -81,8 +84,8 @@ impl Profiles {
     }
 
     pub async fn assistant_project(&self) -> Result<ProjectId, CoreError> {
-        self.storage
-            .list_projects()
+        self.projects
+            .list()
             .await?
             .into_iter()
             .find(|p| p.slug == "aylul" && p.assistant)

@@ -177,8 +177,6 @@ crates/shadows-core/src/secrets/crypto.rs :: open free public function [27fee9a0
 crates/shadows-core/src/secrets/crypto.rs :: seal free public function [e469694478f83c4a] #1
 crates/shadows-core/src/secrets/mod.rs :: reserved_env_name free public function [096d2b4abc230652] #1
 crates/shadows-core/src/secrets/mod.rs :: validate_env_name free public function [83fa34cecabfcf01] #1
-crates/shadows-core/src/threads/rules.rs :: harness_fits_project free public function [2a5425ddaaa91c01] #1
-crates/shadows-core/src/threads/rules.rs :: known_harness free public function [34ebacb32f9157ec] #1
 crates/shadows-core/src/threads/store/entry.rs :: append_entry_in free public function [a4f9cf9895ac2a08] #1
 crates/shadows-core/src/threads/store/entry.rs :: into_entry free public function [49054d3328e572f3] #1
 crates/shadows-core/src/threads/store/thread.rs :: load_thread free public function [94edc2fc228e03f2] #1

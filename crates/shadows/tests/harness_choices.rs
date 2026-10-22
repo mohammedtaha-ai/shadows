@@ -45,10 +45,14 @@ async fn opening_a_session_answers_the_harness_choices_after_the_policy() {
 async fn a_mode_the_project_does_not_allow_is_listed_disabled_with_the_reason() {
     let app = test_app().await;
     let only = [("claude-code".to_string(), vec!["acceptEdits".to_string()])].into();
-    app.storage
-        .set_project_modes(&ctx("m1", "project.modes"), &app.project, &only)
-        .await
-        .unwrap();
+    shadows_core::testing::set_project_modes(
+        &app.storage,
+        &ctx("m1", "project.modes"),
+        &app.project,
+        &only,
+    )
+    .await
+    .unwrap();
     let (_, c) = post(&app, &session_path(&app), json!({})).await;
     let auto = &c["modes"][1];
     assert_eq!(

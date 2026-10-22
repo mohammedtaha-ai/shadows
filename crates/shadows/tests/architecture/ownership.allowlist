@@ -1,6 +1,4 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-crates/shadows-core/src/code/mod.rs :: Code::status Storage::get_project belongs to projects [77615c63e9d2122e] #1
-crates/shadows-core/src/code/scan.rs :: Code::scan_project Storage::get_project belongs to projects [93039fa8f3d6c67a] #1
 crates/shadows-core/src/code/store/links.rs :: Storage::code_links SQL review: dynamic or indirect query [d874049232479323] #1
 crates/shadows-core/src/code/store/links.rs :: Storage::put_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
 crates/shadows-core/src/code/store/links.rs :: Storage::remove_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
@@ -71,7 +69,6 @@ crates/shadows-core/src/design/store/structure.rs :: Storage::structure_snapshot
 crates/shadows-core/src/design/store/vision.rs :: Storage::design_vision SQL table project belongs to projects [33675b363ad768de] #1
 crates/shadows-core/src/design/store/vision.rs :: Storage::edit_design SQL table project belongs to projects [f74027478a928251] #1
 crates/shadows-core/src/design/structure.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows-core/src/events/mod.rs :: Events::subscribe_project Storage::get_project belongs to projects [9f37414792de9b36] #1
 crates/shadows-core/src/events/store.rs :: Storage::current_cursor SQL review: dynamic or indirect query [c1e40c7a3d7dffc8] #1
 crates/shadows-core/src/events/store.rs :: Storage::read_project_events_after SQL table workflow belongs to plans [d2331dc844223516] #1
 crates/shadows-core/src/grants/store.rs :: Storage::grant_for_token SQL review: dynamic or indirect query [8dd43896d90f52b4] #1
@@ -91,7 +88,6 @@ crates/shadows-core/src/grants/store.rs :: revoke_thread_grants_in SQL review: d
 crates/shadows-core/src/grants/store.rs :: revoke_thread_grants_in SQL review: interpolated SQL [b340141a8af3961b] #1
 crates/shadows-core/src/harness/commands.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/harness/live.rs :: Sessions::open_live Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/mod.rs :: Harness::choices Storage::get_project belongs to projects [00bb8ae80c8d1c71] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::choices Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::context Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::limits_of Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
@@ -100,7 +96,7 @@ crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::turn_conte
 crates/shadows-core/src/harness/mod.rs :: Harness::open_session Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::delete_agent Storage::list_threads_for_profile belongs to threads [2e909abbfba98b74] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::instructions::Instructions outside composition root [daa13b010d06c56f] #1
-crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [ad9ec7f3171c3fae] #1
+crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [805f8993001edb5f] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::secrets::Secrets outside composition root [f5c64cc928b70c3d] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::standards_additions_for_invocation belongs to design [af01db096346f319] #1
@@ -144,16 +140,15 @@ crates/shadows-core/src/plans/store/read.rs :: written_by SQL table planning_thr
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::grants::store::check_writer [a000eca87c3e2f49] #1
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::threads::store::entry::append_entry_in [611e232f289650a2] #1
 crates/shadows-core/src/profiles/listing.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows-core/src/profiles/mod.rs :: Profiles::assistant_project Storage::list_projects belongs to projects [31862bd6de0a707e] #1
 crates/shadows-core/src/profiles/store.rs :: provider SQL review: dynamic or indirect query [4c3628218ee07699] #1
 crates/shadows-core/src/profiles/store.rs :: providers SQL review: dynamic or indirect query [335446e99663d253] #1
 crates/shadows-core/src/profiles/store.rs :: slug SQL review: dynamic or indirect query [1ac20e5696567d44] #1
 crates/shadows-core/src/profiles/store.rs :: slug SQL review: interpolated SQL [2c25af3a3abb16f9] #1
-crates/shadows-core/src/projects/store.rs :: Storage::remove_project SQL table planning_thread belongs to threads [5f4deecc4f5c3ae9] #1
-crates/shadows-core/src/projects/store.rs :: Storage::remove_project cross-owner store call shadows_core::code::store::delete_code_index_in [b1ec07d98396f8f7] #1
-crates/shadows-core/src/projects/store.rs :: Storage::remove_project cross-owner store call shadows_core::code::store::links::delete_code_links_in [9a166a25616d38b2] #1
-crates/shadows-core/src/projects/store.rs :: Storage::remove_project cross-owner store call shadows_core::grants::store::revoke_project_grants_in [e22e94a631af841b] #1
-crates/shadows-core/src/projects/store.rs :: Storage::remove_project cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [08c71ab7fba6d631] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove SQL table planning_thread belongs to threads [5f4deecc4f5c3ae9] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::code::store::delete_code_index_in [b1ec07d98396f8f7] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::code::store::links::delete_code_links_in [9a166a25616d38b2] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::grants::store::revoke_project_grants_in [e22e94a631af841b] #1
+crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [08c71ab7fba6d631] #1
 crates/shadows-core/src/runtime/store.rs :: Storage::reconcile_orphans SQL table operation belongs to turns [a704d804b0e2ae9f] #1
 crates/shadows-core/src/runtime/store.rs :: Storage::reconcile_orphans SQL table operation belongs to turns [b8bbdef52b1238b3] #1
 crates/shadows-core/src/runtime/store.rs :: Storage::reconcile_orphans cross-owner store call shadows_core::turns::store::transition::existed [a10d3c92b35bcff3] #1
@@ -164,11 +159,10 @@ crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review
 crates/shadows-core/src/secrets/store.rs :: SecretsStore::require_live_agent cross-owner store call shadows_core::profiles::store::require_live_agent_in [921441ad35a50df2] #1
 crates/shadows-core/src/secrets/store.rs :: SecretsStore::require_scope_owner cross-owner store call shadows_core::profiles::store::require_live_agent_in [db3807906463de46] #1
 crates/shadows-core/src/secrets/store.rs :: SecretsStore::require_scope_owner cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
-crates/shadows-core/src/testing/mod.rs :: profiles construct shadows_core::profiles::Profiles outside composition root [87e6892253cb9608] #1
+crates/shadows-core/src/testing/mod.rs :: profiles construct shadows_core::profiles::Profiles outside composition root [8d3b3d47fdf85f7a] #1
+crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
-crates/shadows-core/src/threads/mod.rs :: Threads::create Storage::get_project belongs to projects [bc3b030a18e1b47c] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::operations Storage::list_operations_for_thread belongs to turns [5c4a7ca094c6059d] #1
-crates/shadows-core/src/threads/mod.rs :: Threads::set_harness Storage::get_project belongs to projects [00bb8ae80c8d1c71] #1
 crates/shadows-core/src/threads/store/fork.rs :: Storage::fork_thread cross-owner store call shadows_core::turns::store::turn::has_open_operation [c1e06cea881e792a] #1
 crates/shadows-core/src/threads/store/fork.rs :: fork_point SQL table operation belongs to turns [01777ce6f5443355] #1
 crates/shadows-core/src/threads/store/remove.rs :: Storage::remove_thread SQL table project belongs to projects [f64d9359f0ec141b] #1
@@ -182,7 +176,6 @@ crates/shadows-core/src/turns/entries.rs :: tests name resolution review: glob i
 crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::list_plans belongs to plans [7c2e971023ae016a] #1
 crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::turn_context belongs to threads [11c0a5ed9f661928] #1
 crates/shadows-core/src/turns/record.rs :: Turns::start Storage::current_standards_additions belongs to design [283f59f2b717eb27] #1
-crates/shadows-core/src/turns/record.rs :: Turns::start Storage::get_project belongs to projects [00bb8ae80c8d1c71] #1
 crates/shadows-core/src/turns/store/operation.rs :: insert_pending SQL table runtime_instance belongs to runtime [a8a3048c43c686b3] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queue_message SQL review: dynamic or indirect query [7d829bdfee6bff72] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queue_message SQL table planning_thread belongs to threads [009b0e0a074ac1ba] #1

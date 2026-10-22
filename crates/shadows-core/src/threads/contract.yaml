@@ -5,7 +5,8 @@
 # services write.
 #
 # The harness rule: a thread runs on a harness Shadows knows
-# (`known_harness`, the one rule Projects also calls), `claude-code` when
+# (`Projects::known_harness`, the one rule `Projects::set_modes` also calls),
+# `claude-code` when
 # none is named. It changes only while the thread has no operation and is not
 # a fork (`set_thread_harness` checks both inside its write, and the
 # `planning_thread_harness_locked` trigger refuses it again below). When a
@@ -127,15 +128,15 @@ functions:
       # lists its threads (§15.6). It never fails the listing.
     create:
       signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>) -> Result<PlanningThread, CoreError>"
-      # harness or `claude-code` → known_harness → harness_fits_project
-      # (`aylul` only in the project `ensure_assistant` marked `assistant`,
-      # which allows only `aylul`; SettingNotOffered otherwise) → "thread.create",
+      # harness or `claude-code` → `Projects::known_harness` →
+      # `Projects::harness_fits` (`aylul` only in the project `ensure_assistant`
+      # marked `assistant`, which allows only `aylul`; SettingNotOffered otherwise) → "thread.create",
       # principal User/local, schema 1, params { project, title, harness }
       # → `create_planning_thread`. Refusals: SettingNotOffered; NotFound (no
       # such project); CommandConflict.
     set_harness:
       signature: "(&self, command_id: String, thread: &ThreadId, harness: &str) -> Result<PlanningThread, CoreError>"
-      # known_harness → turn_context (NotFound) → harness_fits_project →
+      # `Projects::known_harness` → turn_context (NotFound) → `Projects::harness_fits` →
       # "thread.harness", params
       # { thread_id, harness } → `set_thread_harness` (HarnessLocked,
       # CommandConflict) → close the session when the harness moved.
@@ -165,10 +166,6 @@ functions:
     parse:
       signature: "(s: &str) -> Option<ThreadEntryKind>"
       # The inverse of `as_str`; `None` for text no variant names.
-  rules:
-    known_harness:
-      signature: "(harness: &str) -> Result<(), CoreError>"
-      # `policy::is_known`, else SettingNotOffered { "harness", id, None }.
   store:
     create_planning_thread:
       signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, StorageError>"
@@ -431,7 +428,7 @@ agreements:
   - between: [create, set_harness]
     must: judge whether a harness is known identically
     holds: true
-    why: Both call `known_harness` first, before any read or write.
+    why: Both call `Projects::known_harness` first, before any read or write.
     tested_by: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
     note: The test sends "gemini" to both; `projects::set_modes` shares the rule.
 

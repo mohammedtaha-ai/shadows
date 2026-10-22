@@ -63,16 +63,16 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         request_fingerprint: fingerprint(kind, &params),
     };
     let dir = shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &dir,
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let thread = storage
         .create_planning_thread(
             &ctx("c2", "thread.create"),

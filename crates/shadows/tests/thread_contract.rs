@@ -50,16 +50,16 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
-    let project = storage
-        .create_project(
-            &ctx("cmd-p", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-p", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let thread = storage
         .create_planning_thread(
             &ctx_kind("cmd-t", "thread.create", &params),
@@ -126,18 +126,18 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
 #[tokio::test]
 async fn entries_are_read_in_ordinal_order() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
-    let project = storage
-        .create_project(
-            &ctx("cmd-p", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-p", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let thread = storage
         .create_planning_thread(
             &ctx_kind("cmd-t", "thread.create", &params),
@@ -181,18 +181,18 @@ async fn entries_are_read_in_ordinal_order() {
 #[tokio::test]
 async fn entry_refs_round_trip_through_storage() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
-    let project = storage
-        .create_project(
-            &ctx("cmd-p", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-p", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let thread = storage
         .create_planning_thread(
             &ctx_kind("cmd-t", "thread.create", &params),
@@ -235,18 +235,18 @@ async fn entry_refs_round_trip_through_storage() {
 #[tokio::test]
 async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
-    let project = storage
-        .create_project(
-            &ctx("cmd-p", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("cmd-p", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let thread = storage
         .create_planning_thread(
             &ctx_kind("cmd-t", "thread.create", &params),
@@ -310,18 +310,18 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
 #[tokio::test]
 async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo" });
-    let project = storage
-        .create_project(
-            &ctx("c-project", &params),
-            "demo",
-            "Demo",
-            &dir(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c-project", &params),
+        "demo",
+        "Demo",
+        &dir(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let mut created = Vec::new();
     for (i, stamp) in ["2026-01-01T00:00:00.5Z", "2026-01-01T00:00:00.45Z"]
         .into_iter()

@@ -61,6 +61,7 @@ use crate::error::CoreError;
 use crate::harness::{LeaseError, Sessions};
 use crate::instructions::Instructions;
 use crate::plans::{Focus, PlanId};
+use crate::projects::Projects;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 use crate::threads::ThreadId;
@@ -89,6 +90,7 @@ pub struct Turns {
     bus: Bus,
     code: Code,
     instructions: Instructions,
+    projects: Projects,
 }
 
 /// The narrow turn control that thread removal needs. It owns no session
@@ -197,6 +199,8 @@ fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> Comm
 }
 
 impl Turns {
+    // One argument for each service it calls: the constructor is its dependency list.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         storage: Arc<Storage>,
         runtime: Arc<Runtime>,
@@ -205,6 +209,7 @@ impl Turns {
         bus: Bus,
         code: Code,
         instructions: Instructions,
+        projects: Projects,
     ) -> Self {
         Self {
             storage,
@@ -214,6 +219,7 @@ impl Turns {
             bus,
             code,
             instructions,
+            projects,
         }
     }
 

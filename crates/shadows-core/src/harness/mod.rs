@@ -49,12 +49,14 @@ use settings::SettingRefused;
 
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
+use crate::projects::Projects;
 use crate::threads::ThreadId;
 
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {
     storage: Arc<Storage>,
     sessions: Arc<Sessions>,
+    projects: Projects,
 }
 
 impl Harness {
@@ -93,8 +95,12 @@ impl Harness {
             .ok_or(CoreError::AylulNotConfigured)
     }
 
-    pub(crate) fn new(storage: Arc<Storage>, sessions: Arc<Sessions>) -> Self {
-        Self { storage, sessions }
+    pub(crate) fn new(storage: Arc<Storage>, sessions: Arc<Sessions>, projects: Projects) -> Self {
+        Self {
+            storage,
+            sessions,
+            projects,
+        }
     }
 
     /// Deletes an agent and closes its live adapters (`Sessions::delete_agent`).
@@ -264,7 +270,7 @@ impl Harness {
         offered: &Offered,
     ) -> Result<SessionChoices, CoreError> {
         let context = self.storage.turn_context(thread).await?;
-        let project = self.storage.get_project(&context.project_id).await?;
+        let project = self.projects.get(&context.project_id).await?;
         let allowed = project
             .allowed_modes
             .get(&context.harness)

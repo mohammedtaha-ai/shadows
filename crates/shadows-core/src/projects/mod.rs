@@ -7,11 +7,13 @@
 //! checked against Shadows' policy for each harness, and each list is a set.
 //!
 //! `model` holds the types, `directory` the check that makes a
-//! `ProjectDirectory`, `browse` the disk a person picks from, and `store` the
+//! `ProjectDirectory`, `harness_policy` which harness a thread or a project's
+//! modes may name, `browse` the disk a person picks from, and `store` the
 //! queries.
 
 mod browse;
 mod directory;
+mod harness_policy;
 mod model;
 mod store;
 
@@ -28,23 +30,48 @@ pub use model::{Project, ProjectId};
 use crate::code::Code;
 use crate::db::{CommandContext, Storage, StorageError};
 use crate::error::CoreError;
-use crate::threads::known_harness;
+use store::ProjectsStore;
 
 /// Projects: what storage holds, and the code index a new project is
-/// touched in (§15.6).
+/// touched in. Cheap to clone. The copy the readers hold has no code
+/// index (`new`); only the one `AppCore` serves does (`with_code`).
+#[derive(Clone)]
 pub struct Projects {
-    storage: Arc<Storage>,
-    code: Code,
+    store: ProjectsStore,
+    code: Option<Code>,
 }
 
 impl Projects {
-    pub(crate) fn new(storage: Arc<Storage>, code: Code) -> Self {
-        Self { storage, code }
+    pub(crate) fn new(storage: Arc<Storage>) -> Self {
+        Self {
+            store: ProjectsStore::new(storage),
+            code: None,
+        }
+    }
+
+    /// This service with the code index that `create` touches and `remove`
+    /// forgets in. Code itself reads projects, so it is built over a copy made
+    /// by `new`.
+    pub(crate) fn with_code(mut self, code: Code) -> Self {
+        self.code = Some(code);
+        self
     }
 
     /// Every project, oldest first.
     pub async fn list(&self) -> Result<Vec<Project>, CoreError> {
-        Ok(self.storage.list_projects().await?)
+        Ok(self.store.list().await?)
+    }
+
+    /// The project, `NotFound` once removed.
+    pub async fn get(&self, id: &ProjectId) -> Result<Project, CoreError> {
+        Ok(self.store.get(id).await?)
+    }
+
+    /// Live projects, most recently used first: by the newest
+    /// operation among their threads, or by their creation for one with none.
+    /// Computed from the journal, so no caller joins another service's table.
+    pub async fn by_recent_activity(&self) -> Result<Vec<Project>, CoreError> {
+        Ok(self.store.by_recent_activity().await?)
     }
 
     /// AYLUL's project: the live project `slug`, created over `directory`
@@ -57,7 +84,7 @@ impl Projects {
         name: &str,
         directory: &Path,
     ) -> Result<Project, CoreError> {
-        if let Some(found) = (self.storage.list_projects().await?)
+        if let Some(found) = (self.store.list().await?)
             .into_iter()
             .find(|p| p.slug == slug)
         {
@@ -68,7 +95,7 @@ impl Projects {
         }
         // A removed AYLUL project keeps its slug (UNIQUE) and a replay of the
         // creation command would answer that dead row: bring the row back.
-        if let Some(restored) = self.storage.restore_assistant_project(slug).await? {
+        if let Some(restored) = self.store.restore_assistant(slug).await? {
             return Ok(restored);
         }
         let directory = ProjectDirectory::resolve(directory)?;
@@ -80,10 +107,10 @@ impl Projects {
             "project.create",
             params,
         );
-        self.storage
-            .create_project(&c, slug, name, &directory, &policy::default_modes())
+        self.store
+            .create(&c, slug, name, &directory, &policy::default_modes())
             .await?;
-        let marked = self.storage.mark_assistant_project(slug).await?;
+        let marked = self.store.mark_assistant(slug).await?;
         marked.ok_or_else(|| StorageError::NotFound("project").into())
     }
 
@@ -104,11 +131,13 @@ impl Projects {
         });
         let c = CommandContext::user(command_id, "project.create", params);
         let project = self
-            .storage
-            .create_project(&c, slug, name, &directory, &policy::default_modes())
+            .store
+            .create(&c, slug, name, &directory, &policy::default_modes())
             .await?;
         // A created project is a used one (§15.6); a replay touches it again.
-        self.code.touch(&project.id).await;
+        if let Some(code) = &self.code {
+            code.touch(&project.id).await;
+        }
         Ok(project)
     }
 
@@ -123,7 +152,7 @@ impl Projects {
     ) -> Result<Project, CoreError> {
         let mut modes = BTreeMap::new();
         for (harness, list) in allowed_modes {
-            known_harness(&harness)?;
+            Self::known_harness(&harness)?;
             let policy = policy::allowed_modes(&harness);
             let mut set: Vec<String> = Vec::new();
             for mode in list {
@@ -144,7 +173,7 @@ impl Projects {
         }
         let params = serde_json::json!({ "project": project, "allowed_modes": modes });
         let c = CommandContext::user(command_id, "project.modes", params);
-        Ok(self.storage.set_project_modes(&c, project, &modes).await?)
+        Ok(self.store.set_modes(&c, project, &modes).await?)
     }
 
     /// Removes a project that holds no planning thread (§4.2, §15.4):
@@ -159,11 +188,13 @@ impl Projects {
     ) -> Result<Project, CoreError> {
         let params = serde_json::json!({ "project": project });
         let c = CommandContext::user(command_id, "project.remove", params);
-        let removed = self.storage.remove_project(&c, project).await?;
-        // On its own task: a caller dropped after the commit (a client that
-        // hung up) must not leave the removed project's worker running.
-        let (code, gone) = (self.code.clone(), project.clone());
-        let _ = tokio::spawn(async move { code.forget(&gone).await }).await;
+        let removed = self.store.remove(&c, project).await?;
+        if let Some(code) = self.code.clone() {
+            // On its own task: a caller dropped after the commit (a client that
+            // hung up) must not leave the removed project's worker running.
+            let gone = project.clone();
+            let _ = tokio::spawn(async move { code.forget(&gone).await }).await;
+        }
         Ok(removed)
     }
 
@@ -185,5 +216,32 @@ impl Projects {
             browse::blocking(move || browse::create_subdirectory(Path::new(&parent), &name))
                 .await?,
         )
+    }
+}
+
+/// What the tests drive below the public methods: a write with the command
+/// context the test built, which `create` and `set_modes` derive themselves.
+#[cfg(feature = "test-support")]
+impl Projects {
+    pub(crate) async fn create_for_test(
+        &self,
+        ctx: &CommandContext,
+        slug: &str,
+        name: &str,
+        directory: &ProjectDirectory,
+        default_modes: &BTreeMap<String, Vec<String>>,
+    ) -> Result<Project, StorageError> {
+        self.store
+            .create(ctx, slug, name, directory, default_modes)
+            .await
+    }
+
+    pub(crate) async fn set_modes_for_test(
+        &self,
+        ctx: &CommandContext,
+        project: &ProjectId,
+        modes: &BTreeMap<String, Vec<String>>,
+    ) -> Result<Project, StorageError> {
+        self.store.set_modes(ctx, project, modes).await
     }
 }

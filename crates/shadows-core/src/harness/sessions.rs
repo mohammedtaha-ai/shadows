@@ -135,6 +135,7 @@ impl Sessions {
             storage.clone(),
             secrets,
             config.aylul.as_ref().map(|c| c.home_root.clone()),
+            crate::testing::projects(storage.clone()),
         );
         let instructions = crate::Instructions::new(storage.clone());
         Self::with_profiles(adapter, storage, config, profiles, instructions)

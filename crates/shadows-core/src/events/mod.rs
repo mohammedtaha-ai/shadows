@@ -26,13 +26,14 @@ use crate::app::Bus;
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::harness::Harness;
-use crate::projects::ProjectId;
+use crate::projects::{ProjectId, Projects};
 use crate::threads::ThreadId;
 
 /// Events: every subscriber's stream, over the journal and the live sources.
 pub struct Events {
     storage: Arc<Storage>,
     harness: Arc<Harness>,
+    projects: Projects,
     bus: Bus,
     ui: broadcast::Sender<UiSignal>,
 }
@@ -41,12 +42,14 @@ impl Events {
     pub(crate) fn new(
         storage: Arc<Storage>,
         harness: Arc<Harness>,
+        projects: Projects,
         bus: Bus,
         ui: broadcast::Sender<UiSignal>,
     ) -> Self {
         Self {
             storage,
             harness,
+            projects,
             bus,
             ui,
         }
@@ -80,7 +83,7 @@ impl Events {
         project: ProjectId,
         after: i64,
     ) -> Result<Subscription, CoreError> {
-        self.storage.get_project(&project).await?;
+        self.projects.get(&project).await?;
         Ok(Subscription::new(
             subscription::Scope::Project(project),
             after,
