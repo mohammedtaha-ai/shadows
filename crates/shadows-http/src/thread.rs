@@ -95,8 +95,8 @@ pub(super) async fn update_thread(
 ) -> Result<Json<PlanningThread>, Failure> {
     Ok(Json(
         s.core
-            .threads()
-            .set_harness(body.command_id, &thread, &body.harness)
+            .harness()
+            .set_thread_harness(body.command_id, &thread, &body.harness)
             .await?,
     ))
 }

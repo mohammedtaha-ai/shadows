@@ -1,18 +1,14 @@
-//! One job: what a Planner session opens with (spec §13.7–§13.8) — the
-//! grant its adapter holds, Shadows' instructions with the project's, and
-//! the context block that carries what changed since.
+//! Planner opening context and the changes a live session has not heard.
 //!
-//! A Claude session keeps the `append` it was created with for good: a resume
-//! restores it and ignores a new one (`MCP_PROBE.md` §3). So `for_opening`
-//! sends the current instructions, which reach Claude only when its session is
-//! created, and `context_before_turn` sends whatever changed after that as a
-//! block after the person's text. A session is never rebuilt for it.
+//! A resumed Claude session retains its opening append. Changed instructions
+//! therefore travel after the person text, without rebuilding the session.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use sha2::{Digest, Sha256};
 
+use super::Harness;
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::grants::GrantId;
@@ -20,7 +16,6 @@ use crate::instructions::{Instructions, InstructionsVersion};
 use crate::projects::ProjectId;
 use crate::standards::{EffectiveStandards, Standards};
 use crate::threads::ThreadId;
-use crate::turns::{OperationId, Turns};
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 
@@ -37,9 +32,11 @@ const STANDARDS: &str = "[Shadows] The project's standards changed. \
 
 /// The version `agent_invocation.prompt_version` records: the first 16 hex
 /// digits of the SHA-256 of `prompt.txt`, computed once from the compiled text.
-pub fn prompt_version() -> &'static str {
-    static VERSION: OnceLock<String> = OnceLock::new();
-    VERSION.get_or_init(|| format!("{:x}", Sha256::digest(PROMPT.as_bytes()))[..16].to_string())
+impl Harness {
+    pub fn prompt_version() -> &'static str {
+        static VERSION: OnceLock<String> = OnceLock::new();
+        VERSION.get_or_init(|| format!("{:x}", Sha256::digest(PROMPT.as_bytes()))[..16].to_string())
+    }
 }
 
 /// What the thread's live adapter was opened with.
@@ -68,6 +65,12 @@ struct Heard {
 
 /// What the harness knows about a turn's context. `Turns` decides which of it
 /// the turn sends.
+/// Read failures are applied only when the session needs the corresponding context.
+pub(crate) struct InvocationContext {
+    pub(crate) latest: Result<Option<super::InvocationVersions>, StorageError>,
+    pub(crate) standards: Result<EffectiveStandards, StorageError>,
+}
+
 pub(crate) struct ContextFacts {
     /// What changed since the session last heard, withheld changes included.
     pub(crate) changes: Option<String>,
@@ -168,7 +171,7 @@ impl Setups {
                 pending: None,
             },
         );
-        let mut append = format!("{}\n\n{}", ours(), super::standards::render(&effective));
+        let mut append = format!("{}\n\n{}", ours(), Harness::render(&effective));
         if let Some(body) = body(current.as_ref()) {
             append.push_str(&format!("\n\n## Project instructions\n\n{body}"));
         }
@@ -186,11 +189,12 @@ impl Setups {
     pub(crate) async fn context_facts(
         &self,
         thread: &ThreadId,
-        operation: &OperationId,
+        invocation: Option<InvocationContext>,
+        stage: String,
     ) -> Result<ContextFacts, CoreError> {
         Ok(ContextFacts {
-            changes: self.context_before_turn(thread, operation).await?,
-            stage: self.stage_line(thread).await?,
+            changes: self.context_before_turn(thread, invocation).await?,
+            stage,
         })
     }
 
@@ -210,7 +214,7 @@ impl Setups {
     async fn context_before_turn(
         &self,
         thread: &ThreadId,
-        operation: &OperationId,
+        invocation: Option<InvocationContext>,
     ) -> Result<Option<String>, CoreError> {
         let context = crate::threads::Threads::turn_context_in(
             &mut *self
@@ -225,12 +229,13 @@ impl Setups {
         if context.harness == policy::AYLUL {
             return Ok(None);
         }
+        let invocation = invocation.ok_or(StorageError::NotFound("invocation"))?;
         let withheld = self.lock().get(thread).and_then(|h| h.withheld.clone());
         let heard = match withheld {
             Some(heard) => Some(heard),
-            None => match self.storage.latest_invocation_versions(thread).await? {
+            None => match invocation.latest? {
                 Some(latest) => Some(Heard {
-                    ours: latest.prompt.as_deref() == Some(prompt_version()),
+                    ours: latest.prompt.as_deref() == Some(Harness::prompt_version()),
                     instructions: Some(latest.instructions),
                     standards: Some((latest.standards, latest.additions)),
                 }),
@@ -245,14 +250,7 @@ impl Setups {
         }
         let current = self.instructions.current(&context.project_id).await?;
         let current_id = current.as_ref().map(|v| v.id.clone());
-        let mut snapshot = self
-            .storage
-            .reader()
-            .begin()
-            .await
-            .map_err(StorageError::from)?;
-        let effective = Turns::standards_for_invocation_in(&mut snapshot, operation).await?;
-        snapshot.commit().await.map_err(StorageError::from)?;
+        let effective = invocation.standards?;
         let additions_id = effective.additions.as_ref().map(|v| v.id.clone());
         let standards_sent = heard.standards == Some((Some(effective.base.version), additions_id));
         let mut parts = Vec::new();
@@ -266,10 +264,7 @@ impl Setups {
             });
         }
         if !standards_sent {
-            parts.push(format!(
-                "{STANDARDS}\n\n{}",
-                super::standards::render(&effective)
-            ));
+            parts.push(format!("{STANDARDS}\n\n{}", Harness::render(&effective)));
         }
         Ok((!parts.is_empty()).then(|| parts.join("\n\n")))
     }
@@ -294,27 +289,8 @@ impl Setups {
         })
     }
 
-    /// The stage line every person's message carries (§23.4).
-    pub(crate) async fn stage_line(&self, thread: &ThreadId) -> Result<String, StorageError> {
-        let context = crate::threads::Threads::turn_context_in(
-            &mut *self
-                .storage
-                .reader()
-                .begin()
-                .await
-                .map_err(crate::db::StorageError::from)?,
-            thread,
-        )
-        .await?;
-        if context.harness == policy::AYLUL {
-            return Ok(String::new());
-        }
-        let view = self.storage.project_stage(&context.project_id).await?;
-        Ok(crate::design::stage::line(&view))
-    }
-
     /// The adapter closed: revoke its grant. A failed revocation is logged;
-    /// the next daemon start revokes every thread grant left live (§13.7).
+    /// the next daemon start revokes every thread grant left live.
     pub(crate) async fn forget(&self, thread: &ThreadId) {
         let held = self.lock().remove(thread);
         if let Some(grant) = held.and_then(|h| h.grant)
@@ -331,7 +307,7 @@ impl Setups {
     }
 }
 
-/// §24.3: built-in tools permitted in every Planner session.
+/// : built-in tools permitted in every Planner session.
 pub const PLANNER_TOOLS: [&str; 8] = [
     "Read",
     "Grep",

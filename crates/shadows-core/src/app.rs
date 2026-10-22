@@ -23,7 +23,7 @@ use crate::error::CoreError;
 use crate::events::{Events, UiSignal};
 use crate::extensions::Extensions;
 use crate::grants::Grants;
-use crate::harness::{Harness, Sessions, SessionsConfig};
+use crate::harness::{Harness, SessionsConfig};
 use crate::instructions::Instructions;
 use crate::operations::Operations;
 use crate::person::PersonSettings;
@@ -51,7 +51,7 @@ pub struct CoreParts {
     pub storage: Arc<Storage>,
     pub operations: Operations,
     pub runtime: Arc<Runtime>,
-    pub sessions: Arc<Sessions>,
+    pub sessions: Arc<Harness>,
     pub handles: Arc<LiveHandles>,
     pub bus: Bus,
     /// What `plan_show` signals the tab that sent the turn (§13.9): live
@@ -152,9 +152,9 @@ pub struct CoreParts {
 /// internal: `start` builds it before assembly, then `Turns` holds the shared
 /// instance for execution and shutdown. There is no `AppCore::runtime` accessor.
 /// `start` builds the AYLUL configuration owners (`AylulOwners`) and `Grants`
-/// once. `Sessions` receives those owners and holds them one way (deleting an
-/// agent is `Harness`'s, since it closes live adapters); `Harness` shares
-/// `Sessions`, and the stored `Grants` is the one that revoked thread grants at
+/// once. `Harness` receives those owners and holds them one way (deleting an
+/// agent is Harness's, since it closes live adapters). Turns shares that Harness,
+/// and the stored Grants is the one that revoked thread grants at
 /// startup. No service receives `AppCore`.
 /// `Threads` owns a private store; transaction-local callers use `Threads::*_in`
 /// over the shared connection, without depending on its retained lifecycle effects.
@@ -227,6 +227,45 @@ pub struct StartConfig {
 }
 
 impl AppCore {
+    /// Shares the core's `storage`, so the grant events an opening and a
+    /// close append raise the committed signal Events watches.
+    /// Test callers only, over configuration owners of its own; `start` uses
+    /// `with_owners`.
+    #[cfg(feature = "test-support")]
+    pub fn harness_for_tests(
+        adapter: Arc<ClaudeAdapter>,
+        storage: Arc<Storage>,
+        config: SessionsConfig,
+    ) -> Arc<Harness> {
+        let secrets = config
+            .secrets
+            .clone()
+            .unwrap_or_else(|| crate::Secrets::new(storage.clone(), None));
+        let owners = crate::app::AylulOwners::build(
+            storage.clone(),
+            secrets,
+            config.aylul.as_ref().map(|c| c.home_root.clone()),
+            crate::testing::projects(storage.clone()),
+        );
+        let instructions = crate::Instructions::new(storage.clone());
+        let grants = crate::app::AppCore::grants_for_tests(
+            storage.clone(),
+            config.mcp_url.clone().unwrap_or_default(),
+        );
+        Harness::with_owners(
+            adapter,
+            storage.clone(),
+            config,
+            owners,
+            instructions,
+            grants,
+            Operations::new(storage.clone()),
+            Projects::new(storage),
+        )
+    }
+}
+
+impl AppCore {
     /// Opens storage, starts the runtime (recovery), revokes every thread
     /// grant, reads the harness versions, and builds the sessions on
     /// `mcp_url`. The caller binds first: `mcp_url` names the bound address,
@@ -261,7 +300,7 @@ impl AppCore {
         );
         let instructions = Instructions::new(storage.clone());
         let standards = Standards::new(storage.clone());
-        let sessions = Sessions::with_owners(
+        let sessions = Harness::with_owners(
             Arc::new(ClaudeAdapter {
                 node: config.node_path.clone(),
                 adapter: config.adapter_path.clone(),
@@ -279,6 +318,8 @@ impl AppCore {
             owners.clone(),
             instructions.clone(),
             grants.clone(),
+            operations.clone(),
+            projects.clone(),
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
         let core = Self::assemble_services(
@@ -312,7 +353,7 @@ impl AppCore {
     /// `AppCore::assemble` (`testing`); `start` assembles its own.
     #[cfg(feature = "test-support")]
     pub(crate) fn from_parts(parts: CoreParts) -> Arc<AppCore> {
-        let owners = parts.sessions.owners.clone();
+        let owners = parts.sessions.aylul_owners();
         let grants = Grants::new(parts.storage.clone(), parts.mcp_url.clone());
         let instructions = Instructions::new(parts.storage.clone());
         let projects = Projects::new(parts.storage.clone());
@@ -344,12 +385,7 @@ impl AppCore {
         // Before the three services that hold it to call `touch`. The projects
         // it reads are the copy that holds no code index.
         let code = Code::new(storage.clone(), projects.clone());
-        let harness = Arc::new(Harness::new(
-            storage.clone(),
-            operations.clone(),
-            sessions.clone(),
-            projects.clone(),
-        ));
+        let harness = sessions.clone();
         let stopper = ThreadStopper::new(storage.clone(), handles.clone(), sessions.clone());
         let threads = Threads::new(
             storage.clone(),

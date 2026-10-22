@@ -12,7 +12,7 @@ use super::{
 };
 use crate::{
     db::{Actor, StorageError},
-    harness::{OpenSession, Sessions},
+    harness::{Harness, OpenSession},
     runtime::Runtime,
     threads::ThreadId,
 };
@@ -49,7 +49,7 @@ pub struct PlannerTurnRequest {
     /// The tab that sent the turn, kept in memory only (§13.9).
     pub client_tab: Option<String>,
     /// The session's events, leased before validation
-    /// (`Sessions::lease_events`): the turn holds the session from its
+    /// (`Harness::lease_events`): the turn holds the session from its
     /// checks to its ending, and gives them back.
     pub events: mpsc::UnboundedReceiver<HarnessEvent>,
     /// Sends the thread's next waiting message once this turn completes.
@@ -61,7 +61,7 @@ impl PlannerTurn {
         runtime: Arc<Runtime>,
         storage: Arc<crate::db::Storage>,
         handles: Arc<LiveHandles>,
-        sessions: Arc<Sessions>,
+        sessions: Arc<Harness>,
         opened: OpenSession,
         request: PlannerTurnRequest,
         bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
@@ -86,7 +86,17 @@ impl PlannerTurn {
         );
         // §13.8: what changed since the session last heard, read while this
         // turn is still `Pending` and so not yet its thread's latest.
-        let facts = sessions.setups().context_facts(&thread_id, &op_id).await;
+        let facts = match super::Turns::stage_line(&storage, &thread_id).await {
+            Ok(stage) => {
+                let invocation = if harness == shadows_agent::policy::AYLUL {
+                    None
+                } else {
+                    Some(super::Turns::invocation_context(&storage, &thread_id, &op_id).await)
+                };
+                sessions.context_facts(&thread_id, invocation, stage).await
+            }
+            Err(error) => Err(error.into()),
+        };
         let prepared = match facts {
             Ok(facts) => (sessions.prepare_turn(&thread_id, &opened, &settings).await).map(|()| {
                 Prompt::compose(PromptParts {
@@ -184,7 +194,7 @@ impl PlannerTurn {
         }
         // Only a started turn counts as heard, so the harness learns here
         // whether this one carried its changes or a command left them waiting.
-        sessions.setups().withhold(&thread_id, withholds);
+        sessions.withhold(&thread_id, withholds);
         watch_turn(
             TurnWatch {
                 op_id: op_id.clone(),

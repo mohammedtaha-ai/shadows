@@ -2,7 +2,7 @@
 use crate::usage::{Usage, UsageRecord};
 use crate::{OperationId, db::StorageError};
 use shadows_agent::events::TurnUsage;
-use sqlx::{Row, SqliteConnection};
+use sqlx::SqliteConnection;
 
 pub(crate) async fn record_usage_in(
     conn: &mut SqliteConnection,
@@ -13,25 +13,19 @@ pub(crate) async fn record_usage_in(
     let Some(thread_id) = crate::operations::Operations::started_thread_in(conn, op).await? else {
         return Ok(());
     };
-    let row = sqlx::query(
-        "SELECT i.* FROM agent_invocation i WHERE i.operation_id=?
-        AND i.harness_kind='aylul' AND i.usage_provider_slug IS NOT NULL",
-    )
-    .bind(op.as_str())
-    .fetch_optional(&mut *conn)
-    .await?;
+    let row = crate::harness::Harness::invocation_usage_in(conn, op.as_str()).await?;
     let Some(row) = row else {
         return Ok(());
     };
     let record = UsageRecord {
         operation_id: op.as_str().to_owned(),
         thread_id,
-        agent_slug: row.get("usage_agent_slug"),
-        provider_slug: row.get("usage_provider_slug"),
-        provider_name: row.get("usage_provider_name"),
-        label: row.get("usage_label"),
-        preset: row.get("usage_preset"),
-        model: row.get("requested_model"),
+        agent_slug: row.agent_slug,
+        provider_slug: row.provider_slug,
+        provider_name: row.provider_name,
+        label: row.label,
+        preset: row.preset,
+        model: row.model,
         input_tokens: usage.map(|u| u.input_tokens),
         output_tokens: usage.map(|u| u.output_tokens),
         cached_read_tokens: usage.map(|u| u.cached_read_tokens),

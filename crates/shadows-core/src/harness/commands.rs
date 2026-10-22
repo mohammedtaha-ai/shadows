@@ -1,4 +1,4 @@
-//! One job: the latest `/` list each open session sent (spec §21.2).
+//! One job: the latest `/` list each open session sent.
 //!
 //! Every `available_commands_update` is the complete list, so each one
 //! replaces the thread's entry here and is published to whoever watches (the
@@ -43,7 +43,7 @@ impl Commands {
             .cloned()
     }
 
-    /// Publishes nothing (§21.2): a client keeps its last list.
+    /// Publishes nothing: a client keeps its last list.
     pub(super) fn forget(&self, thread: &ThreadId) {
         self.latest.lock().expect("commands lock").remove(thread);
     }
@@ -56,20 +56,22 @@ impl Commands {
 /// Takes the `/` list off the connection, in its own dispatch, and hands
 /// every other event on to `next`. It arrives between turns too, when nobody
 /// reads the thread's events.
-pub(super) fn keep_commands(
-    commands: Arc<Commands>,
-    thread: ThreadId,
-    next: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
-) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
-    move |event| match event {
-        HarnessEvent::Commands(list) => commands.record(&thread, list),
-        other => next(other),
+impl Commands {
+    pub(super) fn keep_commands(
+        commands: Arc<Commands>,
+        thread: ThreadId,
+        next: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
+    ) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
+        move |event| match event {
+            HarnessEvent::Commands(list) => commands.record(&thread, list),
+            other => next(other),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{Commands, SlashCommand, ThreadId};
 
     fn one(name: &str) -> SlashCommand {
         SlashCommand {

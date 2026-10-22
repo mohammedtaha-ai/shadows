@@ -2,14 +2,13 @@
 //! — the offer's checks on the turn's settings, then `Storage::start_turn`.
 
 use shadows_agent::TurnSettings;
-use shadows_agent::acp::AcpError;
 use shadows_agent::choices::{Offered, refusal};
 
 use super::Turns;
 use super::store::{Dequeue, NewTurn, StartedTurn};
 use crate::db::{CommandContext, StorageError};
 use crate::error::CoreError;
-use crate::harness::{OpenSession, prompt_version};
+use crate::harness::OpenSession;
 use crate::plans::Focus;
 use crate::threads::{ThreadId, TurnContext};
 
@@ -34,6 +33,7 @@ impl Turns {
         turn: Turn<'_>,
     ) -> Result<StartedTurn, CoreError> {
         let (offered, previous) = self
+            .sessions
             .offer_for_model(thread_id, opened, &turn.settings.model)
             .await?;
         let started = self
@@ -48,7 +48,8 @@ impl Turns {
         if let Some(previous) = previous
             && !matches!(&started, Ok(s) if !s.replayed)
         {
-            self.set_model_back(thread_id, opened, &offered, &previous)
+            self.sessions
+                .set_model_back(thread_id, opened, &offered, &previous)
                 .await;
         }
         started
@@ -109,7 +110,7 @@ impl Turns {
                     agent_path: &agent_path,
                     agent_version: &adapter.agent_version,
                     settings,
-                    prompt_version: Some(prompt_version()),
+                    prompt_version: Some(crate::harness::Harness::prompt_version()),
                     instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
                     standards_version: Some(crate::standards::Standards::base().version),
                     standards_additions_version: additions.as_ref().map(|v| v.id.as_str()),
@@ -124,55 +125,6 @@ impl Turns {
                 Err(CoreError::RuntimeStopping)
             }
             Err(e) => Err(e.into()),
-        }
-    }
-
-    /// The session's offer for `model`, with the model it held when this set
-    /// another. Efforts belong to a model, so a turn naming another model than
-    /// the session holds sets it first (§12.7): the only session change made
-    /// before the transaction, since it records nothing. The harness refusing
-    /// it is `SettingNotOffered` in its words.
-    async fn offer_for_model(
-        &self,
-        thread: &ThreadId,
-        opened: &OpenSession,
-        model: &str,
-    ) -> Result<(Offered, Option<String>), CoreError> {
-        let closed = || CoreError::HarnessStartFailed("the harness session closed".into());
-        let offered = self.sessions.offered(thread).await.ok_or_else(closed)?;
-        if offered.current.model == model || !offered.offers_model(model) {
-            return Ok((offered, None));
-        }
-        let id = offered.ids.model.clone();
-        match self.sessions.set_option(thread, opened, &id, model).await {
-            Ok(next) => Ok((next, Some(offered.current.model))),
-            Err(AcpError::Rpc(message)) => Err(CoreError::SettingNotOffered {
-                what: "model".into(),
-                id: model.into(),
-                detail: Some(message),
-            }),
-            Err(AcpError::Closed) => Err(closed()),
-        }
-    }
-
-    /// Sets back the model `offer_for_model` replaced. The turn's refusal is
-    /// the answer either way, so a harness that will not take the model back
-    /// is logged, not returned.
-    async fn set_model_back(
-        &self,
-        thread: &ThreadId,
-        opened: &OpenSession,
-        offered: &Offered,
-        previous: &str,
-    ) {
-        let id = &offered.ids.model;
-        if let Err(e) = self.sessions.set_option(thread, opened, id, previous).await {
-            tracing::warn!(
-                thread_id = %thread,
-                model = previous,
-                error = %e,
-                "turn.model_not_set_back"
-            );
         }
     }
 }

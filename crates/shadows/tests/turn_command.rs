@@ -99,7 +99,8 @@ async fn one_command_writes_entry_operation_invocation_and_record_together() {
     );
     assert!(inv.observed_model.is_none());
     assert_eq!(
-        app.storage
+        app.core
+            .harness()
             .remembered_settings("claude-code")
             .await
             .unwrap(),

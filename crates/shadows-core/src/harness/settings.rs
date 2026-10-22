@@ -1,4 +1,4 @@
-//! One job: setting an open session's options (spec §12.4, §12.7).
+//! One job: setting an open session's options.
 //!
 //! Every `session/set_config_option` Shadows sends goes through here: the
 //! opening's default mode and remembered model and effort, the model or effort
@@ -11,10 +11,11 @@ use serde_json::Value;
 
 use super::store::Remembered;
 use super::{LeaseError, OpenSession, Sessions};
+use crate::CoreError;
 use crate::threads::ThreadId;
 use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered};
 
-/// Why the session's model or effort was not changed (spec §12.7).
+/// Why the session's model or effort was not changed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum SettingRefused {
     /// The session does not offer it: a model not in its list, or an effort
@@ -46,10 +47,10 @@ impl Sessions {
         self.offers.record(thread, &answer).map_err(AcpError::Rpc)
     }
 
-    /// Sets the session to `model` as soon as a person picks it (§12.7), so
+    /// Sets the session to `model` as soon as a person picks it, so
     /// the efforts it answers are that model's before any turn; when it moves
     /// to the model, then to `effort`, that model's remembered effort, if it
-    /// is still offered (§12.4). The session is held the way a turn holds it,
+    /// is still offered. The session is held the way a turn holds it,
     /// so neither a turn nor a `/context` read runs while it changes; it is
     /// given back whatever the outcome. Nothing durable is written: a turn
     /// records its own model.
@@ -66,7 +67,7 @@ impl Sessions {
         changed
     }
 
-    /// Sets the session to `effort` as soon as a person picks it (§12.7),
+    /// Sets the session to `effort` as soon as a person picks it,
     /// held as `change_model` holds it. Nothing durable is written.
     pub(crate) async fn change_effort(
         &self,
@@ -122,7 +123,7 @@ impl Sessions {
 
     /// Sets the session to `effort`, the remembered effort of the model it
     /// holds, unless there is none, the model does not offer it or the harness
-    /// refuses it: then the adapter's current effort stands (§12.4).
+    /// refuses it: then the adapter's current effort stands.
     async fn remembered_effort(
         &self,
         thread: &ThreadId,
@@ -143,10 +144,10 @@ impl Sessions {
             .unwrap_or(offered))
     }
 
-    /// §12.2: every opening sets the policy's default mode, since a new or
+    /// Every opening sets the policy's default mode, since a new or
     /// resumed session starts at the person's own Claude defaults. Then the
     /// harness's remembered model, then the remembered effort of the model
-    /// the session then holds (§12.4), each skipped when the session does not
+    /// the session then holds, each skipped when the session does not
     /// offer it or the harness refuses it; a model change can move the mode,
     /// so the default is set again after.
     pub(super) async fn apply_opening_settings(
@@ -212,7 +213,7 @@ impl Sessions {
         }
     }
 
-    /// §12.7: before the prompt, the session is set to the turn's model,
+    /// Before the prompt, the session is set to the turn's model,
     /// effort and mode, one call per value that differs from what the session
     /// holds. `Err` names the setting the harness refused, in its words;
     /// nothing has been sent to the model.
@@ -227,13 +228,10 @@ impl Sessions {
             .await
             .ok_or("the harness session closed before the turn")?;
         let refused = |what: &str, value: &str, e: AcpError| format!("{what} {value}: {e}");
-        if offered.current.model != settings.model {
-            let id = offered.ids.model.clone();
-            offered = self
-                .set_option(thread, opened, &id, &settings.model)
-                .await
-                .map_err(|e| refused("model", &settings.model, e))?;
-        }
+        offered = self
+            .model_for_turn(thread, opened, offered, &settings.model)
+            .await
+            .map_err(|e| refused("model", &settings.model, e))?;
         if let Some(effort) = &settings.effort
             && offered.current.effort.as_ref() != Some(effort)
         {
@@ -263,5 +261,75 @@ fn refused(error: AcpError) -> SettingRefused {
     match error {
         AcpError::Rpc(message) => SettingRefused::Harness(message),
         AcpError::Closed => SettingRefused::Lease(LeaseError::Closed),
+    }
+}
+
+impl Sessions {
+    async fn model_for_turn(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        offered: Offered,
+        model: &str,
+    ) -> Result<Offered, AcpError> {
+        if offered.current.model == model {
+            return Ok(offered);
+        }
+        self.set_option(thread, opened, &offered.ids.model, model)
+            .await
+    }
+}
+impl super::Harness {
+    /// The session's offer for `model`, with the model it held when this set
+    /// another. Efforts belong to a model, so a turn naming another model than
+    /// the session holds sets it first: the only session change made
+    /// before the transaction, since it records nothing. The harness refusing
+    /// it is `SettingNotOffered` in its words.
+    pub(crate) async fn offer_for_model(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        model: &str,
+    ) -> Result<(Offered, Option<String>), CoreError> {
+        let closed = || CoreError::HarnessStartFailed("the harness session closed".into());
+        let offered = self.sessions.offered(thread).await.ok_or_else(closed)?;
+        if offered.current.model == model || !offered.offers_model(model) {
+            return Ok((offered, None));
+        }
+        let previous = offered.current.model.clone();
+        match self
+            .sessions
+            .model_for_turn(thread, opened, offered, model)
+            .await
+        {
+            Ok(next) => Ok((next, Some(previous))),
+            Err(AcpError::Rpc(message)) => Err(CoreError::SettingNotOffered {
+                what: "model".into(),
+                id: model.into(),
+                detail: Some(message),
+            }),
+            Err(AcpError::Closed) => Err(closed()),
+        }
+    }
+
+    /// Sets back the model `offer_for_model` replaced. The turn's refusal is
+    /// the answer either way, so a harness that will not take the model back
+    /// is logged, not returned.
+    pub(crate) async fn set_model_back(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        offered: &Offered,
+        previous: &str,
+    ) {
+        let id = &offered.ids.model;
+        if let Err(e) = self.sessions.set_option(thread, opened, id, previous).await {
+            tracing::warn!(
+                thread_id = %thread,
+                model = previous,
+                error = %e,
+                "turn.model_not_set_back"
+            );
+        }
     }
 }

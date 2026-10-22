@@ -6,9 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
-use shadows_core::testing::{
-    CommandContext, ProjectDirectory, Sessions, Storage, acp, fingerprint,
-};
+use shadows_core::testing::{CommandContext, ProjectDirectory, Storage, acp, fingerprint};
 use shadows_core::{AppCore, Asker, CodeConfig, CoreParts, IndexState, ProjectId};
 
 /// A core over a temporary database in `db`, with one project whose folder is `dir`.
@@ -94,7 +92,7 @@ async fn core_over(storage: Arc<Storage>) -> Arc<AppCore> {
         storage: storage.clone(),
         runtime: Arc::new(runtime),
         // No turn runs here, so the adapter is never started: no `fake-acp` build.
-        sessions: Sessions::new(no_adapter, storage, acp::test_config()),
+        sessions: shadows_core::AppCore::harness_for_tests(no_adapter, storage, acp::test_config()),
         handles: Default::default(),
         bus: tokio::sync::broadcast::channel(16).0,
         ui: tokio::sync::broadcast::channel(16).0,

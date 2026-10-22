@@ -14,13 +14,15 @@ pub struct AylulConfig {
     pub project_slug: String,
 }
 
-pub(super) fn aylul_setup() -> SessionSetup {
-    SessionSetup {
-        mcp: None,
-        append: None,
-        allowed_tools: vec![],
-        tools: None,
-        setting_sources: Some(vec!["user".into()]),
+impl Sessions {
+    fn aylul_setup() -> SessionSetup {
+        SessionSetup {
+            mcp: None,
+            append: None,
+            allowed_tools: vec![],
+            tools: None,
+            setting_sources: Some(vec!["user".into()]),
+        }
     }
 }
 
@@ -143,7 +145,7 @@ impl Sessions {
             .process_spec_with(&home, Some(&profile), &stored, Some(token.as_str()))
             .map_err(|_| CoreError::AylulKeyMissing(provider.slug))?;
         let person = self.owners.person.person().await?;
-        let mut setup = aylul_setup();
+        let mut setup = Self::aylul_setup();
         if let Some(name) = person.aylul_calls_me.or(person.name) {
             let quoted = serde_json::to_string(&name)
                 .map_err(|_| CoreError::ProfileInvalid("invalid person name".into()))?;

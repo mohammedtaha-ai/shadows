@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::db::{CommandContext, fingerprint};
-use crate::harness::Sessions;
+use crate::harness::Harness;
 use crate::runtime::Runtime;
 use crate::threads::ThreadId;
 use crate::turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
@@ -58,7 +58,7 @@ pub fn new_turn<'a>(
         agent_path: "fake_acp",
         agent_version: "fake-claude-1",
         settings,
-        prompt_version: Some(crate::harness::prompt_version()),
+        prompt_version: Some(crate::harness::Harness::prompt_version()),
         instructions_version: None,
         standards_version: Some(crate::standards::Standards::base().version),
         standards_additions_version: None,
@@ -72,7 +72,7 @@ pub fn new_turn<'a>(
 pub async fn start_direct(
     runtime: &Arc<Runtime>,
     handles: &Arc<LiveHandles>,
-    sessions: &Arc<Sessions>,
+    sessions: &Arc<Harness>,
     bus: &tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     thread: &ThreadId,
     prompt: &str,

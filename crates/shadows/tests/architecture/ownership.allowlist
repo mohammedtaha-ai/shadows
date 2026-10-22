@@ -1,5 +1,4 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-# A-17: Threads::set_harness retains its Harness session close until the owner moves.
 # A-18: Threads::remove retains ThreadStopper and Harness close until removal moves.
 # A-19: thread model OperationId/WorkflowId/TaskId imports remain for extraction.
 crates/shadows-core/src/code/store/links.rs :: CodeStore::put_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
@@ -13,7 +12,6 @@ crates/shadows-core/src/design/store/agreement_review.rs :: review cross-owner s
 crates/shadows-core/src/design/store/hierarchy.rs :: check_parent SQL review: dynamic or indirect query [917b012993abc5d0] #1
 crates/shadows-core/src/design/store/hierarchy.rs :: place SQL review: dynamic or indirect query [85e0b3962b00c80b] #1
 crates/shadows-core/src/design/store/hierarchy.rs :: place SQL review: dynamic or indirect query [e347697642165d0b] #1
-crates/shadows-core/src/design/store/map_proposal_shape.rs :: pinned SQL table agent_invocation belongs to turns [b9941ec6a69bb2cd] #1
 crates/shadows-core/src/design/store/outcome_edit.rs :: apply SQL review: dynamic or indirect query [7c021e09ecd4baa6] #1
 crates/shadows-core/src/design/store/outcome_edit.rs :: apply SQL review: dynamic or indirect query [7c021e09ecd4baa6] #2
 crates/shadows-core/src/design/store/outcome_edit.rs :: apply cross-owner store call shadows_core::plans::store::plan::check_design_plan [40a91013bfc8fbd8] #1
@@ -23,9 +21,8 @@ crates/shadows-core/src/design/store/parts.rs :: Storage::design_part cross-owne
 crates/shadows-core/src/design/store/parts.rs :: revision SQL table project belongs to projects [1aa29d60f93a93ed] #1
 crates/shadows-core/src/design/store/proposal_read.rs :: live_vision SQL table project belongs to projects [71f0f0a5dfba0a86] #1
 # A-16: proposal invocation reads remain with Design preparation.
-crates/shadows-core/src/design/store/proposals.rs :: Storage::propose_vision_in SQL table agent_invocation belongs to turns [2d2e0f1167990108] #1
+crates/shadows-core/src/design/store/proposals.rs :: Storage::propose_vision_in SQL table agent_invocation belongs to harness [2d2e0f1167990108] #1
 crates/shadows-core/src/design/store/roadmap_shape.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows-core/src/design/store/stage.rs :: Storage::project_stage SQL table project belongs to projects [71f0f0a5dfba0a86] #1
 crates/shadows-core/src/design/store/structure.rs :: Storage::start_structure SQL table project belongs to projects [98cab4d141ae090d] #1
 crates/shadows-core/src/design/store/structure.rs :: Storage::structure_snapshot SQL table project belongs to projects [02226f987eebdf3e] #1
 crates/shadows-core/src/design/store/vision.rs :: Storage::design_vision SQL table project belongs to projects [33675b363ad768de] #1
@@ -33,13 +30,6 @@ crates/shadows-core/src/design/store/vision.rs :: Storage::edit_design SQL table
 crates/shadows-core/src/design/structure.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/events/store.rs :: Storage::current_cursor SQL review: dynamic or indirect query [c1e40c7a3d7dffc8] #1
 crates/shadows-core/src/events/store.rs :: Storage::read_project_events_after SQL table workflow belongs to plans [d2331dc844223516] #1
-crates/shadows-core/src/harness/commands.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::instructions::Instructions outside composition root [daa13b010d06c56f] #1
-crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::secrets::Secrets outside composition root [f5c64cc928b70c3d] #1
-# A-17: invocation-version reads move with Harness invocation ownership.
-crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
-# A-17: Harness context preparation still reads Design stage until Harness preparation.
-crates/shadows-core/src/harness/setup.rs :: Setups::stage_line Storage::project_stage belongs to design [2eec35a57c9c632f] #1
 crates/shadows-core/src/plans/store/bindings.rs :: validate cross-owner store call shadows_core::design::store::agreement_binding::check_agreement_binding_in [de3faaaebba280a8] #1
 # A-16: retained Design roadmap reads and plan links follow Plans preparation.
 crates/shadows-core/src/plans/store/draft.rs :: Storage::start_draft cross-owner store call shadows_core::design::store::roadmap_gate::link_plan_parts_in [65e963269036540d] #1
@@ -59,8 +49,6 @@ crates/shadows-core/src/plans/store/map.rs :: node SQL table project belongs to 
 crates/shadows-core/src/plans/store/notifications.rs :: notify_plan SQL table project belongs to projects [18a724b3db58af7b] #1
 crates/shadows-core/src/plans/store/notifications.rs :: notify_project_dependencies_in SQL table project belongs to projects [ffdf28118be9c22f] #1
 crates/shadows-core/src/plans/store/plan.rs :: load_plan_versions SQL table project belongs to projects [ba67f7f2f990e9c7] #1
-# A-17: invocation provenance follows Harness table ownership.
-crates/shadows-core/src/plans/store/read.rs :: written_by SQL table agent_invocation belongs to turns [a60039ee53ce489e] #1
 # A-16b: project removal checks threads through its new owner.
 # A-16b: retained project-removal writes move to ProjectRemoval.
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove SQL table planning_thread belongs to threads [5f4deecc4f5c3ae9] #1
@@ -69,28 +57,21 @@ crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner s
 crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
 crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
-# A-17: harness locking moves with set_thread_harness to Harness.
-crates/shadows-core/src/threads/store/thread.rs :: has_operation SQL table operation belongs to operations [5dd083b85aca1e88] #1
 # A-18: remaining turn dispatch and persistence boundaries move with Turns.
 crates/shadows-core/src/turns/entries.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::list_plans belongs to plans [7c2e971023ae016a] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queue_message SQL review: dynamic or indirect query [7d829bdfee6bff72] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queued_message SQL review: dynamic or indirect query [4dcdfbd051210c52] #1
 crates/shadows-core/src/turns/store/queue.rs :: Storage::queued_messages SQL review: dynamic or indirect query [4463baf3a2c71b00] #1
-crates/shadows-core/src/turns/store/turn.rs :: Storage::start_turn cross-owner store call shadows_core::harness::store::remember_settings [202f80cf4dc75148] #1
 crates/shadows-core/src/turns/store/turn.rs :: focused SQL table plan belongs to plans [1efd83c86379fa29] #1
 crates/shadows-core/src/turns/store/turn.rs :: focused SQL table workflow belongs to plans [1efd83c86379fa29] #1
 crates/shadows-core/src/turns/store/turn.rs :: focused cross-owner store call shadows_core::plans::store::task::task_of [bf5e42b95549d951] #1
-# A-18: live usage reporting calls Harness after its service preparation.
-crates/shadows-core/src/turns/turn.rs :: accept Storage::record_limits belongs to harness [402f70e259d0516b] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::app::CoreParts [eb819e5a3702e515] #1
 # A-20: adapter fixtures retain explicit storage, session and live-registry handles.
-crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::db::Storage [77e2daa9df7a0ac8] #1
-crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::harness::sessions::Sessions [77e2daa9df7a0ac8] #1
-crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::turns::handles::LiveHandles [77e2daa9df7a0ac8] #1
+crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::db::Storage [9c1c6a74e7ff5b3b] #1
+crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::turns::handles::LiveHandles [9c1c6a74e7ff5b3b] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::app::CoreParts [27e260cba753808c] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::db::Storage::open [7d87dc6849ac2337] #1
-crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::harness::sessions::Sessions::new [8200f20d75661efe] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::turns::handles::LiveHandles::default [68c6bc98750ff5dc] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter calls shadows_core::db::Storage::unwrap [bf25e3bc00c2485f] #1
 crates/shadows/src/aylul_tests.rs :: module name resolution review: glob import [19dbf88307d136ac] #1

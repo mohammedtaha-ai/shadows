@@ -1,13 +1,13 @@
-//! The standards version recorded for an invocation in its project snapshot.
-
+use crate::{
+    db::{Storage, StorageError},
+    operations::OperationId,
+    projects::Projects,
+    standards::{EffectiveStandards, Standards},
+    threads::ThreadId,
+};
 use sqlx::SqliteConnection;
 
-use crate::db::StorageError;
-use crate::projects::Projects;
-use crate::standards::{EffectiveStandards, Standards};
-use crate::turns::{OperationId, Turns};
-
-impl Turns {
+impl crate::turns::Turns {
     /// Resolves the invocation's pin without substituting newer additions.
     pub(crate) async fn standards_for_invocation_in(
         conn: &mut SqliteConnection,
@@ -22,13 +22,8 @@ impl Turns {
         let thread = operation_row
             .thread_id
             .ok_or(StorageError::NotFound("invocation"))?;
-        let pin: Option<Option<String>> = sqlx::query_scalar(
-            "SELECT standards_additions_version_id FROM agent_invocation WHERE operation_id=?",
-        )
-        .bind(operation.as_str())
-        .fetch_optional(&mut *conn)
-        .await?;
-        let pin = pin.ok_or(StorageError::NotFound("invocation"))?;
+        let (_, pin) =
+            crate::harness::Harness::invocation_standards_in(conn, operation.as_str()).await?;
         let project = crate::threads::Threads::project_in(
             conn,
             &crate::threads::ThreadId::from_stored(thread),
@@ -64,11 +59,29 @@ impl Turns {
     }
 }
 
+impl crate::turns::Turns {
+    pub(in crate::turns) async fn invocation_context(
+        storage: &Storage,
+        thread: &ThreadId,
+        operation: &OperationId,
+    ) -> crate::harness::InvocationContext {
+        let latest = storage.latest_invocation_versions(thread).await;
+        let standards = async {
+            let mut conn = storage.reader().begin().await?;
+            let effective = Self::standards_for_invocation_in(&mut conn, operation).await?;
+            conn.commit().await?;
+            Ok(effective)
+        }
+        .await;
+        crate::harness::InvocationContext { latest, standards }
+    }
+}
+
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
+    use crate::OperationId;
     use crate::db::{Storage, StorageError};
     use crate::testing::turn::{default_turn_settings, new_turn, turn_command};
-    use crate::turns::{OperationId, Turns};
 
     #[tokio::test]
     async fn invocation_standards_preserve_pins_nulls_and_missing_results() {
@@ -121,18 +134,21 @@ mod tests {
             .unwrap();
         let mut conn = turns.storage.reader().acquire().await.unwrap();
         assert_eq!(
-            Turns::standards_for_invocation_in(&mut conn, &started.operation_id)
+            crate::turns::Turns::standards_for_invocation_in(&mut conn, &started.operation_id)
                 .await
                 .unwrap()
                 .additions,
             Some(first)
         );
-        sqlx::query("UPDATE agent_invocation SET standards_additions_version_id=NULL")
-            .execute(&mut *conn)
-            .await
-            .unwrap();
+        crate::harness::Harness::set_invocation_pin_for_test(
+            &mut conn,
+            started.operation_id.as_str(),
+            None,
+        )
+        .await
+        .unwrap();
         assert!(
-            Turns::standards_for_invocation_in(&mut conn, &started.operation_id)
+            crate::turns::Turns::standards_for_invocation_in(&mut conn, &started.operation_id)
                 .await
                 .unwrap()
                 .additions
@@ -144,17 +160,21 @@ mod tests {
             .save_standards_additions("foreign".into(), &other.id, Default::default())
             .await
             .unwrap();
-        sqlx::query("UPDATE agent_invocation SET standards_additions_version_id=?")
-            .bind(&foreign.id)
-            .execute(&mut *conn)
-            .await
-            .unwrap();
+        crate::harness::Harness::set_invocation_pin_for_test(
+            &mut conn,
+            started.operation_id.as_str(),
+            Some(&foreign.id),
+        )
+        .await
+        .unwrap();
         assert!(matches!(
-            Turns::standards_for_invocation_in(&mut conn, &started.operation_id).await,
+            crate::turns::Turns::standards_for_invocation_in(&mut conn, &started.operation_id)
+                .await,
             Err(StorageError::NotFound("invocation standards additions"))
         ));
         assert!(matches!(
-            Turns::standards_for_invocation_in(&mut conn, &OperationId::generate()).await,
+            crate::turns::Turns::standards_for_invocation_in(&mut conn, &OperationId::generate())
+                .await,
             Err(StorageError::NotFound("invocation"))
         ));
         crate::turns::Turns::mark_operation_failed_for_test(
@@ -174,7 +194,8 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(
-            Turns::standards_for_invocation_in(&mut conn, &started.operation_id).await,
+            crate::turns::Turns::standards_for_invocation_in(&mut conn, &started.operation_id)
+                .await,
             Err(StorageError::NotFound("invocation"))
         ));
         core.code().shut_down().await;

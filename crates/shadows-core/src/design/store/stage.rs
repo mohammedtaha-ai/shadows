@@ -8,15 +8,23 @@ use crate::standards::{EffectiveStandards, Standards};
 impl Storage {
     pub async fn project_stage(&self, project: &ProjectId) -> Result<StageView, StorageError> {
         let mut tx = self.reader().begin().await?;
-        let row: Option<(Option<String>,)> = sqlx::query_as(
-            "SELECT w.vision_content FROM project p
-             LEFT JOIN design_workspace w ON w.project_id=p.id
-             WHERE p.id=? AND p.removed_at IS NULL",
-        )
-        .bind(project.as_str())
-        .fetch_optional(&mut *tx)
-        .await?;
-        let (content,) = row.ok_or(StorageError::NotFound("project"))?;
+        let view = crate::design::Design::stage_view_in(&mut tx, project).await?;
+        tx.commit().await?;
+        Ok(view)
+    }
+}
+impl crate::design::Design {
+    pub(in crate::design) async fn stage_view_in(
+        tx: &mut sqlx::SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<StageView, StorageError> {
+        crate::projects::Projects::require_live_in(tx, project).await?;
+        let content: Option<Option<String>> =
+            sqlx::query_scalar("SELECT vision_content FROM design_workspace WHERE project_id=?")
+                .bind(project.as_str())
+                .fetch_optional(&mut *tx)
+                .await?;
+        let content = content.flatten();
         let vision: VisionContent = content
             .map(|s| serde_json::from_str(&s))
             .transpose()?
@@ -37,9 +45,9 @@ impl Storage {
             .collect();
         let effective = EffectiveStandards {
             base: Standards::base().clone(),
-            additions: Standards::current_in(&mut tx, project).await?,
+            additions: Standards::current_in(tx, project).await?,
         };
-        let waived = super::map_versions::waived(&mut tx, project).await?;
+        let waived = super::map_versions::waived(tx, project).await?;
         let required: Vec<_> = effective
             .mandatory_parts()
             .into_iter()
@@ -59,7 +67,7 @@ impl Storage {
             };
         }
         if map.unwrap_or(0) > 0 {
-            let rows = super::map_versions::rows(&mut tx, project).await?;
+            let rows = super::map_versions::rows(tx, project).await?;
             let content = super::map_versions::contents(&rows)?;
             let revisions: Vec<std::collections::BTreeMap<String, i64>> = rows
                 .iter()
@@ -89,7 +97,6 @@ impl Storage {
                 crate::Stage::Roadmap
             };
         }
-        tx.commit().await?;
         Ok(stage)
     }
 }

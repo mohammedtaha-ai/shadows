@@ -17,8 +17,8 @@ use shadows::cli::router;
 use shadows_core::Actor;
 use shadows_core::OperationId;
 use shadows_core::testing::Bus;
+use shadows_core::testing::Harness;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
 use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn};
@@ -188,7 +188,7 @@ struct Daemon {
     state: AppState,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     bus: Bus,
 }
 

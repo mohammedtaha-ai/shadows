@@ -303,15 +303,7 @@ pub(super) async fn written_by(
         crate::threads::Threads::get_in(conn, &ThreadId::from_stored(thread.clone())).await?;
     let (thread_title, removed_at) = (metadata.title, metadata.removed_at);
     let invocation: Option<(String, String)> = match operation {
-        Some(op) => {
-            sqlx::query_as(
-                "SELECT COALESCE(observed_model, requested_model), harness_kind
-                   FROM agent_invocation WHERE operation_id = ?",
-            )
-            .bind(op)
-            .fetch_optional(&mut *conn)
-            .await?
-        }
+        Some(op) => crate::harness::Harness::invocation_model_in(conn, &op).await?,
         None => None,
     };
     let (model, harness) = invocation.map_or((None, None), |(m, h)| (Some(m), Some(h)));

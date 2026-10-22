@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows_core::testing::{LiveHandles, Sessions, Storage, acp, secrets};
+use shadows_core::testing::{LiveHandles, Storage, acp, secrets};
 use shadows_core::{AppCore, AylulConfig, CoreParts, SecretKey};
 use tower::ServiceExt;
 
@@ -27,7 +27,7 @@ pub(crate) async fn world(configured: bool, key: bool) -> World {
         adapter_version: String::new(),
         agent_version: String::new(),
     });
-    let sessions = Sessions::new(
+    let sessions = shadows_core::AppCore::harness_for_tests(
         adapter,
         storage.clone(),
         shadows_core::testing::SessionsConfig {

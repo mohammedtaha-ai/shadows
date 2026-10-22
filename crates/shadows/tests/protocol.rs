@@ -17,8 +17,8 @@ use shadows::cli::router;
 use shadows_core::OperationId;
 use shadows_core::RuntimeInstanceId;
 use shadows_core::ThreadId;
+use shadows_core::testing::Harness;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
@@ -33,7 +33,7 @@ struct Fixture {
     app: Router,
     stopping: tokio::sync::watch::Sender<bool>,
     runtime: RuntimeInstanceId,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
 }
 
 async fn fixture() -> Fixture {

@@ -83,6 +83,7 @@ not_the_caller's:
   - Log a transition before the caller's transaction commits.
 
 shared_in_transaction:
+  has_any_in: "Harness reads whether any retained operation locks the harness in its command transaction."
   cancelled_in: Turns records cancellation after confirmed execution end.
   completed_in: Turns adds invocation payload and usage in the same terminal transaction.
   completed_in_snapshot: Fork checks the source entry operation in its transaction.
@@ -106,3 +107,5 @@ shared_in_transaction:
   recover: AppCore reconciles other runtime owners before accepting work.
   stop_runtime: Shutdown checks unfinished work and writes the runtime stop atomically.
   with_detail: Internal transition log detail.
+
+# Transaction-local read: has_any_in(conn, thread) answers whether any retained operation locks its harness.

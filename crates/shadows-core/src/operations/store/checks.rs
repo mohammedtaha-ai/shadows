@@ -131,3 +131,19 @@ impl Operations {
         Ok(status.as_deref() == Some("Completed"))
     }
 }
+
+impl Operations {
+    /// Whether any operation — running or ended — exists on the thread. Its first
+    /// one fixes the harness.
+    pub(crate) async fn has_any_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+    ) -> Result<bool, StorageError> {
+        let found: Option<i64> =
+            sqlx::query_scalar("SELECT 1 FROM operation WHERE thread_id = ? LIMIT 1")
+                .bind(thread.as_str())
+                .fetch_optional(&mut *conn)
+                .await?;
+        Ok(found.is_some())
+    }
+}

@@ -203,7 +203,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/turns/subagents.rs` | gathering a subagent's tool calls into its card (§22) | `crates/shadows-core/src/turns/subagents.rs` |
 | `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
 | `crates/shadows-core/src/harness/model.rs` | the harness shapes callers meet | `crates/shadows-core/src/harness/model.rs` |
-| `crates/shadows-core/src/harness/store.rs` | the rows kept per harness | `crates/shadows-core/src/harness/store.rs` |
+| `crates/shadows-core/src/harness/store/` | the rows kept per harness | `crates/shadows-core/src/harness/store/` |
 | `crates/shadows-core/src/harness/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/shadows-core/src/harness/assistant.rs` |
 | `crates/shadows-core/src/harness/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/harness/sessions.rs` |
 | `crates/shadows-core/src/harness/settings.rs` | setting an open session's options | `crates/shadows-core/src/harness/settings.rs` |
@@ -354,3 +354,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-core/src/grants/error.rs` | grant refusal mapping | `crates/shadows-core/src/grants/contract.yaml` |
 | `crates/shadows-core/src/grants/tools.rs` | grant tool policy | `crates/shadows-core/src/grants/contract.yaml` |
 | `crates/shadows-core/src/grants/testing.rs` | test-only grant entry points | `crates/shadows-core/src/grants/contract.yaml` |
+
+| `crates/shadows-core/src/harness/access.rs` | live session owner operations | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/harness/store/invocation.rs` | invocation transaction entry points | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/turns/stage.rs` | shared prompt stage facts | `crates/shadows-core/src/turns/contract.yaml` |

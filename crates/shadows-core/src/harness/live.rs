@@ -1,9 +1,8 @@
 //! Owning the live adapter cache at session opening.
 use super::assistant::Opening;
-use super::commands::keep_commands;
-use super::offers::intercept;
-use super::sessions::{OpenError, OpenSession, Sessions, stop_handle};
-use super::titles::keep_titles;
+use super::commands::Commands;
+use super::offers::Offers;
+use super::sessions::{OpenError, OpenSession, Sessions};
 use crate::threads::ThreadId;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::{
@@ -25,13 +24,13 @@ pub(super) struct Live {
     pub(super) events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
     pub(super) last_used: Instant,
     /// Whether a Planner turn has answered in this adapter: before one has,
-    /// `/context` can stall a fresh session for tens of seconds (§12.8).
+    /// `/context` can stall a fresh session for tens of seconds.
     pub(super) answered: bool,
 }
 
 /// One thread's place in `Sessions`: empty until an adapter opens, and while
 /// one is replaced. Its own lock is held through an opening, a close or a
-/// stop; the map's lock only while a slot is found or added (§16.6). A slot
+/// stop; the map's lock only while a slot is found or added. A slot
 /// is never removed, so two callers can never hold two slots for one thread.
 pub(super) type Slot = Arc<Mutex<Option<Live>>>;
 
@@ -59,13 +58,13 @@ impl Sessions {
                 current.last_used = Instant::now();
                 return Ok(current.opened.clone());
             }
-            stop_handle(&mut current.handle)
+            Self::stop_handle(&mut current.handle)
                 .await
                 .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
             *live = None;
             self.forget(thread).await;
         }
-        // A fork's first opening forks the source's session (§12.9); once
+        // A fork's first opening forks the source's session; once
         // the fork's first turn has recorded its own, it resumes that.
         let (how, start) = match (
             context.harness_session_id.clone(),
@@ -79,7 +78,9 @@ impl Sessions {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))
         })?;
         let preference = super::preference_key(&context.harness, context.profile.as_deref());
-        let mut remembered = self.storage.remembered(&preference).await?;
+        let mut remembered = super::store::HarnessStore::with_storage(self.storage.clone())
+            .remembered(&preference)
+            .await?;
         let Opening {
             cwd,
             setup,
@@ -106,9 +107,9 @@ impl Sessions {
             }
         };
         let (tx, rx) = mpsc::unbounded_channel();
-        let events = intercept(self.offers.clone(), thread.clone(), tx);
-        let events = keep_titles(self.storage.clone(), thread.clone(), events);
-        let events = keep_commands(self.commands.clone(), thread.clone(), events);
+        let events = Offers::intercept(self.offers.clone(), thread.clone(), tx);
+        let events = super::Harness::keep_titles(self.storage.clone(), thread.clone(), events);
+        let events = Commands::keep_commands(self.commands.clone(), thread.clone(), events);
         let setup = tokio::time::timeout(self.config.setup_wait, async {
             let connection = Connection::open(&mut handle, events)
                 .await
@@ -148,7 +149,7 @@ impl Sessions {
             Ok(opened) => opened,
             Err(error) => {
                 self.forget(thread).await;
-                if let Err(cleanup) = stop_handle(&mut handle).await {
+                if let Err(cleanup) = Self::stop_handle(&mut handle).await {
                     tracing::error!(%cleanup, "sessions.failed_open_cleanup");
                 }
                 return Err(OpenError::Start(error));

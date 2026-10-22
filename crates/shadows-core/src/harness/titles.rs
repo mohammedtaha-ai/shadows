@@ -1,5 +1,5 @@
 //! One job: giving the titles a session's harness sends to its thread
-//! (spec §4.2, §12.3).
+//!.
 //!
 //! The adapter generates a title after the turn has answered, so it arrives
 //! when no turn reads the thread's events. It is taken off the connection
@@ -16,46 +16,48 @@ use shadows_agent::events::HarnessEvent;
 
 /// Hands every event but a title on to `next`. The task ends when the
 /// connection drops what this returns.
-pub(super) fn keep_titles(
-    storage: Arc<Storage>,
-    thread: ThreadId,
-    next: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
-) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
-    let (tx, mut rx) = mpsc::unbounded_channel::<String>();
-    tokio::spawn(async move {
-        while let Some(title) = rx.recv().await {
-            let Some(title) = crate::threads::Threads::harness_title(&title) else {
-                continue;
-            };
-            let owned_thread = thread.clone();
-            let ts = crate::db::now();
-            let result = storage
-                .write_txn(move |conn| {
-                    Box::pin(async move {
-                        crate::threads::Threads::title_from_harness_in(
-                            conn,
-                            &owned_thread,
-                            &title,
-                            &ts,
-                        )
-                        .await
+impl super::Harness {
+    pub(super) fn keep_titles(
+        storage: Arc<Storage>,
+        thread: ThreadId,
+        next: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
+    ) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
+        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+        tokio::spawn(async move {
+            while let Some(title) = rx.recv().await {
+                let Some(title) = crate::threads::Threads::harness_title(&title) else {
+                    continue;
+                };
+                let owned_thread = thread.clone();
+                let ts = crate::db::now();
+                let result = storage
+                    .write_txn(move |conn| {
+                        Box::pin(async move {
+                            crate::threads::Threads::title_from_harness_in(
+                                conn,
+                                &owned_thread,
+                                &title,
+                                &ts,
+                            )
+                            .await
+                        })
                     })
-                })
-                .await;
-            match result {
-                Ok(changed) => {
-                    tracing::debug!(thread_id = %thread, changed, "thread.harness_title")
-                }
-                Err(error) => {
-                    tracing::warn!(thread_id = %thread, %error, "thread.harness_title_failed")
+                    .await;
+                match result {
+                    Ok(changed) => {
+                        tracing::debug!(thread_id = %thread, changed, "thread.harness_title")
+                    }
+                    Err(error) => {
+                        tracing::warn!(thread_id = %thread, %error, "thread.harness_title_failed")
+                    }
                 }
             }
+        });
+        move |event| match event {
+            HarnessEvent::SessionTitle { title } => {
+                let _ = tx.send(title);
+            }
+            other => next(other),
         }
-    });
-    move |event| match event {
-        HarnessEvent::SessionTitle { title } => {
-            let _ = tx.send(title);
-        }
-        other => next(other),
     }
 }

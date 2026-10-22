@@ -14,8 +14,8 @@ use shadows::cli::router;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
+use shadows_core::testing::Harness;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::{AppCore, CoreParts};
@@ -32,7 +32,7 @@ struct App {
     _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     bus: Bus,
     router: Router,
     thread: ThreadId,
@@ -95,7 +95,8 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     .unwrap()
     .id;
 
-    let sessions = Sessions::new(adapter, storage.clone(), acp::test_config());
+    let sessions =
+        shadows_core::AppCore::harness_for_tests(adapter, storage.clone(), acp::test_config());
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);

@@ -1,6 +1,6 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::{Value, json};
-use shadows_core::testing::{self, LiveHandles, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::testing::{self, Harness, LiveHandles, SessionsConfig, Storage, acp};
 use shadows_core::{
     AgentInput, AppCore, AylulConfig, CoreError, CoreParts, OperationId, ProviderInput, SecretKey,
     SendTurn, ThreadId,
@@ -12,7 +12,7 @@ struct World {
     _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     core: Arc<AppCore>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     thread: ThreadId,
 }
 
@@ -28,7 +28,7 @@ async fn world() -> World {
             .unwrap()
             .0,
     );
-    let sessions = Sessions::new(
+    let sessions = shadows_core::AppCore::harness_for_tests(
         acp::fake_adapter(),
         storage.clone(),
         SessionsConfig {

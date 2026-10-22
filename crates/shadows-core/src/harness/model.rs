@@ -1,24 +1,24 @@
-//! One job: the harness shapes a caller meets (spec §12.4, §12.8, §14.5).
+//! One job: the harness shapes a caller meets.
 //!
-//! Moved from `shadows-http` with the same names, fields and derives, so
-//! `api/openapi.json` does not change. `Harness` builds them; an adapter only
-//! serializes them.
+//! Harness builds these values; adapters serialize them.
 
 use shadows_agent::breakdown::Category;
 use shadows_agent::events::AccountLimits;
 use shadows_agent::policy;
 
-/// The model and effort last chosen for this harness (spec §12.4).
+/// The model and effort last chosen for this harness.
 #[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(description = include_str!("schema_descriptions/preferences.txt").replace("\r\n", "\n"))]
 pub struct RememberedSettings {
     pub(super) model: String,
     #[schema(required)]
     pub(super) effort: Option<String>,
 }
 
-/// A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
+/// A CLI a conversation can run on. `kind` is `claude-code` or
 /// `codex`.
 #[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(description = include_str!("schema_descriptions/harness-info.txt").replace("\r\n", "\n"))]
 pub struct HarnessInfo {
     pub(super) kind: String,
     pub(super) label: String,
@@ -32,18 +32,21 @@ pub struct HarnessInfo {
     pub(super) limits: Option<AccountLimits>,
 }
 
-pub(super) fn label(kind: &str) -> &'static str {
-    match kind {
-        policy::CLAUDE_CODE => "Claude Code",
-        policy::CODEX => "Codex",
-        policy::AYLUL => "AYLUL",
-        _ => "Unknown",
+impl super::Harness {
+    pub(super) fn label(kind: &str) -> &'static str {
+        match kind {
+            policy::CLAUDE_CODE => "Claude Code",
+            policy::CODEX => "Codex",
+            policy::AYLUL => "AYLUL",
+            _ => "Unknown",
+        }
     }
 }
 
-/// The context breakdown read on demand (spec §12.8): the categories, or none
+/// The context breakdown read on demand: the categories, or none
 /// with the reason.
 #[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(description = include_str!("schema_descriptions/context.txt").replace("\r\n", "\n"))]
 pub struct ContextBreakdown {
     #[schema(required)]
     pub(super) categories: Option<Vec<Category>>,
@@ -59,4 +62,50 @@ pub struct AylulUsageSnapshot {
     pub provider_name: String,
     pub label: Option<String>,
     pub preset: Option<String>,
+}
+
+/// What a turn asked for and what the harness reported.
+/// Anything not reported is `None`, never estimated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+#[schema(description = include_str!("schema_descriptions/invocation.txt").replace("\r\n", "\n"))]
+pub struct InvocationView {
+    pub harness_kind: String,
+    pub harness_version: String,
+    pub agent_version: String,
+    pub requested_model: String,
+    pub requested_mode: String,
+    #[schema(required)]
+    pub requested_effort: Option<String>,
+    #[schema(required)]
+    pub observed_model: Option<String>,
+    #[schema(required)]
+    pub context_used: Option<i64>,
+    #[schema(required)]
+    pub context_window: Option<i64>,
+}
+
+/// Versions delivered by the thread's most recent started turn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InvocationVersions {
+    pub prompt: Option<String>,
+    pub instructions: Option<String>,
+    pub standards: Option<i64>,
+    pub additions: Option<String>,
+}
+
+/// Nonsecret input pinned by the transaction that starts a turn.
+pub(crate) struct NewInvocation<'a> {
+    pub(crate) identity: &'a [String; 6],
+    pub(crate) settings: &'a shadows_agent::TurnSettings,
+    pub(crate) versions: &'a InvocationVersions,
+    pub(crate) snapshot: Option<&'a AylulUsageSnapshot>,
+}
+
+pub(crate) struct InvocationUsage {
+    pub(crate) agent_slug: String,
+    pub(crate) provider_slug: String,
+    pub(crate) provider_name: String,
+    pub(crate) label: Option<String>,
+    pub(crate) preset: Option<String>,
+    pub(crate) model: String,
 }

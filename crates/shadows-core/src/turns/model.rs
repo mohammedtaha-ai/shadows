@@ -106,21 +106,4 @@ pub struct Operation {
     pub invocation: Option<InvocationView>,
 }
 
-/// What a turn asked for and what the harness reported (spec §8.2, §12.8).
-/// Anything not reported is `None`, never estimated.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
-pub struct InvocationView {
-    pub harness_kind: String,
-    pub harness_version: String,
-    pub agent_version: String,
-    pub requested_model: String,
-    pub requested_mode: String,
-    #[schema(required)]
-    pub requested_effort: Option<String>,
-    #[schema(required)]
-    pub observed_model: Option<String>,
-    #[schema(required)]
-    pub context_used: Option<i64>,
-    #[schema(required)]
-    pub context_window: Option<i64>,
-}
+pub use crate::harness::InvocationView;

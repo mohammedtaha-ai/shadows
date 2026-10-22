@@ -148,13 +148,7 @@ pub(super) async fn pinned(
     p: &ProjectId,
     turn: &crate::OperationId,
 ) -> Result<EffectiveStandards, StorageError> {
-    let (base, id): (i64, Option<String>) = sqlx::query_as(
-        "SELECT standards_version,standards_additions_version_id FROM agent_invocation
-         WHERE operation_id=?",
-    )
-    .bind(turn.as_str())
-    .fetch_one(&mut *conn)
-    .await?;
+    let (base, id) = crate::harness::Harness::pinned_standards_in(conn, turn.as_str()).await?;
     let mut standards = super::map_versions::effective(conn, p).await?;
     standards.base.version = base;
     standards.additions = match id {

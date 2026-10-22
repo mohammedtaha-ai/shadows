@@ -1,4 +1,4 @@
-//! One job: the latest choices each open session offers (spec §12.4).
+//! One job: the latest choices each open session offers.
 //!
 //! Every `session/set_config_option` answer and every `config_option_update`
 //! notification is the complete set, so each one replaces the thread's entry
@@ -84,17 +84,19 @@ impl Offers {
 /// as a task of its own: a relay task let a turn's last update, received
 /// before the prompt's answer, reach `to` only after the turn had ended.
 /// `to` closes when the connection drops this.
-pub(super) fn intercept(
-    offers: std::sync::Arc<Offers>,
-    thread: ThreadId,
-    to: mpsc::UnboundedSender<HarnessEvent>,
-) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
-    move |event| {
-        if let HarnessEvent::Options(options) = &event
-            && let Err(error) = offers.record(&thread, options)
-        {
-            tracing::warn!(thread_id = %thread, %error, "sessions.options_unreadable");
+impl Offers {
+    pub(super) fn intercept(
+        offers: std::sync::Arc<Offers>,
+        thread: ThreadId,
+        to: mpsc::UnboundedSender<HarnessEvent>,
+    ) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
+        move |event| {
+            if let HarnessEvent::Options(options) = &event
+                && let Err(error) = offers.record(&thread, options)
+            {
+                tracing::warn!(thread_id = %thread, %error, "sessions.options_unreadable");
+            }
+            let _ = to.send(event);
         }
-        let _ = to.send(event);
     }
 }

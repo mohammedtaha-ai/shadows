@@ -1,3 +1,6 @@
+# invocation_context supplies read results to Harness without introducing an upward dependency.
+# Harness owns all invocation rows; Turns composes each operation with Harness reads.
+# Turns::stage_line reads Design once per prompt and supplies the stage fact to Harness.
 # Durable operation rows and transitions belong to Operations; Turns composes invocation and usage writes.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns starting and stopping a Planner turn (spec §12.3, §12.7, §14.4): the
@@ -44,17 +47,18 @@ modules:
   shutdown.rs: live shutdown orchestration
   spawn.rs: live registration
   steer.rs: steering orchestration
+  stage.rs: shared normal/steered stage fact composition
   turn.rs: live completion arbitration
   entries.rs: harness entry collection
   subagents.rs: subagent card collection
   testing.rs: test-only lifecycle composition
   store/mod.rs: private TurnsStore handle
   store/operation.rs: atomic terminal composition
-  store/operation_read.rs: invocation-enriched operation reads with batched metadata in one snapshot
+  store/operation_read.rs: operation composition with Harness batched reads
   store/turn.rs: turn command persistence
   store/queue.rs: queue persistence
   store/steer.rs: steer persistence
-  store/standards.rs: invocation standards reads
+  store/standards.rs: invocation standards composition
   store/usage.rs: terminal usage composition
 
 
@@ -65,9 +69,9 @@ shapes:
     # Owns the operations: its `instance_id` goes on every new one.
     runtime: Arc<Runtime>
     # Harness's. Every call a turn makes on it (`prepare_turn`,
-    # `setups().context_facts` and `setups().withhold` in `spawn.rs` included) is declared in
-    # `harness/contract.yaml` under `functions.sessions_for_turns`.
-    sessions: Arc<Sessions>
+    # `context_facts` and `withhold` in `spawn.rs` included) is declared in
+    # `harness/contract.yaml` under `functions.harness_for_turns`.
+    sessions: Arc<Harness>
     # The registry of live turns; closed by shutdown, after which `send`
     # refuses a new turn with RuntimeStopping.
     handles: Arc<LiveHandles>
@@ -80,7 +84,7 @@ shapes:
     # Narrow handle built at composition, held by Threads.
     storage: Arc<Storage>
     handles: Arc<LiveHandles>
-    sessions: Arc<Sessions>
+    sessions: Arc<Harness>
   SendTurn:
     command_id: String
     prompt: String
@@ -138,18 +142,6 @@ shapes:
     # The focused task's number and title; `None` without a focus and on a
     # replay.
     focus_task: Option<(u32, String)>
-  InvocationView:
-    # What the turn asked for and what the harness reported; anything not
-    # reported is `None`, never estimated.
-    harness_kind: String
-    harness_version: String
-    agent_version: String
-    requested_model: String
-    requested_mode: String
-    requested_effort: Option<String>
-    observed_model: Option<String>
-    context_used: Option<i64>
-    context_window: Option<i64>
   FailureStage:
     # Test-only outside the crate (`testing`); `as_str` is what is stored.
     Prepare: unit
@@ -167,11 +159,6 @@ shapes:
     # transaction; `Dequeue.also` is Send now's own command, recorded with the
     # turn so its replay answers the turn.
     dequeue: "Option<Dequeue>"
-  InvocationVersions:
-    prompt: Option<String>
-    instructions: Option<String>
-    standards: Option<i64>
-    additions: Option<String>
   QueuedMessage:
     # §20.2: a message written while a turn ran, waiting to be sent.
     id: QueuedMessageId
@@ -326,16 +313,6 @@ functions:
       private: true
       # The offer's checks, the project's modes, then `start_turn`; the checks
       # in the order they ran before the set-back existed.
-    offer_for_model:
-      signature: "(&self, thread, opened, model: &str) -> Result<(Offered, Option<String>), CoreError>"
-      private: true
-      # The one session change before the transaction: sets the model when
-      # it differs and is offered, and answers the model it replaced.
-    set_model_back:
-      signature: "(&self, thread, opened, offered: &Offered, previous: &str)"
-      private: true
-      # The refusal stays the answer: a harness that will not take the model
-      # back is logged as `turn.model_not_set_back`, not returned.
     compose:
       signature: "(parts: PromptParts) -> Prompt"
       # On `Prompt` (`prompt.rs`), the one place a turn's blocks are built:
@@ -439,15 +416,16 @@ functions:
       signature: "(&self, op_id: &OperationId) -> Result<(), StorageError>"
     list_operations_for_thread:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>"
+  store:
     latest_invocation_versions:
       signature: "(&self, thread: &ThreadId) -> Result<Option<InvocationVersions>, StorageError>"
-  store:
+      # Threads entry order, Operations started ids and Harness version metadata, in one snapshot.
     start_turn:
       signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
       # One write: classify (replay), refuse removed thread, has_open_operation (busy), focus,
       # insert_pending, the UserMessage entry, Threads'
-      # `title_from_first_message_in` (§4.2), agent_invocation,
-      # remember_settings, record_command. With `NewTurn.dequeue`: the row is
+      # title_from_first_message_in, Harness::record_invocation_in,
+      # Harness::remember_settings_in, record_command. With `NewTurn.dequeue`: the row is
       # taken right after the busy check and `QueuedMessageSent` is journaled
       # after the turn's command is recorded, both in this one write.
     replayed_turn:
@@ -489,8 +467,8 @@ enums:
   Focus:
     source: crate::plans::Focus
     values: []
-  Sessions:
-    source: crate::harness::Sessions
+  Harness:
+    source: crate::harness::Harness
     values: []
   LeaseError:
     source: crate::harness::LeaseError
@@ -507,13 +485,12 @@ enums:
 
 
 shared_in_transaction:
-  standards_for_invocation_in: "Harness resolves the selected additions in its read snapshot; missing invocation or removed project is NotFound(invocation), a missing/foreign version is NotFound(invocation standards additions), and no pin means base only. The planning_thread read remains until A-17."
+  standards_for_invocation_in: "Turns composes Operations, Harness, Threads, Projects and Standards reads in one snapshot."
   record_usage_in: Terminal transitions read the invocation snapshot and record it through Usage::record_in inside their own transaction.
   take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn or the steered entry, so a message is sent once or not at all"
 
 
 called_by_other_services:
-  latest_invocation_versions: "Harness (harness/setup.rs context_before_turn): the prompt, instructions and standards versions the last started turn ran under, so the session hears only changes (§13.8, §23.4)"
 
 
 obligations:

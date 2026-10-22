@@ -1,14 +1,16 @@
 use crate::db::StorageError;
+use crate::harness::Harness;
 use crate::operations::Operations;
 use crate::threads::ThreadId;
 use crate::turns::model::{InvocationView, Operation, OperationId};
-use sqlx::SqliteConnection;
-use std::collections::HashMap;
 impl super::TurnsStore<'_> {
     pub async fn get_operation(&self, op: &OperationId) -> Result<Operation, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
         let row = Operations::get_operation_in(&mut conn, op).await?;
-        Ok(into_operation(row, invocation_of(&mut conn, op).await?))
+        Ok(into_operation(
+            row,
+            Harness::invocation_in(&mut conn, op.as_str()).await?,
+        ))
     }
     pub async fn list_operations_for_thread(
         &self,
@@ -17,26 +19,7 @@ impl super::TurnsStore<'_> {
         let mut conn = self.storage.reader().begin().await?;
         let rows = Operations::list_operations_for_thread_in(&mut conn, thread).await?;
         let ids: Vec<_> = rows.iter().map(|row| row.id.as_str()).collect();
-        let mut invocations = HashMap::new();
-        // Bounded batches stay below SQLite's parameter limit without dynamic SQL.
-        for batch in ids.chunks(64) {
-            let mut query = sqlx::query_as::<_, InvocationRow>(
-                "SELECT operation_id, harness_kind, harness_version, agent_version,
-                    requested_model, requested_mode, requested_effort,
-                    observed_model, context_used, context_window
-               FROM agent_invocation WHERE operation_id IN (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            );
-            for slot in 0..64 {
-                query = query.bind(batch.get(slot).copied());
-            }
-            for row in query.fetch_all(&mut *conn).await? {
-                invocations.insert(row.0.clone(), into_view(row));
-            }
-        }
+        let mut invocations = Harness::invocations_in(&mut conn, &ids).await?;
         Ok(rows
             .into_iter()
             .map(|row| {
@@ -45,48 +28,6 @@ impl super::TurnsStore<'_> {
             })
             .collect())
     }
-}
-type InvocationRow = (
-    String,
-    String,
-    String,
-    String,
-    String,
-    String,
-    Option<String>,
-    Option<String>,
-    Option<i64>,
-    Option<i64>,
-);
-
-fn into_view(r: InvocationRow) -> InvocationView {
-    InvocationView {
-        harness_kind: r.1,
-        harness_version: r.2,
-        agent_version: r.3,
-        requested_model: r.4,
-        requested_mode: r.5,
-        requested_effort: r.6,
-        observed_model: r.7,
-        context_used: r.8,
-        context_window: r.9,
-    }
-}
-
-pub(super) async fn invocation_of(
-    conn: &mut SqliteConnection,
-    op: &OperationId,
-) -> Result<Option<InvocationView>, StorageError> {
-    let row: Option<InvocationRow> = sqlx::query_as(
-        "SELECT operation_id, harness_kind, harness_version, agent_version,
-                requested_model, requested_mode, requested_effort,
-                observed_model, context_used, context_window
-           FROM agent_invocation WHERE operation_id = ?",
-    )
-    .bind(op.as_str())
-    .fetch_optional(&mut *conn)
-    .await?;
-    Ok(row.map(into_view))
 }
 
 fn into_operation(
@@ -165,10 +106,11 @@ mod tests {
                     .write_txn(move |conn| {
                         Box::pin(async move {
                             if index == 1 {
-                                sqlx::query("DELETE FROM agent_invocation WHERE operation_id=?")
-                                    .bind(started.operation_id.as_str())
-                                    .execute(&mut *conn)
-                                    .await?;
+                                crate::harness::Harness::delete_invocation_for_test(
+                                    conn,
+                                    started.operation_id.as_str(),
+                                )
+                                .await?;
                             }
                             Ok(())
                         })

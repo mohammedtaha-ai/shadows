@@ -1,0 +1,2 @@
+The context breakdown read on demand (spec §12.8): the categories, or none
+with the reason.

@@ -1,6 +1,5 @@
 //! Test-only owner entry points over the fixture's shared storage handle.
 use super::{NewThreadEntry, PlanningThread, ThreadEntry, ThreadId, Threads, TurnContext, store};
-use crate::CoreError;
 use crate::db::StorageError;
 use crate::db::{CommandContext, Storage};
 use crate::projects::ProjectId;
@@ -18,16 +17,6 @@ impl Threads {
         store::ThreadsStore::with_storage(storage.clone())
             .create_planning_thread(ctx, project_id, title, harness, profile)
             .await
-    }
-    pub async fn set_thread_harness_for_test(
-        storage: &Arc<Storage>,
-        ctx: &CommandContext,
-        thread: &ThreadId,
-        harness: &str,
-    ) -> Result<PlanningThread, CoreError> {
-        Ok(store::ThreadsStore::with_storage(storage.clone())
-            .set_thread_harness(ctx, thread, harness)
-            .await?)
     }
     pub async fn turn_context_for_test(
         storage: &Arc<Storage>,

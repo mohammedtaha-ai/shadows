@@ -6,10 +6,10 @@
 # choices, a person's model or effort change, the remembered model and
 # per-model effort applied to them, and the context breakdown read on demand.
 # `Sessions` holds the live adapter per thread; `Turns` drives a turn on it
-# through the `Sessions` methods named under `functions.sessions_for_turns`.
+# through Harness methods named under functions.harness_for_turns; Sessions is private.
 #
 # `change_model`'s and `change_effort`'s order is the rule (§14.9), held in
-# one place, `open_idle`: the thread's harness is checked with
+# one place, `check_idle` (used by open_idle and Turns): the thread's harness is checked with
 # `Sessions::harness_available` (`policy::is_available_with`: `aylul` only
 # with a profile), then `thread_is_busy`, before `Sessions::open`
 # touches anything; the value is then set under the session's lease
@@ -53,18 +53,57 @@ name: harness
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
 # The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1
+modules:
+  mod.rs: harness service boundary
+  access.rs: live session owner operations
+  store/invocation.rs: invocation transaction entry points
+  model.rs: public harness values with unchanged schema description metadata
+  assistant.rs: per-agent opening configuration
+  commands.rs: live slash command lists
+  context.rs: on-demand context breakdown
+  extension_home.rs: enabled extension projection
+  live.rs: adapter cache opening
+  offers.rs: live option offers
+  profile_home.rs: serialized home settings writes
+  sessions.rs: private adapter lifecycle
+  settings.rs: session option changes
+  setup.rs: Planner opening context
+  standards.rs: standards prompt rendering
+  titles.rs: ordered harness title writes
+  store/mod.rs: private harness persistence
+  store/preferences.rs: remembered model settings
+  store/limits.rs: reported account limits
+  store/invocations.rs: invocation recording
+  store/reads.rs: invocation snapshot reads
+  store/thread.rs: atomic harness selection
 status: current
 source: crates/shadows-core/src/harness
 
 
 shapes:
+  InvocationContext:
+    source: setup.rs
+    note: Turns supplies composed latest versions and pinned standards as deferred read results.
+  InvocationView:
+    source: model.rs
+    note: Requested and observed harness metadata; unknown fields stay null.
+  InvocationVersions:
+    source: model.rs
+    note: Recorded prompt, instructions, base standards and additions versions.
+  NewInvocation:
+    source: model.rs
+    note: Borrowed input for the atomic invocation write.
+  InvocationUsage:
+    source: model.rs
+    note: Nonsecret routing metadata used by terminal usage composition.
   AylulUsageSnapshot:
     source: model.rs
     note: Nonsecret provider routing pinned to the actual adapter at opening
   Harness:
-    storage: Arc<Storage>
-    # The same `Arc` `Turns` holds: one live adapter per thread for both.
-    sessions: Arc<Sessions>
+    store: private HarnessStore over the shared storage handle
+    operations: Operations
+    projects: Projects
+    sessions: private Arc<Sessions>
   HarnessInfo:
     # `claude-code`, `codex` or `aylul` (`policy::KNOWN`, in that order).
     kind: String
@@ -108,7 +147,7 @@ shapes:
     # One live adapter per thread, the offers it made, and the setups it
     # opened with. Built on the core's `Arc<Storage>`, so the grant rows
     # `Setups` writes commit through the one pool `Events` watches; shared as
-    # one `Arc` by `Harness` and `Turns`.
+    # a private cache owned by Harness.
     config: SessionsConfig
   SessionsConfig:
     secrets: Option<Arc<Secrets>>
@@ -145,6 +184,18 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
+    set_thread_harness:
+      signature: "(&self, command_id, thread, harness) -> Result<PlanningThread, CoreError>"
+      # Harness guards the command with Operations, calls Threads::set_harness_in, and closes only on a kind change.
+    check_idle:
+      signature: "(&self, thread, context) -> Result<(), CoreError>"
+      # Availability, then durable busyness, before any session work; shared with Turns.
+    offer_for_model:
+      signature: "(&self, thread, opened, model) -> Result<(Offered, Option<String>), CoreError>"
+      # Shares model_for_turn with prepare_turn; the previous model enables refused-start restoration.
+    set_model_back:
+      signature: "(&self, thread, opened, offered, previous)"
+      # Failed restoration is logged without replacing the original refusal.
     delete_agent:
       signature: "(&self, command_id: String, slug: &str) -> Result<(), CoreError>"
       # The one way an agent is deleted (the HTTP route calls it; no MCP tool
@@ -220,12 +271,12 @@ functions:
   for_threads:
     close_session:
       signature: "(&self, thread: &ThreadId) -> io::Result<()>"
-      # pub(crate): `Threads::set_harness` closes the thread's session when
+      # pub(crate): Harness::set_thread_harness closes the thread session when
       # its harness changed. `Sessions::terminate`: the adapter's tree is
       # stopped, its offer forgotten and its grant revoked
       # (`Setups::forget`); no open session is Ok.
-  sessions_for_turns:
-    # `Turns` holds the same `Arc<Sessions>` and drives a turn through these,
+  harness_for_turns:
+    # Turns holds the same Arc<Harness> that AppCore serves and uses these methods,
     # a documented cross-service call (§14.6): the session lease is one
     # mechanism with two users, and a second copy would be two locks.
     open:
@@ -238,13 +289,9 @@ functions:
       signature: "(&self, thread: &ThreadId) -> Option<Offered>"
     set_option:
       signature: "(&self, thread, opened, config_id: &str, value: &str) -> Result<Offered, AcpError>"
-    setups:
-      signature: "(&self) -> &Setups"
-      # pub(crate): `spawn.rs` reads `context_facts` and calls `withhold`
-      # through it.
     context_facts:
-      signature: "(&self, thread: &ThreadId, operation: &OperationId) -> Result<ContextFacts, StorageError>"
-      # pub(crate), on `Setups`: only facts, `{ changes, stage }`. `changes` is
+      signature: "(&self, thread: &ThreadId, invocation: Option<InvocationContext>, stage: String) -> Result<ContextFacts, CoreError>"
+      # Harness forwards the stage fact supplied by Turns; changes are read from private Setups.
       # §13.8's text of what changed since the session last heard: compared
       # with the versions held back by command turns when there are any, else
       # with the latest started turn's (or the opened session's). Every change
@@ -252,16 +299,11 @@ functions:
       # decides which of it a turn sends.
     withhold:
       signature: "(&self, thread: &ThreadId, skipped: bool)"
-      # pub(crate), on `Setups`: called once the turn has started, since only
+      # Harness delegates to private Setups once the turn has started, since only
       # a started turn counts as heard. `skipped` (a `/` command went without
       # its changes) keeps the versions this turn compared with, so the next
       # turn compares with them too; otherwise they are cleared. Kept with the
       # thread's held session state: a reopened or forgotten session drops it.
-    stage_line:
-      signature: "(&self, thread: &ThreadId) -> Result<String, StorageError>"
-      # Setups: the current stage, sent last in new prompts and Send now.
-      # Empty for an `aylul` thread (the prompt drops empty parts), as is
-      # `context_before_turn`'s block.
     opening:
       signature: "(&self, thread: &ThreadId, context: &TurnContext) -> Result<Opening, OpenError>"
       # assistant.rs, private to harness, called by `open_live`: cwd, session
@@ -306,20 +348,13 @@ functions:
       # On `OpenSession`: a turn prompts and cancels through it.
     prompt_version:
       signature: "() -> &'static str"
-      # Free function in `setup.rs`: the Planner prompt's version a turn's
+      # Harness associated method in setup.rs: the Planner prompt version a turn's
       # invocation records.
   construction:
     with_owners:
-      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig, owners: AylulOwners, instructions: Instructions, grants: Grants) -> Arc<Sessions>"
-      # pub(crate): `AppCore::start` builds one on the core's `storage` and
-      # the AYLUL configuration owners it built (providers, agents, extensions,
-      # person), the instances the core also serves. Sessions read them; they
-      # hold no reference back. An opening asks `Agents::home` for the home.
-      # Its idle sweep runs every idle_after/4, at most 60 s.
-    new:
-      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Sessions>"
-      # Test callers only (`testing::Sessions`), until A-9 to A-19 move them
-      # to `AppCore`: `with_owners` over `AylulOwners::build` of its own.
+      signature: "(adapter, storage, config, owners, instructions, grants, operations, projects) -> Arc<Harness>"
+      # AppCore builds one Harness; its private Sessions cache reads explicit dependencies.
+    # Tests build the same owner through AppCore::harness_for_tests.
   titles:
     keep_titles:
       signature: "(storage: Arc<Storage>, thread: ThreadId, next: impl Fn(HarnessEvent)) -> impl Fn(HarnessEvent)"
@@ -388,7 +423,18 @@ called_by_other_services:
 
 
 shared_in_transaction:
-  remember_settings: "Turns' start (turns/store/turn.rs start_turn): the turn's model is remembered for its harness, and its effort for that model, in the same write that records the turn, so a refused or replayed start remembers nothing"
+  delete_invocation_for_test: "Unit fixtures remove historical metadata through its owner; test-support only."
+  set_invocation_pin_for_test: "Unit fixtures simulate legacy or foreign pins through its owner; test-support only."
+  remember_settings_in: "Turns' start (turns/store/turn.rs start_turn): the turn's model is remembered for its harness, and its effort for that model, in the same write that records the turn, so a refused or replayed start remembers nothing"
+  record_invocation_in: "Turns records immutable invocation input with its turn command in the same write."
+  observe_invocation_in: "Turns records the harness observation with terminal status and measured usage."
+  invocation_in: "Turns enriches an operation or completion event from Harness metadata."
+  invocations_in: "Turns enriches an operation list with bounded batches in its read snapshot."
+  invocation_versions_in: "Turns reads recorded versions while composing delivered context from Threads and Operations."
+  invocation_model_in: "Plans reads model and harness provenance without SQL into Harness tables."
+  invocation_standards_in: "The pinned additions id; missing invocation is NotFound(invocation)."
+  pinned_standards_in: "Design reads the required recorded base version and optional additions pin."
+  invocation_usage_in: "Turns composes AYLUL routing with operation thread and measured usage."
 
 
 obligations:

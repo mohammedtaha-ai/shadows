@@ -18,9 +18,9 @@ use shadows_agent::events::HarnessEvent;
 use shadows_core::StartError;
 use shadows_core::StopKind;
 use shadows_core::ThreadId;
+use shadows_core::testing::Harness;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
 use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
@@ -37,7 +37,7 @@ struct Fixture {
     _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     thread: ThreadId,
     bus: Bus,
 }

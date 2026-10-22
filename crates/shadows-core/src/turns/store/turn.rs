@@ -11,7 +11,7 @@ use crate::db::{
     Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
 use crate::events::DurableEvent;
-use crate::harness::remember_settings;
+use crate::harness::{Harness, NewInvocation};
 use crate::operations::Operations;
 use crate::plans::Focus;
 use crate::plans::task_of;
@@ -68,14 +68,7 @@ pub struct StartedTurn {
     pub focus_task: Option<(u32, String)>,
 }
 
-/// Versions delivered by the thread's most recent started turn (§13.8, §23.4).
-#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
-pub struct InvocationVersions {
-    pub prompt: Option<String>,
-    pub instructions: Option<String>,
-    pub standards: Option<i64>,
-    pub additions: Option<String>,
-}
+pub use crate::harness::InvocationVersions;
 
 const SCOPE: &str = "Thread";
 
@@ -199,59 +192,32 @@ impl Storage {
                         conn, &thread, &entry.id, &prompt, author, &ts,
                     )
                     .await?;
-                    let [
-                        role,
-                        kind,
-                        harness_path,
-                        harness_version,
-                        agent_path,
-                        agent_version,
-                    ] = &invocation;
-                    sqlx::query(
-                        "INSERT INTO agent_invocation
-                           (id, operation_id, role, harness_kind, harness_path, harness_version,
-                            agent_path, agent_version, requested_model, requested_mode,
-                            requested_effort, prompt_version,
-                            planner_instructions_version_id, standards_version,
-                            standards_additions_version_id, created_at)
-                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    Harness::record_invocation_in(
+                        conn,
+                        op.as_str(),
+                        NewInvocation {
+                            identity: &invocation,
+                            settings: &settings,
+                            versions: &crate::harness::InvocationVersions {
+                                prompt: versions.0,
+                                instructions: versions.1,
+                                standards: versions.2,
+                                additions: versions.3,
+                            },
+                            snapshot: snapshot.as_ref(),
+                        },
+                        &ts,
                     )
-                    .bind(uuid::Uuid::new_v4().to_string())
-                    .bind(op.as_str())
-                    .bind(role)
-                    .bind(kind)
-                    .bind(harness_path)
-                    .bind(harness_version)
-                    .bind(agent_path)
-                    .bind(agent_version)
-                    .bind(&settings.model)
-                    .bind(&settings.mode)
-                    .bind(&settings.effort)
-                    .bind(&versions.0)
-                    .bind(&versions.1)
-                    .bind(versions.2)
-                    .bind(&versions.3)
-                    .bind(&ts)
-                    .execute(&mut *conn)
                     .await?;
-                    if let Some(snapshot) = &snapshot {
-                        sqlx::query(
-                            "UPDATE agent_invocation SET usage_agent_slug=?,
-                            usage_provider_slug=?,usage_provider_name=?,usage_label=?,usage_preset=?
-                            WHERE operation_id=?",
-                        )
-                        .bind(&snapshot.agent_slug)
-                        .bind(&snapshot.provider_slug)
-                        .bind(&snapshot.provider_name)
-                        .bind(&snapshot.label)
-                        .bind(&snapshot.preset)
-                        .bind(op.as_str())
-                        .execute(&mut *conn)
-                        .await?;
-                    }
                     let profile = Threads::profile_in(conn, &thread).await?;
-                    let preference = crate::harness::preference_key(kind, profile.as_deref());
-                    remember_settings(conn, &preference, &settings, &ts).await?;
+                    Harness::remember_settings_in(
+                        conn,
+                        &invocation[1],
+                        profile.as_deref(),
+                        &settings,
+                        &ts,
+                    )
+                    .await?;
                     let outcome = serde_json::json!({
                         "operation_id": op.as_str(),
                         "entry_id": entry.id.as_str(),
@@ -312,12 +278,14 @@ impl Storage {
             None => Ok(None),
         }
     }
+}
 
+impl Storage {
     /// The prompt, instructions and standards versions of the thread's
     /// latest invocation, by its turn's order (the ordinal of the turn's own
     /// entry); `None` when it has none. Only a turn that started counts: one
     /// refused or stopped before its prompt went out delivered nothing to the
-    /// session, and a turn being started now is still `Pending` (§13.8).
+    /// session, and a turn being started now is still `Pending`.
     pub async fn latest_invocation_versions(
         &self,
         thread: &ThreadId,
@@ -333,14 +301,7 @@ impl Storage {
             if !started.contains(&operation) {
                 continue;
             }
-            let row: Option<InvocationVersions> = sqlx::query_as(
-                "SELECT prompt_version AS prompt, planner_instructions_version_id AS instructions,
-                        standards_version AS standards, standards_additions_version_id AS additions
-                   FROM agent_invocation WHERE operation_id=?",
-            )
-            .bind(&operation)
-            .fetch_optional(&mut *conn)
-            .await?;
+            let row = Harness::invocation_versions_in(&mut conn, &operation).await?;
             if row.is_some() {
                 return Ok(row);
             }

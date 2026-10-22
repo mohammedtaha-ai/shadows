@@ -59,8 +59,8 @@ pub use extensions::{
 };
 pub use grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use harness::{
-    AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, OpenError,
-    RememberedSettings,
+    AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, LeaseError, OpenError,
+    OpenSession, RememberedSettings,
 };
 pub use instructions::{Instructions, InstructionsVersion};
 pub use operations::Operations;

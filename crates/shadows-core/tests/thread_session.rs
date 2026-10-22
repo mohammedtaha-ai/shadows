@@ -11,9 +11,9 @@ use serde_json::Value;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
 use shadows_core::OperationId;
+use shadows_core::testing::Harness;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
 use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
@@ -26,7 +26,7 @@ struct Fixture {
     _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
 }
 

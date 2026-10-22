@@ -5,7 +5,9 @@ use sqlx::SqliteConnection;
 
 use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::projects::ProjectId;
-use crate::threads::model::{CreatedTitle, PlanningThread, ThreadId, TurnContext};
+#[cfg(feature = "test-support")]
+use crate::threads::TurnContext;
+use crate::threads::model::{CreatedTitle, PlanningThread, ThreadId};
 
 impl super::ThreadsStore {
     /// `harness` is the thread's CLI; the caller checks it is one
@@ -73,80 +75,9 @@ impl super::ThreadsStore {
             .await
     }
 
-    /// Changes the thread's harness while it has no operation.
-    /// An idempotent command: a replay answers the thread as it now stands and
-    /// changes nothing, even once the harness is locked. A new command on a
-    /// thread with an operation, or on a fork (locked from birth), is
-    /// `HarnessLocked` — checked here, and again by the
-    /// `planning_thread_harness_locked` trigger below the application.
-    pub(in crate::threads) async fn set_thread_harness(
-        &self,
-        ctx: &CommandContext,
-        thread: &ThreadId,
-        harness: &str,
-    ) -> Result<PlanningThread, crate::threads::ThreadsError> {
-        let (ctx, thread, harness, ts) = (ctx.clone(), thread.clone(), harness.to_string(), now());
-        self.storage
-            .write_txn_as(move |conn| {
-                Box::pin(async move {
-                    if classify(conn, &ctx, "Thread", thread.as_str())
-                        .await?
-                        .is_some()
-                    {
-                        return Ok(super::ThreadsStore::load_thread(conn, &thread).await?);
-                    }
-                    let current = super::ThreadsStore::load_thread(conn, &thread).await?;
-                    if current.removed_at.is_some() {
-                        return Err(StorageError::NotFound("planning_thread").into());
-                    }
-                    if current.forked_from_thread.is_some() || has_operation(conn, &thread).await? {
-                        return Err(crate::threads::ThreadsError::HarnessLocked);
-                    }
-                    sqlx::query("UPDATE planning_thread SET harness_kind = ? WHERE id = ?")
-                        .bind(&harness)
-                        .bind(thread.as_str())
-                        .execute(&mut *conn)
-                        .await
-                        .map_err(|e| match e.as_database_error() {
-                            Some(db) if db.message().contains("harness_locked") => {
-                                crate::threads::ThreadsError::HarnessLocked
-                            }
-                            _ => e.into(),
-                        })?;
-                    append_event(
-                        conn,
-                        crate::db::JournalEntry {
-                            event_id: uuid::Uuid::new_v4().to_string(),
-                            kind: "PlanningThreadHarnessChanged".into(),
-                            actor: Actor::user(&ctx.principal_id),
-                            causation: None,
-                            correlation_id: None,
-                            project_id: Some(current.project_id.as_str().to_owned()),
-                            thread_id: Some(thread.as_str().to_owned()),
-                            operation_id: None,
-                            payload_json: serde_json::json!({ "harness": harness }).to_string(),
-                        },
-                        &ts,
-                    )
-                    .await?;
-                    record_command(
-                        conn,
-                        &ctx,
-                        "Thread",
-                        thread.as_str(),
-                        "PlanningThread",
-                        thread.as_str(),
-                        &ts,
-                    )
-                    .await?;
-                    Ok(super::ThreadsStore::load_thread(conn, &thread).await?)
-                })
-            })
-            .await
-    }
-
     /// `NotFound` when the thread does not exist, so a turn on an unknown
     /// thread is refused before an operation is created for it.
+    #[cfg(feature = "test-support")]
     pub(in crate::threads) async fn turn_context(
         &self,
         thread_id: &ThreadId,
@@ -255,20 +186,6 @@ async fn insert_thread(
     Ok(id)
 }
 
-/// Whether any operation — running or ended — exists on the thread. Its first
-/// one fixes the harness.
-async fn has_operation(
-    conn: &mut SqliteConnection,
-    thread: &ThreadId,
-) -> Result<bool, StorageError> {
-    let found: Option<i64> =
-        sqlx::query_scalar("SELECT 1 FROM operation WHERE thread_id = ? LIMIT 1")
-            .bind(thread.as_str())
-            .fetch_optional(&mut *conn)
-            .await?;
-    Ok(found.is_some())
-}
-
 pub(super) type ThreadRow = (
     String,
     String,
@@ -336,5 +253,46 @@ impl crate::threads::Threads {
                 .fetch_one(conn)
                 .await?,
         )
+    }
+}
+
+impl crate::threads::Threads {
+    /// Updates and journals the thread row inside Harness's guarded command write.
+    pub(crate) async fn set_harness_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+        project: &ProjectId,
+        harness: &str,
+        actor: Actor,
+        ts: &str,
+    ) -> Result<PlanningThread, crate::threads::ThreadsError> {
+        sqlx::query("UPDATE planning_thread SET harness_kind = ? WHERE id = ?")
+            .bind(harness)
+            .bind(thread.as_str())
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| match e.as_database_error() {
+                Some(db) if db.message().contains("harness_locked") => {
+                    crate::threads::ThreadsError::HarnessLocked
+                }
+                _ => e.into(),
+            })?;
+        append_event(
+            conn,
+            crate::db::JournalEntry {
+                event_id: uuid::Uuid::new_v4().to_string(),
+                kind: "PlanningThreadHarnessChanged".into(),
+                actor,
+                causation: None,
+                correlation_id: None,
+                project_id: Some(project.as_str().to_owned()),
+                thread_id: Some(thread.as_str().to_owned()),
+                operation_id: None,
+                payload_json: serde_json::json!({ "harness": harness }).to_string(),
+            },
+            ts,
+        )
+        .await?;
+        Ok(super::ThreadsStore::load_thread(conn, thread).await?)
     }
 }

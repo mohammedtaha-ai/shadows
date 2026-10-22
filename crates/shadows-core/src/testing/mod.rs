@@ -143,7 +143,7 @@ pub use crate::db::{
 pub use crate::events::{DurableEvent, EventCursor};
 pub use crate::grants::Writer;
 pub use crate::grants::{IssuedGrant, Token};
-pub use crate::harness::{LeaseError, OpenSession, Sessions, SessionsConfig, prompt_version};
+pub use crate::harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use crate::operations::ReconcileReport;
 pub use crate::projects::ProjectDirectory;
 pub use crate::runtime::Runtime;

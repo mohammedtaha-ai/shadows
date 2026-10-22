@@ -826,3 +826,5 @@ tests:
       edit is refused INVALID_COMMAND "archived"; POST unarchive restores
       Active and the edit succeeds; GET /api/plans/{id} lists v1 with its
       written_by.
+
+# WrittenBy Planner provenance reads Harness::invocation_model_in in the caller snapshot.

@@ -1,5 +1,5 @@
-use super::operation_read::invocation_of;
 use crate::db::{Actor, StorageError, now};
+use crate::harness::Harness;
 use crate::operations::Operations;
 use crate::runtime::RuntimeInstanceId;
 #[cfg(feature = "test-support")]
@@ -64,23 +64,10 @@ impl super::TurnsStore<'_> {
             .write_txn(move |conn| {
                 Box::pin(async move {
                     Operations::require_status_in(conn, &op_id, "Running").await?;
-                    let as_int = |v: Option<u64>| v.and_then(|n| i64::try_from(n).ok());
-                    sqlx::query(
-                        "UPDATE agent_invocation
-                        SET native_session_id = ?, observed_model = ?, context_used = ?,
-                            context_window = ?
-                      WHERE operation_id = ?",
-                    )
-                    .bind(&seen.native_session_id)
-                    .bind(&seen.observed_model)
-                    .bind(as_int(seen.context_used))
-                    .bind(as_int(seen.context_window))
-                    .bind(op_id.as_str())
-                    .execute(&mut *conn)
-                    .await?;
+                    Harness::observe_invocation_in(conn, op_id.as_str(), &seen).await?;
                     super::usage::record_usage_in(conn, &op_id, seen.token_usage.as_ref(), &ts)
                         .await?;
-                    let invocation = invocation_of(conn, &op_id)
+                    let invocation = Harness::invocation_in(conn, op_id.as_str())
                         .await?
                         .map(serde_json::to_value)
                         .transpose()?;

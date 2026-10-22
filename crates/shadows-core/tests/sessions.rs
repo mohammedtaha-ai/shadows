@@ -4,7 +4,7 @@ use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
 use shadows_core::{
     OpenError, ThreadId,
     testing::{
-        CommandContext, OpenSession, ProjectDirectory, Sessions, SessionsConfig, Storage,
+        CommandContext, Harness, OpenSession, ProjectDirectory, SessionsConfig, Storage,
         fingerprint,
     },
 };
@@ -13,7 +13,7 @@ struct Fixture {
     _tmp: tempfile::TempDir,
     project_dir: PathBuf,
     storage: Arc<Storage>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     thread: ThreadId,
 }
 
@@ -66,7 +66,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         adapter_version: "fake".into(),
         agent_version: "fake".into(),
     });
-    let sessions = Sessions::new(adapter, storage.clone(), config);
+    let sessions = shadows_core::AppCore::harness_for_tests(adapter, storage.clone(), config);
     Fixture {
         _tmp: tmp,
         project_dir,

@@ -28,7 +28,7 @@ use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::testing::{CommandContext, fingerprint};
-use shadows_core::testing::{Sessions, SessionsConfig};
+use shadows_core::testing::{Harness, SessionsConfig};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_core::{PartId, ProjectId};
@@ -46,7 +46,7 @@ pub struct App {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
-    pub sessions: Arc<Sessions>,
+    pub sessions: Arc<Harness>,
     pub bus: Bus,
     /// The live-only signals `plan_show` sends (§13.9).
     pub ui: tokio::sync::broadcast::Sender<UiSignal>,
@@ -157,7 +157,8 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
         secrets: Some(secrets.clone()),
         ..config
     };
-    let sessions = Sessions::new(acp::fake_adapter(), storage.clone(), config);
+    let sessions =
+        shadows_core::AppCore::harness_for_tests(acp::fake_adapter(), storage.clone(), config);
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (ui, _) = tokio::sync::broadcast::channel(64);

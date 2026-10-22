@@ -236,7 +236,7 @@ async fn a_fork_is_locked_to_its_sources_harness_from_birth() {
     );
 
     let thread = ThreadId::from_literal(fork_id);
-    let direct = shadows_core::Threads::set_thread_harness_for_test(
+    let direct = shadows_core::testing::Harness::set_thread_harness_for_test(
         &app.storage,
         &app::ctx("h2", "thread.harness"),
         &thread,

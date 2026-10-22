@@ -68,7 +68,8 @@ async fn a_mode_the_project_does_not_allow_is_listed_disabled_with_the_reason() 
 #[tokio::test]
 async fn a_remembered_model_the_account_cannot_use_is_dropped() {
     let app = test_app().await;
-    app.storage
+    app.core
+        .harness()
         .remember_for_test("claude-code", "fake-locked", None)
         .await;
     let (s, c) = post(&app, &session_path(&app), json!({})).await;
@@ -98,7 +99,8 @@ async fn harnesses_lists_claude_runnable_and_codex_not() {
 #[tokio::test]
 async fn a_new_session_starts_at_the_remembered_model_and_effort() {
     let app = test_app().await;
-    app.storage
+    app.core
+        .harness()
         .remember_for_test("claude-code", "fake-small", Some("low"))
         .await;
     let (_, c) = post(&app, &session_path(&app), json!({})).await;
@@ -125,7 +127,8 @@ async fn a_new_session_starts_at_the_remembered_model_and_effort() {
 #[tokio::test]
 async fn a_remembered_model_the_harness_no_longer_offers_is_dropped() {
     let app = test_app().await;
-    app.storage
+    app.core
+        .harness()
         .remember_for_test("claude-code", "retired-model", Some("high"))
         .await;
     let (s, c) = post(&app, &session_path(&app), json!({})).await;

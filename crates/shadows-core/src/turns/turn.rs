@@ -51,7 +51,7 @@ use super::{
 };
 use crate::{
     db::{Actor, StorageError},
-    harness::{OpenSession, Sessions},
+    harness::{Harness, OpenSession},
     threads::{NewThreadEntry, ThreadEntryKind, ThreadId},
 };
 use shadows_agent::{
@@ -81,7 +81,7 @@ pub(crate) struct TurnWatch {
     pub op_id: OperationId,
     pub storage: Arc<crate::db::Storage>,
     pub handles: Arc<LiveHandles>,
-    pub sessions: Arc<Sessions>,
+    pub sessions: Arc<Harness>,
     pub opened: OpenSession,
     pub thread_id: ThreadId,
     /// The thread's harness, whose account limits a usage report updates.
@@ -170,7 +170,7 @@ async fn accept(
             .as_ref()
             .and_then(|r| limits_from(r, &now_rfc3339()));
         if let Some(limits) = limits
-            && let Err(error) = w.storage.record_limits(&w.harness, &limits).await
+            && let Err(error) = w.sessions.record_limits(&w.harness, &limits).await
         {
             tracing::error!(%error, "planner.record_limits_failed");
         }
@@ -388,7 +388,7 @@ impl PlannerTurn {
     pub async fn stop(
         storage: Arc<crate::db::Storage>,
         handles: Arc<LiveHandles>,
-        sessions: Arc<Sessions>,
+        sessions: Arc<Harness>,
         op_id: &OperationId,
         requester: Actor,
     ) -> Result<StopOutcome, StorageError> {

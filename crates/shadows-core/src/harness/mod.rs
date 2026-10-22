@@ -1,19 +1,10 @@
-//! One job: the harnesses and each thread's open session (spec §12.2–§12.4,
-//! §12.8, §14.4) — the `Harness` service.
+//! Thread harness sessions and the context each invocation heard.
 //!
-//! `change_model` and `change_effort` keep §12.7's order, and the order is the
-//! rule (§14.9): the harness is checked, then the thread's busyness, before
-//! the session is touched; the session is opened, then leased while it
-//! changes, so a turn that took it in between is refused.
-//!
-//! `sessions` holds the live adapter each open thread has, `settings` sets an
-//! open session's options, `setup` is what a session opens with, `offers` the
-//! latest choices each session offers, `commands` the latest `/` list each
-//! session sent, `context` the breakdown read on demand,
-//! `titles` the titles a harness sends, `model` the shapes a caller meets and
-//! `store` the queries. `Turns` drives a turn through `Sessions`, the methods
-//! `contract.yaml` names.
+//! Harness checks availability, then durable busyness before touching a session.
+//! A lease protects setting changes from a turn that acquired the session after
+//! those checks. Sessions is a private cache; other services use Harness methods.
 
+mod access;
 mod assistant;
 mod commands;
 mod context;
@@ -37,14 +28,16 @@ use shadows_agent::policy;
 use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
-pub use model::{AylulUsageSnapshot, ContextBreakdown, HarnessInfo, RememberedSettings};
-pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
-pub use setup::prompt_version;
-// What another write calls inside its own transaction (spec §14.6): a turn
-// start remembers its model and effort.
-pub(crate) use store::remember_settings;
+pub use model::{
+    AylulUsageSnapshot, ContextBreakdown, HarnessInfo, InvocationVersions, InvocationView,
+    RememberedSettings,
+};
+use sessions::Sessions;
+pub use sessions::{LeaseError, OpenError, OpenSession, SessionsConfig};
+pub(crate) use setup::InvocationContext;
 
-use model::label;
+pub(crate) use model::InvocationUsage;
+pub(crate) use model::NewInvocation;
 use settings::SettingRefused;
 
 use crate::db::{Storage, StorageError};
@@ -55,7 +48,7 @@ use crate::threads::ThreadId;
 
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {
-    storage: Arc<Storage>,
+    store: store::HarnessStore,
     operations: crate::operations::Operations,
     sessions: Arc<Sessions>,
     projects: Projects,
@@ -72,18 +65,69 @@ impl Harness {
             .ok_or(CoreError::AylulNotConfigured)
     }
 
-    pub(crate) fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn with_owners(
+        adapter: Arc<shadows_agent::claude::ClaudeAdapter>,
         storage: Arc<Storage>,
+        config: SessionsConfig,
+        owners: crate::app::AylulOwners,
+        instructions: crate::Instructions,
+        grants: crate::grants::Grants,
         operations: crate::operations::Operations,
-        sessions: Arc<Sessions>,
         projects: Projects,
-    ) -> Self {
-        Self {
-            storage,
+    ) -> Arc<Self> {
+        let sessions = Sessions::with_owners(
+            adapter,
+            storage.clone(),
+            config,
+            owners,
+            instructions,
+            grants,
+        );
+        Arc::new(Self {
+            store: store::HarnessStore::with_storage(storage),
             operations,
             sessions,
             projects,
+        })
+    }
+
+    /// Changes the durable harness, then closes the adapter if its kind changed.
+    pub async fn set_thread_harness(
+        &self,
+        command_id: String,
+        thread: &ThreadId,
+        harness: &str,
+    ) -> Result<crate::threads::PlanningThread, CoreError> {
+        Projects::known_harness(harness)?;
+        let mut conn = self
+            .store
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
+        let context = crate::threads::Threads::turn_context_in(&mut conn, thread).await?;
+        drop(conn);
+        self.projects
+            .harness_fits(&context.project_id, harness)
+            .await?;
+        let before = context.harness;
+        let command = crate::db::CommandContext::user(
+            command_id,
+            "thread.harness",
+            serde_json::json!({"thread_id": thread, "harness": harness}),
+        );
+        let updated = self
+            .store
+            .set_thread_harness(&command, thread, harness)
+            .await?;
+        if updated.harness != before
+            && let Err(error) = self.close_session(thread).await
+        {
+            tracing::error!(%error, thread_id = %thread, "thread.harness_change_close_failed");
         }
+        Ok(updated)
     }
 
     /// Deletes an agent and closes its live adapters. The one way an agent is
@@ -92,7 +136,8 @@ impl Harness {
     pub async fn delete_agent(&self, command_id: String, slug: &str) -> Result<(), CoreError> {
         let agents = self.sessions.owners.agents.clone();
         let owned = slug.to_owned();
-        self.storage
+        self.store
+            .storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
                     agents.delete_in(conn, command_id, &owned).await?;
@@ -110,27 +155,28 @@ impl Harness {
         for kind in policy::KNOWN {
             let available = self.sessions.harness_available(kind).await?;
             let remembered = self
-                .storage
+                .store
                 .remembered_settings(kind)
                 .await?
                 .map(|(model, effort)| RememberedSettings { model, effort });
             list.push(HarnessInfo {
                 kind: kind.to_string(),
-                label: label(kind).to_string(),
+                label: Self::label(kind).to_string(),
                 available,
                 reason: (!available).then(|| "Coming later".to_string()),
                 remembered,
-                limits: self.storage.latest_limits(kind).await?,
+                limits: self.store.latest_limits(kind).await?,
             });
         }
         Ok(list)
     }
 
-    /// Opens the thread's harness session (spec §12.2) and answers what it
+    /// Opens the thread's harness session and answers what it
     /// offers. Idempotent: an open session answers what it holds.
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError> {
         let context = crate::threads::Threads::turn_context_in(
             &mut *self
+                .store
                 .storage
                 .reader()
                 .begin()
@@ -139,10 +185,7 @@ impl Harness {
             thread,
         )
         .await?;
-        self.sessions.check_context(&context).await?;
-        if !self.sessions.harness_available(&context.harness).await? {
-            return Err(CoreError::HarnessUnavailable(context.harness));
-        }
+        self.check_available(&context).await?;
         self.sessions.open(thread).await?;
         let offered = self.sessions.offered(thread).await.ok_or_else(|| {
             CoreError::HarnessStartFailed("the session closed as it opened".into())
@@ -150,12 +193,12 @@ impl Harness {
         self.choices(thread, &offered).await
     }
 
-    /// Sets the thread's session to `model` (spec §12.7), opening it first if
+    /// Sets the thread's session to `model`, opening it first if
     /// it is not open, and answers its choices as `open_session` does. The
     /// harness is checked, then the thread's busyness, before the session is
-    /// touched (§14.9): a running turn's session is not changed. When the
+    /// touched: a running turn's session is not changed. When the
     /// session moves to the model it is set to that model's remembered effort,
-    /// if still offered (§12.4). The change itself writes nothing durable (an
+    /// if still offered. The change itself writes nothing durable (an
     /// opening it causes issues the thread's grant, as any opening does), and
     /// nothing is remembered: a turn started is.
     pub async fn change_model(
@@ -164,12 +207,7 @@ impl Harness {
         model: &str,
     ) -> Result<SessionChoices, CoreError> {
         let (harness, opened) = self.open_idle(thread).await?;
-        let effort = self
-            .storage
-            .remembered(&harness)
-            .await?
-            .efforts
-            .remove(model);
+        let effort = self.store.remembered(&harness).await?.efforts.remove(model);
         let changed = self
             .sessions
             .change_model(thread, &opened, model, effort.as_deref());
@@ -177,7 +215,7 @@ impl Harness {
         self.choices(thread, &offered).await
     }
 
-    /// Sets the thread's session to `effort` (spec §12.7), exactly as
+    /// Sets the thread's session to `effort`, exactly as
     /// `change_model` sets a model: same checks in the same order, nothing
     /// durable, nothing remembered. An effort the session's model does not
     /// offer, or one the harness refuses, is SettingNotOffered.
@@ -192,12 +230,13 @@ impl Harness {
         self.choices(thread, &offered).await
     }
 
-    /// §14.9's order before a person's change: the thread's harness is
+    /// The order before a person's change: the thread's harness is
     /// available, then no operation is open on it, then its session is opened.
     /// Answers the harness kind and the open session.
     async fn open_idle(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError> {
         let context = crate::threads::Threads::turn_context_in(
             &mut *self
+                .store
                 .storage
                 .reader()
                 .begin()
@@ -206,13 +245,7 @@ impl Harness {
             thread,
         )
         .await?;
-        self.sessions.check_context(&context).await?;
-        if !self.sessions.harness_available(&context.harness).await? {
-            return Err(CoreError::HarnessUnavailable(context.harness));
-        }
-        if self.operations.thread_is_busy(thread).await? {
-            return Err(StorageError::ThreadBusy.into());
-        }
+        self.check_idle(thread, &context).await?;
         let opened = self.sessions.open(thread).await?;
         Ok((
             preference_key(&context.harness, context.profile.as_deref()),
@@ -220,11 +253,35 @@ impl Harness {
         ))
     }
 
+    async fn check_available(
+        &self,
+        context: &crate::threads::TurnContext,
+    ) -> Result<(), CoreError> {
+        self.sessions.check_context(context).await?;
+        if !self.sessions.harness_available(&context.harness).await? {
+            return Err(CoreError::HarnessUnavailable(context.harness.clone()));
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn check_idle(
+        &self,
+        thread: &ThreadId,
+        context: &crate::threads::TurnContext,
+    ) -> Result<(), CoreError> {
+        self.check_available(context).await?;
+        if self.operations.thread_is_busy(thread).await? {
+            return Err(StorageError::ThreadBusy.into());
+        }
+        Ok(())
+    }
+
     /// The context breakdown of the thread's session, read on demand (spec
-    /// §12.8): the categories, or none with the reason. Nothing is written.
+    /// ): the categories, or none with the reason. Nothing is written.
     pub async fn context(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError> {
         crate::threads::Threads::turn_context_in(
             &mut *self
+                .store
                 .storage
                 .reader()
                 .begin()
@@ -245,7 +302,7 @@ impl Harness {
         })
     }
 
-    /// Closes the thread's open session, if it has one (§12.2): its adapter's
+    /// Closes the thread's open session, if it has one: its adapter's
     /// tree is ended and its grant revoked. `Threads` calls it when a thread's
     /// harness changes.
     pub(crate) async fn close_session(&self, thread: &ThreadId) -> std::io::Result<()> {
@@ -258,7 +315,7 @@ impl Harness {
         self.sessions.watch_options()
     }
 
-    /// The thread's latest `/` list, if its open session sent one (§21.2).
+    /// The thread's latest `/` list, if its open session sent one.
     pub(crate) fn commands_of(&self, thread: &ThreadId) -> Option<Vec<SlashCommand>> {
         self.sessions.commands.get(thread)
     }
@@ -269,17 +326,17 @@ impl Harness {
         self.sessions.commands.subscribe()
     }
 
-    /// The account limits the thread's harness last reported (§12.8), which a
+    /// The account limits the thread's harness last reported, which a
     /// turn's watcher recorded before it published the usage that asks. `None`
     /// when unknown, or when the thread or the limits cannot be read.
     pub(crate) async fn limits_of(&self, thread: &ThreadId) -> Option<AccountLimits> {
         let context = crate::threads::Threads::turn_context_in(
-            &mut *self.storage.reader().begin().await.ok()?,
+            &mut *self.store.storage.reader().begin().await.ok()?,
             thread,
         )
         .await
         .ok()?;
-        self.storage
+        self.store
             .latest_limits(&context.harness)
             .await
             .ok()
@@ -296,6 +353,7 @@ impl Harness {
     ) -> Result<SessionChoices, CoreError> {
         let context = crate::threads::Threads::turn_context_in(
             &mut *self
+                .store
                 .storage
                 .reader()
                 .begin()
@@ -312,7 +370,7 @@ impl Harness {
     }
 }
 
-/// A refused change of `what` to `id`, as a caller meets it (§12.7).
+/// A refused change of `what` to `id`, as a caller meets it.
 fn refusal(what: &str, id: &str, refused: SettingRefused) -> CoreError {
     let not_offered = |detail| CoreError::SettingNotOffered {
         what: what.into(),
@@ -329,7 +387,7 @@ fn refusal(what: &str, id: &str, refused: SettingRefused) -> CoreError {
     }
 }
 
-pub(crate) fn preference_key(harness: &str, profile: Option<&str>) -> String {
+fn preference_key(harness: &str, profile: Option<&str>) -> String {
     if harness == policy::AYLUL {
         format!("aylul:{}", profile.unwrap_or("aylul"))
     } else {

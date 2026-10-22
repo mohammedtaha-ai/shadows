@@ -1,4 +1,4 @@
-//! One job: reading a session's context breakdown on demand (spec §12.8).
+//! One job: reading a session's context breakdown on demand.
 //!
 //! `/context` sent as a prompt answers the breakdown as one markdown message
 //! and costs no model tokens, but it is not a Planner turn: it writes no

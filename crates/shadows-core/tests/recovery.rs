@@ -249,7 +249,7 @@ use shadows_core::testing::turn;
 struct Daemon {
     runtime: std::sync::Arc<shadows_core::testing::Runtime>,
     handles: std::sync::Arc<shadows_core::testing::LiveHandles>,
-    sessions: std::sync::Arc<shadows_core::testing::Sessions>,
+    sessions: std::sync::Arc<shadows_core::testing::Harness>,
 }
 
 impl Daemon {

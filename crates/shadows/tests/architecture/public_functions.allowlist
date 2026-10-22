@@ -62,16 +62,6 @@ crates/shadows-core/src/design/structure_write.rs :: root free public function [
 crates/shadows-core/src/design/structure_write.rs :: write free public function [4189f875074162ed] #1
 crates/shadows-core/src/design/vision_items.rs :: apply free public function [d07cf5006b0b3656] #1
 crates/shadows-core/src/design/vision_items.rs :: next_id free public function [77c86926c37f5b6c] #1
-crates/shadows-core/src/harness/assistant.rs :: aylul_setup free public function [39ed8bdf7bde7090] #1
-crates/shadows-core/src/harness/commands.rs :: keep_commands free public function [bc22670371be6c60] #1
-crates/shadows-core/src/harness/mod.rs :: preference_key free public function [18e6dc122adcd0ae] #1
-crates/shadows-core/src/harness/model.rs :: label free public function [1232968b803207bb] #1
-crates/shadows-core/src/harness/offers.rs :: intercept free public function [165d75607009bcb0] #1
-crates/shadows-core/src/harness/sessions.rs :: stop_handle free public function [c1f0c4ee8fe2f7b4] #1
-crates/shadows-core/src/harness/setup.rs :: prompt_version free public function [8af5e10f847710e1] #1
-crates/shadows-core/src/harness/standards.rs :: render free public function [c1ebe7a09acfa0f7] #1
-crates/shadows-core/src/harness/store.rs :: remember_settings free public function [9c21f32ae5506c8a] #1
-crates/shadows-core/src/harness/titles.rs :: keep_titles free public function [4ad32912c817a2bf] #1
 crates/shadows-core/src/plans/model.rs :: link_name free public function [d5b425a83f4fd4fd] #1
 crates/shadows-core/src/plans/ops.rs :: apply free public function [3a1ba4044dc40b1a] #1
 crates/shadows-core/src/plans/rules.rs :: approval_problems free public function [dd19a8a3ff810770] #1
@@ -124,7 +114,6 @@ crates/shadows-core/src/secrets/crypto.rs :: seal free public function [e4696944
 crates/shadows-core/src/secrets/mod.rs :: reserved_env_name free public function [096d2b4abc230652] #1
 crates/shadows-core/src/secrets/mod.rs :: validate_env_name free public function [83fa34cecabfcf01] #1
 crates/shadows-core/src/turns/steer.rs :: steer free public function [656fab68c0c3358f] #1
-crates/shadows-core/src/turns/store/operation_read.rs :: invocation_of free public function [8cae071620a1a355] #1
 crates/shadows-core/src/turns/store/queue.rs :: event free public function [11e99f0885846bb2] #1
 crates/shadows-core/src/turns/store/queue.rs :: take_queued_in free public function [be128d5ea4080bcd] #1
 crates/shadows-core/src/turns/store/usage.rs :: record_usage_in free public function [428d0364c5dcfb09] #1

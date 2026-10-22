@@ -34,7 +34,8 @@ async fn a_completed_turn_records_what_the_harness_reported() {
         "the last report, not the 200k guess"
     );
     let limits = app
-        .storage
+        .core
+        .harness()
         .latest_limits("claude-code")
         .await
         .unwrap()

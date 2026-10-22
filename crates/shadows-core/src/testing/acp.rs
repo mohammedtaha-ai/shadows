@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::db::Storage;
-use crate::harness::{Sessions, SessionsConfig};
+use crate::harness::{Harness, SessionsConfig};
 use shadows_agent::claude::ClaudeAdapter;
 
 /// The `/mcp` URL a daemon built from these fixtures reports: the address
@@ -38,8 +38,8 @@ pub fn test_config() -> SessionsConfig {
     }
 }
 
-/// Sessions over `fake_acp` on the core's `storage`, as `AppCore::start`
+/// Harness over `fake_acp` on the core's `storage`, as `AppCore::start`
 /// builds them: one pool, so a session's grant events wake subscribers.
-pub fn fake_sessions(storage: Arc<Storage>) -> Arc<Sessions> {
-    Sessions::new(fake_adapter(), storage, test_config())
+pub fn fake_sessions(storage: Arc<Storage>) -> Arc<Harness> {
+    crate::app::AppCore::harness_for_tests(fake_adapter(), storage, test_config())
 }

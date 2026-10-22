@@ -32,9 +32,9 @@ pub struct SessionsConfig {
     pub secrets: Option<Arc<crate::Secrets>>,
     pub idle_after: Duration,
     pub cancel_wait: Duration,
-    /// How long an adapter has to start and open its session (§12.2).
+    /// How long an adapter has to start and open its session.
     pub setup_wait: Duration,
-    /// How long the on-demand context breakdown waits for `/context` (§12.8).
+    /// How long the on-demand context breakdown waits for `/context`.
     pub context_wait: Duration,
     /// Shadows' `/mcp`, as the daemon bound it; `None` in tests that need no MCP.
     pub mcp_url: Option<String>,
@@ -65,12 +65,12 @@ pub enum OpenError {
     #[error("harness start failed: {0}")]
     Start(String),
     /// The project's directory cannot be run in. The text is written here,
-    /// about the user's own project, so a client may show it (§3.2).
+    /// about the user's own project, so a client may show it.
     #[error("{0}")]
     Workspace(String),
 }
 
-/// A turn cannot take the thread's session (spec §12.7).
+/// A turn cannot take the thread's session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum LeaseError {
     /// Another user of the session — a turn, or a `/context` read that did
@@ -103,8 +103,8 @@ impl OpenSession {
     }
 }
 
-pub struct Sessions {
-    pub(crate) owners: crate::app::AylulOwners,
+pub(super) struct Sessions {
+    pub(super) owners: crate::app::AylulOwners,
     pub(super) homes: super::profile_home::Homes,
     pub(super) adapter: Arc<ClaudeAdapter>,
     pub(super) storage: Arc<Storage>,
@@ -117,36 +117,7 @@ pub struct Sessions {
 }
 
 impl Sessions {
-    /// Shares the core's `storage`, so the grant events an opening and a
-    /// close append raise the committed signal `Events` watches (§13.7).
-    /// Test callers only, over configuration owners of its own; `start` uses
-    /// `with_owners`.
-    #[cfg(feature = "test-support")]
-    pub fn new(
-        adapter: Arc<ClaudeAdapter>,
-        storage: Arc<Storage>,
-        config: SessionsConfig,
-    ) -> Arc<Self> {
-        let secrets = config
-            .secrets
-            .clone()
-            .unwrap_or_else(|| crate::Secrets::new(storage.clone(), None));
-        let owners = crate::app::AylulOwners::build(
-            storage.clone(),
-            secrets,
-            config.aylul.as_ref().map(|c| c.home_root.clone()),
-            crate::testing::projects(storage.clone()),
-        );
-        let instructions = crate::Instructions::new(storage.clone());
-        let grants = crate::app::AppCore::grants_for_tests(
-            storage.clone(),
-            config.mcp_url.clone().unwrap_or_default(),
-        );
-        Self::with_owners(adapter, storage, config, owners, instructions, grants)
-    }
-
-    /// Over the configuration owners `AppCore::start` built, the instances the core
-    /// also serves. The dependency points one way: sessions read them.
+    /// Reads the explicit configuration owners served by AppCore.
     pub(crate) fn with_owners(
         adapter: Arc<ClaudeAdapter>,
         storage: Arc<Storage>,
@@ -259,7 +230,7 @@ impl Sessions {
     }
 
     /// Takes the session's events for a turn: whoever holds them has the
-    /// session to itself (spec §12.7). A `/context` read gives them back
+    /// session to itself. A `/context` read gives them back
     /// within `context_wait` plus, when it had to cancel, `cancel_wait`; a
     /// turn waits that long before it is `Busy`.
     pub async fn lease_events(
@@ -319,14 +290,14 @@ impl Sessions {
         let slot = self.slot(thread).await;
         let mut live = slot.lock().await;
         if let Some(item) = live.as_mut() {
-            stop_handle(&mut item.handle).await?;
+            Self::stop_handle(&mut item.handle).await?;
         }
         *live = None;
         self.forget(thread).await;
         Ok(())
     }
 
-    /// Terminates `opened`'s adapter and reaps it. An adapter no longer in
+    /// Terminates `opened`'s adapter and reaps it. An adapter absent from
     /// the map was already reaped by whoever removed it, so `Ok` then: a
     /// replacement opened since is another adapter, and is left alone.
     pub async fn terminate_adapter(
@@ -337,7 +308,7 @@ impl Sessions {
         let slot = self.slot(thread).await;
         let mut live = slot.lock().await;
         if let Some(item) = same_adapter(&mut live, opened) {
-            stop_handle(&mut item.handle).await?;
+            Self::stop_handle(&mut item.handle).await?;
             *live = None;
             self.forget(thread).await;
         }
@@ -349,7 +320,7 @@ impl Sessions {
         for (thread, slot) in self.slots().await {
             let mut live = slot.lock().await;
             let Some(item) = live.as_mut() else { continue };
-            match stop_handle(&mut item.handle).await {
+            match Self::stop_handle(&mut item.handle).await {
                 Ok(()) => {
                     *live = None;
                     self.forget(&thread).await;
@@ -375,7 +346,7 @@ impl Sessions {
             }) else {
                 continue;
             };
-            if let Err(error) = stop_handle(&mut item.handle).await {
+            if let Err(error) = Self::stop_handle(&mut item.handle).await {
                 tracing::warn!(thread_id = %id, %error, "sessions.idle_close_failed");
                 continue;
             }
@@ -416,7 +387,7 @@ impl Sessions {
     }
 
     /// The adapter this daemon runs, whose paths and versions every
-    /// invocation records (§12.7).
+    /// invocation records.
     pub fn adapter(&self) -> &ClaudeAdapter {
         &self.adapter
     }
@@ -424,20 +395,18 @@ impl Sessions {
     pub fn cancel_wait(&self) -> Duration {
         self.config.cancel_wait
     }
-
-    pub(crate) fn setups(&self) -> &Setups {
-        &self.setups
-    }
 }
 
-pub(super) async fn stop_handle(handle: &mut ProcessHandle) -> io::Result<()> {
-    if !handle.has_exited() {
-        handle.terminate_tree()?;
+impl Sessions {
+    pub(super) async fn stop_handle(handle: &mut ProcessHandle) -> io::Result<()> {
+        if !handle.has_exited() {
+            handle.terminate_tree()?;
+        }
+        tokio::time::timeout(Duration::from_secs(5), handle.wait())
+            .await
+            .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "adapter did not exit in time"))?
+            .map(|_| ())
     }
-    tokio::time::timeout(Duration::from_secs(5), handle.wait())
-        .await
-        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "adapter did not exit in time"))?
-        .map(|_| ())
 }
 
 /// The thread's live adapter, if it is still the one `opened` was made on.

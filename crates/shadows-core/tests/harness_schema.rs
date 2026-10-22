@@ -89,7 +89,7 @@ fn claude_policy_is_accept_edits_and_auto_and_codex_has_none() {
 #[tokio::test]
 async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_operation() {
     let (fx, thread) = fixture().await;
-    let t = shadows_core::Threads::set_thread_harness_for_test(
+    let t = shadows_core::testing::Harness::set_thread_harness_for_test(
         &fx.storage,
         &ctx("h1", "thread.harness"),
         &thread,
@@ -98,7 +98,7 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
     .await
     .unwrap();
     assert_eq!(t.harness, "codex");
-    shadows_core::Threads::set_thread_harness_for_test(
+    shadows_core::testing::Harness::set_thread_harness_for_test(
         &fx.storage,
         &ctx("h2", "thread.harness"),
         &thread,
@@ -113,7 +113,7 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
     )
     .await
     .unwrap();
-    let locked = shadows_core::Threads::set_thread_harness_for_test(
+    let locked = shadows_core::testing::Harness::set_thread_harness_for_test(
         &fx.storage,
         &ctx("h3", "thread.harness"),
         &thread,
@@ -127,7 +127,7 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
             ..
         })
     ));
-    let replay = shadows_core::Threads::set_thread_harness_for_test(
+    let replay = shadows_core::testing::Harness::set_thread_harness_for_test(
         &fx.storage,
         &ctx("h2", "thread.harness"),
         &thread,

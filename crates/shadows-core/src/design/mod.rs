@@ -63,6 +63,13 @@ impl Design {
     pub async fn stage(&self, project: &ProjectId) -> Result<StageView, CoreError> {
         Ok(self.storage.project_stage(project).await?)
     }
+    /// The stage fact appended to a Planner prompt.
+    pub(crate) async fn stage_line_in(
+        conn: &mut sqlx::SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<String, crate::db::StorageError> {
+        Ok(stage::line(&Self::stage_view_in(conn, project).await?))
+    }
 
     pub(crate) fn new(storage: Arc<Storage>, operations: crate::operations::Operations) -> Self {
         Self {

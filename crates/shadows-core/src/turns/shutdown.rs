@@ -21,7 +21,7 @@ use std::time::Duration;
 use super::handles::LiveHandles;
 use super::turn::{PlannerTurn, StopOutcome};
 use crate::db::{Actor, StorageError};
-use crate::harness::Sessions;
+use crate::harness::Harness;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 
@@ -38,7 +38,7 @@ impl PlannerTurn {
         storage: Arc<crate::db::Storage>,
         operations: crate::operations::Operations,
         handles: Arc<LiveHandles>,
-        sessions: Arc<Sessions>,
+        sessions: Arc<Harness>,
         confirm_within: Duration,
         escalate: impl Future<Output = ()>,
     ) -> Result<StopKind, StorageError> {
@@ -80,7 +80,7 @@ async fn terminate_all(
     storage: &Arc<crate::db::Storage>,
     operations: &crate::operations::Operations,
     handles: &Arc<LiveHandles>,
-    sessions: &Arc<Sessions>,
+    sessions: &Arc<Harness>,
 ) -> bool {
     let live = handles.close().await;
     tracing::info!(live = live.len(), "shutdown.begin");

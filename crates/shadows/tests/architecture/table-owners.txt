@@ -1,5 +1,5 @@
 # SQLite table :: service owner
-agent_invocation :: turns
+agent_invocation :: harness
 agreement :: design
 agreement_operation_identity :: design
 agreement_version :: design

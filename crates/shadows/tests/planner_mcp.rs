@@ -8,8 +8,8 @@
 use std::time::Duration;
 
 use serde_json::{Value, json};
+use shadows_core::testing::SessionsConfig;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{SessionsConfig, prompt_version};
 use shadows_core::{PlanId, ThreadId, WorkflowId, WrittenBy};
 
 use shadows_core::testing::acp;
@@ -619,9 +619,12 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
     .unwrap();
     assert_eq!(
         recorded,
-        (Some(prompt_version().to_string()), Some(current.id))
+        (
+            Some(shadows_core::testing::Harness::prompt_version().to_string()),
+            Some(current.id)
+        )
     );
-    assert_eq!(prompt_version().len(), 16);
+    assert_eq!(shadows_core::testing::Harness::prompt_version().len(), 16);
     let versions = l
         .app
         .storage

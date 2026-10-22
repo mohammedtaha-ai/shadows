@@ -2,7 +2,7 @@
 //!
 //! A thread's harness is one Shadows knows, `claude-code` when none is named;
 //! it changes only before the thread's first operation, never on a fork, and
-//! a change closes the thread's open session through `Harness`. A fork is
+//! Harness closes the open session after changing it. A fork is
 //! taken only from the source's last entry, written by a completed turn. A
 //! thread is titled after its first message, then by its harness, never over
 //! a name a person gave it.
@@ -106,33 +106,6 @@ impl Threads {
 
     pub async fn list_for_profile(&self, slug: &str) -> Result<Vec<PlanningThread>, CoreError> {
         Ok(self.store.list_threads_for_profile(slug).await?)
-    }
-
-    /// Changes the thread's harness before its first turn:
-    /// "thread.harness", params { "thread_id", "harness" }. When the harness
-    /// changed, the thread's session is closed; a failure to close is
-    /// logged and the change still answers.
-    pub async fn set_harness(
-        &self,
-        command_id: String,
-        thread: &ThreadId,
-        harness: &str,
-    ) -> Result<PlanningThread, CoreError> {
-        Projects::known_harness(harness)?;
-        let context = self.store.turn_context(thread).await?;
-        self.projects
-            .harness_fits(&context.project_id, harness)
-            .await?;
-        let before = context.harness;
-        let params = serde_json::json!({ "thread_id": thread, "harness": harness });
-        let c = CommandContext::user(command_id, "thread.harness", params);
-        let updated = self.store.set_thread_harness(&c, thread, harness).await?;
-        if updated.harness != before
-            && let Err(error) = self.harness.close_session(thread).await
-        {
-            tracing::error!(%error, thread_id = %thread, "thread.harness_change_close_failed");
-        }
-        Ok(updated)
     }
 
     /// A thread's entries in ordinal order.

@@ -24,6 +24,7 @@ mod queue;
 mod record;
 mod shutdown;
 mod spawn;
+mod stage;
 mod steer;
 mod store;
 mod subagents;
@@ -56,7 +57,7 @@ use crate::app::Bus;
 use crate::code::Code;
 use crate::db::{Actor, CommandContext, Storage, StorageError};
 use crate::error::CoreError;
-use crate::harness::{LeaseError, Sessions};
+use crate::harness::{Harness, LeaseError};
 use crate::instructions::Instructions;
 use crate::plans::{Focus, PlanId};
 use crate::projects::Projects;
@@ -84,7 +85,7 @@ pub struct Turns {
     storage: Arc<Storage>,
     operations: crate::operations::Operations,
     runtime: Arc<Runtime>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     handles: Arc<LiveHandles>,
     bus: Bus,
     code: Code,
@@ -99,14 +100,14 @@ pub struct Turns {
 pub(crate) struct ThreadStopper {
     storage: Arc<Storage>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
 }
 
 impl ThreadStopper {
     pub(crate) fn new(
         storage: Arc<Storage>,
         handles: Arc<LiveHandles>,
-        sessions: Arc<Sessions>,
+        sessions: Arc<Harness>,
     ) -> Self {
         Self {
             storage,
@@ -204,7 +205,7 @@ impl Turns {
         storage: Arc<Storage>,
         operations: crate::operations::Operations,
         runtime: Arc<Runtime>,
-        sessions: Arc<Sessions>,
+        sessions: Arc<Harness>,
         handles: Arc<LiveHandles>,
         bus: Bus,
         code: Code,
@@ -294,15 +295,7 @@ impl Turns {
             ),
             None => None,
         };
-        self.sessions.check_context(&context).await?;
-        if !self.sessions.harness_available(&context.harness).await? {
-            return Err(CoreError::HarnessUnavailable(context.harness));
-        }
-        // Checked before the session is touched: setting a model below would
-        // change the session a running turn is using.
-        if self.operations.thread_is_busy(&thread_id).await? {
-            return Err(StorageError::ThreadBusy.into());
-        }
+        self.sessions.check_idle(&thread_id, &context).await?;
         // The checks passed: a turn starts in this project, which is used (§15.6).
         self.code.touch(&context.project_id).await;
         let opened = self.sessions.open(&thread_id).await?;
