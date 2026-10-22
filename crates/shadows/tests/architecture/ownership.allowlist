@@ -1,8 +1,14 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
+# A-17: Threads::set_harness retains its Harness session close until the owner moves.
+# A-18: Threads::remove retains ThreadStopper and Harness close until removal moves.
+# A-19: thread model OperationId/WorkflowId/TaskId imports remain for extraction.
 crates/shadows-core/src/code/store/links.rs :: CodeStore::put_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
 crates/shadows-core/src/code/store/links.rs :: CodeStore::remove_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
+# A-13: approval reads move to Grants through Threads.
 crates/shadows-core/src/db/approval.rs :: authorise_in SQL table planning_thread belongs to threads [83580039648d6524] #1
+# A-13: approval reads move to Grants through Threads.
 crates/shadows-core/src/db/approval.rs :: authorise_in SQL table thread_entry belongs to threads [6a44c22c97effd3d] #1
+# A-13: approval reads move to Grants through Threads.
 crates/shadows-core/src/db/approval.rs :: read_in SQL table thread_entry belongs to threads [3bf42e3e0331f139] #1
 crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: unknown table _sqlx_migrations [588f191de74f5cc2] #1
 crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: unknown table sqlite_schema [b22bec229f27366b] #1
@@ -83,6 +89,7 @@ crates/shadows-core/src/plans/store/notifications.rs :: notify_project_dependenc
 crates/shadows-core/src/plans/store/plan.rs :: load_plan_versions SQL table project belongs to projects [ba67f7f2f990e9c7] #1
 crates/shadows-core/src/plans/store/read.rs :: written_by SQL table agent_invocation belongs to turns [a60039ee53ce489e] #1
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::grants::store::check_writer [a000eca87c3e2f49] #1
+# A-16b: project removal checks threads through its new owner.
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove SQL table planning_thread belongs to threads [5f4deecc4f5c3ae9] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::grants::store::revoke_project_grants_in [e22e94a631af841b] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [08c71ab7fba6d631] #1
@@ -95,10 +102,15 @@ crates/shadows-core/src/runtime/store.rs :: Storage::stop_runtime_instance SQL t
 crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
 crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
+# A-17b: operation listing moves to Operations.
 crates/shadows-core/src/threads/mod.rs :: Threads::operations Storage::list_operations_for_thread belongs to turns [968e1239d5bf9a04] #1
+# A-17b: fork operation checks move to Operations in the same transaction.
 crates/shadows-core/src/threads/store/fork.rs :: fork_point SQL table operation belongs to turns [01777ce6f5443355] #1
+# A-17b: fork operation checks move to Operations in the same transaction.
 crates/shadows-core/src/threads/store/fork.rs :: super::ThreadsStore::fork_thread cross-owner store call shadows_core::turns::store::turn::has_open_operation [c1e06cea881e792a] #1
+# A-18: removal revocation moves with stop and close to Turns.
 crates/shadows-core/src/threads/store/remove.rs :: super::ThreadsStore::remove_thread cross-owner store call shadows_core::grants::store::revoke_thread_grants_in [3e4a94b0bc558f0b] #1
+# A-17: harness locking moves with set_thread_harness to Harness.
 crates/shadows-core/src/threads/store/thread.rs :: has_operation SQL table operation belongs to turns [5dd083b85aca1e88] #1
 crates/shadows-core/src/turns/entries.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::list_plans belongs to plans [7c2e971023ae016a] #1

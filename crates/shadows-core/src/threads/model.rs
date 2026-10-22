@@ -9,23 +9,21 @@ use crate::projects::ProjectId;
 use crate::turns::OperationId;
 
 newtype_id! {
-    /// Spec §4.1.
+    /// A planning thread has its own identity.
     ThreadId
 }
 
 newtype_id! {
-    /// Spec §4.1. Distinct from the entry's `ordinal`, which orders entries
+    /// Distinct from the entry's `ordinal`, which orders entries
     /// within one thread and is not an identity.
     ThreadEntryId
 }
 
-/// Who named a thread when it was created: its `title_source` until §4.2's
-/// title rule replaces it.
+/// The initial title source determines which later title writers may replace it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CreatedTitle {
     /// The name the client gave; the first message and the harness replace it.
-    /// A thread stored as `plan`, which an external draft from scratch made
-    /// before §16.3, keeps its title; no code creates one now.
+    /// A stored `plan` title remains protected from these automatic writers.
     Client,
 }
 
@@ -59,23 +57,22 @@ pub struct PlanningThread {
 }
 
 /// What a thread's next turn inherits from durable state, read by the
-/// Planner's Prepare step (spec §8.3) rather than supplied by the caller: a
+/// Planner's Prepare step rather than supplied by the caller: a
 /// client that could name a turn's directory could run it anywhere.
 #[derive(Debug, Clone)]
 pub struct TurnContext {
     pub profile: Option<String>,
-    /// The owning project's directory. `None` for a project created before
-    /// projects owned one — see `Project::directory`.
+    /// The owning project's directory; `None` when no directory is recorded.
     pub project_directory: Option<PathBuf>,
     /// The harness session this thread's turns continue, once one of them
     /// has reached its turn-end. `None` means the next turn starts a session.
     pub harness_session_id: Option<String>,
-    /// The harness the thread runs on (spec §12.6).
+    /// The harness the thread runs on.
     pub harness: String,
     /// The owning project, whose allowed modes a turn is checked against.
     pub project_id: ProjectId,
     /// For a fork that has not yet recorded a session of its own: the source's
-    /// session its first opening forks (spec §12.9).
+    /// session its first opening forks.
     pub fork_session_id: Option<String>,
 }
 
@@ -108,19 +105,14 @@ pub struct ThreadEntry {
     pub operation_id: Option<OperationId>,
 }
 
-/// The fields of an entry being appended. A struct rather than five positional
-/// parameters: `append_thread_entry` previously took
-/// `(&str, &str, &str, &str, &str)`, five arguments the compiler could not tell
-/// apart, and the predecessor project `shadow` died partly on one reversed
-/// argument pair that 413 commits did not catch. Naming the fields at the call
-/// site is what makes the mistake unwritable rather than merely unlikely.
+/// Named entry fields prevent swapping values that share the same Rust type.
 #[derive(Debug, Clone)]
 pub struct NewThreadEntry<'a> {
     pub kind: ThreadEntryKind,
     pub author: Actor,
     pub body: &'a str,
     pub refs: &'a [EntryRef],
-    /// A card's payload (§23.8); `None` for every kind but `Subagent`.
+    /// Structured payload for a subagent or a recorded proposal; absent for plain entries.
     pub card: Option<&'a serde_json::Value>,
     /// The turn that wrote it; `None` only for an entry no turn wrote.
     pub operation_id: Option<&'a OperationId>,
