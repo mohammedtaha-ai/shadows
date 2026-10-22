@@ -93,7 +93,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
 | `crates/shadows-core/src/turns/store/usage.rs` | atomic turn usage insertion | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/harness/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
-| `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/shadows-core/src/secrets/contract.yaml` |
+| `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/shadows-core/src/agents/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
 | `crates/shadows/src/master_key.contract.yaml` | master key storage obligations | `crates/shadows/src/master_key.rs` |

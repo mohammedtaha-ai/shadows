@@ -843,7 +843,7 @@
         "type": "object"
       },
       "CodeSettings": {
-        "description": "The code index's settings (§15.6).",
+        "description": "The code index's settings.",
         "properties": {
           "active_limit": {
             "description": "How many projects are active at once: 1 to 20, default 5.",
@@ -1943,7 +1943,7 @@
             "type": "integer"
           },
           "matched_by": {
-            "description": "`Some(\"name\")` on every `references` hit: matched by name only (§15.5).",
+            "description": "`Some(\"name\")` on every `references` hit: matched by name only.",
             "type": [
               "string",
               "null"
@@ -1996,7 +1996,7 @@
         "type": "object"
       },
       "IndexState": {
-        "description": "How a project's index stands (§15.5).",
+        "description": "How a project's index stands.",
         "oneOf": [
           {
             "properties": {
@@ -2055,7 +2055,7 @@
             "type": "object"
           },
           {
-            "description": "A project created before projects owned a folder (migration 0003).",
+            "description": "A project without a stored directory.",
             "properties": {
               "state": {
                 "enum": [
@@ -2101,7 +2101,7 @@
         "type": "object"
       },
       "InstructionsVersion": {
-        "description": "One saved version of a project's instructions. `id` is what an\n`agent_invocation` records (§13.15); a client sees the number instead.",
+        "description": "One saved version of a project's instructions. `id` is what an\n`agent_invocation` records; a client sees the number instead.",
         "properties": {
           "body": {
             "type": "string"
@@ -3730,7 +3730,7 @@
         "type": "string"
       },
       "ProjectLink": {
-        "description": "A project reading another's index (§15.6). One way: `project` reads\n`linked`, never the reverse.",
+        "description": "A project reading another's index. One way: `project` reads\n`linked`, never the reverse.",
         "properties": {
           "created_at": {
             "type": "string"
@@ -4969,7 +4969,7 @@
         "properties": {
           "author": {
             "$ref": "#/components/schemas/Actor",
-            "description": "Spec §4.2 calls this field's type `Principal`. Milestone 0 uses\n`events::Actor`, which already has exactly this shape (`kind` + `id`) and\nalready answers \"who did this\" for durable events. Declaring a second\nidentical struct would record one decision twice, which this project's\ndocumentation rules forbid. See the note in §4.2."
+            "description": "Spec §4.2 calls this field's type `Principal`. Milestone 0 uses\n`db::Actor`, which already has exactly this shape (`kind` + `id`) and\nalready answers \"who did this\" for durable events. Declaring a second\nidentical struct would record one decision twice, which this project's\ndocumentation rules forbid. See the note in §4.2."
           },
           "body": {
             "type": "string"

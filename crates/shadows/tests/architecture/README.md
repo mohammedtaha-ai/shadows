@@ -82,9 +82,9 @@ baseline includes both observed cross-owner accesses and individually identified
 review cases, including indirect SQL constants and the SQLite migration/schema
 catalog queries whose ownership is not assigned to an application service.
 Public-function and comment baselines preserve existing source-style violations.
-The ownership baseline also names the test-support `profiles` and `secrets`
-constructors in `testing/mod.rs`; review exposed these existing bypasses when
-construction checking was extended beyond service and adapter folders.
+The ownership baseline names the remaining test-support service constructors
+in `testing/mod.rs` and `harness/sessions.rs`; these bypasses are checked
+individually rather than excluded from construction checking.
 
 Each record is `file :: enclosing symbol + reason [evidence hash] #occurrence`.
 The deterministic hash covers normalized source evidence. Repeated equal
