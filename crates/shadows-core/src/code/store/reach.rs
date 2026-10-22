@@ -54,3 +54,76 @@ impl Code {
         Ok(selected)
     }
 }
+
+#[cfg(all(test, feature = "test-support"))]
+mod tests {
+    use super::Code;
+
+    #[tokio::test]
+    async fn link_reads_keep_the_callers_snapshot_and_replay_removed_projects() {
+        let db = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let core = crate::testing::app(db.path().join("code.sqlite3"))
+            .await
+            .unwrap();
+        let home = core
+            .projects()
+            .create("home".into(), "home", "Home", dir.path().to_str().unwrap())
+            .await
+            .unwrap();
+        let linked = core
+            .projects()
+            .create(
+                "linked".into(),
+                "linked",
+                "Linked",
+                dir.path().to_str().unwrap(),
+            )
+            .await
+            .unwrap();
+        let code = core.code();
+        let first = code
+            .link("link".into(), &home.id, &linked.id)
+            .await
+            .unwrap();
+        let storage = &code.inner.store.storage;
+        let mut snapshot = storage.reader().begin().await.unwrap();
+        assert!(
+            Code::project_reachable_in(&mut snapshot, &home.id, &linked.id)
+                .await
+                .unwrap()
+        );
+        core.projects()
+            .remove("remove".into(), &linked.id)
+            .await
+            .unwrap();
+        assert_eq!(
+            Code::selected_project_in(&mut snapshot, &home.id, Some("linked"))
+                .await
+                .unwrap(),
+            linked.id,
+            "project metadata and links must use the same snapshot"
+        );
+        snapshot.commit().await.unwrap();
+        let mut snapshot = storage.reader().begin().await.unwrap();
+        assert!(
+            !Code::project_reachable_in(&mut snapshot, &home.id, &linked.id)
+                .await
+                .unwrap()
+        );
+        assert!(matches!(
+            Code::selected_project_in(&mut snapshot, &home.id, Some("linked")).await,
+            Err(crate::db::StorageError::GrantScope)
+        ));
+        snapshot.commit().await.unwrap();
+        let replay = code
+            .link("link".into(), &home.id, &linked.id)
+            .await
+            .unwrap();
+        assert_eq!(replay.project, first.project);
+        assert_eq!(replay.linked, first.linked);
+        assert_eq!(replay.created_at, first.created_at);
+        assert!(code.links(&home.id).await.unwrap().is_empty());
+        core.code().shut_down().await;
+    }
+}

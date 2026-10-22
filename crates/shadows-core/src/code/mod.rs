@@ -9,8 +9,6 @@
 //! and the active limit as commands.
 
 mod active;
-#[cfg(all(test, feature = "test-support"))]
-mod boundary_tests;
 mod links;
 mod model;
 mod scan;
@@ -75,7 +73,7 @@ impl Code {
             .collect())
     }
 
-    /// Chooses the active set  and starts a worker per active project;
+    /// Chooses the active set and starts a worker per active project;
     /// it waits for no scan. `AppCore::start` calls it with the default; a
     /// test calls it when it wants workers.
     pub async fn start(&self, config: CodeConfig) -> Result<(), CoreError> {
@@ -244,7 +242,7 @@ impl Code {
         self.answer(&scope, rows, suggestions).await
     }
 
-    ///: the files of the first 50 hits whose size or modified time
+    /// The files of the first 50 hits whose size or modified time
     /// changed, or that are gone, go to their project's worker as one
     /// `Recheck`, awaited for at most 2 s in all. `true` when any went, so
     /// the caller asks again, once. A project with no worker answers from its
@@ -334,5 +332,52 @@ impl Code {
             skipped,
             updated_at,
         })
+    }
+}
+
+#[cfg(all(test, feature = "test-support"))]
+mod tests {
+    #[tokio::test]
+    async fn startup_order_uses_creation_sequence_then_project_id_for_ties() {
+        let db = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let core = crate::testing::app(db.path().join("code.sqlite3"))
+            .await
+            .unwrap();
+        let mut ids = Vec::new();
+        for slug in ["zulu", "alpha", "middle"] {
+            let project = core
+                .projects()
+                .create(slug.into(), slug, slug, dir.path().to_str().unwrap())
+                .await
+                .unwrap();
+            ids.push(project.id);
+        }
+        let storage = &core.code().inner.store.storage;
+        let order = core.code().code_order().await.unwrap();
+        assert_eq!(
+            order.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            ids.iter().rev().cloned().collect::<Vec<_>>(),
+            "creation sequence must decide startup order"
+        );
+        storage
+            .write_txn(|conn| {
+                Box::pin(async move {
+                    sqlx::query("DELETE FROM durable_event WHERE kind = 'ProjectCreated'")
+                        .execute(conn)
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .unwrap();
+        ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        let order = core.code().code_order().await.unwrap();
+        assert_eq!(
+            order.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            ids,
+            "equal activity sequences must sort by project id"
+        );
+        core.code().shut_down().await;
     }
 }

@@ -228,7 +228,7 @@ functions:
       # Associated read in the caller's snapshot: require_live_in then load_project.
     by_slug_in:
       signature: "(conn: &mut SqliteConnection, slug: &str) -> Result<Option<Project>, StorageError>"
-      # Associated live slug lookup in the caller's snapshot. by_slug delegates here.
+      # Associated slug lookup in the caller's snapshot; get_in owns liveness. by_slug delegates here.
     slug_in:
       signature: "(conn: &mut SqliteConnection, id: &ProjectId) -> Result<String, StorageError>"
       # Associated slug lookup, including retained removed rows for link replays.

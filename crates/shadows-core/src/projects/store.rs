@@ -439,15 +439,16 @@ impl Projects {
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<Option<Project>, StorageError> {
-        let id: Option<String> =
-            sqlx::query_scalar("SELECT id FROM project WHERE slug = ? AND removed_at IS NULL")
-                .bind(slug)
-                .fetch_optional(&mut *conn)
-                .await?;
+        let id: Option<String> = sqlx::query_scalar("SELECT id FROM project WHERE slug = ?")
+            .bind(slug)
+            .fetch_optional(&mut *conn)
+            .await?;
         match id {
-            Some(id) => load_project(conn, &ProjectId::from_stored(id))
-                .await
-                .map(Some),
+            Some(id) => match Self::get_in(conn, &ProjectId::from_stored(id)).await {
+                Ok(project) => Ok(Some(project)),
+                Err(StorageError::NotFound(_)) => Ok(None),
+                Err(error) => Err(error),
+            },
             None => Ok(None),
         }
     }

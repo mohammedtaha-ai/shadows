@@ -856,6 +856,8 @@ tests:
       path must be inside the project"; backend naming demo is 422
       INVALID_COMMAND (one way).
 
+  # Startup ordering is tested in mod.rs; link snapshots in store/reach.rs;
+  # transaction rollback in store/links.rs. Each test stays with its rule.
   - name: startup_order_uses_creation_sequence_then_project_id_for_ties
     checks: >
       Three projects sort by creation event sequence descending; after creation

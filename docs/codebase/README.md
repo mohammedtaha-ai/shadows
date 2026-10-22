@@ -261,7 +261,6 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/store/` | persistence of the design workspace | `crates/shadows-core/src/design/store/vision.rs` |
 | `crates/shadows-core/src/design/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/shadows-core/src/design/store/vision.rs` |
 | `crates/shadows-core/src/code/` | the code index of each project's folder | `crates/shadows-core/src/code/mod.rs` |
-| `crates/shadows-core/src/code/boundary_tests.rs` | code boundary compatibility tests | `crates/shadows-core/src/code/contract.yaml` |
 | `crates/shadows-core/src/code/model.rs` | the code index types callers meet | `crates/shadows-core/src/code/model.rs` |
 | `crates/shadows-core/src/code/store/` | private CodeStore index persistence | `crates/shadows-core/src/code/store/mod.rs` |
 | `crates/shadows-core/src/code/store/links.rs` | transactional code link persistence | `crates/shadows-core/src/code/store/links.rs` |

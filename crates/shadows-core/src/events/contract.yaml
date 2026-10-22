@@ -163,7 +163,7 @@ functions:
     with_correlation:
       signature: "(self, id) -> Self"
       # test-support only.
-    into_journal_entry:
+    from:
       signature: "impl From<&DurableEvent> for JournalEntry"
       # What `db::append_event` takes: every field carried over, the typed
       # subject ids as their strings, so the journal names no service type.

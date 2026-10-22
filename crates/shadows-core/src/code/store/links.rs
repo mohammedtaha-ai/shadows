@@ -274,3 +274,55 @@ async fn replayed_link(
         created_at,
     })
 }
+
+#[cfg(all(test, feature = "test-support"))]
+mod tests {
+    use super::Code;
+
+    #[tokio::test]
+    async fn link_writes_rollback_with_the_callers_transaction() {
+        let db = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let core = crate::testing::app(db.path().join("code.sqlite3"))
+            .await
+            .unwrap();
+        let mut ids = Vec::new();
+        for slug in ["home", "linked"] {
+            ids.push(
+                core.projects()
+                    .create(slug.into(), slug, slug, dir.path().to_str().unwrap())
+                    .await
+                    .unwrap()
+                    .id,
+            );
+        }
+        let code = core.code();
+        let storage = &code.inner.store.storage;
+        let [home, linked] = [ids[0].clone(), ids[1].clone()];
+        let (source, target) = (home.clone(), linked.clone());
+        let result: Result<(), crate::db::StorageError> = storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    assert!(Code::put_link_in(conn, &source, &target, "test").await?);
+                    assert!(!Code::put_link_in(conn, &source, &target, "test").await?);
+                    Err(crate::db::StorageError::NotFound("force rollback"))
+                })
+            })
+            .await;
+        assert!(result.is_err());
+        assert!(code.links(&home).await.unwrap().is_empty());
+        code.link("link".into(), &home, &linked).await.unwrap();
+        let result: Result<(), crate::db::StorageError> = storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    assert!(Code::remove_link_in(conn, &home, &linked).await?);
+                    assert!(!Code::remove_link_in(conn, &home, &linked).await?);
+                    Err(crate::db::StorageError::NotFound("force rollback"))
+                })
+            })
+            .await;
+        assert!(result.is_err());
+        assert_eq!(code.links(&ids[0]).await.unwrap().len(), 1);
+        core.code().shut_down().await;
+    }
+}

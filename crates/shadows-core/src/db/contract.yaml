@@ -1,12 +1,14 @@
 # The foundation: what belongs to no service. Every service's write records its
 # command and appends its event through these, inside its own transaction.
 #
-# This contract covers the four modules that carry no service type:
+# This contract covers the foundation modules that carry no service type:
 # `command.rs` (a command's identity, its replay check and its record),
 # `derive.rs` (the command ids Shadows derives), `journal.rs` (the journal's
-# append) and `id.rs` (the id newtype pattern). `Storage` itself (`mod.rs`),
+# append), `id.rs` (the id newtype pattern) and `mod.rs` (Storage).
 # `approval.rs`, `error.rs`, `embedded_migrations.rs` and `write_observer.rs`
-# are not described here yet.
+# are not described here yet. The newtype_id macro generates String-backed UUID
+# ids with generate/as_str/from_stored, test-support from_literal, Display,
+# Serialize, Deserialize and OpenAPI schema; each service declares its own ids.
 #
 # Trap: nothing here may import a service type. A subject id reaches the
 # journal as a string (`JournalEntry`), converted by the service that owns it;
@@ -98,13 +100,22 @@ functions:
     append_event_for_test:
       signature: "(conn, event: impl Into<JournalEntry>, now: &str) -> Result<i64, StorageError>"
       # test-support only: `append_event` without a state write.
-  id:
-    newtype_id:
-      signature: "macro newtype_id!($(#[meta])* Name)"
-      # pub(crate). A String-backed id with `generate` (v4 UUID), `as_str`,
-      # pub(crate) `from_stored`, test-support `from_literal`, Display, Serialize,
-      # Deserialize and a UUID-string OpenAPI schema. No From<String>, Deref,
-      # AsRef<str> or Default. Each id type is declared by its own service.
+  storage:
+    open:
+      signature: "(db_path: &Path) -> Result<Self, StorageError>"
+      # Opens WAL storage with foreign keys, migrations, an eight-connection reader
+      # pool and one serialized writer; initializes the committed journal cursor.
+    reader:
+      signature: "(&self) -> &SqlitePool"
+      # Shared reader pool; callers begin a transaction when reads need one snapshot.
+    watch_committed:
+      signature: "(&self) -> watch::Receiver<i64>"
+      # Highest committed journal sequence; subscribe before reading the journal.
+    write_txn:
+      signature: "(&self, f: F) -> Result<T, StorageError>"
+      # Serializes BEGIN IMMEDIATE writes; commits on success, rolls back on error,
+      # recovers abandoned transactions on entry and publishes only after commit.
+
 
 
 enums:
