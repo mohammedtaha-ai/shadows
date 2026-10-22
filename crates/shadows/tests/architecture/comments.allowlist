@@ -359,7 +359,6 @@ crates/shadows-core/src/projects/model.rs :: module comment [80f2a97e1598e288] #
 crates/shadows-core/src/projects/store.rs :: Storage comment [080b699755af304e] #1
 crates/shadows-core/src/projects/store.rs :: Storage comment [95945141dfb2fa80] #1
 crates/shadows-core/src/projects/store.rs :: Storage comment [a4c805232a6ec4d2] #1
-crates/shadows-core/src/projects/store.rs :: module comment [6a9c89e8d95790ef] #1
 crates/shadows-core/src/runtime/mod.rs :: module comment [3a3e6ea3dc4775ac] #1
 crates/shadows-core/src/runtime/mod.rs :: module comment [5bec332cd077e9b4] #1
 crates/shadows-core/src/runtime/store.rs :: ReconcileReport comment [296a694a1d03e02b] #1

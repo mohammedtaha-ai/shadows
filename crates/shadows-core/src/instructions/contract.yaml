@@ -40,7 +40,7 @@ functions:
   service:
     current:
       signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, CoreError>"
-      # `None` before the first save, and for an unknown project.
+      # `None` before the first save, and for an unknown or removed project.
     save:
       signature: "(&self, command_id: String, project: &ProjectId, body: &str) -> Result<InstructionsVersion, CoreError>"
       # "PlannerInstructionsSave", principal User/local, schema 1, params
@@ -55,7 +55,8 @@ functions:
     current:
       signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>"
       # Reached by Turns and Harness through `Instructions::current`. None for a
-      # removed project, as for an unknown one (§4.2).
+      # removed project, as for an unknown one (§4.2): `require_live_in`'s
+      # NotFound on the same reader connection, then the highest version.
     load_version:
       signature: "(conn, id: &str) -> Result<InstructionsVersion, StorageError>"
       private: true
@@ -86,7 +87,8 @@ obligations:
       - each_save_is_a_new_numbered_version
       - current_instructions_are_the_highest_number
     note: >
-      Both drive the store. The numbering runs inside the save's write
+      Both drive the service (`AppCore::instructions`), so a replay goes
+      through the real "PlannerInstructionsSave" fingerprint. The numbering runs inside the save's write
       (`BEGIN IMMEDIATE`), which is why MAX+1 cannot race; no test races two
       saves.
 

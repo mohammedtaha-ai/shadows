@@ -18,9 +18,10 @@
 # session (Harness), not here.
 # `remove` is a soft remove (§4.2): the row stays, since the journal
 # references it ON DELETE RESTRICT, and `removed_at` is set. Every read of a
-# project (`get_project`, `list_projects`, `live_project`, and the direct
-# reads in Threads, Grants and Code; Instructions calls `require_live_in`) leaves a removed one out,
-# so it answers NotFound everywhere; its slug stays taken. One write takes
+# project (`get_project`, `list_projects`, `require_live_in`, which
+# Instructions calls, and the direct reads in Threads, Grants and Code)
+# leaves a removed one out, so it answers NotFound everywhere; its slug
+# stays taken. One write takes
 # the index, the links both ways and the live project grants with it.
 #
 # Trap: `list_dirs` and `create_dir` touch the disk only; they record no
@@ -162,13 +163,13 @@ functions:
     set_project_modes:
       signature: "(&self, ctx, project_id, modes) -> Result<Project, StorageError>"
       # One write: classify (scope Project) → the project must exist, not
-      # removed (`live_project`) → replace the named harnesses' rows →
+      # removed (`require_live_in`) → replace the named harnesses' rows →
       # `ProjectModesChanged` → record_command. A replay answers the project
       # as it now stands.
     remove_project:
       signature: "(&self, ctx: &CommandContext, project_id: &ProjectId) -> Result<Project, StorageError>"
       # One write: classify (scope Project; a replay answers the row as it
-      # stands, removed) → `live_project` → any nonremoved `planning_thread` row
+      # stands, removed) → `require_live_in` → any nonremoved `planning_thread` row
       # refuses ProjectHasThreads → `removed_at` → Code's
       # Plans' `notify_project_dependencies_in`, Code's
       # `delete_code_index_in` and `delete_code_links_in`, Grants'
@@ -177,11 +178,9 @@ functions:
       signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>"
       # An associated function in the caller's transaction or connection:
       # NotFound("project") unless the row exists with `removed_at` NULL.
-      # Instructions' save and current call it instead of reading `project`.
-    live_project:
-      signature: "(conn, id: &ProjectId) -> Result<(), StorageError>"
-      private: true
-      # NotFound unless the row exists with `removed_at` NULL.
+      # The one liveness check: `get_project`, `remove_project` and
+      # `set_project_modes` use it, and Instructions' save and current call
+      # it instead of reading `project`.
     load_project:
       signature: "(conn, id: &ProjectId) -> Result<Project, StorageError>"
       private: true
@@ -294,8 +293,8 @@ obligations:
     tested_by: a_removed_project_is_not_found
     note: >
       Grant issue, instructions save, links, turns and choices reach the same
-      NotFound through `get_project` or their own `removed_at IS NULL`
-      check; no test asks each.
+      NotFound through `get_project`, `require_live_in` or their own
+      `removed_at IS NULL` check; no test asks each.
 
   - rule: >
       Projects are listed in creation order, by the durable sequence of their

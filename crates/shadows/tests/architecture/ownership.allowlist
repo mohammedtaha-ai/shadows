@@ -97,9 +97,9 @@ crates/shadows-core/src/harness/mod.rs :: Harness::context Storage::turn_context
 crates/shadows-core/src/harness/mod.rs :: Harness::limits_of Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::thread_is_busy belongs to turns [8a453cd297f33f2a] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::instructions::Instructions outside composition root [daa13b010d06c56f] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_session Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::delete_agent Storage::list_threads_for_profile belongs to threads [2e909abbfba98b74] #1
+crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::instructions::Instructions outside composition root [daa13b010d06c56f] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [6e9dd15e2248227f] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::standards_additions_for_invocation belongs to design [af01db096346f319] #1

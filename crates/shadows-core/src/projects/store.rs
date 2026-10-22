@@ -153,7 +153,7 @@ impl Storage {
     /// The project, NotFound once removed (§4.2).
     pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError> {
         let mut conn = self.reader().acquire().await?;
-        live_project(&mut conn, id).await?;
+        Projects::require_live_in(&mut conn, id).await?;
         load_project(&mut conn, id).await
     }
 
@@ -176,7 +176,7 @@ impl Storage {
                 {
                     return load_project(conn, &id).await;
                 }
-                live_project(conn, &id).await?;
+                Projects::require_live_in(conn, &id).await?;
                 let threads: i64 = sqlx::query_scalar(
                     "SELECT COUNT(*) FROM planning_thread \
                          WHERE project_id = ? AND removed_at IS NULL",
@@ -230,7 +230,7 @@ impl Storage {
                 {
                     return load_project(conn, &id).await;
                 }
-                live_project(conn, &id).await?;
+                Projects::require_live_in(conn, &id).await?;
                 replace_modes(conn, &id, &modes).await?;
                 append_event(
                     conn,
@@ -355,16 +355,6 @@ fn project(
     }
 }
 
-/// NotFound unless the project exists and is not removed (§4.2).
-async fn live_project(conn: &mut SqliteConnection, id: &ProjectId) -> Result<(), StorageError> {
-    let live: Option<i64> =
-        sqlx::query_scalar("SELECT 1 FROM project WHERE id = ? AND removed_at IS NULL")
-            .bind(id.as_str())
-            .fetch_optional(&mut *conn)
-            .await?;
-    live.map(|_| ()).ok_or(StorageError::NotFound("project"))
-}
-
 /// The project's row, removed or not: what a replay answers.
 async fn load_project(
     conn: &mut SqliteConnection,
@@ -384,7 +374,8 @@ async fn load_project(
 impl Projects {
     /// Proves `project` is live inside the caller's transaction or connection:
     /// `NotFound("project")` for an unknown or removed one. The one liveness
-    /// check other services use instead of reading the `project` table.
+    /// check: this store's own reads and writes use it, and other services
+    /// call it instead of reading the `project` table.
     pub(crate) async fn require_live_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,

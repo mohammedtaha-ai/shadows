@@ -195,7 +195,7 @@ impl AppCore {
         Self::assemble_services(parts, profiles, grants, instructions)
     }
 
-    /// The services over parts and the two services built before them.
+    /// The services over parts and the three services built before them.
     fn assemble_services(
         parts: CoreParts,
         profiles: Arc<crate::Profiles>,
