@@ -98,7 +98,9 @@ impl From<CoreError> for Refusal {
                 code: ErrorCode::GrantScope,
                 message,
             } if message == "outside what the grant allows" => Self::scope(
-                "outside what this grant allows: plan writes stay in its own project; workflow_list and workflow_get can read an explicitly linked project; draft_ref starts a plan only within the hour after draft_prepare",
+                "outside what this grant allows: plan writes stay in its own project; \
+                    workflow_list and workflow_get can read an explicitly linked project; \
+                    draft_ref starts a plan only within the hour after draft_prepare",
             ),
             CoreError::Refused { code, message } => Self::new(code, message),
             other => Self::new(code_of(&other), other.to_string()),

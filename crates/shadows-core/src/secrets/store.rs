@@ -39,7 +39,8 @@ impl SecretsStore {
 
     pub(super) async fn rows(&self, profile: &str) -> Result<Vec<(String, Sealed)>, StorageError> {
         let rows: Vec<(String, i64, Vec<u8>, Vec<u8>)> = sqlx::query_as(
-            "SELECT name, format, nonce, ciphertext FROM secret_env WHERE profile = ? ORDER BY name",
+            "SELECT name, format, nonce, ciphertext FROM secret_env WHERE profile = ? ORDER \
+                BY name",
         )
         .bind(profile)
         .fetch_all(self.storage.reader())

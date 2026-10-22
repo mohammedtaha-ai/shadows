@@ -13,7 +13,8 @@ fn fixture() -> tempfile::TempDir {
     put(
         tree.path(),
         "crates/shadows-core/src/app.rs",
-        "/// | Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |\npub struct AppCore;",
+        "/// | Projects | project ownership | crates/shadows-core/src/projects | \
+            crates/shadows-core/src/projects/contract.yaml |\npub struct AppCore;",
     );
     put(
         tree.path(),
@@ -105,7 +106,9 @@ fn aliases_do_not_hide_storage_construction_or_appcore_dependencies() {
     put(
         root,
         "crates/shadows-core/src/projects/alias.rs",
-        "use crate::db::Storage as Db; use crate::app::AppCore as Application; fn bypass(db: &Db, app: &Application) { db.get_thread(); }\nuse crate::projects::Projects as Owner; fn construct() { Owner::new(); }",
+        "use crate::db::Storage as Db; use crate::app::AppCore as Application; fn bypass(db: \
+            &Db, app: &Application) { db.get_thread(); }\nuse crate::projects::Projects as \
+            Owner; fn construct() { Owner::new(); }",
     );
     let after = rejected(root, &before, "ownership");
     let text = after["ownership"]
@@ -130,7 +133,8 @@ fn a_service_constructor_or_field_cannot_take_appcore() {
         root,
         "crates/shadows-core/src/projects/mod.rs",
         "pub struct Projects { app: std::sync::Arc<crate::app::AppCore> }\n\
-         impl Projects { pub fn new(app: std::sync::Arc<crate::app::AppCore>) -> Self { Self { app } } }",
+         impl Projects { pub fn new(app: std::sync::Arc<crate::app::AppCore>) -> Self { Self \
+             { app } } }",
     );
     let after = rejected(root, &before, "ownership");
     for symbol in ["Projects", "Projects::new"] {
@@ -176,7 +180,8 @@ fn moved_service_is_discovered_and_still_checked_for_sql() {
     put(
         root,
         "crates/shadows-core/src/app.rs",
-        "/// | Projects | project ownership | crates/core-projects/src | crates/core-projects/contract.yaml |\npub struct AppCore;",
+        "/// | Projects | project ownership | crates/core-projects/src | \
+            crates/core-projects/contract.yaml |\npub struct AppCore;",
     );
     assert!(
         compare(&scanner::scan(root), &before).is_empty(),
@@ -237,7 +242,8 @@ fn repeated_occurrences_do_not_collapse_into_one_exception() {
     put(
         root,
         file,
-        "fn read() { sqlx::query(\"SELECT * FROM planning_thread\"); sqlx::query(\"SELECT * FROM planning_thread\"); }",
+        "fn read() { sqlx::query(\"SELECT * FROM planning_thread\"); sqlx::query(\"SELECT * \
+            FROM planning_thread\"); }",
     );
     rejected(root, &before, "ownership");
 }
@@ -305,7 +311,8 @@ fn known_unrelated_receiver_is_not_resolved_by_a_method_name_match() {
     put(
         root,
         "crates/shadows-core/src/projects/value.rs",
-        "struct Other; impl Other { fn get_thread(&self) {} } fn read(other: &Other) { other.get_thread(); }",
+        "struct Other; impl Other { fn get_thread(&self) {} } fn read(other: &Other) { \
+            other.get_thread(); }",
     );
     assert!(
         compare(&scanner::scan(root), &before).is_empty(),
@@ -338,7 +345,8 @@ fn imported_store_functions_and_aliased_service_reexports_are_checked() {
     put(
         root,
         "crates/shadows-core/src/projects/alias.rs",
-        "use crate::Projects as Owner; use crate::threads::store::get as load; fn bypass() { Owner::new(); load(); }",
+        "use crate::Projects as Owner; use crate::threads::store::get as load; fn bypass() { \
+            Owner::new(); load(); }",
     );
     let after = rejected(root, &before, "ownership");
     let text = after["ownership"]
@@ -369,7 +377,8 @@ fn type_aliases_and_nested_sql_lists_cannot_hide_cross_owner_access() {
     put(
         root,
         "crates/shadows-core/src/projects/alias.rs",
-        "use crate::db::Storage; type Database = Storage; fn read(db: &Database) { db.get_thread(); }",
+        "use crate::db::Storage; type Database = Storage; fn read(db: &Database) { \
+            db.get_thread(); }",
     );
     let after = rejected(root, &before, "ownership");
     assert!(
@@ -441,7 +450,8 @@ fn transport_verbs_and_public_dtos_are_not_store_or_sql_access() {
     put(
         root,
         "crates/shadows-http/src/lib.rs",
-        "use shadows_core::ProjectView; fn response(value: ProjectView) { let _ = (\"DELETE\", \"INSERT\"); }",
+        "use shadows_core::ProjectView; fn response(value: ProjectView) { let _ = \
+            (\"DELETE\", \"INSERT\"); }",
     );
     assert!(
         compare(&scanner::scan(root), &before).is_empty(),
@@ -483,7 +493,8 @@ fn review_each_sql_statement_requires_classification() {
     put(
         root,
         "crates/shadows-core/src/projects/query.rs",
-        "fn read() { sqlx::raw_sql(\"BEGIN IMMEDIATE; SELECT 1; COMMIT;\"); let _ = \"rollback failed; the connection is poisoned\"; }",
+        "fn read() { sqlx::raw_sql(\"BEGIN IMMEDIATE; SELECT 1; COMMIT;\"); let _ = \
+            \"rollback failed; the connection is poisoned\"; }",
     );
     assert!(
         compare(&scanner::scan(root), &before).is_empty(),
@@ -587,10 +598,14 @@ fn review_dynamic_query_builder_fragments_require_review() {
     let root = tree.path();
     let before = scanner::scan(root);
     for source in [
-        "fn read(table: &str) { let mut query = sqlx::QueryBuilder::new(\"SELECT 1\"); query.push(table); }",
-        "use sqlx::QueryBuilder as Builder; fn read(table: &str) { let mut query: Builder<sqlx::Sqlite> = Builder::new(\"SELECT 1\"); query.push(table); }",
-        "fn read(table: &str) { sqlx::QueryBuilder::<sqlx::Sqlite>::new(\"SELECT 1\").push(table); }",
-        "fn read(table: &str) { sqlx::QueryBuilder::<sqlx::Sqlite>::new(\"SELECT 1\").push_bind(1).push(table); }",
+        "fn read(table: &str) { let mut query = sqlx::QueryBuilder::new(\"SELECT 1\"); \
+            query.push(table); }",
+        "use sqlx::QueryBuilder as Builder; fn read(table: &str) { let mut query: \
+            Builder<sqlx::Sqlite> = Builder::new(\"SELECT 1\"); query.push(table); }",
+        "fn read(table: &str) { sqlx::QueryBuilder::<sqlx::Sqlite>::new(\"SELECT \
+            1\").push(table); }",
+        "fn read(table: &str) { sqlx::QueryBuilder::<sqlx::Sqlite>::new(\"SELECT \
+            1\").push_bind(1).push(table); }",
     ] {
         put(root, "crates/shadows-core/src/projects/query.rs", source);
         rejected(root, &before, "ownership");
@@ -598,7 +613,8 @@ fn review_dynamic_query_builder_fragments_require_review() {
     put(
         root,
         "crates/shadows-core/src/projects/query.rs",
-        "fn read(value: &str) { let mut query = sqlx::QueryBuilder::new(\"SELECT 1\"); query.push_bind(value); let mut values = Vec::new(); values.push(value); }",
+        "fn read(value: &str) { let mut query = sqlx::QueryBuilder::new(\"SELECT 1\"); \
+            query.push_bind(value); let mut values = Vec::new(); values.push(value); }",
     );
     assert!(
         compare(&scanner::scan(root), &before).is_empty(),
@@ -614,11 +630,16 @@ fn appcore_map_rejects_missing_or_misregistered_owners() {
     for row in [
         "",
         "| Projects | project ownership | crates/shadows-core/src/projects/contract.yaml |",
-        "| Projects | project ownership | crates/shadows-core/src/db | crates/shadows-core/src/projects/contract.yaml |",
-        "| Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/db/contract.yaml |",
-        "| Missing | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |",
-        "| Projects | reads and writes projects | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |",
-        "| Projects | | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | project ownership | crates/shadows-core/src/db | \
+            crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | project ownership | crates/shadows-core/src/projects | \
+            crates/shadows-core/src/db/contract.yaml |",
+        "| Missing | project ownership | crates/shadows-core/src/projects | \
+            crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | reads and writes projects | crates/shadows-core/src/projects | \
+            crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | | crates/shadows-core/src/projects | \
+            crates/shadows-core/src/projects/contract.yaml |",
     ] {
         put(
             root,
@@ -634,7 +655,8 @@ fn appcore_map_rejects_duplicates_and_nonexistent_services() {
     let tree = fixture();
     let root = tree.path();
     let before = scanner::scan(root);
-    let row = "/// | Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |\n";
+    let row = "/// | Projects | project ownership | crates/shadows-core/src/projects | \
+        crates/shadows-core/src/projects/contract.yaml |\n";
     put(
         root,
         "crates/shadows-core/src/app.rs",
@@ -645,7 +667,8 @@ fn appcore_map_rejects_duplicates_and_nonexistent_services() {
         root,
         "crates/shadows-core/src/app.rs",
         &format!(
-            "{row}/// | Ghost | absent owner | crates/core-ghost/src | crates/core-ghost/contract.yaml |\npub struct AppCore;"
+            "{row}/// | Ghost | absent owner | crates/core-ghost/src | \
+                crates/core-ghost/contract.yaml |\npub struct AppCore;"
         ),
     );
     rejected(root, &before, "registration");
@@ -659,7 +682,9 @@ fn appcore_map_accepts_internal_owner_in_block_documentation() {
     put(
         root,
         "crates/shadows-core/src/app.rs",
-        "/** Internal owner; no accessor is promised.\n| Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |\n*/\npub struct AppCore;",
+        "/** Internal owner; no accessor is promised.\n| Projects | project ownership | \
+            crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml \
+            |\n*/\npub struct AppCore;",
     );
     assert!(compare(&scanner::scan(root), &before).is_empty());
 }

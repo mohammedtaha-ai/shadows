@@ -69,24 +69,78 @@ pub struct CoreParts {
 ///
 /// | Service | One job | Source | Contract |
 /// |---|---|---|---|
-/// | `Secrets` | encrypted environment configuration | `crates/shadows-core/src/secrets` | `crates/shadows-core/src/secrets/contract.yaml` |
-/// | `Providers` | AYLUL provider configuration | `crates/shadows-core/src/providers` | `crates/shadows-core/src/providers/contract.yaml` |
-/// | `Agents` | permanent AYLUL agent identities | `crates/shadows-core/src/agents` | `crates/shadows-core/src/agents/contract.yaml` |
-/// | `Extensions` | the shared extension library | `crates/shadows-core/src/extensions` | `crates/shadows-core/src/extensions/contract.yaml` |
-/// | `Usage` | measured AYLUL usage | `crates/shadows-core/src/usage` | `crates/shadows-core/src/usage/contract.yaml` |
-/// | `PersonSettings` | the local person record | `crates/shadows-core/src/person` | `crates/shadows-core/src/person/contract.yaml` |
-/// | `Standards` | project standards versions | `crates/shadows-core/src/standards` | `crates/shadows-core/src/standards/contract.yaml` |
-/// | `Design` | project design revisions | `crates/shadows-core/src/design` | `crates/shadows-core/src/design/contract.yaml` |
-/// | `Plans` | plan version lifecycle | `crates/shadows-core/src/plans` | `crates/shadows-core/src/plans/contract.yaml` |
-/// | `Grants` | grant authorization | `crates/shadows-core/src/grants` | `crates/shadows-core/src/grants/contract.yaml` |
-/// | `Turns` | turn execution lifecycle | `crates/shadows-core/src/turns` | `crates/shadows-core/src/turns/contract.yaml` |
-/// | `Harness` | thread harness sessions | `crates/shadows-core/src/harness` | `crates/shadows-core/src/harness/contract.yaml` |
-/// | `Projects` | project directory registration | `crates/shadows-core/src/projects` | `crates/shadows-core/src/projects/contract.yaml` |
-/// | `Threads` | planning thread lifecycle | `crates/shadows-core/src/threads` | `crates/shadows-core/src/threads/contract.yaml` |
-/// | `Instructions` | versioned Planner instructions | `crates/shadows-core/src/instructions` | `crates/shadows-core/src/instructions/contract.yaml` |
-/// | `Events` | thread or project event subscriptions | `crates/shadows-core/src/events` | `crates/shadows-core/src/events/contract.yaml` |
-/// | `Code` | project code indexing | `crates/shadows-core/src/code` | `crates/shadows-core/src/code/contract.yaml` |
-/// | `Runtime` | runtime instance lifecycle | `crates/shadows-core/src/runtime` | `crates/shadows-core/src/runtime/contract.yaml` |
+#[doc = " | `Secrets` | \
+         encrypted environment configuration | \
+         `crates/shadows-core/src/secrets` | \
+         `crates/shadows-core/src/secrets/contract.yaml` |"]
+#[doc = " | `Providers` | \
+         AYLUL provider configuration | \
+         `crates/shadows-core/src/providers` | \
+         `crates/shadows-core/src/providers/contract.yaml` |"]
+#[doc = " | `Agents` | \
+         permanent AYLUL agent identities | \
+         `crates/shadows-core/src/agents` | \
+         `crates/shadows-core/src/agents/contract.yaml` |"]
+#[doc = " | `Extensions` | \
+         the shared extension library | \
+         `crates/shadows-core/src/extensions` | \
+         `crates/shadows-core/src/extensions/contract.yaml` |"]
+#[doc = " | `Usage` | \
+         measured AYLUL usage | \
+         `crates/shadows-core/src/usage` | \
+         `crates/shadows-core/src/usage/contract.yaml` |"]
+#[doc = " | `PersonSettings` | \
+         the local person record | \
+         `crates/shadows-core/src/person` | \
+         `crates/shadows-core/src/person/contract.yaml` |"]
+#[doc = " | `Standards` | \
+         project standards versions | \
+         `crates/shadows-core/src/standards` | \
+         `crates/shadows-core/src/standards/contract.yaml` |"]
+#[doc = " | `Design` | \
+         project design revisions | \
+         `crates/shadows-core/src/design` | \
+         `crates/shadows-core/src/design/contract.yaml` |"]
+#[doc = " | `Plans` | \
+         plan version lifecycle | \
+         `crates/shadows-core/src/plans` | \
+         `crates/shadows-core/src/plans/contract.yaml` |"]
+#[doc = " | `Grants` | \
+         grant authorization | \
+         `crates/shadows-core/src/grants` | \
+         `crates/shadows-core/src/grants/contract.yaml` |"]
+#[doc = " | `Turns` | \
+         turn execution lifecycle | \
+         `crates/shadows-core/src/turns` | \
+         `crates/shadows-core/src/turns/contract.yaml` |"]
+#[doc = " | `Harness` | \
+         thread harness sessions | \
+         `crates/shadows-core/src/harness` | \
+         `crates/shadows-core/src/harness/contract.yaml` |"]
+#[doc = " | `Projects` | \
+         project directory registration | \
+         `crates/shadows-core/src/projects` | \
+         `crates/shadows-core/src/projects/contract.yaml` |"]
+#[doc = " | `Threads` | \
+         planning thread lifecycle | \
+         `crates/shadows-core/src/threads` | \
+         `crates/shadows-core/src/threads/contract.yaml` |"]
+#[doc = " | `Instructions` | \
+         versioned Planner instructions | \
+         `crates/shadows-core/src/instructions` | \
+         `crates/shadows-core/src/instructions/contract.yaml` |"]
+#[doc = " | `Events` | \
+         thread or project event subscriptions | \
+         `crates/shadows-core/src/events` | \
+         `crates/shadows-core/src/events/contract.yaml` |"]
+#[doc = " | `Code` | \
+         project code indexing | \
+         `crates/shadows-core/src/code` | \
+         `crates/shadows-core/src/code/contract.yaml` |"]
+#[doc = " | `Runtime` | \
+         runtime instance lifecycle | \
+         `crates/shadows-core/src/runtime` | \
+         `crates/shadows-core/src/runtime/contract.yaml` |"]
 ///
 /// The first seventeen owners have typed accessors on `AppCore`. `Runtime` is
 /// internal: `start` builds it before assembly, then `Turns` holds the shared

@@ -81,7 +81,8 @@ impl Prompt {
     /// at: task `number`, titled `title`, as the turn command read it.
     pub(super) fn focus_block(focus: &Focus, number: u32, title: &str) -> String {
         format!(
-            "[Shadows] The person is pointing at task T{number} (\"{title}\") of plan {}, revision {}. \
+            "[Shadows] The person is pointing at task T{number} (\"{title}\") of plan {}, \
+                revision {}. \
              Read the plan with workflow_get before changing it.",
             focus.workflow_id, focus.revision
         )

@@ -103,24 +103,31 @@ impl GrantsStore {
     }
     pub(super) async fn revoke_all_thread_grants(&self) -> Result<u64, StorageError> {
         let ts = now();
-        self.storage.write_txn(move |conn| {
-            Box::pin(async move {
-                let live: Vec<GrantRow> = sqlx::query_as("SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant
-                      WHERE kind = 'thread' AND revoked_at IS NULL ORDER BY id")
-                .fetch_all(&mut *conn)
-                .await?;
-                let mut revoked = 0;
-                for row in live {
-                    revoke_in(conn, &into_grant(row)?, Actor::system(), &ts).await?;
-                    revoked += 1;
-                }
-                Ok(revoked)
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let live: Vec<GrantRow> = sqlx::query_as(
+                        "SELECT id, kind, project_id, thread_id, created_at, revoked_at \
+                        FROM mcp_grant\n                      \
+                        WHERE kind = 'thread' AND revoked_at IS NULL ORDER BY id",
+                    )
+                    .fetch_all(&mut *conn)
+                    .await?;
+                    let mut revoked = 0;
+                    for row in live {
+                        revoke_in(conn, &into_grant(row)?, Actor::system(), &ts).await?;
+                        revoked += 1;
+                    }
+                    Ok(revoked)
+                })
             })
-        })
-        .await
+            .await
     }
     pub(super) async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError> {
-        let row: Option<GrantRow> = sqlx::query_as("SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant WHERE token_hash = ? AND revoked_at IS NULL")
+        let row: Option<GrantRow> = sqlx::query_as(
+            "SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant \
+            WHERE token_hash = ? AND revoked_at IS NULL",
+        )
         .bind(Token::hash_token(raw))
         .fetch_optional(self.storage.reader())
         .await?;
@@ -211,7 +218,10 @@ async fn find_grant(
     conn: &mut SqliteConnection,
     id: &GrantId,
 ) -> Result<Option<Grant>, StorageError> {
-    let row: Option<GrantRow> = sqlx::query_as("SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant WHERE id = ?")
+    let row: Option<GrantRow> = sqlx::query_as(
+        "SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant WHERE \
+        id = ?",
+    )
     .bind(id.as_str())
     .fetch_optional(&mut *conn)
     .await?;

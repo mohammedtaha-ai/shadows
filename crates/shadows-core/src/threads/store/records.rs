@@ -170,7 +170,15 @@ impl Threads {
         thread: &ThreadId,
         turn: &str,
     ) -> Result<Option<ThreadEntryId>, StorageError> {
-        let id: Option<String> = sqlx::query_scalar("SELECT id FROM thread_entry WHERE thread_id=? AND operation_id=? AND kind='UserMessage' ORDER BY ordinal DESC LIMIT 1").bind(thread.as_str()).bind(turn).fetch_optional(conn).await?;
+        let id: Option<String> = sqlx::query_scalar(
+            "SELECT id FROM thread_entry WHERE thread_id=? AND operation_id=? AND \
+            kind='UserMessage' ORDER BY ordinal DESC LIMIT \
+            1",
+        )
+        .bind(thread.as_str())
+        .bind(turn)
+        .fetch_optional(conn)
+        .await?;
         Ok(id.map(ThreadEntryId::from_stored))
     }
     /// Immutable entry provenance in the caller's snapshot.
