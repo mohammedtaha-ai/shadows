@@ -373,8 +373,8 @@ These rows are decisions. A builder applies them and does not reopen them. If a 
 | 13 | `runtime` | — |
 | 14 | `operations` | threads, runtime |
 | 15 | `harness` | threads, grants, operations, agents, providers, extensions, secrets, instructions, standards, projects |
-| 16 | `design` | projects, threads, grants, operations, standards |
-| 17 | `plans` | design, code, grants, threads, operations, projects |
+| 16 | `design` | projects, threads, grants, operations, standards, harness (read: a proposal's pinned standards) |
+| 17 | `plans` | design, code, grants, threads, operations, projects, harness (read: a version's writer model) |
 | 18 | `turns` | harness, operations, threads, grants, plans, design, standards, instructions, usage, runtime, code, projects |
 | 19 | `project-removal` | projects, threads, plans, code, grants |
 | 20 | `events` | harness, plans, projects, threads, turns, operations |
