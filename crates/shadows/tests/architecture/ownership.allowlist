@@ -1,4 +1,5 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
+
 crates/shadows-core/src/code/mod.rs :: Code::status Storage::get_project belongs to projects [77615c63e9d2122e] #1
 crates/shadows-core/src/code/scan.rs :: Code::scan_project Storage::get_project belongs to projects [93039fa8f3d6c67a] #1
 crates/shadows-core/src/code/store/links.rs :: Storage::code_links SQL review: dynamic or indirect query [d874049232479323] #1
@@ -100,7 +101,8 @@ crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::turn_conte
 crates/shadows-core/src/harness/mod.rs :: Harness::open_session Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::delete_agent Storage::list_threads_for_profile belongs to threads [2e909abbfba98b74] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::instructions::Instructions outside composition root [daa13b010d06c56f] #1
-crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [6e9dd15e2248227f] #1
+crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [ad9ec7f3171c3fae] #1
+crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::secrets::Secrets outside composition root [f5c64cc928b70c3d] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::standards_additions_for_invocation belongs to design [af01db096346f319] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
@@ -144,9 +146,6 @@ crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner st
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::threads::store::entry::append_entry_in [611e232f289650a2] #1
 crates/shadows-core/src/profiles/listing.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/profiles/mod.rs :: Profiles::assistant_project Storage::list_projects belongs to projects [31862bd6de0a707e] #1
-crates/shadows-core/src/profiles/store.rs :: PROVIDER_SELECT SQL table secret_env belongs to secrets [16cfcf542eb57774] #1
-crates/shadows-core/src/profiles/store.rs :: delete_agent cross-owner store call shadows_core::secrets::store::remove_scope_in [76b3d23f52665b12] #1
-crates/shadows-core/src/profiles/store.rs :: delete_provider cross-owner store call shadows_core::secrets::store::remove_scope_in [63e20809f425bd5d] #1
 crates/shadows-core/src/profiles/store.rs :: provider SQL review: dynamic or indirect query [4c3628218ee07699] #1
 crates/shadows-core/src/profiles/store.rs :: providers SQL review: dynamic or indirect query [335446e99663d253] #1
 crates/shadows-core/src/profiles/store.rs :: slug SQL review: dynamic or indirect query [1ac20e5696567d44] #1
@@ -163,12 +162,10 @@ crates/shadows-core/src/runtime/store.rs :: Storage::reconcile_orphans cross-own
 crates/shadows-core/src/runtime/store.rs :: Storage::reconcile_orphans cross-owner store call shadows_core::turns::store::transition::record [eeb3f96a33f2a074] #1
 crates/shadows-core/src/runtime/store.rs :: Storage::stop_runtime_instance SQL table operation belongs to turns [043596130ae26e85] #1
 crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
-crates/shadows-core/src/secrets/mod.rs :: Secrets::list_agent_env cross-owner store call shadows_core::profiles::store::require_live_agent_in [921441ad35a50df2] #1
-crates/shadows-core/src/secrets/store.rs :: remove cross-owner store call shadows_core::profiles::store::require_live_agent_in [42ba19307e91ba84] #1
-crates/shadows-core/src/secrets/store.rs :: remove cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
-crates/shadows-core/src/secrets/store.rs :: set cross-owner store call shadows_core::profiles::store::require_live_agent_in [42ba19307e91ba84] #1
-crates/shadows-core/src/secrets/store.rs :: set cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
-crates/shadows-core/src/testing/mod.rs :: profiles construct shadows_core::profiles::Profiles outside composition root [32526512da4b79e3] #1
+crates/shadows-core/src/secrets/store.rs :: SecretsStore::require_live_agent cross-owner store call shadows_core::profiles::store::require_live_agent_in [921441ad35a50df2] #1
+crates/shadows-core/src/secrets/store.rs :: SecretsStore::require_scope_owner cross-owner store call shadows_core::profiles::store::require_live_agent_in [db3807906463de46] #1
+crates/shadows-core/src/secrets/store.rs :: SecretsStore::require_scope_owner cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
+crates/shadows-core/src/testing/mod.rs :: profiles construct shadows_core::profiles::Profiles outside composition root [87e6892253cb9608] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::create Storage::get_project belongs to projects [bc3b030a18e1b47c] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::operations Storage::list_operations_for_thread belongs to turns [5c4a7ca094c6059d] #1

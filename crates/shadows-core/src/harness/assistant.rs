@@ -105,13 +105,9 @@ impl Sessions {
             .as_ref()
             .ok_or(CoreError::SecretsUnavailable)?;
         let stored = secrets.resolve_env(slug).await?;
-        let scope = format!("provider/{}", provider.slug);
-        let pairs = secrets.resolve_env(&scope).await?;
-        let token = pairs
-            .iter()
-            .find(|(name, _)| name == "PROVIDER_API_KEY")
-            .map(|(_, value)| value.as_str())
-            .filter(|v| !v.is_empty())
+        let token = secrets
+            .resolve_provider_key(&provider.slug)
+            .await?
             .ok_or_else(|| CoreError::AylulKeyMissing(provider.slug.clone()))?;
         let aylul_usage = Some(super::AylulUsageSnapshot {
             agent_slug: slug.into(),
@@ -143,7 +139,7 @@ impl Sessions {
         };
         let spec = self
             .adapter
-            .process_spec_with(&home, Some(&profile), &stored, Some(token))
+            .process_spec_with(&home, Some(&profile), &stored, Some(token.as_str()))
             .map_err(|_| CoreError::AylulKeyMissing(provider.slug))?;
         let person = self.profiles.person().await?;
         let mut setup = aylul_setup();

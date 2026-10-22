@@ -139,6 +139,7 @@ impl AppCore {
         // bound (§13.8), which differs from the configured one on port 0.
         let profiles = crate::Profiles::new(
             storage.clone(),
+            secrets.clone(),
             config.aylul.as_ref().map(|c| c.home_root.clone()),
         );
         let instructions = Instructions::new(storage.clone());

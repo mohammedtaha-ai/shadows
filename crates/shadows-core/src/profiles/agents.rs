@@ -64,7 +64,7 @@ impl Profiles {
     ) -> Result<(), CoreError> {
         let command =
             CommandContext::user(command_id, "agent.delete", serde_json::json!({"slug":slug}));
-        store::delete_agent(&self.storage, command, slug).await?;
+        store::delete_agent(&self.storage, self.secrets.clone(), command, slug).await?;
         Ok(())
     }
 }

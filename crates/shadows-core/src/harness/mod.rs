@@ -74,12 +74,8 @@ impl Harness {
                     .as_ref()
                     .ok_or(CoreError::SecretsUnavailable)?;
                 secrets
-                    .resolve_env(&format!("provider/{slug}"))
+                    .resolve_provider_key(slug)
                     .await?
-                    .into_iter()
-                    .find(|(name, _)| name == "PROVIDER_API_KEY")
-                    .map(|(_, key)| key)
-                    .filter(|key| !key.is_empty())
                     .ok_or_else(|| CoreError::AylulKeyMissing(slug.into()))?
             }
         };

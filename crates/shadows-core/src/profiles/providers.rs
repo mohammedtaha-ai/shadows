@@ -93,7 +93,7 @@ impl Profiles {
             "provider.delete",
             serde_json::json!({"slug":slug}),
         );
-        Ok(store::delete_provider(&self.storage, command, slug).await?)
+        Ok(store::delete_provider(&self.storage, self.secrets.clone(), command, slug).await?)
     }
 }
 

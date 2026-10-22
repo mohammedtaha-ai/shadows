@@ -1,4 +1,5 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
+
 crates/shadows-core/src/code/scan.rs :: folder_exists free public function [14c342e1ae669b17] #1
 crates/shadows-core/src/code/scan.rs :: keeps free public function [48ce1ff44e91cfec] #1
 crates/shadows-core/src/code/scan.rs :: kept_now free public function [2d9d7a1864c7a5b1] #1
@@ -156,8 +157,8 @@ crates/shadows-core/src/profiles/probe.rs :: validate_key free public function [
 crates/shadows-core/src/profiles/providers.rs :: validate_url free public function [00be6d9767b6b829] #1
 crates/shadows-core/src/profiles/store.rs :: agent free public function [6c768e2613325154] #1
 crates/shadows-core/src/profiles/store.rs :: agents free public function [6ea4350757c4b6d3] #1
-crates/shadows-core/src/profiles/store.rs :: delete_agent free public function [fcfc97cae7eb7fff] #1
-crates/shadows-core/src/profiles/store.rs :: delete_provider free public function [cca96bcbed716bf7] #1
+crates/shadows-core/src/profiles/store.rs :: delete_agent free public function [59818a96da73532f] #1
+crates/shadows-core/src/profiles/store.rs :: delete_provider free public function [7a22aee9bdf4bfb7] #1
 crates/shadows-core/src/profiles/store.rs :: person free public function [58bee1a860bf2acd] #1
 crates/shadows-core/src/profiles/store.rs :: provider free public function [90c7828f0717d114] #1
 crates/shadows-core/src/profiles/store.rs :: providers free public function [4071459c5c0150d5] #1
@@ -177,11 +178,6 @@ crates/shadows-core/src/secrets/crypto.rs :: open free public function [27fee9a0
 crates/shadows-core/src/secrets/crypto.rs :: seal free public function [e469694478f83c4a] #1
 crates/shadows-core/src/secrets/mod.rs :: reserved_env_name free public function [096d2b4abc230652] #1
 crates/shadows-core/src/secrets/mod.rs :: validate_env_name free public function [83fa34cecabfcf01] #1
-crates/shadows-core/src/secrets/store.rs :: list free public function [276f6bcc258a7f99] #1
-crates/shadows-core/src/secrets/store.rs :: remove free public function [b7e6b0c683aa1c3a] #1
-crates/shadows-core/src/secrets/store.rs :: remove_scope_in free public function [289e985fe3cf2d4d] #1
-crates/shadows-core/src/secrets/store.rs :: rows free public function [3a26761098022b59] #1
-crates/shadows-core/src/secrets/store.rs :: set free public function [e63712a9070d671e] #1
 crates/shadows-core/src/threads/rules.rs :: harness_fits_project free public function [2a5425ddaaa91c01] #1
 crates/shadows-core/src/threads/rules.rs :: known_harness free public function [34ebacb32f9157ec] #1
 crates/shadows-core/src/threads/store/entry.rs :: append_entry_in free public function [a4f9cf9895ac2a08] #1

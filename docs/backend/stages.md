@@ -132,7 +132,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test planner_instructions` and `cargo test -p shadows-core --test project_contract` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-10 · Prepare the service boundary: secrets
-- Status: blocked
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-10
 - Read: secrets/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/secrets/ (the new `put_in`; the upward checks stay until A-14), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)

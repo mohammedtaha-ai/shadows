@@ -26,10 +26,10 @@ pub async fn resolve_secret_env(
 
 pub fn profiles(
     storage: Arc<Storage>,
-    _secrets: Arc<crate::Secrets>,
+    secrets: Arc<crate::Secrets>,
     home_root: std::path::PathBuf,
 ) -> Arc<crate::Profiles> {
-    crate::Profiles::new(storage, Some(home_root))
+    crate::Profiles::new(storage, secrets, Some(home_root))
 }
 
 /// The restricted fixture: `AppCore` over a database at `db_path`, built by

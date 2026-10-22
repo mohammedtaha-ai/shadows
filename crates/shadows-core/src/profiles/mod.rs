@@ -19,6 +19,7 @@ pub use probe::{ListedModel, ProviderTest, ProviderTestOutcome, SavedProviderTes
 mod store;
 
 use crate::db::Storage;
+use crate::secrets::Secrets;
 use crate::{CoreError, ProjectId};
 pub use model::{
     Agent, AgentInput, AgentWorkspace, Person, PersonInput, Provider, ProviderInput, ProviderModel,
@@ -31,25 +32,37 @@ pub(crate) use store::{require_live_agent_in, require_provider_in};
 pub struct Profiles {
     extension_lock: Arc<tokio::sync::Mutex<()>>,
     storage: Arc<Storage>,
+    secrets: Arc<Secrets>,
 
     home_root: Option<PathBuf>,
 }
 
 impl Profiles {
-    pub(crate) fn new(storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Self> {
+    pub(crate) fn new(
+        storage: Arc<Storage>,
+        secrets: Arc<Secrets>,
+        home_root: Option<PathBuf>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             extension_lock: Arc::default(),
             storage,
+            secrets,
             home_root,
         })
     }
 
     pub async fn providers(&self) -> Result<Vec<Provider>, CoreError> {
-        Ok(store::providers(&self.storage).await?)
+        let mut providers = store::providers(&self.storage).await?;
+        for provider in &mut providers {
+            provider.key_set = self.secrets.provider_key_set(&provider.slug).await?;
+        }
+        Ok(providers)
     }
 
     pub async fn provider(&self, slug: &str) -> Result<Provider, CoreError> {
-        Ok(store::provider(&self.storage, slug).await?)
+        let mut provider = store::provider(&self.storage, slug).await?;
+        provider.key_set = self.secrets.provider_key_set(slug).await?;
+        Ok(provider)
     }
 
     pub async fn agents(&self) -> Result<Vec<Agent>, CoreError> {

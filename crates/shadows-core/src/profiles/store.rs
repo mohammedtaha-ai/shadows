@@ -1,7 +1,9 @@
 //! Transactional SQL for provider configuration.
 use super::{Agent, AgentInput, Provider, ProviderInput};
 use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
+use crate::secrets::Secrets;
 use sqlx::{Row, SqliteConnection};
+use std::sync::Arc;
 
 fn provider_row(row: sqlx::sqlite::SqliteRow) -> Result<Provider, StorageError> {
     Ok(Provider {
@@ -11,7 +13,7 @@ fn provider_row(row: sqlx::sqlite::SqliteRow) -> Result<Provider, StorageError> 
         preset: row.get("preset"),
         label: row.get("label"),
         models: serde_json::from_str(row.get("models"))?,
-        key_set: row.get("key_set"),
+        key_set: false,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
@@ -30,9 +32,8 @@ fn agent_row(row: sqlx::sqlite::SqliteRow) -> Agent {
     }
 }
 
-const PROVIDER_SELECT: &str = "SELECT p.*, EXISTS(SELECT 1 FROM secret_env s
-    WHERE s.profile = 'provider/' || p.slug AND s.name = 'PROVIDER_API_KEY') AS key_set
-    FROM aylul_provider p";
+/// Providers come back with `key_set` false: `Profiles` asks the secrets owner.
+const PROVIDER_SELECT: &str = "SELECT p.* FROM aylul_provider p";
 
 pub(super) async fn providers(storage: &Storage) -> Result<Vec<Provider>, StorageError> {
     sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -318,6 +319,7 @@ pub(super) async fn save_agent(
 
 pub(super) async fn delete_agent(
     storage: &Storage,
+    secrets: Arc<Secrets>,
     command: CommandContext,
     slug: &str,
 ) -> Result<(), StorageError> {
@@ -338,7 +340,7 @@ pub(super) async fn delete_agent(
                     .bind(&slug)
                     .execute(&mut *conn)
                     .await?;
-                crate::secrets::remove_scope_in(conn, &slug).await?;
+                secrets.remove_scope_in(conn, &slug).await?;
                 remove_agent_extensions_in(conn, &slug).await?;
                 record(conn, &command, &slug).await
             })
@@ -348,6 +350,7 @@ pub(super) async fn delete_agent(
 
 pub(super) async fn delete_provider(
     storage: &Storage,
+    secrets: Arc<Secrets>,
     command: CommandContext,
     slug: &str,
 ) -> Result<(), StorageError> {
@@ -363,7 +366,9 @@ pub(super) async fn delete_provider(
                 }
                 require_provider_in(conn, &slug).await?;
                 users(conn, &slug, None).await?;
-                crate::secrets::remove_scope_in(conn, &format!("provider/{slug}")).await?;
+                secrets
+                    .remove_scope_in(conn, &Secrets::provider_scope(&slug))
+                    .await?;
                 sqlx::query("DELETE FROM aylul_provider WHERE slug=?")
                     .bind(&slug)
                     .execute(&mut *conn)

@@ -9,11 +9,11 @@ use std::sync::Arc;
 
 use crate::CoreError;
 use crate::db::{CommandContext, Storage};
-use crypto::Keys;
+use crypto::{Keys, Sealed};
 pub use model::{EnvEntry, SecretKey};
 
 pub struct Secrets {
-    storage: Arc<Storage>,
+    store: store::SecretsStore,
     keys: Option<Keys>,
 }
 
@@ -65,7 +65,9 @@ pub(crate) fn reserved_env_name(name: &str) -> bool {
     )
 }
 
-pub(crate) use store::remove_scope_in;
+/// A provider key lives in the scope `provider/{slug}` under one fixed name.
+const PROVIDER_SCOPE_PREFIX: &str = "provider/";
+const PROVIDER_KEY_NAME: &str = "PROVIDER_API_KEY";
 
 fn validate_value(name: &str, value: &str) -> Result<(), CoreError> {
     if value.is_empty() || value.len() > 32768 || value.contains('\0') {
@@ -81,9 +83,63 @@ fn aad(profile: &str, name: &str) -> Vec<u8> {
 impl Secrets {
     pub(crate) fn new(storage: Arc<Storage>, key: Option<SecretKey>) -> Arc<Self> {
         Arc::new(Self {
-            storage,
+            store: store::SecretsStore::new(storage),
             keys: key.as_ref().map(Keys::derive),
         })
+    }
+
+    /// The scope a provider key is stored under.
+    pub fn provider_scope(provider: &str) -> String {
+        format!("{PROVIDER_SCOPE_PREFIX}{provider}")
+    }
+
+    /// Validates a value and encrypts it for `profile`/`name`.
+    fn seal_value(&self, profile: &str, name: &str, value: &str) -> Result<Sealed, CoreError> {
+        validate_env_name(name)?;
+        validate_value(name, value)?;
+        crypto::seal(&self.keys()?.aead, &aad(profile, name), value)
+            .map_err(|_| CoreError::SecretsUnavailable)
+    }
+
+    /// Stores one value inside the caller's transaction. The caller owns the
+    /// existence check of the scope and the command record.
+    pub async fn put_in(
+        &self,
+        conn: &mut sqlx::SqliteConnection,
+        profile: &str,
+        name: &str,
+        value: &str,
+        ts: &str,
+    ) -> Result<EnvEntry, CoreError> {
+        let sealed = self.seal_value(profile, name, value)?;
+        store::SecretsStore::upsert(conn, profile, name, sealed, ts).await?;
+        Ok(EnvEntry {
+            name: name.into(),
+            updated_at: ts.into(),
+        })
+    }
+
+    /// Removes every value of one scope inside the caller's transaction.
+    pub async fn remove_scope_in(
+        &self,
+        conn: &mut sqlx::SqliteConnection,
+        scope: &str,
+    ) -> Result<(), crate::StorageError> {
+        store::SecretsStore::remove_scope_in(conn, scope).await
+    }
+
+    /// A provider's key in clear, for the harness only. `None` when unset or empty.
+    pub(crate) async fn resolve_provider_key(
+        &self,
+        provider: &str,
+    ) -> Result<Option<String>, CoreError> {
+        Ok(self
+            .resolve_env(&Self::provider_scope(provider))
+            .await?
+            .into_iter()
+            .find(|(name, _)| name == PROVIDER_KEY_NAME)
+            .map(|(_, key)| key)
+            .filter(|key| !key.is_empty()))
     }
 
     fn keys(&self) -> Result<&Keys, CoreError> {
@@ -92,7 +148,7 @@ impl Secrets {
 
     pub async fn list_env(&self, profile: &str) -> Result<Vec<EnvEntry>, CoreError> {
         self.keys()?;
-        Ok(store::list(&self.storage, profile).await?)
+        Ok(self.store.list(profile).await?)
     }
 
     pub async fn set_env(
@@ -132,13 +188,7 @@ impl Secrets {
         self.remove_env_mode(command_id, agent, name, true).await
     }
     pub async fn list_agent_env(&self, agent: &str) -> Result<Vec<EnvEntry>, CoreError> {
-        let mut conn = self
-            .storage
-            .reader()
-            .acquire()
-            .await
-            .map_err(crate::StorageError::from)?;
-        crate::profiles::require_live_agent_in(&mut conn, agent).await?;
+        self.store.require_live_agent(agent).await?;
         self.list_env(agent).await
     }
 
@@ -151,8 +201,7 @@ impl Secrets {
         agent_only: bool,
     ) -> Result<EnvEntry, CoreError> {
         let keys = self.keys()?;
-        validate_env_name(name)?;
-        validate_value(name, value)?;
+        let sealed = self.seal_value(profile, name, value)?;
         let c = CommandContext::user(
             command_id,
             "secret_env.set",
@@ -160,9 +209,7 @@ impl Secrets {
                 "profile": profile, "name": name, "value_mac": keys.value_mac(value),
             }),
         );
-        let sealed = crypto::seal(&keys.aead, &aad(profile, name), value)
-            .map_err(|_| CoreError::SecretsUnavailable)?;
-        Ok(store::set(&self.storage, c, profile, name, sealed, agent_only).await?)
+        Ok(self.store.set(c, profile, name, sealed, agent_only).await?)
     }
 
     async fn remove_env_mode(
@@ -181,7 +228,7 @@ impl Secrets {
                 "profile": profile, "name": name,
             }),
         );
-        Ok(store::remove(&self.storage, c, profile, name, agent_only).await?)
+        Ok(self.store.remove(c, profile, name, agent_only).await?)
     }
 
     pub async fn set_provider_key(
@@ -192,8 +239,8 @@ impl Secrets {
     ) -> Result<EnvEntry, CoreError> {
         self.set_env(
             command_id,
-            &format!("provider/{provider}"),
-            "PROVIDER_API_KEY",
+            &Self::provider_scope(provider),
+            PROVIDER_KEY_NAME,
             value,
         )
         .await
@@ -206,17 +253,19 @@ impl Secrets {
     ) -> Result<(), CoreError> {
         self.remove_env(
             command_id,
-            &format!("provider/{provider}"),
-            "PROVIDER_API_KEY",
+            &Self::provider_scope(provider),
+            PROVIDER_KEY_NAME,
         )
         .await
     }
 
     pub async fn provider_key_set(&self, provider: &str) -> Result<bool, CoreError> {
-        Ok(store::list(&self.storage, &format!("provider/{provider}"))
+        Ok(self
+            .store
+            .list(&Self::provider_scope(provider))
             .await?
             .iter()
-            .any(|e| e.name == "PROVIDER_API_KEY"))
+            .any(|e| e.name == PROVIDER_KEY_NAME))
     }
 
     pub(crate) async fn resolve_env(
@@ -224,7 +273,8 @@ impl Secrets {
         profile: &str,
     ) -> Result<Vec<(String, String)>, CoreError> {
         let keys = self.keys()?;
-        store::rows(&self.storage, profile)
+        self.store
+            .rows(profile)
             .await?
             .into_iter()
             .map(|(name, sealed)| {

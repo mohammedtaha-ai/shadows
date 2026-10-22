@@ -127,8 +127,13 @@ impl Sessions {
         storage: Arc<Storage>,
         config: SessionsConfig,
     ) -> Arc<Self> {
+        let secrets = config
+            .secrets
+            .clone()
+            .unwrap_or_else(|| crate::Secrets::new(storage.clone(), None));
         let profiles = crate::Profiles::new(
             storage.clone(),
+            secrets,
             config.aylul.as_ref().map(|c| c.home_root.clone()),
         );
         let instructions = crate::Instructions::new(storage.clone());
