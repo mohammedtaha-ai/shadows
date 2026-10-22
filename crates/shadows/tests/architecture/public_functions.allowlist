@@ -1,18 +1,4 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-crates/shadows-core/src/code/scan.rs :: folder_exists free public function [14c342e1ae669b17] #1
-crates/shadows-core/src/code/scan.rs :: keeps free public function [48ce1ff44e91cfec] #1
-crates/shadows-core/src/code/scan.rs :: kept_now free public function [2d9d7a1864c7a5b1] #1
-crates/shadows-core/src/code/scan.rs :: never_walked free public function [0574a8bc68a9de7f] #1
-crates/shadows-core/src/code/scan.rs :: path_key free public function [56774cfd825054ee] #1
-crates/shadows-core/src/code/scan.rs :: relative free public function [d7ccea24a3cfc954] #1
-crates/shadows-core/src/code/scan.rs :: stamp free public function [6f9e7eaa316f4b5c] #1
-crates/shadows-core/src/code/scope.rs :: home free public function [785e9a35cd5afa39] #1
-crates/shadows-core/src/code/scope.rs :: inside free public function [a1a5dfebd03de0dd] #1
-crates/shadows-core/src/code/scope.rs :: projects free public function [15a43dfb9a9d13ac] #1
-crates/shadows-core/src/code/store/links.rs :: delete_code_links_in free public function [26a82de7ee29109b] #1
-crates/shadows-core/src/code/store/mod.rs :: delete_code_index_in free public function [7b72a8f35d4bb056] #1
-crates/shadows-core/src/code/store/reach.rs :: project_reachable_in free public function [8852feb57514fa9d] #1
-crates/shadows-core/src/code/store/reach.rs :: selected_project_in free public function [856146810c97eacc] #1
 crates/shadows-core/src/design/agreement_scope.rs :: writer free public function [5413d43e50fe1ba8] #1
 crates/shadows-core/src/design/agreement_validation.rs :: assign_operation_ids free public function [9605bb48ba3d56eb] #1
 crates/shadows-core/src/design/agreement_validation.rs :: operation_ids free public function [eaa5a6f857f0ce71] #1

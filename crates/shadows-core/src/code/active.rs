@@ -1,4 +1,4 @@
-//! One job: which projects are active, in order of use (spec §15.6).
+//! One job: which projects are active, in order of use.
 //!
 //! The order is kept in memory, never stored: after a restart it starts
 //! again from the last turns. The first `active_limit` projects in it are
@@ -20,7 +20,7 @@ use crate::projects::ProjectId;
 pub(super) struct Active {
     /// Most recent first; only projects with a folder.
     order: Vec<ProjectId>,
-    /// Each ordered project's folder, which never changes (§15.4).
+    /// Each ordered project's folder, which never changes.
     dirs: HashMap<ProjectId, PathBuf>,
     /// Touches before `start`, oldest first.
     early: Vec<ProjectId>,
@@ -81,7 +81,7 @@ impl Active {
 
     /// A use of the first of `rows`: its direct links (the rest) become the
     /// most recent, in their order, then it does, so it is always first and
-    /// the links touched first are the first to leave (§15.6). A project
+    /// the links touched first are the first to leave. A project
     /// with no folder takes no place.
     pub(super) fn used(&mut self, rows: &[(ProjectId, Option<PathBuf>)]) {
         for (id, dir) in rows.iter().skip(1).chain(rows.first()) {
@@ -135,7 +135,7 @@ impl Active {
         }
     }
 
-    /// The project was removed (§15.4): it leaves the order, and its worker
+    /// The project was removed: it leaves the order, and its worker
     /// stops after the file it is on, its task kept in `leaving` for
     /// `close`. The caller's `settle` gives its place to the next project.
     pub(super) fn forget(&mut self, project: &ProjectId) {

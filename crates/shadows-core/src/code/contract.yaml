@@ -28,7 +28,7 @@
 # and `touch` only records the use. Tests that build with `assemble` start
 # `Code` only when they ask.
 # Trap: a removed project (§4.2) is none to every read here (`code_scope`,
-# `code_order`, `is_project`); its rows and links go in Projects' removal
+# `code_order`, Projects::require_live_in); its rows and links go in Projects' removal
 # write, through the two `_in` functions, and `forget` then stops its worker.
 #
 # Unlike the index, the links and the active limit are the person's choices:
@@ -39,22 +39,26 @@
 # removed, the link as the command left it, dated by its command record.
 
 name: code
-version: 3
+version: 4
 status: current
 source: crates/shadows-core/src/code
 
 
 shapes:
   Code:
-    # Cheap to clone: an `Arc` over the storage and the active set.
+    # Cheap to clone: an `Arc` over its private store, Projects and the active set.
     # `Projects`, `Threads`, `Turns` and every worker hold a clone.
     inner: Arc<Inner>
   Inner:
-    storage: Arc<Storage>
+    store: CodeStore
+    projects: Projects
     # Held across reads only: `code_scope` in `touch` and `start`, and
     # `code_active_limit` in `start` and `set_active_limit`; never across a
     # write, and no worker takes it.
     active: tokio::sync::Mutex<Active>
+  CodeStore:
+    # Private to code/. Domain methods do not extend Storage.
+    storage: Arc<Storage>
   CodeConfig:
     rescan_every: Duration   # default 60 s
     debounce: Duration       # default 500 ms
@@ -62,7 +66,8 @@ shapes:
     # HTTP asks as a person, refusals INVALID_COMMAND; MCP under a grant,
     # refusals GRANT_SCOPE. Either names the project the scope starts from.
     Person: "&ProjectId"
-    Grant: "&Grant"
+    # The authenticated grant's project id, supplied by the adapter.
+    Grant: "&ProjectId"
   IndexState:
     # serde internally tagged: { "state": "indexing", "done", "found" }.
     Ready: unit
@@ -176,6 +181,11 @@ shapes:
 
 functions:
   lifecycle:
+    code_order:
+      signature: "(&self) -> Result<Vec<(ProjectId, String)>, CoreError>"
+      # Private Code method: Projects::by_recent_activity, filtered to
+      # projects with a directory, preserving activity sequence DESC, id ASC.
+      # Code reads project metadata only through Projects.
     start:
       signature: "(&self, config: CodeConfig) -> Result<(), CoreError>"
       # `code_order`, then under the lock: `code_active_limit`, `begin`,
@@ -278,19 +288,20 @@ functions:
       private: true
   scope:
     projects:
-      signature: "(storage: &Storage, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CoreError>"
+      signature: "(&self, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CoreError>"
       # The asker's project, then its direct links by slug. An `only` not in
       # it: GRANT_SCOPE for a grant, INVALID_COMMAND for a person, "the
       # project <slug> is not linked to this project".
     home:
-      signature: "(asker: &Asker<'a>) -> &'a ProjectId"
-      # The project a question starts from, and touches.
+      signature: "(&self) -> &ProjectId"
+      # Asker method: the project a question starts from, and touches.
     inside:
       signature: "(path: &str) -> Result<String, CoreError>"
       # '\' becomes '/', "./" and a trailing '/' are dropped; absolute, a
       # ':' or a ".." component is INVALID_COMMAND "the path must be inside
       # the project".
   indexing:
+    # Shared indexing helpers are associated Code methods; walk/names_itself are private.
     scan:
       signature: "(&self, project: &ProjectId) -> Result<(), CoreError>"
       # pub(crate): tests reach it as `scan_for_test` (`testing`). A worker
@@ -467,6 +478,7 @@ functions:
       # node_modules/ is dropped, a `.gitignore` sends Rescan, the rest
       # Path. `try_send`: a full or closed channel sets `lost`.
   store:
+    # All instance methods below belong to the private CodeStore.
     code_file_stamp:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
     code_file_keys:
@@ -483,11 +495,6 @@ functions:
     delete_code_file:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>"
       # One write: the tags explicitly, then the row.
-    code_order:
-      signature: "(&self) -> Result<Vec<(ProjectId, String)>, StorageError>"
-      # Projects with a folder, by the newest `OperationCreated` seq among
-      # their threads' operations, else their `ProjectCreated` seq,
-      # descending, then by id. Removed projects left out.
     code_active_limit:
       signature: "(&self) -> Result<i64, StorageError>"
       # In store/links.rs, with the links' rows.
@@ -516,10 +523,14 @@ functions:
       # The link as it stands, else rebuilt from the command record: never
       # NotFound for a command that happened (§14.9).
       private: true
-    is_project:
-      signature: "(conn, id: &ProjectId) -> Result<bool, StorageError>"
-      private: true
-      # A removed project is none.
+    put_link_in:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId, linked: &ProjectId, ts: &str) -> Result<bool, StorageError>"
+      # Code associated method: insert within the caller's write; true only
+      # for a new row. Caller owns validation, command replay, events and notification.
+    remove_link_in:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId, linked: &ProjectId) -> Result<bool, StorageError>"
+      # Code associated method: delete within the caller's write; true only
+      # when a link existed. Caller owns command replay, events and notification.
     delete_code_links_in:
       signature: "(conn, project: &ProjectId) -> Result<(), StorageError>"
       # In store/links.rs. Every link with the project at either end; no
@@ -527,12 +538,10 @@ functions:
     delete_code_index_in:
       signature: "(conn, project: &ProjectId) -> Result<(), StorageError>"
       # Its tags, then its files, inside the caller's write.
-    into_link:
-      signature: "(row: LinkRow) -> ProjectLink"
-      private: true
     code_scope:
       signature: "(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>"
-      # NotFound for a removed project; removed links left out.
+      # One read snapshot: Projects::get_in for the home and linked ids.
+      # NotFound for a removed home; removed links left out; linked slugs sorted.
     code_by_name:
       signature: "(&self, scope: &[ScopeRow], name: &str, role: &str) -> Result<Vec<Hit>, StorageError>"
       # Per project in the scope's order, by path, line, kind; 51 rows in all.
@@ -554,7 +563,10 @@ functions:
 
 
 shared_in_transaction:
-  # Link mutations call Plans' notify_project_dependencies_in in their write.
+  # CodeStore link commands call the Code _in writes, then Plans' notification
+  # in that same transaction. Command orchestration remains here until A-16.
+  put_link_in: "CodeStore::put_code_link: raw insert in its command transaction"
+  remove_link_in: "CodeStore::remove_code_link: raw delete in its command transaction"
   selected_project_in: "Plans' store: resolves an optional project slug within the origin's live one-way reach in its read snapshot"
   project_reachable_in: "Plans' store: checks live same-project or existing one-way project-link reach in the dependency read/approval snapshot"
   delete_code_index_in: "Projects' store (projects/store.rs ProjectsStore::remove): a removed project's index goes in the removal's own write (§15.4)"
@@ -575,9 +587,6 @@ enums:
     values: []
   ProjectId:
     source: crate::projects::ProjectId
-    values: []
-  Grant:
-    source: crate::grants::Grant
     values: []
   Tag:
     source: shadows_index::Tag
@@ -664,7 +673,10 @@ obligations:
       The one-writer part is structural (`settle` hands `leaving`'s task to
       `Worker::spawn`); no test evicts a project mid-scan.
       The body has six projects with no turn, so the order is by creation;
-      it does not order by a turn, and it makes no link, so a link's
+      Startup creation ordering and id ties are also covered by
+      startup_order_uses_creation_sequence_then_project_id_for_ties; operation ordering is
+      covered by Projects' projects_are_ordered_by_the_newest_operation_in_the_journal.
+      The active-set test makes no link, so a link's
       activation before its project is held by no test.
 
   - rule: >
@@ -843,3 +855,16 @@ tests:
       naming secret is 422 INVALID_COMMAND; outline "../" is refused "the
       path must be inside the project"; backend naming demo is 422
       INVALID_COMMAND (one way).
+
+  - name: startup_order_uses_creation_sequence_then_project_id_for_ties
+    checks: >
+      Three projects sort by creation event sequence descending; after creation
+      events are removed, equal fallback sequences sort by project id ascending.
+  - name: link_reads_keep_the_callers_snapshot_and_replay_removed_projects
+    checks: >
+      Reach and slug resolution keep a reader's snapshot across project removal;
+      a fresh snapshot refuses the removed project, and replay retains link slugs/date.
+  - name: link_writes_rollback_with_the_callers_transaction
+    checks: >
+      Both insert and delete roll back with a caller failure; repeated raw writes
+      correctly report whether they changed a row.

@@ -148,7 +148,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: `Projects::by_recent_activity` exists; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test project_contract --test project_assistant` and `cargo test -p shadows --test project_directory --test project_assistant_route --test project_remove --test thread_contract` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-12 · Prepare the service boundary: code
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-12
 - Read: code/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/code/ (link writes become `put_link_in`/`remove_link_in`; the plans notification stays at the call site until A-16), crates/shadows-core/src/projects/{mod.rs,store.rs,contract.yaml} (read-only `Projects::*_in(conn, …)` lookups that replace code's reads of the `project` table, shaped like `require_live_in`; no change to project removal), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)

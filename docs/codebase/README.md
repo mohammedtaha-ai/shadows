@@ -261,9 +261,10 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/store/` | persistence of the design workspace | `crates/shadows-core/src/design/store/vision.rs` |
 | `crates/shadows-core/src/design/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/shadows-core/src/design/store/vision.rs` |
 | `crates/shadows-core/src/code/` | the code index of each project's folder | `crates/shadows-core/src/code/mod.rs` |
+| `crates/shadows-core/src/code/boundary_tests.rs` | code boundary compatibility tests | `crates/shadows-core/src/code/contract.yaml` |
 | `crates/shadows-core/src/code/model.rs` | the code index types callers meet | `crates/shadows-core/src/code/model.rs` |
-| `crates/shadows-core/src/code/store/` | the code index's SQLite queries | `crates/shadows-core/src/code/store/mod.rs` |
-| `crates/shadows-core/src/code/store/links.rs` | the rows a person's code choices write | `crates/shadows-core/src/code/store/links.rs` |
+| `crates/shadows-core/src/code/store/` | private CodeStore index persistence | `crates/shadows-core/src/code/store/mod.rs` |
+| `crates/shadows-core/src/code/store/links.rs` | transactional code link persistence | `crates/shadows-core/src/code/store/links.rs` |
 | `crates/shadows-core/src/code/store/reach.rs` | live one-way project reach in a snapshot | `crates/shadows-core/src/code/store/reach.rs` |
 | `crates/shadows-core/src/code/scan.rs` | walking a project's folder into the index | `crates/shadows-core/src/code/scan.rs` |
 | `crates/shadows-core/src/code/scope.rs` | what a code question may read | `crates/shadows-core/src/code/scope.rs` |

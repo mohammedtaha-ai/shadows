@@ -1,10 +1,10 @@
 //! One job: one active project's worker, with its watcher and its periodic
-//! scan (spec §15.4).
+//! scan.
 //!
 //! The worker is one `tokio` task. It does the project's scans, the files its
 //! watcher reports and the files a question re-checks, one after another, so
 //! two writes of one file never race. The watcher is the fast path only: it
-//! can lose changes without saying so (PROBE.md), so a periodic scan runs
+//! can lose changes without saying so, so a periodic scan runs
 //! beside it, and a question checks its own hits.
 //!
 //! The watcher's handler runs on `notify`'s own thread. It never awaits: it
@@ -12,8 +12,8 @@
 //! `try_send`s the rest; a full channel sets `lost`, which the worker answers
 //! with a scan. A read is dropped because Linux reports one: `notify`'s
 //! inotify backend watches `OPEN` and `CLOSE_NOWRITE`, so without the filter
-//! every file a scan reads came back as a change, and the scans never ended
-//! (LINUX_WATCHER_READS.md). A `Close(Write)` is kept: it ends a write, and
+//! a scan's own reads would trigger more scans without an end.
+//! A `Close(Write)` is kept: it ends a write, and
 //! inotify reports a write through `mmap(2)` by nothing else.
 
 use std::collections::HashSet;
@@ -29,7 +29,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 
 use super::Code;
 use super::model::{CodeConfig, IndexState};
-use super::scan::{Progress, folder_exists, keeps, kept_now, never_walked, path_key, relative};
+use super::scan::Progress;
 use crate::projects::ProjectId;
 
 /// Paths the watcher may hold for the worker before it counts as lost.
@@ -198,7 +198,7 @@ impl Run {
                         let paths: Vec<String> = self
                             .pending
                             .drain()
-                            .filter(|p| keeps(Path::new(p)))
+                            .filter(|p| Code::keeps(Path::new(p)))
                             .collect();
                         if !paths.is_empty() {
                             self.handle(Job::Files(paths)).await;
@@ -233,14 +233,14 @@ impl Run {
 
     /// A scan, after checking the folder is there (a watched folder can be
     /// renamed without a word). A missing folder drops the watcher; a folder
-    /// found again gets a new one, since the old one stays dead (PROBE.md).
+    /// found again gets a new one, since the old one stays dead.
     /// A scan that finds changes nobody reported restarts the watcher: it may
     /// have stopped without telling.
     async fn scan(&mut self) {
         // The scan covers every path still gathered.
         let unreported = self.pending.is_empty();
         self.pending.clear();
-        if !folder_exists(&self.dir).await {
+        if !Code::folder_exists(&self.dir).await {
             self.folder_missing();
             return;
         }
@@ -290,13 +290,13 @@ impl Run {
     /// longer a regular file, has its rows deleted by `index_file`; one an
     /// ignore file names is left alone.
     async fn files(&mut self, paths: Vec<String>) {
-        if !folder_exists(&self.dir).await {
+        if !Code::folder_exists(&self.dir).await {
             self.folder_missing();
             return;
         }
         let kept = {
             let (dir, paths) = (self.dir.clone(), paths.clone());
-            tokio::task::spawn_blocking(move || kept_now(&dir, &paths))
+            tokio::task::spawn_blocking(move || Code::kept_now(&dir, &paths))
                 .await
                 .unwrap_or_default()
         };
@@ -307,7 +307,7 @@ impl Run {
             let regular = tokio::fs::symlink_metadata(self.dir.join(&path))
                 .await
                 .is_ok_and(|m| m.is_file());
-            if regular && !kept.contains(&path_key(&path)) {
+            if regular && !kept.contains(&Code::path_key(&path)) {
                 continue;
             }
             self.index(&path).await;
@@ -323,15 +323,15 @@ impl Run {
     /// starts reads only what changed.
     async fn folder_changed(&self) -> bool {
         for path in &self.pending {
-            if keeps(Path::new(path)) || path.split('/').any(|c| c.starts_with('.')) {
+            if Code::keeps(Path::new(path)) || path.split('/').any(|c| c.starts_with('.')) {
                 continue;
             }
             match tokio::fs::symlink_metadata(self.dir.join(path)).await {
                 Ok(meta) if meta.is_dir() => {
-                    let storage = &self.code.inner.storage;
+                    let store = &self.code.inner.store;
                     // A failed read counts as new: a scan is the safe answer.
-                    if !storage
-                        .code_files_under(&self.project, &path_key(path))
+                    if !store
+                        .code_files_under(&self.project, &Code::path_key(path))
                         .await
                         .unwrap_or(false)
                     {
@@ -356,7 +356,7 @@ impl Run {
     }
 
     /// The worker was told to stop: like a scan, a batch ends after the file
-    /// it is on (§15.8).
+    /// it is on.
     fn stopping(&self) -> bool {
         self.shared.progress.stop.load(Ordering::Relaxed)
     }
@@ -407,7 +407,7 @@ impl Run {
 /// but `Close(Write)`) is dropped: the scan's own reads would come back as
 /// changes. A path under `target/` or `node_modules/` is dropped next (a
 /// build sends hundreds); a changed
-/// `.gitignore`, an error or `need_rescan()` asks for a scan; the rest go on,
+/// `.gitignore`, an error or `need_rescan` asks for a scan; the rest go on,
 /// relative to the folder.
 fn forward(
     dir: &Path,
@@ -437,10 +437,10 @@ fn forward(
         return;
     }
     for path in &event.paths {
-        let Some(rel) = relative(dir, path) else {
+        let Some(rel) = Code::relative(dir, path) else {
             continue;
         };
-        if rel.split('/').any(never_walked) {
+        if rel.split('/').any(Code::never_walked) {
             continue;
         }
         if rel.rsplit('/').next() == Some(".gitignore") {
@@ -453,9 +453,14 @@ fn forward(
 
 #[cfg(test)]
 mod tests {
-    use notify::event::{DataChange, ModifyKind};
+    use std::path::Path;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
-    use super::*;
+    use notify::EventKind;
+    use notify::event::{AccessKind, AccessMode, DataChange, ModifyKind};
+    use tokio::sync::mpsc;
+
+    use super::{Seen, forward};
 
     /// Linux reports every read: none may reach the worker, or a scan's own
     /// reads start the next scan, forever. A write still does.

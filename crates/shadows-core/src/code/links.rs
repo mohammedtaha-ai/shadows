@@ -1,4 +1,4 @@
-//! One job: the links and the active limit, as commands (spec §15.6). Each is
+//! One job: the links and the active limit, as commands. Each is
 //! a `CommandContext::user` with a `CommandId`, written by one store method; a
 //! refusal the store cannot phrase is written here.
 
@@ -8,13 +8,13 @@ use crate::db::CommandContext;
 use crate::error::{CoreError, ErrorCode};
 use crate::projects::ProjectId;
 
-/// The values `active_limit` may take (§15.6).
+/// The values `active_limit` may take.
 const LIMITS: std::ops::RangeInclusive<u32> = 1..=20;
 
 impl Code {
     /// The projects `project` reads, by their slug.
     pub async fn links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CoreError> {
-        Ok(self.inner.storage.code_links(project).await?)
+        Ok(self.inner.store.code_links(project).await?)
     }
 
     /// Lets `project` read `linked`'s index, one way: "ProjectLinkPut",
@@ -30,12 +30,7 @@ impl Code {
         }
         let params = serde_json::json!({ "project": project, "linked": linked });
         let c = CommandContext::user(command_id, "ProjectLinkPut", params);
-        match self
-            .inner
-            .storage
-            .put_code_link(&c, project, linked)
-            .await?
-        {
+        match self.inner.store.put_code_link(&c, project, linked).await? {
             Some(link) => Ok(link),
             None => Err(invalid(format!("no such project {linked}"))),
         }
@@ -52,7 +47,7 @@ impl Code {
         let c = CommandContext::user(command_id, "ProjectLinkRemove", params);
         if self
             .inner
-            .storage
+            .store
             .remove_code_link(&c, project, linked)
             .await?
         {
@@ -64,7 +59,7 @@ impl Code {
 
     /// The stored settings.
     pub async fn settings(&self) -> Result<CodeSettings, CoreError> {
-        let limit = self.inner.storage.code_active_limit().await?;
+        let limit = self.inner.store.code_active_limit().await?;
         Ok(CodeSettings {
             active_limit: limit as u32,
         })
@@ -85,13 +80,13 @@ impl Code {
         }
         let params = serde_json::json!({ "active_limit": active_limit });
         let c = CommandContext::user(command_id, "CodeActiveLimitSet", params);
-        let storage = &self.inner.storage;
-        let set = storage.set_code_active_limit(&c, active_limit).await?;
+        let store = &self.inner.store;
+        let set = store.set_code_active_limit(&c, active_limit).await?;
         let mut active = self.inner.active.lock().await;
         // The stored one, not `set`: a replay answers an older value. Read
         // under the lock, so of two calls at once the last to take it reads
         // the newer limit, and the set never follows the older one.
-        let now = storage.code_active_limit().await?.max(1) as usize;
+        let now = store.code_active_limit().await?.max(1) as usize;
         active.limit(now);
         active.settle(self);
         Ok(CodeSettings { active_limit: set })

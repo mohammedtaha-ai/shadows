@@ -33,7 +33,7 @@ pub(super) async fn check_parents(
         let Some((project, version, _)) = owner(conn, plan_id).await? else {
             return Err(invalid(format!("plan {plan_id} T{task} is unavailable")));
         };
-        if !crate::code::project_reachable_in(conn, &source.project_id, &project).await? {
+        if !crate::code::Code::project_reachable_in(conn, &source.project_id, &project).await? {
             return Err(invalid(format!(
                 "a project link to plan {plan_id}'s project is missing"
             )));
@@ -135,7 +135,7 @@ pub(super) async fn blockers(
                 )));
                 continue;
             };
-            if !crate::code::project_reachable_in(conn, &source_project, &project).await? {
+            if !crate::code::Code::project_reachable_in(conn, &source_project, &project).await? {
                 problems.push(Problem::new(format!(
                     "T{} needs a project link to plan {plan_id} T{task}",
                     link.task,
@@ -162,7 +162,7 @@ pub(super) async fn blockers(
                     tasks,
                     links: links_of(conn, &version).await?,
                 };
-                if crate::code::project_reachable_in(
+                if crate::code::Code::project_reachable_in(
                     conn,
                     origin.unwrap_or(&root.project_id),
                     &project,

@@ -1,5 +1,4 @@
-//! One job: walking a project's folder and indexing what changed (spec §15.4
-//! steps 1–6).
+//! One job: walking a project's folder into its code index.
 //!
 //! Two functions hold the rules, and every path that indexes goes through
 //! them: `keeps`, the walk's filter, and `index_file`, one file read, parsed
@@ -27,54 +26,12 @@ const MAX_BYTES: u64 = 1_048_576;
 const BINARY_PROBE: usize = 8 * 1024;
 
 /// How far a running scan is, and whether its worker is stopping. A scan
-/// checks `stop` between files, so it ends after the file it is on (§15.8).
+/// checks `stop` between files, so it ends after the file it is on.
 #[derive(Default)]
 pub(super) struct Progress {
     pub(super) found: AtomicU32,
     pub(super) done: AtomicU32,
     pub(super) stop: AtomicBool,
-}
-
-/// Folders never walked, with or without a `.gitignore`.
-pub(super) fn never_walked(name: &str) -> bool {
-    name == "target" || name == "node_modules"
-}
-
-/// The walk's filter for a path relative to the project's folder: nothing
-/// under `target/` or `node_modules/`, nothing hidden, and only a language
-/// the table knows. The ignore files are the walk's own.
-pub(super) fn keeps(path: &Path) -> bool {
-    let visible = path.components().all(|c| match c {
-        Component::Normal(n) => n
-            .to_str()
-            .is_some_and(|n| !never_walked(n) && !n.starts_with('.')),
-        _ => false,
-    });
-    visible && language_for(path).is_some()
-}
-
-/// The key a path is stored under: on Windows `Foo.rs` and `foo.rs` are one file.
-pub(super) fn path_key(path: &str) -> String {
-    if cfg!(windows) {
-        path.to_lowercase()
-    } else {
-        path.to_string()
-    }
-}
-
-/// Whether the project's folder is there: rows are deleted only while it is.
-pub(super) async fn folder_exists(dir: &Path) -> bool {
-    tokio::fs::metadata(dir).await.is_ok_and(|m| m.is_dir())
-}
-
-/// A file's size and modified time in milliseconds, as `code_file` stores them.
-pub(super) fn stamp(meta: &std::fs::Metadata) -> (i64, i64) {
-    let modified_ms = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map_or(0, |d| d.as_millis() as i64);
-    (meta.len() as i64, modified_ms)
 }
 
 /// What the walk found: every kept file relative to the folder with '/', and
@@ -88,17 +45,6 @@ struct Walked {
 struct Only {
     files: HashSet<String>,
     folders: HashSet<String>,
-}
-
-/// A path relative to `dir`, with '/'; `None` outside it or not UTF-8.
-pub(super) fn relative(dir: &Path, path: &Path) -> Option<String> {
-    let parts: Option<Vec<&str>> = path
-        .strip_prefix(dir)
-        .ok()?
-        .components()
-        .map(|c| c.as_os_str().to_str())
-        .collect();
-    Some(parts?.join("/"))
 }
 
 /// Step 1, blocking: the folder's own ignore files, no parent's and no
@@ -118,13 +64,13 @@ fn walk(dir: &Path, only: Option<Arc<Only>>) -> Walked {
         .follow_links(false)
         .filter_entry(move |e| {
             let is_dir = e.file_type().is_some_and(|t| t.is_dir());
-            if is_dir && e.file_name().to_str().is_some_and(never_walked) {
+            if is_dir && e.file_name().to_str().is_some_and(Code::never_walked) {
                 return false;
             }
             let Some(only) = &only else {
                 return true;
             };
-            let Some(key) = relative(&root, e.path()).map(|r| path_key(&r)) else {
+            let Some(key) = Code::relative(&root, e.path()).map(|r| Code::path_key(&r)) else {
                 return false;
             };
             if is_dir {
@@ -145,45 +91,29 @@ fn walk(dir: &Path, only: Option<Arc<Only>>) -> Walked {
         let Ok(rel) = entry.path().strip_prefix(dir) else {
             continue;
         };
-        if !keeps(rel) {
+        if !Code::keeps(rel) {
             continue;
         }
-        if let Some(path) = relative(dir, entry.path()) {
+        if let Some(path) = Code::relative(dir, entry.path()) {
             out.paths.push(path);
         }
     }
     out
 }
 
-/// Of `paths`, the keys of those the walk would keep now: on disk, passing
-/// `keeps`, and named by no ignore file on their way (blocking).
-pub(super) fn kept_now(dir: &Path, paths: &[String]) -> HashSet<String> {
-    let files: HashSet<String> = paths.iter().map(|p| path_key(p)).collect();
-    let mut folders = HashSet::from([String::new()]);
-    for f in &files {
-        let mut at = f.as_str();
-        while let Some((up, _)) = at.rsplit_once('/') {
-            folders.insert(up.to_string());
-            at = up;
-        }
-    }
-    let walked = walk(dir, Some(Arc::new(Only { files, folders })));
-    walked.paths.iter().map(|p| path_key(p)).collect()
-}
-
 /// Whether the file `real` (canonical) is `path` inside `canonical_dir`,
 /// component for component: a link or a junction on the way, or a name
 /// Windows normalises (`a.rs.`), names another file, which is not opened.
 fn names_itself(real: &Path, canonical_dir: &Path, path: &str) -> bool {
-    relative(canonical_dir, real).is_some_and(|r| path_key(&r) == path_key(path))
+    Code::relative(canonical_dir, real).is_some_and(|r| Code::path_key(&r) == Code::path_key(path))
 }
 
 impl Code {
-    /// Steps 2–5 for one file, `path` relative to `dir` with '/': skipped
+    /// Indexes one file, `path` relative to `dir` with '/': skipped
     /// when its path, size and modified time equal its row, else read, parsed
     /// on a blocking thread and written in one transaction. A file that is
-    /// gone, or is no longer a regular file (a link is never followed), has
-    /// its rows deleted, but only while the folder itself exists (§15.4): a
+    /// gone, or is not a regular file (a link is never followed), has
+    /// its rows deleted, but only while the folder itself exists: a
     /// folder that vanished keeps its index. Before it opens the file, its
     /// canonical path must be `path` inside the folder's canonical path, or
     /// it is skipped and logged. On failure the file keeps its old row, so
@@ -194,8 +124,8 @@ impl Code {
         dir: &Path,
         path: &str,
     ) -> anyhow::Result<bool> {
-        let storage = &self.inner.storage;
-        let key = path_key(path);
+        let store = &self.inner.store;
+        let key = Code::path_key(path);
         let full = dir.join(path);
         let meta = match tokio::fs::symlink_metadata(&full).await {
             Ok(m) if m.is_file() => Some(m),
@@ -204,8 +134,8 @@ impl Code {
             Err(e) => return Err(e.into()),
         };
         let Some(meta) = meta else {
-            if folder_exists(dir).await {
-                storage.delete_code_file(project, &key).await?;
+            if Code::folder_exists(dir).await {
+                store.delete_code_file(project, &key).await?;
                 return Ok(true);
             }
             return Ok(false);
@@ -213,9 +143,9 @@ impl Code {
         let Some(language) = language_for(Path::new(path)) else {
             return Ok(false);
         };
-        let (size, modified_ms) = stamp(&meta);
+        let (size, modified_ms) = Code::stamp(&meta);
         let stored = (path.to_string(), size, modified_ms);
-        if storage.code_file_stamp(project, &key).await? == Some(stored) {
+        if store.code_file_stamp(project, &key).await? == Some(stored) {
             return Ok(false);
         }
         let canonical_dir = tokio::fs::canonicalize(dir).await?;
@@ -260,11 +190,11 @@ impl Code {
             language: language.name,
             skipped,
         };
-        storage.write_code_file(project, row, tags).await?;
+        store.write_code_file(project, row, tags).await?;
         Ok(true)
     }
 
-    /// Steps 1–6 on the project's folder, one file after another, reporting
+    /// Indexes the project's folder, one file after another, reporting
     /// into `progress` and ending early when it says stop. A project with no
     /// folder, or whose folder is missing, keeps its index untouched. Logs
     /// `code.scan`; answers how many files it wrote or deleted.
@@ -274,12 +204,12 @@ impl Code {
         progress: &Progress,
     ) -> Result<u32, CoreError> {
         let started = Instant::now();
-        let storage = &self.inner.storage;
+        let store = &self.inner.store;
         let Some(directory) = self.inner.projects.get(project).await?.directory else {
             return Ok(0);
         };
         let dir = PathBuf::from(directory);
-        if !folder_exists(&dir).await {
+        if !Code::folder_exists(&dir).await {
             return Ok(0);
         }
         let walked = {
@@ -302,7 +232,7 @@ impl Code {
             if progress.stop.load(Ordering::Relaxed) {
                 return Ok(indexed);
             }
-            seen.insert(path_key(path));
+            seen.insert(Code::path_key(path));
             match self.index_file(project, &dir, path).await {
                 Ok(wrote) => indexed += u32::from(wrote),
                 Err(error) => {
@@ -316,18 +246,18 @@ impl Code {
             }
             progress.done.fetch_add(1, Ordering::Relaxed);
         }
-        // Step 6. A walk that could not read an entry may have missed files
+        // A walk that could not read an entry may have missed files
         // that are still there, so it deletes nothing; the next scan does.
         // Nor does a folder that vanished during the scan: its index is kept.
-        if walked.incomplete || !folder_exists(&dir).await {
+        if walked.incomplete || !Code::folder_exists(&dir).await {
             tracing::warn!(project = project.as_str(), "code.walk_incomplete");
             return Ok(indexed);
         }
-        for key in storage.code_file_keys(project).await? {
+        for key in store.code_file_keys(project).await? {
             if seen.contains(&key) {
                 continue;
             }
-            match storage.delete_code_file(project, &key).await {
+            match store.delete_code_file(project, &key).await {
                 Ok(()) => indexed += 1,
                 Err(error) => {
                     tracing::warn!(
@@ -352,7 +282,7 @@ impl Code {
 
 impl Code {
     /// Of a question's hit files, those whose size or modified time differ
-    /// from their rows, or that are gone or no longer regular files (§15.5).
+    /// from their rows, or that are gone or not regular files.
     /// It stats them and opens none. A folder that is missing answers none:
     /// its index is kept as it is.
     pub(super) async fn stale<'a>(
@@ -361,26 +291,97 @@ impl Code {
         dir: &Path,
         paths: impl IntoIterator<Item = &'a str>,
     ) -> Vec<String> {
-        if !folder_exists(dir).await {
+        if !Code::folder_exists(dir).await {
             return Vec::new();
         }
         let mut changed = Vec::new();
         for path in paths {
             let stored = self
                 .inner
-                .storage
-                .code_file_stamp(project, &path_key(path))
+                .store
+                .code_file_stamp(project, &Code::path_key(path))
                 .await;
             let on_disk = tokio::fs::symlink_metadata(dir.join(path))
                 .await
                 .ok()
                 .filter(std::fs::Metadata::is_file)
-                .map(|m| stamp(&m));
+                .map(|m| Code::stamp(&m));
             match (stored, on_disk) {
                 (Ok(Some((_, size, ms))), Some(now)) if (size, ms) == now => {}
                 _ => changed.push(path.to_string()),
             }
         }
         changed
+    }
+}
+
+impl Code {
+    /// Folders never walked, with or without a `.gitignore`.
+    pub(super) fn never_walked(name: &str) -> bool {
+        name == "target" || name == "node_modules"
+    }
+
+    /// The walk's filter for a path relative to the project's folder: nothing
+    /// under `target/` or `node_modules/`, nothing hidden, and only a language
+    /// the table knows. The ignore files are the walk's own.
+    pub(super) fn keeps(path: &Path) -> bool {
+        let visible = path.components().all(|c| match c {
+            Component::Normal(n) => n
+                .to_str()
+                .is_some_and(|n| !Code::never_walked(n) && !n.starts_with('.')),
+            _ => false,
+        });
+        visible && language_for(path).is_some()
+    }
+
+    /// The key a path is stored under: on Windows `Foo.rs` and `foo.rs` are one file.
+    pub(super) fn path_key(path: &str) -> String {
+        if cfg!(windows) {
+            path.to_lowercase()
+        } else {
+            path.to_string()
+        }
+    }
+
+    /// Whether the project's folder is there: rows are deleted only while it is.
+    pub(super) async fn folder_exists(dir: &Path) -> bool {
+        tokio::fs::metadata(dir).await.is_ok_and(|m| m.is_dir())
+    }
+
+    /// A file's size and modified time in milliseconds, as `code_file` stores them.
+    pub(super) fn stamp(meta: &std::fs::Metadata) -> (i64, i64) {
+        let modified_ms = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map_or(0, |d| d.as_millis() as i64);
+        (meta.len() as i64, modified_ms)
+    }
+
+    /// A path relative to `dir`, with '/'; `None` outside it or not UTF-8.
+    pub(super) fn relative(dir: &Path, path: &Path) -> Option<String> {
+        let parts: Option<Vec<&str>> = path
+            .strip_prefix(dir)
+            .ok()?
+            .components()
+            .map(|c| c.as_os_str().to_str())
+            .collect();
+        Some(parts?.join("/"))
+    }
+
+    /// Of `paths`, the keys of those the walk would keep now: on disk, passing
+    /// `keeps`, and named by no ignore file on their way (blocking).
+    pub(super) fn kept_now(dir: &Path, paths: &[String]) -> HashSet<String> {
+        let files: HashSet<String> = paths.iter().map(|p| Code::path_key(p)).collect();
+        let mut folders = HashSet::from([String::new()]);
+        for f in &files {
+            let mut at = f.as_str();
+            while let Some((up, _)) = at.rsplit_once('/') {
+                folders.insert(up.to_string());
+                at = up;
+            }
+        }
+        let walked = walk(dir, Some(Arc::new(Only { files, folders })));
+        walked.paths.iter().map(|p| Code::path_key(p)).collect()
     }
 }

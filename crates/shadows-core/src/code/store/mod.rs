@@ -1,25 +1,17 @@
-//! One job: the code index's SQLite queries (spec §15.4–§15.5). Every read
-//! goes through the reader pool; every write is one short `write_txn` for one
-//! file, so a first index never holds the single writer for long (§6.23).
-//! The one exception is a project's removal, whose own write deletes its
-//! whole index through `delete_code_index_in`. `links.rs` holds the rows of
-//! the links and the active limit (§15.6).
-//!
-//! Over 300 lines (CLAUDE.md): every function here is one of the index's
-//! own queries; the rows a person's choices write already live in `links.rs`.
+//! The code index SQL over the shared storage handle.
 
 mod links;
 mod reach;
 
-pub(crate) use links::delete_code_links_in;
-pub(crate) use reach::{project_reachable_in, selected_project_in};
+use std::sync::Arc;
 
 use shadows_index::{Role, Tag};
 use sqlx::SqliteConnection;
 
+use super::Code;
 use super::model::{Hit, Skipped};
 use crate::db::{Storage, StorageError};
-use crate::projects::ProjectId;
+use crate::projects::{ProjectId, Projects};
 
 /// What `code_file` holds for one file: its stamp, and why it was not
 /// parsed, if it was not.
@@ -40,7 +32,16 @@ const HITS: i64 = 50;
 
 type HitRow = (String, i64, String, String, Option<String>);
 
-impl Storage {
+/// Private persistence for the code service.
+pub(super) struct CodeStore {
+    pub(super) storage: Arc<Storage>,
+}
+
+impl CodeStore {
+    pub(super) fn with_storage(storage: Arc<Storage>) -> Self {
+        Self { storage }
+    }
+
     /// A file's stored path, size and modified time, or `None` before its first index.
     pub(super) async fn code_file_stamp(
         &self,
@@ -52,7 +53,7 @@ impl Storage {
         )
         .bind(project.as_str())
         .bind(path_key)
-        .fetch_optional(self.reader())
+        .fetch_optional(self.storage.reader())
         .await?)
     }
 
@@ -65,7 +66,7 @@ impl Storage {
             "SELECT path_key FROM code_file WHERE project_id = ? ORDER BY path_key",
         )
         .bind(project.as_str())
-        .fetch_all(self.reader())
+        .fetch_all(self.storage.reader())
         .await?)
     }
 
@@ -84,7 +85,7 @@ impl Storage {
         .bind(folder_key)
         .bind(folder_key)
         .bind(folder_key)
-        .fetch_one(self.reader())
+        .fetch_one(self.storage.reader())
         .await?)
     }
 
@@ -97,66 +98,64 @@ impl Storage {
         tags: Vec<Tag>,
     ) -> Result<(), StorageError> {
         let project = project.clone();
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                // A worker still finishing a file when its project is removed
-                // writes nothing: this write and the removal are serialized.
-                let live: Option<i64> =
-                    sqlx::query_scalar("SELECT 1 FROM project WHERE id = ? AND removed_at IS NULL")
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    // A worker still finishing a file when its project is removed
+                    // writes nothing: this write and the removal are serialized.
+                    match Projects::require_live_in(conn, &project).await {
+                        Ok(()) => {}
+                        Err(StorageError::NotFound(_)) => return Ok(()),
+                        Err(error) => return Err(error),
+                    }
+                    sqlx::query("DELETE FROM code_tag WHERE project_id = ? AND path_key = ?")
                         .bind(project.as_str())
-                        .fetch_optional(&mut *conn)
+                        .bind(&file.path_key)
+                        .execute(&mut *conn)
                         .await?;
-                if live.is_none() {
-                    return Ok(());
-                }
-                sqlx::query("DELETE FROM code_tag WHERE project_id = ? AND path_key = ?")
-                    .bind(project.as_str())
-                    .bind(&file.path_key)
-                    .execute(&mut *conn)
-                    .await?;
-                sqlx::query(
-                    "INSERT INTO code_file
+                    sqlx::query(
+                        "INSERT INTO code_file
                        (project_id, path_key, path, size, modified_ms, language, skipped_reason)
                      VALUES (?,?,?,?,?,?,?)
                      ON CONFLICT (project_id, path_key) DO UPDATE SET
                        path = excluded.path, size = excluded.size,
                        modified_ms = excluded.modified_ms, language = excluded.language,
                        skipped_reason = excluded.skipped_reason",
-                )
-                .bind(project.as_str())
-                .bind(&file.path_key)
-                .bind(&file.path)
-                .bind(file.size)
-                .bind(file.modified_ms)
-                .bind(file.language)
-                .bind(file.skipped)
-                .execute(&mut *conn)
-                .await?;
-                for tag in &tags {
-                    let role = match tag.role {
-                        Role::Definition => "definition",
-                        Role::Reference => "reference",
-                    };
-                    sqlx::query(
-                        "INSERT INTO code_tag
-                           (project_id, path_key, path, name, kind, role, line, signature)
-                         VALUES (?,?,?,?,?,?,?,?)",
                     )
                     .bind(project.as_str())
                     .bind(&file.path_key)
                     .bind(&file.path)
-                    .bind(&tag.name)
-                    .bind(&tag.kind)
-                    .bind(role)
-                    .bind(i64::from(tag.line))
-                    .bind(&tag.signature)
+                    .bind(file.size)
+                    .bind(file.modified_ms)
+                    .bind(file.language)
+                    .bind(file.skipped)
                     .execute(&mut *conn)
                     .await?;
-                }
-                Ok(())
+                    for tag in &tags {
+                        let role = match tag.role {
+                            Role::Definition => "definition",
+                            Role::Reference => "reference",
+                        };
+                        sqlx::query(
+                            "INSERT INTO code_tag
+                           (project_id, path_key, path, name, kind, role, line, signature)
+                         VALUES (?,?,?,?,?,?,?,?)",
+                        )
+                        .bind(project.as_str())
+                        .bind(&file.path_key)
+                        .bind(&file.path)
+                        .bind(&tag.name)
+                        .bind(&tag.kind)
+                        .bind(role)
+                        .bind(i64::from(tag.line))
+                        .bind(&tag.signature)
+                        .execute(&mut *conn)
+                        .await?;
+                    }
+                    Ok(())
+                })
             })
-        })
-        .await
+            .await
     }
 
     /// One write: a file's tags and its row go.
@@ -166,73 +165,48 @@ impl Storage {
         path_key: &str,
     ) -> Result<(), StorageError> {
         let (project, key) = (project.clone(), path_key.to_string());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                for sql in [
-                    "DELETE FROM code_tag WHERE project_id = ? AND path_key = ?",
-                    "DELETE FROM code_file WHERE project_id = ? AND path_key = ?",
-                ] {
-                    sqlx::query(sql)
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    sqlx::query("DELETE FROM code_tag WHERE project_id = ? AND path_key = ?")
                         .bind(project.as_str())
                         .bind(&key)
                         .execute(&mut *conn)
                         .await?;
-                }
-                Ok(())
+                    sqlx::query("DELETE FROM code_file WHERE project_id = ? AND path_key = ?")
+                        .bind(project.as_str())
+                        .bind(&key)
+                        .execute(&mut *conn)
+                        .await?;
+                    Ok(())
+                })
             })
-        })
-        .await
+            .await
     }
 
-    /// The projects with a folder, most recently used first (§15.6): by the
-    /// durable sequence of the newest `OperationCreated` among their threads,
-    /// or of their `ProjectCreated` for one with no operation. The sequence,
-    /// not `created_at`, whose RFC 3339 text with trimmed zeros does not sort
-    /// in time order within a second (CLAUDE.md: ordering is explicit).
-    pub(super) async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, StorageError> {
-        let rows: Vec<(String, String)> = sqlx::query_as(
-            "SELECT p.id, p.directory FROM project p
-              WHERE p.directory IS NOT NULL AND p.removed_at IS NULL
-              ORDER BY COALESCE(
-                (SELECT MAX(e.seq) FROM durable_event e
-                   JOIN operation o ON o.id = e.operation_id
-                   JOIN planning_thread t ON t.id = o.thread_id
-                  WHERE t.project_id = p.id AND e.kind = 'OperationCreated'),
-                (SELECT MAX(e.seq) FROM durable_event e
-                  WHERE e.project_id = p.id AND e.kind = 'ProjectCreated'),
-                0) DESC, p.id",
-        )
-        .fetch_all(self.reader())
-        .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(id, dir)| (ProjectId::from_stored(id), dir))
-            .collect())
-    }
-
-    /// The asker's project, then the projects it links to directly, by slug.
+    /// The asker's project, then its live direct links in slug order.
     pub(super) async fn code_scope(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError> {
-        let first: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT slug, directory FROM project WHERE id = ? AND removed_at IS NULL",
+        let mut snapshot = self.storage.reader().begin().await?;
+        let first = Projects::get_in(&mut snapshot, home).await?;
+        let linked: Vec<String> = sqlx::query_scalar(
+            "SELECT linked_project_id FROM project_link WHERE project_id = ?
+              ORDER BY linked_project_id",
         )
         .bind(home.as_str())
-        .fetch_optional(self.reader())
+        .fetch_all(&mut *snapshot)
         .await?;
-        let (slug, directory) = first.ok_or(StorageError::NotFound("project"))?;
-        let linked: Vec<(String, String, Option<String>)> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.directory FROM project_link l
-               JOIN project p ON p.id = l.linked_project_id
-              WHERE l.project_id = ? AND p.removed_at IS NULL ORDER BY p.slug",
-        )
-        .bind(home.as_str())
-        .fetch_all(self.reader())
-        .await?;
-        let mut out = vec![(home.clone(), slug, directory)];
-        out.extend(
-            linked
-                .into_iter()
-                .map(|(id, slug, dir)| (ProjectId::from_stored(id), slug, dir)),
-        );
+        let mut rows = Vec::new();
+        for id in linked {
+            match Projects::get_in(&mut snapshot, &ProjectId::from_stored(id)).await {
+                Ok(p) => rows.push((p.id, p.slug, p.directory)),
+                Err(StorageError::NotFound(_)) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        rows.sort_by(|a, b| a.1.cmp(&b.1));
+        let mut out = vec![(first.id, first.slug, first.directory)];
+        out.extend(rows);
+        snapshot.commit().await?;
         Ok(out)
     }
 
@@ -259,7 +233,7 @@ impl Storage {
             .bind(name)
             .bind(role)
             .bind(left)
-            .fetch_all(self.reader())
+            .fetch_all(self.storage.reader())
             .await?;
             out.extend(rows.into_iter().map(|r| hit(slug, r)));
         }
@@ -286,7 +260,7 @@ impl Storage {
             .bind(id.as_str())
             .bind(role)
             .bind(like_escape(text))
-            .fetch_all(self.reader())
+            .fetch_all(self.storage.reader())
             .await?;
             names.extend(found);
         }
@@ -321,7 +295,7 @@ impl Storage {
             .bind(path_key)
             .bind(path_key)
             .bind(left)
-            .fetch_all(self.reader())
+            .fetch_all(self.storage.reader())
             .await?;
             out.extend(rows.into_iter().map(|r| hit(slug, r)));
         }
@@ -337,7 +311,7 @@ impl Storage {
             "SELECT COUNT(*) FROM code_file WHERE project_id = ? AND skipped_reason IS NULL",
         )
         .bind(project.as_str())
-        .fetch_one(self.reader())
+        .fetch_one(self.storage.reader())
         .await?;
         let skipped: Vec<(String, i64)> = sqlx::query_as(
             "SELECT skipped_reason, COUNT(*) FROM code_file
@@ -345,7 +319,7 @@ impl Storage {
               GROUP BY skipped_reason ORDER BY skipped_reason",
         )
         .bind(project.as_str())
-        .fetch_all(self.reader())
+        .fetch_all(self.storage.reader())
         .await?;
         let skipped = skipped
             .into_iter()
@@ -358,22 +332,22 @@ impl Storage {
     }
 }
 
-/// Inside the caller's write: every row of the project's index, its tags
-/// first. Projects' `remove_project` calls it (§15.4).
-pub(crate) async fn delete_code_index_in(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-) -> Result<(), StorageError> {
-    for sql in [
-        "DELETE FROM code_tag WHERE project_id = ?",
-        "DELETE FROM code_file WHERE project_id = ?",
-    ] {
-        sqlx::query(sql)
+impl Code {
+    /// Removes an index in the caller's project-removal transaction.
+    pub(crate) async fn delete_code_index_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<(), StorageError> {
+        sqlx::query("DELETE FROM code_tag WHERE project_id = ?")
             .bind(project.as_str())
             .execute(&mut *conn)
             .await?;
+        sqlx::query("DELETE FROM code_file WHERE project_id = ?")
+            .bind(project.as_str())
+            .execute(&mut *conn)
+            .await?;
+        Ok(())
     }
-    Ok(())
 }
 
 fn hit(slug: &str, (path, line, kind, name, signature): HitRow) -> Hit {

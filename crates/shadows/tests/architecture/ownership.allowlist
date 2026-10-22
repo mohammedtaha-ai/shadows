@@ -1,22 +1,6 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-crates/shadows-core/src/code/store/links.rs :: Storage::code_links SQL review: dynamic or indirect query [d874049232479323] #1
-crates/shadows-core/src/code/store/links.rs :: Storage::put_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
-crates/shadows-core/src/code/store/links.rs :: Storage::remove_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
-crates/shadows-core/src/code/store/links.rs :: is_project SQL table project belongs to projects [f64d9359f0ec141b] #1
-crates/shadows-core/src/code/store/links.rs :: load_link SQL review: dynamic or indirect query [c37ac5854bd10138] #1
-crates/shadows-core/src/code/store/links.rs :: module SQL table project belongs to projects [cdcc7f6f7d805a52] #1
-crates/shadows-core/src/code/store/links.rs :: replayed_link SQL table project belongs to projects [66e5065e83288116] #1
-crates/shadows-core/src/code/store/mod.rs :: Storage::code_order SQL table operation belongs to turns [8197d68f6ee97866] #1
-crates/shadows-core/src/code/store/mod.rs :: Storage::code_order SQL table planning_thread belongs to threads [8197d68f6ee97866] #1
-crates/shadows-core/src/code/store/mod.rs :: Storage::code_order SQL table project belongs to projects [8197d68f6ee97866] #1
-crates/shadows-core/src/code/store/mod.rs :: Storage::code_scope SQL table project belongs to projects [1a18cdfec499df4e] #1
-crates/shadows-core/src/code/store/mod.rs :: Storage::code_scope SQL table project belongs to projects [66cf3f82c2fd4da1] #1
-crates/shadows-core/src/code/store/mod.rs :: Storage::delete_code_file SQL review: dynamic or indirect query [7c021e09ecd4baa6] #1
-crates/shadows-core/src/code/store/mod.rs :: Storage::write_code_file SQL table project belongs to projects [f64d9359f0ec141b] #1
-crates/shadows-core/src/code/store/mod.rs :: delete_code_index_in SQL review: dynamic or indirect query [7c021e09ecd4baa6] #1
-crates/shadows-core/src/code/store/reach.rs :: project_reachable_in SQL table project belongs to projects [dd9c6114fe49c2ae] #1
-crates/shadows-core/src/code/store/reach.rs :: selected_project_in SQL table project belongs to projects [115b335575c9f70b] #1
-crates/shadows-core/src/code/watch.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
+crates/shadows-core/src/code/store/links.rs :: CodeStore::put_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
+crates/shadows-core/src/code/store/links.rs :: CodeStore::remove_code_link cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [6fb313e48667902a] #1
 crates/shadows-core/src/db/approval.rs :: authorise_in SQL table planning_thread belongs to threads [83580039648d6524] #1
 crates/shadows-core/src/db/approval.rs :: authorise_in SQL table thread_entry belongs to threads [6a44c22c97effd3d] #1
 crates/shadows-core/src/db/approval.rs :: read_in SQL table thread_entry belongs to threads [3bf42e3e0331f139] #1
@@ -119,22 +103,14 @@ crates/shadows-core/src/plans/store/edit.rs :: Storage::approve_plan_with cross-
 crates/shadows-core/src/plans/store/edit.rs :: Storage::approve_plan_with cross-owner store call shadows_core::threads::store::entry::append_entry_in [d370ea3e397e9008] #1
 crates/shadows-core/src/plans/store/edit.rs :: Storage::edit_plan cross-owner store call shadows_core::design::store::roadmap_gate::require_roadmap_in [45025ab7ab9d21a0] #1
 crates/shadows-core/src/plans/store/edit.rs :: Storage::edit_plan cross-owner store call shadows_core::grants::store::check_writer [9001f9f102969dba] #1
-crates/shadows-core/src/plans/store/graph.rs :: blockers cross-owner store call shadows_core::code::store::reach::project_reachable_in [49d2b85bbc8967c7] #1
-crates/shadows-core/src/plans/store/graph.rs :: blockers cross-owner store call shadows_core::code::store::reach::project_reachable_in [9bfb6e995105a919] #1
-crates/shadows-core/src/plans/store/graph.rs :: check_parents cross-owner store call shadows_core::code::store::reach::project_reachable_in [954c1d594f93946c] #1
 crates/shadows-core/src/plans/store/graph.rs :: owner SQL table project belongs to projects [f6a155958f9fc5ae] #1
-crates/shadows-core/src/plans/store/linked.rs :: read cross-owner store call shadows_core::code::store::reach::project_reachable_in [0a4362fc4ded4197] #1
-crates/shadows-core/src/plans/store/linked.rs :: read cross-owner store call shadows_core::code::store::reach::project_reachable_in [68d324354ab4941d] #1
 crates/shadows-core/src/plans/store/linked.rs :: related SQL table project belongs to projects [ec68b9d51a1f55b1] #1
-crates/shadows-core/src/plans/store/linked.rs :: related cross-owner store call shadows_core::code::store::reach::project_reachable_in [4869fe39967d3e32] #1
 crates/shadows-core/src/plans/store/map.rs :: Storage::plan_map SQL review: unsupported statement [431860458e1ddc22] #1
 crates/shadows-core/src/plans/store/map.rs :: Storage::plan_map SQL table project belongs to projects [1f221b319c3a653e] #1
 crates/shadows-core/src/plans/store/map.rs :: node SQL table project belongs to projects [115c060cb21b2c15] #1
 crates/shadows-core/src/plans/store/notifications.rs :: notify_plan SQL table project belongs to projects [18a724b3db58af7b] #1
 crates/shadows-core/src/plans/store/notifications.rs :: notify_project_dependencies_in SQL table project belongs to projects [ffdf28118be9c22f] #1
 crates/shadows-core/src/plans/store/plan.rs :: load_plan_versions SQL table project belongs to projects [ba67f7f2f990e9c7] #1
-crates/shadows-core/src/plans/store/read.rs :: Storage::get_plan_scoped cross-owner store call shadows_core::code::store::reach::selected_project_in [ed446301cb682896] #1
-crates/shadows-core/src/plans/store/read.rs :: Storage::list_plans_scoped cross-owner store call shadows_core::code::store::reach::selected_project_in [ed446301cb682896] #1
 crates/shadows-core/src/plans/store/read.rs :: written_by SQL table agent_invocation belongs to turns [a60039ee53ce489e] #1
 crates/shadows-core/src/plans/store/read.rs :: written_by SQL table planning_thread belongs to threads [54081ef5986d2963] #1
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::grants::store::check_writer [a000eca87c3e2f49] #1
@@ -145,8 +121,6 @@ crates/shadows-core/src/profiles/store.rs :: providers SQL review: dynamic or in
 crates/shadows-core/src/profiles/store.rs :: slug SQL review: dynamic or indirect query [1ac20e5696567d44] #1
 crates/shadows-core/src/profiles/store.rs :: slug SQL review: interpolated SQL [2c25af3a3abb16f9] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove SQL table planning_thread belongs to threads [5f4deecc4f5c3ae9] #1
-crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::code::store::delete_code_index_in [b1ec07d98396f8f7] #1
-crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::code::store::links::delete_code_links_in [9a166a25616d38b2] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::grants::store::revoke_project_grants_in [e22e94a631af841b] #1
 crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove cross-owner store call shadows_core::plans::store::notifications::notify_project_dependencies_in [08c71ab7fba6d631] #1
 crates/shadows-core/src/runtime/store.rs :: Storage::reconcile_orphans SQL table operation belongs to turns [a704d804b0e2ae9f] #1

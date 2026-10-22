@@ -1,4 +1,4 @@
-//! One job: the code index (spec §15.4–§15.6) — the `Code` service. It walks
+//! One job: the code index  — the `Code` service. It walks
 //! a project's folder into SQLite, keeps it current while the project is
 //! active, and answers three questions from it: where a name is defined, who
 //! uses it, and what a path holds.
@@ -9,6 +9,8 @@
 //! and the active limit as commands.
 
 mod active;
+#[cfg(all(test, feature = "test-support"))]
+mod boundary_tests;
 mod links;
 mod model;
 mod scan;
@@ -24,29 +26,27 @@ pub use model::{
     Answer, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped,
 };
 pub use scope::Asker;
-pub(crate) use store::{project_reachable_in, selected_project_in};
 
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::projects::{ProjectId, Projects};
 use active::Active;
-use store::ScopeRow;
-pub(crate) use store::{delete_code_index_in, delete_code_links_in};
+use store::{CodeStore, ScopeRow};
 use watch::Job;
 
-/// The hits an answer carries at most (§15.5).
+/// The hits an answer carries at most.
 const HITS: usize = 50;
 /// How long a question waits for its re-check before it answers anyway.
 const RECHECK_WAIT: Duration = Duration::from_secs(2);
 
 struct Inner {
-    storage: Arc<Storage>,
+    store: CodeStore,
     projects: Projects,
     active: tokio::sync::Mutex<Active>,
 }
 
 /// The code index. Cheap to clone: `Projects`, `Threads` and `Turns` hold a
-/// clone to call `touch` (§15.6), and each worker holds one.
+/// clone to call `touch`, and each worker holds one.
 #[derive(Clone)]
 pub struct Code {
     inner: Arc<Inner>,
@@ -56,19 +56,31 @@ impl Code {
     pub(crate) fn new(storage: Arc<Storage>, projects: Projects) -> Self {
         Self {
             inner: Arc::new(Inner {
-                storage,
+                store: CodeStore::with_storage(storage),
                 projects,
                 active: Default::default(),
             }),
         }
     }
 
-    /// Chooses the active set (§15.6) and starts a worker per active project;
+    /// Projects with a directory, in the owner's explicit activity order.
+    async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, CoreError> {
+        Ok(self
+            .inner
+            .projects
+            .by_recent_activity()
+            .await?
+            .into_iter()
+            .filter_map(|p| p.directory.map(|dir| (p.id, dir)))
+            .collect())
+    }
+
+    /// Chooses the active set  and starts a worker per active project;
     /// it waits for no scan. `AppCore::start` calls it with the default; a
     /// test calls it when it wants workers.
     pub async fn start(&self, config: CodeConfig) -> Result<(), CoreError> {
-        let storage = &self.inner.storage;
-        let order = storage.code_order().await?;
+        let store = &self.inner.store;
+        let order = self.code_order().await?;
         let order = order
             .into_iter()
             .map(|(id, dir)| (id, PathBuf::from(dir)))
@@ -76,7 +88,7 @@ impl Code {
         let mut active = self.inner.active.lock().await;
         // Under the lock, as `set_active_limit` reads it: a limit set before
         // `begin` is not lost.
-        let limit = storage.code_active_limit().await?.max(1) as usize;
+        let limit = store.code_active_limit().await?.max(1) as usize;
         for early in active.begin(order, limit, config) {
             if let Some(rows) = self.used_rows(&early).await {
                 active.used(&rows);
@@ -86,7 +98,7 @@ impl Code {
         Ok(())
     }
 
-    /// The project was used (§15.6): its links, then it, become the most
+    /// The project was used: its links, then it, become the most
     /// recent, and active; the scan runs in its worker. It never fails its
     /// caller: a failure is logged. Before `start`, it only records the use.
     pub async fn touch(&self, project: &ProjectId) {
@@ -101,7 +113,7 @@ impl Code {
         }
     }
 
-    /// The project was removed (§15.4): its watcher and worker stop, and it
+    /// The project was removed: its watcher and worker stop, and it
     /// leaves the active set, whose next project takes its place. It never
     /// fails its caller; the rows went in the removal's own write.
     pub async fn forget(&self, project: &ProjectId) {
@@ -134,7 +146,7 @@ impl Code {
 
     /// The project and its direct links, each with its folder, or `None` logged.
     async fn used_rows(&self, project: &ProjectId) -> Option<Vec<(ProjectId, Option<PathBuf>)>> {
-        match self.inner.storage.code_scope(project).await {
+        match self.inner.store.code_scope(project).await {
             Ok(rows) => Some(
                 rows.into_iter()
                     .map(|(id, _, dir)| (id, dir.map(PathBuf::from)))
@@ -181,13 +193,13 @@ impl Code {
         only: Option<&str>,
         path: &str,
     ) -> Result<Answer, CoreError> {
-        let path = scan::path_key(&scope::inside(path)?);
-        let storage = &self.inner.storage;
-        let scope = scope::projects(storage, &asker, only).await?;
-        self.touch(scope::home(&asker)).await;
-        let mut rows = storage.code_outline(&scope, &path).await?;
+        let path = Self::path_key(&Self::inside(path)?);
+        let store = &self.inner.store;
+        let scope = self.projects(&asker, only).await?;
+        self.touch(asker.home()).await;
+        let mut rows = store.code_outline(&scope, &path).await?;
         if self.recheck(&scope, &rows).await {
-            rows = storage.code_outline(&scope, &path).await?;
+            rows = store.code_outline(&scope, &path).await?;
         }
         self.answer(&scope, rows, Vec::new()).await
     }
@@ -217,22 +229,22 @@ impl Code {
         name: &str,
         role: &str,
     ) -> Result<Answer, CoreError> {
-        let storage = &self.inner.storage;
-        let scope = scope::projects(storage, &asker, only).await?;
-        self.touch(scope::home(&asker)).await;
-        let mut rows = storage.code_by_name(&scope, name, role).await?;
+        let store = &self.inner.store;
+        let scope = self.projects(&asker, only).await?;
+        self.touch(asker.home()).await;
+        let mut rows = store.code_by_name(&scope, name, role).await?;
         if self.recheck(&scope, &rows).await {
-            rows = storage.code_by_name(&scope, name, role).await?;
+            rows = store.code_by_name(&scope, name, role).await?;
         }
         let suggestions = if rows.is_empty() {
-            storage.code_suggestions(&scope, name, role).await?
+            store.code_suggestions(&scope, name, role).await?
         } else {
             Vec::new()
         };
         self.answer(&scope, rows, suggestions).await
     }
 
-    /// §15.5: the files of the first 50 hits whose size or modified time
+    ///: the files of the first 50 hits whose size or modified time
     /// changed, or that are gone, go to their project's worker as one
     /// `Recheck`, awaited for at most 2 s in all. `true` when any went, so
     /// the caller asks again, once. A project with no worker answers from its
@@ -307,7 +319,7 @@ impl Code {
         &self,
         (id, slug, directory): &ScopeRow,
     ) -> Result<ProjectStatus, CoreError> {
-        let (files, skipped) = self.inner.storage.code_counts(id).await?;
+        let (files, skipped) = self.inner.store.code_counts(id).await?;
         let (state, updated_at) = match directory {
             None => (IndexState::NoDirectory, None),
             Some(_) => match self.inner.active.lock().await.worker(id) {

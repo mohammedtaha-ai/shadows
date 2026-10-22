@@ -18,8 +18,8 @@
 # session (Harness), not here.
 # `remove` is a soft remove (§4.2): the row stays, since the journal
 # references it ON DELETE RESTRICT, and `removed_at` is set. Every read of a
-# project (`get`, `list`, `by_recent_activity`, `require_live_in`, which
-# Instructions calls, and the direct reads in Grants and Code)
+# project (`get`, `list`, `by_recent_activity`, `get_in`, `by_slug_in`,
+# `require_live_in`, which Instructions and Code call, and Grants' direct reads)
 # leaves a removed one out, so it answers NotFound everywhere; its slug
 # stays taken. One write takes
 # the index, the links both ways and the live project grants with it.
@@ -223,6 +223,15 @@ functions:
       # Plans' `notify_project_dependencies_in`, Code's
       # `delete_code_index_in` and `delete_code_links_in`, Grants'
       # `revoke_project_grants_in` → `ProjectRemoved` → record_command.
+    get_in:
+      signature: "(conn: &mut SqliteConnection, id: &ProjectId) -> Result<Project, StorageError>"
+      # Associated read in the caller's snapshot: require_live_in then load_project.
+    by_slug_in:
+      signature: "(conn: &mut SqliteConnection, slug: &str) -> Result<Option<Project>, StorageError>"
+      # Associated live slug lookup in the caller's snapshot. by_slug delegates here.
+    slug_in:
+      signature: "(conn: &mut SqliteConnection, id: &ProjectId) -> Result<String, StorageError>"
+      # Associated slug lookup, including retained removed rows for link replays.
     require_live_in:
       signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>"
       # An associated function in the caller's transaction or connection:
@@ -248,12 +257,18 @@ enums:
     values: []
 
 
+shared_in_transaction:
+  get_in: "Code::code_scope: live project metadata in its read snapshot"
+  by_slug_in: "Code::selected_project_in: live slug resolution in the dependency snapshot"
+  slug_in: "Code link reads and replays: retained slugs in the caller's snapshot"
+  require_live_in: "Instructions and Code: the one liveness check in the caller's transaction or snapshot"
+
 called_by_other_services:
-  require_live_in: "Instructions (instructions/store.rs save and current): the liveness check inside its own write or read"
+  require_live_in: "Instructions (save/current) and Code (link writes, file writes, reach): liveness in the caller's transaction or snapshot"
   get: "Code (status, scan) and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
   by_slug: "Profiles (assistant_project): the live project `aylul`, kept only when marked assistant"
   allowed_modes: "Turns (turns/record.rs, the mode check) and Harness (harness/mod.rs choices): the modes a project allows for a harness"
-  by_recent_activity: "Code (start order), from the code task on"
+  by_recent_activity: "Code::code_order: startup order, filtered to projects with a directory"
   known_harness: "Threads (create, set_harness): the one rule for a known harness"
   harness_fits: "Threads (create, set_harness): the rule that AYLUL runs only in the AYLUL project"
 

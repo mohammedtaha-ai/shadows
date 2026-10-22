@@ -23,7 +23,7 @@ pub(super) async fn read(
         };
         if let Some(mut view) = related(conn, plan_id, *task, None, link, false, origin).await? {
             if let Some(project) = &view.project_id
-                && !crate::code::project_reachable_in(conn, &root.project_id, project).await?
+                && !crate::code::Code::project_reachable_in(conn, &root.project_id, project).await?
             {
                 view.broken = Some("the target project's link was removed".into());
             }
@@ -69,7 +69,7 @@ pub(super) async fn read(
                 ));
             }
             if let Some(project) = &view.project_id
-                && !crate::code::project_reachable_in(conn, project, &root.project_id).await?
+                && !crate::code::Code::project_reachable_in(conn, project, &root.project_id).await?
             {
                 view.broken = Some("the source project's link was removed".into());
             }
@@ -130,7 +130,7 @@ async fn related(
     };
     let project = ProjectId::from_stored(project);
     if let Some(origin) = origin
-        && !crate::code::project_reachable_in(conn, origin, &project).await?
+        && !crate::code::Code::project_reachable_in(conn, origin, &project).await?
     {
         if incoming {
             return Ok(None);

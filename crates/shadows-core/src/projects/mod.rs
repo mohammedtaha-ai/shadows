@@ -70,12 +70,7 @@ impl Projects {
     /// The live project `slug`, whether or not it is AYLUL's. `None` when no
     /// live project holds it.
     pub(crate) async fn by_slug(&self, slug: &str) -> Result<Option<Project>, CoreError> {
-        Ok(self
-            .store
-            .list()
-            .await?
-            .into_iter()
-            .find(|p| p.slug == slug))
+        Ok(self.store.by_slug(slug).await?)
     }
 
     /// The modes `project` allows for `harness`; empty when it names none,

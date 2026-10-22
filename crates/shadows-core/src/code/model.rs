@@ -1,6 +1,6 @@
-//! One job: the code index types callers meet (spec §15.5–§15.6).
+//! One job: the code index types callers meet.
 
-/// How a project's index stands (§15.5).
+/// How a project's index stands.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum IndexState {
@@ -12,7 +12,7 @@ pub enum IndexState {
     },
     /// Not in the active set: the index is as it was when the project left it.
     Inactive,
-    /// A project created before projects owned a folder (migration 0003).
+    /// A project without a stored directory.
     NoDirectory,
     DirectoryMissing,
 }
@@ -48,7 +48,7 @@ pub struct Hit {
     pub kind: String,
     pub name: String,
     pub signature: Option<String>,
-    /// `Some("name")` on every `references` hit: matched by name only (§15.5).
+    /// `Some("name")` on every `references` hit: matched by name only.
     pub matched_by: Option<String>,
 }
 
@@ -66,7 +66,7 @@ pub struct Answer {
     pub status: Vec<ProjectStatus>,
 }
 
-/// How the workers keep the index current (§15.4).
+/// How the workers keep the index current.
 #[derive(Debug, Clone, Copy)]
 pub struct CodeConfig {
     /// How often each active project is scanned: the watcher can lose changes.
@@ -84,7 +84,7 @@ impl Default for CodeConfig {
     }
 }
 
-/// A project reading another's index (§15.6). One way: `project` reads
+/// A project reading another's index. One way: `project` reads
 /// `linked`, never the reverse.
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct ProjectLink {
@@ -95,7 +95,7 @@ pub struct ProjectLink {
     pub created_at: String,
 }
 
-/// The code index's settings (§15.6).
+/// The code index's settings.
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct CodeSettings {
     /// How many projects are active at once: 1 to 20, default 5.

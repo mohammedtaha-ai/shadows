@@ -8,7 +8,7 @@ use sqlx::SqliteConnection;
 use super::Projects;
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
-use crate::code::{delete_code_index_in, delete_code_links_in};
+use crate::code::Code;
 use crate::db::{
     Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
@@ -188,6 +188,11 @@ impl ProjectsStore {
         load_project(&mut conn, id).await
     }
 
+    pub(super) async fn by_slug(&self, slug: &str) -> Result<Option<Project>, StorageError> {
+        let mut conn = self.storage.reader().acquire().await?;
+        Projects::by_slug_in(&mut conn, slug).await
+    }
+
     /// Removes the project: it stays a row, since the journal
     /// references it, but is read nowhere again. Refused while it holds a
     /// planning thread. One write: its index, its links both ways and its
@@ -226,8 +231,8 @@ impl ProjectsStore {
                         .await?;
                     let actor = Actor::user(&ctx.principal_id);
                     crate::plans::notify_project_dependencies_in(conn, &id, &actor, &ts).await?;
-                    delete_code_index_in(conn, &id).await?;
-                    delete_code_links_in(conn, &id).await?;
+                    Code::delete_code_index_in(conn, &id).await?;
+                    Code::delete_code_links_in(conn, &id).await?;
                     revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
                     append_event(
                         conn,
@@ -420,6 +425,45 @@ async fn load_project(
 }
 
 impl Projects {
+    /// A live project's metadata in the caller's snapshot.
+    pub(crate) async fn get_in(
+        conn: &mut SqliteConnection,
+        id: &ProjectId,
+    ) -> Result<Project, StorageError> {
+        Self::require_live_in(conn, id).await?;
+        load_project(conn, id).await
+    }
+
+    /// The live project holding a slug in the caller's snapshot.
+    pub(crate) async fn by_slug_in(
+        conn: &mut SqliteConnection,
+        slug: &str,
+    ) -> Result<Option<Project>, StorageError> {
+        let id: Option<String> =
+            sqlx::query_scalar("SELECT id FROM project WHERE slug = ? AND removed_at IS NULL")
+                .bind(slug)
+                .fetch_optional(&mut *conn)
+                .await?;
+        match id {
+            Some(id) => load_project(conn, &ProjectId::from_stored(id))
+                .await
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+
+    /// A retained project's slug, including removed rows needed by command replays.
+    pub(crate) async fn slug_in(
+        conn: &mut SqliteConnection,
+        id: &ProjectId,
+    ) -> Result<String, StorageError> {
+        sqlx::query_scalar("SELECT slug FROM project WHERE id = ?")
+            .bind(id.as_str())
+            .fetch_optional(&mut *conn)
+            .await?
+            .ok_or(StorageError::NotFound("project"))
+    }
+
     /// Proves `project` is live inside the caller's transaction or connection:
     /// `NotFound("project")` for an unknown or removed one. The one liveness
     /// check: this store's own reads and writes use it, and other services

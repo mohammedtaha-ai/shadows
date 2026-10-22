@@ -29,7 +29,8 @@ impl Storage {
     ) -> Result<Plan, StorageError> {
         let mut snapshot = self.reader().begin().await?;
         if let Some(origin) = origin {
-            let selected = crate::code::selected_project_in(&mut snapshot, origin, project).await?;
+            let selected =
+                crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
             let owner: Option<String> = sqlx::query_scalar(
                 "SELECT p.project_id FROM workflow w JOIN plan p ON p.id=w.plan_id WHERE w.id=?",
             )
@@ -53,7 +54,8 @@ impl Storage {
         project: Option<&str>,
     ) -> Result<Vec<PlanListing>, StorageError> {
         let mut snapshot = self.reader().begin().await?;
-        let selected = crate::code::selected_project_in(&mut snapshot, origin, project).await?;
+        let selected =
+            crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
         let plans = listings(&mut snapshot, &selected, archived).await?;
         snapshot.commit().await?;
         Ok(plans)

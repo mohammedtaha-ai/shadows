@@ -167,7 +167,7 @@ impl Shadows {
         let asked = self
             .core
             .code()
-            .definitions(Asker::Grant(&grant), only, &args.name);
+            .definitions(Asker::Grant(&grant.project_id), only, &args.name);
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
     }
 
@@ -182,7 +182,7 @@ impl Shadows {
         let asked = self
             .core
             .code()
-            .references(Asker::Grant(&grant), only, &args.name);
+            .references(Asker::Grant(&grant.project_id), only, &args.name);
         text(asked.await.map(|a| lines(&a, true)).map_err(Refusal::from))
     }
 
@@ -198,7 +198,7 @@ impl Shadows {
         let asked = self
             .core
             .code()
-            .outline(Asker::Grant(&grant), only, &args.path);
+            .outline(Asker::Grant(&grant.project_id), only, &args.path);
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
     }
 
