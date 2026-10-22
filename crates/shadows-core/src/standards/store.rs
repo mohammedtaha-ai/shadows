@@ -2,9 +2,9 @@
 
 use super::{Standards, StandardsAdditions, StandardsAdditionsVersion};
 use crate::db::{
-    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
+    Actor, CommandContext, JournalEntry, Storage, StorageError, append_event, classify, now,
+    record_command,
 };
-use crate::events::DurableEvent;
 use crate::projects::{ProjectId, Projects};
 use sqlx::SqliteConnection;
 use std::sync::Arc;
@@ -57,11 +57,18 @@ impl StandardsStore {
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
-                    let event =
-                        DurableEvent::new("ProjectStandardsSaved", Actor::user(&ctx.principal_id))
-                            .with_project(&project)
-                            .with_payload(serde_json::json!({"number": number}));
-                    append_event(conn, &event, &ts).await?;
+                    let event = JournalEntry {
+                        event_id: uuid::Uuid::new_v4().to_string(),
+                        kind: "ProjectStandardsSaved".into(),
+                        project_id: Some(project.as_str().to_owned()),
+                        thread_id: None,
+                        operation_id: None,
+                        actor: Actor::user(&ctx.principal_id),
+                        causation: None,
+                        correlation_id: None,
+                        payload_json: serde_json::json!({"number": number}).to_string(),
+                    };
+                    append_event(conn, event, &ts).await?;
                     record_command(
                         conn,
                         &ctx,

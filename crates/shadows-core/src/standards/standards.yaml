@@ -1,4 +1,4 @@
-# Compiled-in base standards (§23.2). A reviewed change increments version.
+# Compiled-in base standards. A reviewed change increments version.
 version: 1
 parts:
   - name: backend

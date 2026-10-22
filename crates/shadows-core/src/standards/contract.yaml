@@ -2,6 +2,7 @@
 # Project liveness is checked through Projects in the caller's snapshot.
 # Invocation selection belongs to Turns; this service loads only its own versions.
 # A replay precedes validation and liveness so removal cannot change its result.
+# Saves append foundation JournalEntry values without depending on Events.
 name: standards
 version: 1
 status: current

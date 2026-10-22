@@ -127,7 +127,7 @@ functions:
       # Then `Code::touch` of the project: the web client opening a project
       # lists its threads (§15.6). It never fails the listing.
     create:
-      signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>) -> Result<PlanningThread, CoreError>"
+      signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>, profile: Option<&str>) -> Result<PlanningThread, CoreError>"
       # harness or `claude-code` → `Projects::known_harness` →
       # `Projects::harness_fits` (`aylul` only in the project `ensure_assistant`
       # marked `assistant`, which allows only `aylul`; SettingNotOffered otherwise) → "thread.create",
