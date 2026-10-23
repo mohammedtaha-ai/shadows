@@ -165,8 +165,8 @@ impl super::TurnsStore {
                     };
                     let refs = focus.iter().flat_map(|f| {
                         [
-                            EntryRef::Workflow(f.workflow_id.clone()),
-                            EntryRef::Task(f.task_id.clone()),
+                            EntryRef::Workflow(f.workflow_id.clone().as_str().into()),
+                            EntryRef::Task(f.task_id.clone().as_str().into()),
                         ]
                     });
                     let refs: Vec<EntryRef> = refs.collect();
@@ -182,7 +182,7 @@ impl super::TurnsStore {
                             body: &prompt,
                             refs: &refs,
                             card: None,
-                            operation_id: Some(&op),
+                            operation_id: Some(op.as_str()),
                         },
                         &attachments,
                         &ts,

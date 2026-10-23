@@ -1,6 +1,6 @@
 //! Live grant attribution for agreement proposals.
 use super::{AgreementContent, AgreementId, AgreementVersion, Design};
-use crate::db::{CommandContext, fingerprint};
+use crate::db::CommandContext;
 use crate::{CoreError, Grant, grants::Writer};
 
 #[derive(Clone)]
@@ -29,7 +29,7 @@ fn context(
         command_id: id,
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &params),
+        request_fingerprint: CommandContext::fingerprint(kind, &params),
     })
 }
 impl Design {

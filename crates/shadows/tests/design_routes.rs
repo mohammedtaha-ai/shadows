@@ -69,7 +69,8 @@ async fn create_structure_route_writes_and_refuses() {
         (200, result)
     );
     let events = app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &p, 100)
         .await
         .unwrap();
@@ -173,7 +174,8 @@ async fn map_proposal_routes_list_and_approve() {
         404
     );
     let events = app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &app.project, 100)
         .await
         .unwrap();
@@ -232,7 +234,8 @@ async fn vision_proposal_routes_list_and_approve() {
     assert_eq!(status, 422);
     assert_eq!(refusal["code"], "INVALID_COMMAND");
     let events = app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &app.project, 100)
         .await
         .unwrap();
@@ -274,7 +277,8 @@ async fn standards_routes_read_the_base_and_save_additions() {
         (422, Some("INVALID_COMMAND"))
     );
     let events = app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &app.project, 100);
     let events = events.await.unwrap();
     assert_eq!(events.len(), 1);
@@ -350,7 +354,8 @@ async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
     assert!(detail["parts"].as_array().unwrap().is_empty());
     assert_ne!(app::call(&app, "POST", &edits, Some(failed)).await.0, 200);
     assert_eq!(
-        app.storage
+        app.core
+            .events()
             .read_project_events_after(EventCursor(0), &app.project, 100)
             .await
             .unwrap()
@@ -417,7 +422,8 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     assert_eq!(invalid.1["code"], "INVALID_COMMAND");
     assert!(invalid.1["message"].as_str().unwrap().contains(&root));
     let events = app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &app.project, 100)
         .await
         .unwrap();
@@ -489,7 +495,8 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     assert_eq!(invalid.1["code"], "INVALID_COMMAND");
     assert!(invalid.1["message"].as_str().unwrap().contains(&a));
     let events = app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &app.project, 100)
         .await
         .unwrap();
@@ -547,7 +554,8 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
         assert_eq!(app::call(&app, "GET", &path, None).await.0, 200);
     }
     let events = app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &app.project, 100)
         .await
         .unwrap();

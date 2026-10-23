@@ -1,21 +1,23 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-# A-19: thread model OperationId/WorkflowId/TaskId imports remain for extraction.
+# A-19b: foundation migration catalog reads remain explicit SQL review cases.
 crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: unknown table _sqlx_migrations [588f191de74f5cc2] #1
 crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: unknown table sqlite_schema [b22bec229f27366b] #1
+# A-19b: foundation test-only PRAGMA observation remains an explicit SQL review case.
 crates/shadows-core/src/db/write_observer.rs :: DatabaseWrites::version SQL review: unsupported statement [bec5d39792ff9942] #1
-crates/shadows-core/src/events/store.rs :: Storage::current_cursor SQL review: dynamic or indirect query [c1e40c7a3d7dffc8] #1
-crates/shadows-core/src/events/store.rs :: Storage::read_project_events_after SQL table workflow belongs to plans [d2331dc844223516] #1
+# A-20: test module glob resolution review.
 crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
+# A-20: legacy fixture service constructors.
 crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
-crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::app::CoreParts [eb819e5a3702e515] #1
 # A-20: adapter fixtures retain explicit storage, session and live-registry handles.
+crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::app::CoreParts [eb819e5a3702e515] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::db::Storage [9c1c6a74e7ff5b3b] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::turns::handles::LiveHandles [9c1c6a74e7ff5b3b] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::app::CoreParts [27e260cba753808c] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::db::Storage::open [7d87dc6849ac2337] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::turns::handles::LiveHandles::default [68c6bc98750ff5dc] #1
 crates/shadows-http/src/aylul_env_tests.rs :: world adapter calls shadows_core::db::Storage::unwrap [bf25e3bc00c2485f] #1
+# A-20: binary test module glob resolution reviews.
 crates/shadows/src/aylul_tests.rs :: module name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows/src/cli/args.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows/src/daemon/descriptor.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1

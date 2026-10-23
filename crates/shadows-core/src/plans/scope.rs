@@ -8,7 +8,7 @@ use serde_json::json;
 use super::model::{DraftStarted, Plan, PlanId, WorkflowId};
 use super::rules::Problem;
 use super::{DraftStart, Plans};
-use crate::db::{Anchor, CommandContext, StorageError, derived_id, fingerprint};
+use crate::db::{Anchor, CommandContext, StorageError};
 use crate::error::{CoreError, ErrorCode};
 use crate::grants::Grant;
 use crate::grants::Writer;
@@ -108,10 +108,10 @@ impl Plans {
             "reason": args.reason,
         });
         let params = with_parts(params, &args.parts);
-        let fp = fingerprint("DraftStart", &params);
+        let fp = CommandContext::fingerprint("DraftStart", &params);
         let ctx = Scope::command(
             &writer,
-            derived_id(Anchor::Operation(op.as_str()), &fp),
+            Anchor::derived_id(Anchor::Operation(op.as_str()), &fp),
             "DraftStart",
             fp,
         );
@@ -173,10 +173,10 @@ impl Plans {
             "reason": args.reason,
         });
         let params = with_parts(params, &args.parts);
-        let fp = fingerprint("DraftStart", &params);
+        let fp = CommandContext::fingerprint("DraftStart", &params);
         let ctx = Scope::command(
             &writer,
-            derived_id(Anchor::DraftRef(draft_ref), &fp),
+            Anchor::derived_id(Anchor::DraftRef(draft_ref), &fp),
             "DraftStart",
             fp,
         );

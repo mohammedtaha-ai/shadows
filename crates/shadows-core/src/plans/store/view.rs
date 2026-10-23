@@ -51,7 +51,7 @@ impl PlansStore {
                             ..recorded
                         });
                     }
-                    let mut refs = vec![EntryRef::Workflow(workflow.clone())];
+                    let mut refs = vec![EntryRef::Workflow(workflow.clone().as_str().into())];
                     let body = match task_number {
                         None => format!("Plan v{}", plan.version),
                         Some(n) => {
@@ -62,7 +62,7 @@ impl PlansStore {
                                         "T{n} does not exist in this plan"
                                     ))
                                 })?;
-                            refs.push(EntryRef::Task(id));
+                            refs.push(EntryRef::Task(id.as_str().into()));
                             format!("T{n} · {title}")
                         }
                     };
@@ -72,7 +72,7 @@ impl PlansStore {
                         body: &body,
                         refs: &refs,
                         card: None,
-                        operation_id: Some(&turn),
+                        operation_id: Some(turn.as_str()),
                     };
                     let entry = Threads::append_entry_in(conn, &thread, entry, &ts).await?;
                     let shown = PlanShown {

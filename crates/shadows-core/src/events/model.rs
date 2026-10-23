@@ -4,10 +4,8 @@ use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
 
-/// Spec §6.18. `seq` is assigned by the INSERT, which on SQLite can only run
-/// while holding the write lock, so assignment order equals commit order. That
-/// property is SQLite-specific — see the OPEN block in §6.18 before writing
-/// backend-neutral cursor code.
+/// SQLite assigns sequence numbers while holding the write lock, so journal
+/// sequence order equals commit order. Other backends must preserve this guarantee.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
@@ -40,12 +38,7 @@ impl DurableEvent {
             payload_json: "{}".into(),
         }
     }
-    /// Typed, and that is the point: these three builders took
-    /// `impl Into<String>`, so `.with_project(thread_id)` compiled and silently
-    /// scoped an event to the wrong entity. One event row is visible through
-    /// several scopes (§4.2), so a misscoped event is not a cosmetic error — it
-    /// is a row that appears in the wrong replay and is missing from the right
-    /// one, with nothing failing anywhere.
+    /// Typed scope ids prevent an event from appearing in the wrong replay.
     pub fn with_project(mut self, id: &ProjectId) -> Self {
         self.project_id = Some(id.clone());
         self
@@ -94,10 +87,10 @@ impl From<&DurableEvent> for JournalEntry {
     }
 }
 
-/// The live-only signal that moves a person's screen (spec §13.9).
+/// The live-only signal that moves a person's screen.
 ///
 /// `plan_show` sends one after its card commits. It is transport state
-/// (§2.10): never stored, never journaled, never replayed. `Events` delivers
+/// that is never stored, never journaled, never replayed. `Events` delivers
 /// it to every live subscriber of its thread as `Delivery::PlanShow`, which
 /// the stream (`sse.rs`) frames as `plan-show`; only the tab it names opens
 /// the panel or the page.

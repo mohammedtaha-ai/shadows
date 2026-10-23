@@ -47,7 +47,7 @@ pub use rules::Problem;
 
 use scope::Scope;
 
-use crate::db::{Anchor, CommandContext, Storage, derived_id, fingerprint};
+use crate::db::{Anchor, CommandContext, Storage};
 use crate::error::{CoreError, ErrorCode};
 use crate::grants::{Grant, GrantKind};
 use crate::projects::ProjectId;
@@ -302,10 +302,10 @@ impl Plans {
         };
         let expected = args.expected_revision;
         let params = json!({ "workflow": plan.id, "expected_revision": expected, "ops": args.ops });
-        let fp = fingerprint("PlanEdit", &params);
+        let fp = CommandContext::fingerprint("PlanEdit", &params);
         let id = args
             .command_id
-            .unwrap_or_else(|| derived_id(Anchor::Revision(expected), &fp));
+            .unwrap_or_else(|| Anchor::derived_id(Anchor::Revision(expected), &fp));
         let ctx = Scope::command(&writer, id, "PlanEdit", fp);
         self.store
             .edit_plan(&ctx, &writer, turn.as_ref(), &plan.id, expected, &args.ops)
@@ -340,10 +340,10 @@ impl Plans {
         let writer = Scope::writer_of(grant)?;
         let params =
             json!({ "workflow": plan.id, "task_number": args.task_number, "place": args.place });
-        let fp = fingerprint("PlanShow", &params);
+        let fp = CommandContext::fingerprint("PlanShow", &params);
         let ctx = Scope::command(
             &writer,
-            derived_id(Anchor::Operation(op.as_str()), &fp),
+            Anchor::derived_id(Anchor::Operation(op.as_str()), &fp),
             "PlanShow",
             fp,
         );

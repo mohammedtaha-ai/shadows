@@ -15,7 +15,7 @@ use app::{
 use plan::{add, draft, edit};
 use serde_json::{Value, json};
 use shadows_core::OperationId;
-use shadows_core::testing::fingerprint;
+use shadows_core::testing::CommandContext;
 
 /// A turn body with the fake's own settings.
 fn turn(command: &str, prompt: &str) -> Value {
@@ -188,7 +188,7 @@ async fn turn_command_fingerprints_do_not_move() {
     let pinned = |id: &str, params: Value| {
         let (user, local) = ("User".to_string(), "local".to_string());
         let kind = "turn.start".to_string();
-        let fp = fingerprint(&kind, &params);
+        let fp = CommandContext::fingerprint(&kind, &params);
         (user, local, id.to_string(), kind, 1, fp)
     };
     let plain = json!({ "thread_id": thread, "prompt": "hi", "model": "fake-large",

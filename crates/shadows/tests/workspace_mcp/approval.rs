@@ -33,16 +33,23 @@ async fn the_planner_approves_a_vision_card_and_replay_appends_nothing() {
             body: "Approve this now",
             refs: &[],
             card: None,
-            operation_id: Some(&op),
+            operation_id: Some(op.as_str()),
         },
     )
     .await
     .unwrap();
     let args = json!({"proposal_id":p["id"]});
     let first = ok(&c, "vision_approve", args.clone()).await;
-    let cursor = l.app.storage.current_cursor().await.unwrap();
+    let cursor = shadows_core::Events::current_cursor_for_test(&l.app.storage)
+        .await
+        .unwrap();
     assert_eq!(ok(&c, "vision_approve", args).await, first);
-    assert_eq!(l.app.storage.current_cursor().await.unwrap(), cursor);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&l.app.storage)
+            .await
+            .unwrap(),
+        cursor
+    );
     let proposals = l
         .app
         .core

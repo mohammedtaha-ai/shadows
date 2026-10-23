@@ -7,8 +7,9 @@ use serde_json::json;
 use shadows_agent::policy;
 use shadows_core::ThreadId;
 use shadows_core::WorkflowId;
+use shadows_core::testing::CommandContext;
 
-use shadows_core::testing::{acp, fingerprint};
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/listening.rs"]
@@ -467,7 +468,10 @@ async fn a_planner_draft_start_names_a_project_plan() {
         "goal": null,
         "reason": "the API changed",
     });
-    assert_eq!(recorded, [fingerprint("DraftStart", &params)]);
+    assert_eq!(
+        recorded,
+        [CommandContext::fingerprint("DraftStart", &params)]
+    );
     let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
     assert_eq!(events.len(), 2, "v1 and v2 only");
 }

@@ -1,4 +1,4 @@
-use shadows_core::testing::{CommandContext, LiveHandles, Storage, Writer, acp, fingerprint};
+use shadows_core::testing::{CommandContext, LiveHandles, Storage, Writer, acp};
 use shadows_core::{
     AcceptanceItem, AppCore, CoreParts, DesignAnchor, DesignOp, OutcomeContent, OutcomeId,
     PartContent, PartId, PlanOp, ProjectId, TaskContent,
@@ -14,7 +14,7 @@ fn ctx(writer: &Writer, id: &str, kind: &str) -> CommandContext {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &serde_json::json!({"id":id})),
+        request_fingerprint: CommandContext::fingerprint(kind, &serde_json::json!({"id":id})),
     }
 }
 async fn fixture(path: &std::path::Path) -> (Arc<Storage>, Arc<AppCore>) {

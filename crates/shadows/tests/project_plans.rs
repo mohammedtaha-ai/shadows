@@ -4,8 +4,8 @@
 //! version rules.
 
 use serde_json::json;
+use shadows_core::testing::Anchor;
 use shadows_core::testing::Writer;
-use shadows_core::testing::{Anchor, derived_id};
 use shadows_core::{CoreError, DraftStart, DraftStarted, ErrorCode, WorkflowState, WrittenBy};
 
 use shadows_core::testing::acp;
@@ -176,7 +176,7 @@ async fn approving_an_external_version_writes_no_entry() {
         .start_draft_for_test(
             &writer_ctx(
                 &external,
-                &derived_id(Anchor::DraftRef(&r), ""),
+                &Anchor::derived_id(Anchor::DraftRef(&r), ""),
                 "DraftStart",
                 json!({}),
             ),

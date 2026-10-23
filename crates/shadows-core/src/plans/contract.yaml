@@ -273,6 +273,13 @@ shapes:
 
 
 functions:
+  event_projection:
+    project_event_payload_in:
+      signature: "(conn, kind, payload) -> Result<String, StorageError>"
+      rule: >
+        Workflow events project their version; archive events project the latest version
+        in the caller snapshot. Missing workflows produce null identifiers. Other events
+        retain their payload verbatim. Plan content never reaches project notifications.
   boundary:
     edit_design: Atomic workspace edit composed with plan identity facts and association writes; replay
     design_part: PartView with Design facts, linked plan IDs and binding participants in one snapshot.
@@ -427,6 +434,7 @@ enums:
 
 
 shared_in_transaction:
+  project_event_payload_in: Events projects plan identifiers in its journal read snapshot.
   workflow_in_project_in: "(conn, workflow, project) -> Result<bool, StorageError>; Turns reads focus membership in its snapshot."
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
@@ -875,6 +883,7 @@ tests:
 # WrittenBy Planner provenance reads Harness::invocation_model_in in the caller snapshot.
 
 modules:
+  store/event_projection.rs: identifier-only plan event projection
   agreement_review.rs: Values returned by a shared agreement impact review
   agreements.rs: Agreement review composed above Design
   binding_edit.rs: Person adoption of exact agreement versions through the plan edit

@@ -335,7 +335,7 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: shadows_core::testing::fingerprint(
+        request_fingerprint: shadows_core::testing::CommandContext::fingerprint(
             kind,
             &serde_json::json!({ "id": id }),
         ),

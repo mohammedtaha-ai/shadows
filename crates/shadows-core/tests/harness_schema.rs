@@ -8,11 +8,11 @@ use std::sync::Arc;
 use shadows_agent::policy;
 use shadows_core::Actor;
 use shadows_core::Project;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::NewThreadEntry;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{ThreadEntryKind, ThreadId};
 
 struct Fixture {
@@ -30,7 +30,7 @@ fn ctx(id: &str, kind: &str) -> CommandContext {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &serde_json::json!({ "id": id })),
+        request_fingerprint: CommandContext::fingerprint(kind, &serde_json::json!({ "id": id })),
     }
 }
 
@@ -202,12 +202,12 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
             body: "x",
             refs: &[],
             card: None,
-            operation_id: Some(&op),
+            operation_id: Some(op.as_str()),
         },
     )
     .await
     .unwrap();
-    assert_eq!(e.operation_id.as_ref(), Some(&op));
+    assert_eq!(e.operation_id.as_deref(), Some(op.as_str()));
     let e2 = shadows_core::Threads::append_thread_entry_for_test(
         &fx.storage,
         &thread,
@@ -226,6 +226,6 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
     let read = shadows_core::Threads::list_thread_entries_for_test(&fx.storage, &thread)
         .await
         .unwrap();
-    assert_eq!(read[0].operation_id.as_ref(), Some(&op));
+    assert_eq!(read[0].operation_id.as_deref(), Some(op.as_str()));
     assert!(read[1].operation_id.is_none());
 }

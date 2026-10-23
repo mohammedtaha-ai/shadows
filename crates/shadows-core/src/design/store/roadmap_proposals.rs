@@ -95,7 +95,7 @@ impl DesignStore {
                             body: "Roadmap proposal",
                             refs: &[],
                             card: Some(&card),
-                            operation_id: Some(&turn),
+                            operation_id: Some(turn.as_str()),
                         },
                         &ts,
                     )

@@ -11,11 +11,11 @@ use serde_json::Value;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
 use shadows_core::OperationId;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::Harness;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::{ThreadEntryKind, ThreadId};
 
@@ -43,7 +43,7 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &serde_json::json!({ "id": id })),
+        request_fingerprint: CommandContext::fingerprint(kind, &serde_json::json!({ "id": id })),
     };
     let dir = ProjectDirectory::resolve(tmp.path()).unwrap();
     let project = shadows_core::testing::create_project(

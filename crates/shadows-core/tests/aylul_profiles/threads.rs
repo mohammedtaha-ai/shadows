@@ -254,7 +254,7 @@ async fn fork_keeps_profile() {
             body: "Completed",
             refs: &[],
             card: None,
-            operation_id: Some(&shadows_core::OperationId::from_literal("op")),
+            operation_id: Some(shadows_core::OperationId::from_literal("op").as_str()),
         },
     )
     .await

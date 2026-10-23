@@ -24,8 +24,8 @@ use shadows_agent::policy;
 
 pub use attachment::{Attachment, AttachmentId, AttachmentRef, MAX_IMAGE_BYTES};
 pub use model::{
-    EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind,
-    ThreadId, TurnContext,
+    EntryRef, NewThreadEntry, OperationRef, PlanningThread, TaskRef, ThreadEntry, ThreadEntryId,
+    ThreadEntryKind, ThreadId, TurnContext, WorkflowRef,
 };
 
 use crate::code::Code;

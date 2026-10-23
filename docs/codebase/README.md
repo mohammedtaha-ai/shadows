@@ -390,3 +390,6 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-core/src/project_lifecycle/` | cross-owner project lifecycle | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
 | `crates/shadows-core/src/project_lifecycle/error.rs` | project removal refusal | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
 | `crates/shadows-core/src/project_lifecycle/store.rs` | atomic project removal composition | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
+
+| `crates/shadows-core/src/plans/store/event_projection.rs` | identifier-only plan event projection | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/events/store.rs` | private journal replay persistence | `crates/shadows-core/src/events/contract.yaml` |

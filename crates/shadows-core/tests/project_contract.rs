@@ -3,9 +3,9 @@
 //! later mutating command. Separate from `tests/storage_contract/`, whose
 //! one job is the connection and transaction contracts.
 
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 
 /// Any directory that exists: these tests are about identity and
 /// idempotency, not about where a turn runs.
@@ -25,7 +25,7 @@ fn ctx_kind(command_id: &str, kind: &str, params: &serde_json::Value) -> Command
         command_id: command_id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, params),
+        request_fingerprint: CommandContext::fingerprint(kind, params),
     }
 }
 
@@ -121,12 +121,12 @@ fn the_fingerprint_ignores_key_order_but_not_command_kind() {
     let a = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let b = serde_json::json!({ "name": "Demo", "slug": "demo" });
     assert_eq!(
-        fingerprint("project.create", &a),
-        fingerprint("project.create", &b)
+        CommandContext::fingerprint("project.create", &a),
+        CommandContext::fingerprint("project.create", &b)
     );
     assert_ne!(
-        fingerprint("project.create", &a),
-        fingerprint("thread.create", &a)
+        CommandContext::fingerprint("project.create", &a),
+        CommandContext::fingerprint("thread.create", &a)
     );
 }
 
@@ -137,7 +137,10 @@ fn the_fingerprint_ignores_key_order_but_not_command_kind() {
 fn the_fingerprint_does_not_let_a_key_impersonate_the_separator_structure() {
     let a = serde_json::json!({ "a": 1, "bc": 2 });
     let b = serde_json::json!({ "a:1,bc": 2 });
-    assert_ne!(fingerprint("k", &a), fingerprint("k", &b));
+    assert_ne!(
+        CommandContext::fingerprint("k", &a),
+        CommandContext::fingerprint("k", &b)
+    );
 }
 
 /// A single value change, all keys and command kind held constant, must
@@ -145,8 +148,8 @@ fn the_fingerprint_does_not_let_a_key_impersonate_the_separator_structure() {
 #[test]
 fn the_fingerprint_changes_when_a_value_changes() {
     assert_ne!(
-        fingerprint("k", &serde_json::json!({ "a": 1 })),
-        fingerprint("k", &serde_json::json!({ "a": 2 }))
+        CommandContext::fingerprint("k", &serde_json::json!({ "a": 1 })),
+        CommandContext::fingerprint("k", &serde_json::json!({ "a": 2 }))
     );
 }
 

@@ -4,9 +4,7 @@ use std::path::PathBuf;
 
 use crate::db::Actor;
 use crate::db::id::newtype_id;
-use crate::plans::{TaskId, WorkflowId};
 use crate::projects::ProjectId;
-use crate::turns::OperationId;
 
 newtype_id! {
     /// A planning thread has its own identity.
@@ -103,7 +101,7 @@ pub struct ThreadEntry {
     /// before entries named their turn. A fork's copied entries keep the
     /// source's operation: provenance, not something the fork can act on.
     #[schema(value_type = Option<String>, required)]
-    pub operation_id: Option<OperationId>,
+    pub operation_id: Option<String>,
 }
 
 /// Named entry fields prevent swapping values that share the same Rust type.
@@ -116,7 +114,7 @@ pub struct NewThreadEntry<'a> {
     /// Structured payload for a subagent or a recorded proposal; absent for plain entries.
     pub card: Option<&'a serde_json::Value>,
     /// The turn that wrote it; `None` only for an entry no turn wrote.
-    pub operation_id: Option<&'a OperationId>,
+    pub operation_id: Option<&'a str>,
 }
 
 /// What an entry is (spec §4.2, closed by §13.9). The client branches on it.
@@ -188,10 +186,45 @@ pub enum EntryRef {
     /// `Research` reference entities whose modules no milestone has created
     /// yet, and §4.1's rule is that no module is created before the task that
     /// fills it.
-    Operation(OperationId),
+    Operation(OperationRef),
     Decision(String),
     Research(String),
-    Workflow(WorkflowId),
+    Workflow(WorkflowRef),
     /// A message about one task of a plan (§13.9).
-    Task(TaskId),
+    Task(TaskRef),
+}
+
+// Provenance is opaque here: only the referenced entity's owner interprets it.
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(transparent)]
+#[schema(as = OperationId, value_type = String, format = Uuid)]
+pub struct OperationRef(String);
+
+impl From<&str> for OperationRef {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(transparent)]
+#[schema(as = WorkflowId, value_type = String, format = Uuid)]
+pub struct WorkflowRef(String);
+
+impl From<&str> for WorkflowRef {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(transparent)]
+#[schema(as = TaskId, value_type = String, format = Uuid)]
+pub struct TaskRef(String);
+
+impl From<&str> for TaskRef {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
 }

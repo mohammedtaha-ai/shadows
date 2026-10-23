@@ -2,6 +2,7 @@ use shadows_core::Actor;
 use shadows_core::RuntimeInstanceId;
 use shadows_core::StorageError;
 use shadows_core::ThreadId;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::FailureStage;
 use shadows_core::testing::Storage;
 
@@ -26,7 +27,7 @@ async fn fixture() -> (
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: shadows_core::testing::fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
         &storage,
@@ -41,7 +42,7 @@ async fn fixture() -> (
     let tctx = shadows_core::testing::CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: shadows_core::testing::fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
     let thread = shadows_core::Threads::create_planning_thread_for_test(

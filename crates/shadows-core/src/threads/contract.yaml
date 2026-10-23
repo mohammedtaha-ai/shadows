@@ -54,7 +54,7 @@ modules:
   attachment.rs: image upload validation
   store/attachment.rs: immutable image persistence
   mod.rs: thread command boundary
-  model.rs: public thread values # ID imports follow A-19; schema comments require API regeneration.
+  model.rs: public thread values with opaque provenance references
   error.rs: thread refusal mapping
   title.rs: conversation title normalization
   testing.rs: test-only thread entry points
@@ -71,7 +71,8 @@ dependencies:
   code: crates/shadows-core/src/code/contract.yaml
   agents: crates/shadows-core/src/agents/contract.yaml
 
-# Model id imports follow A-19.
+# OperationRef, WorkflowRef and TaskRef are opaque provenance strings, interpreted by their owners.
+# Their schema aliases preserve OperationId, WorkflowId and TaskId on the wire.
 # Other services use associated Threads::*_in methods in their existing snapshot.
 # All journal writes use foundation JournalEntry values, with string subject ids.
 # HarnessLocked and ForkPointNotSupported map beside ThreadsError to CoreError::Refused;
@@ -79,6 +80,9 @@ dependencies:
 
 
 shapes:
+  OperationRef: Opaque operation provenance with the existing OperationId wire schema.
+  WorkflowRef: Opaque workflow provenance with the existing WorkflowId wire schema.
+  TaskRef: Opaque task provenance with the existing TaskId wire schema.
   Attachment:
     id: AttachmentId
     media_type: String
@@ -130,14 +134,14 @@ shapes:
     card: Option<serde_json::Value>
     created_at: String
     # A fork's copied entries keep the source's: provenance only.
-    operation_id: Option<OperationId>
+    operation_id: Option<String>
   NewThreadEntry:
     kind: ThreadEntryKind
     author: Actor
     body: "&str"
     refs: "&[EntryRef]"
     card: Option<&serde_json::Value>
-    operation_id: Option<&OperationId>
+    operation_id: Option<&str>
   ThreadEntryKind:
     # Each stored as its name, which is also the wire name.
     UserMessage: unit
@@ -157,11 +161,11 @@ shapes:
     # before §16.3, is replaced by neither; no code creates one now.
     Client: unit
   EntryRef:
-    Operation: OperationId
+    Operation: OperationRef
     Decision: String
     Research: String
-    Workflow: WorkflowId
-    Task: TaskId
+    Workflow: WorkflowRef
+    Task: TaskRef
 
 
 functions:

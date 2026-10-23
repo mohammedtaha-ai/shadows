@@ -1,10 +1,9 @@
-//! One job: one subscriber's durable replay, handoff and live phase (spec
-//! §2.10).
+//! One job: one subscriber's durable replay, handoff and live phase.
 //!
 //! Every live source is taken BEFORE a single journal row is read (see
 //! `Events::subscribe`):
 //!
-//! - the storage's committed-sequence signal (spec §2.4: raised after each
+//! - the storage's committed-sequence signal (raised after each
 //!   commit that appended to the journal). A commit that lands while the
 //!   replay is being read shows up as a pending change, so it cannot fall into
 //!   the gap between the replay's last read and the live phase.
@@ -28,8 +27,8 @@ use shadows_agent::events::{AccountLimits, HarnessEvent, SlashCommand, SubagentC
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, watch};
 
+use super::store::EventsStore;
 use super::{EventCursor, StoredEvent, UiSignal};
-use crate::db::Storage;
 use crate::harness::Harness;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
@@ -47,7 +46,7 @@ pub enum Delivery {
     CaughtUp { seq: i64 },
     /// Streamed text of a running turn. Transient.
     Delta { op: OperationId, text: String },
-    /// A running turn's subagent card, whole, after a change (§22.3).
+    /// A running turn's subagent card, whole, after a change.
     /// Transient: its entry is written when it ends.
     Subagent { op: OperationId, card: SubagentCard },
     /// The harness finished a turn. Transient.
@@ -64,15 +63,15 @@ pub enum Delivery {
         size: u64,
         limits: Option<AccountLimits>,
     },
-    /// The session's choices changed, after the policy (§12.4). Transient.
+    /// The session's choices changed, after the policy. Transient.
     Options {
         thread: ThreadId,
         choices: SessionChoices,
     },
-    /// The Planner showed a plan (§13.9). Its card was delivered first, as a
+    /// The Planner showed a plan. Its card was delivered first, as a
     /// `Durable` `PlanShown` event. Transient.
     PlanShow(UiSignal),
-    /// The harness's `/` list (§21.3): after `caught-up` when the thread has
+    /// The harness's `/` list: after `caught-up` when the thread has
     /// one, and on every change. Transient.
     Commands {
         thread: ThreadId,
@@ -103,7 +102,7 @@ pub(super) enum Scope {
 /// One subscriber's replay-then-live stream, filtered by its scope.
 pub struct Subscription {
     scope: Scope,
-    storage: Arc<Storage>,
+    store: EventsStore,
     harness: Arc<Harness>,
     live: Live,
     /// The highest `seq` delivered, starting at the client's `after`.
@@ -124,13 +123,13 @@ impl Subscription {
     pub(super) fn new(
         scope: Scope,
         after: i64,
-        storage: Arc<Storage>,
+        store: EventsStore,
         harness: Arc<Harness>,
         live: Live,
     ) -> Self {
         Self {
             scope,
-            storage,
+            store,
             harness,
             live,
             last_seq: after,
@@ -193,9 +192,9 @@ impl Subscription {
     async fn read_journal(&mut self) -> Option<Delivery> {
         let cursor = EventCursor(self.last_seq);
         let batch = match &self.scope {
-            Scope::Thread(thread) => self.storage.read_events_after(cursor, thread, BATCH).await,
+            Scope::Thread(thread) => self.store.read_events_after(cursor, thread, BATCH).await,
             Scope::Project(project) => {
-                self.storage
+                self.store
                     .read_project_events_after(cursor, project, BATCH)
                     .await
             }
@@ -206,7 +205,7 @@ impl Subscription {
                 None
             }
             Err(e) => {
-                // Spec §3.2: the cause is logged here; the client is told only
+                // The cause is logged here; the client is told only
                 // what it needs to know — that the stream is over.
                 tracing::error!(error = %e, "sse.replay_failed");
                 self.over = Some("error: journal read failed");
@@ -215,7 +214,7 @@ impl Subscription {
         }
     }
 
-    /// Waits for one live source to wake, in today's order: committed, bus,
+    /// Waits for one live source to wake, with committed events first, then bus,
     /// options, signals. `None` when it woke for nothing to deliver: the
     /// journal moved (it is read next), or the item is another thread's.
     async fn live(&mut self) -> Option<Result<Delivery, &'static str>> {
@@ -286,7 +285,7 @@ impl Subscription {
             | Woke::Options(Ok(_))
             | Woke::Commands(Ok(_))
             | Woke::Signal(Ok(_)) => None,
-            // Spec §8.4 case 7: a subscriber falling behind or disconnecting
+            // Spec A subscriber falling behind or disconnecting
             // never cancels work. It resubscribes with its last seq.
             Woke::Bus(Err(RecvError::Lagged(_)))
             | Woke::Options(Err(RecvError::Lagged(_)))

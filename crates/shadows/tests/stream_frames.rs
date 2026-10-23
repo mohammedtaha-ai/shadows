@@ -15,9 +15,9 @@ use axum::body::Body;
 use axum::http::Request;
 use serde_json::Value;
 use shadows::cli::router;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tokio_stream::StreamExt;
@@ -62,7 +62,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &params),
+        request_fingerprint: CommandContext::fingerprint(kind, &params),
     };
     let dir = shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = shadows_core::testing::create_project(

@@ -233,7 +233,7 @@ impl PlansStore {
                                 plan.version
                             ),
                         };
-                        let refs = [EntryRef::Workflow(workflow.clone())];
+                        let refs = [EntryRef::Workflow(workflow.clone().as_str().into())];
                         let entry = NewThreadEntry {
                             kind: ThreadEntryKind::PlanApproved,
                             author: actor.clone(),

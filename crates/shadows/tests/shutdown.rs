@@ -18,11 +18,11 @@ use shadows_agent::events::HarnessEvent;
 use shadows_core::StartError;
 use shadows_core::StopKind;
 use shadows_core::ThreadId;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::Harness;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
@@ -58,7 +58,7 @@ async fn fixture() -> Fixture {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
         &runtime.storage_for_test(),
@@ -73,7 +73,7 @@ async fn fixture() -> Fixture {
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
     let thread = shadows_core::Threads::create_planning_thread_for_test(

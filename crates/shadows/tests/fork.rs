@@ -106,7 +106,7 @@ async fn a_fork_keeps_a_subagent_entry_and_its_card() {
             body: "List files",
             refs: &[],
             card: Some(&card),
-            operation_id: Some(&op),
+            operation_id: Some(op.as_str()),
         },
     )
     .await

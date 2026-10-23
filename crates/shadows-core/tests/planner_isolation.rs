@@ -12,9 +12,9 @@ use std::time::Duration;
 
 use shadows_core::Actor;
 use shadows_core::ThreadId;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::{Operation, OperationId};
 
@@ -31,7 +31,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
         command_id: format!("{slug}-project"),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
         &runtime.storage_for_test(),
@@ -46,7 +46,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
     let tctx = CommandContext {
         command_id: format!("{slug}-thread"),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
     shadows_core::Threads::create_planning_thread_for_test(

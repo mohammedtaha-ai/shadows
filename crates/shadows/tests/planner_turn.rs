@@ -14,9 +14,9 @@ use shadows::cli::router;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::Harness;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
@@ -65,7 +65,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
         &storage,
@@ -80,7 +80,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
     let thread = shadows_core::Threads::create_planning_thread_for_test(

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
-use shadows_core::testing::{CommandContext, ProjectDirectory, Storage, acp, fingerprint};
+use shadows_core::testing::{CommandContext, ProjectDirectory, Storage, acp};
 use shadows_core::{AppCore, Asker, CodeConfig, CoreParts, IndexState, ProjectId};
 
 /// A core over a temporary database in `db`, with one project whose folder is `dir`.
@@ -60,7 +60,7 @@ async fn new_project(storage: &Arc<Storage>, slug: &str, dir: &std::path::Path) 
         command_id: format!("c-{slug}"),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &serde_json::json!({})),
+        request_fingerprint: CommandContext::fingerprint("project.create", &serde_json::json!({})),
     };
     shadows_core::testing::create_project(
         storage,

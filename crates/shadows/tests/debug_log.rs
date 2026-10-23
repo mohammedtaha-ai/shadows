@@ -17,10 +17,10 @@ use shadows::cli::router;
 use shadows_core::Actor;
 use shadows_core::OperationId;
 use shadows_core::testing::Bus;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::Harness;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn};
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
@@ -238,7 +238,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
         &runtime.storage_for_test(),
@@ -253,7 +253,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
     shadows_core::Threads::create_planning_thread_for_test(

@@ -1,4 +1,4 @@
-//! One job: what clients watch live (spec §2.10, §14.4) — the `Events` service.
+//! One job: what clients watch live — the `Events` service.
 //!
 //! `Events` owns subscription and delivery, and emits nothing of its own: a
 //! writer appends its durable event inside its own transaction
@@ -31,6 +31,7 @@ use crate::turns::Turns;
 
 /// Events: every subscriber's stream, over the journal and the live sources.
 pub struct Events {
+    store: store::EventsStore,
     storage: Arc<Storage>,
     harness: Arc<Harness>,
     projects: Projects,
@@ -47,6 +48,7 @@ impl Events {
         ui: broadcast::Sender<UiSignal>,
     ) -> Self {
         Self {
+            store: store::EventsStore::with_storage(storage.clone()),
             storage,
             harness,
             projects,
@@ -55,16 +57,29 @@ impl Events {
         }
     }
 
+    /// A project notification tail projected by its owners in one read snapshot.
+    #[cfg(feature = "test-support")]
+    pub async fn read_project_events_after(
+        &self,
+        cursor: EventCursor,
+        project: &ProjectId,
+        limit: i64,
+    ) -> Result<Vec<StoredEvent>, crate::StorageError> {
+        self.store
+            .read_project_events_after(cursor, project, limit)
+            .await
+    }
+
     /// Takes the committed-sequence watch, the bus, the options watch and the
-    /// UI receiver before anything is read, then replay, CaughtUp, live (§2.4,
-    /// §6.18). Nothing is read here: a commit or a live item that lands before
+    /// UI receiver before anything is read, then replay, CaughtUp, live.
+    /// A commit or a live item that lands before
     /// the first `next` is already pending on a receiver, so it cannot fall
     /// between the replay and the live phase.
     pub fn subscribe(&self, thread: ThreadId, after: i64) -> Subscription {
         Subscription::new(
             subscription::Scope::Thread(thread),
             after,
-            self.storage.clone(),
+            self.store.clone(),
             self.harness.clone(),
             subscription::Live {
                 committed: self.storage.watch_committed(),
@@ -76,7 +91,7 @@ impl Events {
         )
     }
 
-    /// Plan notifications for a live project (§16.8), using the same journal
+    /// Plan notifications for a live project, using the same journal
     /// and committed watch as the thread stream. Unknown or removed is NotFound.
     pub async fn subscribe_project(
         &self,
@@ -87,7 +102,7 @@ impl Events {
         Ok(Subscription::new(
             subscription::Scope::Project(project),
             after,
-            self.storage.clone(),
+            self.store.clone(),
             self.harness.clone(),
             subscription::Live {
                 committed: self.storage.watch_committed(),

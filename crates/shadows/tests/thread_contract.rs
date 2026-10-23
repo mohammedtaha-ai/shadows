@@ -7,10 +7,10 @@ use serde_json::json;
 use shadows_core::Actor;
 use shadows_core::OperationId;
 use shadows_core::StorageError;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::NewThreadEntry;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{EntryRef, ThreadEntryKind, ThreadId};
 use shadows_core::{TaskId, WorkflowId};
 
@@ -38,7 +38,7 @@ fn ctx_kind(command_id: &str, kind: &str, params: &serde_json::Value) -> Command
         command_id: command_id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, params),
+        request_fingerprint: CommandContext::fingerprint(kind, params),
     }
 }
 
@@ -207,7 +207,7 @@ async fn entry_refs_round_trip_through_storage() {
     .unwrap();
     let refs = vec![
         EntryRef::Decision("decision-1".into()),
-        EntryRef::Operation(OperationId::from_literal("operation-1")),
+        EntryRef::Operation(OperationId::from_literal("operation-1").as_str().into()),
     ];
 
     let appended = shadows_core::Threads::append_thread_entry_for_test(
@@ -430,8 +430,8 @@ async fn a_task_reference_round_trips() {
     .await;
     let thread_id = ThreadId::from_literal(thread["id"].as_str().unwrap());
     let refs = [
-        EntryRef::Workflow(WorkflowId::from_literal("w1")),
-        EntryRef::Task(TaskId::from_literal("t1")),
+        EntryRef::Workflow(WorkflowId::from_literal("w1").as_str().into()),
+        EntryRef::Task(TaskId::from_literal("t1").as_str().into()),
     ];
     shadows_core::Threads::append_thread_entry_for_test(
         &app.storage,

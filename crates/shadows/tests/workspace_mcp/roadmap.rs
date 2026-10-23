@@ -180,7 +180,8 @@ async fn roadmap_proposal_routes_list_and_approve() {
     assert_eq!(cards[0]["approved_by"]["agent"], "human");
     let events = l
         .app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &p, 100)
         .await
         .unwrap();

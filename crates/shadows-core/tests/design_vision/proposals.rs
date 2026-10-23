@@ -168,7 +168,7 @@ async fn an_ended_turn_cannot_approve() {
 
 #[tokio::test]
 async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
-    use shadows_core::testing::{CommandContext, Writer, fingerprint};
+    use shadows_core::testing::{CommandContext, Writer};
     let f = Fixture::new().await;
     let thread = f.grant.thread_id.as_ref().unwrap();
     let operation: String =
@@ -187,7 +187,10 @@ async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
         command_id: "late".into(),
         command_kind: "VisionPropose".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("VisionPropose", &serde_json::to_value(&args).unwrap()),
+        request_fingerprint: CommandContext::fingerprint(
+            "VisionPropose",
+            &serde_json::to_value(&args).unwrap(),
+        ),
     };
     let writer = Writer::Planner {
         thread: thread.clone(),
@@ -271,9 +274,18 @@ async fn a_proposal_is_a_pending_card_in_its_conversation() {
     let json: serde_json::Value = serde_json::from_str(&card).unwrap();
     assert_eq!(json["id"], p.id);
     assert_eq!(json["text"], "Ship in a week");
-    let cursor = f.storage.current_cursor().await.unwrap().0;
+    let cursor = shadows_core::Events::current_cursor_for_test(&f.storage)
+        .await
+        .unwrap()
+        .0;
     assert_eq!(f.propose(add("Ship in a week")).await, p);
-    assert_eq!(f.storage.current_cursor().await.unwrap().0, cursor);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&f.storage)
+            .await
+            .unwrap()
+            .0,
+        cursor
+    );
     f.close().await;
 }
 
@@ -377,7 +389,10 @@ async fn approval_is_scoped_to_its_live_project() {
         .remove("remove".into(), &f.p)
         .await
         .unwrap();
-    let cursor = f.storage.current_cursor().await.unwrap().0;
+    let cursor = shadows_core::Events::current_cursor_for_test(&f.storage)
+        .await
+        .unwrap()
+        .0;
     assert!(matches!(
         f.core
             .design()
@@ -385,7 +400,13 @@ async fn approval_is_scoped_to_its_live_project() {
             .await,
         Err(CoreError::Storage(StorageError::NotFound(_)))
     ));
-    assert_eq!(f.storage.current_cursor().await.unwrap().0, cursor);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&f.storage)
+            .await
+            .unwrap()
+            .0,
+        cursor
+    );
     f.close().await;
 }
 
@@ -448,9 +469,18 @@ async fn approving_twice_with_one_command_writes_once() {
     let f = Fixture::new().await;
     let p = f.propose(add("A")).await;
     let first = f.approve("ok", &p.id).await;
-    let cursor = f.storage.current_cursor().await.unwrap().0;
+    let cursor = shadows_core::Events::current_cursor_for_test(&f.storage)
+        .await
+        .unwrap()
+        .0;
     assert_eq!(f.approve("ok", &p.id).await, first);
-    assert_eq!(f.storage.current_cursor().await.unwrap().0, cursor);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&f.storage)
+            .await
+            .unwrap()
+            .0,
+        cursor
+    );
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM design_vision_version")
         .fetch_one(f.storage.reader())
         .await

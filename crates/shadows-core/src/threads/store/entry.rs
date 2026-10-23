@@ -7,7 +7,6 @@ use crate::db::{Actor, StorageError, append_event};
 use crate::threads::model::{
     EntryRef, NewThreadEntry, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId,
 };
-use crate::turns::OperationId;
 
 /// Appends one entry inside the caller's transaction: allocates its ordinal,
 /// inserts it, and journals `ThreadEntryAppended`. The turn command
@@ -62,7 +61,7 @@ impl crate::threads::Threads {
         .bind(entry.body)
         .bind(&refs_json)
         .bind(&card_json)
-        .bind(entry.operation_id.map(OperationId::as_str))
+        .bind(entry.operation_id)
         .bind(ts)
         .bind(serde_json::to_string(&attachments)?)
         .execute(&mut *conn)
@@ -100,7 +99,7 @@ impl crate::threads::Threads {
             refs,
             card: entry.card.cloned(),
             created_at: ts.to_string(),
-            operation_id: entry.operation_id.cloned(),
+            operation_id: entry.operation_id.map(str::to_owned),
         })
     }
 }
@@ -138,7 +137,7 @@ impl super::ThreadsStore {
             refs: serde_json::from_str::<Vec<EntryRef>>(&r.7)?,
             card: r.10.as_deref().map(serde_json::from_str).transpose()?,
             created_at: r.8,
-            operation_id: r.9.map(OperationId::from_stored),
+            operation_id: r.9,
         })
     }
 }
@@ -162,7 +161,7 @@ impl super::ThreadsStore {
             entry.body.to_string(),
             entry.refs.to_vec(),
             entry.card.cloned(),
-            entry.operation_id.cloned(),
+            entry.operation_id.map(str::to_owned),
             crate::db::now(),
         );
         self.storage
@@ -174,7 +173,7 @@ impl super::ThreadsStore {
                         body: &body,
                         refs: &refs,
                         card: card.as_ref(),
-                        operation_id: operation_id.as_ref(),
+                        operation_id: operation_id.as_deref(),
                     };
                     crate::threads::Threads::append_entry_in(conn, &thread_id, entry, &ts).await
                 })

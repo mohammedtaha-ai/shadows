@@ -117,8 +117,9 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
         .await
         .unwrap();
     assert!(entries.iter().any(|e| {
-        e.refs
-            .contains(&shadows_core::EntryRef::Task(plan.tasks[0].id.clone()))
+        e.refs.contains(&shadows_core::EntryRef::Task(
+            plan.tasks[0].id.clone().as_str().into(),
+        ))
     }));
     app.sessions.close_all().await.unwrap();
 }

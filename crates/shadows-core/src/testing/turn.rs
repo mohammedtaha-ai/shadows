@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::db::{CommandContext, fingerprint};
+use crate::db::CommandContext;
 use crate::harness::Harness;
 use crate::runtime::Runtime;
 use crate::threads::ThreadId;
@@ -36,7 +36,7 @@ pub fn turn_command(id: &str, thread: &ThreadId, prompt: &str, s: &TurnSettings)
         command_id: id.into(),
         command_kind: "turn.start".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("turn.start", &params),
+        request_fingerprint: CommandContext::fingerprint("turn.start", &params),
     }
 }
 

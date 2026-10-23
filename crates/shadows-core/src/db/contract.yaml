@@ -1,3 +1,4 @@
+# Command helpers are methods on CommandContext and Anchor; command identity stays in the foundation.
 # ProjectHasThreads belongs to ProjectLifecycleError.
 # GrantInvalid and GrantScope belong to GrantsError; approval provenance belongs to Grants.
 # HarnessLocked and ForkPointNotSupported belong to ThreadsError, mapped by Threads.
@@ -67,7 +68,7 @@ functions:
       # pub(crate). A person's command: agent None, principal `User`/`local`,
       # schema version 1, `fingerprint(kind, &params)`.
     fingerprint:
-      signature: "(command_kind: &str, params: &Value) -> String"
+      signature: "CommandContext::fingerprint(command_kind: &str, params: &Value) -> String"
       # Lowercase hex SHA-256 of the kind, one NUL byte, then the canonical
       # params: object keys sorted, each key JSON-escaped, arrays in order,
       # scalars as serde_json prints them.
@@ -84,7 +85,7 @@ functions:
       # command has one, both NULL otherwise.
   derive:
     derived_id:
-      signature: "(anchor: Anchor<'_>, fingerprint: &str) -> String"
+      signature: "Anchor::derived_id(self, fingerprint: &str) -> String"
       # `rev:<n>:<16 hex>`, `op:<operation id>:<16 hex>` or `ref:<draft_ref>`,
       # the hex being the fingerprint's first sixteen characters (all of it
       # when shorter). A draft ref carries no fingerprint, so the same ref with

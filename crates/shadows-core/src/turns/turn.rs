@@ -119,7 +119,7 @@ impl PlannerTurn {
                                 body: &body,
                                 refs: &[],
                                 card: card.as_ref(),
-                                operation_id: Some(&operation),
+                                operation_id: Some(operation.as_str()),
                             },
                             &ts,
                         )

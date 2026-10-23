@@ -1,5 +1,4 @@
-//! One job: the command ids Shadows derives when a caller names none
-//! (spec §13.5, "Who names the command").
+//! Command ids derived from stable request anchors when a caller names none.
 //!
 //! A model is not asked to invent an id or to reuse one on a retry, so the id
 //! is derived from what makes a retry the same request. Every derived id but a
@@ -18,13 +17,15 @@ pub enum Anchor<'a> {
     DraftRef(&'a str),
 }
 
-/// `rev:7:<16 hex>`, `op:<operation id>:<16 hex>` or `ref:<draft_ref>`, the
-/// hex being the first sixteen of the request fingerprint.
-pub fn derived_id(anchor: Anchor<'_>, fingerprint: &str) -> String {
-    let short = fingerprint.get(..16).unwrap_or(fingerprint);
-    match anchor {
-        Anchor::Revision(n) => format!("rev:{n}:{short}"),
-        Anchor::Operation(op) => format!("op:{op}:{short}"),
-        Anchor::DraftRef(r) => format!("ref:{r}"),
+impl Anchor<'_> {
+    /// `rev:7:<16 hex>`, `op:<operation id>:<16 hex>` or `ref:<draft_ref>`, the
+    /// hex being the first sixteen of the request fingerprint.
+    pub fn derived_id(self, fingerprint: &str) -> String {
+        let short = fingerprint.get(..16).unwrap_or(fingerprint);
+        match self {
+            Anchor::Revision(n) => format!("rev:{n}:{short}"),
+            Anchor::Operation(op) => format!("op:{op}:{short}"),
+            Anchor::DraftRef(r) => format!("ref:{r}"),
+        }
     }
 }

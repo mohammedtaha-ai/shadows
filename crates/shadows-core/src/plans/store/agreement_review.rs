@@ -1,7 +1,7 @@
 //! Snapshot impact reviews and atomic person agreement.
 use super::PlansStore;
 use crate::ProjectId;
-use crate::db::{CommandContext, StorageError, fingerprint, now};
+use crate::db::{CommandContext, StorageError, now};
 use crate::design::Design;
 use crate::design::{AgreementContent, AgreementId, AgreementState, AgreementVersion};
 use crate::plans::{AgreementParticipantImpact, AgreementPartyReview, AgreementReview};
@@ -87,7 +87,7 @@ async fn review(
     }
     let basis = json!({"candidate":candidate,"base":base,"parties":parties,
         "participants":participants});
-    let review_id = fingerprint("AgreementReview", &basis);
+    let review_id = CommandContext::fingerprint("AgreementReview", &basis);
     Ok(AgreementReview {
         agreement_id: id.clone(),
         version: candidate.version,

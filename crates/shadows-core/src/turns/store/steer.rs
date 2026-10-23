@@ -47,7 +47,7 @@ impl super::TurnsStore {
                             body: &prompt,
                             refs: &[],
                             card: None,
-                            operation_id: Some(&op),
+                            operation_id: Some(op.as_str()),
                         },
                         &attachments,
                         &ts,

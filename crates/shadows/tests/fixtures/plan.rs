@@ -16,8 +16,8 @@ use serde_json::{Value, json};
 use shadows_core::GrantId;
 use shadows_core::ProjectId;
 use shadows_core::ThreadId;
-use shadows_core::testing::{Anchor, derived_id};
-use shadows_core::testing::{CommandContext, Writer, fingerprint};
+use shadows_core::testing::Anchor;
+use shadows_core::testing::{CommandContext, Writer};
 use shadows_core::{
     AcceptanceItem, DraftStarted, Link, LinkKind, PlanId, PlanOp, TaskContent, WorkflowId,
 };
@@ -39,7 +39,7 @@ pub fn writer_ctx(
         command_id: command_id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &params),
+        request_fingerprint: CommandContext::fingerprint(kind, &params),
     }
 }
 
@@ -52,13 +52,13 @@ pub fn edit_ctx(
     ops: &[PlanOp],
 ) -> CommandContext {
     let params = json!({ "workflow": workflow, "expected_revision": expected, "ops": ops });
-    let fp = fingerprint("PlanEdit", &params);
+    let fp = CommandContext::fingerprint("PlanEdit", &params);
     let (principal_kind, principal_id) = writer.principal();
     CommandContext {
         agent: None,
         principal_kind: principal_kind.into(),
         principal_id,
-        command_id: derived_id(Anchor::Revision(expected), &fp),
+        command_id: Anchor::derived_id(Anchor::Revision(expected), &fp),
         command_kind: "PlanEdit".into(),
         command_schema_ver: 1,
         request_fingerprint: fp,

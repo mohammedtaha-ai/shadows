@@ -25,15 +25,27 @@ name: events
 version: 1
 status: current
 source: crates/shadows-core/src/events
+modules:
+  mod.rs: subscription entry points
+  model.rs: durable event values
+  store.rs: private journal replay persistence
+  subscription.rs: replay handoff delivery
+dependencies:
+  plans: ../plans/contract.yaml
+  harness: ../harness/contract.yaml
+  projects: ../projects/contract.yaml
+  turns: ../turns/contract.yaml
 
 
 shapes:
   Events:
+    store: EventsStore
     storage: Arc<Storage>
     harness: Arc<Harness>
     turns: Turns
     ui: broadcast::Sender<UiSignal>
   Subscription:
+    store: EventsStore
     scope: Scope
     # The four receivers `subscribe` took (`Live`).
     live: Live
@@ -167,6 +179,9 @@ functions:
       signature: "impl From<&DurableEvent> for JournalEntry"
       # What `db::append_event` takes: every field carried over, the typed
       # subject ids as their strings, so the journal names no service type.
+  testing:
+    read_events_after_for_test:
+      signature: "(storage: Arc<Storage>, cursor, thread, limit) -> Result<Vec<StoredEvent>, StorageError>"
   store:
     read_project_events_after:
       signature: "(&self, cursor: EventCursor, project: &ProjectId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
@@ -177,14 +192,15 @@ functions:
       # Design payload is project_id/revision/changed_parts/changed_outcomes/vision_changed;
       # no content. Dependency/reach payloads retain the journal notification;
       # version payload is {plan_id, workflow_id};
-      # archive events name the plan's latest version at the time of reading.
+      # archive events name the plan's latest version in the same read snapshot.
+      # Plans::project_event_payload_in owns this projection; Events reads only the journal.
     read_events_after:
       signature: "(&self, cursor: EventCursor, thread_id: &ThreadId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
       # WHERE thread_id = ? AND seq > ? ORDER BY seq LIMIT ?: explicit order,
       # never insertion order.
-    current_cursor:
-      signature: "(&self) -> Result<EventCursor, StorageError>"
-      # test-support only: MAX(seq), 0 for an empty journal.
+    current_cursor_for_test:
+      signature: "(storage: &Storage) -> Result<EventCursor, StorageError>"
+      # test-support only: MAX(seq), 0 for an empty journal; takes fixture Storage.
 
 
 enums:

@@ -6,8 +6,9 @@
 use serde_json::{Value, json};
 use shadows_core::OperationId;
 use shadows_core::StorageError;
-use shadows_core::testing::{Anchor, derived_id};
-use shadows_core::testing::{Writer, fingerprint};
+use shadows_core::testing::Anchor;
+use shadows_core::testing::CommandContext;
+use shadows_core::testing::Writer;
 use shadows_core::{EntryRef, ThreadEntryKind};
 use shadows_core::{LinkKind, Plan, PlanOp, TaskContent, WorkflowState, WrittenBy};
 
@@ -353,7 +354,10 @@ async fn approval_freezes_and_writes_a_plan_approved_entry() {
     let entry = entries_on(&app, &app.thread).await.pop().unwrap();
     assert_eq!(entry.kind, ThreadEntryKind::PlanApproved);
     assert_eq!(entry.body, "Plan v1 approved");
-    assert_eq!(entry.refs, vec![EntryRef::Workflow(v1.clone())]);
+    assert_eq!(
+        entry.refs,
+        vec![EntryRef::Workflow(v1.clone().as_str().into())]
+    );
 
     let frozen = events_of(&app, &app.thread, "WorkflowFrozen").await;
     assert_eq!(frozen.len(), 1);
@@ -541,15 +545,18 @@ async fn completes_after_links_keep_their_waiting_items() {
 
 #[test]
 fn derived_ids_carry_their_anchor() {
-    let fp = fingerprint("PlanEdit", &json!({ "a": 1 }));
+    let fp = CommandContext::fingerprint("PlanEdit", &json!({ "a": 1 }));
     assert_eq!(
-        derived_id(Anchor::Revision(7), &fp),
+        Anchor::derived_id(Anchor::Revision(7), &fp),
         format!("rev:7:{}", &fp[..16])
     );
     let op = OperationId::from_literal("op-1");
     assert_eq!(
-        derived_id(Anchor::Operation(op.as_str()), &fp),
+        Anchor::derived_id(Anchor::Operation(op.as_str()), &fp),
         format!("op:op-1:{}", &fp[..16])
     );
-    assert_eq!(derived_id(Anchor::DraftRef("dr-1"), &fp), "ref:dr-1");
+    assert_eq!(
+        Anchor::derived_id(Anchor::DraftRef("dr-1"), &fp),
+        "ref:dr-1"
+    );
 }

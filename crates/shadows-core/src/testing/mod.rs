@@ -137,8 +137,7 @@ pub use crate::turns::for_tests::{
 /// crate everywhere else (§14.6).
 pub use crate::app::adapter_version;
 pub use crate::db::{
-    Anchor, Causation, CommandContext, JournalEntry, Storage, append_event_for_test, derived_id,
-    fingerprint,
+    Anchor, Causation, CommandContext, JournalEntry, Storage, append_event_for_test,
 };
 pub use crate::events::{DurableEvent, EventCursor};
 pub use crate::grants::Writer;

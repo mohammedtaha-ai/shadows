@@ -3,10 +3,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
 use shadows_core::{
     OpenError, ThreadId,
-    testing::{
-        CommandContext, Harness, OpenSession, ProjectDirectory, SessionsConfig, Storage,
-        fingerprint,
-    },
+    testing::{CommandContext, Harness, OpenSession, ProjectDirectory, SessionsConfig, Storage},
 };
 
 struct Fixture {
@@ -30,7 +27,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
         &storage,
@@ -45,7 +42,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
     let thread = shadows_core::Threads::create_planning_thread_for_test(
@@ -128,7 +125,7 @@ async fn a_removed_thread_cannot_reuse_its_still_open_adapter() {
         command_id: "remove".into(),
         command_kind: "thread.remove".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(
+        request_fingerprint: CommandContext::fingerprint(
             "thread.remove",
             &serde_json::json!({ "thread_id": fx.thread }),
         ),
@@ -275,7 +272,7 @@ async fn second_thread(fx: &Fixture) -> ThreadId {
         command_id: "c3".into(),
         command_kind: "thread.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
     };
     shadows_core::Threads::create_planning_thread_for_test(
         &fx.storage,

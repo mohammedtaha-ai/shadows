@@ -23,11 +23,11 @@ use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
 use shadows_core::UiSignal;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{Harness, SessionsConfig};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
@@ -70,7 +70,7 @@ pub fn ctx(id: &str, kind: &str) -> CommandContext {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &json!({ "id": id })),
+        request_fingerprint: CommandContext::fingerprint(kind, &json!({ "id": id })),
     }
 }
 

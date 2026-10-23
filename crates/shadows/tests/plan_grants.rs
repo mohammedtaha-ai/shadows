@@ -3,9 +3,9 @@
 //! draft refs an external agent starts plans with.
 
 use serde_json::json;
+use shadows_core::testing::Anchor;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Writer;
-use shadows_core::testing::{Anchor, derived_id};
 use shadows_core::{DraftStarted, GrantId, ProjectId, WrittenBy};
 
 use shadows_core::testing::acp;
@@ -47,7 +47,7 @@ async fn external_start(
 }
 
 fn ref_command(r: &str) -> String {
-    derived_id(Anchor::DraftRef(r), "")
+    Anchor::derived_id(Anchor::DraftRef(r), "")
 }
 
 async fn other_project(app: &App) -> ProjectId {

@@ -13,7 +13,7 @@ use app::{
 };
 use listening::{listening_app, mcp_client, ok};
 use serde_json::json;
-use shadows_core::testing::fingerprint;
+use shadows_core::testing::CommandContext;
 
 #[tokio::test]
 async fn the_router_is_built_from_the_core() {
@@ -113,7 +113,7 @@ async fn grant_command_fingerprints_do_not_move() {
             id.to_string(),
             kind.to_string(),
             1,
-            fingerprint(kind, &params),
+            CommandContext::fingerprint(kind, &params),
         )
     };
     let mut expected = vec![
@@ -226,7 +226,7 @@ async fn project_thread_and_instructions_command_fingerprints_do_not_move() {
             id.to_string(),
             kind.to_string(),
             1,
-            fingerprint(kind, &params),
+            CommandContext::fingerprint(kind, &params),
         )
     };
     let modes = json!({ "claude-code": ["acceptEdits", "auto"] });

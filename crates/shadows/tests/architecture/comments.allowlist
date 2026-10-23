@@ -48,9 +48,6 @@ crates/shadows-core/src/app.rs :: CoreParts comment [c37bd19ab210d40a] #1
 crates/shadows-core/src/app.rs :: module comment [378a45bda752b6d2] #1
 crates/shadows-core/src/app.rs :: module comment [582d03b6bf7a8438] #1
 crates/shadows-core/src/app.rs :: module comment [783dc5d2f39df956] #1
-crates/shadows-core/src/db/command.rs :: module comment [18f0fbd096726450] #1
-crates/shadows-core/src/db/command.rs :: module comment [ef5afd335a262a71] #1
-crates/shadows-core/src/db/derive.rs :: module comment [b9d365bc6fb5ddc6] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [4af4d39ea2b34086] #1
 crates/shadows-core/src/db/id.rs :: module comment [caa7beb94100c9c7] #1
 crates/shadows-core/src/db/id.rs :: module comment [cee70f439a1892fd] #1
@@ -82,27 +79,6 @@ crates/shadows-core/src/error.rs :: ErrorCode comment [ebae52f4e45bdaee] #1
 crates/shadows-core/src/error.rs :: ErrorCode comment [ede95eba937f7d2a] #1
 crates/shadows-core/src/error.rs :: module comment [716b4cce7f9df4e9] #1
 crates/shadows-core/src/error.rs :: module comment [717ac57632e9edc1] #1
-crates/shadows-core/src/events/mod.rs :: Events comment [5b7b8da42f043d1d] #1
-crates/shadows-core/src/events/mod.rs :: Events comment [f0e9a47a2873c98b] #1
-crates/shadows-core/src/events/mod.rs :: Events comment [fd4dfaa9d59655a2] #1
-crates/shadows-core/src/events/mod.rs :: module comment [01cbd212c3c98a41] #1
-crates/shadows-core/src/events/model.rs :: DurableEvent comment [81f3e38d5a26ad9b] #1
-crates/shadows-core/src/events/model.rs :: module comment [2c53e5c2d1620a33] #1
-crates/shadows-core/src/events/model.rs :: module comment [5602d9b0fa1b7d2a] #1
-crates/shadows-core/src/events/model.rs :: module comment [c2f63c833622eb7f] #1
-crates/shadows-core/src/events/model.rs :: module comment [d8ed5bbf66f7b32f] #1
-crates/shadows-core/src/events/store.rs :: Storage comment [269864f44364e1a7] #1
-crates/shadows-core/src/events/store.rs :: Storage comment [d0f0a72f21a0baa3] #1
-crates/shadows-core/src/events/store.rs :: module comment [50e05eebf12e3c8b] #1
-crates/shadows-core/src/events/store.rs :: module comment [e9900b1bdb963c4c] #1
-crates/shadows-core/src/events/subscription.rs :: Delivery comment [8ffad815eb994987] #1
-crates/shadows-core/src/events/subscription.rs :: Delivery comment [a56cb92c7c9cae44] #1
-crates/shadows-core/src/events/subscription.rs :: Delivery comment [cd596b159d825d91] #1
-crates/shadows-core/src/events/subscription.rs :: Delivery comment [f7a5b3674e2b05bd] #1
-crates/shadows-core/src/events/subscription.rs :: Subscription::live comment [bd09f8140623a92b] #1
-crates/shadows-core/src/events/subscription.rs :: Subscription::read_journal comment [a18d984e0e44da62] #1
-crates/shadows-core/src/events/subscription.rs :: module comment [30c330a8eb8b2904] #1
-crates/shadows-core/src/events/subscription.rs :: module comment [4bf5602c685feecf] #1
 crates/shadows-core/src/lib.rs :: module comment [04abfa35ce5effcc] #1
 crates/shadows-core/src/lib.rs :: module comment [d2a6576d29cde6e6] #1
 # A-23: plan model comments feed OpenAPI; api/openapi.json is outside Touch.

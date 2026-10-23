@@ -74,8 +74,8 @@ async fn one_command_writes_entry_operation_invocation_and_record_together() {
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].id, started.entry_id);
     assert_eq!(
-        entries[0].operation_id.as_ref(),
-        Some(&started.operation_id)
+        entries[0].operation_id.as_deref(),
+        Some(started.operation_id.as_str())
     );
     let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
@@ -551,7 +551,9 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
     );
     let every = entries(&app).await;
     assert!(
-        every.iter().all(|e| e.operation_id.as_ref() == Some(&op)),
+        every
+            .iter()
+            .all(|e| e.operation_id.as_deref() == Some(op.as_str())),
         "the prompt and every entry the turn wrote name the turn"
     );
 }

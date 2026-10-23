@@ -1,12 +1,11 @@
-//! One job: the command record — whether a command already happened
-//! (spec §5.2, §6.19), and recording that it did.
+//! The command record decides whether a command already happened and records its outcome.
 
 use sha2::{Digest, Sha256};
 use sqlx::SqliteConnection;
 
 use super::StorageError;
 
-/// Spec section 5.2, external write origin: everything needed to decide whether
+/// External write origin: everything needed to decide whether
 /// a submission is new, a replay, or a conflict.
 #[derive(Debug, Clone)]
 pub struct CommandContext {
@@ -35,20 +34,22 @@ impl CommandContext {
             command_id,
             command_kind: kind.into(),
             command_schema_ver: 1,
-            request_fingerprint: fingerprint(kind, &params),
+            request_fingerprint: Self::fingerprint(kind, &params),
         }
     }
 }
 
-/// Canonicalise before hashing, so that key order, which carries no meaning,
-/// cannot turn a replay into a conflict. The command kind is mixed in so the
-/// same params under a different command are not interchangeable.
-pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(command_kind.as_bytes());
-    hasher.update(b"\0");
-    hasher.update(canonical(params).as_bytes());
-    format!("{:x}", hasher.finalize())
+impl CommandContext {
+    /// Canonicalise before hashing, so that key order, which carries no meaning,
+    /// cannot turn a replay into a conflict. The command kind is mixed in so the
+    /// same params under a different command are not interchangeable.
+    pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(command_kind.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(canonical(params).as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
 }
 
 fn canonical(v: &serde_json::Value) -> String {
@@ -75,14 +76,14 @@ fn canonical(v: &serde_json::Value) -> String {
 
 /// `Some(outcome_ref)` when this exact command was already recorded, `None`
 /// when it is new, `Err(CommandConflict)` when the id was reused with a
-/// different request. Spec section 5.2.
+/// different request.
 ///
-/// Spec section 6.19 fixes the comparison at three fields: command kind,
+/// Replay identity compares three fields: command kind,
 /// schema version, and fingerprint. The schema version is not decoration — it
 /// says which normalisation rules produced the fingerprint, so equal
 /// fingerprints under different versions do not prove the requests are the
 /// same one. Dropping it from this comparison would replay an outcome computed
-/// under rules that no longer apply, and nothing would fail.
+/// under a different normalisation rule, and nothing would fail.
 pub(crate) async fn classify(
     conn: &mut SqliteConnection,
     ctx: &CommandContext,

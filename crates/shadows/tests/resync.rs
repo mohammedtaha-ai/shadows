@@ -18,12 +18,12 @@ use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
 use shadows_core::OperationId;
 use shadows_core::Project;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::EventCursor;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::NewThreadEntry;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{PlanningThread, ThreadEntryKind, ThreadId};
 use shadows_http::AppState;
@@ -43,7 +43,7 @@ async fn seed(storage: &std::sync::Arc<Storage>) -> (Project, PlanningThread) {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let dir = shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = shadows_core::testing::create_project(
@@ -59,7 +59,7 @@ async fn seed(storage: &std::sync::Arc<Storage>) -> (Project, PlanningThread) {
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
     let thread = shadows_core::Threads::create_planning_thread_for_test(
@@ -94,7 +94,9 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
     let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
 
-    let mid = storage.current_cursor().await.unwrap();
+    let mid = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap();
 
     for body in ["one", "two", "three"] {
         shadows_core::Threads::append_thread_entry_for_test(
@@ -106,10 +108,10 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
         .unwrap();
     }
 
-    let tail = storage
-        .read_events_after(mid, &thread.id, 100)
-        .await
-        .unwrap();
+    let tail =
+        shadows_core::Events::read_events_after_for_test(storage.clone(), mid, &thread.id, 100)
+            .await
+            .unwrap();
     assert_eq!(tail.len(), 3, "exactly the events after the cursor");
     let seqs: Vec<i64> = tail.iter().map(|e| e.seq).collect();
     let mut sorted = seqs.clone();
@@ -118,20 +120,24 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
     assert!(tail.iter().all(|e| e.kind == "ThreadEntryAppended"));
 
     // Re-reading from the same cursor is idempotent.
-    let again = storage
-        .read_events_after(mid, &thread.id, 100)
-        .await
-        .unwrap();
+    let again =
+        shadows_core::Events::read_events_after_for_test(storage.clone(), mid, &thread.id, 100)
+            .await
+            .unwrap();
     assert_eq!(seqs, again.iter().map(|e| e.seq).collect::<Vec<_>>());
 
     // Reading after the last delivered seq returns nothing.
     let after_all = EventCursor(*seqs.last().unwrap());
     assert!(
-        storage
-            .read_events_after(after_all, &thread.id, 100)
-            .await
-            .unwrap()
-            .is_empty()
+        shadows_core::Events::read_events_after_for_test(
+            storage.clone(),
+            after_all,
+            &thread.id,
+            100
+        )
+        .await
+        .unwrap()
+        .is_empty()
     );
 }
 
@@ -145,10 +151,14 @@ async fn a_zero_cursor_replays_the_whole_thread() {
         .await
         .unwrap();
 
-    let all = storage
-        .read_events_after(EventCursor(0), &thread.id, 100)
-        .await
-        .unwrap();
+    let all = shadows_core::Events::read_events_after_for_test(
+        storage.clone(),
+        EventCursor(0),
+        &thread.id,
+        100,
+    )
+    .await
+    .unwrap();
     assert_eq!(all.len(), 2, "thread creation and the entry");
     assert_eq!(all[0].kind, "PlanningThreadCreated");
     assert_eq!(all[1].kind, "ThreadEntryAppended");
@@ -224,7 +234,10 @@ async fn a_durable_event_committed_after_the_handoff_arrives_live() {
     )
     .await
     .unwrap();
-    let seq = storage.current_cursor().await.unwrap().0;
+    let seq = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap()
+        .0;
 
     let text = stream.read_until(&format!("\"seq\":{seq}")).await;
     assert_eq!(durable_seqs(&text).last(), Some(&seq), "{text}");
@@ -249,7 +262,10 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     )
     .await
     .unwrap();
-    let seq = storage.current_cursor().await.unwrap().0;
+    let seq = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap()
+        .0;
 
     // A marker committed after the handoff: once it is read, the replay, the
     // handoff and the live re-read triggered by the first commit have all had
@@ -262,7 +278,10 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     )
     .await
     .unwrap();
-    let marker = storage.current_cursor().await.unwrap().0;
+    let marker = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap()
+        .0;
     let text = stream.read_until(&format!("\"seq\":{marker}")).await;
 
     let seqs = durable_seqs(&text);
@@ -307,13 +326,17 @@ async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
         .await
         .unwrap();
     }
-    let missed: Vec<i64> = storage
-        .read_events_after(EventCursor(stopped_at), &thread.id, 100)
-        .await
-        .unwrap()
-        .iter()
-        .map(|e| e.seq)
-        .collect();
+    let missed: Vec<i64> = shadows_core::Events::read_events_after_for_test(
+        storage.clone(),
+        EventCursor(stopped_at),
+        &thread.id,
+        100,
+    )
+    .await
+    .unwrap()
+    .iter()
+    .map(|e| e.seq)
+    .collect();
     assert_eq!(missed.len(), 2, "two events happened while away");
 
     let mut again = live.open_after(&thread.id, stopped_at).await;
@@ -523,7 +546,7 @@ fn thread_ctx(command_id: &str) -> CommandContext {
         command_id: command_id.into(),
         command_kind: "thread.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
     }
 }
 

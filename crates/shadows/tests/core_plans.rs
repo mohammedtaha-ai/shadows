@@ -12,7 +12,7 @@ use app::{other_project, post, start_settled};
 use listening::{listening_app, ok, project_client, refused, thread_client};
 use plan::{add, draft_on, tie_to_part};
 use serde_json::json;
-use shadows_core::testing::fingerprint;
+use shadows_core::testing::CommandContext;
 
 /// A replay only matches a command recorded by an earlier daemon when its
 /// kind, schema version and fingerprint parameters are the ones that daemon
@@ -81,8 +81,13 @@ async fn plan_command_fingerprints_do_not_move() {
     .await
     .unwrap();
     recorded.sort();
-    let pinned =
-        |kind: &str, params: serde_json::Value| (kind.to_string(), 1, fingerprint(kind, &params));
+    let pinned = |kind: &str, params: serde_json::Value| {
+        (
+            kind.to_string(),
+            1,
+            CommandContext::fingerprint(kind, &params),
+        )
+    };
     let mut expected = vec![
         pinned(
             "DraftStart",

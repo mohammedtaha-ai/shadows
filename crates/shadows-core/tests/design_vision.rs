@@ -146,7 +146,9 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         .remove("remove".into(), &project)
         .await
         .unwrap();
-    let before = storage.current_cursor().await.unwrap();
+    let before = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap();
     assert!(core.design().vision(&project).await.is_err());
     assert!(
         core.plans()
@@ -162,7 +164,13 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             .await
             .is_err()
     );
-    assert_eq!(storage.current_cursor().await.unwrap().0, before.0);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&storage)
+            .await
+            .unwrap()
+            .0,
+        before.0
+    );
     let events: Vec<String> = sqlx::query_scalar(
         r#"SELECT payload_json FROM durable_event
                WHERE kind = 'ProjectDesignChanged' AND project_id = ? ORDER BY seq"#,
@@ -192,7 +200,10 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
     .await
     .unwrap();
     let before_view = core.design().vision(&other).await.unwrap();
-    let before_cursor = storage.current_cursor().await.unwrap().0;
+    let before_cursor = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap()
+        .0;
     assert!(
         core.plans()
             .edit_design(
@@ -208,7 +219,13 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             .is_err()
     );
     assert_eq!(core.design().vision(&other).await.unwrap(), before_view);
-    assert_eq!(storage.current_cursor().await.unwrap().0, before_cursor);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&storage)
+            .await
+            .unwrap()
+            .0,
+        before_cursor
+    );
     let results: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM design_command_result")
         .fetch_one(storage.reader())
         .await

@@ -119,7 +119,13 @@ async fn a_focused_turn_stores_the_task_with_the_message_and_tells_the_planner()
         .find(|e| e.kind == ThreadEntryKind::UserMessage);
     let message = message.expect("the person's message");
     assert_eq!(message.body, "report");
-    assert_eq!(message.refs, [EntryRef::Workflow(v1), EntryRef::Task(t2)]);
+    assert_eq!(
+        message.refs,
+        [
+            EntryRef::Workflow(v1.as_str().into()),
+            EntryRef::Task(t2.as_str().into())
+        ]
+    );
 }
 
 #[tokio::test]
@@ -242,8 +248,8 @@ async fn plan_show_writes_a_card_and_signals_only_the_sending_tab() {
         .find(|e| e.kind == ThreadEntryKind::PlanView);
     let card = card.expect("a PlanView entry");
     assert_eq!(card.body, "Plan v1");
-    assert_eq!(card.refs, [EntryRef::Workflow(v1.clone())]);
-    assert_eq!(card.operation_id.as_ref(), Some(&op));
+    assert_eq!(card.refs, [EntryRef::Workflow(v1.clone().as_str().into())]);
+    assert_eq!(card.operation_id.as_deref(), Some(op.as_str()));
     let recorded = events_of(&l.app, &l.app.thread, "PlanShown").await;
     assert_eq!(recorded.len(), 1);
     assert!(recorded[0].get("target_tab").is_none(), "{}", recorded[0]);
@@ -327,13 +333,23 @@ async fn plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards() {
     let (t1, t2) = (task_id(&l.app, &v1, 1).await, task_id(&l.app, &v1, 2).await);
     assert_eq!(
         cards[0].refs,
-        [EntryRef::Workflow(v1.clone()), EntryRef::Task(t1)]
+        [
+            EntryRef::Workflow(v1.clone().as_str().into()),
+            EntryRef::Task(t1.as_str().into())
+        ]
     );
     assert_eq!(
         cards[1].refs,
-        [EntryRef::Workflow(v1.clone()), EntryRef::Task(t2)]
+        [
+            EntryRef::Workflow(v1.clone().as_str().into()),
+            EntryRef::Task(t2.as_str().into())
+        ]
     );
-    assert!(cards.iter().all(|c| c.operation_id.as_ref() == Some(&op)));
+    assert!(
+        cards
+            .iter()
+            .all(|c| c.operation_id.as_deref() == Some(op.as_str()))
+    );
 
     let mut sent = Vec::new();
     while let Ok(signal) = signals.try_recv() {
@@ -434,6 +450,9 @@ async fn a_thread_grant_can_read_and_show_any_plan_in_its_project() {
         .collect();
     assert_eq!(cards.len(), 2);
     assert_eq!(cards[0].body, "Plan v1");
-    assert_eq!(cards[0].refs, [EntryRef::Workflow(v1)]);
-    assert_eq!(cards[1].refs, [EntryRef::Workflow(other_plan)]);
+    assert_eq!(cards[0].refs, [EntryRef::Workflow(v1.as_str().into())]);
+    assert_eq!(
+        cards[1].refs,
+        [EntryRef::Workflow(other_plan.as_str().into())]
+    );
 }
