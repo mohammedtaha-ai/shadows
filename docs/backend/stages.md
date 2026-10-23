@@ -307,6 +307,7 @@ are reference material; they do not replace the project's template or code.
 
 ### B-11 · Images in a message
 - Status: blocked
+- Blocker: The Attachment owner spec requires a size limit, but neither owner spec nor the accepted request supplies a numeric value; the controller must specify the maximum image byte length before implementation.
 - Plan: none. Owner specs: docs/superpowers/specs/2026-09-21-domain-model-design.md §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
 - Read: threads/contract.yaml, turns/contract.yaml (prompt composition), harness/contract.yaml, crates/shadows-agent/src/acp.rs (`Connection::prompt`, steering, `initialize`); the request
 - Touch: crates/shadows-core/src/threads/ (attachment record, bytes, upload/read, removal, fork), a migration under crates/shadows-core/src/db/, crates/shadows-core/src/turns/ (ids in turn/queue/steer commands and fingerprints; neutral image blocks in `Prompt::compose`), crates/shadows-core/src/harness/ (capabilities in the session answer), crates/shadows-agent/src/ (neutral blocks to ACP image blocks; keep `promptCapabilities`), crates/shadows-http/src/ (the two routes, the new fields), api/openapi.json (regenerated), crates/shadows/tests/ (new acceptance tests), docs/codebase/README.md
