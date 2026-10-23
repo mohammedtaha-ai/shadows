@@ -187,3 +187,65 @@ impl CoreError {
         }
     }
 }
+
+impl CoreError {
+    /// Classifies a failure independently of its transport envelope.
+    pub fn code(&self) -> ErrorCode {
+        let e = self;
+        match e {
+            CoreError::ValidationFailed { .. } => ErrorCode::WorkflowValidationFailed,
+            CoreError::ReasonMissing | CoreError::Unavailable(_) => ErrorCode::StorageUnavailable,
+            CoreError::ExtensionNotFound => ErrorCode::ExtensionNotFound,
+            CoreError::ExtensionNameConflict => ErrorCode::ExtensionNameConflict,
+            CoreError::AylulProfileNotFound(_) => ErrorCode::AylulProfileNotFound,
+            CoreError::AylulProviderNotFound(_) => ErrorCode::AylulProviderNotFound,
+            CoreError::ProviderInUse(_) => ErrorCode::ProviderInUse,
+            CoreError::ProfileInvalid(_) => ErrorCode::ProfileInvalid,
+            CoreError::SecretNameReserved(_) => ErrorCode::SecretNameReserved,
+            CoreError::SecretNameInvalid(_) => ErrorCode::SecretNameInvalid,
+            CoreError::SecretValueInvalid(_) => ErrorCode::SecretValueInvalid,
+            CoreError::SecretUnreadable(_) => ErrorCode::SecretUnreadable,
+            CoreError::SecretsUnavailable => ErrorCode::SecretsUnavailable,
+            CoreError::AylulKeyMissing(_) => ErrorCode::AylulKeyMissing,
+            CoreError::AylulNotConfigured => ErrorCode::AylulNotConfigured,
+            CoreError::Storage(error) | CoreError::Start(StartError::Storage(error)) => match error
+            {
+                StorageError::CommandConflict => ErrorCode::CommandConflict,
+                StorageError::NotFound(_) => ErrorCode::InvalidCommand,
+                StorageError::ProjectHasThreads => ErrorCode::ProjectHasThreads,
+                StorageError::RevisionConflict { .. } => ErrorCode::RevisionConflict,
+                StorageError::Constraint(_) | StorageError::TransitionConflict { .. } => {
+                    ErrorCode::StorageConstraintViolation
+                }
+                StorageError::Unavailable(_)
+                | StorageError::Migration(_)
+                | StorageError::Json(_)
+                | StorageError::Database(_) => ErrorCode::StorageUnavailable,
+            },
+            CoreError::Refused { code, .. } => *code,
+            CoreError::Start(StartError::RuntimeStopping) | CoreError::RuntimeStopping => {
+                ErrorCode::RuntimeStopping
+            }
+            CoreError::Directory(d) => Self::directory_code(d),
+            CoreError::ProjectDirectoryUnusable(_) => ErrorCode::PathNotFound,
+            CoreError::HarnessStartFailed(_) => ErrorCode::HarnessStartFailed,
+            CoreError::HarnessUnavailable(_) => ErrorCode::HarnessUnavailable,
+            CoreError::SettingNotOffered { .. } => ErrorCode::SettingNotOffered,
+            CoreError::ModeNotAllowed(_) => ErrorCode::ModeNotAllowed,
+            CoreError::TerminationFailed => ErrorCode::ProcessTerminationFailed,
+        }
+    }
+
+    fn directory_code(e: &DirectoryError) -> ErrorCode {
+        match e {
+            DirectoryError::NotAbsolute(_)
+            | DirectoryError::NotUtf8
+            | DirectoryError::InvalidName { .. } => ErrorCode::PathInvalid,
+            DirectoryError::AlreadyExists(_) => ErrorCode::PathAlreadyExists,
+            DirectoryError::NotFound(_) => ErrorCode::PathNotFound,
+            DirectoryError::NotADirectory(_) => ErrorCode::PathNotADirectory,
+            DirectoryError::AccessDenied(_) => ErrorCode::PathAccessDenied,
+            DirectoryError::Unavailable { .. } => ErrorCode::PathUnavailable,
+        }
+    }
+}

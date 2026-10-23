@@ -151,6 +151,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
 | `crates/shadows-http/src/failure/` | the transport mapping of a failure | `crates/shadows-http/src/failure/mod.rs` |
 | `crates/shadows-http/src/failure/storage.rs` | how a storage failure becomes a status | `crates/shadows-http/src/failure/storage.rs` |
+| `crates/shadows-http/src/failure/cases.rs` | shared transport error expectations | `crates/shadows-core/src/error.rs` |
+| `crates/shadows-http/src/failure/mapping_tests.rs` | HTTP error mapping acceptance | `crates/shadows-core/src/error.rs` |
 | `crates/shadows-http/src/failure/other.rs` | how a start, core or directory failure becomes a status | `crates/shadows-http/src/failure/other.rs` |
 | `crates/shadows-http/src/guard.rs` | refusing requests pages were made to send | `crates/shadows-http/src/guard.rs` |
 | `crates/shadows-mcp/src/lib.rs` | Shadows' MCP server | `crates/shadows-mcp/src/lib.rs` |

@@ -57,7 +57,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: `switching_model_uses_the_new_models_window` and the agreement test pass
 
 ### A-4 · One error mapping for HTTP and MCP
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-4--one-error-mapping-for-http-and-mcp
 - Read: crates/shadows-core/src/error.rs
 - Touch: crates/shadows-core/src/error.rs, crates/shadows-http/src/failure/, crates/shadows-mcp/src/refusal.rs, their tests

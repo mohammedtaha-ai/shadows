@@ -9,29 +9,35 @@ use super::{Detail, Failure};
 
 impl From<StorageError> for Failure {
     fn from(e: StorageError) -> Self {
+        shadows_core::CoreError::Storage(e).into()
+    }
+}
+
+impl Failure {
+    pub(super) fn storage(e: StorageError, code: ErrorCode) -> Self {
         // These two texts are written in `StorageError` itself and name
         // nothing but the command, or the kind of thing that is missing.
-        let own = |status, code| Failure {
+        let own = |status| Failure {
             status,
             code,
             message: e.to_string(),
             cause: None,
             detail: Detail::default(),
         };
-        let (status, code, message) = match &e {
+        let (status, message) = match &e {
             StorageError::CommandConflict => {
-                return own(StatusCode::CONFLICT, ErrorCode::CommandConflict);
+                return own(StatusCode::CONFLICT);
             }
             StorageError::NotFound(_) => {
-                return own(StatusCode::NOT_FOUND, ErrorCode::InvalidCommand);
+                return own(StatusCode::NOT_FOUND);
             }
             StorageError::ProjectHasThreads => {
-                return own(StatusCode::CONFLICT, ErrorCode::ProjectHasThreads);
+                return own(StatusCode::CONFLICT);
             }
             StorageError::RevisionConflict { current, summary } => {
                 return Failure {
                     status: StatusCode::CONFLICT,
-                    code: ErrorCode::RevisionConflict,
+                    code,
                     message: format!(
                         "the resource changed; current revision is {current}: {summary}"
                     ),
@@ -44,20 +50,14 @@ impl From<StorageError> for Failure {
             }
             StorageError::TransitionConflict { .. } => (
                 StatusCode::CONFLICT,
-                ErrorCode::StorageConstraintViolation,
                 "the operation had already moved on; read it again",
             ),
             StorageError::Constraint(_) => (
                 StatusCode::CONFLICT,
-                ErrorCode::StorageConstraintViolation,
                 "the request conflicts with what is already stored, such as a slug \
                  already in use",
             ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorCode::StorageUnavailable,
-                "storage is unavailable",
-            ),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, "storage is unavailable"),
         };
         Failure {
             status,

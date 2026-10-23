@@ -11,18 +11,14 @@ use super::{Detail, Failure};
 
 impl From<StartError> for Failure {
     fn from(e: StartError) -> Self {
-        match e {
-            StartError::Storage(e) => e.into(),
-            StartError::RuntimeStopping => Failure::runtime_stopping(),
-        }
+        CoreError::Start(e).into()
     }
 }
 
 impl From<CoreError> for Failure {
-    /// Each variant through the mapping it had before services returned
-    /// `CoreError`, so no status, code or text moves.
     fn from(e: CoreError) -> Self {
-        match e {
+        let code = e.code();
+        let mut failure = match e {
             CoreError::ValidationFailed { problems, .. } => Failure {
                 status: StatusCode::UNPROCESSABLE_ENTITY,
                 code: ErrorCode::WorkflowValidationFailed,
@@ -53,43 +49,21 @@ impl From<CoreError> for Failure {
             | CoreError::SecretsUnavailable
             | CoreError::AylulKeyMissing(_)
             | CoreError::AylulNotConfigured => {
-                let (status, code) = match &e {
-                    CoreError::ExtensionNotFound => {
-                        (StatusCode::NOT_FOUND, ErrorCode::ExtensionNotFound)
-                    }
-                    CoreError::ExtensionNameConflict => {
-                        (StatusCode::CONFLICT, ErrorCode::ExtensionNameConflict)
-                    }
-                    CoreError::AylulProfileNotFound(_) => {
-                        (StatusCode::NOT_FOUND, ErrorCode::AylulProfileNotFound)
-                    }
-                    CoreError::AylulProviderNotFound(_) => {
-                        (StatusCode::NOT_FOUND, ErrorCode::AylulProviderNotFound)
-                    }
-                    CoreError::ProviderInUse(_) => (StatusCode::CONFLICT, ErrorCode::ProviderInUse),
-                    CoreError::ProfileInvalid(_) => {
-                        (StatusCode::BAD_REQUEST, ErrorCode::ProfileInvalid)
-                    }
-                    CoreError::SecretNameReserved(_) => {
-                        (StatusCode::CONFLICT, ErrorCode::SecretNameReserved)
-                    }
-                    CoreError::SecretNameInvalid(_) => {
-                        (StatusCode::BAD_REQUEST, ErrorCode::SecretNameInvalid)
-                    }
-                    CoreError::SecretValueInvalid(_) => {
-                        (StatusCode::BAD_REQUEST, ErrorCode::SecretValueInvalid)
-                    }
-                    CoreError::SecretUnreadable(_) => {
-                        (StatusCode::CONFLICT, ErrorCode::SecretUnreadable)
-                    }
-                    CoreError::SecretsUnavailable => (
-                        StatusCode::SERVICE_UNAVAILABLE,
-                        ErrorCode::SecretsUnavailable,
-                    ),
-                    CoreError::AylulKeyMissing(_) => {
-                        (StatusCode::CONFLICT, ErrorCode::AylulKeyMissing)
-                    }
-                    _ => (StatusCode::NOT_FOUND, ErrorCode::AylulNotConfigured),
+                let status = match code {
+                    ErrorCode::ExtensionNotFound
+                    | ErrorCode::AylulProfileNotFound
+                    | ErrorCode::AylulProviderNotFound
+                    | ErrorCode::AylulNotConfigured => StatusCode::NOT_FOUND,
+                    ErrorCode::ExtensionNameConflict
+                    | ErrorCode::ProviderInUse
+                    | ErrorCode::SecretNameReserved
+                    | ErrorCode::SecretUnreadable
+                    | ErrorCode::AylulKeyMissing => StatusCode::CONFLICT,
+                    ErrorCode::ProfileInvalid
+                    | ErrorCode::SecretNameInvalid
+                    | ErrorCode::SecretValueInvalid => StatusCode::BAD_REQUEST,
+                    ErrorCode::SecretsUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+                    _ => unreachable!("only configuration errors enter this branch"),
                 };
                 Failure {
                     status,
@@ -99,9 +73,11 @@ impl From<CoreError> for Failure {
                     detail: Detail::default(),
                 }
             }
-            CoreError::Storage(e) => e.into(),
-            CoreError::Start(e) => e.into(),
-            CoreError::Directory(e) => e.into(),
+            CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => {
+                Failure::storage(e, code)
+            }
+            CoreError::Start(StartError::RuntimeStopping) => Failure::runtime_stopping(),
+            CoreError::Directory(e) => Failure::directory(e, code),
             CoreError::ProjectDirectoryUnusable(reason) => {
                 Failure::project_directory_unusable(reason)
             }
@@ -113,31 +89,28 @@ impl From<CoreError> for Failure {
             CoreError::ModeNotAllowed(mode) => Failure::mode_not_allowed(&mode),
             CoreError::RuntimeStopping => Failure::runtime_stopping(),
             CoreError::TerminationFailed => Failure::termination_failed(),
-            CoreError::Refused { code, message } => Failure::refused(code, message),
-        }
+            CoreError::Refused { code, message } => return Failure::refused(code, message),
+        };
+        failure.code = code;
+        failure
     }
 }
 
 impl From<DirectoryError> for Failure {
     fn from(e: DirectoryError) -> Self {
-        let (status, code) = match &e {
-            DirectoryError::NotAbsolute(_)
-            | DirectoryError::NotUtf8
-            | DirectoryError::InvalidName { .. } => {
-                (StatusCode::BAD_REQUEST, ErrorCode::PathInvalid)
-            }
-            DirectoryError::AlreadyExists(_) => {
-                (StatusCode::CONFLICT, ErrorCode::PathAlreadyExists)
-            }
-            DirectoryError::NotFound(_) => (StatusCode::NOT_FOUND, ErrorCode::PathNotFound),
-            DirectoryError::NotADirectory(_) => {
-                (StatusCode::BAD_REQUEST, ErrorCode::PathNotADirectory)
-            }
-            DirectoryError::AccessDenied(_) => (StatusCode::FORBIDDEN, ErrorCode::PathAccessDenied),
-            DirectoryError::Unavailable { .. } => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorCode::PathUnavailable,
-            ),
+        CoreError::Directory(e).into()
+    }
+}
+
+impl Failure {
+    fn directory(e: DirectoryError, code: ErrorCode) -> Self {
+        let status = match code {
+            ErrorCode::PathInvalid | ErrorCode::PathNotADirectory => StatusCode::BAD_REQUEST,
+            ErrorCode::PathAlreadyExists => StatusCode::CONFLICT,
+            ErrorCode::PathNotFound => StatusCode::NOT_FOUND,
+            ErrorCode::PathAccessDenied => StatusCode::FORBIDDEN,
+            ErrorCode::PathUnavailable => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => unreachable!("only directory errors enter this branch"),
         };
         Failure {
             status,

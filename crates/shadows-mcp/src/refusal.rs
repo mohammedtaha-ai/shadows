@@ -9,7 +9,6 @@
 use rmcp::model::{CallToolResult, ContentBlock};
 
 use shadows_core::CoreError;
-use shadows_core::DirectoryError;
 use shadows_core::ErrorCode;
 use shadows_core::StartError;
 use shadows_core::StorageError;
@@ -34,26 +33,30 @@ impl Refusal {
 }
 
 impl From<StorageError> for Refusal {
-    fn from(e: StorageError) -> Self {
+    fn from(error: StorageError) -> Self {
+        CoreError::Storage(error).into()
+    }
+}
+
+impl Refusal {
+    fn storage(e: StorageError, code: ErrorCode) -> Self {
         match e {
             StorageError::RevisionConflict { current, summary } => Self::new(
-                ErrorCode::RevisionConflict,
+                code,
                 format!(
                     "the plan changed; current revision is {current}: {summary}. \
                      Read it with workflow_get, then rebuild your edit."
                 ),
             ),
             StorageError::CommandConflict => Self::new(
-                ErrorCode::CommandConflict,
+                code,
                 "this command id, or this draft_ref, already did something different; \
                  for a new plan call draft_prepare again",
             ),
             // A rule the request broke, not a broken database: say which, so an
             // agent fixes the request instead of asking for a restart.
             StorageError::Constraint(message) => Self::new(ErrorCode::InvalidCommand, message),
-            StorageError::NotFound(what) => {
-                Self::new(ErrorCode::InvalidCommand, format!("no such {what}"))
-            }
+            StorageError::NotFound(what) => Self::new(code, format!("no such {what}")),
             other => {
                 tracing::error!(error = %other, "mcp.storage_failed");
                 Self::new(
@@ -70,6 +73,7 @@ impl From<CoreError> for Refusal {
     /// keeps its code and text; anything else, which no tool meets in this
     /// milestone, answers its code and its own words.
     fn from(e: CoreError) -> Self {
+        let code = e.code();
         match e {
             CoreError::Refused {
                 code: ErrorCode::WorkflowFrozenImmutable,
@@ -89,7 +93,9 @@ impl From<CoreError> for Refusal {
                     "the daemon could not read or write its database",
                 )
             }
-            CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => e.into(),
+            CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => {
+                Self::storage(e, code)
+            }
             CoreError::Refused {
                 code: ErrorCode::GrantInvalid,
                 message,
@@ -116,57 +122,8 @@ impl From<CoreError> for Refusal {
                 )
             }
             CoreError::Refused { code, message } => Self::new(code, message),
-            other => Self::new(code_of(&other), other.to_string()),
+            other => Self::new(code, other.to_string()),
         }
-    }
-}
-
-/// The code HTTP answers the same failure with.
-fn code_of(e: &CoreError) -> ErrorCode {
-    match e {
-        CoreError::ValidationFailed { .. } => ErrorCode::WorkflowValidationFailed,
-        CoreError::ReasonMissing | CoreError::Unavailable(_) => ErrorCode::StorageUnavailable,
-        CoreError::ExtensionNotFound => ErrorCode::ExtensionNotFound,
-        CoreError::ExtensionNameConflict => ErrorCode::ExtensionNameConflict,
-        CoreError::AylulProfileNotFound(_) => ErrorCode::AylulProfileNotFound,
-        CoreError::AylulProviderNotFound(_) => ErrorCode::AylulProviderNotFound,
-        CoreError::ProviderInUse(_) => ErrorCode::ProviderInUse,
-        CoreError::ProfileInvalid(_) => ErrorCode::ProfileInvalid,
-        CoreError::SecretNameReserved(_) => ErrorCode::SecretNameReserved,
-        CoreError::SecretNameInvalid(_) => ErrorCode::SecretNameInvalid,
-        CoreError::SecretValueInvalid(_) => ErrorCode::SecretValueInvalid,
-        CoreError::SecretUnreadable(_) => ErrorCode::SecretUnreadable,
-        CoreError::SecretsUnavailable => ErrorCode::SecretsUnavailable,
-        CoreError::AylulKeyMissing(_) => ErrorCode::AylulKeyMissing,
-        CoreError::AylulNotConfigured => ErrorCode::AylulNotConfigured,
-        CoreError::Storage(_) | CoreError::Start(StartError::Storage(_)) => {
-            ErrorCode::StorageUnavailable
-        }
-        CoreError::Refused { code, .. } => *code,
-        CoreError::Start(StartError::RuntimeStopping) | CoreError::RuntimeStopping => {
-            ErrorCode::RuntimeStopping
-        }
-        CoreError::Directory(d) => directory_code(d),
-        CoreError::ProjectDirectoryUnusable(_) => ErrorCode::PathNotFound,
-        CoreError::HarnessStartFailed(_) => ErrorCode::HarnessStartFailed,
-        CoreError::HarnessUnavailable(_) => ErrorCode::HarnessUnavailable,
-        CoreError::SettingNotOffered { .. } => ErrorCode::SettingNotOffered,
-        CoreError::ModeNotAllowed(_) => ErrorCode::ModeNotAllowed,
-        CoreError::TerminationFailed => ErrorCode::ProcessTerminationFailed,
-    }
-}
-
-/// The code HTTP answers the same directory failure with.
-fn directory_code(e: &DirectoryError) -> ErrorCode {
-    match e {
-        DirectoryError::NotAbsolute(_)
-        | DirectoryError::NotUtf8
-        | DirectoryError::InvalidName { .. } => ErrorCode::PathInvalid,
-        DirectoryError::AlreadyExists(_) => ErrorCode::PathAlreadyExists,
-        DirectoryError::NotFound(_) => ErrorCode::PathNotFound,
-        DirectoryError::NotADirectory(_) => ErrorCode::PathNotADirectory,
-        DirectoryError::AccessDenied(_) => ErrorCode::PathAccessDenied,
-        DirectoryError::Unavailable { .. } => ErrorCode::PathUnavailable,
     }
 }
 
@@ -198,4 +155,33 @@ fn refused(refusal: Refusal) -> CallToolResult {
         "{code}: {}",
         refusal.message
     ))])
+}
+
+#[cfg(test)]
+mod mapping_tests {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../shadows-http/src/failure/cases.rs"
+    ));
+
+    #[test]
+    fn every_core_error_keeps_its_mcp_mapping() {
+        assert_eq!(Case::all().len(), 59);
+        for case in Case::all() {
+            let name = format!("{:?}", case.error);
+            assert_eq!(case.error.code(), case.code, "{name}");
+            let refusal = super::Refusal::from(case.error);
+            assert_eq!(refusal.code, case.mcp_code, "{name}");
+            assert_eq!(refusal.message, case.mcp, "{name}");
+            let code = serde_json::to_value(case.mcp_code).unwrap();
+            let result = serde_json::to_value(super::refused(refusal)).unwrap();
+            assert_eq!(result["isError"], true, "{name}");
+            assert_eq!(
+                result["content"][0]["text"],
+                format!("{}: {}", code.as_str().unwrap(), case.mcp),
+                "{name}"
+            );
+            let _ = (case.code, case.status, case.http_code, case.http);
+        }
+    }
 }
