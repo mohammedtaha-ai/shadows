@@ -65,6 +65,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "harness_limit",
             "harness_model_effort",
             "harness_preference",
+            "harness_thread_mode",
             "mcp_grant",
             "operation",
             "plan",
@@ -92,6 +93,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0019 §20's queue, 0021 §23's standards additions, \
          0023 §23's map proposals, versions and waivers, \
          0026 §23.5's roadmap proposals, 0028 AYLUL's encrypted environment, \
-         0033 the person, 0034 usage, 0035 the extension library and its per-agent switches)"
+         0033 the person, 0034 usage, 0035 the extension library and its per-agent switches, \
+         0036 the remembered conversation mode)"
     );
 }
