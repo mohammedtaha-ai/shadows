@@ -78,7 +78,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: the MCP tool-list tests pass against the ruling
 
 ### A-7 · Correct the context-meter evidence
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-7--correct-the-context-meter-evidence
 - Read: docs/evidence/2026-10-21-context-meter-probe.md; §12.8
 - Touch: docs/evidence/2026-10-21-context-meter-probe.md, docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8

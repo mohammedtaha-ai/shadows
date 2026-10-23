@@ -93,3 +93,30 @@ RPC error (the turn was still running or the connection was gone).
 T4 timed out, so the resume-visibility question and the post-resume Usage have no
 data. A rerun of step 6 alone would answer it. This evidence decides nothing;
 Hamoud amends harness controls section 12.8.
+
+## Correction - 2026-10-23
+
+The original run above is preserved. Inspected sources: the probe function
+`b1_context_meter_probe` in `crates/shadows-agent/src/acp.rs` at `ce8fa7a`,
+and the recorded figures in this document at `e0478f7`. No new provider run
+or source log is available in this correction.
+
+- The probe explicitly set `CLAUDE_CODE_MAX_CONTEXT_TOKENS=200000` in each
+  profile. The approximately 200000 totals in C1-C4a therefore do not measure
+  a model's natural context window or how it changes on a model switch.
+- The probe bounded a normal prompt at 120 seconds. T4's recorded timeout and
+  absent events establish neither an expired key nor another specific failure
+  cause. No inspected diagnostic establishes key expiry; later controller
+  figures are not additional measurements in this record.
+- T1-T3 support only the observed edge updates on those turns. Their last
+  `used` values equal the recorded input + output + cache-read fields. This
+  does not establish continuous usage availability on other adapters or relay
+  paths, nor that the uncached T3 request caused its larger token count.
+- Transcript counts establish local persistence of the command and output.
+  Whether these reach a later model request remains an inference: the direct
+  recall check did not finish, and there is no matched session without readings.
+  The varying Messages row cannot decide visibility or conversation size.
+- Rerunning step 6 alone would provide a recall observation, not the matched
+  control run required by harness controls section 12.8. Its OPEN and trigger
+  remain unchanged. The ring keeps `used`; this correction changes no API and
+  makes no claim about live relay usage.
