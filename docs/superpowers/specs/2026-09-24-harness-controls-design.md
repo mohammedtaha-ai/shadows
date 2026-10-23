@@ -535,10 +535,10 @@ and its chunks never reach the conversation.
 > answered by the context-meter probe (`docs/evidence/2026-10-21-context-meter-probe.md`).
 > The exchange **is written into the session transcript**: the `/context` line
 > and its `local-command-stdout` answer are written once per reading. The
-> figures also suggest that the model is sent it. On one model with no reading
-> between, turn 2's input grew by 783 tokens over turn 1's total, where an
-> 11-token reply and a one-line prompt account for well under 100. The two
-> readings between them would account for the rest. That is an inference: the
+> figures also suggest that the model is sent it. On the same model, with two
+> readings between the turns, turn 2's input grew by 783 tokens over turn 1's
+> total, where an 11-token reply and a one-line prompt account for well under
+> 100. The two readings between them would account for the rest. That is an inference: the
 > probe's direct check (step 6, after a resume) timed out and gave no answer.
 > The dated evidence correction preserves this as inference; neither a key
 > expiry diagnosis nor later controller figures have inspected supporting logs.

@@ -215,6 +215,29 @@ async fn opening_and_turn_model_selection_use_the_same_window() {
 }
 
 #[tokio::test]
+async fn a_refused_remembered_model_uses_the_fallback_models_window() {
+    let w = world().await;
+    let input = serde_json::from_value(json!({"preset":"minimax","models":[
+        {"id":"fake-large","context_window":321000},
+        {"id":"fake-small","context_window":200000},
+        {"id":"fake-locked","context_window":1000}]}))
+    .unwrap();
+    w.core
+        .agents()
+        .update_provider("locked-window".into(), "test-2", input)
+        .await
+        .unwrap();
+    w.sessions
+        .remember_for_test("aylul:aylul", "fake-locked", None)
+        .await;
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(choices.current.model, "fake-large");
+    let report = reply(&w, &w.thread, "fake-large", "high").await;
+    assert_eq!(report["context_tokens"], "321000");
+    assert_eq!(report["compact_window"], "321000");
+}
+
+#[tokio::test]
 async fn a_leased_adapter_is_not_replaced_by_a_model_pick() {
     let w = world().await;
     provider_window(&w, 321000).await;
@@ -229,6 +252,77 @@ async fn a_leased_adapter_is_not_replaced_by_a_model_pick() {
         .await;
     let report = reply(&w, &w.thread, "fake-small", "high").await;
     assert_eq!(report["context_tokens"], "321000");
+}
+
+#[tokio::test]
+async fn model_replacement_keeps_turn_output_and_closes_the_current_adapter() {
+    let w = world().await;
+    provider_window(&w, 321000).await;
+    let first = reply(&w, &w.thread, "fake-small", "high").await;
+    assert_eq!(first["context_tokens"], "321000");
+    let previous = w.sessions.open(&w.thread).await.unwrap();
+    let old_pid = w.sessions.pid(&w.thread).await.unwrap();
+    w.core
+        .harness()
+        .change_model(&w.thread, "fake-large")
+        .await
+        .unwrap();
+    let current_pid = w.sessions.pid(&w.thread).await.unwrap();
+    assert_ne!(current_pid, old_pid);
+    assert!(previous.connection().is_closed());
+    w.sessions
+        .terminate_adapter(&w.thread, &previous)
+        .await
+        .unwrap();
+    assert_eq!(w.sessions.pid(&w.thread).await, Some(current_pid));
+    let second = reply(&w, &w.thread, "fake-large", "high").await;
+    assert_eq!(second["context_tokens"], "1000");
+    let entries = w.core.threads().entries(&w.thread).await.unwrap();
+    assert_eq!(entries.len(), 4);
+    assert_eq!(entries[0].kind, ThreadEntryKind::UserMessage);
+    assert_eq!(entries[1].kind, ThreadEntryKind::AgentMessage);
+    assert_eq!(entries[2].kind, ThreadEntryKind::UserMessage);
+    assert_eq!(entries[3].kind, ThreadEntryKind::AgentMessage);
+    let current = w.sessions.open(&w.thread).await.unwrap();
+    w.sessions.close_all().await.unwrap();
+    assert_eq!(w.sessions.live_count().await, 0);
+    assert!(current.connection().is_closed());
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.sessions.terminate(&w.thread).await.unwrap();
+    assert_eq!(w.sessions.live_count().await, 0);
+}
+
+#[tokio::test]
+async fn a_failed_model_replacement_cannot_prompt_with_stale_process_limits() {
+    let w = world().await;
+    provider_window(&w, 321000).await;
+    let opened = w.sessions.open(&w.thread).await.unwrap();
+    assert!(w.sessions.force_termination_failure(&w.thread).await);
+    assert!(
+        w.core
+            .harness()
+            .change_model(&w.thread, "fake-large")
+            .await
+            .is_err()
+    );
+    let sent = w
+        .core
+        .turns()
+        .send(w.thread.clone(), request("fake-large", "high"))
+        .await;
+    assert!(
+        matches!(sent, Err(CoreError::HarnessStartFailed(_))),
+        "{sent:?}"
+    );
+    assert!(
+        w.core
+            .threads()
+            .entries(&w.thread)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(w.sessions.lease_events(&w.thread, &opened).await.is_err());
 }
 
 #[tokio::test]
