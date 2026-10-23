@@ -388,8 +388,8 @@ async fn start(
     };
     let ctx = writer_ctx(&writer, command, "DraftStart", json!({ "r": draft_ref }));
     let (title, goal) = ("Search", "find things");
-    app.storage
-        .start_draft(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &ctx,
             &writer,
             &app.project,

@@ -29,7 +29,7 @@ pub(super) async fn approve_roadmap_proposal(
 ) -> Result<Json<DesignChange>, Failure> {
     Ok(Json(
         s.core
-            .design()
+            .plans()
             .approve_roadmap_proposal(body.command_id, &p, &id)
             .await?,
     ))

@@ -90,6 +90,8 @@ modules:
   testing.rs: test-only grant entry points
 
 functions:
+  principal_resolution:
+    from_grant: "Writer::from_grant(grant, missing_thread_message) resolves authenticated writer identity once; callers keep their malformed-grant wording"
   reads:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"

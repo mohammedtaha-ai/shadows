@@ -135,8 +135,9 @@ async fn refused_authority(end_turn: bool) {
         harness: "claude-code".into(),
     };
     assert!(
-        f.storage
-            .approve_vision_proposal_in(&ctx, &f.p, &p.id, &approver)
+        f.core
+            .design()
+            .approve_vision_proposal_for_test(&ctx, &f.p, &p.id, &approver)
             .await
             .is_err()
     );
@@ -199,8 +200,9 @@ async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
     .await
     .unwrap();
     assert!(
-        f.storage
-            .propose_vision_in(&ctx, &writer, &f.p, &operation, args)
+        f.core
+            .design()
+            .propose_vision_for_test(&ctx, &writer, &f.p, &operation, args)
             .await
             .is_err()
     );
@@ -244,8 +246,8 @@ async fn hand(f: &Fixture, revision: i64, text: &str) {
         }
     };
     f.core
-        .design()
-        .edit(format!("hand-{revision}"), &f.p, revision, vec![op])
+        .plans()
+        .edit_design(format!("hand-{revision}"), &f.p, revision, vec![op])
         .await
         .unwrap();
 }

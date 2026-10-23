@@ -30,8 +30,8 @@ async fn external_start(
     draft_ref: Option<&str>,
     command: &str,
 ) -> Result<DraftStarted, shadows_core::CoreError> {
-    app.storage
-        .start_draft(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(external, command, "DraftStart", json!({ "r": draft_ref })),
             external,
             project,
@@ -91,7 +91,11 @@ async fn a_draft_ref_binds_in_both_paths() {
 
     // From a frozen plan: its next version.
     let v1 = approved_v1(&app).await;
-    let plan = app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap()
+        .plan_id;
     let r2 = insert_draft_ref(&app, &grant, &in_an_hour()).await;
     let v2 = external_start(
         &app,
@@ -164,7 +168,10 @@ async fn a_draft_ref_binds_in_both_paths() {
             "a refused ref stays unbound"
         );
     }
-    let plans = app.storage.list_plans(&app.project, true).await.unwrap();
+    let plans = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .list_plans_for_test(&app.project, true)
+        .await
+        .unwrap();
     assert_eq!(plans.len(), 2, "the refused starts created no plan");
     let threads =
         shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
@@ -203,9 +210,8 @@ async fn an_edit_by_a_revoked_grant_writes_nothing() {
     let grant = insert_grant(&app, "project", &app.project, None).await;
     revoke_grant(&app, &grant).await;
     let external = Writer::External { grant };
-    let refused = app
-        .storage
-        .edit_plan(
+    let refused = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&external, &v1, 0, &[add(1)]),
             &external,
             None,
@@ -250,9 +256,8 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
         thread: other,
         grant,
     };
-    let refused = app
-        .storage
-        .edit_plan(
+    let refused = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&planner, &v1, 0, &[add(1)]),
             &planner,
             None,
@@ -277,9 +282,8 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
         thread: app.thread.clone(),
         grant: own,
     };
-    let done = app
-        .storage
-        .edit_plan(
+    let done = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&planner, &v1, 0, &[add(1)]),
             &planner,
             None,
@@ -340,7 +344,10 @@ async fn an_external_start_from_scratch_creates_a_plan_and_no_thread() {
             .await
             .unwrap();
     assert_eq!(threads.len(), 1, "only the app's own thread");
-    let plan = app.storage.get_plan(&started.workflow_id).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&started.workflow_id)
+        .await
+        .unwrap();
     assert_eq!(
         (plan.title.as_str(), plan.goal.as_str()),
         ("Search", "find things")
@@ -389,7 +396,11 @@ async fn external_draft_starts_require_a_draft_ref() {
     );
 
     let frozen = approved_v1(&app).await;
-    let plan = app.storage.get_plan(&frozen).await.unwrap().plan_id;
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&frozen)
+        .await
+        .unwrap()
+        .plan_id;
     let in_plan = external_start(
         &app,
         &external,
@@ -410,12 +421,15 @@ async fn external_draft_starts_require_a_draft_ref() {
         "{in_plan:?}"
     );
     assert_eq!(
-        app.storage.thread_plan(&app.thread).await.unwrap(),
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .thread_plan_for_test(&app.thread)
+            .await
+            .unwrap(),
         Some(frozen)
     );
     assert_eq!(
-        app.storage
-            .list_plans(&app.project, true)
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .list_plans_for_test(&app.project, true)
             .await
             .unwrap()
             .len(),

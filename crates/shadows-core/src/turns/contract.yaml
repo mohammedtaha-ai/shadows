@@ -47,6 +47,7 @@ modules:
   shutdown.rs: live shutdown orchestration
   spawn.rs: live registration
   steer.rs: steering orchestration
+  plan_show.rs: plan card live signal composition
   stage.rs: shared normal/steered stage fact composition
   turn.rs: live completion arbitration
   entries.rs: harness entry collection
@@ -80,6 +81,8 @@ shapes:
     # A clone of the core's `Code`: `send` touches the thread's project (§15.6).
     code: Code
     standards: Standards
+    plans: Plans
+    ui: broadcast::Sender<UiSignal>
   ThreadStopper:
     # Narrow handle built at composition, held by Threads.
     storage: Arc<Storage>
@@ -230,6 +233,8 @@ shapes:
 
 
 functions:
+  plan_cards:
+    show_plan: "(&self, grant, PlanShow) -> Result<PlanShown, CoreError>; calls Plans::show, reads its live tab and signals only a non-replay"
   service:
     operations: "(&self, thread) -> Result<Vec<Operation>, CoreError>; Operations rows enriched with invocation reads"
     stop_running:

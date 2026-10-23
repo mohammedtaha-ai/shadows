@@ -1,4 +1,4 @@
-//! The project workspace's public value shapes (§18.2).
+//! The project workspace's public value shapes.
 
 pub type DesignRevision = i64;
 
@@ -29,12 +29,11 @@ pub struct Outcome {
     pub content: OutcomeContent,
 }
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct OutcomeView {
+pub(crate) struct OutcomeDetails {
     pub revision: DesignRevision,
     pub outcome: Outcome,
     pub ancestors: Vec<Outcome>,
     pub parts: Vec<PartId>,
-    pub plans: Vec<crate::plans::PlanId>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct OutcomePage {
@@ -118,14 +117,10 @@ pub struct Part {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct PartView {
+pub(crate) struct PartDetails {
     pub revision: DesignRevision,
     pub part: Part,
     pub ancestors: Vec<Part>,
-    pub plans: Vec<crate::plans::PlanId>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    #[schema(required = false)]
-    pub binding_plans: Vec<crate::plans::BindingParticipant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -206,7 +201,7 @@ pub struct DesignChange {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(tag = "kind")]
-pub enum DesignOp {
+pub(crate) enum WorkspaceOp {
     OutcomeCreate {
         id: OutcomeId,
         parent: Option<OutcomeId>,
@@ -258,11 +253,11 @@ pub enum DesignOp {
     },
     PlanLinkPut {
         anchor: DesignAnchor,
-        plan: crate::plans::PlanId,
+        plan: String,
     },
     PlanLinkRemove {
         anchor: DesignAnchor,
-        plan: crate::plans::PlanId,
+        plan: String,
     },
 }
 

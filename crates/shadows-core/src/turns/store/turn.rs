@@ -14,7 +14,7 @@ use crate::events::DurableEvent;
 use crate::harness::{Harness, NewInvocation};
 use crate::operations::Operations;
 use crate::plans::Focus;
-use crate::plans::task_of;
+use crate::plans::Plans;
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId};
@@ -94,7 +94,7 @@ async fn focused(
     conn: &mut SqliteConnection,
     thread: &ThreadId,
     focus: &Focus,
-) -> Result<(u32, String), StorageError> {
+) -> Result<(u32, String), crate::CoreError> {
     let in_project: Option<i64> = sqlx::query_scalar(
         "SELECT 1 FROM workflow w JOIN plan p ON p.id = w.plan_id
             WHERE w.id = ? AND p.project_id = ?",
@@ -104,13 +104,17 @@ async fn focused(
     .fetch_optional(&mut *conn)
     .await?;
     if in_project.is_none() {
-        return Err(StorageError::TaskNotInPlan(
+        return Err(crate::plans::PlansError::TaskNotInPlan(
             "the chosen plan is not in this conversation's project".into(),
-        ));
+        )
+        .into());
     }
-    task_of(conn, &focus.workflow_id, &focus.task_id)
+    Plans::task_of(conn, &focus.workflow_id, &focus.task_id)
         .await?
-        .ok_or_else(|| StorageError::TaskNotInPlan("the chosen task is not in that plan".into()))
+        .ok_or_else(|| {
+            crate::plans::PlansError::TaskNotInPlan("the chosen task is not in that plan".into())
+                .into()
+        })
 }
 
 impl Storage {
@@ -122,7 +126,7 @@ impl Storage {
         &self,
         ctx: &CommandContext,
         turn: NewTurn<'_>,
-    ) -> Result<StartedTurn, StorageError> {
+    ) -> Result<StartedTurn, crate::CoreError> {
         let snapshot = turn.aylul_usage.cloned();
         let (ctx, ts) = (ctx.clone(), now());
         let thread = turn.thread_id.clone();
@@ -147,14 +151,14 @@ impl Storage {
         ]
         .map(str::to_owned);
         let (started, transition) = self
-            .write_txn(move |conn| {
+            .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
                     if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
                         return Ok((recorded(&outcome)?, None));
                     }
                     crate::threads::Threads::require_live_in(conn, &thread).await?;
                     if Operations::has_open_in(conn, &thread).await? {
-                        return Err(StorageError::ThreadBusy);
+                        return Err(StorageError::ThreadBusy.into());
                     }
                     if let Some((id, _)) = &dequeue {
                         super::queue::take_queued_in(conn, &thread, id).await?;

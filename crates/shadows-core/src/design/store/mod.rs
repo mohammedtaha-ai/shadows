@@ -1,5 +1,6 @@
 //! Persistence of the project design workspace.
 mod agreement_binding;
+mod agreement_write;
 mod agreements;
 mod hierarchy;
 mod map_approval;
@@ -7,9 +8,6 @@ mod map_proposal_read;
 mod map_proposal_shape;
 mod map_proposals;
 mod map_versions;
-pub(crate) use agreement_binding::check_agreement_binding_in;
-mod agreement_review;
-mod agreement_write;
 mod outcome_edit;
 mod outcomes;
 mod part_edit;
@@ -18,14 +16,20 @@ mod proposal_approval;
 mod proposal_read;
 mod proposals;
 mod roadmap_approval;
-mod roadmap_gate;
+pub(super) mod roadmap_gate;
 mod roadmap_proposal_read;
 mod roadmap_proposals;
 #[cfg(feature = "test-support")]
 mod roadmap_seed;
 mod roadmap_shape;
-pub(crate) use roadmap_gate::{link_plan_parts_in, plan_has_part_in, require_roadmap_in};
 mod stage;
 pub(super) mod structure;
 mod vision;
 mod vision_versions;
+
+use crate::db::Storage;
+use std::sync::Arc;
+
+pub(super) struct DesignStore {
+    pub(super) storage: Arc<Storage>,
+}

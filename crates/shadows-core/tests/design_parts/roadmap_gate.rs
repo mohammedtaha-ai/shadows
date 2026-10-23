@@ -4,8 +4,7 @@ use shadows_core::{ErrorCode, Grant, OutcomeContent, OutcomeId};
 
 fn blocked<T: std::fmt::Debug>(result: Result<T, CoreError>, reason: &str) {
     match result.unwrap_err() {
-        CoreError::Storage(StorageError::StageBlocked(message))
-        | CoreError::Refused {
+        CoreError::Refused {
             code: ErrorCode::StageBlocked,
             message,
         } => assert!(message.contains(reason), "{message}"),
@@ -143,7 +142,7 @@ async fn a_plan_with_no_part_cannot_be_approved() {
         .approve("tied-approve".into(), &tied.workflow_id, 1)
         .await
         .unwrap();
-    let view = core.design().part(&p, &part).await.unwrap();
+    let view = core.plans().design_part(&p, &part).await.unwrap();
     assert_eq!(view.plans, vec![tied.plan_id]);
 }
 
@@ -171,14 +170,14 @@ async fn hand_outcome_edits_wait_for_the_first_roadmap() {
         },
     };
     blocked(
-        core.design()
-            .edit("early".into(), &p, 0, vec![create()])
+        core.plans()
+            .edit_design("early".into(), &p, 0, vec![create()])
             .await,
         "the first roadmap comes from the Planner",
     );
     core.design().seed_roadmap_for_tests(&p).await.unwrap();
-    core.design()
-        .edit("late".into(), &p, 0, vec![create()])
+    core.plans()
+        .edit_design("late".into(), &p, 0, vec![create()])
         .await
         .unwrap();
 }

@@ -1,5 +1,6 @@
-//! Snapshot reads of vision proposal state (§23.5).
-use crate::db::Storage;
+//! Snapshot reads of vision proposal state.
+
+use super::DesignStore;
 use crate::design::{ProposalStatus, VisionAction, VisionProposal};
 use crate::{ProjectId, StorageError, VisionContent};
 use sqlx::{FromRow, SqliteConnection};
@@ -55,53 +56,55 @@ impl Row {
     }
 }
 
-pub(super) async fn live_vision(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-) -> Result<VisionContent, StorageError> {
-    let json: Option<Option<String>> = sqlx::query_scalar(
-        "SELECT w.vision_content FROM project p
-         LEFT JOIN design_workspace w ON w.project_id=p.id
-         WHERE p.id=? AND p.removed_at IS NULL",
-    )
-    .bind(project.as_str())
-    .fetch_optional(conn)
-    .await?;
-    json.ok_or(StorageError::NotFound("project"))?
-        .map(|s| serde_json::from_str(&s))
-        .transpose()
-        .map(|v| v.unwrap_or_default())
-        .map_err(Into::into)
+impl ProposalReadRows {
+    pub(super) async fn live_vision(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<VisionContent, StorageError> {
+        crate::projects::Projects::require_live_in(conn, project).await?;
+        let json: Option<Option<String>> =
+            sqlx::query_scalar("SELECT vision_content FROM design_workspace WHERE project_id=?")
+                .bind(project.as_str())
+                .fetch_optional(conn)
+                .await?;
+        json.flatten()
+            .map(|s| serde_json::from_str(&s))
+            .transpose()
+            .map(|v| v.unwrap_or_default())
+            .map_err(Into::into)
+    }
 }
 
-pub(super) async fn load(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-    id: &str,
-    content: &VisionContent,
-) -> Result<VisionProposal, StorageError> {
-    sqlx::query_as::<_, Row>(
-        "SELECT id,thread_id,action,field,item_id,text,old_text,
+impl ProposalReadRows {
+    pub(super) async fn load(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        id: &str,
+        content: &VisionContent,
+    ) -> Result<VisionProposal, StorageError> {
+        sqlx::query_as::<_, Row>(
+            "SELECT id,thread_id,action,field,item_id,text,old_text,
         expected_item_revision,status,created_at,approved_principal,approved_agent,
         approved_request_entry FROM design_vision_proposal
         WHERE project_id=? AND id=?",
-    )
-    .bind(project.as_str())
-    .bind(id)
-    .fetch_optional(&mut *conn)
-    .await?
-    .ok_or(StorageError::NotFound("vision proposal"))?
-    .view(conn, content)
-    .await
+        )
+        .bind(project.as_str())
+        .bind(id)
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or(StorageError::NotFound("vision proposal"))?
+        .view(conn, content)
+        .await
+    }
 }
 
-impl Storage {
+impl DesignStore {
     pub async fn list_vision_proposals(
         &self,
         project: &ProjectId,
     ) -> Result<Vec<VisionProposal>, StorageError> {
-        let mut txn = self.reader().begin().await?;
-        let content = live_vision(&mut txn, project).await?;
+        let mut txn = self.storage.reader().begin().await?;
+        let content = ProposalReadRows::live_vision(&mut txn, project).await?;
         let rows = sqlx::query_as::<_, Row>(
             "SELECT id,thread_id,action,field,item_id,text,old_text,
             expected_item_revision,status,created_at,approved_principal,approved_agent,
@@ -118,3 +121,5 @@ impl Storage {
         Ok(result)
     }
 }
+
+pub(in crate::design) struct ProposalReadRows;

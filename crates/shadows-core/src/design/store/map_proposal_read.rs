@@ -1,5 +1,6 @@
 //! Snapshot reads and dependency-based staleness of map cards.
-use crate::db::Storage;
+
+use super::DesignStore;
 use crate::design::{MapAction, MapProposal, ProposalStatus};
 use crate::{ProjectId, StorageError};
 use sqlx::{FromRow, SqliteConnection};
@@ -18,30 +19,33 @@ pub(super) struct Row {
     pub approved_agent: Option<String>,
     pub approved_request_entry: Option<String>,
 }
-pub(super) async fn load(
-    conn: &mut SqliteConnection,
-    p: &ProjectId,
-    id: &str,
-) -> Result<MapProposal, StorageError> {
-    let row: Row = sqlx::query_as(
-        "SELECT payload_json,status,vision_revision,
+impl MapProposalReadRows {
+    pub(super) async fn load(
+        conn: &mut SqliteConnection,
+        p: &ProjectId,
+        id: &str,
+    ) -> Result<MapProposal, StorageError> {
+        let row: Row = sqlx::query_as(
+            "SELECT payload_json,status,vision_revision,
         expected_part_revision,expected_items_json,standards_version,standards_additions_version_id,
         approved_principal,approved_agent,approved_request_entry
         FROM design_map_proposal WHERE project_id=? AND id=?",
-    )
-    .bind(p.as_str())
-    .bind(id)
-    .fetch_optional(&mut *conn)
-    .await?
-    .ok_or(StorageError::NotFound("map proposal"))?;
-    view(conn, p, row).await
+        )
+        .bind(p.as_str())
+        .bind(id)
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or(StorageError::NotFound("map proposal"))?;
+        view(conn, p, row).await
+    }
 }
+
 async fn view(
     conn: &mut SqliteConnection,
     p: &ProjectId,
     row: Row,
 ) -> Result<MapProposal, StorageError> {
-    let vision = super::proposal_read::live_vision(conn, p).await?;
+    let vision = super::proposal_read::ProposalReadRows::live_vision(conn, p).await?;
     let mut proposal: MapProposal = serde_json::from_str(&row.payload_json)?;
     proposal.approved_by = crate::grants::Grants::read_in(
         conn,
@@ -51,7 +55,7 @@ async fn view(
     )
     .await?;
     proposal.status = serde_json::from_value(serde_json::json!(row.status))?;
-    let standards = super::map_versions::effective(conn, p).await?;
+    let standards = super::map_versions::MapVersionsRows::effective(conn, p).await?;
     let (v, m): (i64, i64) = sqlx::query_as(
         "SELECT vision_revision,map_revision FROM design_workspace WHERE project_id=?",
     )
@@ -81,13 +85,13 @@ async fn view(
     proposal.outdated = proposal.status == ProposalStatus::Pending && outdated;
     Ok(proposal)
 }
-impl Storage {
+impl DesignStore {
     pub async fn list_map_proposals(
         &self,
         p: &ProjectId,
     ) -> Result<Vec<MapProposal>, StorageError> {
-        let mut tx = self.reader().begin().await?;
-        super::proposal_read::live_vision(&mut tx, p).await?;
+        let mut tx = self.storage.reader().begin().await?;
+        super::proposal_read::ProposalReadRows::live_vision(&mut tx, p).await?;
         let rows: Vec<Row> = sqlx::query_as(
             "SELECT payload_json,status,vision_revision,
             expected_part_revision,expected_items_json,standards_version,
@@ -105,3 +109,5 @@ impl Storage {
         Ok(result)
     }
 }
+
+pub(in crate::design) struct MapProposalReadRows;

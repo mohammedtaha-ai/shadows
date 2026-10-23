@@ -1,7 +1,7 @@
 //! Map proposal values and service entry points.
 use super::{Design, DesignChange, PartContent, PartId, ProposalStatus};
-use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
-use crate::grants::Writer;
+use crate::db::CommandContext;
+
 use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -67,10 +67,10 @@ impl Design {
             serde_json::json!({"project":grant.project_id,"proposal":proposal}),
         );
         // The store performs waiver rejection after project scoping and authority checks.
-        self.storage
+        self.store
             .approve_map_proposal_in(&ctx, &grant.project_id, proposal, &approver)
             .await
-            .map_err(Self::core_error)
+            .map_err(CoreError::invalid_constraint)
     }
 
     pub async fn propose_map(
@@ -78,50 +78,29 @@ impl Design {
         grant: &Grant,
         mut args: MapPropose,
     ) -> Result<MapProposal, CoreError> {
-        let writer = super::agreement_scope::writer(grant)?;
-        let Writer::Planner { thread, .. } = &writer else {
-            return Err(CoreError::Refused {
-                code: ErrorCode::GrantScope,
-                message: "map_propose needs a Planner's conversation".into(),
-            });
-        };
-        let turn =
-            self.operations
-                .running_for(thread)
-                .await?
-                .ok_or_else(|| CoreError::Refused {
-                    code: ErrorCode::InvalidCommand,
-                    message: "no turn is running".into(),
-                })?;
+        let (writer, turn) = self
+            .proposal_writer(
+                grant,
+                "map_propose needs a Planner's conversation",
+                "no turn is running",
+            )
+            .await?;
         for part in &mut args.parts {
-            super::map_rules::normalise(&mut part.content).map_err(|message| {
+            super::map_rules::MapRules::normalise(&mut part.content).map_err(|message| {
                 CoreError::Refused {
                     code: ErrorCode::InvalidCommand,
                     message,
                 }
             })?;
         }
-        let fp = fingerprint(
-            "MapPropose",
-            &serde_json::to_value(&args).map_err(crate::StorageError::from)?,
-        );
-        let (kind, id) = writer.principal();
-        let ctx = CommandContext {
-            agent: None,
-            principal_kind: kind.into(),
-            principal_id: id,
-            command_id: derived_id(Anchor::Operation(turn.as_str()), &fp),
-            command_kind: "MapPropose".into(),
-            command_schema_ver: 1,
-            request_fingerprint: fp,
-        };
-        self.storage
+        let ctx = Self::proposal_command(&writer, &turn, "MapPropose", &args)?;
+        self.store
             .propose_map_in(&ctx, &writer, &grant.project_id, &turn, args)
             .await
-            .map_err(Self::core_error)
+            .map_err(CoreError::invalid_constraint)
     }
     pub async fn map_proposals(&self, project: &ProjectId) -> Result<Vec<MapProposal>, CoreError> {
-        Ok(self.storage.list_map_proposals(project).await?)
+        Ok(self.store.list_map_proposals(project).await?)
     }
     pub async fn approve_map_proposal(
         &self,
@@ -134,9 +113,9 @@ impl Design {
             "MapProposalApprove",
             serde_json::json!({"project":project,"proposal":proposal}),
         );
-        self.storage
+        self.store
             .approve_map_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
             .await
-            .map_err(Self::core_error)
+            .map_err(CoreError::invalid_constraint)
     }
 }

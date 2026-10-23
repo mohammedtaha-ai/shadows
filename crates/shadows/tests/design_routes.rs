@@ -37,8 +37,8 @@ async fn create_structure_route_writes_and_refuses() {
         })
         .collect();
     app.core
-        .design()
-        .edit("parts".into(), &p, 0, ops)
+        .plans()
+        .edit_design("parts".into(), &p, 0, ops)
         .await
         .unwrap();
     let route = format!("/api/projects/{p}/structure");
@@ -101,8 +101,8 @@ async fn map_proposal_routes_list_and_approve() {
     })
     .collect();
     app.core
-        .design()
-        .edit("vision".into(), &app.project, 0, ops)
+        .plans()
+        .edit_design("vision".into(), &app.project, 0, ops)
         .await
         .unwrap();
     let op = app::start_settled(&app, "hang").await;
@@ -362,7 +362,10 @@ async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
 #[tokio::test]
 async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     let app = app::test_app().await;
-    app.storage.seed_map_for_tests(&app.project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_map_for_tests(&app.project)
+        .await
+        .unwrap();
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let outcomes = format!("/api/projects/{}/design/outcomes", app.project);
     let part = uuid::Uuid::new_v4().to_string();
@@ -428,7 +431,10 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
 #[tokio::test]
 async fn part_routes_paginate_and_refuse_invalid_references() {
     let app = app::test_app_unseeded().await;
-    app.storage.seed_map_for_tests(&app.project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_map_for_tests(&app.project)
+        .await
+        .unwrap();
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let parts = format!("/api/projects/{}/design/parts", app.project);
     let a = uuid::Uuid::new_v4().to_string();

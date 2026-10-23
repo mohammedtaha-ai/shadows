@@ -218,7 +218,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: `Sessions` is private to `Harness`; `agent_invocation` is owned by harness; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test sessions --test aylul_session --test harness_schema --test acp_connection --test thread_session` and `cargo test -p shadows --test core_harness --test harness_choices --test harness_config --test harness_effort --test harness_observation --test slash_commands` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-16 · Prepare the service boundaries: design and plans
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-16
 - Read: design/contract.yaml, plans/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/{design,plans}/, crates/shadows-core/src/code/ (the link commands move to `Plans`), crates/shadows-http/src/{design.rs,plans*.rs} and crates/shadows-mcp/src/ for the moved methods, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)

@@ -1,8 +1,7 @@
 //! Intent, snapshot and completion records for structure writing.
+use super::DesignStore;
 use crate::ProjectId;
-use crate::db::{
-    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
-};
+use crate::db::{Actor, CommandContext, append_event, classify, now, record_command};
 use crate::design::{PartContent, StructureWritten, map_rules};
 use crate::events::DurableEvent;
 
@@ -33,13 +32,13 @@ pub(crate) enum Read {
     Snapshot(Snapshot),
 }
 
-impl Storage {
+impl DesignStore {
     pub(in crate::design) async fn structure_snapshot(
         &self,
         ctx: &CommandContext,
         p: &ProjectId,
-    ) -> Result<Read, StorageError> {
-        let mut tx = self.reader().begin().await?;
+    ) -> Result<Read, crate::CoreError> {
+        let mut tx = self.storage.reader().begin().await?;
         if let Some(id) = classify(&mut tx, ctx, "Project", p.as_str()).await? {
             let json: String = sqlx::query_scalar(
                 "SELECT result_json FROM design_command_result WHERE id=? AND project_id=?",
@@ -50,15 +49,14 @@ impl Storage {
             .await?;
             return Ok(Read::Replay(serde_json::from_str(&json)?));
         }
-        let row: Option<(String, Option<String>, i64)> = sqlx::query_as(
-            "SELECT p.name,p.directory,COALESCE(w.map_revision,0) FROM project p
-             LEFT JOIN design_workspace w ON w.project_id=p.id
-             WHERE p.id=? AND p.removed_at IS NULL",
-        )
-        .bind(p.as_str())
-        .fetch_optional(&mut *tx)
-        .await?;
-        let (name, directory, revision) = row.ok_or(StorageError::NotFound("project"))?;
+        let metadata = crate::projects::Projects::get_in(&mut tx, p).await?;
+        let (name, directory) = (metadata.name, metadata.directory);
+        let revision: i64 =
+            sqlx::query_scalar("SELECT map_revision FROM design_workspace WHERE project_id=?")
+                .bind(p.as_str())
+                .fetch_optional(&mut *tx)
+                .await?
+                .unwrap_or(0);
         let recorded: Option<Intent> = sqlx::query_as(
             "SELECT map_number,standards_version,standards_additions_version_id,
              files_json,folders_json,completed_at FROM design_structure_write WHERE project_id=?",
@@ -67,27 +65,29 @@ impl Storage {
         .fetch_optional(&mut *tx)
         .await?;
         if recorded.as_ref().is_some_and(|i| i.completed_at.is_some()) {
-            return Err(StorageError::StageBlocked(
+            return Err(crate::design::DesignError::StageBlocked(
                 "structure already written".into(),
-            ));
+            )
+            .into());
         }
         if revision == 0 {
-            return Err(StorageError::StageBlocked("map not approved".into()));
+            return Err(crate::design::DesignError::StageBlocked("map not approved".into()).into());
         }
-        let effective = super::map_versions::effective(&mut tx, p).await?;
-        let rows = super::map_versions::rows(&mut tx, p).await?;
-        let contents = super::map_versions::contents(&rows)?;
-        let waived = super::map_versions::waived(&mut tx, p).await?;
-        let missing = map_rules::missing_kinds(
-            &super::map_versions::views(&rows, &contents),
+        let effective = super::map_versions::MapVersionsRows::effective(&mut tx, p).await?;
+        let rows = super::map_versions::MapVersionsRows::rows(&mut tx, p).await?;
+        let contents = super::map_versions::MapVersionsRows::contents(&rows)?;
+        let waived = super::map_versions::MapVersionsRows::waived(&mut tx, p).await?;
+        let missing = map_rules::MapRules::missing_kinds(
+            &super::map_versions::MapVersionsRows::views(&rows, &contents),
             &waived,
             &effective,
         );
         if !missing.is_empty() {
-            return Err(StorageError::StageBlocked(format!(
+            return Err(crate::design::DesignError::StageBlocked(format!(
                 "missing part: {}",
                 missing.join(", ")
-            )));
+            ))
+            .into());
         }
         let resumed = recorded.is_some();
         let intent = recorded.unwrap_or(Intent {
@@ -106,12 +106,14 @@ impl Storage {
         .fetch_one(&mut *tx)
         .await?;
         let rows: Vec<super::map_versions::MapRow> = serde_json::from_str(&json)?;
-        let parts = super::map_versions::contents(&rows)?;
+        let parts = super::map_versions::MapVersionsRows::contents(&rows)?;
         tx.commit().await?;
         Ok(Read::Snapshot(Snapshot {
             name,
             directory: directory.ok_or_else(|| {
-                StorageError::StageBlocked("project directory missing: not configured".into())
+                crate::design::DesignError::StageBlocked(
+                    "project directory missing: not configured".into(),
+                )
             })?,
             revision,
             parts,
@@ -125,40 +127,53 @@ impl Storage {
         p: &ProjectId,
         revision: i64,
         intent: Intent,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), crate::CoreError> {
         let p = p.clone();
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                let current: Option<i64> = sqlx::query_scalar(
-                "SELECT w.map_revision FROM design_workspace w JOIN project p ON p.id=w.project_id
-                 WHERE p.id=? AND p.removed_at IS NULL")
-                .bind(p.as_str()).fetch_optional(&mut *conn).await?;
-                if current != Some(revision) {
-                    return Err(StorageError::StageBlocked("map changed; try again".into()));
-                }
-                let standards = super::map_versions::effective(conn, &p).await?;
-                if standards.base.version != intent.standards_version
-                    || standards.additions.as_ref().map(|a| &a.id)
-                        != intent.standards_additions_version_id.as_ref()
-                {
-                    return Err(StorageError::StageBlocked(
-                        "standards changed; try again".into(),
-                    ));
-                }
-                sqlx::query("INSERT INTO design_structure_write VALUES (?,?,?,?,?,?,?,NULL)")
-                    .bind(p.as_str())
-                    .bind(intent.map_number)
-                    .bind(intent.standards_version)
-                    .bind(intent.standards_additions_version_id)
-                    .bind(intent.files_json)
-                    .bind(intent.folders_json)
-                    .bind(now())
-                    .execute(conn)
-                    .await?;
-                Ok(())
+        self.storage
+            .write_txn_as::<_, _, crate::CoreError>(move |conn| {
+                Box::pin(async move {
+                    let live = crate::projects::Projects::is_live_in(conn, &p).await?;
+                    let current: Option<i64> = if live {
+                        sqlx::query_scalar(
+                            "SELECT map_revision FROM design_workspace WHERE project_id=?",
+                        )
+                        .bind(p.as_str())
+                        .fetch_optional(&mut *conn)
+                        .await?
+                    } else {
+                        None
+                    };
+                    if current != Some(revision) {
+                        return Err(crate::design::DesignError::StageBlocked(
+                            "map changed; try again".into(),
+                        )
+                        .into());
+                    }
+                    let standards =
+                        super::map_versions::MapVersionsRows::effective(conn, &p).await?;
+                    if standards.base.version != intent.standards_version
+                        || standards.additions.as_ref().map(|a| &a.id)
+                            != intent.standards_additions_version_id.as_ref()
+                    {
+                        return Err(crate::design::DesignError::StageBlocked(
+                            "standards changed; try again".into(),
+                        )
+                        .into());
+                    }
+                    sqlx::query("INSERT INTO design_structure_write VALUES (?,?,?,?,?,?,?,NULL)")
+                        .bind(p.as_str())
+                        .bind(intent.map_number)
+                        .bind(intent.standards_version)
+                        .bind(intent.standards_additions_version_id)
+                        .bind(intent.files_json)
+                        .bind(intent.folders_json)
+                        .bind(now())
+                        .execute(conn)
+                        .await?;
+                    Ok(())
+                })
             })
-        })
-        .await
+            .await
     }
 
     pub(in crate::design) async fn finish_structure(
@@ -166,17 +181,20 @@ impl Storage {
         ctx: &CommandContext,
         p: &ProjectId,
         result: StructureWritten,
-    ) -> Result<StructureWritten, StorageError> {
+    ) -> Result<StructureWritten, crate::CoreError> {
         let (ctx, p) = (ctx.clone(), p.clone());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                sqlx::query("UPDATE design_structure_write SET completed_at=? WHERE project_id=?")
+        self.storage
+            .write_txn_as::<_, _, crate::CoreError>(move |conn| {
+                Box::pin(async move {
+                    sqlx::query(
+                        "UPDATE design_structure_write SET completed_at=? WHERE project_id=?",
+                    )
                     .bind(&result.completed_at)
                     .bind(p.as_str())
                     .execute(&mut *conn)
                     .await?;
-                let id = uuid::Uuid::new_v4().to_string();
-                sqlx::query(
+                    let id = uuid::Uuid::new_v4().to_string();
+                    sqlx::query(
                     "INSERT INTO design_command_result (id,project_id,result_json) VALUES (?,?,?)",
                 )
                 .bind(&id)
@@ -184,24 +202,24 @@ impl Storage {
                 .bind(serde_json::to_string(&result)?)
                 .execute(&mut *conn)
                 .await?;
-                let event = DurableEvent::new("ProjectStructureWritten", Actor::user("local"))
-                    .with_project(&p)
-                    .with_payload(serde_json::json!({"project_id":p,
+                    let event = DurableEvent::new("ProjectStructureWritten", Actor::user("local"))
+                        .with_project(&p)
+                        .with_payload(serde_json::json!({"project_id":p,
                     "map_version":result.map_version,"paths":result.paths}));
-                append_event(conn, &event, &result.completed_at).await?;
-                record_command(
-                    conn,
-                    &ctx,
-                    "Project",
-                    p.as_str(),
-                    "StructureWritten",
-                    &id,
-                    &result.completed_at,
-                )
-                .await?;
-                Ok(result)
+                    append_event(conn, &event, &result.completed_at).await?;
+                    record_command(
+                        conn,
+                        &ctx,
+                        "Project",
+                        p.as_str(),
+                        "StructureWritten",
+                        &id,
+                        &result.completed_at,
+                    )
+                    .await?;
+                    Ok(result)
+                })
             })
-        })
-        .await
+            .await
     }
 }

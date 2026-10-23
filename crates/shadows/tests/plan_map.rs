@@ -19,8 +19,8 @@ async fn the_project_map_aggregates_task_links_with_foreign_plan_metadata() {
     let target = draft_on(&app, &thread, "target").await;
     edit(&app, &target.workflow_id, 0, &[add(3)]).await;
     app.core
-        .code()
-        .link("link".into(), &app.project, &foreign)
+        .plans()
+        .link_projects("link".into(), &app.project, &foreign)
         .await
         .unwrap();
     let source = draft(&app).await;
@@ -63,8 +63,8 @@ async fn the_project_map_aggregates_task_links_with_foreign_plan_metadata() {
         }])
     );
     app.core
-        .code()
-        .unlink("unlink".into(), &app.project, &foreign)
+        .plans()
+        .unlink_projects("unlink".into(), &app.project, &foreign)
         .await
         .unwrap();
     let broken: Value = get_json(&app, &path).await;
@@ -79,8 +79,8 @@ async fn the_map_keeps_incoming_foreign_links_to_archived_plans() {
     edit(&app, &target.workflow_id, 0, &[add(4)]).await;
     let (foreign, thread) = other_project(&app).await;
     app.core
-        .code()
-        .link("link".into(), &foreign, &app.project)
+        .plans()
+        .link_projects("link".into(), &foreign, &app.project)
         .await
         .unwrap();
     let source = draft_on(&app, &thread, "source").await;

@@ -1,4 +1,4 @@
-//! Shared HTTP agreement value shapes (§18.4).
+//! Shared HTTP agreement value shapes.
 use super::PartId;
 
 crate::db::id::newtype_id!(AgreementId);

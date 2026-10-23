@@ -121,10 +121,12 @@ impl Turns {
             .await;
         match started {
             Ok(started) => Ok(started),
-            Err(StorageError::TransitionConflict { .. }) if self.handles.is_closed().await => {
+            Err(CoreError::Storage(StorageError::TransitionConflict { .. }))
+                if self.handles.is_closed().await =>
+            {
                 Err(CoreError::RuntimeStopping)
             }
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e),
         }
     }
 }

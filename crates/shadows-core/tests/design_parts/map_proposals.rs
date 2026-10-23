@@ -14,8 +14,8 @@ impl Fixture {
         let path = tmp.path().join("proposals.sqlite3");
         let core = core_at(&path).await;
         let p = project(&core, "proposals", tmp.path()).await;
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "vision".into(),
                 &p,
                 0,
@@ -174,7 +174,10 @@ async fn first_map_refuses_an_unserved_goal_without_writes() {
             .design()
             .approve_map_proposal("bad".into(), &f.p, &p.id)
             .await,
-        Err(CoreError::Storage(StorageError::StageBlocked(_)))
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::StageBlocked,
+            ..
+        })
     ));
     assert!(
         f.core
@@ -204,7 +207,10 @@ async fn first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database() {
             .design()
             .approve_map_proposal("missing".into(), &f.p, &p.id)
             .await,
-        Err(CoreError::Storage(StorageError::StageBlocked(_)))
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::StageBlocked,
+            ..
+        })
     ));
     args.waivers.push(ProposedWaiver {
         part: "database".into(),
@@ -258,8 +264,8 @@ async fn a_part_change_is_outdated_by_its_served_item_only() {
     let p = f.core.design().propose_map(&f.grant, args).await.unwrap();
     let rev = f.core.design().vision(&f.p).await.unwrap().revision;
     f.core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "G2".into(),
             &f.p,
             rev,
@@ -282,8 +288,8 @@ async fn a_part_change_is_outdated_by_its_served_item_only() {
             .outdated
     );
     f.core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "G1".into(),
             &f.p,
             rev + 1,
@@ -326,8 +332,8 @@ async fn approval_rechecks_vision_completeness_for_an_independent_addition() {
         .await
         .unwrap();
     f.core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "empty-users".into(),
             &f.p,
             2,
@@ -351,7 +357,10 @@ async fn approval_rechecks_vision_completeness_for_an_independent_addition() {
             .design()
             .approve_map_proposal("incomplete".into(), &f.p, &p.id)
             .await,
-        Err(CoreError::Storage(StorageError::StageBlocked(_)))
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::StageBlocked,
+            ..
+        })
     ));
     assert_eq!(
         f.core

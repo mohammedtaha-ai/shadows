@@ -77,8 +77,8 @@ fn part(id: &PartId, title: &str) -> DesignOp {
 async fn edit(core: &AppCore, p: &ProjectId, rev: i64, ops: Vec<DesignOp>) {
     core.design().seed_roadmap_for_tests(p).await.unwrap();
     assert_eq!(
-        core.design()
-            .edit(format!("edit-{p}-{rev}"), p, rev, ops)
+        core.plans()
+            .edit_design(format!("edit-{p}-{rev}"), p, rev, ops)
             .await
             .unwrap()
             .revision,
@@ -86,7 +86,7 @@ async fn edit(core: &AppCore, p: &ProjectId, rev: i64, ops: Vec<DesignOp>) {
     );
 }
 async fn draft(
-    storage: &Storage,
+    storage: &std::sync::Arc<Storage>,
     core: &AppCore,
     p: &ProjectId,
     n: &str,
@@ -105,9 +105,12 @@ async fn draft(
         thread: thread.clone(),
         grant: grant.id,
     };
-    let part = storage.seed_roadmap_for_tests(p).await.unwrap();
-    let started = storage
-        .start_draft(
+    let part = shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_roadmap_for_tests(p)
+        .await
+        .unwrap();
+    let started = shadows_core::AppCore::plans_for_tests(storage.clone())
+        .start_draft_for_test(
             &ctx(&writer, &format!("draft-{n}"), "DraftStart"),
             &writer,
             p,
@@ -181,7 +184,7 @@ async fn outcome_spans_parts_without_copying_them() {
         ],
     )
     .await;
-    let view = core.design().outcome(&p, &o).await.unwrap();
+    let view = core.plans().design_outcome(&p, &o).await.unwrap();
     assert_eq!(view.outcome.content.title, "دخول");
     assert_eq!(view.outcome.revision, 2);
     assert_eq!(view.parts.len(), 2);
@@ -207,20 +210,26 @@ async fn outcome_spans_parts_without_copying_them() {
     )
     .await;
     assert!(
-        core.design()
-            .outcome(&p, &o)
+        core.plans()
+            .design_outcome(&p, &o)
             .await
             .unwrap()
             .parts
             .contains(&a)
     );
     assert_eq!(
-        core.design().part(&p, &a).await.unwrap().part.content.title,
+        core.plans()
+            .design_part(&p, &a)
+            .await
+            .unwrap()
+            .part
+            .content
+            .title,
         "الخدمات"
     );
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "foreign".into(),
                 &p,
                 3,
@@ -243,8 +252,8 @@ async fn outcome_spans_parts_without_copying_them() {
             .is_err()
     );
     assert_eq!(
-        core.design()
-            .outcome(&p, &o)
+        core.plans()
+            .design_outcome(&p, &o)
             .await
             .unwrap()
             .outcome
@@ -269,7 +278,7 @@ async fn outcome_spans_parts_without_copying_them() {
         ],
     )
     .await;
-    let view = core.design().outcome(&p, &o).await.unwrap();
+    let view = core.plans().design_outcome(&p, &o).await.unwrap();
     assert_eq!(view.parts, vec![b]);
     assert_eq!(view.plans, vec![v2.plan_id]);
 }
@@ -300,8 +309,8 @@ async fn outcome_hierarchy_is_independent_of_parts() {
     )
     .await;
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "cycle".into(),
                 &p,
                 1,
@@ -326,8 +335,8 @@ async fn outcome_hierarchy_is_independent_of_parts() {
     )
     .await;
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "stale".into(),
                 &p,
                 1,
@@ -341,8 +350,8 @@ async fn outcome_hierarchy_is_independent_of_parts() {
             .is_err()
     );
     assert!(
-        core.design()
-            .part(&p, &part_id)
+        core.plans()
+            .design_part(&p, &part_id)
             .await
             .unwrap()
             .part
@@ -350,7 +359,7 @@ async fn outcome_hierarchy_is_independent_of_parts() {
             .is_none()
     );
     assert_eq!(
-        core.design().outcome(&p, &b).await.unwrap().ancestors[0].id,
+        core.plans().design_outcome(&p, &b).await.unwrap().ancestors[0].id,
         a
     );
     core.code().shut_down_for_test().await;
@@ -388,8 +397,8 @@ async fn plan_lifecycle_never_completes_outcomes() {
             text: "works".into(),
         }],
     };
-    storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(
             &ctx(&Writer::Person, "plan-edit", "PlanEdit"),
             &Writer::Person,
             None,
@@ -414,7 +423,7 @@ async fn plan_lifecycle_never_completes_outcomes() {
     )
     .await;
     let original =
-        serde_json::to_value(core.design().outcome(&p, &id).await.unwrap().outcome).unwrap();
+        serde_json::to_value(core.plans().design_outcome(&p, &id).await.unwrap().outcome).unwrap();
     core.plans()
         .approve("approve".into(), &v.workflow_id, 1)
         .await
@@ -444,7 +453,7 @@ async fn plan_lifecycle_never_completes_outcomes() {
         .remove("delete".into(), &thread)
         .await
         .unwrap();
-    let view = core.design().outcome(&p, &id).await.unwrap();
+    let view = core.plans().design_outcome(&p, &id).await.unwrap();
     assert_eq!(view.plans, vec![v.plan_id]);
     assert_eq!(serde_json::to_value(view.outcome).unwrap(), original);
     assert_eq!(

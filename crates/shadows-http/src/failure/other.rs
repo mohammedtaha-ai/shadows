@@ -23,6 +23,23 @@ impl From<CoreError> for Failure {
     /// `CoreError`, so no status, code or text moves.
     fn from(e: CoreError) -> Self {
         match e {
+            CoreError::ValidationFailed { problems, .. } => Failure {
+                status: StatusCode::UNPROCESSABLE_ENTITY,
+                code: ErrorCode::WorkflowValidationFailed,
+                message: problems.join("; "),
+                cause: None,
+                detail: Detail {
+                    current_revision: None,
+                    problems: Some(problems),
+                },
+            },
+            CoreError::ReasonMissing | CoreError::Unavailable(_) => Failure {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                code: ErrorCode::StorageUnavailable,
+                message: "storage is unavailable".into(),
+                cause: Some(e.to_string()),
+                detail: Detail::default(),
+            },
             CoreError::ExtensionNotFound
             | CoreError::ExtensionNameConflict
             | CoreError::AylulProfileNotFound(_)

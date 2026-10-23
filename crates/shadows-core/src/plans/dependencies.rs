@@ -1,4 +1,4 @@
-//! Task-parent identities across plan versions (§16.7).
+//! Task-parent identities across plan versions.
 
 use std::fmt;
 

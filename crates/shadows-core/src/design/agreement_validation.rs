@@ -116,25 +116,28 @@ impl Design {
 fn escape(value: &str) -> String {
     value.replace('~', "~0").replace('/', "~1")
 }
-pub(crate) fn operation_ids(content: &AgreementContent) -> BTreeSet<String> {
-    let mut ids = BTreeSet::new();
-    if let Some(paths) = content.openapi.get("paths").and_then(Value::as_object) {
-        for item in paths.values() {
-            for method in [
-                "get", "put", "post", "delete", "options", "head", "patch", "trace",
-            ] {
-                if let Some(id) = item
-                    .get(method)
-                    .and_then(|op| op.get("x-shadows-operation-id"))
-                    .and_then(Value::as_str)
-                {
-                    ids.insert(id.to_string());
+impl AgreementValidation {
+    pub(crate) fn operation_ids(content: &AgreementContent) -> BTreeSet<String> {
+        let mut ids = BTreeSet::new();
+        if let Some(paths) = content.openapi.get("paths").and_then(Value::as_object) {
+            for item in paths.values() {
+                for method in [
+                    "get", "put", "post", "delete", "options", "head", "patch", "trace",
+                ] {
+                    if let Some(id) = item
+                        .get(method)
+                        .and_then(|op| op.get("x-shadows-operation-id"))
+                        .and_then(Value::as_str)
+                    {
+                        ids.insert(id.to_string());
+                    }
                 }
             }
         }
+        ids
     }
-    ids
 }
+
 fn issue(issues: &mut Vec<AgreementIssue>, path: &str, message: &str) {
     issues.push(AgreementIssue {
         path: path.into(),
@@ -171,26 +174,30 @@ fn check_refs(root: &Value, value: &Value, path: &str, issues: &mut Vec<Agreemen
 /// Gives every operation that has no `x-shadows-operation-id` a fresh one, so
 /// a writer names operations by method and path and Shadows owns identity.
 /// An existing id is kept: it is what survives a rename of the address.
-pub(crate) fn assign_operation_ids(content: &mut AgreementContent) {
-    let Some(paths) = content
-        .openapi
-        .get_mut("paths")
-        .and_then(Value::as_object_mut)
-    else {
-        return;
-    };
-    for item in paths.values_mut() {
-        for method in [
-            "get", "put", "post", "delete", "options", "head", "patch", "trace",
-        ] {
-            if let Some(op) = item.get_mut(method).and_then(Value::as_object_mut)
-                && !op.contains_key("x-shadows-operation-id")
-            {
-                op.insert(
-                    "x-shadows-operation-id".into(),
-                    Value::String(uuid::Uuid::new_v4().to_string()),
-                );
+impl AgreementValidation {
+    pub(crate) fn assign_operation_ids(content: &mut AgreementContent) {
+        let Some(paths) = content
+            .openapi
+            .get_mut("paths")
+            .and_then(Value::as_object_mut)
+        else {
+            return;
+        };
+        for item in paths.values_mut() {
+            for method in [
+                "get", "put", "post", "delete", "options", "head", "patch", "trace",
+            ] {
+                if let Some(op) = item.get_mut(method).and_then(Value::as_object_mut)
+                    && !op.contains_key("x-shadows-operation-id")
+                {
+                    op.insert(
+                        "x-shadows-operation-id".into(),
+                        Value::String(uuid::Uuid::new_v4().to_string()),
+                    );
+                }
             }
         }
     }
 }
+
+pub(in crate::design) struct AgreementValidation;

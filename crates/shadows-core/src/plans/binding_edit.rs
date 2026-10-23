@@ -27,7 +27,7 @@ impl Plans {
                 "workflow_id":workflow,"expected_revision":expected_revision,"ops":ops
             }),
         );
-        self.storage
+        self.store
             .edit_plan(
                 &ctx,
                 &Writer::Person,
@@ -37,14 +37,6 @@ impl Plans {
                 &ops,
             )
             .await
-            .map_err(|e| match e {
-                CoreError::Storage(crate::StorageError::Constraint(message)) => {
-                    CoreError::Refused {
-                        code: ErrorCode::InvalidCommand,
-                        message,
-                    }
-                }
-                other => other,
-            })
+            .map_err(CoreError::invalid_constraint)
     }
 }

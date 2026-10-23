@@ -1,29 +1,29 @@
-//! One job: changing a plan version (spec §13.2–§13.5): an edit under a
+//! One job: changing a plan version: an edit under a
 //! revision check, or the approval that freezes it. Every command here
 //! answers only what was fixed when it committed: a replay reads that answer
 //! back from its event, never the plan as it is later. Starting a version is
 //! `draft.rs`; reading one is `read.rs`.
 
+use super::PlansStore;
 use sqlx::SqliteConnection;
 
-use super::plan::require_active;
+use super::plan::PlanRows;
 use super::plan_event;
-use super::read::{edits_of, load_plan, recorded_outcome};
-use super::task::write_content;
-use crate::db::{
-    CommandContext, Storage, StorageError, append_event, classify, now, record_command,
-};
+use super::read::ReadRows;
+use super::task::TaskRows;
+use crate::db::{CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::grants::Grants;
 use crate::grants::Writer;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
-use crate::plans::ops::{PlanOp, apply};
+use crate::plans::ops::Ops;
+use crate::plans::ops::PlanOp;
 use crate::projects::ProjectId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use crate::turns::OperationId;
 
-impl Storage {
-    /// §13.5's order of work: the grant, then a recorded command (answered
+impl PlansStore {
+    /// order of work: the grant, then a recorded command (answered
     /// from its event, before any revision check), then the revision, then
     /// the change with its event and command record in one transaction.
     /// `operation` is a Planner's running turn, which its event names.
@@ -44,77 +44,88 @@ impl Storage {
             now(),
         );
         let operation = operation.cloned();
-        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
-            Box::pin(async move {
-                let (_, project) = owner(conn, &workflow).await?;
-                Grants::check_writer(conn, &writer, &project).await?;
-                if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
-                    return recorded_outcome(conn, &event).await.map_err(Into::into);
-                }
-                crate::design::require_roadmap_in(conn, &project).await?;
-                let plan = load_plan(conn, &workflow, None).await?;
-                require_active(conn, &plan.plan_id).await?;
-                writable(
-                    conn,
-                    &plan.state,
-                    plan.revision,
-                    expected_revision,
-                    &project,
-                    &workflow,
-                )
-                .await?;
-                let applied = apply(&plan.content(), &ops).map_err(StorageError::PlanInvalid)?;
-                super::graph::check_parents(conn, &plan, &ops).await?;
-                super::bindings::validate(conn, &project, &applied.content.bindings).await?;
-                write_content(conn, &workflow, &plan.tasks, &applied.content, &ts).await?;
-                sqlx::query(
-                    "UPDATE workflow SET title = ?, goal = ?, revision = revision + 1,
+        self.storage
+            .write_txn_as::<_, _, crate::CoreError>(move |conn| {
+                Box::pin(async move {
+                    let (_, project) = owner(conn, &workflow).await?;
+                    Grants::check_writer(conn, &writer, &project).await?;
+                    if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await?
+                    {
+                        return ReadRows::recorded_outcome(conn, &event)
+                            .await
+                            .map_err(Into::into);
+                    }
+                    crate::design::Design::require_roadmap_in(conn, &project).await?;
+                    let plan = ReadRows::load_plan(conn, &workflow, None).await?;
+                    PlanRows::require_active(conn, &plan.plan_id).await?;
+                    writable(
+                        conn,
+                        &plan.state,
+                        plan.revision,
+                        expected_revision,
+                        &project,
+                        &workflow,
+                    )
+                    .await?;
+                    let applied = Ops::apply(&plan.content(), &ops)
+                        .map_err(crate::plans::PlansError::PlanInvalid)?;
+                    super::graph::GraphRows::check_parents(conn, &plan, &ops).await?;
+                    super::bindings::BindingsRows::validate(
+                        conn,
+                        &project,
+                        &applied.content.bindings,
+                    )
+                    .await?;
+                    TaskRows::write_content(conn, &workflow, &plan.tasks, &applied.content, &ts)
+                        .await?;
+                    sqlx::query(
+                        "UPDATE workflow SET title = ?, goal = ?, revision = revision + 1,
                             updated_at = ?
                       WHERE id = ?",
-                )
-                .bind(&applied.content.title)
-                .bind(&applied.content.goal)
-                .bind(&ts)
-                .bind(workflow.as_str())
-                .execute(&mut *conn)
-                .await?;
-                let outcome = EditOutcome {
-                    workflow_id: workflow.clone(),
-                    version: plan.version,
-                    revision: plan.revision + 1,
-                    summary: applied.summary,
-                    changed_tasks: applied.changed_tasks,
-                };
-                let event = plan_event("WorkflowEdited", &writer, &project, operation.as_ref())
-                    .with_payload(serde_json::to_value(&outcome)?);
-                append_event(conn, &event, &ts).await?;
-                super::notifications::notify_plan(
-                    conn,
-                    &project,
-                    &plan.plan_id,
-                    &plan.links,
-                    &writer.actor(),
-                    &ts,
-                )
-                .await?;
-                record_command(
-                    conn,
-                    &ctx,
-                    "Workflow",
-                    workflow.as_str(),
-                    "WorkflowEdited",
-                    &event.event_id,
-                    &ts,
-                )
-                .await?;
-                Ok(outcome)
+                    )
+                    .bind(&applied.content.title)
+                    .bind(&applied.content.goal)
+                    .bind(&ts)
+                    .bind(workflow.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                    let outcome = EditOutcome {
+                        workflow_id: workflow.clone(),
+                        version: plan.version,
+                        revision: plan.revision + 1,
+                        summary: applied.summary,
+                        changed_tasks: applied.changed_tasks,
+                    };
+                    let event = plan_event("WorkflowEdited", &writer, &project, operation.as_ref())
+                        .with_payload(serde_json::to_value(&outcome)?);
+                    append_event(conn, &event, &ts).await?;
+                    super::notifications::NotificationsRows::notify_plan(
+                        conn,
+                        &project,
+                        &plan.plan_id,
+                        &plan.links,
+                        &writer.actor(),
+                        &ts,
+                    )
+                    .await?;
+                    record_command(
+                        conn,
+                        &ctx,
+                        "Workflow",
+                        workflow.as_str(),
+                        "WorkflowEdited",
+                        &event.event_id,
+                        &ts,
+                    )
+                    .await?;
+                    Ok(outcome)
+                })
             })
-        })
-        .await
+            .await
     }
 
-    /// §13.2: a person's approval freezes a Draft that has no blockers, and
-    /// says so in the conversation that wrote it (§13.9, §16.3): none when
+    /// : a person's approval freezes a Draft that has no blockers, and
+    /// says so in the conversation that wrote it: none when
     /// that conversation is deleted or an external agent wrote the version.
     /// A replay answers the recorded `WorkflowFrozen` payload, never the
     /// plan, whose `next` changes once the next version exists.
@@ -142,130 +153,137 @@ impl Storage {
     ) -> Result<Approved, crate::CoreError> {
         let (mut ctx, workflow, ts) = (ctx.clone(), workflow.clone(), now());
         let approver = approver.clone();
-        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
-            Box::pin(async move {
-                let (_, project) = owner(conn, &workflow).await?;
-                if let crate::grants::Approver::Planner {
-                    writer: writer @ crate::grants::Writer::Planner { thread, .. },
-                    turn,
-                    ..
-                } = &approver
-                {
-                    crate::grants::Grants::check_writer(conn, writer, &project).await?;
-                    crate::operations::Operations::require_running_in(conn, thread, turn).await?;
-                }
-                let request =
-                    crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
-                ctx.agent = Some(approver.agent());
-                if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
-                    return recorded_outcome(conn, &event).await.map_err(Into::into);
-                }
-                crate::design::require_roadmap_in(conn, &project).await?;
-                let plan = load_plan(conn, &workflow, None).await?;
-                require_active(conn, &plan.plan_id).await?;
-                writable(
-                    conn,
-                    &plan.state,
-                    plan.revision,
-                    expected_revision,
-                    &project,
-                    &workflow,
-                )
-                .await?;
-                if !crate::design::plan_has_part_in(conn, &project, &plan.plan_id).await? {
-                    return Err(StorageError::StageBlocked(
-                        "plan has no part: link it to a part on the Project map page, \
-                         or start it with parts"
-                            .into(),
+        self.storage
+            .write_txn_as::<_, _, crate::CoreError>(move |conn| {
+                Box::pin(async move {
+                    let (_, project) = owner(conn, &workflow).await?;
+                    if let crate::grants::Approver::Planner {
+                        writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                        turn,
+                        ..
+                    } = &approver
+                    {
+                        crate::grants::Grants::check_writer(conn, writer, &project).await?;
+                        crate::operations::Operations::require_running_in(conn, thread, turn)
+                            .await?;
+                    }
+                    let request =
+                        crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
+                    ctx.agent = Some(approver.agent());
+                    if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await?
+                    {
+                        return ReadRows::recorded_outcome(conn, &event)
+                            .await
+                            .map_err(Into::into);
+                    }
+                    crate::design::Design::require_roadmap_in(conn, &project).await?;
+                    let plan = ReadRows::load_plan(conn, &workflow, None).await?;
+                    PlanRows::require_active(conn, &plan.plan_id).await?;
+                    writable(
+                        conn,
+                        &plan.state,
+                        plan.revision,
+                        expected_revision,
+                        &project,
+                        &workflow,
                     )
-                    .into());
-                }
-                let blockers = plan.blockers;
-                super::bindings::validate(conn, &project, &plan.bindings).await?;
-                if !blockers.is_empty() {
-                    return Err(StorageError::PlanInvalid(blockers).into());
-                }
-                sqlx::query(
-                    "UPDATE workflow SET state = 'Frozen', frozen_at = ?, updated_at = ?,
+                    .await?;
+                    if !crate::plans::Plans::plan_has_part_in(conn, &project, &plan.plan_id).await?
+                    {
+                        return Err(crate::design::DesignError::StageBlocked(
+                            "plan has no part: link it to a part on the Project map page, \
+                         or start it with parts"
+                                .into(),
+                        )
+                        .into());
+                    }
+                    let blockers = plan.blockers;
+                    super::bindings::BindingsRows::validate(conn, &project, &plan.bindings).await?;
+                    if !blockers.is_empty() {
+                        return Err(crate::plans::PlansError::PlanInvalid(blockers).into());
+                    }
+                    sqlx::query(
+                        "UPDATE workflow SET state = 'Frozen', frozen_at = ?, updated_at = ?,
                      approved_principal='user:local',approved_agent=?,approved_request_entry=?
                       WHERE id = ?",
-                )
-                .bind(&ts)
-                .bind(&ts)
-                .bind(approver.agent())
-                .bind(request.as_ref().map(|r| r.as_str()))
-                .bind(workflow.as_str())
-                .execute(&mut *conn)
-                .await?;
-                let actor = approver.actor();
-                let thread = match &plan.written_by {
-                    WrittenBy::Planner {
-                        thread_id,
-                        thread_removed: false,
-                        ..
-                    } => Some(thread_id),
-                    _ => None,
-                };
-                if let Some(thread) = thread {
-                    let body = match &approver {
-                        crate::grants::Approver::Person => {
-                            format!("Plan v{} approved", plan.version)
-                        }
-                        _ => format!(
-                            "Plan v{} approved by the Planner at your request",
-                            plan.version
-                        ),
+                    )
+                    .bind(&ts)
+                    .bind(&ts)
+                    .bind(approver.agent())
+                    .bind(request.as_ref().map(|r| r.as_str()))
+                    .bind(workflow.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                    let actor = approver.actor();
+                    let thread = match &plan.written_by {
+                        WrittenBy::Planner {
+                            thread_id,
+                            thread_removed: false,
+                            ..
+                        } => Some(thread_id),
+                        _ => None,
                     };
-                    let refs = [EntryRef::Workflow(workflow.clone())];
-                    let entry = NewThreadEntry {
-                        kind: ThreadEntryKind::PlanApproved,
-                        author: actor.clone(),
-                        body: &body,
-                        refs: &refs,
-                        card: None,
-                        operation_id: None,
+                    if let Some(thread) = thread {
+                        let body = match &approver {
+                            crate::grants::Approver::Person => {
+                                format!("Plan v{} approved", plan.version)
+                            }
+                            _ => format!(
+                                "Plan v{} approved by the Planner at your request",
+                                plan.version
+                            ),
+                        };
+                        let refs = [EntryRef::Workflow(workflow.clone())];
+                        let entry = NewThreadEntry {
+                            kind: ThreadEntryKind::PlanApproved,
+                            author: actor.clone(),
+                            body: &body,
+                            refs: &refs,
+                            card: None,
+                            operation_id: None,
+                        };
+                        Threads::append_entry_in(conn, thread, entry, &ts).await?;
+                    }
+                    let approved = Approved {
+                        workflow_id: workflow.clone(),
+                        version: plan.version,
+                        revision: plan.revision,
+                        frozen_at: ts.clone(),
                     };
-                    Threads::append_entry_in(conn, thread, entry, &ts).await?;
-                }
-                let approved = Approved {
-                    workflow_id: workflow.clone(),
-                    version: plan.version,
-                    revision: plan.revision,
-                    frozen_at: ts.clone(),
-                };
-                let mut event = DurableEvent::new("WorkflowFrozen", actor).with_project(&project);
-                if let Some(thread) = thread {
-                    event = event.with_thread(thread);
-                }
-                let event = event.with_payload(serde_json::to_value(&approved)?);
-                append_event(conn, &event, &ts).await?;
-                super::notifications::notify_plan(
-                    conn,
-                    &project,
-                    &plan.plan_id,
-                    &[],
-                    &event.actor,
-                    &ts,
-                )
-                .await?;
-                record_command(
-                    conn,
-                    &ctx,
-                    "Workflow",
-                    workflow.as_str(),
-                    "WorkflowFrozen",
-                    &event.event_id,
-                    &ts,
-                )
-                .await?;
-                Ok(approved)
+                    let mut event =
+                        DurableEvent::new("WorkflowFrozen", actor).with_project(&project);
+                    if let Some(thread) = thread {
+                        event = event.with_thread(thread);
+                    }
+                    let event = event.with_payload(serde_json::to_value(&approved)?);
+                    append_event(conn, &event, &ts).await?;
+                    super::notifications::NotificationsRows::notify_plan(
+                        conn,
+                        &project,
+                        &plan.plan_id,
+                        &[],
+                        &event.actor,
+                        &ts,
+                    )
+                    .await?;
+                    record_command(
+                        conn,
+                        &ctx,
+                        "Workflow",
+                        workflow.as_str(),
+                        "WorkflowFrozen",
+                        &event.event_id,
+                        &ts,
+                    )
+                    .await?;
+                    Ok(approved)
+                })
             })
-        })
-        .await
+            .await
     }
 }
 
-/// A version's plan, and that plan's project (§16.2).
+/// A version's plan, and that plan's project.
 async fn owner(
     conn: &mut SqliteConnection,
     workflow: &WorkflowId,
@@ -291,19 +309,19 @@ async fn writable(
     expected: i64,
     project: &ProjectId,
     workflow: &WorkflowId,
-) -> Result<(), StorageError> {
+) -> Result<(), crate::CoreError> {
     if *state == WorkflowState::Frozen {
-        return Err(StorageError::WorkflowFrozen);
+        return Err(crate::plans::PlansError::WorkflowFrozen.into());
     }
     if current == expected {
         return Ok(());
     }
-    let summary = edits_of(conn, project, workflow)
+    let summary = ReadRows::edits_of(conn, project, workflow)
         .await?
         .into_iter()
         .filter(|e| e.revision > expected)
         .map(|e| e.summary)
         .collect::<Vec<_>>()
         .join("; ");
-    Err(StorageError::RevisionConflict { current, summary })
+    Err(StorageError::RevisionConflict { current, summary }.into())
 }

@@ -4,10 +4,13 @@ use crate::{CoreError, Grant};
 
 impl Design {
     /// The vision with the top-level parts and outcomes, each a first page
-    /// with its cursor (§18.10). Vision lists include stable item ids; this read writes nothing.
+    /// with its cursor. Vision lists include stable item ids; this read writes nothing.
     pub async fn workspace_for(&self, grant: &Grant) -> Result<WorkspaceView, CoreError> {
-        self.storage
-            .check_agreement_grant(&super::agreement_scope::writer(grant)?, &grant.project_id)
+        self.store
+            .check_agreement_grant(
+                &super::agreement_scope::AgreementScope::writer(grant)?,
+                &grant.project_id,
+            )
             .await?;
         let project = &grant.project_id;
         Ok(WorkspaceView {

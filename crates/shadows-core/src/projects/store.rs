@@ -230,7 +230,8 @@ impl ProjectsStore {
                         .execute(&mut *conn)
                         .await?;
                     let actor = Actor::user(&ctx.principal_id);
-                    crate::plans::notify_project_dependencies_in(conn, &id, &actor, &ts).await?;
+                    crate::plans::Plans::notify_project_dependencies_in(conn, &id, &actor, &ts)
+                        .await?;
                     Code::delete_code_index_in(conn, &id).await?;
                     Code::delete_code_links_in(conn, &id).await?;
                     Grants::revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
@@ -479,5 +480,30 @@ impl Projects {
                 .fetch_optional(&mut *conn)
                 .await?;
         known.map(|_| ()).ok_or(StorageError::NotFound("project"))
+    }
+}
+
+impl Projects {
+    /// Retained project metadata for plan previews that also describe removed projects.
+    pub(crate) async fn retained_metadata_in(
+        conn: &mut SqliteConnection,
+        id: &ProjectId,
+    ) -> Result<Option<(String, Option<String>, bool)>, StorageError> {
+        Ok(
+            sqlx::query_as("SELECT name,directory,removed_at IS NOT NULL FROM project WHERE id=?")
+                .bind(id.as_str())
+                .fetch_optional(conn)
+                .await?,
+        )
+    }
+    pub(crate) async fn is_live_in(
+        conn: &mut SqliteConnection,
+        id: &ProjectId,
+    ) -> Result<bool, StorageError> {
+        match Self::require_live_in(conn, id).await {
+            Ok(()) => Ok(true),
+            Err(StorageError::NotFound(_)) => Ok(false),
+            Err(error) => Err(error),
+        }
     }
 }

@@ -46,9 +46,8 @@ async fn a_deleted_conversation_is_gone_but_readable() {
             })
             .await
             .expect("the delete must commit before Stop finishes");
-            let attempted = app
-                .storage
-                .edit_plan(
+            let attempted = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+                .edit_plan_for_test(
                     &plan::edit_ctx(&writer, &draft.workflow_id, 1, &[plan::add(2)]),
                     &writer,
                     None,
@@ -98,8 +97,8 @@ async fn a_deleted_conversation_is_gone_but_readable() {
         })
     ));
     assert_eq!(
-        app.storage
-            .get_plan(&draft.workflow_id)
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .get_plan_for_test(&draft.workflow_id)
             .await
             .unwrap()
             .revision,

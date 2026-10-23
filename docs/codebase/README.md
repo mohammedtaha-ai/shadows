@@ -262,9 +262,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/agreement_validation.rs` | offline agreement content validation | `crates/shadows-core/src/design/agreement_validation.rs` |
 | `crates/shadows-core/src/design/agreements.rs` | shared agreement service entry points | `crates/shadows-core/src/design/agreements.rs` |
 | `crates/shadows-core/src/design/agreement_scope.rs` | grant attribution for agreement calls | `crates/shadows-core/src/design/agreement_scope.rs` |
-| `crates/shadows-core/src/design/agreement_review.rs` | agreement review value shapes | `crates/shadows-core/src/design/agreement_review.rs` |
+| `crates/shadows-core/src/plans/agreement_review.rs` | agreement review value shapes | `crates/shadows-core/src/plans/agreement_review.rs` |
 | `crates/shadows-core/src/design/store/agreement_binding.rs` | exact-version adoption checks | `crates/shadows-core/src/design/store/agreement_binding.rs` |
-| `crates/shadows-core/src/design/store/agreement_review.rs` | captured impact review | `crates/shadows-core/src/design/store/agreement_review.rs` |
+| `crates/shadows-core/src/plans/store/agreement_review.rs` | captured impact review | `crates/shadows-core/src/plans/store/agreement_review.rs` |
 | `crates/shadows-core/src/design/store/agreements.rs` | captured agreement version reads | `crates/shadows-core/src/design/store/agreements.rs` |
 | `crates/shadows-core/src/design/store/agreement_write.rs` | transactional agreement Draft mutations | `crates/shadows-core/src/design/store/agreement_write.rs` |
 | `crates/shadows-core/src/design/parts.rs` | part service entry points | `crates/shadows-core/src/design/parts.rs` |
@@ -362,3 +362,18 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-core/src/harness/access.rs` | live session owner operations | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/store/invocation.rs` | invocation transaction entry points | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/turns/stage.rs` | shared prompt stage facts | `crates/shadows-core/src/turns/contract.yaml` |
+
+| `crates/shadows-core/src/design/error.rs` | error boundary | `crates/shadows-core/src/design/contract.yaml` |
+| `crates/shadows-core/src/design/proposal_context.rs` | proposal context boundary | `crates/shadows-core/src/design/contract.yaml` |
+| `crates/shadows-core/src/plans/agreements.rs` | agreements boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/design_edit.rs` | design edit boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/design_ops.rs` | design ops boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/design_views.rs` | design views boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/error.rs` | error boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/project_links.rs` | project links boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/roadmap_approval.rs` | roadmap approval over plan-linked outcomes | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/store/design_links.rs` | design links boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/store/design_parts.rs` | design parts boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/store/project_links.rs` | project links boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/plans/testing.rs` | testing boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/shadows-core/src/turns/plan_show.rs` | plan show boundary | `crates/shadows-core/src/turns/contract.yaml` |

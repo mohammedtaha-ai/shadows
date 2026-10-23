@@ -1,9 +1,11 @@
-//! Roadmap proposal values and service entry points (§23.5).
+//! Roadmap proposal values and service entry points.
 use super::{Design, DesignChange, OutcomeContent, OutcomeId, PartId, ProposalStatus};
-use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
-use crate::grants::Writer;
-use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId};
+use crate::db::CommandContext;
+
+use crate::{CoreError, Grant, ProjectId, ThreadId};
 use serde::{Deserialize, Serialize};
+use sqlx::SqliteConnection;
+use std::collections::BTreeSet;
 use utoipa::ToSchema;
 
 #[derive(
@@ -66,81 +68,43 @@ impl Design {
         grant: &Grant,
         mut args: RoadmapPropose,
     ) -> Result<RoadmapProposal, CoreError> {
-        let writer = super::agreement_scope::writer(grant)?;
-        let Writer::Planner { thread, .. } = &writer else {
-            return Err(CoreError::Refused {
-                code: ErrorCode::GrantScope,
-                message: "roadmap_propose needs a Planner's conversation".into(),
-            });
-        };
-        let turn =
-            self.operations
-                .running_for(thread)
-                .await?
-                .ok_or_else(|| CoreError::Refused {
-                    code: ErrorCode::InvalidCommand,
-                    message: "no turn is running".into(),
-                })?;
+        let (writer, turn) = self
+            .proposal_writer(
+                grant,
+                "roadmap_propose needs a Planner's conversation",
+                "no turn is running",
+            )
+            .await?;
         for outcome in &mut args.outcomes {
             outcome.content.title = outcome.content.title.trim().to_owned();
         }
-        let fp = fingerprint(
-            "RoadmapPropose",
-            &serde_json::to_value(&args).map_err(crate::StorageError::from)?,
-        );
-        let (kind, id) = writer.principal();
-        let ctx = CommandContext {
-            agent: None,
-            principal_kind: kind.into(),
-            principal_id: id,
-            command_id: derived_id(Anchor::Operation(turn.as_str()), &fp),
-            command_kind: "RoadmapPropose".into(),
-            command_schema_ver: 1,
-            request_fingerprint: fp,
-        };
-        self.storage
+        let ctx = Self::proposal_command(&writer, &turn, "RoadmapPropose", &args)?;
+        self.store
             .propose_roadmap_in(&ctx, &writer, &grant.project_id, &turn, args)
             .await
-            .map_err(Self::core_error)
+            .map_err(CoreError::invalid_constraint)
     }
 
     pub async fn roadmap_proposals(
         &self,
         project: &ProjectId,
     ) -> Result<Vec<RoadmapProposal>, CoreError> {
-        Ok(self.storage.list_roadmap_proposals(project).await?)
+        Ok(self.store.list_roadmap_proposals(project).await?)
     }
 
-    pub async fn approve_roadmap_proposal(
-        &self,
-        command_id: String,
+    /// Approves a roadmap proposal in the caller's transaction. `planned` is
+    /// the set of outcomes a plan links to: a removal of one of them is refused.
+    pub(crate) async fn approve_roadmap_proposal_in(
+        conn: &mut SqliteConnection,
+        ctx: &CommandContext,
         project: &ProjectId,
         proposal: &str,
+        approver: &crate::grants::Approver,
+        planned: &BTreeSet<String>,
     ) -> Result<DesignChange, CoreError> {
-        let ctx = CommandContext::user(
-            command_id,
-            "RoadmapProposalApprove",
-            serde_json::json!({"project":project,"proposal":proposal}),
-        );
-        self.storage
-            .approve_roadmap_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
-            .await
-            .map_err(Self::core_error)
-    }
-
-    pub async fn approve_roadmap_proposal_as_planner(
-        &self,
-        grant: &Grant,
-        proposal: &str,
-    ) -> Result<DesignChange, CoreError> {
-        let approver = self.planner_approver(grant).await?;
-        let ctx = approver.command(
-            "RoadmapProposalApprove",
-            serde_json::json!({"project":grant.project_id,"proposal":proposal}),
-        );
-        self.storage
-            .approve_roadmap_proposal_in(&ctx, &grant.project_id, proposal, &approver)
-            .await
-            .map_err(Self::core_error)
+        super::store::DesignStore::approve_roadmap_in(
+            conn, ctx, project, proposal, approver, planned,
+        )
+        .await
     }
 }

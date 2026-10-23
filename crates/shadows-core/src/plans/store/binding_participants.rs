@@ -23,20 +23,26 @@ struct ParticipantRow {
     operations_json: String,
     agreement_id: String,
 }
-pub(crate) async fn agreement_participants_in(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-    agreement: &AgreementId,
-) -> Result<Vec<BindingParticipant>, StorageError> {
-    read(conn, project, Some(agreement), None).await
+impl BindingParticipantsRows {
+    pub(in crate::plans) async fn agreement_participants_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        agreement: &AgreementId,
+    ) -> Result<Vec<BindingParticipant>, StorageError> {
+        read(conn, project, Some(agreement), None).await
+    }
 }
-pub(crate) async fn part_bindings_in(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-    part: &PartId,
-) -> Result<Vec<BindingParticipant>, StorageError> {
-    read(conn, project, None, Some(part)).await
+
+impl BindingParticipantsRows {
+    pub(in crate::plans) async fn part_bindings_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        part: &PartId,
+    ) -> Result<Vec<BindingParticipant>, StorageError> {
+        read(conn, project, None, Some(part)).await
+    }
 }
+
 async fn read(
     conn: &mut SqliteConnection,
     project: &ProjectId,
@@ -94,4 +100,26 @@ async fn read(
             })
         })
         .collect()
+}
+
+pub(in crate::plans) struct BindingParticipantsRows;
+
+impl crate::plans::Plans {
+    pub(crate) async fn agreement_participants_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        agreement: &AgreementId,
+    ) -> Result<Vec<BindingParticipant>, StorageError> {
+        BindingParticipantsRows::agreement_participants_in(conn, project, agreement).await
+    }
+}
+
+impl crate::plans::Plans {
+    pub(crate) async fn part_bindings_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        part: &PartId,
+    ) -> Result<Vec<BindingParticipant>, StorageError> {
+        BindingParticipantsRows::part_bindings_in(conn, project, part).await
+    }
 }

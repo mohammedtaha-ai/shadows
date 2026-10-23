@@ -34,7 +34,10 @@ async fn plan_with(app: &App, n: u32) -> WorkflowId {
 }
 
 async fn task_id(app: &App, workflow: &WorkflowId, number: u32) -> TaskId {
-    let plan = app.storage.get_plan(workflow).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(workflow)
+        .await
+        .unwrap();
     let task = plan.tasks.iter().find(|t| t.content.number == number);
     task.expect("the task").id.clone()
 }

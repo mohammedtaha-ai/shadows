@@ -36,7 +36,7 @@ async fn start(
     id: &str,
     prompt: &str,
     settings: &TurnSettings,
-) -> Result<StartedTurn, StorageError> {
+) -> Result<StartedTurn, shadows_core::CoreError> {
     app.storage
         .start_turn(
             &turn_command(id, &app.thread, prompt, settings),
@@ -152,7 +152,12 @@ async fn the_same_command_id_with_another_body_is_a_conflict() {
         ..small_edits()
     };
     let other = start(&app, "t1", "hello", &large).await;
-    assert!(matches!(other, Err(StorageError::CommandConflict)));
+    assert!(matches!(
+        other,
+        Err(shadows_core::CoreError::Storage(
+            StorageError::CommandConflict
+        ))
+    ));
 }
 
 #[tokio::test]
@@ -161,7 +166,7 @@ async fn a_second_turn_while_one_is_running_is_thread_busy() {
     start(&app, "t1", "hello", &small_edits()).await.unwrap();
     assert!(matches!(
         start(&app, "t2", "again", &small_edits()).await,
-        Err(StorageError::ThreadBusy)
+        Err(shadows_core::CoreError::Storage(StorageError::ThreadBusy))
     ));
 }
 
@@ -187,7 +192,11 @@ async fn a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothin
     let foreign = draft_on(&app, &other_thread, "foreign-plan")
         .await
         .workflow_id;
-    let plan_id = app.storage.get_plan(&foreign).await.unwrap().plan_id;
+    let plan_id = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&foreign)
+        .await
+        .unwrap()
+        .plan_id;
     let (status, body) = http_start(
         &app,
         &thread(&app),

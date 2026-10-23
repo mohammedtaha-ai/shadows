@@ -258,8 +258,17 @@ pub async fn project_of(app: &App, thread: &ThreadId) -> ProjectId {
 
 /// The plan `thread` wrote, if any.
 pub async fn plan_of(app: &App, thread: &ThreadId) -> Option<PlanId> {
-    let latest = app.storage.thread_plan(thread).await.unwrap()?;
-    Some(app.storage.get_plan(&latest).await.unwrap().plan_id)
+    let latest = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .thread_plan_for_test(thread)
+        .await
+        .unwrap()?;
+    Some(
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .get_plan_for_test(&latest)
+            .await
+            .unwrap()
+            .plan_id,
+    )
 }
 
 /// The thread's Planner starts a draft outside a turn: v1 when the thread has
@@ -270,9 +279,12 @@ pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStart
     let plan = plan_of(app, thread).await;
     let project = project_of(app, thread).await;
     // The thread may sit in another project: its roadmap is seeded as the app's is.
-    let part = app.storage.seed_roadmap_for_tests(&project).await.unwrap();
-    app.storage
-        .start_draft(
+    let part = shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_roadmap_for_tests(&project)
+        .await
+        .unwrap();
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(&writer, command, "DraftStart", json!({ "t": thread })),
             &writer,
             &project,
@@ -291,21 +303,23 @@ pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStart
 /// Ties the plan of `workflow` to its project's seeded part, as the person
 /// does on the Project map page: a plan tied to no part is not approved (§23.6).
 pub async fn tie_to_part(app: &App, workflow: &WorkflowId) {
-    let plan = app.storage.get_plan(workflow).await.unwrap();
-    let part = app
-        .storage
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(workflow)
+        .await
+        .unwrap();
+    let part = shadows_core::AppCore::design_for_tests(app.storage.clone())
         .seed_roadmap_for_tests(&plan.project_id)
         .await
         .unwrap();
-    app.storage
-        .link_plan_part_for_tests(&plan.project_id, &plan.plan_id, &part)
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .link_plan_part_for_tests_for_test(&plan.project_id, &plan.plan_id, &part)
         .await
         .unwrap();
 }
 
 pub async fn edit(app: &App, workflow: &WorkflowId, expected: i64, ops: &[PlanOp]) -> i64 {
-    app.storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&Writer::Person, workflow, expected, ops),
             &Writer::Person,
             None,
@@ -322,13 +336,17 @@ pub async fn edit(app: &App, workflow: &WorkflowId, expected: i64, ops: &[PlanOp
 pub async fn approved_v1(app: &App) -> WorkflowId {
     let v1 = draft(app).await.workflow_id;
     edit(app, &v1, 0, &[add(1), add(2), needs(2, 1)]).await;
-    app.storage
-        .approve_plan(&ctx("approve-1", "PlanApprove"), &v1, 1)
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&ctx("approve-1", "PlanApprove"), &v1, 1)
         .await
         .unwrap();
     v1
 }
 
 pub async fn revision(app: &App, workflow: &WorkflowId) -> i64 {
-    app.storage.get_plan(workflow).await.unwrap().revision
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(workflow)
+        .await
+        .unwrap()
+        .revision
 }

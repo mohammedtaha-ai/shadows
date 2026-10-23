@@ -39,15 +39,15 @@ pub(super) async fn setup() -> (
             },
         });
     }
-    core.design().edit("map".into(), &p, 0, ops).await.unwrap();
+    core.plans()
+        .edit_design("map".into(), &p, 0, ops)
+        .await
+        .unwrap();
     (tmp, Storage::open(&db).await.unwrap(), core, p, dir)
 }
 
 fn blocked<T: std::fmt::Debug>(result: Result<T, CoreError>, reason: &str) {
     match result.unwrap_err() {
-        CoreError::Storage(StorageError::StageBlocked(message)) => {
-            assert!(message.contains(reason), "{message}");
-        }
         CoreError::Refused {
             code: shadows_core::ErrorCode::StageBlocked,
             message,
@@ -324,8 +324,8 @@ async fn a_recorded_file_with_a_temp_suffix_is_never_cleaned_up() {
             content: "approved starter".into(),
         });
     }
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "temp-suffix".into(),
             &p,
             1,

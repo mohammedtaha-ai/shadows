@@ -78,10 +78,16 @@ async fn migration_24_backfills_preexisting_approved_proposal_views() {
     .await
     .unwrap();
     pool.close().await;
-    let storage = Storage::open(&path).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
     let project = ProjectId::from_literal("P");
-    let vision = storage.list_vision_proposals(&project).await.unwrap();
-    let maps = storage.list_map_proposals(&project).await.unwrap();
+    let vision = shadows_core::AppCore::design_for_tests(storage.clone())
+        .vision_proposals(&project)
+        .await
+        .unwrap();
+    let maps = shadows_core::AppCore::design_for_tests(storage.clone())
+        .map_proposals(&project)
+        .await
+        .unwrap();
     for by in [
         vision[0].approved_by.as_ref().unwrap(),
         maps[0].approved_by.as_ref().unwrap(),
@@ -109,7 +115,7 @@ async fn migrate_prepared_dev_copy_only() {
         "only this plan's disposable copy is permitted"
     );
     // Storage's URL uses a regular Windows path, not the verbatim \\?\ prefix.
-    let storage = Storage::open(dunce::simplified(&copy)).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(dunce::simplified(&copy)).await.unwrap());
     assert!(
         sqlx::query("PRAGMA foreign_key_check")
             .fetch_all(storage.reader())
@@ -202,7 +208,7 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
     assert!(before.iter().all(|rows| rows.len() == 1));
     pool.close().await;
 
-    let storage = Storage::open(&path).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
     assert_eq!(old_rows(storage.reader()).await, before);
     let audit: (String, String) =
         sqlx::query_as("SELECT approved_principal,approved_agent FROM workflow WHERE id='W'")
@@ -223,17 +229,27 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
         .unwrap();
     assert!(faults.is_empty());
     let project = ProjectId::from_literal(PROJECT);
-    assert_eq!(storage.design_vision(&project).await.unwrap().revision, 0);
+    assert_eq!(
+        shadows_core::AppCore::design_for_tests(storage.clone())
+            .vision(&project)
+            .await
+            .unwrap()
+            .revision,
+        0
+    );
     assert!(
-        storage
-            .design_parts(&project, None, None)
+        shadows_core::AppCore::design_for_tests(storage.clone())
+            .parts(&project, None, None)
             .await
             .unwrap()
             .items
             .is_empty()
     );
     let a = PartId::generate();
-    storage.seed_map_for_tests(&project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_map_for_tests(&project)
+        .await
+        .unwrap();
     sqlx::query("UPDATE design_workspace SET roadmap_revision=1 WHERE project_id=?")
         .bind(project.as_str())
         .execute(storage.reader())
@@ -298,33 +314,45 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
         command_schema_ver: 1,
         request_fingerprint: "migration-test".into(),
     };
-    let result = storage
-        .edit_design(&command, &project, 0, ops.clone())
+    let result = shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_design_for_test(&command, &project, 0, ops.clone())
         .await
         .unwrap();
-    let detail = storage.design_outcome(&project, &outcome).await.unwrap();
+    let detail = shadows_core::AppCore::plans_for_tests(storage.clone())
+        .design_outcome(&project, &outcome)
+        .await
+        .unwrap();
     assert_eq!(detail.parts.len(), 2);
     assert_eq!(detail.plans, vec![PlanId::from_literal(PLAN)]);
     assert_eq!(old_rows(storage.reader()).await, before);
     storage.reader().close().await;
     drop(storage);
 
-    let reopened = Storage::open(&path).await.unwrap();
-    let roots = reopened.design_parts(&project, None, None).await.unwrap();
+    let reopened = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    let roots = shadows_core::AppCore::design_for_tests(reopened.clone())
+        .parts(&project, None, None)
+        .await
+        .unwrap();
     assert_eq!(roots.revision, 1);
     assert_eq!(
         roots.items.iter().map(|p| &p.id).collect::<Vec<_>>(),
         vec![&b, &a]
     );
-    let child_view = reopened.design_part(&project, &child).await.unwrap();
+    let child_view = shadows_core::AppCore::plans_for_tests(reopened.clone())
+        .design_part(&project, &child)
+        .await
+        .unwrap();
     assert_eq!(child_view.ancestors[0].id, a);
     assert_eq!(
-        reopened.design_outcome(&project, &outcome).await.unwrap(),
+        shadows_core::AppCore::plans_for_tests(reopened.clone())
+            .design_outcome(&project, &outcome)
+            .await
+            .unwrap(),
         detail
     );
     assert_eq!(
-        reopened
-            .edit_design(&command, &project, 0, ops)
+        shadows_core::AppCore::plans_for_tests(reopened.clone())
+            .edit_design_for_test(&command, &project, 0, ops)
             .await
             .unwrap(),
         result

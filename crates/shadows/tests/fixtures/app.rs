@@ -132,7 +132,12 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
     .await
     .unwrap();
     let part = match roadmap {
-        true => Some(storage.seed_roadmap_for_tests(&project.id).await.unwrap()),
+        true => Some(
+            shadows_core::AppCore::design_for_tests(storage.clone())
+                .seed_roadmap_for_tests(&project.id)
+                .await
+                .unwrap(),
+        ),
         false => None,
     };
     let thread = shadows_core::Threads::create_planning_thread_for_test(

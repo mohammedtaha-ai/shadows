@@ -1,0 +1,55 @@
+//! Agreement review composed above Design and plan bindings.
+use super::{AgreementReview, Plans};
+use crate::db::CommandContext;
+use crate::design::{AgreementId, AgreementVersion};
+use crate::{CoreError, Grant, ProjectId, StorageError};
+impl Plans {
+    pub async fn review_agreement(
+        &self,
+        project: &ProjectId,
+        id: &AgreementId,
+    ) -> Result<super::AgreementReview, CoreError> {
+        Ok(self.store.review_design_agreement(project, id).await?)
+    }
+    pub async fn agree_agreement(
+        &self,
+        command_id: String,
+        project: &ProjectId,
+        id: &AgreementId,
+        expected_revision: i64,
+        review_id: String,
+    ) -> Result<AgreementVersion, CoreError> {
+        let ctx = CommandContext::user(
+            command_id,
+            "AgreementAgree",
+            serde_json::json!({
+                "project":project,"agreement_id":id,"expected_revision":expected_revision,
+                "review_id":review_id
+            }),
+        );
+        self.store
+            .agree_design_agreement(&ctx, project, id, expected_revision, review_id)
+            .await
+            .map_err(CoreError::invalid_constraint)
+    }
+    pub async fn review_agreement_for(
+        &self,
+        grant: &Grant,
+        id: &AgreementId,
+    ) -> Result<AgreementReview, CoreError> {
+        let mut conn = self
+            .store
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
+        crate::grants::Grants::check_writer(
+            &mut conn,
+            &super::scope::Scope::writer_of(grant)?,
+            &grant.project_id,
+        )
+        .await?;
+        self.review_agreement(&grant.project_id, id).await
+    }
+}

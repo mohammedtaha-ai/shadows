@@ -38,7 +38,10 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .unwrap()
         .id;
     let part = PartId::generate();
-    storage.seed_map_for_tests(&project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_map_for_tests(&project)
+        .await
+        .unwrap();
     let part_content = PartContent {
         serves: vec![],
         folders: vec![],
@@ -49,8 +52,8 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         design: "".into(),
         kind: None,
     };
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "part".into(),
             &project,
             0,
@@ -72,15 +75,15 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
                 "c0000000-0000-4000-8000-000000000001","responses":{"200":{"description":"OK"}}}}}})
     }),None).await.unwrap();
     let review = core
-        .design()
+        .plans()
         .review_agreement(&project, &first.agreement_id)
         .await
         .unwrap();
     assert_eq!(review.compatibility, "Needs review");
     assert_eq!(review.parties.len(), 1);
     assert!(review.participants.is_empty());
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "rename".into(),
             &project,
             1,
@@ -95,7 +98,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .await
         .unwrap();
     assert!(matches!(
-        core.design()
+        core.plans()
             .agree_agreement(
                 "stale".into(),
                 &project,
@@ -107,12 +110,12 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         Err(CoreError::Storage(StorageError::RevisionConflict { .. }))
     ));
     let fresh = core
-        .design()
+        .plans()
         .review_agreement(&project, &first.agreement_id)
         .await
         .unwrap();
     let agreed = core
-        .design()
+        .plans()
         .agree_agreement(
             "agree".into(),
             &project,
@@ -165,7 +168,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .await
         .unwrap();
     let replay = core
-        .design()
+        .plans()
         .agree_agreement(
             "agree".into(),
             &project,

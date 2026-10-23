@@ -119,7 +119,7 @@ impl Shadows {
     ) -> CallToolResult {
         answer(
             self.core
-                .design()
+                .plans()
                 .review_agreement_for(&grant, &args.agreement_id)
                 .await
                 .map_err(Refusal::from),

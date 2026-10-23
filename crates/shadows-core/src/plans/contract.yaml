@@ -27,6 +27,35 @@ source: crates/shadows-core/src/plans
 
 
 shapes:
+  PartView:
+    revision: DesignRevision
+    part: Part
+    ancestors: Vec<Part>
+    plans: Vec<PlanId>
+    binding_plans: Vec<BindingParticipant>
+  OutcomeView:
+    revision: DesignRevision
+    outcome: Outcome
+    ancestors: Vec<Outcome>
+    parts: Vec<PartId>
+    plans: Vec<PlanId>
+  AgreementReview:
+    review_id: String
+    parties: Vec<AgreementPartyReview>
+    participants: Vec<AgreementParticipantImpact>
+  AgreementParticipantImpact:
+    participant: BindingParticipant
+    affected: bool
+    changes: Value
+    next_action: String
+    execution: String
+  AgreementPartyReview:
+    party: AgreementParty
+    revision: i64
+    title: String
+    change: String
+  DesignOp: Workspace edits with typed PlanId associations; wire fields and command fingerprints unchanged.
+  PlansError: Plan lifecycle refusals converted to CoreError without persistence imports in models.
   AgreementBinding:
     task: u32
     agreement_id: AgreementId
@@ -35,12 +64,10 @@ shapes:
     role: AgreementRole
     operations: Vec<String>
   Plans:
-    storage: Arc<Storage>
+    store: Arc<PlansStore>
+    design: Design
     grants: Grants
     operations: Operations
-    handles: Arc<LiveHandles> # Transport tab lookup only; running authority is durable.
-    # Live only: a `plan_show` signal nobody receives is not a failure.
-    ui: broadcast::Sender<UiSignal>
   DraftStart:
     title: Option<String>
     goal: Option<String>
@@ -246,6 +273,17 @@ shapes:
 
 
 functions:
+  boundary:
+    edit_design: Atomic workspace edit composed with plan identity facts and association writes; replay
+    design_part: PartView with Design facts, linked plan IDs and binding participants in one snapshot.
+    design_outcome: OutcomeView with Design facts and linked plan IDs in one snapshot.
+    review_agreement: Agreement impact review composed from Design versions and plan participants in one
+    agree_agreement: Person agreement command; replay before recomputing the complete review in its write
+    review_agreement_for: Live grant scope check before the snapshot agreement review.
+    link_projects: ProjectLinkPut command; Code writes the link and Plans notifies dependencies in the
+    unlink_projects: ProjectLinkRemove command; Code removes the link and Plans notifies dependencies atomically.
+    approve_roadmap_proposal: Person RoadmapProposalApprove; one write reads the outcomes plans link to, then Design approves with them.
+    approve_roadmap_proposal_as_planner: Same write with Design's planner approver and command; planner:<harness> provenance.
   # Person binding edits use the same write/replay/approval validation as MCP.
   service:
     edit_bindings:
@@ -290,9 +328,10 @@ functions:
       # "PlanEdit", params { workflow, expected_revision, ops }. A Planner's
       # edit passes its running turn, when there is one, to the event.
     show:
-      signature: "(&self, grant: &Grant, args: PlanShow) -> Result<PlanShown, CoreError>"
+      signature: "(&self, grant: &Grant, args: PlanShow) -> Result<(PlanShown, OperationId, ThreadId), CoreError>"
       # "PlanShow", params { workflow, task_number, place }, id anchored to the
-      # running turn. Records first, then signals unless replayed.
+      # running turn. Records only; `PlanShown.replayed` tells Turns::show_plan
+      # whether to signal. Plans holds no LiveHandles.
   checks:
     in_scope:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, latest_only: bool) -> Result<Plan, CoreError>"
@@ -316,7 +355,7 @@ functions:
       # `start_draft` for a project grant: the draft_ref is required and is
       # the command id.
   store:
-    check_design_plan:
+    check_design_plan_in:
       signature: "(conn: &mut SqliteConnection, project: &ProjectId, plan: &PlanId) -> Result<(), StorageError>"
       # Transactional identity lookup for Design; no lifecycle/content write.
     # Each write that takes a `Writer` checks it inside its own transaction,
@@ -388,10 +427,15 @@ enums:
 
 
 shared_in_transaction:
-  part_bindings_in: "Design reads derived part-plan adoption in its captured part snapshot, preserving historical pins."
-  agreement_participants_in: "Design reads current/historical task adoption in its captured impact review and agreement transaction; Plans owns binding rows."
+  apply_design_links_in: Owner entry in the caller transaction; design links rules.
+  anchor_plans_in: Owner entry in the caller transaction; design links rules.
+  outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
+  plan_has_part_in: Owner entry in the caller transaction; design parts rules.
+  link_plan_parts_in: Owner entry in the caller transaction; design parts rules.
+  part_bindings_in: "Plans reads derived part-plan adoption in its captured part snapshot, preserving historical pins."
+  agreement_participants_in: "Plans reads current/historical task adoption in its captured impact review and agreement transaction; Plans owns binding rows."
   notify_project_dependencies_in: "Code link writes and Projects removal: append dependency invalidations for other live connected projects inside the caller's write"
-  check_design_plan: "Design's part/outcome association stores: verify project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
+  check_design_plan_in: "Design's part/outcome association stores: verify project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
   task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
 
 
@@ -583,10 +627,10 @@ agreements:
       roadmap and the links.
     holds: true
     tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap, the_planner_proposes_and_approves_a_roadmap_after_the_structure]
-  - between: [check_design_plan, design::edit_design]
+  - between: [check_design_plan_in, edit_design]
     rule: >
-      Design validates project-qualified plan identities in its own transaction.
-      Archived/Frozen plans remain eligible; Design owns only association rows.
+      Plans validates project-qualified plan identities in the workspace transaction.
+      Archived/Frozen plans remain eligible; Plans owns association rows and calls Design for workspace mutations.
     holds: true
     tested_by: part_order_is_stable_across_restart
   - between: [get, get_for]
@@ -828,3 +872,46 @@ tests:
       written_by.
 
 # WrittenBy Planner provenance reads Harness::invocation_model_in in the caller snapshot.
+
+modules:
+  agreement_review.rs: Values returned by a shared agreement impact review
+  agreements.rs: Agreement review composed above Design
+  binding_edit.rs: Person adoption of exact agreement versions through the plan edit
+    transaction
+  bindings.rs: Exact shared-agreement version pins owned by a plan version
+  conversation.rs: 'One job: the plan in the conversation — the task a person'
+  dependencies.rs: Task-parent identities across plan versions
+  dependency_graph.rs: Start/complete ordering shared by local
+  design_edit.rs: Atomic workspace edits with plan-owned associations
+  design_ops.rs: Wire operations composed across design
+  design_views.rs: Workspace views composed from Design
+  error.rs: Plan lifecycle refusals, converted to the application error vocabulary
+  map.rs: Values in a project's latest-plan dependency map
+  mod.rs: 'One job: plan versions under the rules of spec §13 — the `Plans` service'
+  model.rs: 'One job: the plan types callers meet'
+  ops.rs: 'One job: applying one batch of plan edits'
+  project_links.rs: Project-link commands composed above code
+  roadmap_approval.rs: Roadmap approval, which refuses to remove an outcome a plan links to
+  rules.rs: 'One job: what makes a plan invalid or unready'
+  scope.rs: 'One job: plan calls made under an MCP grant — which'
+  store/agreement_review.rs: Snapshot impact reviews
+  store/binding_participants.rs: Captured current
+  store/bindings.rs: Persisted exact shared-agreement pins for task versions
+  store/dependencies.rs: Persisted links to another plan's latest task
+  store/design_links.rs: Plan-owned workspace associations
+  store/design_parts.rs: Plan-to-part associations inside the plan command transaction
+  store/draft.rs: 'One job: starting a plan version — a'
+  store/edit.rs: 'One job: changing a plan version: an edit under a'
+  store/graph.rs: Snapshot checks for dependencies reached through other plans
+  store/linked.rs: Outgoing/incoming task dependency views for one captured LinkedRows::read
+  store/map.rs: A captured map of Active project plans with directly related foreign
+    plans
+  store/mod.rs: 'One job: plans'' SQLite queries. Each file uses the private PlansStore'
+  store/notifications.rs: Dependency invalidations committed with the plan change that
+    caused them
+  store/plan.rs: 'One job: a plan''s state lifecycle with its versions'
+  store/project_links.rs: Atomic project-link commands with plan dependency notifications
+  store/read.rs: 'One job: reading plan versions — one version as a'
+  store/task.rs: 'One job: a plan version''s task'
+  store/view.rs: 'One job: showing a plan version in its conversation — the'
+  testing.rs: Test-only entry points with explicit command contexts

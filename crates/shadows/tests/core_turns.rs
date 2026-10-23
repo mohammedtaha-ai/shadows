@@ -162,7 +162,10 @@ async fn turn_command_fingerprints_do_not_move() {
 
     let v1 = draft(&app).await.workflow_id;
     edit(&app, &v1, 0, &[add(1)]).await;
-    let plan = app.storage.get_plan(&v1).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap();
     let focus = json!({ "workflow_id": v1, "task_id": plan.tasks[0].id, "revision": 1 });
     let mut body = turn("pin-focus", "look");
     body["focus"] = focus.clone();

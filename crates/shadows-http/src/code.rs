@@ -195,8 +195,12 @@ pub(super) async fn put_link(
     Path((project, linked)): Path<(ProjectId, ProjectId)>,
     Json(body): Json<PutLink>,
 ) -> Result<Json<ProjectLink>, Failure> {
-    let code = s.core.code();
-    Ok(Json(code.link(body.command_id, &project, &linked).await?))
+    Ok(Json(
+        s.core
+            .plans()
+            .link_projects(body.command_id, &project, &linked)
+            .await?,
+    ))
 }
 
 /// A `DELETE` has no body, so its idempotency key rides in the query.
@@ -231,8 +235,8 @@ pub(super) async fn remove_link(
     Query(q): Query<RemoveLinkQuery>,
 ) -> Result<StatusCode, Failure> {
     s.core
-        .code()
-        .unlink(q.command_id, &project, &linked)
+        .plans()
+        .unlink_projects(q.command_id, &project, &linked)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }

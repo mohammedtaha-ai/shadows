@@ -1,5 +1,5 @@
 use serde_json::json;
-use shadows_core::testing::apply;
+use shadows_core::testing::Ops;
 use shadows_core::{AgreementBinding, PlanOp};
 #[path = "fixtures/cross_plan.rs"]
 #[allow(dead_code)]
@@ -14,7 +14,6 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     };
     use std::sync::Arc;
     let (tmp, storage) = cross_plan::fixture().await;
-    let storage = Arc::new(storage);
     let core = AppCore::assemble(CoreParts {
         operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
@@ -34,9 +33,12 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     let workflow = WorkflowId::from_literal(cross_plan::SOURCE);
     let project = core.plans().get(&workflow).await.unwrap().project_id;
     let part = PartId::generate();
-    storage.seed_roadmap_for_tests(&project).await.unwrap();
-    core.design()
-        .edit(
+    shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_roadmap_for_tests(&project)
+        .await
+        .unwrap();
+    core.plans()
+        .edit_design(
             "part".into(),
             &project,
             0,
@@ -98,8 +100,8 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
         },
     ];
     assert!(
-        storage
-            .edit_plan(&ctx, &Writer::Person, None, &workflow, 0, &ops)
+        shadows_core::AppCore::plans_for_tests(storage.clone())
+            .edit_plan_for_test(&ctx, &Writer::Person, None, &workflow, 0, &ops)
             .await
             .is_err()
     );
@@ -117,8 +119,8 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     .execute(&db)
     .await
     .unwrap();
-    storage
-        .edit_plan(&ctx, &Writer::Person, None, &workflow, 0, &ops)
+    shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(&ctx, &Writer::Person, None, &workflow, 0, &ops)
         .await
         .unwrap();
     assert_eq!(
@@ -128,8 +130,8 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     let mut invalid = binding.clone();
     invalid.operations = vec!["absent".into()];
     assert!(
-        storage
-            .edit_plan(
+        shadows_core::AppCore::plans_for_tests(storage.clone())
+            .edit_plan_for_test(
                 &cross_plan::command("invalid"),
                 &Writer::Person,
                 None,
@@ -191,7 +193,7 @@ fn bindings_are_exact_version_plan_content_and_task_removal_cleans_them() {
             .get("bindings")
             .is_none()
     );
-    let result = apply(
+    let result = Ops::apply(
         &content,
         &[PlanOp::BindingPut {
             binding: binding.clone(),
@@ -199,11 +201,11 @@ fn bindings_are_exact_version_plan_content_and_task_removal_cleans_them() {
     )
     .unwrap();
     assert_eq!(result.content.bindings, vec![binding]);
-    let removed = apply(&result.content, &[PlanOp::TaskRemove { number: 1 }]).unwrap();
+    let removed = Ops::apply(&result.content, &[PlanOp::TaskRemove { number: 1 }]).unwrap();
     assert!(removed.content.bindings.is_empty());
     let foreign = json!({"op":"binding_put","binding": {
         "task":9,"agreement_id":"a0000000-0000-4000-8000-000000000001","version":1,
         "part_id":"b0000000-0000-4000-8000-000000000001","role":"uses","operations":[]
     }});
-    assert!(apply(&content, &[serde_json::from_value(foreign).unwrap()]).is_err());
+    assert!(Ops::apply(&content, &[serde_json::from_value(foreign).unwrap()]).is_err());
 }

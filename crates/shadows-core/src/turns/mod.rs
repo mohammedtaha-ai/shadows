@@ -19,6 +19,7 @@
 mod entries;
 mod handles;
 mod model;
+mod plan_show;
 mod prompt;
 mod queue;
 mod record;
@@ -92,6 +93,8 @@ pub struct Turns {
     instructions: Instructions,
     standards: Standards,
     projects: Projects,
+    plans: crate::plans::Plans,
+    ui: tokio::sync::broadcast::Sender<crate::events::UiSignal>,
 }
 
 /// The narrow turn control that thread removal needs. It owns no session
@@ -212,6 +215,8 @@ impl Turns {
         instructions: Instructions,
         standards: Standards,
         projects: Projects,
+        plans: crate::plans::Plans,
+        ui: tokio::sync::broadcast::Sender<crate::events::UiSignal>,
     ) -> Self {
         Self {
             storage,
@@ -224,6 +229,8 @@ impl Turns {
             instructions,
             standards,
             projects,
+            plans,
+            ui,
         }
     }
 
@@ -282,8 +289,8 @@ impl Turns {
         .await?;
         let continue_plan = match &plan {
             Some(plan_id) => Some(
-                self.storage
-                    .list_plans(&context.project_id, true)
+                self.plans
+                    .list(&context.project_id, true)
                     .await?
                     .into_iter()
                     .find(|plan| &plan.plan_id == plan_id)

@@ -1,4 +1,4 @@
-//! One job: what makes a plan invalid or unready (spec §13.4).
+//! One job: what makes a plan invalid or unready.
 //!
 //! One validator answers both levels, so the web client's list of what blocks
 //! approval and the approval route's refusal never disagree. Problems come in a
@@ -9,7 +9,8 @@ use std::collections::{BTreeSet, HashSet};
 
 use super::dependency_graph::DependencyGraph;
 
-use super::model::{Link, LinkKind, PlanContent, link_name};
+use super::model::Model;
+use super::model::{Link, LinkKind, PlanContent};
 
 /// One broken or missing thing, named so a person can act on it: tasks as `T4`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -25,88 +26,94 @@ impl Problem {
     }
 }
 
-/// What every edit's final state must hold (§13.4, "Every edit"). Empty means
+/// What every edit's final state must hold. Empty means
 /// the content may be stored as a `Draft`.
-pub fn edit_problems(content: &PlanContent) -> Vec<Problem> {
-    edit_problems_after_removing(content, &BTreeSet::new())
+impl Rules {
+    pub fn edit_problems(content: &PlanContent) -> Vec<Problem> {
+        Rules::edit_problems_after_removing(content, &BTreeSet::new())
+    }
 }
 
-/// [`edit_problems`], plus what a plan needs before it can be approved (§13.4,
+/// [`edit_problems`], plus what a plan needs before it can be approved (,
 /// "Approval"). Empty means the content may be frozen.
-pub fn approval_problems(content: &PlanContent) -> Vec<Problem> {
-    let mut problems = edit_problems(content);
-    if content.title.trim().is_empty() {
-        problems.push(Problem::new("the plan has no title"));
-    }
-    if content.tasks.is_empty() {
-        problems.push(Problem::new("the plan has no tasks"));
-    }
-    for (n, task) in &content.tasks {
-        if task.goal.trim().is_empty() {
-            problems.push(Problem::new(format!("T{n} has no goal")));
+impl Rules {
+    pub fn approval_problems(content: &PlanContent) -> Vec<Problem> {
+        let mut problems = Rules::edit_problems(content);
+        if content.title.trim().is_empty() {
+            problems.push(Problem::new("the plan has no title"));
         }
-        if task.acceptance.is_empty() {
-            problems.push(Problem::new(format!("T{n} has no acceptance item")));
+        if content.tasks.is_empty() {
+            problems.push(Problem::new("the plan has no tasks"));
         }
+        for (n, task) in &content.tasks {
+            if task.goal.trim().is_empty() {
+                problems.push(Problem::new(format!("T{n} has no goal")));
+            }
+            if task.acceptance.is_empty() {
+                problems.push(Problem::new(format!("T{n} has no acceptance item")));
+            }
+        }
+        problems
     }
-    problems
 }
 
 /// [`edit_problems`] for the state an edit left behind: a link still naming a
 /// task the same edit removed says so ("T4 is still linked from T2"), instead
 /// of calling it a task that never existed. Nothing is removed implicitly.
-pub(super) fn edit_problems_after_removing(
-    content: &PlanContent,
-    removed: &BTreeSet<u32>,
-) -> Vec<Problem> {
-    let mut problems = Vec::new();
-    for (&n, task) in &content.tasks {
-        if n == 0 || task.number == 0 {
-            problems.push(Problem::new("T0 is not a task number; numbers start at 1"));
+impl Rules {
+    pub(super) fn edit_problems_after_removing(
+        content: &PlanContent,
+        removed: &BTreeSet<u32>,
+    ) -> Vec<Problem> {
+        let mut problems = Vec::new();
+        for (&n, task) in &content.tasks {
+            if n == 0 || task.number == 0 {
+                problems.push(Problem::new("T0 is not a task number; numbers start at 1"));
+            }
+            if task.number != n {
+                problems.push(Problem::new(format!(
+                    "the task stored as T{n} is numbered T{}",
+                    task.number
+                )));
+            }
+            let mut seen = BTreeSet::new();
+            let repeated: BTreeSet<u32> = task
+                .acceptance
+                .iter()
+                .filter(|item| !seen.insert(item.number))
+                .map(|item| item.number)
+                .collect();
+            for item in repeated {
+                problems.push(Problem::new(format!(
+                    "T{n} has more than one acceptance item {item}"
+                )));
+            }
         }
-        if task.number != n {
+        let mut seen_links = HashSet::new();
+        let mut reported_links = HashSet::new();
+        for link in &content.links {
+            let identity = (link.task, link.after.clone(), link.kind);
+            if !seen_links.insert(identity.clone()) && reported_links.insert(identity) {
+                problems.push(Problem::new(format!(
+                    "{} occurs more than once",
+                    Model::link_name(link.task, &link.after, link.kind)
+                )));
+            }
+            problems.extend(
+                link_problems(content, removed, link)
+                    .into_iter()
+                    .map(Problem::new),
+            );
+        }
+        if let Some(tasks) = cycle(content) {
+            let names: Vec<String> = tasks.iter().map(|n| format!("T{n}")).collect();
             problems.push(Problem::new(format!(
-                "the task stored as T{n} is numbered T{}",
-                task.number
+                "these links form a cycle: {}",
+                names.join(", ")
             )));
         }
-        let mut seen = BTreeSet::new();
-        let repeated: BTreeSet<u32> = task
-            .acceptance
-            .iter()
-            .filter(|item| !seen.insert(item.number))
-            .map(|item| item.number)
-            .collect();
-        for item in repeated {
-            problems.push(Problem::new(format!(
-                "T{n} has more than one acceptance item {item}"
-            )));
-        }
+        problems
     }
-    let mut seen_links = HashSet::new();
-    let mut reported_links = HashSet::new();
-    for link in &content.links {
-        let identity = (link.task, link.after.clone(), link.kind);
-        if !seen_links.insert(identity.clone()) && reported_links.insert(identity) {
-            problems.push(Problem::new(format!(
-                "{} occurs more than once",
-                link_name(link.task, &link.after, link.kind)
-            )));
-        }
-        problems.extend(
-            link_problems(content, removed, link)
-                .into_iter()
-                .map(Problem::new),
-        );
-    }
-    if let Some(tasks) = cycle(content) {
-        let names: Vec<String> = tasks.iter().map(|n| format!("T{n}")).collect();
-        problems.push(Problem::new(format!(
-            "these links form a cycle: {}",
-            names.join(", ")
-        )));
-    }
-    problems
 }
 
 fn link_problems(content: &PlanContent, removed: &BTreeSet<u32>, link: &Link) -> Vec<String> {
@@ -137,7 +144,7 @@ fn link_problems(content: &PlanContent, removed: &BTreeSet<u32>, link: &Link) ->
     if link.after.local() == Some(link.task) {
         return vec![format!("T{} cannot be linked to itself", link.task)];
     }
-    let name = link_name(link.task, &link.after, link.kind);
+    let name = Model::link_name(link.task, &link.after, link.kind);
     match link.kind {
         LinkKind::Needs if !link.waiting_items.is_empty() => vec![format!(
             "{name} names acceptance items; a needs link waits for the whole task"
@@ -157,7 +164,7 @@ fn link_problems(content: &PlanContent, removed: &BTreeSet<u32>, link: &Link) ->
     }
 }
 
-/// §13.4: each task is two events, start and complete, start before complete.
+/// : each task is two events, start and complete, start before complete.
 /// `B needs A`: complete(A) → start(B). `B completes_after A`: complete(A) → complete(B).
 /// A cycle is a strongly connected set of more than one event; its tasks are
 /// named, never a task that merely comes after it. When several exist, the one
@@ -174,3 +181,5 @@ fn cycle(content: &PlanContent) -> Option<Vec<u32>> {
         .cycle()
         .map(|tasks| tasks.into_iter().map(|(_, number)| number).collect())
 }
+
+pub struct Rules;

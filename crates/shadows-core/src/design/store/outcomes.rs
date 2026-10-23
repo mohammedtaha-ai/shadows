@@ -1,9 +1,9 @@
 //! Snapshot reads of roadmap outcomes.
+use super::DesignStore;
 use crate::{
     ProjectId,
-    db::{Storage, StorageError},
-    design::{Outcome, OutcomeId, OutcomePage, OutcomeView, PartId},
-    plans::PlanId,
+    db::StorageError,
+    design::{Outcome, OutcomeDetails, OutcomeId, OutcomePage, PartId},
 };
 use sqlx::{FromRow, SqliteConnection};
 #[derive(FromRow)]
@@ -25,76 +25,39 @@ impl OutcomeRow {
         })
     }
 }
-pub(super) async fn load(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-    id: &OutcomeId,
-) -> Result<Outcome, StorageError> {
-    sqlx::query_as::<_, OutcomeRow>(
-        "SELECT id,parent_id,revision,ordinal,content_json FROM design_outcome \
-         WHERE project_id=? AND id=?",
-    )
-    .bind(project.as_str())
-    .bind(id.as_str())
-    .fetch_optional(conn)
-    .await?
-    .ok_or(StorageError::NotFound("outcome"))?
-    .domain()
-}
-impl Storage {
-    pub async fn design_outcome(
-        &self,
+impl OutcomesRows {
+    pub(super) async fn load(
+        conn: &mut SqliteConnection,
         project: &ProjectId,
         id: &OutcomeId,
-    ) -> Result<OutcomeView, StorageError> {
-        let mut tx = self.reader().begin().await?;
-        let revision = super::parts::revision(&mut tx, project).await?;
-        let outcome = load(&mut tx, project, id).await?;
-        let mut ancestors = Vec::new();
-        let mut parent = outcome.parent.clone();
-        while let Some(id) = parent {
-            let node = load(&mut tx, project, &id).await?;
-            parent = node.parent.clone();
-            ancestors.push(node);
-        }
-        ancestors.reverse();
-        let plans: Vec<String> = sqlx::query_scalar(
-            "SELECT plan_id FROM design_outcome_plan \
-             WHERE project_id=? AND outcome_id=? ORDER BY plan_id",
+    ) -> Result<Outcome, StorageError> {
+        sqlx::query_as::<_, OutcomeRow>(
+            "SELECT id,parent_id,revision,ordinal,content_json FROM design_outcome \
+         WHERE project_id=? AND id=?",
         )
         .bind(project.as_str())
         .bind(id.as_str())
-        .fetch_all(&mut *tx)
-        .await?;
-        let parts: Vec<String> = sqlx::query_scalar(
-            "SELECT part_id FROM design_outcome_part \
-             WHERE project_id=? AND outcome_id=? ORDER BY part_id",
-        )
-        .bind(project.as_str())
-        .bind(id.as_str())
-        .fetch_all(&mut *tx)
-        .await?;
-        Ok(OutcomeView {
-            revision,
-            outcome,
-            ancestors,
-            parts: parts.into_iter().map(PartId::from_stored).collect(),
-            plans: plans.into_iter().map(PlanId::from_stored).collect(),
-        })
+        .fetch_optional(conn)
+        .await?
+        .ok_or(StorageError::NotFound("outcome"))?
+        .domain()
     }
+}
+
+impl DesignStore {
     pub async fn design_outcomes(
         &self,
         project: &ProjectId,
         parent: Option<&OutcomeId>,
         after: Option<&OutcomeId>,
     ) -> Result<OutcomePage, StorageError> {
-        let mut tx = self.reader().begin().await?;
-        let revision = super::parts::revision(&mut tx, project).await?;
+        let mut tx = self.storage.reader().begin().await?;
+        let revision = super::parts::PartsRows::revision(&mut tx, project).await?;
         if let Some(id) = parent {
-            load(&mut tx, project, id).await?;
+            OutcomesRows::load(&mut tx, project, id).await?;
         }
         let cursor = if let Some(id) = after {
-            let item = load(&mut tx, project, id).await?;
+            let item = OutcomesRows::load(&mut tx, project, id).await?;
             if item.parent.as_ref() != parent {
                 return Err(StorageError::Constraint(format!(
                     "outcome cursor {id} is outside the requested parent"
@@ -135,3 +98,38 @@ impl Storage {
         })
     }
 }
+
+impl crate::design::Design {
+    pub(crate) async fn design_outcome_in(
+        tx: &mut SqliteConnection,
+        project: &ProjectId,
+        id: &OutcomeId,
+    ) -> Result<OutcomeDetails, StorageError> {
+        let revision = super::parts::PartsRows::revision(tx, project).await?;
+        let outcome = OutcomesRows::load(tx, project, id).await?;
+        let mut ancestors = Vec::new();
+        let mut parent = outcome.parent.clone();
+        while let Some(id) = parent {
+            let node = OutcomesRows::load(tx, project, &id).await?;
+            parent = node.parent.clone();
+            ancestors.push(node);
+        }
+        ancestors.reverse();
+        let parts: Vec<String> = sqlx::query_scalar(
+            "SELECT part_id FROM design_outcome_part \
+             WHERE project_id=? AND outcome_id=? ORDER BY part_id",
+        )
+        .bind(project.as_str())
+        .bind(id.as_str())
+        .fetch_all(&mut *tx)
+        .await?;
+        Ok(OutcomeDetails {
+            revision,
+            outcome,
+            ancestors,
+            parts: parts.into_iter().map(PartId::from_stored).collect(),
+        })
+    }
+}
+
+pub(in crate::design) struct OutcomesRows;

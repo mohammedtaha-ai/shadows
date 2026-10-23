@@ -82,6 +82,15 @@ pub enum ErrorCode {
 /// MCP — and the codes and texts clients see stay exactly what they were.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
+    #[error("{message}")]
+    ValidationFailed {
+        message: String,
+        problems: Vec<String>,
+    },
+    #[error("a new version needs its reason")]
+    ReasonMissing,
+    #[error("{0}")]
+    Unavailable(String),
     #[error("extension not found")]
     ExtensionNotFound,
     #[error("extension name is already in use")]
@@ -141,13 +150,7 @@ pub enum CoreError {
 
 impl From<StorageError> for CoreError {
     fn from(error: StorageError) -> Self {
-        match error {
-            StorageError::PlanArchived(_) | StorageError::PlanLinkInvalid(_) => Self::Refused {
-                code: ErrorCode::InvalidCommand,
-                message: error.to_string(),
-            },
-            other => Self::Storage(other),
-        }
+        Self::Storage(error)
     }
 }
 
@@ -170,5 +173,17 @@ impl From<sqlx::Error> for CoreError {
 impl From<serde_json::Error> for CoreError {
     fn from(error: serde_json::Error) -> Self {
         StorageError::from(error).into()
+    }
+}
+
+impl CoreError {
+    pub(crate) fn invalid_constraint(error: impl Into<Self>) -> Self {
+        match error.into() {
+            Self::Storage(StorageError::Constraint(message)) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            other => other,
+        }
     }
 }

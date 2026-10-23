@@ -31,8 +31,9 @@ shapes:
     stage: Stage
     missing: Vec<String>
   Design:
-    storage: Arc<Storage>
+    store: Arc<DesignStore>
     operations: Operations
+    structure_lock: Arc<Mutex<()>>
   AgreementContent:
     capability: String
     purpose: String
@@ -93,12 +94,6 @@ shapes:
     ordinal: i64
     revision: i64
     content: PartContent
-  PartView:
-    revision: DesignRevision
-    part: Part
-    ancestors: Vec<Part>
-    plans: Vec<PlanId>
-    binding_plans: Vec<BindingParticipant>
   PartPage:
     revision: DesignRevision
     items: Vec<Part>
@@ -113,12 +108,6 @@ shapes:
     ordinal: i64
     revision: i64
     content: OutcomeContent
-  OutcomeView:
-    revision: DesignRevision
-    outcome: Outcome
-    ancestors: Vec<Outcome>
-    parts: Vec<PartId>
-    plans: Vec<PlanId>
   OutcomePage:
     revision: DesignRevision
     items: Vec<Outcome>
@@ -127,7 +116,7 @@ shapes:
 enums:
   Stage: [Idea, Vision, Map, Structure, Roadmap, Plans]
   RoadmapAction: [First, Add, Change, Remove]
-  DesignOp:
+  WorkspaceOp:
     OutcomeCreate: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId>, content: OutcomeContent }"
     OutcomePut: "{ id: OutcomeId, content: OutcomeContent }"
     OutcomeMove: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId> }"
@@ -139,13 +128,16 @@ enums:
     PartCreate: "{ id: PartId, parent: Option<PartId>, before: Option<PartId>, content: PartContent }"
     PartPut: "{ id: PartId, content: PartContent }"
     PartMove: "{ id: PartId, parent: Option<PartId>, before: Option<PartId> }"
-    PlanLinkPut: "{ anchor: DesignAnchor, plan: PlanId }"
-    PlanLinkRemove: "{ anchor: DesignAnchor, plan: PlanId }"
+    PlanLinkPut: "{ anchor: DesignAnchor, plan: String }"
+    PlanLinkRemove: "{ anchor: DesignAnchor, plan: String }"
   DesignAnchor:
     Part: PartId
     Outcome: OutcomeId
 
 functions:
+  boundary:
+    approve_vision_proposal_for_test: Test-only approval using the supplied command and approver.
+    propose_vision_for_test: Test-only proposal using the supplied command, writer and operation.
   service:
     create_structure:
       signature: "(&self, command_id: String, project: &ProjectId) -> Result<StructureWritten, CoreError>"
@@ -176,11 +168,11 @@ functions:
       # Planner/thread grant plus running turn; structure write and roadmap revision checked in the store.
     roadmap_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, CoreError>"
-    approve_roadmap_proposal:
-      signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, CoreError>"
-    approve_roadmap_proposal_as_planner:
-      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, CoreError>"
-      # Same §24 provenance as the map: planner:<harness> with the request entry.
+    approve_roadmap_proposal_in:
+      signature: "(conn, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver, planned: &BTreeSet<String>) -> Result<DesignChange, CoreError>"
+      # Plans calls it inside its write: `planned` names the outcomes a plan links
+      # to, and removing one is StageBlocked "outcome has children or plans".
+      # Same provenance as the map: planner:<harness> with the request entry.
     propose_vision:
       signature: "(&self, grant: &Grant, args: VisionPropose) -> Result<VisionProposal, CoreError>"
       # Planner/thread grant plus running turn only; writer rechecked in write transaction.
@@ -195,17 +187,10 @@ functions:
       # Turns reads the stage fact in its snapshot for both normal and steered prompts.
     stage:
       signature: "(&self, project: &ProjectId) -> Result<StageView, CoreError>"
-    review_agreement:
-      signature: "(&self, project: &ProjectId, id: &AgreementId) -> Result<AgreementReview, CoreError>"
-    agree_agreement:
-      signature: "(&self, command_id: String, project: &ProjectId, id: &AgreementId, expected_revision: i64, review_id: String) -> Result<AgreementVersion, CoreError>"
-      # Person only; no grant variant. Recomputes the complete review basis.
     agreements_for:
       signature: "(&self, grant: &Grant) -> Result<Vec<AgreementVersion>, CoreError>"
     agreement_for:
       signature: "(&self, grant: &Grant, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, CoreError>"
-    review_agreement_for:
-      signature: "(&self, grant: &Grant, id: &AgreementId) -> Result<AgreementReview, CoreError>"
     start_agreement_for:
       signature: "(&self, grant: &Grant, command_id: String, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, CoreError>"
     edit_agreement_for:
@@ -226,15 +211,11 @@ functions:
       # InvalidCommand "vN is no longer the Draft; read vM", even at the same revision.
       # Start and edit give every operation without x-shadows-operation-id a fresh
       # UUID inside the write; an existing id is kept, so it survives a rename.
-    outcome:
-      signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, CoreError>"
     outcomes:
       signature: "(&self, project: &ProjectId, parent: Option<&OutcomeId>, after: Option<&OutcomeId>) -> Result<OutcomePage, CoreError>"
       # Wrong-parent cursors refuse with actionable InvalidCommand.
     vision:
       signature: "(&self, project: &ProjectId) -> Result<VisionView, CoreError>"
-    part:
-      signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartView, CoreError>"
     parts:
       signature: "(&self, project: &ProjectId, parent: Option<&PartId>, after: Option<&PartId>) -> Result<PartPage, CoreError>"
       # A cursor outside the requested parent is InvalidCommand with cursor details.
@@ -242,11 +223,6 @@ functions:
       signature: "(&self, grant: &Grant) -> Result<WorkspaceView, CoreError>"
       # Read only, for any live grant of the project: the vision with the first
       # page of top-level parts and outcomes. No MCP tool writes the workspace.
-    edit:
-      signature: "(&self, command_id: String, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, CoreError>"
-      # DesignEdit, principal User/local, schema 1, Project scope. Fingerprint
-      # over project, expected_revision and ordered typed ops; trim only titles,
-      # validate client UUID references. Other text remains exact.
   store:
     propose_map_in:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: MapPropose) -> Result<MapProposal, CoreError>"
@@ -258,14 +234,12 @@ functions:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<(), StorageError>"
     seed_roadmap_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, StorageError>"
-    link_plan_part_for_tests:
-      signature: "test-support only: (&self, project: &ProjectId, plan: &PlanId, part: &PartId) -> Result<(), StorageError>"
     propose_roadmap_in:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: RoadmapPropose) -> Result<RoadmapProposal, CoreError>"
     list_roadmap_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, StorageError>"
-    approve_roadmap_proposal_in:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, CoreError>"
+    approve_roadmap_in:
+      signature: "(conn, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver, planned: &BTreeSet<String>) -> Result<DesignChange, CoreError>"
     propose_vision_in:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, CoreError>"
     list_vision_proposals:
@@ -277,10 +251,6 @@ functions:
       # Vision, top-level parts and additions all share one read transaction.
     check_agreement_grant:
       signature: "(&self, writer: &Writer, project: &ProjectId) -> Result<(), CoreError>"
-    review_design_agreement:
-      signature: "(&self, project: &ProjectId, id: &AgreementId) -> Result<AgreementReview, StorageError>"
-    agree_design_agreement:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, id: &AgreementId, expected_revision: i64, review_id: String) -> Result<AgreementVersion, StorageError>"
     design_agreements:
       signature: "(&self, project: &ProjectId) -> Result<Vec<AgreementVersion>, StorageError>"
     design_agreement:
@@ -289,8 +259,8 @@ functions:
       signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, CoreError>"
     edit_design_agreement:
       signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: &AgreementId, version: i64, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, CoreError>"
-    design_outcome:
-      signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, StorageError>"
+    design_outcome_in:
+      signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeDetails, StorageError>"
       # One snapshot, iterative root-first ancestors, unique stable-ID associations.
     design_outcomes:
       signature: "(&self, project: &ProjectId, parent: Option<&OutcomeId>, after: Option<&OutcomeId>) -> Result<OutcomePage, StorageError>"
@@ -298,13 +268,13 @@ functions:
     design_vision:
       signature: "(&self, project: &ProjectId) -> Result<VisionView, StorageError>"
       # One joined read excludes unknown/removed projects; no row initialization.
-    edit_design:
+    edit_workspace_in:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, StorageError>"
       # write_txn → classify/replay → live project/workspace revision → ordered
       # ops (empty batch refused) → affected element revisions once per batch →
       # immutable design_command_result → append_event → record_command.
-    design_part:
-      signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartView, StorageError>"
+    design_part_in:
+      signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartDetails, StorageError>"
       # A read transaction supplies a consistent workspace revision, root-first
       # iterative ancestor path and plan IDs ordered uniquely by stable id.
     design_parts:
@@ -313,14 +283,14 @@ functions:
       # in the requested parent; next names last returned item only if more exist.
 
 agreements:
-  - between: [edit_design, events::with_project]
+  - between: [plans::edit_design, events::with_project]
     rule: >
       ProjectDesignChanged is appended inside the edit's transaction and carries
       only project_id, workspace revision, changed part/outcome IDs
       and vision_changed. Events reads it on the existing project journal tail.
     holds: true
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
-  - between: [edit_design, plans::check_design_plan]
+  - between: [plans::edit_design, plans::check_design_plan_in]
     rule: >
       Design verifies same-project plan identity in its transaction through
       Plans' declared lookup. Archived or Frozen plans are valid associations;
@@ -329,9 +299,20 @@ agreements:
     tested_by: part_order_is_stable_across_restart
 
 shared_in_transaction:
+  agreement_in: Owner entry in the caller transaction; agreements rules.
+  agreed_before_in: Owner entry in the caller transaction; agreements rules.
+  mark_agreed_in: Owner entry in the caller transaction; agreements rules.
+  agreement_replay_in: Owner entry in the caller transaction; agreement write rules.
+  record_agreement_in: Owner entry in the caller transaction; agreement write rules.
+  design_outcome_in: Owner entry in the caller transaction; outcomes rules.
+  design_part_in: Owner entry in the caller transaction; parts rules.
+  require_part_in: Owner entry in the caller transaction; parts rules.
+  revision_in: Owner entry in the caller transaction; parts rules.
+  part_in: Owner entry in the caller transaction; parts rules.
+  normalize_ops: Owner entry in the caller transaction; vision rules.
+  replay_edit_in: Owner entry in the caller transaction; vision rules.
+  edit_workspace_in: Owner entry in the caller transaction; vision rules.
   require_roadmap_in: "Plans calls it in start_draft, edit_plan (the binding edit included) and approve_plan_with, after the replay lookup: STAGE_BLOCKED while roadmap_revision is 0. Design owns the revision."
-  plan_has_part_in: "Plans calls it in approve_plan_with: whether the plan has a design_part_plan row. Design owns the link rows."
-  link_plan_parts_in: "Plans calls it in start_draft: ties the plan to the named parts of the project, ON CONFLICT DO NOTHING, no event of its own."
   check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
 
 dependencies:
@@ -591,3 +572,56 @@ tests:
 # stage_line_in(conn, project) -> String renders stage_view_in from the same snapshot.
 # Turns calls it through one shared stage method for normal and steered prompts.
 # Map proposal standards pins are read through Harness::pinned_standards_in.
+
+modules:
+  agreement.rs: Shared HTTP agreement value shapes
+  agreement_scope.rs: Live grant attribution for agreement proposals
+  agreement_validation.rs: Offline validation of canonical shared OpenAPI content
+  agreements.rs: Design's shared-agreement entry points
+  error.rs: Design lifecycle refusals with no plan-domain dependency
+  map_proposals.rs: Map proposal values
+  map_rules.rs: Pure map ownership, dependency
+  mod.rs: The project design workspace service
+  model.rs: The project workspace's public value shapes
+  ops.rs: Normalization of workspace edit operations
+  outcomes.rs: Roadmap read entry points
+  parts.rs: Part read entry points
+  proposal_context.rs: Shared identity
+  proposals.rs: Vision proposal values
+  roadmap_proposals.rs: Roadmap proposal values
+  stage.rs: Project stage computed from persisted workspace inputs
+  store/agreement_binding.rs: Agreed-version checks shared with Plans in its write transaction
+  store/agreement_write.rs: Serialized agreement starts
+  store/agreements.rs: Snapshot reads of exact shared-agreement versions
+  store/hierarchy.rs: Transactional containment checks with explicit sibling ordering
+  store/map_approval.rs: Atomic person approval of a map proposal
+  store/map_proposal_read.rs: Snapshot reads
+  store/map_proposal_shape.rs: Assemble a proposed map against current parts without
+    writing
+  store/map_proposals.rs: Persist Planner map proposals without approving parts
+  store/map_versions.rs: Transactional map snapshots
+  store/mod.rs: Persistence of the project design workspace
+  store/outcome_edit.rs: Transactional mutations of roadmap outcomes
+  store/outcomes.rs: Snapshot reads of roadmap outcomes
+  store/part_edit.rs: Transactional mutations of part content, containment
+  store/parts.rs: Snapshot reads of project parts with bounded child pages
+  store/proposal_approval.rs: Person approval of one vision proposal
+  store/proposal_read.rs: Snapshot reads of vision proposal state
+  store/proposals.rs: Recording Planner vision proposals
+  store/roadmap_approval.rs: Atomic approval of a roadmap proposal by the person or
+    at their request
+  store/roadmap_gate.rs: The gates that the roadmap places on hand outcome edits
+  store/roadmap_proposal_read.rs: Snapshot reads
+  store/roadmap_proposals.rs: Persist Planner roadmap proposals without approving outcomes
+  store/roadmap_seed.rs: Test-support seeds that put a project at the plans stage without
+    a conversation
+  store/roadmap_shape.rs: Checking a proposed roadmap against its action
+  store/stage.rs: Reading every stage input in one consistent project snapshot
+  store/structure.rs: Intent, snapshot
+  store/vision.rs: Atomic workspace edits with immutable command results
+  store/vision_versions.rs: Persisted vision versions
+  structure.rs: Rendering an approved map snapshot into files
+  structure_create.rs: Coordinating a person's structure write
+  structure_write.rs: Checking
+  vision_items.rs: Pure vision item edits with server-assigned identities
+  workspace.rs: A grant's read of its project's workspace, so a Planner plans from it

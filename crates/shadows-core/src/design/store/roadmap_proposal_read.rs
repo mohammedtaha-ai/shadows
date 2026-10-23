@@ -1,5 +1,6 @@
 //! Snapshot reads and dependency-based staleness of roadmap cards.
-use crate::db::Storage;
+
+use super::DesignStore;
 use crate::design::{ProposalStatus, RoadmapAction, RoadmapProposal};
 use crate::{ProjectId, StorageError};
 use sqlx::{FromRow, SqliteConnection};
@@ -16,22 +17,24 @@ struct Row {
     approved_request_entry: Option<String>,
 }
 
-pub(super) async fn load(
-    conn: &mut SqliteConnection,
-    p: &ProjectId,
-    id: &str,
-) -> Result<RoadmapProposal, StorageError> {
-    let row: Row = sqlx::query_as(
-        "SELECT payload_json,status,expected_outcome_json,expected_parts_json,
+impl RoadmapProposalReadRows {
+    pub(super) async fn load(
+        conn: &mut SqliteConnection,
+        p: &ProjectId,
+        id: &str,
+    ) -> Result<RoadmapProposal, StorageError> {
+        let row: Row = sqlx::query_as(
+            "SELECT payload_json,status,expected_outcome_json,expected_parts_json,
          approved_principal,approved_agent,approved_request_entry
          FROM design_roadmap_proposal WHERE project_id=? AND id=?",
-    )
-    .bind(p.as_str())
-    .bind(id)
-    .fetch_optional(&mut *conn)
-    .await?
-    .ok_or(StorageError::NotFound("roadmap proposal"))?;
-    view(conn, p, row).await
+        )
+        .bind(p.as_str())
+        .bind(id)
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or(StorageError::NotFound("roadmap proposal"))?;
+        view(conn, p, row).await
+    }
 }
 
 async fn view(
@@ -56,12 +59,14 @@ async fn view(
     let expected: BTreeMap<String, String> = serde_json::from_str(&row.expected_parts_json)?;
     let mut outdated = proposal.action == RoadmapAction::First && revision > 0;
     for (part, expected) in &expected {
-        let current = super::roadmap_shape::part_snapshot(conn, p, part).await?;
+        let current = super::roadmap_shape::RoadmapShapeRows::part_snapshot(conn, p, part).await?;
         outdated |= current.as_ref() != Some(expected);
     }
     if let Some(id) = &proposal.outcome_id {
-        let current = match super::outcomes::load(conn, p, id).await {
-            Ok(outcome) => Some(super::roadmap_shape::outcome_snapshot(&outcome)?),
+        let current = match super::outcomes::OutcomesRows::load(conn, p, id).await {
+            Ok(outcome) => Some(super::roadmap_shape::RoadmapShapeRows::outcome_snapshot(
+                &outcome,
+            )?),
             Err(StorageError::NotFound(_)) => None,
             Err(other) => return Err(other),
         };
@@ -71,13 +76,13 @@ async fn view(
     Ok(proposal)
 }
 
-impl Storage {
+impl DesignStore {
     pub async fn list_roadmap_proposals(
         &self,
         p: &ProjectId,
     ) -> Result<Vec<RoadmapProposal>, StorageError> {
-        let mut tx = self.reader().begin().await?;
-        super::proposal_read::live_vision(&mut tx, p).await?;
+        let mut tx = self.storage.reader().begin().await?;
+        super::proposal_read::ProposalReadRows::live_vision(&mut tx, p).await?;
         let rows: Vec<Row> = sqlx::query_as(
             "SELECT payload_json,status,expected_outcome_json,expected_parts_json,
              approved_principal,approved_agent,approved_request_entry
@@ -94,3 +99,5 @@ impl Storage {
         Ok(result)
     }
 }
+
+pub(in crate::design) struct RoadmapProposalReadRows;

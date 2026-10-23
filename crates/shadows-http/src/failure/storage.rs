@@ -19,9 +19,6 @@ impl From<StorageError> for Failure {
             detail: Detail::default(),
         };
         let (status, code, message) = match &e {
-            StorageError::StageBlocked(_) => {
-                return own(StatusCode::CONFLICT, ErrorCode::StageBlocked);
-            }
             StorageError::CommandConflict => {
                 return own(StatusCode::CONFLICT, ErrorCode::CommandConflict);
             }
@@ -34,9 +31,6 @@ impl From<StorageError> for Failure {
             }
             StorageError::ProjectHasThreads => {
                 return own(StatusCode::CONFLICT, ErrorCode::ProjectHasThreads);
-            }
-            StorageError::WorkflowFrozen => {
-                return own(StatusCode::CONFLICT, ErrorCode::WorkflowFrozenImmutable);
             }
             StorageError::RevisionConflict { current, summary } => {
                 return Failure {
@@ -51,22 +45,6 @@ impl From<StorageError> for Failure {
                         problems: None,
                     },
                 };
-            }
-            StorageError::PlanInvalid(problems) => {
-                let problems: Vec<String> = problems.iter().map(|p| p.message.clone()).collect();
-                return Failure {
-                    status: StatusCode::UNPROCESSABLE_ENTITY,
-                    code: ErrorCode::WorkflowValidationFailed,
-                    message: problems.join("; "),
-                    cause: None,
-                    detail: Detail {
-                        current_revision: None,
-                        problems: Some(problems),
-                    },
-                };
-            }
-            StorageError::TaskNotInPlan(_) => {
-                return own(StatusCode::UNPROCESSABLE_ENTITY, ErrorCode::InvalidCommand);
             }
             StorageError::TransitionConflict { .. } => (
                 StatusCode::CONFLICT,

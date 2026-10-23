@@ -75,8 +75,8 @@ async fn edit(core: &AppCore, p: &ProjectId, rev: i64, ops: Vec<DesignOp>) {
         core.design().seed_map_for_tests(p).await.unwrap();
     }
     assert_eq!(
-        core.design()
-            .edit(format!("edit-{p}-{rev}"), p, rev, ops)
+        core.plans()
+            .edit_design(format!("edit-{p}-{rev}"), p, rev, ops)
             .await
             .unwrap()
             .revision,
@@ -115,8 +115,8 @@ async fn part_moves_keep_identity_and_reject_cycles() {
     assert_eq!(events().await.unwrap().revision, 1);
     for parent in [&c, &foreign, &a] {
         let result = core
-            .design()
-            .edit(
+            .plans()
+            .edit_design(
                 format!("bad-{parent}"),
                 &p,
                 1,
@@ -135,7 +135,13 @@ async fn part_moves_keep_identity_and_reject_cycles() {
             .await;
         assert!(result.is_err());
         assert_eq!(
-            core.design().part(&p, &b).await.unwrap().part.content.title,
+            core.plans()
+                .design_part(&p, &b)
+                .await
+                .unwrap()
+                .part
+                .content
+                .title,
             "ب"
         );
         assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
@@ -146,8 +152,9 @@ async fn part_moves_keep_identity_and_reject_cycles() {
         before: Some(a.clone()),
     }];
     let (x, y) = tokio::join!(
-        core.design().edit("move-one".into(), &p, 1, move_b.clone()),
-        core.design().edit("move-two".into(), &p, 1, move_b)
+        core.plans()
+            .edit_design("move-one".into(), &p, 1, move_b.clone()),
+        core.plans().edit_design("move-two".into(), &p, 1, move_b)
     );
     assert_eq!(usize::from(x.is_ok()) + usize::from(y.is_ok()), 1);
     let failed = if x.is_err() { x } else { y };
@@ -168,7 +175,7 @@ async fn part_moves_keep_identity_and_reject_cycles() {
         }],
     )
     .await;
-    let v = core.design().part(&p, &c).await.unwrap();
+    let v = core.plans().design_part(&p, &c).await.unwrap();
     assert_eq!(
         v.ancestors.iter().map(|p| p.id.clone()).collect::<Vec<_>>(),
         vec![b.clone()]
@@ -176,7 +183,7 @@ async fn part_moves_keep_identity_and_reject_cycles() {
     assert_eq!(v.ancestors[0].content.title, "جديد");
     assert_eq!(v.part.id, c);
     assert_eq!(v.ancestors[0].content.design, " تصميم\n");
-    assert!(core.design().part(&q, &b).await.is_err());
+    assert!(core.plans().design_part(&q, &b).await.is_err());
     // A failed batch journals nothing; successes have one event each.
     let conn = sqlx::SqlitePool::connect_with(
         sqlx::sqlite::SqliteConnectOptions::new().filename(tmp.path().join("test.sqlite3")),
@@ -293,7 +300,7 @@ async fn part_order_is_stable_across_restart() {
     )
     .await;
     assert_eq!(
-        core.design().part(&p, &a).await.unwrap().plans,
+        core.plans().design_part(&p, &a).await.unwrap().plans,
         vec![start.plan_id.clone()]
     );
     assert_eq!(
@@ -320,8 +327,8 @@ async fn part_order_is_stable_across_restart() {
         },
     ] {
         assert!(
-            core.design()
-                .edit(uuid::Uuid::new_v4().to_string(), &p, 2, vec![bad])
+            core.plans()
+                .edit_design(uuid::Uuid::new_v4().to_string(), &p, 2, vec![bad])
                 .await
                 .is_err()
         );
@@ -333,8 +340,8 @@ async fn part_order_is_stable_across_restart() {
     let foreign = PartId::generate();
     edit(&core, &q, 0, vec![create(&foreign, None, "Foreign")]).await;
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "foreign-link".into(),
                 &q,
                 1,
@@ -364,7 +371,7 @@ async fn part_order_is_stable_across_restart() {
         vec![c, b.clone(), a.clone()]
     );
     assert_eq!(
-        reopened.design().part(&p, &a).await.unwrap().plans,
+        reopened.plans().design_part(&p, &a).await.unwrap().plans,
         vec![start.plan_id.clone()]
     );
     edit(
@@ -384,7 +391,7 @@ async fn part_order_is_stable_across_restart() {
         ],
     )
     .await;
-    let moved = reopened.design().part(&p, &a).await.unwrap();
+    let moved = reopened.plans().design_part(&p, &a).await.unwrap();
     assert_eq!(moved.plans, vec![start.plan_id.clone()]);
     assert_eq!(moved.ancestors[0].id, b);
     edit(
@@ -399,8 +406,8 @@ async fn part_order_is_stable_across_restart() {
     .await;
     assert!(
         reopened
-            .design()
-            .part(&p, &a)
+            .plans()
+            .design_part(&p, &a)
             .await
             .unwrap()
             .plans
@@ -430,8 +437,8 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
         .enumerate()
         .map(|(i, id)| create(id, None, &format!("قسم {i}")))
         .collect::<Vec<_>>();
-    core.design()
-        .edit("many".into(), &p, 0, ops.clone())
+    core.plans()
+        .edit_design("many".into(), &p, 0, ops.clone())
         .await
         .unwrap();
     let first = core.design().parts(&p, None, None).await.unwrap();
@@ -456,8 +463,8 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
     )
     .await;
     assert_eq!(
-        core.design()
-            .edit("many".into(), &p, 0, ops)
+        core.plans()
+            .edit_design("many".into(), &p, 0, ops)
             .await
             .unwrap()
             .revision,
@@ -465,10 +472,10 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
     );
     core.projects().remove("remove".into(), &p).await.unwrap();
     assert!(core.design().parts(&p, None, None).await.is_err());
-    assert!(core.design().part(&p, &ids[0]).await.is_err());
+    assert!(core.plans().design_part(&p, &ids[0]).await.is_err());
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "after-remove".into(),
                 &p,
                 2,
@@ -479,8 +486,8 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
     );
     // Replay remains valid after project removal; no new write occurs.
     assert_eq!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 format!("edit-{p}-1"),
                 &p,
                 1,

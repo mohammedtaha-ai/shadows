@@ -1,4 +1,4 @@
-//! One job: the plan in the conversation (spec §13.9) — the task a person
+//! One job: the plan in the conversation — the task a person
 //! points at, and where a shown plan goes.
 
 use super::model::{TaskId, WorkflowId};
@@ -28,7 +28,7 @@ pub enum Place {
 }
 
 /// What a `plan_show` recorded, fixed when it committed: the `PlanShown`
-/// event's payload. It never names a tab (§2.10: a tab is transport state).
+/// event's payload. It never names a tab.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PlanShown {
     pub workflow_id: WorkflowId,

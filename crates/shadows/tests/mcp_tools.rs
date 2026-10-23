@@ -169,7 +169,10 @@ async fn parallel_edits_on_one_revision_conflict_and_the_loser_can_retry() {
     retry["expected_revision"] = json!(1);
     let outcome = ok(&planner, "plan_edit", retry).await;
     assert_eq!(outcome["revision"], 2);
-    let plan = l.app.storage.get_plan(&workflow).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&workflow)
+        .await
+        .unwrap();
     let numbers: Vec<u32> = plan.tasks.iter().map(|t| t.content.number).collect();
     assert_eq!(numbers, [1, 2]);
 }
@@ -209,12 +212,20 @@ async fn a_draft_ref_replays_for_a_new_version_of_a_frozen_plan() {
     let v1 = approved_v1(&l.app).await;
     let (_, external) = project_client(&l).await;
     let draft_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
-    let plan_id = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let plan_id = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap()
+        .plan_id;
     let start = json!({ "draft_ref": draft_ref, "plan_id": plan_id, "reason": "the API changed" });
 
     let v2 = ok(&external, "draft_start", start.clone()).await;
     assert_eq!(v2["version"], 2);
-    let plan = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap()
+        .plan_id;
     assert_eq!(v2["plan_id"], json!(plan));
     let edit = json!({ "workflow_id": v2["workflow_id"], "expected_revision": 0, "ops": [add(3)] });
     assert_eq!(ok(&external, "plan_edit", edit).await["revision"], 1);
@@ -227,7 +238,11 @@ async fn a_draft_ref_replays_for_a_new_version_of_a_frozen_plan() {
 async fn an_external_start_answers_an_existing_plan_draft() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
-    let plan_id = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let plan_id = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap()
+        .plan_id;
     let (_, external) = project_client(&l).await;
     let r1 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
     let v2 = ok(
@@ -256,7 +271,10 @@ async fn an_external_start_answers_an_existing_plan_draft() {
     .await;
     assert_eq!(answered, v2, "an existing Draft is answered unchanged");
     assert_eq!(
-        l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
+        shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+            .thread_plan_for_test(&l.app.thread)
+            .await
+            .unwrap(),
         Some(serde_json::from_value(v2["workflow_id"].clone()).unwrap())
     );
 }
@@ -296,9 +314,14 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     // From a frozen plan: its next version.
     let v1 = approved_v1(&l.app).await;
     let r2 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
+    let v1_plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap()
+        .plan_id;
     let next = json!({
         "draft_ref": r2,
-        "plan_id": l.app.storage.get_plan(&v1).await.unwrap().plan_id,
+        "plan_id": v1_plan,
         "reason": "the API changed",
     });
     let v2 = ok(&external, "draft_start", next.clone()).await;
@@ -405,7 +428,10 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
     assert_eq!(events.len(), 1);
     let id: WorkflowId = serde_json::from_value(started["workflow_id"].clone()).unwrap();
     assert_eq!(
-        l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
+        shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+            .thread_plan_for_test(&l.app.thread)
+            .await
+            .unwrap(),
         Some(id)
     );
 }
@@ -415,7 +441,11 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
 async fn a_planner_draft_start_names_a_project_plan() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
-    let plan_id = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let plan_id = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap()
+        .plan_id;
     let planner = thread_client(&l, &l.app.thread).await;
     turn_running(&l.app).await;
     let start = json!({ "plan_id": plan_id, "reason": "the API changed" });
@@ -448,15 +478,20 @@ async fn a_planner_edits_only_the_plan_latest_version() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
     let v2 = draft_on(&l.app, &l.app.thread, "start-2").await.workflow_id;
-    l.app
-        .storage
-        .approve_plan(&ctx("approve-2", "PlanApprove"), &v2, 0)
+    shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .approve_plan_for_test(&ctx("approve-2", "PlanApprove"), &v2, 0)
         .await
         .unwrap();
     let planner = thread_client(&l, &l.app.thread).await;
     turn_running(&l.app).await;
-    let v1_plan = l.app.storage.get_plan(&v1).await.unwrap();
-    let v2_plan = l.app.storage.get_plan(&v2).await.unwrap();
+    let v1_plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap();
+    let v2_plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v2)
+        .await
+        .unwrap();
     assert_eq!(v1_plan.plan_id, v2_plan.plan_id);
     let stale = refused(
         &planner,

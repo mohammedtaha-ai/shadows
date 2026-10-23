@@ -1,7 +1,8 @@
 //! Snapshot reads of exact shared-agreement versions.
+use super::DesignStore;
 use super::parts;
 use crate::ProjectId;
-use crate::db::{Storage, StorageError};
+use crate::db::StorageError;
 use crate::design::{AgreementContent, AgreementId, AgreementState, AgreementVersion, Design};
 use sqlx::{FromRow, SqliteConnection};
 
@@ -41,32 +42,35 @@ impl VersionRow {
         })
     }
 }
-pub(super) async fn load(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-    id: &AgreementId,
-    version: Option<i64>,
-) -> Result<AgreementVersion, StorageError> {
-    sqlx::query_as::<_, VersionRow>(
-        "SELECT * FROM agreement_version WHERE project_id=? AND agreement_id=? \
+impl AgreementsRows {
+    pub(super) async fn load(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        id: &AgreementId,
+        version: Option<i64>,
+    ) -> Result<AgreementVersion, StorageError> {
+        sqlx::query_as::<_, VersionRow>(
+            "SELECT * FROM agreement_version WHERE project_id=? AND agreement_id=? \
          AND (? IS NULL OR version=?) ORDER BY version DESC LIMIT 1",
-    )
-    .bind(project.as_str())
-    .bind(id.as_str())
-    .bind(version)
-    .bind(version)
-    .fetch_optional(conn)
-    .await?
-    .ok_or(StorageError::NotFound("agreement version"))?
-    .domain()
+        )
+        .bind(project.as_str())
+        .bind(id.as_str())
+        .bind(version)
+        .bind(version)
+        .fetch_optional(conn)
+        .await?
+        .ok_or(StorageError::NotFound("agreement version"))?
+        .domain()
+    }
 }
-impl Storage {
+
+impl DesignStore {
     pub async fn check_agreement_grant(
         &self,
         writer: &crate::grants::Writer,
         project: &ProjectId,
     ) -> Result<(), crate::CoreError> {
-        let mut tx = self.reader().begin().await?;
+        let mut tx = self.storage.reader().begin().await?;
         crate::grants::Grants::check_writer(&mut tx, writer, project).await?;
         tx.commit().await?;
         Ok(())
@@ -77,9 +81,9 @@ impl Storage {
         id: &AgreementId,
         version: Option<i64>,
     ) -> Result<AgreementVersion, StorageError> {
-        let mut tx = self.reader().begin().await?;
-        parts::revision(&mut tx, project).await?;
-        let result = load(&mut tx, project, id, version).await?;
+        let mut tx = self.storage.reader().begin().await?;
+        parts::PartsRows::revision(&mut tx, project).await?;
+        let result = AgreementsRows::load(&mut tx, project, id, version).await?;
         tx.commit().await?;
         Ok(result)
     }
@@ -87,8 +91,8 @@ impl Storage {
         &self,
         project: &ProjectId,
     ) -> Result<Vec<AgreementVersion>, StorageError> {
-        let mut tx = self.reader().begin().await?;
-        parts::revision(&mut tx, project).await?;
+        let mut tx = self.storage.reader().begin().await?;
+        parts::PartsRows::revision(&mut tx, project).await?;
         let rows = sqlx::query_as::<_, VersionRow>(
             "SELECT v.* FROM agreement_version v WHERE v.project_id=? \
              AND v.version=(SELECT MAX(n.version) FROM agreement_version n \
@@ -105,3 +109,49 @@ impl Storage {
         Ok(result)
     }
 }
+
+impl crate::design::Design {
+    pub(crate) async fn agreement_in(
+        conn: &mut sqlx::SqliteConnection,
+        project: &ProjectId,
+        id: &AgreementId,
+        version: Option<i64>,
+    ) -> Result<AgreementVersion, StorageError> {
+        AgreementsRows::load(conn, project, id, version).await
+    }
+    pub(crate) async fn agreed_before_in(
+        conn: &mut sqlx::SqliteConnection,
+        project: &ProjectId,
+        id: &AgreementId,
+        version: i64,
+    ) -> Result<Option<i64>, StorageError> {
+        Ok(sqlx::query_scalar(
+            "SELECT MAX(version) FROM agreement_version WHERE project_id=? \
+             AND agreement_id=? AND state='Agreed' AND version<?",
+        )
+        .bind(project.as_str())
+        .bind(id.as_str())
+        .bind(version)
+        .fetch_one(conn)
+        .await?)
+    }
+    pub(crate) async fn mark_agreed_in(
+        conn: &mut sqlx::SqliteConnection,
+        id: &AgreementId,
+        version: i64,
+        ts: &str,
+    ) -> Result<(), StorageError> {
+        sqlx::query(
+            "UPDATE agreement_version SET state='Agreed',agreed_at=? \
+                    WHERE agreement_id=? AND version=?",
+        )
+        .bind(ts)
+        .bind(id.as_str())
+        .bind(version)
+        .execute(conn)
+        .await?;
+        Ok(())
+    }
+}
+
+pub(in crate::design) struct AgreementsRows;

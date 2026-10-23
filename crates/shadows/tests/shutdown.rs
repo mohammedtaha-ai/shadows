@@ -98,7 +98,7 @@ async fn fixture() -> Fixture {
 }
 
 impl Fixture {
-    async fn start(&self, prompt: &str) -> Result<OperationId, StartError> {
+    async fn start(&self, prompt: &str) -> Result<OperationId, shadows_core::CoreError> {
         turn::start_direct(
             &self.runtime,
             &self.handles,
@@ -352,7 +352,10 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
 
     let refused = f.start("hi").await;
     assert!(
-        matches!(refused, Err(StartError::RuntimeStopping)),
+        matches!(
+            refused,
+            Err(shadows_core::CoreError::Start(StartError::RuntimeStopping))
+        ),
         "got {refused:?}"
     );
     let stored = shadows_core::Turns::create_pending_operation_for_test(

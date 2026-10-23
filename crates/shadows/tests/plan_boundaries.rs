@@ -25,9 +25,8 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
         .await
         .unwrap();
     // These calls represent writes already scoped before the archive committed.
-    let edited = app
-        .storage
-        .edit_plan(
+    let edited = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&writer, &v1.workflow_id, 1, &[add(2)]),
             &writer,
             None,
@@ -36,9 +35,8 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
             &[add(2)],
         )
         .await;
-    let started = app
-        .storage
-        .start_draft(
+    let started = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(&writer, "late-start", "DraftStart", json!({})),
             &writer,
             &app.project,
@@ -78,7 +76,10 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
         ),
         "{approved:?}"
     );
-    let after = app.storage.get_plan(&v1.workflow_id).await.unwrap();
+    let after = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1.workflow_id)
+        .await
+        .unwrap();
     assert_eq!(
         (after.revision, after.state, after.tasks.len()),
         (1, WorkflowState::Draft, 1)
@@ -90,7 +91,10 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
     let app = test_app().await;
     let v1 = draft(&app).await;
     edit(&app, &v1.workflow_id, 0, &[add(1)]).await;
-    let plan = app.storage.get_plan(&v1.workflow_id).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1.workflow_id)
+        .await
+        .unwrap();
     let other = shadows_core::Threads::create_planning_thread_for_test(
         &app.storage,
         &ctx("other", "thread.create"),

@@ -1,6 +1,6 @@
-//! Vision proposal values and the person/Planner entry points (§23.5).
+//! Vision proposal values and the person/Planner entry points.
 use super::{Design, DesignChange, VisionField};
-use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
+use crate::db::CommandContext;
 use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId, grants::Writer};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -49,23 +49,11 @@ pub struct VisionPropose {
 }
 
 impl Design {
-    pub(super) fn core_error(e: impl Into<CoreError>) -> CoreError {
-        match e.into() {
-            CoreError::Storage(crate::StorageError::Constraint(message)) => CoreError::Refused {
-                code: ErrorCode::InvalidCommand,
-                message,
-            },
-            other => other,
-        }
-    }
-}
-
-impl Design {
-    pub(super) async fn planner_approver(
+    pub(crate) async fn planner_approver(
         &self,
         grant: &Grant,
     ) -> Result<crate::grants::Approver, CoreError> {
-        let writer = super::agreement_scope::writer(grant)?;
+        let writer = super::agreement_scope::AgreementScope::writer(grant)?;
         let Writer::Planner { thread, .. } = &writer else {
             return Err(CoreError::Refused {
                 code: ErrorCode::GrantScope,
@@ -82,6 +70,7 @@ impl Design {
                 })?;
         let harness = crate::threads::Threads::turn_context_in(
             &mut *self
+                .store
                 .storage
                 .reader()
                 .begin()
@@ -108,10 +97,10 @@ impl Design {
             "VisionProposalApprove",
             serde_json::json!({"project":grant.project_id,"proposal":proposal}),
         );
-        self.storage
+        self.store
             .approve_vision_proposal_in(&ctx, &grant.project_id, proposal, &approver)
             .await
-            .map_err(Self::core_error)
+            .map_err(CoreError::invalid_constraint)
     }
 
     pub async fn propose_vision(
@@ -119,46 +108,25 @@ impl Design {
         grant: &Grant,
         args: VisionPropose,
     ) -> Result<VisionProposal, CoreError> {
-        let writer = super::agreement_scope::writer(grant)?;
-        let Writer::Planner { thread, .. } = &writer else {
-            return Err(CoreError::Refused {
-                code: ErrorCode::GrantScope,
-                message: "vision_propose needs a Planner's conversation".into(),
-            });
-        };
-        let op = self
-            .operations
-            .running_for(thread)
-            .await?
-            .ok_or_else(|| CoreError::Refused {
-                code: ErrorCode::InvalidCommand,
-                message: "no turn is running for this conversation".into(),
-            })?;
-        let fp = fingerprint(
-            "VisionPropose",
-            &serde_json::to_value(&args).map_err(crate::StorageError::from)?,
-        );
-        let (kind, id) = writer.principal();
-        let ctx = CommandContext {
-            agent: None,
-            principal_kind: kind.into(),
-            principal_id: id,
-            command_id: derived_id(Anchor::Operation(op.as_str()), &fp),
-            command_kind: "VisionPropose".into(),
-            command_schema_ver: 1,
-            request_fingerprint: fp,
-        };
-        self.storage
+        let (writer, op) = self
+            .proposal_writer(
+                grant,
+                "vision_propose needs a Planner's conversation",
+                "no turn is running for this conversation",
+            )
+            .await?;
+        let ctx = Self::proposal_command(&writer, &op, "VisionPropose", &args)?;
+        self.store
             .propose_vision_in(&ctx, &writer, &grant.project_id, &op, args)
             .await
-            .map_err(Self::core_error)
+            .map_err(CoreError::invalid_constraint)
     }
 
     pub async fn vision_proposals(
         &self,
         project: &ProjectId,
     ) -> Result<Vec<VisionProposal>, CoreError> {
-        Ok(self.storage.list_vision_proposals(project).await?)
+        Ok(self.store.list_vision_proposals(project).await?)
     }
 
     pub async fn approve_vision_proposal(
@@ -172,9 +140,9 @@ impl Design {
             "VisionProposalApprove",
             serde_json::json!({"project":project,"proposal":proposal}),
         );
-        self.storage
+        self.store
             .approve_vision_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
             .await
-            .map_err(Self::core_error)
+            .map_err(CoreError::invalid_constraint)
     }
 }

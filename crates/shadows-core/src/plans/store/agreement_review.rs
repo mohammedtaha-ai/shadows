@@ -1,15 +1,10 @@
 //! Snapshot impact reviews and atomic person agreement.
-use super::{
-    agreement_write::{record, replay},
-    agreements::load,
-    parts,
-};
+use super::PlansStore;
 use crate::ProjectId;
-use crate::db::{CommandContext, Storage, StorageError, fingerprint, now};
-use crate::design::{
-    AgreementContent, AgreementId, AgreementParticipantImpact, AgreementPartyReview,
-    AgreementReview, AgreementState, AgreementVersion,
-};
+use crate::db::{CommandContext, StorageError, fingerprint, now};
+use crate::design::Design;
+use crate::design::{AgreementContent, AgreementId, AgreementState, AgreementVersion};
+use crate::plans::{AgreementParticipantImpact, AgreementPartyReview, AgreementReview};
 use serde_json::{Value, json};
 use sqlx::SqliteConnection;
 
@@ -18,21 +13,15 @@ async fn review(
     project: &ProjectId,
     id: &AgreementId,
 ) -> Result<AgreementReview, StorageError> {
-    parts::revision(conn, project).await?;
-    let candidate = load(conn, project, id, None).await?;
-    let base_version: Option<i64> = sqlx::query_scalar(
-        "SELECT MAX(version) FROM agreement_version WHERE project_id=? \
-         AND agreement_id=? AND state='Agreed' AND version<?",
-    )
-    .bind(project.as_str())
-    .bind(id.as_str())
-    .bind(candidate.version)
-    .fetch_one(&mut *conn)
-    .await?;
+    Design::revision_in(conn, project).await?;
+    let candidate = Design::agreement_in(conn, project, id, None).await?;
+    let base_version = Design::agreed_before_in(conn, project, id, candidate.version).await?;
     let base = match base_version {
-        Some(version) => {
-            serde_json::to_value(load(conn, project, id, Some(version)).await?.content)?
-        }
+        Some(version) => serde_json::to_value(
+            Design::agreement_in(conn, project, id, Some(version))
+                .await?
+                .content,
+        )?,
         None => Value::Null,
     };
     let current = serde_json::to_value(&candidate.content)?;
@@ -50,7 +39,7 @@ async fn review(
         }
     }
     for party in &declared {
-        let part = parts::load(conn, project, &party.part_id).await?;
+        let part = Design::part_in(conn, project, &party.part_id).await?;
         parties.push(AgreementPartyReview {
             party: party.clone(),
             revision: part.revision,
@@ -67,9 +56,10 @@ async fn review(
     }
     parties.sort_by_key(|p| (p.party.part_id.to_string(), format!("{:?}", p.party.role)));
     let mut participants = Vec::new();
-    let bindings = crate::plans::agreement_participants_in(conn, project, id).await?;
+    let bindings = crate::plans::Plans::agreement_participants_in(conn, project, id).await?;
     for participant in bindings {
-        let pin = load(conn, project, id, Some(participant.binding.version)).await?;
+        let pin =
+            Design::agreement_in(conn, project, id, Some(participant.binding.version)).await?;
         let before = interface(&pin.content, &participant.binding.operations);
         let after = interface(&candidate.content, &participant.binding.operations);
         let changes = serde_json::to_value(json_patch::diff(&before, &after))?;
@@ -140,13 +130,13 @@ fn interface(content: &AgreementContent, operations: &[String]) -> Value {
         "security":content.openapi.get("security"),"servers":content.openapi.get("servers")})
 }
 
-impl Storage {
+impl PlansStore {
     pub async fn review_design_agreement(
         &self,
         project: &ProjectId,
         id: &AgreementId,
     ) -> Result<AgreementReview, StorageError> {
-        let mut tx = self.reader().begin().await?;
+        let mut tx = self.storage.reader().begin().await?;
         let result = review(&mut tx, project, id).await?;
         tx.commit().await?;
         Ok(result)
@@ -160,38 +150,33 @@ impl Storage {
         review_id: String,
     ) -> Result<AgreementVersion, StorageError> {
         let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.clone(), now());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                if let Some(result) = replay(conn, &ctx, &project).await? {
-                    return Ok(result);
-                }
-                let basis = review(conn, &project, &id).await?;
-                let candidate = load(conn, &project, &id, None).await?;
-                if candidate.revision != expected_revision || basis.review_id != review_id {
-                    return Err(StorageError::RevisionConflict {
-                        current: candidate.revision,
-                        summary: "agreement review is stale; review the current participants"
-                            .into(),
-                    });
-                }
-                if candidate.state != AgreementState::Draft || !candidate.issues.is_empty() {
-                    return Err(StorageError::Constraint(
-                        "only a valid Draft can be agreed".into(),
-                    ));
-                }
-                sqlx::query(
-                    "UPDATE agreement_version SET state='Agreed',agreed_at=? \
-                WHERE agreement_id=? AND version=?",
-                )
-                .bind(&ts)
-                .bind(id.as_str())
-                .bind(candidate.version)
-                .execute(&mut *conn)
-                .await?;
-                let result = load(conn, &project, &id, Some(candidate.version)).await?;
-                record(conn, &ctx, &project, &result, &ts, true, None).await
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if let Some(result) = Design::agreement_replay_in(conn, &ctx, &project).await? {
+                        return Ok(result);
+                    }
+                    let basis = review(conn, &project, &id).await?;
+                    let candidate = Design::agreement_in(conn, &project, &id, None).await?;
+                    if candidate.revision != expected_revision || basis.review_id != review_id {
+                        return Err(StorageError::RevisionConflict {
+                            current: candidate.revision,
+                            summary: "agreement review is stale; review the current participants"
+                                .into(),
+                        });
+                    }
+                    if candidate.state != AgreementState::Draft || !candidate.issues.is_empty() {
+                        return Err(StorageError::Constraint(
+                            "only a valid Draft can be agreed".into(),
+                        ));
+                    }
+                    Design::mark_agreed_in(conn, &id, candidate.version, &ts).await?;
+                    let result =
+                        Design::agreement_in(conn, &project, &id, Some(candidate.version)).await?;
+                    Design::record_agreement_in(conn, &ctx, &project, &result, &ts, true, None)
+                        .await
+                })
             })
-        })
-        .await
+            .await
     }
 }

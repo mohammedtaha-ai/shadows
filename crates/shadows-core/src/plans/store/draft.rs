@@ -1,19 +1,18 @@
-//! One job: starting a plan version (spec §13.2, §13.6, §16.2, §16.3) — a
+//! One job: starting a plan version — a
 //! new plan's first version, the next one copied from a frozen version with
 //! its reason, or the Draft already there. `DraftStarted` names the version,
 //! which never changes as the draft is edited, so a replay answers the same.
 //! Changing a version is `edit.rs`. A start may also tie its plan to parts
-//! (§23.6), in the same transaction.
+//!, in the same transaction.
 
+use super::PlansStore;
 use sqlx::SqliteConnection;
 
-use super::plan::require_active;
+use super::plan::PlanRows;
 use super::plan_event;
-use super::read::{latest_version, load_plan};
-use super::task::write_content;
-use crate::db::{
-    CommandContext, Storage, StorageError, append_event, classify, now, record_command,
-};
+use super::read::ReadRows;
+use super::task::TaskRows;
+use crate::db::{CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::design::PartId;
 use crate::grants::Grants;
 use crate::grants::Writer;
@@ -22,13 +21,13 @@ use crate::plans::rules::Problem;
 use crate::projects::ProjectId;
 use crate::turns::OperationId;
 
-impl Storage {
-    /// §13.6 draft_start in `project`. Without a `plan`, a new plan with v1
+impl PlansStore {
+    /// draft_start in `project`. Without a `plan`, a new plan with v1
     /// from `fresh`. With one: its Draft, unchanged, when it has one; else
     /// its next version copied from the latest, which needs a non-blank
-    /// `reason` (§16.3). A `source`, when given, must be that latest version;
+    /// `reason`. A `source`, when given, must be that latest version;
     /// it is checked after the replay, because the version a start answered
-    /// is no longer the latest one. `operation` is the Planner's running turn,
+    /// is not the latest one. `operation` is the Planner's running turn,
     /// recorded as the version's writer beside its thread.
     #[expect(
         clippy::too_many_arguments,
@@ -53,102 +52,113 @@ impl Storage {
         let reason = reason.map(str::to_string);
         let draft_ref = draft_ref.map(str::to_string);
         let parts = parts.to_vec();
-        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
-            Box::pin(async move {
-                Grants::check_writer(conn, &writer, &project).await?;
-                if let Some(plan) = &plan {
-                    plan_in(conn, plan, &project).await?;
-                }
-                let scope = match &plan {
-                    Some(plan) => ("Plan", plan.as_str()),
-                    None => ("Project", project.as_str()),
-                };
-                if let Some(id) = recorded(conn, &ctx, scope, &project).await? {
-                    return Ok(started(conn, &WorkflowId::from_stored(id)).await?);
-                }
-                crate::design::require_roadmap_in(conn, &project).await?;
-                if let Some(plan) = &plan {
-                    require_active(conn, plan).await?;
-                }
-                let latest = match &plan {
-                    Some(plan) => {
-                        let id = latest_version(conn, plan)
-                            .await?
-                            .ok_or(StorageError::NotFound("workflow"))?;
-                        Some(load_plan(conn, &id, None).await?)
+        self.storage
+            .write_txn_as::<_, _, crate::CoreError>(move |conn| {
+                Box::pin(async move {
+                    Grants::check_writer(conn, &writer, &project).await?;
+                    if let Some(plan) = &plan {
+                        plan_in(conn, plan, &project).await?;
                     }
-                    None => None,
-                };
-                if let Some(source) = &source
-                    && let Some(latest) = &latest
-                    && &latest.id != source
-                {
-                    return Err(StorageError::NotLatestVersion(latest.id.clone()).into());
-                }
-                if matches!(writer, Writer::External { .. })
-                    && draft_ref.is_none()
-                    && !matches!(&latest, Some(plan) if plan.state == WorkflowState::Draft)
-                {
-                    return Err(crate::grants::GrantsError::GrantScope.into());
-                }
-                let by = Writing {
-                    writer: &writer,
-                    operation: operation.as_ref(),
-                    project: &project,
-                };
-                let id = match (latest, fresh) {
-                    (Some(draft), _) if draft.state == WorkflowState::Draft => draft.id,
-                    (Some(frozen), _) => {
-                        let reason = reason
-                            .as_deref()
-                            .map(str::trim)
-                            .filter(|r| !r.is_empty())
-                            .ok_or(StorageError::ReasonMissing)?;
-                        let copy = Version {
-                            plan: &frozen.plan_id,
-                            number: frozen.version + 1,
-                            previous: Some(&frozen.id),
-                            reason: Some(reason),
-                        };
-                        let before = frozen.content();
-                        match insert_version(conn, &by, copy, &before, &ts).await {
-                            Err(StorageError::Constraint(m)) if m.contains(ONE_DRAFT) => {
-                                the_draft(conn, &frozen.plan_id).await?
-                            }
-                            inserted => inserted?,
+                    let scope = match &plan {
+                        Some(plan) => ("Plan", plan.as_str()),
+                        None => ("Project", project.as_str()),
+                    };
+                    if let Some(id) = recorded(conn, &ctx, scope, &project).await? {
+                        return Ok(started(conn, &WorkflowId::from_stored(id)).await?);
+                    }
+                    crate::design::Design::require_roadmap_in(conn, &project).await?;
+                    if let Some(plan) = &plan {
+                        PlanRows::require_active(conn, plan).await?;
+                    }
+                    let latest = match &plan {
+                        Some(plan) => {
+                            let id = ReadRows::latest_version(conn, plan)
+                                .await?
+                                .ok_or(StorageError::NotFound("workflow"))?;
+                            Some(ReadRows::load_plan(conn, &id, None).await?)
                         }
+                        None => None,
+                    };
+                    if let Some(source) = &source
+                        && let Some(latest) = &latest
+                        && &latest.id != source
+                    {
+                        return Err(
+                            crate::plans::PlansError::NotLatestVersion(latest.id.clone()).into(),
+                        );
                     }
-                    (None, Some((title, goal))) => {
-                        let plan = insert_plan(conn, &project, &ts).await?;
-                        let first = Version {
-                            plan: &plan,
-                            number: 1,
-                            previous: None,
-                            reason: None,
-                        };
-                        insert_version(conn, &by, first, &empty(title, goal), &ts).await?
+                    if matches!(writer, Writer::External { .. })
+                        && draft_ref.is_none()
+                        && !matches!(&latest, Some(plan) if plan.state == WorkflowState::Draft)
+                    {
+                        return Err(crate::grants::GrantsError::GrantScope.into());
                     }
-                    (None, None) => {
-                        return Err(StorageError::PlanInvalid(vec![Problem {
-                            message: "a plan's first version needs a title and a goal".into(),
-                        }])
-                        .into());
+                    let by = Writing {
+                        writer: &writer,
+                        operation: operation.as_ref(),
+                        project: &project,
+                    };
+                    let id = match (latest, fresh) {
+                        (Some(draft), _) if draft.state == WorkflowState::Draft => draft.id,
+                        (Some(frozen), _) => {
+                            let reason = reason
+                                .as_deref()
+                                .map(str::trim)
+                                .filter(|r| !r.is_empty())
+                                .ok_or(crate::plans::PlansError::ReasonMissing)?;
+                            let copy = Version {
+                                plan: &frozen.plan_id,
+                                number: frozen.version + 1,
+                                previous: Some(&frozen.id),
+                                reason: Some(reason),
+                            };
+                            let before = frozen.content();
+                            match insert_version(conn, &by, copy, &before, &ts).await {
+                                Err(StorageError::Constraint(m)) if m.contains(ONE_DRAFT) => {
+                                    the_draft(conn, &frozen.plan_id).await?
+                                }
+                                inserted => inserted?,
+                            }
+                        }
+                        (None, Some((title, goal))) => {
+                            let plan = insert_plan(conn, &project, &ts).await?;
+                            let first = Version {
+                                plan: &plan,
+                                number: 1,
+                                previous: None,
+                                reason: None,
+                            };
+                            insert_version(conn, &by, first, &empty(title, goal), &ts).await?
+                        }
+                        (None, None) => {
+                            return Err(crate::plans::PlansError::PlanInvalid(vec![Problem {
+                                message: "a plan's first version needs a title and a goal".into(),
+                            }])
+                            .into());
+                        }
+                    };
+                    if let Some(r) = &draft_ref {
+                        Grants::bind_draft_ref(conn, &writer, r, id.as_str(), &project, &ts)
+                            .await?;
                     }
-                };
-                if let Some(r) = &draft_ref {
-                    Grants::bind_draft_ref(conn, &writer, r, id.as_str(), &project, &ts).await?;
-                }
-                let started = started(conn, &id).await?;
-                crate::design::link_plan_parts_in(conn, &project, &started.plan_id, &parts).await?;
-                record_command(conn, &ctx, scope.0, scope.1, "Workflow", id.as_str(), &ts).await?;
-                Ok(started)
+                    let started = started(conn, &id).await?;
+                    crate::plans::Plans::link_plan_parts_in(
+                        conn,
+                        &project,
+                        &started.plan_id,
+                        &parts,
+                    )
+                    .await?;
+                    record_command(conn, &ctx, scope.0, scope.1, "Workflow", id.as_str(), &ts)
+                        .await?;
+                    Ok(started)
+                })
             })
-        })
-        .await
+            .await
     }
 }
 
-/// Who writes a new version, and where its events go (§16.3).
+/// Who writes a new version, and where its events go.
 struct Writing<'a> {
     writer: &'a Writer,
     operation: Option<&'a OperationId>,
@@ -164,7 +174,7 @@ struct Version<'a> {
 }
 
 /// What SQLite says when `workflow_one_draft` (or the version number beside
-/// it) refuses a second Draft of one plan (§16.2).
+/// it) refuses a second Draft of one plan.
 const ONE_DRAFT: &str = "UNIQUE constraint failed: workflow.plan_id";
 
 fn empty(title: String, goal: String) -> PlanContent {
@@ -177,7 +187,7 @@ fn empty(title: String, goal: String) -> PlanContent {
     }
 }
 
-/// `plan` must be a plan of `project`: a writer reaches no other (§13.7).
+/// `plan` must be a plan of `project`: a writer reaches no other.
 async fn plan_in(
     conn: &mut SqliteConnection,
     plan: &PlanId,
@@ -213,7 +223,7 @@ async fn recorded(
     classify(conn, ctx, "Project", project.as_str()).await
 }
 
-/// A new Active plan of `project` (§16.2), for its first version.
+/// A new Active plan of `project`, for its first version.
 async fn insert_plan(
     conn: &mut SqliteConnection,
     project: &ProjectId,
@@ -245,7 +255,7 @@ async fn the_draft(conn: &mut SqliteConnection, plan: &PlanId) -> Result<Workflo
 }
 
 /// A new Draft at revision 0 holding `content`, journalled as
-/// `WorkflowDraftStarted`. Its writer is recorded once (§16.3): a Planner as
+/// `WorkflowDraftStarted`. Its writer is recorded once: a Planner as
 /// its thread and running turn, an external agent as its grant.
 async fn insert_version(
     conn: &mut SqliteConnection,
@@ -281,12 +291,19 @@ async fn insert_version(
     .bind(ts)
     .execute(&mut *conn)
     .await?;
-    write_content(conn, &id, &[], content, ts).await?;
+    TaskRows::write_content(conn, &id, &[], content, ts).await?;
     let event = plan_event("WorkflowDraftStarted", by.writer, by.project, by.operation)
         .with_payload(serde_json::json!({ "workflow_id": id, "version": v.number }));
     append_event(conn, &event, ts).await?;
-    super::notifications::notify_plan(conn, by.project, v.plan, &[], &by.writer.actor(), ts)
-        .await?;
+    super::notifications::NotificationsRows::notify_plan(
+        conn,
+        by.project,
+        v.plan,
+        &[],
+        &by.writer.actor(),
+        ts,
+    )
+    .await?;
     Ok(id)
 }
 

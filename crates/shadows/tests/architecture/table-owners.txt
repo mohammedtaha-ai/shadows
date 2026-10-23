@@ -18,9 +18,9 @@ design_map_proposal :: design
 design_map_version :: design
 design_outcome :: design
 design_outcome_part :: design
-design_outcome_plan :: design
+design_outcome_plan :: plans
 design_part :: design
-design_part_plan :: design
+design_part_plan :: plans
 design_part_waiver :: design
 design_roadmap_proposal :: design
 design_structure_write :: design

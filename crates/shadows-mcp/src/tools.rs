@@ -339,8 +339,8 @@ impl Shadows {
         };
         answer(
             self.core
-                .plans()
-                .show(&grant, args)
+                .turns()
+                .show_plan(&grant, args)
                 .await
                 .map_err(Refusal::from),
         )

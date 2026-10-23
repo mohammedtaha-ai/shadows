@@ -407,6 +407,13 @@ impl AppCore {
             extensions,
             person,
         } = owners;
+        let design = Design::new(storage.clone(), operations.clone());
+        let plans = Plans::new(
+            storage.clone(),
+            grants.clone(),
+            operations.clone(),
+            design.clone(),
+        );
         Arc::new(AppCore {
             providers,
             agents,
@@ -414,14 +421,8 @@ impl AppCore {
             usage: Usage::new(storage.clone()),
             person,
             secrets,
-            design: Design::new(storage.clone(), operations.clone()),
-            plans: Plans::new(
-                storage.clone(),
-                grants.clone(),
-                operations.clone(),
-                handles.clone(),
-                ui.clone(),
-            ),
+            design,
+            plans: plans.clone(),
             grants,
             turns: Turns::new(
                 storage.clone(),
@@ -434,6 +435,8 @@ impl AppCore {
                 instructions.clone(),
                 standards.clone(),
                 projects.clone(),
+                plans,
+                ui,
             ),
             operations,
             harness,
@@ -627,5 +630,25 @@ impl AppCore {
             .recover(&runtime.instance_id)
             .await?;
         Ok((runtime, report))
+    }
+}
+
+#[cfg(feature = "test-support")]
+impl AppCore {
+    pub fn plans_for_tests(storage: Arc<Storage>) -> Plans {
+        let grants = Grants::new(storage.clone(), String::new());
+        let operations = Operations::new(storage.clone());
+        {
+            let design = Design::new(storage.clone(), operations.clone());
+            Plans::new(storage, grants, operations, design)
+        }
+    }
+}
+
+#[cfg(feature = "test-support")]
+impl AppCore {
+    pub fn design_for_tests(storage: Arc<Storage>) -> Design {
+        let operations = Operations::new(storage.clone());
+        Design::new(storage, operations)
     }
 }

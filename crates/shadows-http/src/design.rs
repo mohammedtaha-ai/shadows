@@ -58,7 +58,7 @@ pub(super) async fn outcome(
     State(s): State<AppState>,
     Path((project, id)): Path<(ProjectId, OutcomeId)>,
 ) -> Result<Json<OutcomeView>, Failure> {
-    Ok(Json(s.core.design().outcome(&project, &id).await?))
+    Ok(Json(s.core.plans().design_outcome(&project, &id).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -111,7 +111,7 @@ pub(super) async fn part(
     State(s): State<AppState>,
     Path((project, id)): Path<(ProjectId, PartId)>,
 ) -> Result<Json<PartView>, Failure> {
-    Ok(Json(s.core.design().part(&project, &id).await?))
+    Ok(Json(s.core.plans().design_part(&project, &id).await?))
 }
 
 #[utoipa::path(
@@ -214,8 +214,8 @@ pub(super) async fn edit(
 ) -> Result<Json<DesignChange>, Failure> {
     Ok(Json(
         s.core
-            .design()
-            .edit(body.command_id, &project, body.expected_revision, body.ops)
+            .plans()
+            .edit_design(body.command_id, &project, body.expected_revision, body.ops)
             .await?,
     ))
 }

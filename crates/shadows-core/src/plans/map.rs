@@ -1,4 +1,4 @@
-//! Values in a project's latest-plan dependency map (§16.8).
+//! Values in a project's latest-plan dependency map.
 
 use super::{PlanId, PlanState, WorkflowId, WorkflowState};
 use crate::projects::ProjectId;

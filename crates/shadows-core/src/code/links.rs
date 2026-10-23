@@ -17,46 +17,6 @@ impl Code {
         Ok(self.inner.store.code_links(project).await?)
     }
 
-    /// Lets `project` read `linked`'s index, one way: "ProjectLinkPut",
-    /// params { "project", "linked" }. Linking twice answers the link.
-    pub async fn link(
-        &self,
-        command_id: String,
-        project: &ProjectId,
-        linked: &ProjectId,
-    ) -> Result<ProjectLink, CoreError> {
-        if project == linked {
-            return Err(invalid("a project cannot be linked to itself".into()));
-        }
-        let params = serde_json::json!({ "project": project, "linked": linked });
-        let c = CommandContext::user(command_id, "ProjectLinkPut", params);
-        match self.inner.store.put_code_link(&c, project, linked).await? {
-            Some(link) => Ok(link),
-            None => Err(invalid(format!("no such project {linked}"))),
-        }
-    }
-
-    /// Removes the link: "ProjectLinkRemove", params { "project", "linked" }.
-    pub async fn unlink(
-        &self,
-        command_id: String,
-        project: &ProjectId,
-        linked: &ProjectId,
-    ) -> Result<(), CoreError> {
-        let params = serde_json::json!({ "project": project, "linked": linked });
-        let c = CommandContext::user(command_id, "ProjectLinkRemove", params);
-        if self
-            .inner
-            .store
-            .remove_code_link(&c, project, linked)
-            .await?
-        {
-            Ok(())
-        } else {
-            Err(invalid("no such link".into()))
-        }
-    }
-
     /// The stored settings.
     pub async fn settings(&self) -> Result<CodeSettings, CoreError> {
         let limit = self.inner.store.code_active_limit().await?;

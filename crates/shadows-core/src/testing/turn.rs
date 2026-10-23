@@ -76,7 +76,7 @@ pub async fn start_direct(
     bus: &tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     thread: &ThreadId,
     prompt: &str,
-) -> Result<OperationId, StartError> {
+) -> Result<OperationId, crate::CoreError> {
     let opened = sessions.open(thread).await.unwrap();
     let events = sessions.lease_events(thread, &opened).await.unwrap();
     let settings = default_turn_settings();
@@ -91,9 +91,9 @@ pub async fn start_direct(
         Err(e) => {
             sessions.give_back_events(thread, &opened, events).await;
             if handles.is_closed().await {
-                return Err(StartError::RuntimeStopping);
+                return Err(StartError::RuntimeStopping.into());
             }
-            return Err(e.into());
+            return Err(e);
         }
     };
     PlannerTurn::start(
@@ -117,4 +117,5 @@ pub async fn start_direct(
         bus.clone(),
     )
     .await
+    .map_err(Into::into)
 }

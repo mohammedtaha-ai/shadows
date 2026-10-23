@@ -88,8 +88,9 @@ mod tests {
             .await
             .unwrap();
         let code = core.code();
-        let first = code
-            .link("link".into(), &home.id, &linked.id)
+        let first = core
+            .plans()
+            .link_projects("link".into(), &home.id, &linked.id)
             .await
             .unwrap();
         let storage = &code.inner.store.storage;
@@ -125,8 +126,9 @@ mod tests {
             })
         ));
         snapshot.commit().await.unwrap();
-        let replay = code
-            .link("link".into(), &home.id, &linked.id)
+        let replay = core
+            .plans()
+            .link_projects("link".into(), &home.id, &linked.id)
             .await
             .unwrap();
         assert_eq!(replay.project, first.project);

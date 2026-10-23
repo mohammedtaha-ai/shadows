@@ -1,13 +1,14 @@
 //! Reading every stage input in one consistent project snapshot.
 
-use crate::db::{Storage, StorageError};
+use super::DesignStore;
+use crate::db::StorageError;
 use crate::design::{PartContent, StageView, VisionContent, stage};
 use crate::projects::ProjectId;
 use crate::standards::{EffectiveStandards, Standards};
 
-impl Storage {
+impl DesignStore {
     pub async fn project_stage(&self, project: &ProjectId) -> Result<StageView, StorageError> {
-        let mut tx = self.reader().begin().await?;
+        let mut tx = self.storage.reader().begin().await?;
         let view = crate::design::Design::stage_view_in(&mut tx, project).await?;
         tx.commit().await?;
         Ok(view)
@@ -47,35 +48,28 @@ impl crate::design::Design {
             base: Standards::base().clone(),
             additions: Standards::current_in(tx, project).await?,
         };
-        let waived = super::map_versions::waived(tx, project).await?;
+        let waived = super::map_versions::MapVersionsRows::waived(tx, project).await?;
         let required: Vec<_> = effective
             .mandatory_parts()
             .into_iter()
             .filter(|k| !waived.iter().any(|w| w == k))
             .collect();
-        let mut stage = stage::compute(&vision, &kinds, &required);
+        let mut stage = stage::StageRules::compute(&vision, &kinds, &required);
         let map: Option<i64> =
             sqlx::query_scalar("SELECT map_revision FROM design_workspace WHERE project_id=?")
                 .bind(project.as_str())
                 .fetch_optional(&mut *tx)
                 .await?;
-        if matches!(stage.stage, crate::Stage::Map | crate::Stage::Structure) {
-            stage.stage = if map.unwrap_or(0) == 0 {
-                crate::Stage::Map
-            } else {
-                crate::Stage::Structure
-            };
-        }
         if map.unwrap_or(0) > 0 {
-            let rows = super::map_versions::rows(tx, project).await?;
-            let content = super::map_versions::contents(&rows)?;
+            let rows = super::map_versions::MapVersionsRows::rows(tx, project).await?;
+            let content = super::map_versions::MapVersionsRows::contents(&rows)?;
             let revisions: Vec<std::collections::BTreeMap<String, i64>> = rows
                 .iter()
                 .map(|r| serde_json::from_str(&r.served_revisions))
                 .collect::<Result<_, _>>()?;
-            let parts = super::map_versions::views(&rows, &content);
+            let parts = super::map_versions::MapVersionsRows::views(&rows, &content);
             let parts = parts.into_iter().zip(&revisions).collect::<Vec<_>>();
-            stage.drift = crate::design::map_rules::drift(&parts, &vision);
+            stage.drift = crate::design::map_rules::MapRules::drift(&parts, &vision);
         }
         let written: Option<String> = sqlx::query_scalar(
             "SELECT completed_at FROM design_structure_write WHERE project_id=?",
@@ -84,19 +78,20 @@ impl crate::design::Design {
         .fetch_optional(&mut *tx)
         .await?
         .flatten();
-        if written.is_some() {
-            let roadmap: Option<i64> = sqlx::query_scalar(
-                "SELECT roadmap_revision FROM design_workspace WHERE project_id=?",
-            )
-            .bind(project.as_str())
-            .fetch_optional(&mut *tx)
-            .await?;
-            stage.stage = if roadmap.unwrap_or(0) > 0 {
-                crate::Stage::Plans
-            } else {
-                crate::Stage::Roadmap
-            };
-        }
+        let roadmap: Option<i64> = if written.is_some() {
+            sqlx::query_scalar("SELECT roadmap_revision FROM design_workspace WHERE project_id=?")
+                .bind(project.as_str())
+                .fetch_optional(&mut *tx)
+                .await?
+        } else {
+            None
+        };
+        let stage = stage::StageRules::with_workspace(
+            stage,
+            map.unwrap_or(0),
+            written.is_some(),
+            roadmap.unwrap_or(0),
+        );
         Ok(stage)
     }
 }

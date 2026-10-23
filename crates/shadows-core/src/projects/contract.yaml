@@ -89,6 +89,9 @@ shapes:
 
 
 functions:
+  boundary_reads:
+    retained_metadata_in: "(conn, id) -> Result<Option<(name, directory, removed)>, StorageError>; retained metadata for previews"
+    is_live_in: "(conn, id) -> Result<bool, StorageError>; delegates to require_live_in"
   service:
     list:
       signature: "(&self) -> Result<Vec<Project>, CoreError>"
@@ -258,6 +261,8 @@ enums:
 
 
 shared_in_transaction:
+  retained_metadata_in: Retained name, directory and removed flag for plan previews.
+  is_live_in: Boolean liveness through require_live_in in the caller snapshot.
   get_in: "Code::code_scope: live project metadata in its read snapshot"
   by_slug_in: "Code::selected_project_in: live slug resolution in the dependency snapshot"
   slug_in: "Code link reads and replays: retained slugs in the caller's snapshot"

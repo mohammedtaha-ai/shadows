@@ -42,13 +42,12 @@ pub use db::Actor;
 pub use db::StorageError;
 pub use design::StructureWritten;
 pub use design::{
-    AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact, AgreementParty,
-    AgreementPartyReview, AgreementReview, AgreementRole, AgreementState, AgreementVersion,
-    AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange, DesignOp, DesignRevision,
-    InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent, OutcomeId,
-    OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, PartWaiver,
-    ProposedPart, ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem,
-    VisionView, WorkspaceView,
+    AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
+    AgreementVersion, AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange,
+    DesignRevision, InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent,
+    OutcomeId, OutcomePage, Part, PartContent, PartId, PartPage, PartWaiver, ProposedPart,
+    ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
+    WorkspaceView,
 };
 pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
@@ -66,11 +65,12 @@ pub use instructions::{Instructions, InstructionsVersion};
 pub use operations::Operations;
 pub use person::{Person, PersonInput, PersonSettings, Theme};
 pub use plans::{
-    AcceptanceItem, AgreementBinding, Approved, BindingParticipant, DraftStart, DraftStarted,
-    EditOutcome, Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, Place, Plan,
-    PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown, PlanState,
-    PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent, TaskPreview,
-    VersionLine, WorkflowId, WorkflowState, WrittenBy,
+    AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,
+    AgreementReview, Approved, BindingParticipant, DesignOp, DraftStart, DraftStarted, EditOutcome,
+    Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, OutcomeView, PartView, Place,
+    Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown,
+    PlanState, PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent,
+    TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,

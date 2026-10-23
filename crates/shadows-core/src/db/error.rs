@@ -1,11 +1,7 @@
 //! One job: the failures a store can return.
 
-use crate::plans::{PlanId, Problem, WorkflowId};
-
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("{0}")]
-    StageBlocked(String),
     #[error("storage is unavailable: {0}")]
     Unavailable(String),
     #[error("migration failed: {0}")]
@@ -28,30 +24,6 @@ pub enum StorageError {
     /// `summary` describes what changed since the expected revision.
     #[error("the resource is at revision {current}; changed since: {summary}")]
     RevisionConflict { current: i64, summary: String },
-    /// Spec §13.2: a frozen version never changes.
-    #[error("the plan version is frozen; start a new version to change it")]
-    WorkflowFrozen,
-    /// Spec §13.4: the edit's final state, or the approval, breaks a rule.
-    #[error("the plan is not valid: {}", problems(.0))]
-    PlanInvalid(Vec<Problem>),
-    /// §16.7: a new task link names an unavailable or unreachable parent.
-    #[error("{0}")]
-    PlanLinkInvalid(String),
-    /// Spec §13.9: a task named by a focus or by `plan_show` is not in that
-    /// plan version. The text says which.
-    #[error("{0}")]
-    TaskNotInPlan(String),
-    /// Spec §13.6: a Planner's `draft_start` named a source other than the
-    /// version it starts from, its thread's latest, which this carries.
-    #[error("the source is not the thread's latest version, {0}")]
-    NotLatestVersion(WorkflowId),
-    /// Spec §16.3: a version after v1 is started without a non-blank
-    /// `change_reason`. A request missing a part, not an invalid plan.
-    #[error("a new version needs its reason")]
-    ReasonMissing,
-    /// §16.2: the plan became read only before this write committed.
-    #[error("plan {0} is archived; a person can unarchive it")]
-    PlanArchived(PlanId),
     /// Spec §4.2: a project that holds a planning thread is not removed.
     #[error("the project has planning threads; it cannot be removed")]
     ProjectHasThreads,
@@ -59,13 +31,6 @@ pub enum StorageError {
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Database(sqlx::Error),
-}
-
-fn problems(list: &[Problem]) -> String {
-    list.iter()
-        .map(|p| p.message.as_str())
-        .collect::<Vec<_>>()
-        .join("; ")
 }
 
 /// A write the schema refused — a second project with a slug already in use —

@@ -1,4 +1,4 @@
-use shadows_core::testing::{apply, approval_problems, edit_problems};
+use shadows_core::testing::{Ops, Rules};
 use shadows_core::{AcceptanceItem, Link, LinkKind, PlanContent, PlanOp, Problem, TaskContent};
 
 fn task(n: u32, title: &str) -> TaskContent {
@@ -38,7 +38,7 @@ fn messages(p: Vec<Problem>) -> Vec<String> {
 
 #[test]
 fn adding_and_linking_in_one_edit_is_valid() {
-    let a = apply(
+    let a = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd {
@@ -58,7 +58,7 @@ fn adding_and_linking_in_one_edit_is_valid() {
 
 #[test]
 fn task_add_refuses_a_number_in_use() {
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[PlanOp::TaskAdd {
             task: task(4, "screen"),
@@ -66,7 +66,7 @@ fn task_add_refuses_a_number_in_use() {
     )
     .unwrap()
     .content;
-    let err = apply(
+    let err = Ops::apply(
         &base,
         &[PlanOp::TaskAdd {
             task: task(4, "other"),
@@ -82,13 +82,13 @@ fn task_add_refuses_a_number_in_use() {
 
 #[test]
 fn task_update_refuses_an_unknown_number() {
-    let err = apply(&empty(), &[PlanOp::TaskUpdate { task: task(9, "x") }]).unwrap_err();
+    let err = Ops::apply(&empty(), &[PlanOp::TaskUpdate { task: task(9, "x") }]).unwrap_err();
     assert_eq!(messages(err), vec!["T9 does not exist in this plan"]);
 }
 
 #[test]
 fn two_operations_on_one_task_in_one_edit_are_refused() {
-    let err = apply(
+    let err = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd { task: task(1, "a") },
@@ -101,7 +101,7 @@ fn two_operations_on_one_task_in_one_edit_are_refused() {
 
 #[test]
 fn removing_a_linked_task_is_refused_until_its_links_go() {
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd { task: task(1, "a") },
@@ -111,9 +111,9 @@ fn removing_a_linked_task_is_refused_until_its_links_go() {
     )
     .unwrap()
     .content;
-    let err = apply(&base, &[PlanOp::TaskRemove { number: 1 }]).unwrap_err();
+    let err = Ops::apply(&base, &[PlanOp::TaskRemove { number: 1 }]).unwrap_err();
     assert_eq!(messages(err), vec!["T1 is still linked from T2"]);
-    let ok = apply(
+    let ok = Ops::apply(
         &base,
         &[
             PlanOp::LinkRemove {
@@ -131,7 +131,7 @@ fn removing_a_linked_task_is_refused_until_its_links_go() {
 fn a_cycle_across_both_kinds_is_refused() {
     // T2 needs T4, and part of T4 waits for T2:
     // complete(T4) → start(T2) → complete(T2) → complete(T4).
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd { task: task(2, "a") },
@@ -140,7 +140,7 @@ fn a_cycle_across_both_kinds_is_refused() {
     )
     .unwrap()
     .content;
-    let err = apply(
+    let err = Ops::apply(
         &base,
         &[
             PlanOp::LinkPut { link: needs(2, 4) },
@@ -161,7 +161,7 @@ fn a_cycle_across_both_kinds_is_refused() {
 
 #[test]
 fn completes_after_alone_in_both_directions_is_a_cycle() {
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd { task: task(1, "a") },
@@ -177,7 +177,7 @@ fn completes_after_alone_in_both_directions_is_a_cycle() {
         label: "x".into(),
         waiting_items: vec![1],
     };
-    let err = apply(
+    let err = Ops::apply(
         &base,
         &[
             PlanOp::LinkPut { link: wait(1, 2) },
@@ -190,7 +190,7 @@ fn completes_after_alone_in_both_directions_is_a_cycle() {
 
 #[test]
 fn a_task_after_a_cycle_is_not_named_in_it() {
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd { task: task(1, "a") },
@@ -200,7 +200,7 @@ fn a_task_after_a_cycle_is_not_named_in_it() {
     )
     .unwrap()
     .content;
-    let err = apply(
+    let err = Ops::apply(
         &base,
         &[
             PlanOp::LinkPut { link: needs(1, 2) },
@@ -215,7 +215,7 @@ fn a_task_after_a_cycle_is_not_named_in_it() {
 #[test]
 fn completes_after_one_way_with_needs_the_other_way_is_valid() {
     // T3 needs T2; part of T3 waits for T8 — no cycle.
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd {
@@ -231,7 +231,7 @@ fn completes_after_one_way_with_needs_the_other_way_is_valid() {
     )
     .unwrap()
     .content;
-    let ok = apply(
+    let ok = Ops::apply(
         &base,
         &[
             PlanOp::LinkPut { link: needs(3, 2) },
@@ -251,7 +251,7 @@ fn completes_after_one_way_with_needs_the_other_way_is_valid() {
 
 #[test]
 fn waiting_items_must_exist_on_the_waiting_task() {
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd { task: task(1, "a") },
@@ -260,7 +260,7 @@ fn waiting_items_must_exist_on_the_waiting_task() {
     )
     .unwrap()
     .content;
-    let err = apply(
+    let err = Ops::apply(
         &base,
         &[PlanOp::LinkPut {
             link: Link {
@@ -278,15 +278,15 @@ fn waiting_items_must_exist_on_the_waiting_task() {
 
 #[test]
 fn a_link_to_a_missing_task_or_to_itself_is_refused() {
-    let base = apply(&empty(), &[PlanOp::TaskAdd { task: task(1, "a") }])
+    let base = Ops::apply(&empty(), &[PlanOp::TaskAdd { task: task(1, "a") }])
         .unwrap()
         .content;
     assert_eq!(
-        messages(apply(&base, &[PlanOp::LinkPut { link: needs(1, 7) }]).unwrap_err()),
+        messages(Ops::apply(&base, &[PlanOp::LinkPut { link: needs(1, 7) }]).unwrap_err()),
         vec!["the link from T1 names T7, which does not exist"]
     );
     assert_eq!(
-        messages(apply(&base, &[PlanOp::LinkPut { link: needs(1, 1) }]).unwrap_err()),
+        messages(Ops::apply(&base, &[PlanOp::LinkPut { link: needs(1, 1) }]).unwrap_err()),
         vec!["T1 cannot be linked to itself"]
     );
 }
@@ -296,10 +296,10 @@ fn a_draft_may_lack_goals_but_approval_lists_what_is_missing() {
     let mut t = task(3, "bare");
     t.goal = String::new();
     t.acceptance.clear();
-    let a = apply(&empty(), &[PlanOp::TaskAdd { task: t }]).unwrap();
-    assert!(edit_problems(&a.content).is_empty());
+    let a = Ops::apply(&empty(), &[PlanOp::TaskAdd { task: t }]).unwrap();
+    assert!(Rules::edit_problems(&a.content).is_empty());
     assert_eq!(
-        messages(approval_problems(&a.content)),
+        messages(Rules::approval_problems(&a.content)),
         vec!["T3 has no goal", "T3 has no acceptance item"]
     );
 }
@@ -314,7 +314,7 @@ fn arabic_text_survives_an_edit() {
                 "text":"يظهر خطأ عند كلمة سر خاطئة"}]}}"#,
     )
     .unwrap();
-    let a = apply(&empty(), &[op]).unwrap();
+    let a = Ops::apply(&empty(), &[op]).unwrap();
     assert_eq!(a.content.tasks[&1].title, "جدول المستخدمين");
     assert_eq!(
         a.content.tasks[&1].acceptance[0].text,
@@ -324,7 +324,7 @@ fn arabic_text_survives_an_edit() {
 
 #[test]
 fn removing_the_waiting_task_names_the_task_it_waits_for_once() {
-    let base = apply(
+    let base = Ops::apply(
         &empty(),
         &[
             PlanOp::TaskAdd { task: task(1, "a") },
@@ -334,20 +334,20 @@ fn removing_the_waiting_task_names_the_task_it_waits_for_once() {
     )
     .unwrap()
     .content;
-    let err = apply(&base, &[PlanOp::TaskRemove { number: 2 }]).unwrap_err();
+    let err = Ops::apply(&base, &[PlanOp::TaskRemove { number: 2 }]).unwrap_err();
     assert_eq!(messages(err), vec!["T2 is still linked to T1"]);
 }
 
 #[test]
 fn one_change_is_counted_in_the_singular() {
-    let a = apply(&empty(), &[PlanOp::TaskAdd { task: task(1, "a") }]).unwrap();
+    let a = Ops::apply(&empty(), &[PlanOp::TaskAdd { task: task(1, "a") }]).unwrap();
     assert_eq!(a.summary, "1 change: added T1");
 }
 
 #[test]
 fn an_empty_edit_is_refused() {
     assert_eq!(
-        messages(apply(&empty(), &[]).unwrap_err()),
+        messages(Ops::apply(&empty(), &[]).unwrap_err()),
         vec!["an edit needs at least one operation"]
     );
 }
@@ -357,11 +357,11 @@ fn a_stored_task_number_must_be_positive() {
     let mut content = empty();
     content.tasks.insert(0, task(0, "invalid"));
     assert_eq!(
-        messages(edit_problems(&content)),
+        messages(Rules::edit_problems(&content)),
         vec!["T0 is not a task number; numbers start at 1"]
     );
     assert!(
-        apply(
+        Ops::apply(
             &content,
             &[PlanOp::PlanPut {
                 title: "New title".into(),
@@ -380,11 +380,11 @@ fn two_stored_links_of_one_kind_are_refused() {
     content.links.push(needs(2, 1));
     content.links.push(needs(2, 1));
     assert_eq!(
-        messages(edit_problems(&content)),
+        messages(Rules::edit_problems(&content)),
         vec!["the needs link T2 → T1 occurs more than once"]
     );
     assert!(
-        apply(
+        Ops::apply(
             &content,
             &[PlanOp::PlanPut {
                 title: "New title".into(),

@@ -15,15 +15,18 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
     let temp = tempfile::tempdir().unwrap();
     let a = app::test_app_at(temp.path()).await;
     let provider = PartId::generate();
-    a.storage.seed_map_for_tests(&a.project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(a.storage.clone())
+        .seed_map_for_tests(&a.project)
+        .await
+        .unwrap();
     let consumer = PartId::generate();
     let parts = vec![
         (provider.clone(), "Backend"),
         (consumer.clone(), "Frontend"),
     ];
     a.core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "parts".into(),
             &a.project,
             0,
@@ -76,12 +79,12 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .unwrap();
     let review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
         .unwrap();
     a.core
-        .design()
+        .plans()
         .agree_agreement(
             "agree-v1".into(),
             &a.project,
@@ -176,7 +179,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .unwrap();
     let review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
         .unwrap();
@@ -207,7 +210,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
     );
     assert!(matches!(
         a.core
-            .design()
+            .plans()
             .agree_agreement(
                 "stale".into(),
                 &a.project,
@@ -220,7 +223,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
     ));
     let review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
         .unwrap();
@@ -233,7 +236,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         1
     );
     a.core
-        .design()
+        .plans()
         .agree_agreement(
             "agree-v2".into(),
             &a.project,
@@ -321,7 +324,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .unwrap();
     let third_review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
         .unwrap();

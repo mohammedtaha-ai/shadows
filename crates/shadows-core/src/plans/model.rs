@@ -1,11 +1,11 @@
-//! One job: the plan types callers meet (spec §13).
+//! One job: the plan types callers meet.
 //!
 //! Pure: no storage, no I/O. A plan is changed only by
-//! [`apply`](super::ops::apply)ing a batch of [`PlanOp`](super::ops::PlanOp)s,
-//! and judged only by [`edit_problems`](super::rules::edit_problems) and
-//! [`approval_problems`](super::rules::approval_problems),
+//! [`apply`](super::ops::Ops::apply)ing a batch of [`PlanOp`](super::ops::PlanOp)s,
+//! and judged only by [`edit_problems`](super::rules::Rules::edit_problems) and
+//! [`approval_problems`](super::rules::Rules::approval_problems),
 //! so every writer — the Planner's MCP tools, the HTTP routes — and every reader
-//! that lists what blocks approval share one set of rules (§13.4).
+//! that lists what blocks approval share one set of rules.
 
 use std::collections::BTreeMap;
 
@@ -17,18 +17,18 @@ use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 
 newtype_id! {
-    /// Spec §13.2. One version of a plan.
+    /// One version of a plan.
     WorkflowId
 }
 
 newtype_id! {
-    /// Spec §13.3. Storage identity only: tools and people name a task by its
+    /// Storage identity only: tools and people name a task by its
     /// `number` within the version, never by this id.
     TaskId
 }
 
 newtype_id! {
-    /// Spec §16.2. A plan of a project, owning a chain of versions.
+    /// A plan of a project, owning a chain of versions.
     PlanId
 }
 
@@ -104,8 +104,10 @@ impl LinkKind {
 
 /// How a refusal names one link: `the needs link T2 → T1`, the arrow pointing
 /// from the task that waits to the task it waits for.
-pub(super) fn link_name(task: u32, after: &TaskParent, kind: LinkKind) -> String {
-    format!("the {} link T{task} → {after}", kind.as_str())
+impl Model {
+    pub(super) fn link_name(task: u32, after: &TaskParent, kind: LinkKind) -> String {
+        format!("the {} link T{task} → {after}", kind.as_str())
+    }
 }
 
 /// Spec §13.3. One sentence someone can check, numbered within its task.
@@ -236,7 +238,7 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// The content [`apply`](super::ops::apply) and the checks work on.
+    /// The content [`apply`](super::ops::Ops::apply) and the checks work on.
     pub fn content(&self) -> PlanContent {
         PlanContent {
             title: self.title.clone(),
@@ -264,7 +266,7 @@ pub struct EditOutcome {
 }
 
 /// What `draft_start` answered: the version, which never changes as the draft
-/// is edited (§13.6).
+/// is edited.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct DraftStarted {
     pub workflow_id: WorkflowId,
@@ -313,3 +315,5 @@ pub struct VersionLine {
     pub change_reason: Option<String>,
     pub created_at: String,
 }
+
+pub(in crate::plans) struct Model;

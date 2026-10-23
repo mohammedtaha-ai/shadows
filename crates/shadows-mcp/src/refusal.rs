@@ -36,7 +36,6 @@ impl Refusal {
 impl From<StorageError> for Refusal {
     fn from(e: StorageError) -> Self {
         match e {
-            StorageError::StageBlocked(message) => Self::new(ErrorCode::StageBlocked, message),
             StorageError::RevisionConflict { current, summary } => Self::new(
                 ErrorCode::RevisionConflict,
                 format!(
@@ -44,25 +43,11 @@ impl From<StorageError> for Refusal {
                      Read it with workflow_get, then rebuild your edit."
                 ),
             ),
-            StorageError::WorkflowFrozen => Self::new(
-                ErrorCode::WorkflowFrozenImmutable,
-                "this plan version is approved and never changes again. \
-                 Start a new version with draft_start.",
-            ),
-            StorageError::PlanInvalid(problems) => Self::new(
-                ErrorCode::WorkflowValidationFailed,
-                problems
-                    .into_iter()
-                    .map(|p| p.message)
-                    .collect::<Vec<_>>()
-                    .join("; "),
-            ),
             StorageError::CommandConflict => Self::new(
                 ErrorCode::CommandConflict,
                 "this command id, or this draft_ref, already did something different; \
                  for a new plan call draft_prepare again",
             ),
-            StorageError::TaskNotInPlan(message) => Self::new(ErrorCode::InvalidCommand, message),
             // A rule the request broke, not a broken database: say which, so an
             // agent fixes the request instead of asking for a restart.
             StorageError::Constraint(message) => Self::new(ErrorCode::InvalidCommand, message),
@@ -86,6 +71,21 @@ impl From<CoreError> for Refusal {
     /// milestone, answers its code and its own words.
     fn from(e: CoreError) -> Self {
         match e {
+            CoreError::Refused {
+                code: ErrorCode::WorkflowFrozenImmutable,
+                ..
+            } => Self::new(
+                ErrorCode::WorkflowFrozenImmutable,
+                "this plan version is approved and never changes again. \
+                 Start a new version with draft_start.",
+            ),
+            CoreError::ValidationFailed { problems, .. } => {
+                Self::new(ErrorCode::WorkflowValidationFailed, problems.join("; "))
+            }
+            CoreError::ReasonMissing | CoreError::Unavailable(_) => Self::new(
+                ErrorCode::StorageUnavailable,
+                "the daemon could not read or write its database",
+            ),
             CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => e.into(),
             CoreError::Refused {
                 code: ErrorCode::GrantInvalid,
@@ -111,6 +111,8 @@ impl From<CoreError> for Refusal {
 /// The code HTTP answers the same failure with.
 fn code_of(e: &CoreError) -> ErrorCode {
     match e {
+        CoreError::ValidationFailed { .. } => ErrorCode::WorkflowValidationFailed,
+        CoreError::ReasonMissing | CoreError::Unavailable(_) => ErrorCode::StorageUnavailable,
         CoreError::ExtensionNotFound => ErrorCode::ExtensionNotFound,
         CoreError::ExtensionNameConflict => ErrorCode::ExtensionNameConflict,
         CoreError::AylulProfileNotFound(_) => ErrorCode::AylulProfileNotFound,

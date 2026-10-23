@@ -1,4 +1,4 @@
-//! One job: applying one batch of plan edits (spec §13.4, "A batch").
+//! One job: applying one batch of plan edits.
 //!
 //! The batch is refused as a whole or applied as a whole. What can be judged
 //! from the operations alone is refused first; otherwise every operation is
@@ -8,8 +8,10 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use super::dependencies::TaskParent;
-use super::model::{Link, LinkKind, PlanContent, TaskContent, link_name};
-use super::rules::{Problem, edit_problems_after_removing};
+use super::model::Model;
+use super::model::{Link, LinkKind, PlanContent, TaskContent};
+use super::rules::Problem;
+use super::rules::Rules;
 
 /// One edit operation. The names are the `plan_edit` tool's, exactly.
 #[derive(
@@ -69,7 +71,7 @@ pub struct Applied {
 }
 
 /// What one operation acts on. Two operations on one object in a batch are
-/// refused rather than resolved by their order (§13.4).
+/// refused rather than resolved by their order.
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum Object {
     Plan,
@@ -83,7 +85,7 @@ enum Object {
 }
 
 impl Object {
-    /// A link's identity: at most one link of each kind between two tasks (§13.3).
+    /// A link's identity: at most one link of each kind between two tasks.
     fn of_link(l: &Link) -> Self {
         Object::Link(l.task, l.after.clone(), l.kind)
     }
@@ -92,7 +94,7 @@ impl Object {
         match self {
             Object::Plan => "the plan".to_string(),
             Object::Task(n) => format!("T{n}"),
-            Object::Link(task, after, kind) => link_name(*task, after, *kind),
+            Object::Link(task, after, kind) => Model::link_name(*task, after, *kind),
             Object::Binding(task, id, role) => format!("T{task} {role:?} agreement {id}"),
         }
     }
@@ -137,48 +139,50 @@ impl PlanOp {
 
 /// Applies `ops` in order to a copy of `current`. Refused, with every problem
 /// found, when an operation cannot apply or the final state breaks a rule of
-/// §13.4; `current` is never changed.
-pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>> {
-    let refusals = refusals(current, ops);
-    if !refusals.is_empty() {
-        return Err(refusals);
-    }
-
-    let mut content = current.clone();
-    let mut parts = Vec::with_capacity(ops.len());
-    let mut changed = BTreeSet::new();
-    let mut removed = BTreeSet::new();
-    for op in ops {
-        changed.extend(op.numbers());
-        parts.push(apply_one(&mut content, op, &mut removed));
-    }
-
-    let mut problems = edit_problems_after_removing(&content, &removed);
-    for binding in &content.bindings {
-        if !content.tasks.contains_key(&binding.task) {
-            problems.push(Problem::new(format!(
-                "binding names missing T{}",
-                binding.task
-            )));
+/// ; `current` is never changed.
+impl Ops {
+    pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>> {
+        let refusals = refusals(current, ops);
+        if !refusals.is_empty() {
+            return Err(refusals);
         }
-        if binding.version < 1 || binding.operations.is_empty() {
-            problems.push(Problem::new(
-                "a binding needs a positive version and operations",
-            ));
+
+        let mut content = current.clone();
+        let mut parts = Vec::with_capacity(ops.len());
+        let mut changed = BTreeSet::new();
+        let mut removed = BTreeSet::new();
+        for op in ops {
+            changed.extend(op.numbers());
+            parts.push(apply_one(&mut content, op, &mut removed));
         }
+
+        let mut problems = Rules::edit_problems_after_removing(&content, &removed);
+        for binding in &content.bindings {
+            if !content.tasks.contains_key(&binding.task) {
+                problems.push(Problem::new(format!(
+                    "binding names missing T{}",
+                    binding.task
+                )));
+            }
+            if binding.version < 1 || binding.operations.is_empty() {
+                problems.push(Problem::new(
+                    "a binding needs a positive version and operations",
+                ));
+            }
+        }
+        if !problems.is_empty() {
+            return Err(problems);
+        }
+        let count = match ops.len() {
+            1 => "1 change".to_string(),
+            n => format!("{n} changes"),
+        };
+        Ok(Applied {
+            content,
+            changed_tasks: changed.into_iter().collect(),
+            summary: format!("{count}: {}", parts.join(", ")),
+        })
     }
-    if !problems.is_empty() {
-        return Err(problems);
-    }
-    let count = match ops.len() {
-        1 => "1 change".to_string(),
-        n => format!("{n} changes"),
-    };
-    Ok(Applied {
-        content,
-        changed_tasks: changed.into_iter().collect(),
-        summary: format!("{count}: {}", parts.join(", ")),
-    })
 }
 
 /// Applies one operation already known to apply, and says what it did.
@@ -296,8 +300,13 @@ fn refusal(current: &PlanContent, op: &PlanOp) -> Option<String> {
                 .iter()
                 .any(|l| Object::of_link(l) == op.object()) =>
         {
-            Some(format!("{} does not exist", link_name(*task, after, *kind)))
+            Some(format!(
+                "{} does not exist",
+                Model::link_name(*task, after, *kind)
+            ))
         }
         _ => None,
     }
 }
+
+pub struct Ops;

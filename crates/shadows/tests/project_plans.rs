@@ -31,7 +31,14 @@ async fn two_starts_make_one_draft() {
         draft_on(&app, &app.thread, "start-b"),
     );
     assert_eq!((a.workflow_id.clone(), a.version), (b.workflow_id, 2));
-    assert_eq!(a.plan_id, app.storage.get_plan(&v1).await.unwrap().plan_id);
+    assert_eq!(
+        a.plan_id,
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .get_plan_for_test(&v1)
+            .await
+            .unwrap()
+            .plan_id
+    );
     let drafts: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM workflow WHERE plan_id = ? AND state = 'Draft'")
             .bind(a.plan_id.as_str())
@@ -55,7 +62,11 @@ async fn a_new_version_needs_its_reason() {
     .await
     .unwrap()
     .grant;
-    let plan_id = app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let plan_id = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap()
+        .plan_id;
     let plans = app.core.plans();
     let start = |reason: Option<&'static str>| {
         let (grant, plan_id) = (&grant, &plan_id);
@@ -91,7 +102,8 @@ async fn a_new_version_needs_its_reason() {
         again.workflow_id, v2.workflow_id,
         "the Draft, answered again"
     );
-    let read = |id| app.storage.get_plan(id);
+    let plans = shadows_core::AppCore::plans_for_tests(app.storage.clone());
+    let read = |id| plans.get_plan_for_test(id);
     assert_eq!(
         read(&v2.workflow_id)
             .await
@@ -112,8 +124,8 @@ async fn first_start(app: &App, writer: &Writer) -> DraftStarted {
         "goal": "log in",
         "reason": null,
     });
-    app.storage
-        .start_draft(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(writer, "first", "DraftStart", params),
             writer,
             &app.project,
@@ -137,8 +149,8 @@ async fn a_retried_first_start_answers_its_v1() {
     let writer = planner(&app, &app.thread).await;
     let v1 = first_start(&app, &writer).await;
     edit(&app, &v1.workflow_id, 0, &[add(1)]).await;
-    app.storage
-        .approve_plan(&ctx("approve", "PlanApprove"), &v1.workflow_id, 1)
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&ctx("approve", "PlanApprove"), &v1.workflow_id, 1)
         .await
         .unwrap();
     assert_eq!(first_start(&app, &writer).await, v1);
@@ -160,9 +172,8 @@ async fn approving_an_external_version_writes_no_entry() {
         grant: grant.clone(),
     };
     let r = insert_draft_ref(&app, &grant, &in_an_hour()).await;
-    let started = app
-        .storage
-        .start_draft(
+    let started = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(
                 &external,
                 &derived_id(Anchor::DraftRef(&r), ""),
@@ -182,8 +193,8 @@ async fn approving_an_external_version_writes_no_entry() {
         .await
         .unwrap();
     let v1 = started.workflow_id;
-    app.storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&external, &v1, 0, &[add(1)]),
             &external,
             None,
@@ -193,9 +204,8 @@ async fn approving_an_external_version_writes_no_entry() {
         )
         .await
         .unwrap();
-    let approved = app
-        .storage
-        .approve_plan(&ctx("approve-ext", "PlanApprove"), &v1, 1)
+    let approved = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&ctx("approve-ext", "PlanApprove"), &v1, 1)
         .await
         .unwrap();
     assert_eq!(
@@ -203,7 +213,10 @@ async fn approving_an_external_version_writes_no_entry() {
         (v1.clone(), 1)
     );
 
-    let plan = app.storage.get_plan(&v1).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap();
     assert_eq!(plan.state, WorkflowState::Frozen);
     assert_eq!(plan.written_by, WrittenBy::External { grant_id: grant });
     let threads: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM planning_thread")

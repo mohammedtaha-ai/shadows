@@ -1,4 +1,4 @@
-//! One job: plans' SQLite queries (spec §14.4). Each file is `impl Storage`
+//! One job: plans' SQLite queries. Each file uses the private PlansStore
 //! over the shared pool, which stays in `db`: `edit.rs` changes a
 //! version, `draft.rs` starts one, `read.rs` reads them, `plan.rs` archives
 //! and reads a plan with its versions, `task.rs` holds a version's task
@@ -8,31 +8,26 @@
 //! `pub(crate)` and declared in `plans/contract.yaml` under
 //! `shared_in_transaction`; nothing else here is.
 
-mod binding_participants;
+pub(super) mod binding_participants;
 mod bindings;
 mod dependencies;
-pub(crate) use binding_participants::{agreement_participants_in, part_bindings_in};
 mod draft;
 mod edit;
 mod graph;
 mod linked;
 mod map;
-mod notifications;
+pub(super) mod notifications;
 mod plan;
 mod read;
-mod task;
+pub(super) mod task;
 mod view;
-
-pub(crate) use notifications::notify_project_dependencies_in;
-pub(crate) use plan::check_design_plan;
-pub(crate) use task::task_of;
 
 use crate::events::DurableEvent;
 use crate::grants::Writer;
 use crate::projects::ProjectId;
 use crate::turns::OperationId;
 
-/// A plan event as §16.3 records it: always its project, with the writer as
+/// A plan event records its subject: always its project, with the writer as
 /// the actor; the thread, and the turn when there is one, only for a Planner.
 fn plan_event(
     kind: &str,
@@ -47,3 +42,18 @@ fn plan_event(
         _ => event,
     }
 }
+
+use crate::db::Storage;
+use std::sync::Arc;
+
+pub(super) struct PlansStore {
+    pub(super) storage: Arc<Storage>,
+}
+
+mod design_links;
+
+mod project_links;
+
+mod design_parts;
+
+mod agreement_review;

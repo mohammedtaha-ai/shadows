@@ -1,5 +1,5 @@
-//! Pure vision item edits with server-assigned identities (§23.3).
-use super::model::{DesignOp, VisionContent, VisionCounters, VisionField, VisionItem};
+//! Pure vision item edits with server-assigned identities.
+use super::model::{VisionContent, VisionCounters, VisionField, VisionItem, WorkspaceOp};
 use crate::threads::ThreadId;
 
 impl VisionField {
@@ -61,66 +61,75 @@ impl VisionContent {
     }
 }
 
-pub(crate) fn next_id(field: VisionField, counters: &mut VisionCounters) -> Result<String, String> {
-    let slot = match field {
-        VisionField::Purpose => &mut counters.purpose,
-        VisionField::Users => &mut counters.users,
-        VisionField::Goals => &mut counters.goals,
-        VisionField::Boundaries => &mut counters.boundaries,
-        VisionField::TechnicalDirection => &mut counters.technical_direction,
-    };
-    *slot = slot.checked_add(1).ok_or("vision identity exhausted")?;
-    Ok(format!("{}{slot}", field.prefix()))
+impl VisionItems {
+    pub(crate) fn next_id(
+        field: VisionField,
+        counters: &mut VisionCounters,
+    ) -> Result<String, String> {
+        let slot = match field {
+            VisionField::Purpose => &mut counters.purpose,
+            VisionField::Users => &mut counters.users,
+            VisionField::Goals => &mut counters.goals,
+            VisionField::Boundaries => &mut counters.boundaries,
+            VisionField::TechnicalDirection => &mut counters.technical_direction,
+        };
+        *slot = slot.checked_add(1).ok_or("vision identity exhausted")?;
+        Ok(format!("{}{slot}", field.prefix()))
+    }
 }
 
-pub(crate) fn apply(
-    content: &mut VisionContent,
-    op: &DesignOp,
-    id_for_add: Option<String>,
-    from: Option<&ThreadId>,
-) -> Result<(), String> {
-    match op {
-        DesignOp::VisionItemAdd { field, text } => {
-            if text.trim().is_empty() {
-                return Err("a vision item needs text".into());
+impl VisionItems {
+    pub(crate) fn apply(
+        content: &mut VisionContent,
+        op: &WorkspaceOp,
+        id_for_add: Option<String>,
+        from: Option<&ThreadId>,
+    ) -> Result<(), String> {
+        match op {
+            WorkspaceOp::VisionItemAdd { field, text } => {
+                if text.trim().is_empty() {
+                    return Err("a vision item needs text".into());
+                }
+                let id = id_for_add.ok_or("a vision addition needs its assigned id")?;
+                content.items_mut(*field).push(VisionItem {
+                    id,
+                    text: text.clone(),
+                    approved_from: from.cloned(),
+                    revision: 1,
+                });
             }
-            let id = id_for_add.ok_or("a vision addition needs its assigned id")?;
-            content.items_mut(*field).push(VisionItem {
-                id,
-                text: text.clone(),
-                approved_from: from.cloned(),
-                revision: 1,
-            });
-        }
-        DesignOp::VisionItemPut { id, text } => {
-            if text.trim().is_empty() {
-                return Err("a vision item needs text".into());
+            WorkspaceOp::VisionItemPut { id, text } => {
+                if text.trim().is_empty() {
+                    return Err("a vision item needs text".into());
+                }
+                let field =
+                    VisionField::of_id(id).ok_or_else(|| format!("{id} is not in the vision"))?;
+                let item = content
+                    .items_mut(field)
+                    .iter_mut()
+                    .find(|i| &i.id == id)
+                    .ok_or_else(|| format!("{id} is not in the vision"))?;
+                item.revision = item
+                    .revision
+                    .checked_add(1)
+                    .ok_or("vision item revision exhausted")?;
+                item.text = text.clone();
+                item.approved_from = from.cloned();
             }
-            let field =
-                VisionField::of_id(id).ok_or_else(|| format!("{id} is not in the vision"))?;
-            let item = content
-                .items_mut(field)
-                .iter_mut()
-                .find(|i| &i.id == id)
-                .ok_or_else(|| format!("{id} is not in the vision"))?;
-            item.revision = item
-                .revision
-                .checked_add(1)
-                .ok_or("vision item revision exhausted")?;
-            item.text = text.clone();
-            item.approved_from = from.cloned();
+            WorkspaceOp::VisionItemRemove { id } => {
+                let field =
+                    VisionField::of_id(id).ok_or_else(|| format!("{id} is not in the vision"))?;
+                let items = content.items_mut(field);
+                let index = items
+                    .iter()
+                    .position(|i| &i.id == id)
+                    .ok_or_else(|| format!("{id} is not in the vision"))?;
+                items.remove(index);
+            }
+            _ => unreachable!("only vision ops reach the item editor"),
         }
-        DesignOp::VisionItemRemove { id } => {
-            let field =
-                VisionField::of_id(id).ok_or_else(|| format!("{id} is not in the vision"))?;
-            let items = content.items_mut(field);
-            let index = items
-                .iter()
-                .position(|i| &i.id == id)
-                .ok_or_else(|| format!("{id} is not in the vision"))?;
-            items.remove(index);
-        }
-        _ => unreachable!("only vision ops reach the item editor"),
+        Ok(())
     }
-    Ok(())
 }
+
+pub(in crate::design) struct VisionItems;

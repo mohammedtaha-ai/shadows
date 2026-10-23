@@ -1,22 +1,23 @@
-//! One job: reading plan versions (spec §13.2, §16.2) — one version as a
+//! One job: reading plan versions — one version as a
 //! reader sees it, with its writer, a project's plans, a thread's latest, and
 //! what the journal recorded a version's commands answered. Its task and link
 //! rows are `task.rs`.
 
+use super::PlansStore;
 use sqlx::SqliteConnection;
 
-use super::task::{links_of, tasks_of};
-use crate::db::{Storage, StorageError};
+use super::task::TaskRows;
+use crate::db::StorageError;
 use crate::grants::GrantId;
 use crate::plans::model::{
     EditOutcome, LastEdit, Plan, PlanId, PlanListing, PlanState, WorkflowId, WorkflowState,
     WrittenBy,
 };
-use crate::plans::rules::approval_problems;
+use crate::plans::rules::Rules;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 
-impl Storage {
+impl PlansStore {
     pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, crate::CoreError> {
         self.get_plan_scoped(workflow, None, None).await
     }
@@ -27,7 +28,12 @@ impl Storage {
         origin: Option<&ProjectId>,
         project: Option<&str>,
     ) -> Result<Plan, crate::CoreError> {
-        let mut snapshot = self.reader().begin().await.map_err(StorageError::from)?;
+        let mut snapshot = self
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
         if let Some(origin) = origin {
             let selected =
                 crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
@@ -42,8 +48,8 @@ impl Storage {
                 return Err(crate::grants::GrantsError::GrantScope.into());
             }
         }
-        let mut plan = load_plan(&mut snapshot, workflow, origin).await?;
-        plan.linked_tasks = super::linked::read(&mut snapshot, &plan, origin).await?;
+        let mut plan = ReadRows::load_plan(&mut snapshot, workflow, origin).await?;
+        plan.linked_tasks = super::linked::LinkedRows::read(&mut snapshot, &plan, origin).await?;
         snapshot.commit().await.map_err(StorageError::from)?;
         Ok(plan)
     }
@@ -54,7 +60,12 @@ impl Storage {
         archived: bool,
         project: Option<&str>,
     ) -> Result<Vec<PlanListing>, crate::CoreError> {
-        let mut snapshot = self.reader().begin().await.map_err(StorageError::from)?;
+        let mut snapshot = self
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
         let selected =
             crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
         let plans = listings(&mut snapshot, &selected, archived).await?;
@@ -71,7 +82,7 @@ impl Storage {
         project: &ProjectId,
         archived: bool,
     ) -> Result<Vec<PlanListing>, StorageError> {
-        let mut conn = self.reader().acquire().await?;
+        let mut conn = self.storage.reader().acquire().await?;
         listings(&mut conn, project, archived).await
     }
 
@@ -79,9 +90,9 @@ impl Storage {
     /// use it to find a conversation's plan; the product names plans by id.
     #[cfg(feature = "test-support")]
     pub async fn thread_plan(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError> {
-        let mut conn = self.reader().acquire().await?;
+        let mut conn = self.storage.reader().acquire().await?;
         match plan_of_thread(&mut conn, thread).await? {
-            Some(plan) => latest_version(&mut conn, &plan).await,
+            Some(plan) => ReadRows::latest_version(&mut conn, &plan).await,
             None => Ok(None),
         }
     }
@@ -111,11 +122,11 @@ async fn listings(
             |(plan, plan_state, id, title, version, state, updated_at)| {
                 Ok(PlanListing {
                     plan_id: PlanId::from_stored(plan),
-                    plan_state: parse_plan_state(&plan_state)?,
+                    plan_state: ReadRows::parse_plan_state(&plan_state)?,
                     id: WorkflowId::from_stored(id),
                     title,
                     version,
-                    state: parse_state(&state)?,
+                    state: ReadRows::parse_state(&state)?,
                     updated_at,
                 })
             },
@@ -138,36 +149,42 @@ async fn plan_of_thread(
     Ok(id.map(PlanId::from_stored))
 }
 
-pub(super) async fn latest_version(
-    conn: &mut SqliteConnection,
-    plan: &PlanId,
-) -> Result<Option<WorkflowId>, StorageError> {
-    let id: Option<String> = sqlx::query_scalar(
-        "SELECT id FROM workflow WHERE plan_id = ? ORDER BY version DESC LIMIT 1",
-    )
-    .bind(plan.as_str())
-    .fetch_optional(&mut *conn)
-    .await?;
-    Ok(id.map(WorkflowId::from_stored))
-}
-
-pub(super) fn parse_state(s: &str) -> Result<WorkflowState, StorageError> {
-    match s {
-        "Draft" => Ok(WorkflowState::Draft),
-        "Frozen" => Ok(WorkflowState::Frozen),
-        other => Err(StorageError::Constraint(format!(
-            "a plan state this milestone does not use: {other}"
-        ))),
+impl ReadRows {
+    pub(super) async fn latest_version(
+        conn: &mut SqliteConnection,
+        plan: &PlanId,
+    ) -> Result<Option<WorkflowId>, StorageError> {
+        let id: Option<String> = sqlx::query_scalar(
+            "SELECT id FROM workflow WHERE plan_id = ? ORDER BY version DESC LIMIT 1",
+        )
+        .bind(plan.as_str())
+        .fetch_optional(&mut *conn)
+        .await?;
+        Ok(id.map(WorkflowId::from_stored))
     }
 }
 
-pub(super) fn parse_plan_state(s: &str) -> Result<PlanState, StorageError> {
-    match s {
-        "Active" => Ok(PlanState::Active),
-        "Archived" => Ok(PlanState::Archived),
-        other => Err(StorageError::Constraint(format!(
-            "no such plan state: {other}"
-        ))),
+impl ReadRows {
+    pub(super) fn parse_state(s: &str) -> Result<WorkflowState, StorageError> {
+        match s {
+            "Draft" => Ok(WorkflowState::Draft),
+            "Frozen" => Ok(WorkflowState::Frozen),
+            other => Err(StorageError::Constraint(format!(
+                "a plan state this milestone does not use: {other}"
+            ))),
+        }
+    }
+}
+
+impl ReadRows {
+    pub(super) fn parse_plan_state(s: &str) -> Result<PlanState, StorageError> {
+        match s {
+            "Active" => Ok(PlanState::Active),
+            "Archived" => Ok(PlanState::Archived),
+            other => Err(StorageError::Constraint(format!(
+                "no such plan state: {other}"
+            ))),
+        }
     }
 }
 
@@ -192,166 +209,176 @@ type VersionRow = (
     Option<String>,
 );
 
-pub(super) async fn load_plan(
-    conn: &mut SqliteConnection,
-    id: &WorkflowId,
-    origin: Option<&ProjectId>,
-) -> Result<Plan, StorageError> {
-    let (
-        project,
-        version,
-        revision,
-        state,
-        title,
-        goal,
-        previous,
-        frozen_at,
-        created_at,
-        plan_id,
-        plan_state,
-        change_reason,
-        thread,
-        operation,
-        grant,
-    ): VersionRow = sqlx::query_as(
-        "SELECT p.project_id, w.version, w.revision, w.state, w.title, w.goal,
+impl ReadRows {
+    pub(super) async fn load_plan(
+        conn: &mut SqliteConnection,
+        id: &WorkflowId,
+        origin: Option<&ProjectId>,
+    ) -> Result<Plan, StorageError> {
+        let (
+            project,
+            version,
+            revision,
+            state,
+            title,
+            goal,
+            previous,
+            frozen_at,
+            created_at,
+            plan_id,
+            plan_state,
+            change_reason,
+            thread,
+            operation,
+            grant,
+        ): VersionRow = sqlx::query_as(
+            "SELECT p.project_id, w.version, w.revision, w.state, w.title, w.goal,
                 w.previous_version_id, w.frozen_at, w.created_at, p.id, p.state,
                 w.change_reason, w.written_by_thread, w.written_by_operation,
                 w.written_by_grant
            FROM workflow w JOIN plan p ON p.id = w.plan_id
           WHERE w.id = ?",
-    )
-    .bind(id.as_str())
-    .fetch_optional(&mut *conn)
-    .await?
-    .ok_or(StorageError::NotFound("workflow"))?;
-    let written_by = written_by(conn, id, (thread, operation, grant)).await?;
-    let next: Option<String> =
-        sqlx::query_scalar("SELECT id FROM workflow WHERE previous_version_id = ?")
-            .bind(id.as_str())
-            .fetch_optional(&mut *conn)
-            .await?;
-    let project_id = ProjectId::from_stored(project);
-    let last_edit = edits_of(conn, &project_id, id)
+        )
+        .bind(id.as_str())
+        .fetch_optional(&mut *conn)
         .await?
-        .into_iter()
-        .max_by_key(|e| e.revision)
-        .map(|e| LastEdit {
-            revision: e.revision,
-            summary: e.summary,
-            changed_tasks: e.changed_tasks,
-        });
-    let mut plan = Plan {
-        approved_by: {
-            let (principal, agent, request): (Option<String>, Option<String>, Option<String>) =
-                sqlx::query_as(
-                    "SELECT approved_principal,approved_agent,approved_request_entry
-                    FROM workflow WHERE id=?",
-                )
+        .ok_or(StorageError::NotFound("workflow"))?;
+        let written_by = ReadRows::written_by(conn, id, (thread, operation, grant)).await?;
+        let next: Option<String> =
+            sqlx::query_scalar("SELECT id FROM workflow WHERE previous_version_id = ?")
                 .bind(id.as_str())
-                .fetch_one(&mut *conn)
+                .fetch_optional(&mut *conn)
                 .await?;
-            crate::grants::Grants::read_in(conn, principal, agent, request).await?
-        },
-        id: id.clone(),
-        plan_id: PlanId::from_stored(plan_id),
-        plan_state: parse_plan_state(&plan_state)?,
-        project_id,
-        written_by,
-        change_reason,
-        version,
-        revision,
-        state: parse_state(&state)?,
-        title,
-        goal,
-        previous: previous.map(WorkflowId::from_stored),
-        next: next.map(WorkflowId::from_stored),
-        tasks: tasks_of(conn, id).await?,
-        links: links_of(conn, id).await?,
-        blockers: Vec::new(),
-        linked_tasks: Vec::new(),
-        bindings: super::bindings::load(conn, id).await?,
-        last_edit,
-        frozen_at,
-        created_at,
-    };
-    if plan.state == WorkflowState::Draft {
-        plan.blockers = approval_problems(&plan.content());
-        plan.blockers
-            .extend(super::graph::blockers(conn, &plan, origin).await?);
+        let project_id = ProjectId::from_stored(project);
+        let last_edit = ReadRows::edits_of(conn, &project_id, id)
+            .await?
+            .into_iter()
+            .max_by_key(|e| e.revision)
+            .map(|e| LastEdit {
+                revision: e.revision,
+                summary: e.summary,
+                changed_tasks: e.changed_tasks,
+            });
+        let mut plan = Plan {
+            approved_by: {
+                let (principal, agent, request): (Option<String>, Option<String>, Option<String>) =
+                    sqlx::query_as(
+                        "SELECT approved_principal,approved_agent,approved_request_entry
+                    FROM workflow WHERE id=?",
+                    )
+                    .bind(id.as_str())
+                    .fetch_one(&mut *conn)
+                    .await?;
+                crate::grants::Grants::read_in(conn, principal, agent, request).await?
+            },
+            id: id.clone(),
+            plan_id: PlanId::from_stored(plan_id),
+            plan_state: ReadRows::parse_plan_state(&plan_state)?,
+            project_id,
+            written_by,
+            change_reason,
+            version,
+            revision,
+            state: ReadRows::parse_state(&state)?,
+            title,
+            goal,
+            previous: previous.map(WorkflowId::from_stored),
+            next: next.map(WorkflowId::from_stored),
+            tasks: TaskRows::tasks_of(conn, id).await?,
+            links: TaskRows::links_of(conn, id).await?,
+            blockers: Vec::new(),
+            linked_tasks: Vec::new(),
+            bindings: super::bindings::BindingsRows::load(conn, id).await?,
+            last_edit,
+            frozen_at,
+            created_at,
+        };
+        if plan.state == WorkflowState::Draft {
+            plan.blockers = Rules::approval_problems(&plan.content());
+            plan.blockers
+                .extend(super::graph::GraphRows::blockers(conn, &plan, origin).await?);
+        }
+        Ok(plan)
     }
-    Ok(plan)
 }
 
-/// §16.3: a version with a grant is an external agent's, whether or not a
+/// : a version with a grant is an external agent's, whether or not a
 /// thread stands beside it (the versions 2a wrote have both); one with a
 /// thread only is its Planner's, with the model and harness of the turn's
 /// invocation when a turn was recorded.
-pub(super) async fn written_by(
-    conn: &mut SqliteConnection,
-    id: &WorkflowId,
-    (thread, operation, grant): Writers,
-) -> Result<WrittenBy, StorageError> {
-    if let Some(grant) = grant {
-        return Ok(WrittenBy::External {
-            grant_id: GrantId::from_stored(grant),
-        });
+impl ReadRows {
+    pub(super) async fn written_by(
+        conn: &mut SqliteConnection,
+        id: &WorkflowId,
+        (thread, operation, grant): Writers,
+    ) -> Result<WrittenBy, StorageError> {
+        if let Some(grant) = grant {
+            return Ok(WrittenBy::External {
+                grant_id: GrantId::from_stored(grant),
+            });
+        }
+        let thread = thread
+            .ok_or_else(|| StorageError::Constraint(format!("plan version {id} has no writer")))?;
+        let metadata =
+            crate::threads::Threads::get_in(conn, &ThreadId::from_stored(thread.clone())).await?;
+        let (thread_title, removed_at) = (metadata.title, metadata.removed_at);
+        let invocation: Option<(String, String)> = match operation {
+            Some(op) => crate::harness::Harness::invocation_model_in(conn, &op).await?,
+            None => None,
+        };
+        let (model, harness) = invocation.map_or((None, None), |(m, h)| (Some(m), Some(h)));
+        Ok(WrittenBy::Planner {
+            thread_id: ThreadId::from_stored(thread),
+            thread_title,
+            thread_removed: removed_at.is_some(),
+            model,
+            harness,
+        })
     }
-    let thread = thread
-        .ok_or_else(|| StorageError::Constraint(format!("plan version {id} has no writer")))?;
-    let metadata =
-        crate::threads::Threads::get_in(conn, &ThreadId::from_stored(thread.clone())).await?;
-    let (thread_title, removed_at) = (metadata.title, metadata.removed_at);
-    let invocation: Option<(String, String)> = match operation {
-        Some(op) => crate::harness::Harness::invocation_model_in(conn, &op).await?,
-        None => None,
-    };
-    let (model, harness) = invocation.map_or((None, None), |(m, h)| (Some(m), Some(h)));
-    Ok(WrittenBy::Planner {
-        thread_id: ThreadId::from_stored(thread),
-        thread_title,
-        thread_removed: removed_at.is_some(),
-        model,
-        harness,
-    })
 }
 
 /// Every `WorkflowEdited` of `workflow`, in journal order, read by its plan's
-/// project: an edit names a thread only when a Planner made it (§16.3). Its
+/// project: an edit names a thread only when a Planner made it. Its
 /// payload is the edit's [`EditOutcome`].
-pub(super) async fn edits_of(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-    workflow: &WorkflowId,
-) -> Result<Vec<EditOutcome>, StorageError> {
-    let payloads: Vec<String> = sqlx::query_scalar(
-        "SELECT payload_json FROM durable_event
+impl ReadRows {
+    pub(super) async fn edits_of(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        workflow: &WorkflowId,
+    ) -> Result<Vec<EditOutcome>, StorageError> {
+        let payloads: Vec<String> = sqlx::query_scalar(
+            "SELECT payload_json FROM durable_event
           WHERE project_id = ? AND kind = 'WorkflowEdited' ORDER BY seq",
-    )
-    .bind(project.as_str())
-    .fetch_all(&mut *conn)
-    .await?;
-    let mut edits = Vec::new();
-    for payload in payloads {
-        let edit: EditOutcome = serde_json::from_str(&payload)?;
-        if &edit.workflow_id == workflow {
-            edits.push(edit);
+        )
+        .bind(project.as_str())
+        .fetch_all(&mut *conn)
+        .await?;
+        let mut edits = Vec::new();
+        for payload in payloads {
+            let edit: EditOutcome = serde_json::from_str(&payload)?;
+            if &edit.workflow_id == workflow {
+                edits.push(edit);
+            }
         }
+        Ok(edits)
     }
-    Ok(edits)
 }
 
 /// The payload of the event a command recorded as its outcome: what the
-/// command answered when it committed (§13.5).
-pub(super) async fn recorded_outcome<T: serde::de::DeserializeOwned>(
-    conn: &mut SqliteConnection,
-    event_id: &str,
-) -> Result<T, StorageError> {
-    let payload: String =
-        sqlx::query_scalar("SELECT payload_json FROM durable_event WHERE event_id = ?")
-            .bind(event_id)
-            .fetch_optional(&mut *conn)
-            .await?
-            .ok_or(StorageError::NotFound("durable_event"))?;
-    Ok(serde_json::from_str(&payload)?)
+/// command answered when it committed.
+impl ReadRows {
+    pub(super) async fn recorded_outcome<T: serde::de::DeserializeOwned>(
+        conn: &mut SqliteConnection,
+        event_id: &str,
+    ) -> Result<T, StorageError> {
+        let payload: String =
+            sqlx::query_scalar("SELECT payload_json FROM durable_event WHERE event_id = ?")
+                .bind(event_id)
+                .fetch_optional(&mut *conn)
+                .await?
+                .ok_or(StorageError::NotFound("durable_event"))?;
+        Ok(serde_json::from_str(&payload)?)
+    }
 }
+
+pub(in crate::plans) struct ReadRows;

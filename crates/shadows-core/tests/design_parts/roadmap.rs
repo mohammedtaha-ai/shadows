@@ -117,7 +117,7 @@ impl Fixture {
             .await
             .unwrap();
         self.core
-            .design()
+            .plans()
             .approve_roadmap_proposal(format!("approve-{}", card.id), &self.p, &card.id)
             .await
             .unwrap();
@@ -133,11 +133,6 @@ pub(super) fn refused<T: std::fmt::Debug>(
     match result.unwrap_err() {
         CoreError::Refused { code: c, message } => {
             assert_eq!(c, code, "{message}");
-            assert!(message.contains(text), "{message}");
-        }
-        CoreError::Storage(StorageError::StageBlocked(message))
-            if code == ErrorCode::StageBlocked =>
-        {
             assert!(message.contains(text), "{message}");
         }
         other => panic!("expected {code:?} {text}: {other:?}"),
@@ -181,13 +176,13 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
     );
     let change = f
         .core
-        .design()
+        .plans()
         .approve_roadmap_proposal("approve".into(), &f.p, &card.id)
         .await
         .unwrap();
     let replay = f
         .core
-        .design()
+        .plans()
         .approve_roadmap_proposal("approve".into(), &f.p, &card.id)
         .await
         .unwrap();
@@ -205,7 +200,12 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
         .items;
     assert_eq!(roots.len(), 1);
     assert_eq!(roots[0].content.title, "login");
-    let view = f.core.design().outcome(&f.p, &roots[0].id).await.unwrap();
+    let view = f
+        .core
+        .plans()
+        .design_outcome(&f.p, &roots[0].id)
+        .await
+        .unwrap();
     assert_eq!(view.parts.len(), 2);
     let children = f
         .core
@@ -238,7 +238,7 @@ async fn the_planner_approves_at_the_persons_request() {
         .await
         .unwrap();
     f.core
-        .design()
+        .plans()
         .approve_roadmap_proposal_as_planner(&f.grant, &card.id)
         .await
         .unwrap();
@@ -282,7 +282,7 @@ async fn a_newer_first_or_a_replaces_supersedes_the_pending_card() {
     assert_eq!(f.proposals().await[1].status, ProposalStatus::Superseded);
     refused(
         f.core
-            .design()
+            .plans()
             .approve_roadmap_proposal("old".into(), &f.p, &a.id)
             .await,
         ErrorCode::InvalidCommand,
@@ -306,12 +306,18 @@ async fn a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not() {
         text: "Another goal".into(),
     };
     f.core
-        .design()
-        .edit("vision".into(), &f.p, revision, vec![vision])
+        .plans()
+        .edit_design("vision".into(), &f.p, revision, vec![vision])
         .await
         .unwrap();
     assert!(!f.proposals().await[0].outdated);
-    let part = f.core.design().part(&f.p, &f.parts[0]).await.unwrap().part;
+    let part = f
+        .core
+        .plans()
+        .design_part(&f.p, &f.parts[0])
+        .await
+        .unwrap()
+        .part;
     let mut content = part.content.clone();
     content.design = "edited by hand".into();
     let put = DesignOp::PartPut {
@@ -320,14 +326,14 @@ async fn a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not() {
     };
     let revision = f.core.design().vision(&f.p).await.unwrap().revision;
     f.core
-        .design()
-        .edit("part".into(), &f.p, revision, vec![put])
+        .plans()
+        .edit_design("part".into(), &f.p, revision, vec![put])
         .await
         .unwrap();
     assert!(f.proposals().await[0].outdated);
     refused(
         f.core
-            .design()
+            .plans()
             .approve_roadmap_proposal("stale".into(), &f.p, &card.id)
             .await,
         ErrorCode::StageBlocked,
@@ -373,9 +379,7 @@ async fn a_malformed_roadmap_is_refused_whole() {
         let result = f.core.design().propose_roadmap(&f.grant, args).await;
         match result.unwrap_err() {
             CoreError::Refused { message, .. } => assert!(message.contains(text), "{message}"),
-            CoreError::Storage(StorageError::StageBlocked(message)) => {
-                assert!(message.contains(text), "{message}");
-            }
+
             other => panic!("{text}: {other:?}"),
         }
     }

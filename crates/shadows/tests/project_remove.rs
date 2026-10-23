@@ -39,8 +39,11 @@ async fn indexed_project(app: &App, slug: &str) -> (ProjectId, tempfile::TempDir
 }
 
 async fn link(app: &App, project: &ProjectId, linked: &ProjectId) {
-    let code = app.core.code();
-    code.link(fresh_command(), project, linked).await.unwrap();
+    let plans = app.core.plans();
+    plans
+        .link_projects(fresh_command(), project, linked)
+        .await
+        .unwrap();
 }
 
 async fn remove(app: &App, project: &ProjectId, command_id: &str) -> (u16, Value) {

@@ -61,7 +61,10 @@ async fn no_get_route_changes_state() {
         )
         .await
         .unwrap();
-    a.storage.seed_map_for_tests(&a.project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(a.storage.clone())
+        .seed_map_for_tests(&a.project)
+        .await
+        .unwrap();
     let part = PartId::generate();
     let outcome = OutcomeId::generate();
     let mut ops: Vec<_> = [
@@ -98,8 +101,8 @@ async fn no_get_route_changes_state() {
         },
     });
     a.core
-        .design()
-        .edit("seed-design".into(), &a.project, 0, ops)
+        .plans()
+        .edit_design("seed-design".into(), &a.project, 0, ops)
         .await
         .unwrap();
     let workflow = plan::approved_v1(&a).await;

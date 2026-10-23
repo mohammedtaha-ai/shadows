@@ -39,8 +39,8 @@ async fn structured(
             },
         })
         .collect();
-    core.design()
-        .edit("parts".into(), &p, 0, ops)
+    core.plans()
+        .edit_design("parts".into(), &p, 0, ops)
         .await
         .unwrap();
     let thread = core

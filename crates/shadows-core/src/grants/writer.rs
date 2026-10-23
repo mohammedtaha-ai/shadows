@@ -43,3 +43,29 @@ impl Writer {
         }
     }
 }
+
+impl Writer {
+    pub(crate) fn from_grant(
+        grant: &super::Grant,
+        missing_thread_message: Option<&str>,
+    ) -> Result<Self, crate::CoreError> {
+        Ok(match grant.kind {
+            super::GrantKind::Project => Self::External {
+                grant: grant.id.clone(),
+            },
+            super::GrantKind::Thread => Self::Planner {
+                grant: grant.id.clone(),
+                thread: grant
+                    .thread_id
+                    .clone()
+                    .ok_or_else(|| match missing_thread_message {
+                        Some(message) => crate::CoreError::Refused {
+                            code: crate::ErrorCode::GrantScope,
+                            message: message.into(),
+                        },
+                        None => super::GrantsError::GrantScope.into(),
+                    })?,
+            },
+        })
+    }
+}

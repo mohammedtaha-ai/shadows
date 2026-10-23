@@ -1,7 +1,6 @@
-//! The project design workspace service (§18.10).
+//! The project design workspace service.
 
 mod agreement;
-mod agreement_review;
 mod agreement_scope;
 pub(crate) use agreement_scope::AgreementOrigin;
 mod agreement_validation;
@@ -25,87 +24,96 @@ mod structure_write;
 pub use structure_create::StructureWritten;
 mod vision_items;
 mod workspace;
-pub(crate) use store::{
-    check_agreement_binding_in, link_plan_parts_in, plan_has_part_in, require_roadmap_in,
-};
 
 use std::sync::Arc;
 
-use crate::db::CommandContext;
 use crate::{db::Storage, error::CoreError, projects::ProjectId};
+pub(crate) use model::WorkspaceOp;
 pub use model::{
-    ContractHead, DesignAnchor, DesignChange, DesignOp, DesignRevision, InitialFile, Outcome,
-    OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage,
-    PartView, PartWaiver, VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
+    ContractHead, DesignAnchor, DesignChange, DesignRevision, InitialFile, Outcome, OutcomeContent,
+    OutcomeId, OutcomePage, Part, PartContent, PartId, PartPage, PartWaiver, VisionContent,
+    VisionField, VisionItem, VisionView, WorkspaceView,
 };
 
+#[derive(Clone)]
 pub struct Design {
-    storage: Arc<Storage>,
+    store: Arc<store::DesignStore>,
     operations: crate::operations::Operations,
-    structure_lock: tokio::sync::Mutex<()>,
+    structure_lock: Arc<tokio::sync::Mutex<()>>,
 }
 pub use agreement::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
     AgreementVersion, AgreementWriter,
 };
-pub use agreement_review::{AgreementParticipantImpact, AgreementPartyReview, AgreementReview};
 pub use stage::{Stage, StageView};
 
 impl Design {
     #[cfg(feature = "test-support")]
     pub async fn seed_map_for_tests(&self, project: &ProjectId) -> Result<(), CoreError> {
-        Ok(self.storage.seed_map_for_tests(project).await?)
+        Ok(self.store.seed_map_for_tests(project).await?)
     }
     #[cfg(feature = "test-support")]
     pub async fn seed_roadmap_for_tests(&self, project: &ProjectId) -> Result<PartId, CoreError> {
-        Ok(self.storage.seed_roadmap_for_tests(project).await?)
+        Ok(self.store.seed_roadmap_for_tests(project).await?)
     }
     pub async fn stage(&self, project: &ProjectId) -> Result<StageView, CoreError> {
-        Ok(self.storage.project_stage(project).await?)
+        Ok(self.store.project_stage(project).await?)
     }
     /// The stage fact appended to a Planner prompt.
     pub(crate) async fn stage_line_in(
         conn: &mut sqlx::SqliteConnection,
         project: &ProjectId,
     ) -> Result<String, crate::db::StorageError> {
-        Ok(stage::line(&Self::stage_view_in(conn, project).await?))
+        Ok(stage::StageRules::line(
+            &Self::stage_view_in(conn, project).await?,
+        ))
     }
 
     pub(crate) fn new(storage: Arc<Storage>, operations: crate::operations::Operations) -> Self {
         Self {
-            storage,
+            store: Arc::new(store::DesignStore { storage }),
             operations,
-            structure_lock: tokio::sync::Mutex::new(()),
+            structure_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
     pub async fn vision(&self, project: &ProjectId) -> Result<VisionView, CoreError> {
-        Ok(self.storage.design_vision(project).await?)
-    }
-
-    pub async fn edit(
-        &self,
-        command_id: String,
-        project: &ProjectId,
-        expected_revision: i64,
-        mut ops: Vec<DesignOp>,
-    ) -> Result<DesignChange, CoreError> {
-        ops::normalize(&mut ops)?;
-        let params = serde_json::json!({
-            "project": project,
-            "expected_revision": expected_revision,
-            "ops": ops
-        });
-        let ctx = CommandContext::user(command_id, "DesignEdit", params);
-        self.storage
-            .edit_design(&ctx, project, expected_revision, ops)
-            .await
-            .map_err(|error| match error {
-                crate::db::StorageError::Constraint(message) => CoreError::Refused {
-                    code: crate::ErrorCode::InvalidCommand,
-                    message,
-                },
-                other => other.into(),
-            })
+        Ok(self.store.design_vision(project).await?)
     }
 }
+
+pub(crate) use model::PartDetails;
+
+pub(crate) use model::OutcomeDetails;
+
+#[cfg(feature = "test-support")]
+impl Design {
+    pub async fn approve_vision_proposal_for_test(
+        &self,
+        ctx: &crate::db::CommandContext,
+        project: &ProjectId,
+        id: &str,
+        approver: &crate::grants::Approver,
+    ) -> Result<DesignChange, CoreError> {
+        self.store
+            .approve_vision_proposal_in(ctx, project, id, approver)
+            .await
+    }
+    pub async fn propose_vision_for_test(
+        &self,
+        ctx: &crate::db::CommandContext,
+        writer: &crate::grants::Writer,
+        project: &ProjectId,
+        turn: &crate::OperationId,
+        args: VisionPropose,
+    ) -> Result<VisionProposal, CoreError> {
+        self.store
+            .propose_vision_in(ctx, writer, project, turn, args)
+            .await
+    }
+}
+
+mod error;
+pub(crate) use error::DesignError;
+
+mod proposal_context;

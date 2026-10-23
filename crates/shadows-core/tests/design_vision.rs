@@ -69,8 +69,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         text: " رؤية ".into(),
     }];
     assert_eq!(
-        core.design()
-            .edit("first".into(), &project, 0, first.clone())
+        core.plans()
+            .edit_design("first".into(), &project, 0, first.clone())
             .await
             .unwrap()
             .revision,
@@ -80,8 +80,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         core.design().vision(&project).await.unwrap().content,
         content(" رؤية ")
     );
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "second".into(),
             &project,
             1,
@@ -93,16 +93,16 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         .await
         .unwrap();
     assert_eq!(
-        core.design()
-            .edit("first".into(), &project, 0, first)
+        core.plans()
+            .edit_design("first".into(), &project, 0, first)
             .await
             .unwrap()
             .revision,
         1
     );
     assert!(matches!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "first".into(),
                 &project,
                 0,
@@ -130,8 +130,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         text: "competing".into(),
     }];
     let (a, b) = tokio::join!(
-        core.design().edit("a".into(), &other, 0, ops.clone()),
-        core.design().edit("b".into(), &other, 0, ops)
+        core.plans().edit_design("a".into(), &other, 0, ops.clone()),
+        core.plans().edit_design("b".into(), &other, 0, ops)
     );
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
     let loser = if a.is_err() { a } else { b };
@@ -149,8 +149,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
     let before = storage.current_cursor().await.unwrap();
     assert!(core.design().vision(&project).await.is_err());
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "removed".into(),
                 &project,
                 2,
@@ -194,8 +194,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
     let before_view = core.design().vision(&other).await.unwrap();
     let before_cursor = storage.current_cursor().await.unwrap().0;
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "rollback".into(),
                 &other,
                 1,
@@ -229,8 +229,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         },
     ];
     assert_eq!(
-        core.design()
-            .edit("batch".into(), &other, 1, batch)
+        core.plans()
+            .edit_design("batch".into(), &other, 1, batch)
             .await
             .unwrap()
             .revision,

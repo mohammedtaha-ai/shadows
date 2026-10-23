@@ -263,17 +263,10 @@ functions:
     links:
       signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CoreError>"
       # By the linked slug; empty for an unknown project.
-    link:
-      signature: "(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, CoreError>"
-      # "ProjectLinkPut", principal User/local, schema 1, params
-      # { project, linked }, scope Project, key the project →
-      # `put_code_link`. Refusals: itself, or `linked` no project,
-      # INVALID_COMMAND; `project` no project, NotFound; CommandConflict.
-      # Linking twice answers the link already there. It does not touch.
-    unlink:
-      signature: "(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<(), CoreError>"
-      # "ProjectLinkRemove", params { project, linked }, scope Project →
-      # `remove_code_link`. No such link: INVALID_COMMAND "no such link".
+    put_link_in:
+      signature: "(conn, project, linked, ts) -> Result<bool, StorageError>; inserts a link row in the caller transaction"
+    remove_link_in:
+      signature: "(conn, project, linked) -> Result<bool, StorageError>; removes a link row in the caller transaction"
     settings:
       signature: "(&self) -> Result<CodeSettings, CoreError>"
     set_active_limit:
@@ -501,35 +494,25 @@ functions:
       # In store/links.rs, with the links' rows.
     code_links:
       signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, StorageError>"
-    put_code_link:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<Option<ProjectLink>, StorageError>"
-      # One write: classify (a replay answers `replayed_link` for its outcome ref, the
-      # linked id, names) → `project` must exist (NotFound) → `linked` must
-      # (else None) → INSERT … ON CONFLICT DO NOTHING → `ProjectLinked`
-      # { linked } only when a row was made → record_command → the link.
-    remove_code_link:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<bool, StorageError>"
-      # One write: classify (a replay answers true) → DELETE; no row: false,
-      # nothing recorded → `ProjectUnlinked` { linked } → record_command.
     set_code_active_limit:
       signature: "(&self, ctx: &CommandContext, limit: u32) -> Result<u32, StorageError>"
       # One write: classify (a replay answers the limit its outcome ref
       # holds) → UPDATE code_setting → `CodeActiveLimitSet` { active_limit },
       # no project → record_command.
-    load_link:
+    load_link_in:
       signature: "(conn, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
       private: true
-    replayed_link:
+    replayed_link_in:
       signature: "(conn, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
       # The link as it stands, else rebuilt from the command record: never
       # NotFound for a command that happened (§14.9).
       private: true
     put_link_in:
-      signature: "(conn: &mut SqliteConnection, project: &ProjectId, linked: &ProjectId, ts: &str) -> Result<bool, StorageError>"
+      signature: "(conn, project, linked, ts) -> Result<bool, StorageError>; inserts a row only"
       # Code associated method: insert within the caller's write; true only
       # for a new row. Caller owns validation, command replay, events and notification.
     remove_link_in:
-      signature: "(conn: &mut SqliteConnection, project: &ProjectId, linked: &ProjectId) -> Result<bool, StorageError>"
+      signature: "(conn, project, linked) -> Result<bool, StorageError>; removes a row only"
       # Code associated method: delete within the caller's write; true only
       # when a link existed. Caller owns command replay, events and notification.
     delete_code_links_in:
@@ -564,6 +547,8 @@ functions:
 
 
 shared_in_transaction:
+  load_link_in: Retained project link with slugs in the caller snapshot.
+  replayed_link_in: Recorded link result even after removal; Plans owns command replay classification.
   # CodeStore link commands call the Code _in writes, then Plans' notification
   # in that same transaction. Command orchestration remains here until A-16.
   put_link_in: "CodeStore::put_code_link: raw insert in its command transaction"
@@ -871,3 +856,6 @@ tests:
     checks: >
       Both insert and delete roll back with a caller failure; repeated raw writes
       correctly report whether they changed a row.
+
+# Plans owns link/unlink command replay, events and dependency invalidation.
+# Code owns project_link persistence through put_link_in/remove_link_in.

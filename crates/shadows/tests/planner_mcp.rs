@@ -161,7 +161,10 @@ async fn a_turn_edits_the_plan_through_mcp() {
     let edited: Value = serde_json::from_str(&edited).expect(&edited);
     assert_eq!(edited["revision"], 1);
 
-    let plan = l.app.storage.get_plan(&workflow).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&workflow)
+        .await
+        .unwrap();
     assert_eq!(plan.title, "Login");
     let numbers: Vec<u32> = plan.tasks.iter().map(|t| t.content.number).collect();
     assert_eq!(numbers, [1]);
@@ -236,12 +239,18 @@ async fn a_second_conversation_carries_the_plan_on() {
     .await;
     let next: Value = serde_json::from_str(&next).expect(&next);
     let v2 = WorkflowId::from_literal(next["workflow_id"].as_str().unwrap());
-    let plan_b = l.app.storage.get_plan(&v2).await.unwrap();
+    let plan_b = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v2)
+        .await
+        .unwrap();
     assert!(matches!(
         &plan_b.written_by,
         WrittenBy::Planner { thread_id, model: Some(_), .. } if thread_id == &thread_b
     ));
-    let plan_a = l.app.storage.get_plan(&v1).await.unwrap();
+    let plan_a = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap();
     assert!(matches!(
         &plan_a.written_by,
         WrittenBy::Planner { thread_id, .. } if thread_id == &l.app.thread
@@ -362,7 +371,10 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
     // Plan work needs an approved roadmap (§23.6): seeded beside the daemon.
     let seeded = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let id = shadows_core::ProjectId::from_literal(project["id"].as_str().unwrap());
-    seeded.seed_roadmap_for_tests(&id).await.unwrap();
+    shadows_core::AppCore::design_for_tests(std::sync::Arc::new(seeded))
+        .seed_roadmap_for_tests(&id)
+        .await
+        .unwrap();
     let path = format!("/api/projects/{}/threads", project["id"].as_str().unwrap());
     let thread = post(&path, json!({ "command_id": "t1", "title": "T" })).await;
     let turns = format!("/api/threads/{}/turns", thread["id"].as_str().unwrap());
@@ -554,7 +566,10 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
     let created = reply(&l.app, r#"mcp draft_start {"title":"Login","goal":"g"}"#).await;
     let created: Value = serde_json::from_str(&created).expect(&created);
     let workflow = WorkflowId::from_literal(created["workflow_id"].as_str().unwrap());
-    let plan = l.app.storage.get_plan(&workflow).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&workflow)
+        .await
+        .unwrap();
     let last = app::entries(&l.app).await.last().unwrap().id.to_string();
     let path = format!("/api/threads/{}/fork", l.app.thread);
     let (status, fork) = post(

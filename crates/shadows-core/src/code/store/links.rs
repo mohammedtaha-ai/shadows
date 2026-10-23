@@ -49,95 +49,6 @@ impl CodeStore {
         Ok(out)
     }
 
-    /// Links `project` to `linked`, or answers the link already there. `None`
-    /// when `linked` is no project; NotFound when `project` is none. A replay
-    /// answers the link it made, even once removed (`replayed_link`). Only a
-    /// new link is a `ProjectLinked` event.
-    pub(in crate::code) async fn put_code_link(
-        &self,
-        ctx: &CommandContext,
-        project: &ProjectId,
-        linked: &ProjectId,
-    ) -> Result<Option<ProjectLink>, StorageError> {
-        let (ctx, project, linked, ts) = (ctx.clone(), project.clone(), linked.clone(), now());
-        self.storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    if let Some(done) = classify(conn, &ctx, "Project", project.as_str()).await? {
-                        let done = ProjectId::from_stored(done);
-                        return replayed_link(conn, &ctx, &project, &done).await.map(Some);
-                    }
-                    Projects::require_live_in(conn, &project).await?;
-                    match Projects::require_live_in(conn, &linked).await {
-                        Ok(()) => {}
-                        Err(StorageError::NotFound(_)) => return Ok(None),
-                        Err(error) => return Err(error),
-                    }
-                    let made = Code::put_link_in(conn, &project, &linked, &ts).await?;
-                    if made {
-                        let event =
-                            DurableEvent::new("ProjectLinked", Actor::user(&ctx.principal_id))
-                                .with_project(&project)
-                                .with_payload(serde_json::json!({ "linked": linked }));
-                        append_event(conn, &event, &ts).await?;
-                        crate::plans::notify_project_dependencies_in(
-                            conn,
-                            &project,
-                            &Actor::user(&ctx.principal_id),
-                            &ts,
-                        )
-                        .await?;
-                    }
-                    let (scope, key) = ("Project", project.as_str());
-                    record_command(conn, &ctx, scope, key, "ProjectLink", linked.as_str(), &ts)
-                        .await?;
-                    load_link(conn, &project, &linked).await.map(Some)
-                })
-            })
-            .await
-    }
-
-    /// Removes the link; `false` when there is none. A replay answers `true`.
-    pub(in crate::code) async fn remove_code_link(
-        &self,
-        ctx: &CommandContext,
-        project: &ProjectId,
-        linked: &ProjectId,
-    ) -> Result<bool, StorageError> {
-        let (ctx, project, linked, ts) = (ctx.clone(), project.clone(), linked.clone(), now());
-        self.storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    if classify(conn, &ctx, "Project", project.as_str())
-                        .await?
-                        .is_some()
-                    {
-                        return Ok(true);
-                    }
-                    if !Code::remove_link_in(conn, &project, &linked).await? {
-                        return Ok(false);
-                    }
-                    let event =
-                        DurableEvent::new("ProjectUnlinked", Actor::user(&ctx.principal_id))
-                            .with_project(&project)
-                            .with_payload(serde_json::json!({ "linked": linked }));
-                    append_event(conn, &event, &ts).await?;
-                    crate::plans::notify_project_dependencies_in(
-                        conn,
-                        &project,
-                        &Actor::user(&ctx.principal_id),
-                        &ts,
-                    )
-                    .await?;
-                    let (scope, key) = ("Project", project.as_str());
-                    record_command(conn, &ctx, scope, key, "ProjectLink", linked.as_str(), &ts)
-                        .await?;
-                    Ok(true)
-                })
-            })
-            .await
-    }
-
     /// Sets `code_setting.active_limit`, already checked 1..=20. A replay
     /// answers the limit it set, which its outcome ref holds.
     pub(in crate::code) async fn set_code_active_limit(
@@ -225,56 +136,6 @@ impl Code {
     }
 }
 
-async fn load_link(
-    conn: &mut SqliteConnection,
-    project: &ProjectId,
-    linked: &ProjectId,
-) -> Result<ProjectLink, StorageError> {
-    let created_at = sqlx::query_scalar(
-        "SELECT created_at FROM project_link WHERE project_id = ? AND linked_project_id = ?",
-    )
-    .bind(project.as_str())
-    .bind(linked.as_str())
-    .fetch_optional(&mut *conn)
-    .await?
-    .ok_or(StorageError::NotFound("project link"))?;
-    Ok(ProjectLink {
-        project: Projects::slug_in(conn, project).await?,
-        linked: Projects::slug_in(conn, linked).await?,
-        created_at,
-    })
-}
-
-/// A retry must answer a committed command even after its link is gone.
-async fn replayed_link(
-    conn: &mut SqliteConnection,
-    ctx: &CommandContext,
-    project: &ProjectId,
-    linked: &ProjectId,
-) -> Result<ProjectLink, StorageError> {
-    match load_link(conn, project, linked).await {
-        Err(StorageError::NotFound(_)) => {}
-        found => return found,
-    }
-    let created_at = sqlx::query_scalar(
-        "SELECT recorded_at FROM command_record
-          WHERE principal_kind = ? AND principal_id = ?
-            AND command_scope_kind = 'Project' AND command_scope_key = ?
-            AND command_id = ?",
-    )
-    .bind(&ctx.principal_kind)
-    .bind(&ctx.principal_id)
-    .bind(project.as_str())
-    .bind(&ctx.command_id)
-    .fetch_one(&mut *conn)
-    .await?;
-    Ok(ProjectLink {
-        project: Projects::slug_in(conn, project).await?,
-        linked: Projects::slug_in(conn, linked).await?,
-        created_at,
-    })
-}
-
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use super::Code;
@@ -311,7 +172,10 @@ mod tests {
             .await;
         assert!(result.is_err());
         assert!(code.links(&home).await.unwrap().is_empty());
-        code.link("link".into(), &home, &linked).await.unwrap();
+        core.plans()
+            .link_projects("link".into(), &home, &linked)
+            .await
+            .unwrap();
         let result: Result<(), crate::db::StorageError> = storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -324,5 +188,58 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(code.links(&ids[0]).await.unwrap().len(), 1);
         core.code().shut_down().await;
+    }
+}
+
+impl Code {
+    pub(crate) async fn load_link_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        linked: &ProjectId,
+    ) -> Result<ProjectLink, StorageError> {
+        let created_at = sqlx::query_scalar(
+            "SELECT created_at FROM project_link WHERE project_id = ? AND linked_project_id = ?",
+        )
+        .bind(project.as_str())
+        .bind(linked.as_str())
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or(StorageError::NotFound("project link"))?;
+        Ok(ProjectLink {
+            project: Projects::slug_in(conn, project).await?,
+            linked: Projects::slug_in(conn, linked).await?,
+            created_at,
+        })
+    }
+}
+
+impl Code {
+    pub(crate) async fn replayed_link_in(
+        conn: &mut SqliteConnection,
+        ctx: &CommandContext,
+        project: &ProjectId,
+        linked: &ProjectId,
+    ) -> Result<ProjectLink, StorageError> {
+        match Self::load_link_in(conn, project, linked).await {
+            Err(StorageError::NotFound(_)) => {}
+            found => return found,
+        }
+        let created_at = sqlx::query_scalar(
+            "SELECT recorded_at FROM command_record
+          WHERE principal_kind = ? AND principal_id = ?
+            AND command_scope_kind = 'Project' AND command_scope_key = ?
+            AND command_id = ?",
+        )
+        .bind(&ctx.principal_kind)
+        .bind(&ctx.principal_id)
+        .bind(project.as_str())
+        .bind(&ctx.command_id)
+        .fetch_one(&mut *conn)
+        .await?;
+        Ok(ProjectLink {
+            project: Projects::slug_in(conn, project).await?,
+            linked: Projects::slug_in(conn, linked).await?,
+            created_at,
+        })
     }
 }

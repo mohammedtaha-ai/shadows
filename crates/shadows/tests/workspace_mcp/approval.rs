@@ -89,8 +89,8 @@ async fn vision(l: &listening::Listening) {
     .collect();
     l.app
         .core
-        .design()
-        .edit("vision".into(), &l.app.project, 0, ops)
+        .plans()
+        .edit_design("vision".into(), &l.app.project, 0, ops)
         .await
         .unwrap();
 }
@@ -109,8 +109,8 @@ async fn outdated_superseded_and_already_approved_cards_are_refused() {
     .await;
     l.app
         .core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "change-goal".into(),
             &l.app.project,
             1,
@@ -249,9 +249,7 @@ async fn the_planner_approves_a_map_without_waivers_and_a_plan() {
         "planner:claude-code"
     );
     // Plans come after the roadmap (§23.6); the plan is tied to a part of the map.
-    let part = l
-        .app
-        .storage
+    let part = shadows_core::AppCore::design_for_tests(l.app.storage.clone())
         .seed_roadmap_for_tests(&l.app.project)
         .await
         .unwrap();
