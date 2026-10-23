@@ -49,6 +49,7 @@ windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Secu
 test-support = ["shadows-core/test-support"]
 
 [dev-dependencies]
+base64 = "0.22"
 tree-sitter = { workspace = true }
 tree-sitter-rust = { workspace = true }
 syn = { workspace = true }

@@ -20,6 +20,16 @@ impl crate::threads::Threads {
             .bind(thread.as_str())
             .execute(&mut *conn)
             .await?;
+        sqlx::query("DELETE FROM thread_attachment WHERE thread_id=?")
+            .bind(thread.as_str())
+            .execute(&mut *conn)
+            .await?;
+        sqlx::query(
+            "DELETE FROM attachment WHERE NOT EXISTS
+            (SELECT 1 FROM thread_attachment t WHERE t.attachment_id=attachment.id)",
+        )
+        .execute(&mut *conn)
+        .await?;
         super::ThreadsStore::load_thread(conn, thread).await
     }
 

@@ -35,6 +35,7 @@ pub struct NewTurn<'a> {
     pub thread_id: &'a ThreadId,
     pub runtime: &'a RuntimeInstanceId,
     pub prompt: &'a str,
+    pub attachments: &'a [crate::threads::AttachmentId],
     pub role: &'a str,
     pub harness_kind: &'a str,
     pub harness_path: &'a str,
@@ -124,6 +125,7 @@ impl super::TurnsStore {
         let thread = turn.thread_id.clone();
         let runtime = turn.runtime.clone();
         let prompt = turn.prompt.to_string();
+        let attachments = turn.attachments.to_vec();
         let settings = turn.settings.clone();
         let focus = turn.focus.cloned();
         let dequeue = turn.dequeue.map(|d| (d.id.clone(), d.also.cloned()));
@@ -150,6 +152,7 @@ impl super::TurnsStore {
                         return Ok((recorded(&outcome)?, None));
                     }
                     crate::threads::Threads::require_live_in(conn, &thread).await?;
+                    Threads::attachment_refs_in(conn, &thread, &attachments).await?;
                     if Operations::has_open_in(conn, &thread).await? {
                         return Err(crate::turns::error::TurnsError::ThreadBusy.into());
                     }
@@ -170,7 +173,7 @@ impl super::TurnsStore {
                     let op = OperationId::generate();
                     let transition =
                         Operations::insert_pending_in(conn, &op, &thread, &runtime, &ts).await?;
-                    let entry = Threads::append_entry_in(
+                    let entry = Threads::append_entry_with_attachments_in(
                         conn,
                         &thread,
                         NewThreadEntry {
@@ -181,6 +184,7 @@ impl super::TurnsStore {
                             card: None,
                             operation_id: Some(&op),
                         },
+                        &attachments,
                         &ts,
                     )
                     .await?;

@@ -106,6 +106,7 @@ async fn a_pending_turn_delivers_the_standards_version_it_recorded() {
         app.sessions.clone(),
         opened,
         PlannerTurnRequest {
+            images: Vec::new(),
             thread_id: app.thread.clone(),
             harness: "claude-code".into(),
             operation_id: started.operation_id.clone(),

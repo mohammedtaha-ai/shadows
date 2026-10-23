@@ -135,6 +135,7 @@ type CopiedRow = (
     Option<String>,
     String,
     Option<String>,
+    String,
 );
 
 /// Copies the source's entries with ordinal up to `upto` into `fork`, in
@@ -149,7 +150,7 @@ async fn copy_entries(
 ) -> Result<i64, StorageError> {
     let rows: Vec<CopiedRow> = sqlx::query_as(
         "SELECT ordinal, kind, author_kind, author_id, body, refs_json, operation_id, created_at,
-                card_json
+                card_json, attachments_json
            FROM thread_entry WHERE thread_id = ? AND ordinal <= ? ORDER BY ordinal",
     )
     .bind(source.as_str())
@@ -159,13 +160,23 @@ async fn copy_entries(
     let mut ordinal = 0;
     for row in rows {
         ordinal += 1;
-        let (_, kind, author_kind, author_id, body, refs_json, operation_id, created_at, card) =
-            row;
+        let (
+            _,
+            kind,
+            author_kind,
+            author_id,
+            body,
+            refs_json,
+            operation_id,
+            created_at,
+            card,
+            attachments,
+        ) = row;
         sqlx::query(
             "INSERT INTO thread_entry
                (id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json,
-                operation_id, created_at, card_json)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                operation_id, created_at, card_json, attachments_json)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(ThreadEntryId::generate().as_str())
         .bind(fork.as_str())
@@ -178,8 +189,26 @@ async fn copy_entries(
         .bind(&operation_id)
         .bind(&created_at)
         .bind(&card)
+        .bind(&attachments)
         .execute(&mut *conn)
         .await?;
+        let references: Vec<crate::threads::AttachmentRef> = serde_json::from_str(&attachments)?;
+        let mut payload = serde_json::json!({ "ordinal": ordinal, "kind": kind });
+        if !references.is_empty() {
+            payload["attachments"] = serde_json::to_value(&references)?;
+        }
+        for reference in &references {
+            sqlx::query(
+                "INSERT OR IGNORE INTO thread_attachment (thread_id,attachment_id)
+                SELECT ?,attachment_id FROM thread_attachment
+                WHERE thread_id=? AND attachment_id=?",
+            )
+            .bind(fork.as_str())
+            .bind(source.as_str())
+            .bind(reference.id.as_str())
+            .execute(&mut *conn)
+            .await?;
+        }
         append_event(
             conn,
             crate::db::JournalEntry {
@@ -194,7 +223,7 @@ async fn copy_entries(
                 project_id: None,
                 thread_id: Some(fork.as_str().to_owned()),
                 operation_id: None,
-                payload_json: serde_json::json!({ "ordinal": ordinal, "kind": kind }).to_string(),
+                payload_json: payload.to_string(),
             },
             ts,
         )

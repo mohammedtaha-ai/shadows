@@ -1,3 +1,4 @@
+mod images;
 mod operation;
 mod operation_read;
 mod queue;

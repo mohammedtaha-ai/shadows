@@ -1,5 +1,6 @@
 # SQLite table :: service owner
 agent_invocation :: harness
+attachment :: threads
 agreement :: design
 agreement_operation_identity :: design
 agreement_version :: design
@@ -50,5 +51,6 @@ task :: plans
 task_agreement_binding :: plans
 task_parent :: plans
 task_plan_parent :: plans
+thread_attachment :: threads
 thread_entry :: threads
 workflow :: plans

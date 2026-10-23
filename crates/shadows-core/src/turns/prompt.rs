@@ -3,13 +3,15 @@
 //!
 //! The adapter runs a slash command only when it is the whole prompt; beside
 //! another block it reaches the model as plain text. So a text starting with
-//! `/` goes alone, and the changes it skipped are handed back to be withheld
+//! `/` goes alone when it has no images, and the changes it skipped are handed back to be withheld
 //! until a normal turn can carry them.
 
 use crate::plans::{Focus, PlanListing};
+use shadows_agent::acp::{ImageBlock, PromptBlock};
 
 /// What the harness and the turn's request supply; none of it is ordered yet.
 pub(super) struct PromptParts {
+    pub images: Vec<shadows_agent::acp::ImageBlock>,
     pub text: String,
     /// The harness's facts: what changed since the session last heard, and the stage line.
     pub changes: Option<String>,
@@ -20,28 +22,26 @@ pub(super) struct PromptParts {
 
 /// The blocks of one prompt, in the order they are sent.
 pub(super) struct Prompt {
-    pub text: String,
-    pub context: Vec<String>,
+    pub blocks: Vec<PromptBlock>,
     /// A command went without the changes, so the session has still to hear them.
     pub withholds: bool,
 }
 
 impl Prompt {
-    /// The one place a turn's blocks are ordered: the person's text, the
-    /// changes since the session last heard, focus, the selected plan, then the
-    /// stage line.
+    /// Orders the person's text, images, changes since the session last heard,
+    /// focus, the selected plan, then the stage line.
     pub(super) fn compose(parts: PromptParts) -> Prompt {
         let PromptParts {
             text,
+            images,
             changes,
             stage,
             focus,
             continue_plan,
         } = parts;
-        if Self::is_command(&text) {
+        if images.is_empty() && Self::is_command(&text) {
             return Prompt {
-                text: text.trim_start().to_string(),
-                context: Vec::new(),
+                blocks: vec![PromptBlock::Text(text.trim_start().to_string())],
                 withholds: changes.is_some(),
             };
         }
@@ -53,10 +53,29 @@ impl Prompt {
             .filter(|part| !part.is_empty())
             .collect();
         Prompt {
-            text,
-            context,
+            blocks: Self::blocks(text, images, context),
             withholds: false,
         }
+    }
+
+    fn blocks(text: String, images: Vec<ImageBlock>, context: Vec<String>) -> Vec<PromptBlock> {
+        std::iter::once(PromptBlock::Text(text))
+            .chain(images.into_iter().map(PromptBlock::Image))
+            .chain(context.into_iter().map(PromptBlock::Text))
+            .collect()
+    }
+
+    pub(super) fn steered_blocks(
+        text: &str,
+        stage: &str,
+        images: Vec<ImageBlock>,
+    ) -> Vec<PromptBlock> {
+        let text = if images.is_empty() || stage.is_empty() {
+            Self::steered(text, stage)
+        } else {
+            format!("{text}\n\n{stage}")
+        };
+        Self::blocks(text, images, Vec::new())
     }
 
     /// A slash command, even after leading whitespace: a `/` further in is text.
@@ -101,10 +120,18 @@ impl Prompt {
 
 #[cfg(test)]
 mod tests {
-    use super::{Prompt, PromptParts};
+    use super::{Prompt, PromptBlock, PromptParts};
+
+    fn texts(values: &[&str]) -> Vec<PromptBlock> {
+        values
+            .iter()
+            .map(|s| PromptBlock::Text((*s).into()))
+            .collect()
+    }
 
     fn parts(text: &str) -> PromptParts {
         PromptParts {
+            images: Vec::new(),
             text: text.into(),
             changes: Some("changed".into()),
             stage: "stage".into(),
@@ -116,15 +143,13 @@ mod tests {
     #[test]
     fn a_slash_command_is_sent_as_one_block() {
         let prompt = Prompt::compose(parts("/context"));
-        assert_eq!(prompt.text, "/context");
-        assert!(prompt.context.is_empty());
+        assert_eq!(prompt.blocks, texts(&["/context"]));
         assert!(prompt.withholds);
         assert_eq!(Prompt::steered("/context", "stage"), "/context");
 
         for typed in [" /context", "\n/context", "  \n/context"] {
             let indented = Prompt::compose(parts(typed));
-            assert_eq!(indented.text, "/context", "{typed:?}");
-            assert!(indented.context.is_empty(), "{typed:?}");
+            assert_eq!(indented.blocks, texts(&["/context"]), "{typed:?}");
             assert!(indented.withholds, "{typed:?}");
             assert_eq!(Prompt::steered(typed, "stage"), "/context", "{typed:?}");
         }
@@ -139,20 +164,37 @@ mod tests {
     #[test]
     fn a_normal_turn_orders_its_blocks_and_withholds_nothing() {
         let prompt = Prompt::compose(parts("hello"));
-        assert_eq!(prompt.context, ["changed", "focus", "plan", "stage"]);
+        assert_eq!(
+            prompt.blocks,
+            texts(&["hello", "changed", "focus", "plan", "stage"])
+        );
         assert!(!prompt.withholds);
         assert_eq!(Prompt::steered("hello", "stage"), "hello\n\nstage");
 
-        assert_eq!(Prompt::compose(parts("  hello")).text, "  hello");
+        assert_eq!(
+            Prompt::compose(parts("  hello")).blocks[0],
+            PromptBlock::Text("  hello".into())
+        );
         assert_eq!(Prompt::steered("  hello", ""), "  hello");
 
         let path = Prompt::compose(parts("read src/main.rs and a/b"));
-        assert_eq!(path.context, ["changed", "focus", "plan", "stage"]);
+        assert_eq!(
+            path.blocks,
+            texts(&[
+                "read src/main.rs and a/b",
+                "changed",
+                "focus",
+                "plan",
+                "stage"
+            ])
+        );
         assert!(!path.withholds);
 
         let empty = Prompt::compose(parts(""));
-        assert_eq!(empty.text, "");
-        assert_eq!(empty.context, ["changed", "focus", "plan", "stage"]);
+        assert_eq!(
+            empty.blocks,
+            texts(&["", "changed", "focus", "plan", "stage"])
+        );
         assert_eq!(Prompt::steered("", ""), "");
     }
 }

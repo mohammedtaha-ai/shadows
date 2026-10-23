@@ -39,6 +39,7 @@ pub struct PlannerTurnRequest {
     pub harness: String,
     pub operation_id: OperationId,
     pub prompt: String,
+    pub images: Vec<shadows_agent::acp::ImageBlock>,
     pub settings: TurnSettings,
     /// The focus block, sent after the instructions
     /// block so the person's text stays first.
@@ -70,6 +71,7 @@ impl PlannerTurn {
             harness,
             operation_id: op_id,
             prompt,
+            images,
             settings,
             focus,
             continue_plan,
@@ -100,6 +102,7 @@ impl PlannerTurn {
             Ok(facts) => (sessions.prepare_turn(&thread_id, &opened, &settings).await).map(|()| {
                 Prompt::compose(PromptParts {
                     text: prompt,
+                    images,
                     changes: facts.changes,
                     stage: facts.stage,
                     focus,
@@ -108,11 +111,7 @@ impl PlannerTurn {
             }),
             Err(error) => Err(error.to_string()),
         };
-        let Prompt {
-            text: prompt,
-            context,
-            withholds,
-        } = match prepared {
+        let Prompt { blocks, withholds } = match prepared {
             Ok(prompt) => prompt,
             Err(reason) => {
                 tracing::info!(parent: &span, %reason, "planner.prepare_refused");
@@ -219,8 +218,7 @@ impl PlannerTurn {
                 opened,
                 thread_id,
                 harness,
-                prompt,
-                context,
+                blocks,
                 turn_end_seen,
                 cancel_requested,
                 on_completed,

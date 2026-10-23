@@ -66,6 +66,8 @@ pub(super) async fn queued(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct SendNowBody {
+    #[serde(default)]
+    attachments: Vec<shadows_core::AttachmentId>,
     /// The idempotency key (spec §3.2).
     command_id: String,
 }
@@ -98,7 +100,7 @@ pub(super) async fn send_now(
     let core = s.core.clone();
     let answer = detached(async move {
         core.turns()
-            .send_now(&thread, &qid, body.command_id)
+            .send_now(&thread, &qid, body.command_id, body.attachments)
             .await
             .map_err(Failure::from)
     })

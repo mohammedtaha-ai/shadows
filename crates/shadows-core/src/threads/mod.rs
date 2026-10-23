@@ -10,6 +10,7 @@
 //! `model` holds the types, `title` what a title taken from the conversation reads, and `store` the
 //! queries.
 
+mod attachment;
 mod error;
 mod model;
 mod store;
@@ -21,6 +22,7 @@ use std::sync::Arc;
 
 use shadows_agent::policy;
 
+pub use attachment::{Attachment, AttachmentId, AttachmentRef, MAX_IMAGE_BYTES};
 pub use model::{
     EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind,
     ThreadId, TurnContext,

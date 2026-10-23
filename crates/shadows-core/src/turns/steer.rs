@@ -47,14 +47,24 @@ async fn attempt(
     let Some(queued) = store.queued_message(&w.thread_id, row).await? else {
         return Err(crate::turns::error::TurnsError::QueuedMessageGone.into());
     };
+    let images =
+        super::Turns::images_in_storage(&w.storage, &w.thread_id, &queued.attachments).await?;
+    w.sessions.require_images(&w.opened, !images.is_empty())?;
     let connection = w.opened.connection();
     let stage = super::Turns::stage_line(&w.storage, &w.thread_id).await?;
-    let prompt = Prompt::steered(&queued.prompt, &stage);
-    match connection.steer(&w.opened.session_id, &prompt).await {
+    let blocks = Prompt::steered_blocks(&queued.prompt, &stage, images);
+    match connection.steer_blocks(&w.opened.session_id, &blocks).await {
         Ok(Steer::Injected) => {
             PlannerTurn::persist(w, collector.cut()).await;
             let entry = store
-                .steered_entry(command, &w.thread_id, &w.op_id, row, &queued.prompt)
+                .steered_entry(
+                    command,
+                    &w.thread_id,
+                    &w.op_id,
+                    row,
+                    &queued.prompt,
+                    &queued.attachments,
+                )
                 .await?;
             Ok(Some(entry))
         }

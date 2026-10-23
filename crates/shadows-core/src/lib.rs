@@ -82,7 +82,8 @@ pub use providers::{
 pub use runtime::{RuntimeInstanceId, StopKind};
 pub use secrets::{EnvEntry, SecretKey, Secrets, validate_env_name};
 pub use threads::{
-    EntryRef, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
+    Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, PlanningThread,
+    ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
 };
 pub use turns::{
     InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SendTurn,

@@ -20,6 +20,7 @@
 //! `axum` stops.
 
 mod agreements;
+mod attachments;
 mod aylul_env;
 mod aylul_extensions;
 mod aylul_profiles;
@@ -132,6 +133,11 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 /// or miss one it has. Each `routes!` groups the methods of one path.
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
+        .routes(routes!(attachments::upload))
+        .routes(routes!(attachments::read))
+        .layer(axum::extract::DefaultBodyLimit::max(
+            shadows_core::MAX_IMAGE_BYTES + 65536,
+        ))
         .routes(routes!(runtime::identity))
         .routes(routes!(aylul_profiles::person, aylul_profiles::set_person))
         .routes(routes!(aylul_profiles::provider_presets))

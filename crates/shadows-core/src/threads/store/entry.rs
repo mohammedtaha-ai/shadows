@@ -20,6 +20,17 @@ impl crate::threads::Threads {
         entry: NewThreadEntry<'_>,
         ts: &str,
     ) -> Result<ThreadEntry, StorageError> {
+        Self::append_entry_with_attachments_in(conn, thread_id, entry, &[], ts).await
+    }
+
+    pub(crate) async fn append_entry_with_attachments_in(
+        conn: &mut SqliteConnection,
+        thread_id: &ThreadId,
+        entry: NewThreadEntry<'_>,
+        ids: &[crate::threads::AttachmentId],
+        ts: &str,
+    ) -> Result<ThreadEntry, StorageError> {
+        let attachments = Self::attachment_refs_in(conn, thread_id, ids).await?;
         let refs = entry.refs.to_vec();
         let refs_json = serde_json::to_string(&refs)?;
         let card_json = entry.card.map(serde_json::to_string).transpose()?;
@@ -39,8 +50,8 @@ impl crate::threads::Threads {
         sqlx::query(
             "INSERT INTO thread_entry
            (id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json,
-            card_json, operation_id, created_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            card_json, operation_id, created_at, attachments_json)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(id.as_str())
         .bind(thread_id.as_str())
@@ -53,9 +64,14 @@ impl crate::threads::Threads {
         .bind(&card_json)
         .bind(entry.operation_id.map(OperationId::as_str))
         .bind(ts)
+        .bind(serde_json::to_string(&attachments)?)
         .execute(&mut *conn)
         .await?;
 
+        let mut payload = serde_json::json!({ "ordinal": ordinal, "kind": entry.kind.as_str() });
+        if !attachments.is_empty() {
+            payload["attachments"] = serde_json::to_value(&attachments)?;
+        }
         append_event(
             conn,
             crate::db::JournalEntry {
@@ -67,15 +83,14 @@ impl crate::threads::Threads {
                 project_id: None,
                 thread_id: Some(thread_id.as_str().to_owned()),
                 operation_id: None,
-                payload_json:
-                    serde_json::json!({ "ordinal": ordinal, "kind": entry.kind.as_str() })
-                        .to_string(),
+                payload_json: payload.to_string(),
             },
             ts,
         )
         .await?;
 
         Ok(ThreadEntry {
+            attachments,
             id,
             thread_id: thread_id.clone(),
             ordinal,
@@ -105,11 +120,13 @@ pub(super) type EntryRow = (
     String,
     Option<String>,
     Option<String>,
+    String,
 );
 
 impl super::ThreadsStore {
     pub(in crate::threads::store) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError> {
         Ok(ThreadEntry {
+            attachments: serde_json::from_str(&r.11)?,
             id: ThreadEntryId::from_stored(r.0),
             thread_id: ThreadId::from_stored(r.1),
             ordinal: r.2,
@@ -171,7 +188,7 @@ impl super::ThreadsStore {
     ) -> Result<Vec<ThreadEntry>, StorageError> {
         let rows: Vec<EntryRow> = sqlx::query_as(
             "SELECT id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json,
-                    created_at, operation_id, card_json
+                    created_at, operation_id, card_json, attachments_json
                FROM thread_entry WHERE thread_id = ? ORDER BY ordinal",
         )
         .bind(thread_id.as_str())

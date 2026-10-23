@@ -151,3 +151,37 @@ impl Harness {
             .await?)
     }
 }
+
+impl super::Harness {
+    pub(crate) fn require_images(
+        &self,
+        opened: &super::OpenSession,
+        has_images: bool,
+    ) -> Result<(), crate::CoreError> {
+        Self::check_images(opened.connection(), has_images)
+    }
+
+    pub(super) fn check_images(
+        connection: &shadows_agent::acp::Connection,
+        has_images: bool,
+    ) -> Result<(), crate::CoreError> {
+        let caps = connection.prompt_capabilities();
+        if has_images && !caps.image {
+            return Err(crate::CoreError::Refused {
+                code: crate::ErrorCode::InvalidCommand,
+                message: caps.image_reason.unwrap_or_default(),
+            });
+        }
+        Ok(())
+    }
+}
+
+impl Harness {
+    pub(crate) async fn open_for_images(
+        &self,
+        thread: &ThreadId,
+        has_images: bool,
+    ) -> Result<OpenSession, CoreError> {
+        Ok(self.sessions.open_with_images(thread, has_images).await?)
+    }
+}

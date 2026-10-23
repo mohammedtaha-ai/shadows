@@ -374,6 +374,9 @@ impl Harness {
         let mut choices = for_client(offered, &context.harness, &allowed);
         let slot = self.sessions.slot(thread).await;
         let live = slot.lock().await;
+        if let Some(item) = live.as_ref() {
+            choices.capabilities = item.opened.connection().prompt_capabilities();
+        }
         // A busy session has not applied a deferred pick. An idle session's
         // reported mode can differ because its model moved it.
         if live.as_ref().is_some_and(|item| item.events.is_none())

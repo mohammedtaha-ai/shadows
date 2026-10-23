@@ -380,3 +380,9 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/shadows-core/src/turns/remove.rs` | thread removal orchestration | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/turns/error.rs` | turn refusal mapping | `crates/shadows-core/src/turns/contract.yaml` |
+
+| `crates/shadows-core/src/threads/attachment.rs` | image upload validation | `crates/shadows-core/src/threads/contract.yaml` |
+| `crates/shadows-core/src/threads/store/attachment.rs` | immutable image persistence | `crates/shadows-core/src/threads/contract.yaml` |
+| `crates/shadows-http/src/attachments.rs` | image HTTP translation | `crates/shadows-core/src/threads/contract.yaml` |
+
+| `crates/shadows-core/src/turns/store/images.rs` | neutral image read composition | `crates/shadows-core/src/turns/contract.yaml` |

@@ -684,6 +684,58 @@
         ],
         "type": "object"
       },
+      "Attachment": {
+        "properties": {
+          "byte_len": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "$ref": "#/components/schemas/AttachmentId"
+          },
+          "media_type": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "media_type",
+          "byte_len"
+        ],
+        "type": "object"
+      },
+      "AttachmentId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "AttachmentRef": {
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/AttachmentId"
+          },
+          "media_type": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "media_type"
+        ],
+        "type": "object"
+      },
       "BaseStandards": {
         "properties": {
           "contract_template": {
@@ -3804,6 +3856,23 @@
         ],
         "type": "object"
       },
+      "PromptCapabilities": {
+        "properties": {
+          "image": {
+            "type": "boolean"
+          },
+          "image_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "type": "object"
+      },
       "ProposalStatus": {
         "enum": [
           "Pending",
@@ -4269,6 +4338,12 @@
       "QueuedMessage": {
         "description": "Spec §20.2: a waiting message with the settings it will be sent under.",
         "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentId"
+            },
+            "type": "array"
+          },
           "created_at": {
             "type": "string"
           },
@@ -4497,6 +4572,12 @@
       },
       "SendNowBody": {
         "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentId"
+            },
+            "type": "array"
+          },
           "command_id": {
             "description": "The idempotency key (spec §3.2).",
             "type": "string"
@@ -4553,6 +4634,9 @@
       "SessionChoices": {
         "description": "What the thread's session offers now (spec §12.4). `efforts` are the\ncurrent model's. `modes` are after Shadows' policy; a mode the project does\nnot allow is present with `enabled: false` and `reason: \"Not allowed in\nthis project\"`.",
         "properties": {
+          "capabilities": {
+            "$ref": "#/components/schemas/PromptCapabilities"
+          },
           "current": {
             "$ref": "#/components/schemas/TurnSettings"
           },
@@ -4576,6 +4660,7 @@
           }
         },
         "required": [
+          "capabilities",
           "models",
           "efforts",
           "modes",
@@ -4770,6 +4855,12 @@
       "StartTurn": {
         "description": "Starts a turn as one command (spec §12.7).",
         "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentId"
+            },
+            "type": "array"
+          },
           "client_tab": {
             "description": "The sending tab's id, made once per page load (§13.9). Kept in memory\nfor the turn only, so a `plan-show` frame can name it; not part of the\ncommand, never stored.",
             "type": [
@@ -4982,6 +5073,12 @@
       },
       "ThreadEntry": {
         "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentRef"
+            },
+            "type": "array"
+          },
           "author": {
             "$ref": "#/components/schemas/Actor",
             "description": "Spec §4.2 calls this field's type `Principal`. Milestone 0 uses\n`db::Actor`, which already has exactly this shape (`kind` + `id`) and\nalready answers \"who did this\" for durable events. Declaring a second\nidentical struct would record one decision twice, which this project's\ndocumentation rules forbid. See the note in §4.2."
@@ -5031,6 +5128,7 @@
           }
         },
         "required": [
+          "attachments",
           "id",
           "thread_id",
           "ordinal",
@@ -5159,6 +5257,22 @@
         "required": [
           "command_id",
           "harness"
+        ],
+        "type": "object"
+      },
+      "Upload": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "file": {
+            "format": "binary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "file"
         ],
         "type": "object"
       },
@@ -10765,6 +10879,139 @@
           }
         },
         "summary": "Changes the thread's CLI before its first turn (spec §12.6). A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn, or on a fork (its\nsession is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change\ncloses the thread's adapter (§12.2).",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/attachments": {
+      "post": {
+        "operationId": "upload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Upload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/attachments/{attachment_id}": {
+      "get": {
+        "operationId": "read",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttachmentId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "items": {
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
         "tags": [
           "threads"
         ]

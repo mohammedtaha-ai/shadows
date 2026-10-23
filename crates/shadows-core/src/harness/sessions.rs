@@ -190,7 +190,15 @@ impl Sessions {
     }
 
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
-        self.open_live(thread)
+        self.open_with_images(thread, false).await
+    }
+
+    pub(super) async fn open_with_images(
+        &self,
+        thread: &ThreadId,
+        has_images: bool,
+    ) -> Result<OpenSession, OpenError> {
+        self.open_live(thread, has_images)
             .instrument(tracing::info_span!("sessions.open", thread_id = %thread))
             .await
     }

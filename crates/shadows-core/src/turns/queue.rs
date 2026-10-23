@@ -28,7 +28,7 @@ impl Turns {
                 operation_id: replay.operation_id,
             });
         }
-        let params = serde_json::json!({
+        let mut params = serde_json::json!({
             "thread_id": thread,
             "prompt": turn.prompt,
             "model": turn.model,
@@ -37,9 +37,21 @@ impl Turns {
             "focus": turn.focus,
             "plan": turn.plan,
         });
+        if !turn.attachments.is_empty() {
+            params["attachments"] = serde_json::json!(turn.attachments);
+        }
         let command = CommandContext::user(turn.command_id.clone(), "turn.queue", params);
+        if let Some(message) = self.store.replayed_queue(&command, &thread).await? {
+            return Ok(Queued::Waiting { message });
+        }
+        if !turn.attachments.is_empty() {
+            self.images(&thread, &turn.attachments).await?;
+            let opened = self.sessions.open_for_images(&thread, true).await?;
+            self.sessions.require_images(&opened, true)?;
+        }
         let new = || NewQueued {
             prompt: &turn.prompt,
+            attachments: &turn.attachments,
             model: &turn.model,
             mode: &turn.mode,
             effort: turn.effort.as_deref(),
@@ -112,8 +124,12 @@ impl Turns {
         thread: &ThreadId,
         id: &QueuedMessageId,
         command_id: String,
+        attachments: Vec<crate::threads::AttachmentId>,
     ) -> Result<SentNow, CoreError> {
-        let params = serde_json::json!({ "thread_id": thread, "queued_id": id });
+        let mut params = serde_json::json!({ "thread_id": thread, "queued_id": id });
+        if !attachments.is_empty() {
+            params["attachments"] = serde_json::json!(attachments);
+        }
         let command = CommandContext::user(command_id, "turn.send_now", params);
         if let Some(replay) = self.store.replayed_send_now(&command, thread).await? {
             return Ok(replay);
@@ -123,6 +139,13 @@ impl Turns {
             .queued_message(thread, id)
             .await?
             .ok_or(crate::turns::error::TurnsError::QueuedMessageGone)?;
+        self.images(thread, &attachments).await?;
+        if row.attachments != attachments {
+            return Err(CoreError::Refused {
+                code: crate::ErrorCode::InvalidCommand,
+                message: "The attachments must match the queued message in order".into(),
+            });
+        }
         if let Some(target) = self.handles.steer_target(thread).await {
             if target.cancel_requested.load(Ordering::SeqCst) {
                 return Err(crate::turns::error::TurnsError::ThreadBusy.into());
@@ -165,6 +188,7 @@ impl Turns {
         let turn = SendTurn {
             command_id: queued_start_id(&row.id),
             prompt: row.prompt.clone(),
+            attachments: row.attachments.clone(),
             model: row.model.clone(),
             mode: row.mode.clone(),
             effort: row.effort.clone(),

@@ -18,6 +18,8 @@ pub struct QueuedMessage {
     /// Send order within the thread; never reused while the row lives.
     pub position: i64,
     pub prompt: String,
+    #[serde(default)]
+    pub attachments: Vec<crate::threads::AttachmentId>,
     pub model: String,
     pub mode: String,
     pub effort: Option<String>,

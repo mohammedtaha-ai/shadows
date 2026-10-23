@@ -37,7 +37,11 @@ pub(super) type Slot = Arc<Mutex<Option<Live>>>;
 pub(super) type LiveMap = Mutex<HashMap<ThreadId, Slot>>;
 
 impl Sessions {
-    pub(super) async fn open_live(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
+    pub(super) async fn open_live(
+        &self,
+        thread: &ThreadId,
+        has_images: bool,
+    ) -> Result<OpenSession, OpenError> {
         let slot = self.slot(thread).await;
         let mut live = slot.lock().await;
         // Deletion commits before Stop/close. Even a cached adapter cannot
@@ -55,6 +59,7 @@ impl Sessions {
         self.check_context(&context).await?;
         if let Some(current) = live.as_mut() {
             if !current.handle.has_exited() && !current.opened.connection.is_closed() {
+                super::Harness::check_images(current.opened.connection(), has_images)?;
                 current.last_used = Instant::now();
                 return Ok(current.opened.clone());
             }
@@ -77,10 +82,6 @@ impl Sessions {
         let default_mode = policy::default_mode(&context.harness).ok_or_else(|| {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))
         })?;
-        let selected_mode = super::store::HarnessStore::with_storage(self.storage.clone())
-            .opening_mode(thread)
-            .await
-            .map_err(OpenError::Env)?;
         let preference = super::preference_key(&context.harness, context.profile.as_deref());
         let mut remembered = super::store::HarnessStore::with_storage(self.storage.clone())
             .remembered(&preference)
@@ -91,7 +92,7 @@ impl Sessions {
             spec,
             aylul_models,
             aylul_usage,
-        } = self.opening(thread, &context).await?;
+        } = self.opening(&context).await?;
         if let Some((models, default)) = &aylul_models {
             if !remembered
                 .model
@@ -114,50 +115,72 @@ impl Sessions {
         let events = Offers::intercept(self.offers.clone(), thread.clone(), tx);
         let events = super::Harness::keep_titles(self.storage.clone(), thread.clone(), events);
         let events = Commands::keep_commands(self.commands.clone(), thread.clone(), events);
-        let setup = tokio::time::timeout(self.config.setup_wait, async {
-            let connection = Connection::open(&mut handle, events)
-                .await
-                .map_err(|e| e.to_string())?;
-            let session = connection
-                .start_session(&cwd, start, &setup)
-                .await
-                .map_err(|e| e.to_string())?;
-            let opened = OpenSession {
-                session_id: session.session_id,
-                aylul_usage,
-                how,
-                connection,
-                generation: self.generations.fetch_add(1, Ordering::Relaxed),
-            };
-            let mut offered = self.offers.record(thread, &session.options)?;
-            if let Some((models, default)) = &aylul_models {
-                if !models.iter().all(|id| offered.offers_model(id)) {
-                    return Err("adapter did not offer all provider models".into());
-                }
-                let raw = shadows_agent::choices::parse(&session.options)?;
-                if !models.contains(&raw.current.model) {
-                    offered = self
-                        .set_option(thread, &opened, &offered.ids.model, default)
-                        .await
-                        .map_err(|e| e.to_string())?;
-                }
-            }
-            let opening_mode = if offered.offers_mode(&selected_mode) {
-                selected_mode.as_str()
-            } else {
-                super::store::HarnessStore::with_storage(self.storage.clone())
-                    .forget_mode(thread)
+        let mut image_refusal = None;
+        let deadline = Instant::now() + self.config.setup_wait;
+        let setup = async {
+            let connection =
+                tokio::time::timeout_at(deadline, Connection::open(&mut handle, events))
                     .await
-                    .map_err(|error| error.to_string())?;
-                default_mode
-            };
-            self.apply_opening_settings(thread, &opened, offered, opening_mode, remembered)
+                    .map_err(|_| "harness setup timed out".to_string())?
+                    .map_err(|e| e.to_string())?;
+            if let Err(error) = super::Harness::check_images(&connection, has_images) {
+                let reason = error.to_string();
+                image_refusal = Some(error);
+                return Err(reason);
+            }
+            let selected_mode = super::store::HarnessStore::with_storage(self.storage.clone())
+                .opening_mode(thread)
                 .await
                 .map_err(|e| e.to_string())?;
-            Ok::<_, String>(opened)
-        })
-        .await
-        .unwrap_or_else(|_| Err("harness setup timed out".into()));
+            let setup = if context.harness == policy::AYLUL {
+                setup
+            } else {
+                self.setups.for_opening(thread, &context.project_id).await?
+            };
+            // Grant issuance must finish before a timeout can revoke its held grant.
+            tokio::time::timeout_at(deadline, async {
+                let session = connection
+                    .start_session(&cwd, start, &setup)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let opened = OpenSession {
+                    session_id: session.session_id,
+                    aylul_usage,
+                    how,
+                    connection,
+                    generation: self.generations.fetch_add(1, Ordering::Relaxed),
+                };
+                let mut offered = self.offers.record(thread, &session.options)?;
+                if let Some((models, default)) = &aylul_models {
+                    if !models.iter().all(|id| offered.offers_model(id)) {
+                        return Err("adapter did not offer all provider models".into());
+                    }
+                    let raw = shadows_agent::choices::parse(&session.options)?;
+                    if !models.contains(&raw.current.model) {
+                        offered = self
+                            .set_option(thread, &opened, &offered.ids.model, default)
+                            .await
+                            .map_err(|e| e.to_string())?;
+                    }
+                }
+                let opening_mode = if offered.offers_mode(&selected_mode) {
+                    selected_mode.as_str()
+                } else {
+                    super::store::HarnessStore::with_storage(self.storage.clone())
+                        .forget_mode(thread)
+                        .await
+                        .map_err(|error| error.to_string())?;
+                    default_mode
+                };
+                self.apply_opening_settings(thread, &opened, offered, opening_mode, remembered)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok::<_, String>(opened)
+            })
+            .await
+            .unwrap_or_else(|_| Err("harness setup timed out".into()))
+        }
+        .await;
         let opened = match setup {
             Ok(opened) => opened,
             Err(error) => {
@@ -165,7 +188,10 @@ impl Sessions {
                 if let Err(cleanup) = Self::stop_handle(&mut handle).await {
                     tracing::error!(%cleanup, "sessions.failed_open_cleanup");
                 }
-                return Err(OpenError::Start(error));
+                return Err(match image_refusal {
+                    Some(refusal) => OpenError::Env(refusal),
+                    None => OpenError::Start(error),
+                });
             }
         };
         *live = Some(Live {

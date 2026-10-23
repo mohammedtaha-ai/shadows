@@ -16,6 +16,7 @@ use crate::threads::{ThreadId, TurnContext};
 pub(super) struct Turn<'a> {
     pub(super) command: &'a CommandContext,
     pub(super) prompt: &'a str,
+    pub(super) attachments: &'a [crate::threads::AttachmentId],
     pub(super) settings: &'a TurnSettings,
     pub(super) focus: Option<&'a Focus>,
     pub(super) dequeue: Option<Dequeue<'a>>,
@@ -66,6 +67,7 @@ impl Turns {
     ) -> Result<StartedTurn, CoreError> {
         let Turn {
             command,
+            attachments,
             prompt,
             settings,
             focus,
@@ -103,6 +105,7 @@ impl Turns {
                     thread_id,
                     runtime: &self.runtime.instance_id,
                     prompt,
+                    attachments,
                     role: "Planner",
                     harness_kind: &context.harness,
                     harness_path: &harness_path,

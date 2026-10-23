@@ -51,6 +51,8 @@ status: current
 source: crates/shadows-core/src/threads
 
 modules:
+  attachment.rs: image upload validation
+  store/attachment.rs: immutable image persistence
   mod.rs: thread command boundary
   model.rs: public thread values # ID imports follow A-19; schema comments require API regeneration.
   error.rs: thread refusal mapping
@@ -77,6 +79,15 @@ dependencies:
 
 
 shapes:
+  Attachment:
+    id: AttachmentId
+    media_type: String
+    byte_len: u64
+    name: Option<String>
+  AttachmentRef:
+    id: AttachmentId
+    media_type: String
+    name: Option<String>
   Threads:
     store: ThreadsStore
     projects: Projects
@@ -107,6 +118,7 @@ shapes:
     # A fork's source session until the fork records one of its own.
     fork_session_id: Option<String>
   ThreadEntry:
+    attachments: Vec<AttachmentRef>
     id: ThreadEntryId
     thread_id: ThreadId
     # Orders entries within one thread; not an identity.
@@ -154,6 +166,8 @@ shapes:
 
 functions:
   service:
+    upload_attachment: Validates image content and 5 MiB limit before immutable command persistence.
+    attachment: Reads bytes only through a live thread ownership reference.
     record_harness_session:
       signature: "(&self, thread: &ThreadId, session: &str) -> Result<bool, CoreError>"
     list_for_profile: Read live agent conversations newest first by created_at then id.
@@ -302,6 +316,9 @@ enums:
 
 
 shared_in_transaction:
+  attachment_in: Turns reads a thread-owned image in its prompt snapshot.
+  attachment_refs_in: Turns validates ordered ids in turn, queue and steering transactions.
+  append_entry_with_attachments_in: Turns stores neutral image summaries inside its message transaction.
   remove_in: Turns composes the row write with grant revocation and permission removal.
   record_removal_in: Turns journals removal after grant events in that same transaction.
   set_harness_in: "Harness calls the guarded thread-row update in its command transaction."
@@ -582,3 +599,19 @@ tests:
 
 # AYLUL creation requires a live profile inside the write transaction.
 # Planner creation refuses any profile. A fork copies its profile.
+
+attachments:
+  owner: Threads
+  tables: [attachment, thread_attachment]
+  maximum_bytes: 5242880
+  content_types: [image/png, image/jpeg, image/gif, image/webp]
+  decoding: Full decode on the blocking pool with 8192 pixel sides and 64 MiB allocation ceiling.
+  metadata: Command ids are at most 256 bytes; display filenames at most 255 bytes.
+  lifecycle: Forks share immutable records; removal deletes references and unreferenced bytes.
+  transaction_methods:
+    attachment_in: Read an image belonging to the live thread inside the caller snapshot.
+    attachment_refs_in: Validate every ordered id before any message mutation.
+    append_entry_with_attachments_in: Persist neutral image summaries on the user entry.
+  tested_by:
+    - upload_validates_content_type_size_and_replay
+    - fork_keeps_references_and_removal_reclaims_unreferenced_bytes

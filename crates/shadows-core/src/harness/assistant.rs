@@ -1,9 +1,6 @@
 //! Opening an assistant on the agent's provider configuration.
 use super::sessions::{OpenError, Sessions};
-use crate::{
-    CoreError,
-    threads::{ThreadId, TurnContext},
-};
+use crate::{CoreError, threads::TurnContext};
 use shadows_agent::{acp::SessionSetup, policy, profile::ClaudeProfile};
 use shadows_process::ProcessSpec;
 use std::path::PathBuf;
@@ -56,18 +53,10 @@ impl Sessions {
         Ok(())
     }
 
-    pub(super) async fn opening(
-        &self,
-        thread: &ThreadId,
-        context: &TurnContext,
-    ) -> Result<Opening, OpenError> {
+    pub(super) async fn opening(&self, context: &TurnContext) -> Result<Opening, OpenError> {
         if context.harness != policy::AYLUL {
             let cwd = workspace(context).map_err(OpenError::Workspace)?;
-            let setup = self
-                .setups
-                .for_opening(thread, &context.project_id)
-                .await
-                .map_err(OpenError::Start)?;
+            let setup = SessionSetup::default();
             return Ok(Opening {
                 spec: self.adapter.process_spec(&cwd),
                 cwd,

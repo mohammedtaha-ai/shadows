@@ -55,6 +55,7 @@ modules:
   entries.rs: harness entry collection
   subagents.rs: subagent card collection
   testing.rs: test-only lifecycle composition
+  store/images.rs: neutral image read composition
   store/mod.rs: private TurnsStore handle
   store/operation.rs: atomic terminal composition
   store/operation_read.rs: operation composition with Harness batched reads
@@ -81,6 +82,9 @@ dependencies:
   projects: crates/shadows-core/src/projects/contract.yaml
 
 shapes:
+  Prompt:
+    blocks: Vec<PromptBlock>
+    withholds: bool
   Turns:
     storage: Arc<Storage>
     store: TurnsStore
@@ -108,6 +112,7 @@ shapes:
     storage: Arc<Storage> # Private persistence over the same shared database handle.
   Bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>
   SendTurn:
+    attachments: Vec<AttachmentId>
     command_id: String
     prompt: String
     model: String
@@ -171,6 +176,7 @@ shapes:
     Spawn: unit
     Run: unit
   NewTurn:
+    attachments: "&[AttachmentId]"
     # What `start_turn` records: the thread, the runtime, the prompt, the
     # role, the harness and agent paths and versions, the settings, the
     # prompt and instructions versions, and the focus. Borrowed, never kept.
@@ -182,6 +188,7 @@ shapes:
     # turn so its replay answers the turn.
     dequeue: "Option<Dequeue>"
   QueuedMessage:
+    attachments: Vec<AttachmentId>
     # §20.2: a message written while a turn ran, waiting to be sent.
     id: QueuedMessageId
     thread_id: ThreadId
@@ -207,6 +214,7 @@ shapes:
     Steered: ThreadEntryId
     Started: OperationId
   NewQueued:
+    attachments: "&[AttachmentId]"
     # What `queue_message` records, borrowed.
     prompt: "&str"
     model: "&str"
@@ -233,6 +241,7 @@ shapes:
     # A unit struct: `start` and `stop` are associated functions.
     unit: unit
   PlannerTurnRequest:
+    images: Vec<ImageBlock>
     # A turn whose operation `start_turn` committed Pending. `harness` is the
     # one the command validated, so nothing is read between the commit and
     # the run; `events` is the leased session's stream.
@@ -305,7 +314,7 @@ functions:
       # pub(crate): `send` is `send_with(.., None)`. With a `dequeue`, the
       # turn takes that waiting message in its own transaction (§20.3).
     send_now:
-      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, command_id: String) -> Result<SentNow, CoreError>"
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, command_id: String, attachments: Vec<AttachmentId>) -> Result<SentNow, CoreError>"
       # §20.4, "turn.send_now". In order: a replay answers first; the row must
       # exist (QueuedMessageGone); a Stop pending on the running turn
       # (`cancel_requested`) is ThreadBusy, sends nothing and leaves the row
@@ -493,7 +502,7 @@ functions:
       # Removes a waiting message inside the caller's transaction, or
       # QueuedMessageGone: of two writers racing for one row, one wins.
     steered_entry:
-      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, op: &OperationId, row: &QueuedMessageId, prompt: &str) -> Result<ThreadEntryId, CoreError>"
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, op: &OperationId, row: &QueuedMessageId, prompt: &str, attachments: &[AttachmentId]) -> Result<ThreadEntryId, CoreError>"
       # In `store/steer.rs`, §20.4: one write takes the row (QueuedMessageGone
       # if it is not there), appends the steered message as a user entry of
       # the running turn, journals `QueuedMessageSent` and records the
@@ -972,3 +981,15 @@ tests:
     checks: >
       `AppCore::shut_down` with `hang` running answers Graceful and the turn
       ends Cancelled.
+
+attachments:
+  command_identity: Ordered ids participate in turn.start, turn.queue and turn.send_now fingerprints when nonempty.
+  validation: Threads validates ownership before session work and again in each message transaction.
+  composition: Prompt carries neutral images after text and before context; steering retains images.
+  storage: Queue stores ordered ids; Threads stores neutral entry summaries, never ACP types.
+  capability: Harness refuses image input with the initialized capability reason.
+  tested_by:
+    - text_and_two_images_reach_acp_in_exact_order
+    - image_only_turn_and_attachment_replay_conflict
+    - foreign_or_unknown_images_are_refused_before_writes
+    - queued_and_steered_messages_keep_images

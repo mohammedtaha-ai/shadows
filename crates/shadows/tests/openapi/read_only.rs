@@ -149,6 +149,19 @@ async fn no_get_route_changes_state() {
         .await
         .unwrap();
     a.core.turns().stop(&op).await.unwrap();
+    let image_bytes = include_bytes!("../fixtures/red.png");
+    let attachment = a
+        .core
+        .threads()
+        .upload_attachment(
+            "attachment".into(),
+            &a.thread,
+            "image/png",
+            None,
+            image_bytes.to_vec(),
+        )
+        .await
+        .unwrap();
     let mut observer = shadows_core::testing::database_writes(&a.storage)
         .await
         .unwrap();
@@ -193,6 +206,7 @@ async fn no_get_route_changes_state() {
                 "id" if template.starts_with("/api/plans/") => version.plan_id.to_string(),
                 "slug" if template.starts_with("/api/aylul/agents/") => "aylul".into(),
                 "agreement" => agreement["agreement_id"].as_str().unwrap().to_string(),
+                "attachment_id" => attachment.id.to_string(),
                 "part" => part.to_string(),
                 "outcome" => outcome.to_string(),
                 _ => panic!("unseeded path parameter {name} in {template}"),
@@ -207,6 +221,21 @@ async fn no_get_route_changes_state() {
             path.push_str("?path=");
         }
         let before = observer.version().await.unwrap();
+        if template.ends_with("/attachments/{attachment_id}") {
+            let response = a
+                .router
+                .clone()
+                .oneshot(Request::get(&path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert_eq!(bytes.as_ref(), image_bytes);
+            assert_eq!(before, observer.version().await.unwrap());
+            continue;
+        }
         let (status, body) = app::call(&a, "GET", &path, None).await;
         assert!((200..300).contains(&status), "{path}: {status} {body}");
         assert_eq!(

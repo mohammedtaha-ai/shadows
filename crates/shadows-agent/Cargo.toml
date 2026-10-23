@@ -12,6 +12,7 @@ doctest = false
 workspace = true
 
 [dependencies]
+base64 = "0.22"
 agent-client-protocol = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

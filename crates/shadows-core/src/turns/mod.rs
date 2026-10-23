@@ -108,6 +108,7 @@ pub struct SendTurn {
     /// The idempotency key.
     pub command_id: String,
     pub prompt: String,
+    pub attachments: Vec<crate::threads::AttachmentId>,
     pub model: String,
     pub mode: String,
     pub effort: Option<String>,
@@ -136,6 +137,9 @@ fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> Comm
     }
     if let Some(plan) = &turn.plan {
         params["plan"] = serde_json::json!(plan);
+    }
+    if !turn.attachments.is_empty() {
+        params["attachments"] = serde_json::json!(turn.attachments);
     }
     CommandContext::user(command_id, "turn.start", params)
 }
@@ -199,6 +203,7 @@ impl Turns {
         let SendTurn {
             command_id: _,
             prompt,
+            attachments,
             model,
             mode,
             effort,
@@ -212,6 +217,7 @@ impl Turns {
         if self.handles.is_closed().await {
             return Err(CoreError::RuntimeStopping);
         }
+        let images = self.images(&thread_id, &attachments).await?;
         let settings = TurnSettings {
             model,
             mode,
@@ -245,7 +251,12 @@ impl Turns {
         self.sessions.check_idle(&thread_id, &context).await?;
         // The checks passed: a turn starts in this project, which is used.
         self.code.touch(&context.project_id).await;
-        let opened = self.sessions.open(&thread_id).await?;
+        let opened = self
+            .sessions
+            .open_for_images(&thread_id, !attachments.is_empty())
+            .await?;
+        self.sessions
+            .require_images(&opened, !attachments.is_empty())?;
         // The turn holds the session from here: a second start, or a `/context`
         // read, cannot change or prompt it until this turn gives it back.
         let events =
@@ -255,6 +266,7 @@ impl Turns {
             })?;
         let turn = Turn {
             command: &command,
+            attachments: &attachments,
             prompt: &prompt,
             settings: &settings,
             focus: focus.as_ref(),
@@ -282,6 +294,7 @@ impl Turns {
                 thread_id,
                 harness: context.harness,
                 operation_id: started.operation_id,
+                images,
                 prompt,
                 settings,
                 focus: focus
@@ -383,5 +396,25 @@ impl Turns {
         shadows_agent::events::HarnessEvent,
     )> {
         self.bus.subscribe()
+    }
+}
+
+impl Turns {
+    pub(super) async fn images(
+        &self,
+        thread: &ThreadId,
+        ids: &[crate::threads::AttachmentId],
+    ) -> Result<Vec<shadows_agent::acp::ImageBlock>, CoreError> {
+        Self::images_in_storage(&self.storage, thread, ids).await
+    }
+
+    pub(super) async fn images_in_storage(
+        storage: &Arc<Storage>,
+        thread: &ThreadId,
+        ids: &[crate::threads::AttachmentId],
+    ) -> Result<Vec<shadows_agent::acp::ImageBlock>, CoreError> {
+        store::TurnsStore::with_storage(storage.clone())
+            .images(thread, ids)
+            .await
     }
 }

@@ -78,6 +78,7 @@ pub struct TurnContext {
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct ThreadEntry {
+    pub attachments: Vec<super::AttachmentRef>,
     pub id: ThreadEntryId,
     pub thread_id: ThreadId,
     pub ordinal: i64,

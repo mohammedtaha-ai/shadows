@@ -69,9 +69,7 @@ pub(crate) struct TurnWatch {
     pub thread_id: ThreadId,
     /// The thread's harness, whose account limits a usage report updates.
     pub harness: String,
-    pub prompt: String,
-    /// Context blocks sent after the person's text.
-    pub context: Vec<String>,
+    pub blocks: Vec<shadows_agent::acp::PromptBlock>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
     /// called after a `Completed` is recorded, and after nothing else.
@@ -196,7 +194,7 @@ impl PlannerTurn {
                 let prompt_future =
                     w.opened
                         .connection()
-                        .prompt(&w.opened.session_id, &w.prompt, &w.context);
+                        .prompt_blocks(&w.opened.session_id, &w.blocks);
                 tokio::pin!(prompt_future);
                 loop {
                     tokio::select! {

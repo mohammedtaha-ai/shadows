@@ -299,6 +299,8 @@ functions:
       # stopped, its offer forgotten and its grant revoked
       # (`Setups::forget`); no open session is Ok.
   harness_for_turns:
+    open_for_images: Initializes capabilities before issuing the opening grant or changing stored mode.
+    require_images: Refuses image input with the initialized harness capability reason.
     # Turns holds the same Arc<Harness> that AppCore serves and uses these methods,
     # a documented cross-service call (§14.6): the session lease is one
     # mechanism with two users, and a second copy would be two locks.
@@ -952,3 +954,8 @@ tests:
 # AYLUL model choices are restricted to provider ids, with default removed and labels equal to ids.
 # The agent and its provider are checked before reusing a cached adapter or checking availability.
 # Only explicit provider keys are sent; daemon-variable fallback and env import are removed.
+
+image_input:
+  capability: Session choices carry image and image_reason from Connection initialize.
+  require_images: Refuses image-bearing input when the harness reports no image capability.
+  tested_by: a_harness_without_image_capability_refuses_with_its_reason

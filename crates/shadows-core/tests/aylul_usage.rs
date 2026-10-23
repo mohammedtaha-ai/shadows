@@ -115,6 +115,7 @@ fn agent(name: &str) -> AgentInput {
 
 fn request(model: &str, effort: &str) -> SendTurn {
     SendTurn {
+        attachments: Vec::new(),
         command_id: uuid::Uuid::new_v4().to_string(),
         prompt: "report".into(),
         model: model.into(),

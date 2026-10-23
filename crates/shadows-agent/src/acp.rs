@@ -1,6 +1,7 @@
 //! One ACP client connection to one managed adapter process.
 use super::events::{TurnUsage, UsageCost};
 use super::usage::{SessionCost, cost_delta};
+use base64::Engine;
 use std::path::Path;
 use std::{
     collections::HashMap,
@@ -141,9 +142,30 @@ pub enum AcpError {
     Rpc(String),
 }
 
+/// Backend-neutral image input; protocol encoding belongs to Connection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageBlock {
+    pub media_type: String,
+    pub bytes: Vec<u8>,
+}
+
+/// Ordered, backend-neutral prompt input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PromptBlock {
+    Text(String),
+    Image(ImageBlock),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, utoipa::ToSchema)]
+pub struct PromptCapabilities {
+    pub image: bool,
+    pub image_reason: Option<String>,
+}
+
 #[derive(Clone)]
 pub struct Connection {
     cx: ConnectionTo<Agent>,
+    capabilities: PromptCapabilities,
     costs: Arc<Mutex<HashMap<String, SessionCost>>>,
 }
 
@@ -230,8 +252,21 @@ impl Connection {
         let cx = ready_rx.await.map_err(|_| AcpError::Closed)?;
         let request =
             InitializeRequest::new(ProtocolVersion::V1).client_capabilities(capabilities());
-        cx.send_request(request).block_task().await.map_err(rpc)?;
-        Ok(Self { cx, costs })
+        let answer = cx.send_request(request).block_task().await.map_err(rpc)?;
+        let value = serde_json::to_value(answer).map_err(|e| AcpError::Rpc(e.to_string()))?;
+        let image = value
+            .pointer("/agentCapabilities/promptCapabilities/image")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let capabilities = PromptCapabilities {
+            image,
+            image_reason: (!image).then(|| "The harness does not support image prompts".into()),
+        };
+        Ok(Self {
+            cx,
+            costs,
+            capabilities,
+        })
     }
 
     pub async fn start_session(
@@ -332,6 +367,23 @@ impl Connection {
         text: &str,
         context: &[String],
     ) -> Result<PromptResult, AcpError> {
+        let blocks = std::iter::once(text)
+            .chain(context.iter().map(String::as_str))
+            .map(|text| PromptBlock::Text(text.into()))
+            .collect::<Vec<_>>();
+        self.prompt_blocks(session, &blocks).await
+    }
+
+    pub fn prompt_capabilities(&self) -> PromptCapabilities {
+        self.capabilities.clone()
+    }
+
+    pub async fn prompt_blocks(
+        &self,
+        session: &str,
+        blocks: &[PromptBlock],
+    ) -> Result<PromptResult, AcpError> {
+        self.require_images(blocks)?;
         {
             let mut costs = self.costs.lock().expect("cost ledger");
             let state = costs.entry(session.into()).or_default();
@@ -341,10 +393,7 @@ impl Connection {
             state.current = None;
             state.active = true;
         }
-        let blocks = std::iter::once(text)
-            .chain(context.iter().map(String::as_str))
-            .map(|t| ContentBlock::Text(TextContent::new(t)))
-            .collect();
+        let blocks = Self::acp_blocks(blocks);
         let response = self
             .cx
             .send_request(PromptRequest::new(session.to_owned(), blocks))
@@ -381,9 +430,44 @@ impl Connection {
     /// Sends `text` into the session's running prompt (§20.4), asking the
     /// adapter to start nothing when none runs.
     pub async fn steer(&self, session: &str, text: &str) -> Result<Steer, AcpError> {
+        self.steer_blocks(session, &[PromptBlock::Text(text.into())])
+            .await
+    }
+
+    fn require_images(&self, blocks: &[PromptBlock]) -> Result<(), AcpError> {
+        if blocks.iter().any(|b| matches!(b, PromptBlock::Image(_))) && !self.capabilities.image {
+            return Err(AcpError::Rpc(
+                self.capabilities.image_reason.clone().unwrap_or_default(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn acp_blocks(blocks: &[PromptBlock]) -> Vec<ContentBlock> {
+        blocks
+            .iter()
+            .map(|block| match block {
+                PromptBlock::Text(text) => ContentBlock::Text(TextContent::new(text)),
+                PromptBlock::Image(image) => {
+                    let data = base64::engine::general_purpose::STANDARD.encode(&image.bytes);
+                    ContentBlock::Image(agent_client_protocol::schema::v1::ImageContent::new(
+                        data,
+                        &image.media_type,
+                    ))
+                }
+            })
+            .collect()
+    }
+
+    pub async fn steer_blocks(
+        &self,
+        session: &str,
+        blocks: &[PromptBlock],
+    ) -> Result<Steer, AcpError> {
+        self.require_images(blocks)?;
         let params = serde_json::json!({
             "sessionId": session,
-            "prompt": [{ "type": "text", "text": text }],
+            "prompt": Self::acp_blocks(blocks),
             "_meta": { "steering": { "idleBehavior": "promptRequired" } },
         });
         let request =

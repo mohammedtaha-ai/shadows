@@ -1,5 +1,6 @@
 //! Threads' private persistence over the shared database handle.
 
+mod attachment;
 mod entry;
 mod fork;
 mod records;

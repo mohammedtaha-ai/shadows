@@ -57,6 +57,8 @@ pub(super) struct StartTurn {
     /// The idempotency key (spec §3.2). A retry sends the same one.
     command_id: String,
     prompt: String,
+    #[serde(default)]
+    attachments: Vec<shadows_core::AttachmentId>,
     model: String,
     mode: String,
     /// `null` exactly when the chosen model offers no effort (§12.4).
@@ -83,6 +85,7 @@ impl From<StartTurn> for SendTurn {
         let StartTurn {
             command_id,
             prompt,
+            attachments,
             model,
             mode,
             effort,
@@ -93,6 +96,7 @@ impl From<StartTurn> for SendTurn {
         Self {
             command_id,
             prompt,
+            attachments,
             model,
             mode,
             effort,

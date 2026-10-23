@@ -15,6 +15,7 @@ impl super::TurnsStore {
         op: &OperationId,
         row: &QueuedMessageId,
         prompt: &str,
+        attachments: &[crate::threads::AttachmentId],
     ) -> Result<ThreadEntryId, crate::CoreError> {
         let (ctx, thread, op, row, prompt, ts) = (
             ctx.clone(),
@@ -24,6 +25,7 @@ impl super::TurnsStore {
             prompt.to_owned(),
             now(),
         );
+        let attachments = attachments.to_vec();
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
@@ -34,8 +36,9 @@ impl super::TurnsStore {
                             .ok_or(StorageError::NotFound("entry_id"))?;
                         return Ok(ThreadEntryId::from_stored(id.to_owned()));
                     }
+                    Threads::attachment_refs_in(conn, &thread, &attachments).await?;
                     Self::take_queued_in(conn, &thread, &row).await?;
-                    let entry = Threads::append_entry_in(
+                    let entry = Threads::append_entry_with_attachments_in(
                         conn,
                         &thread,
                         NewThreadEntry {
@@ -46,6 +49,7 @@ impl super::TurnsStore {
                             card: None,
                             operation_id: Some(&op),
                         },
+                        &attachments,
                         &ts,
                     )
                     .await?;

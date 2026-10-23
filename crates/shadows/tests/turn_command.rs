@@ -590,6 +590,7 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
         app.sessions.clone(),
         opened,
         PlannerTurnRequest {
+            images: Vec::new(),
             thread_id: app.thread.clone(),
             harness: "claude-code".into(),
             operation_id: op.clone(),

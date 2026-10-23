@@ -32,6 +32,7 @@ impl Fixture {
             .send(
                 thread.id.clone(),
                 SendTurn {
+                    attachments: Vec::new(),
                     command_id: "turn".into(),
                     prompt: "hang".into(),
                     model: "fake-large".into(),

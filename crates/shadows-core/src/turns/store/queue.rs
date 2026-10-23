@@ -13,6 +13,7 @@ pub(super) const SCOPE: &str = "Thread";
 
 pub struct NewQueued<'a> {
     pub prompt: &'a str,
+    pub attachments: &'a [crate::threads::AttachmentId],
     pub model: &'a str,
     pub mode: &'a str,
     pub effort: Option<&'a str>,
@@ -42,6 +43,7 @@ type Row = (
     Option<String>,
     Option<String>,
     String,
+    String,
 );
 
 fn message(r: Row) -> Result<QueuedMessage, StorageError> {
@@ -50,6 +52,7 @@ fn message(r: Row) -> Result<QueuedMessage, StorageError> {
         thread_id: ThreadId::from_stored(r.1),
         position: r.2,
         prompt: r.3,
+        attachments: serde_json::from_str(&r.11)?,
         model: r.4,
         mode: r.5,
         effort: r.6,
@@ -110,6 +113,7 @@ impl super::TurnsStore {
     ) -> Result<QueueAnswer, StorageError> {
         let (ctx, thread, ts) = (ctx.clone(), thread.clone(), now());
         let id = QueuedMessageId::generate();
+        let attachments = new.attachments.to_vec();
         let fields = (
             new.prompt.to_owned(),
             new.model.to_owned(),
@@ -125,6 +129,8 @@ impl super::TurnsStore {
                         return Ok(QueueAnswer::Waiting(serde_json::from_str(&outcome)?));
                     }
                     crate::threads::Threads::require_live_in(conn, &thread).await?;
+                    crate::threads::Threads::attachment_refs_in(conn, &thread, &attachments)
+                        .await?;
                     if !Operations::has_open_in(conn, &thread).await? {
                         return Ok(QueueAnswer::Idle);
                     }
@@ -138,8 +144,8 @@ impl super::TurnsStore {
                     sqlx::query(
                         "INSERT INTO queued_message
                        (id, thread_id, position, prompt, model, mode, effort,
-                        focus_json, plan_id, last_error, created_at)
-                     VALUES (?,?,?,?,?,?,?,?,?,NULL,?)",
+                        focus_json, plan_id, last_error, created_at, attachments_json)
+                     VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?)",
                     )
                     .bind(id.as_str())
                     .bind(thread.as_str())
@@ -151,11 +157,12 @@ impl super::TurnsStore {
                     .bind(focus)
                     .bind(plan)
                     .bind(&ts)
+                    .bind(serde_json::to_string(&attachments)?)
                     .execute(&mut *conn)
                     .await?;
                     let row: Row = sqlx::query_as(
                         "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
-                        last_error,created_at FROM queued_message WHERE id=?",
+                        last_error,created_at,attachments_json FROM queued_message WHERE id=?",
                     )
                     .bind(id.as_str())
                     .fetch_one(&mut *conn)
@@ -192,7 +199,8 @@ impl super::TurnsStore {
         }
         let rows: Vec<Row> = sqlx::query_as(
             "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
-                last_error,created_at FROM queued_message WHERE thread_id=? ORDER BY position",
+                last_error,created_at,attachments_json FROM queued_message
+                WHERE thread_id=? ORDER BY position",
         )
         .bind(thread.as_str())
         .fetch_all(&mut *conn)
@@ -211,7 +219,8 @@ impl super::TurnsStore {
         }
         let row: Option<Row> = sqlx::query_as(
             "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
-                last_error,created_at FROM queued_message WHERE thread_id=? AND id=?",
+                last_error,created_at,attachments_json FROM queued_message
+                WHERE thread_id=? AND id=?",
         )
         .bind(thread.as_str())
         .bind(id.as_str())
@@ -294,5 +303,19 @@ impl super::TurnsStore {
                 })
             })
             .await
+    }
+}
+
+impl super::TurnsStore {
+    pub(in crate::turns) async fn replayed_queue(
+        &self,
+        ctx: &CommandContext,
+        thread: &ThreadId,
+    ) -> Result<Option<QueuedMessage>, StorageError> {
+        let mut conn = self.storage.reader().acquire().await?;
+        classify(&mut conn, ctx, SCOPE, thread.as_str())
+            .await?
+            .map(|answer| serde_json::from_str(&answer).map_err(StorageError::from))
+            .transpose()
     }
 }

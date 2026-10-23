@@ -6,6 +6,7 @@ pub use crate::turns::{NewQueued, QueueAnswer};
 pub fn new_queued(prompt: &'static str) -> NewQueued<'static> {
     NewQueued {
         prompt,
+        attachments: &[],
         model: "fake-small",
         mode: "acceptEdits",
         effort: Some("high"),

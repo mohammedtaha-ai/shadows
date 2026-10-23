@@ -43,6 +43,9 @@ async fn main() -> agent_client_protocol::Result<()> {
                         .unwrap_or(Value::Null);
                     let caps: AgentCapabilities = serde_json::from_value(json!({
                         "sessionCapabilities": {"fork": {}, "resume": {}},
+                        "promptCapabilities": {"image": !std::env::args()
+                            .any(|a| a == "--no-images")
+                            && !std::path::Path::new(".fake-acp-no-images").exists()},
                     }))
                     .unwrap();
                     responder.respond(
@@ -210,6 +213,13 @@ async fn main() -> agent_client_protocol::Result<()> {
                     cx.spawn(async move {
                         let cx = worker;
                         let id = r.session_id.to_string();
+                        if let Some(s) = state.lock().unwrap().sessions.get(&id) {
+                            std::fs::write(
+                                s.cwd.join("image-prompt.json"),
+                                serde_json::to_vec(&r.prompt).unwrap(),
+                            )
+                            .unwrap();
+                        }
                         let prompt = r
                             .prompt
                             .iter()

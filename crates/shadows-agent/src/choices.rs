@@ -27,6 +27,7 @@ pub struct Choice {
 /// this project"`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct SessionChoices {
+    pub capabilities: crate::acp::PromptCapabilities,
     pub models: Vec<Choice>,
     pub efforts: Vec<Choice>,
     pub modes: Vec<Choice>,
@@ -164,6 +165,7 @@ pub fn for_client(offered: &Offered, harness: &str, allowed: &[String]) -> Sessi
         })
         .collect();
     SessionChoices {
+        capabilities: Default::default(),
         models: offered.models.clone(),
         efforts: offered.efforts.clone(),
         modes,
