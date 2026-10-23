@@ -213,7 +213,11 @@ async fn main() -> agent_client_protocol::Result<()> {
                     cx.spawn(async move {
                         let cx = worker;
                         let id = r.session_id.to_string();
-                        if let Some(s) = state.lock().unwrap().sessions.get(&id) {
+                        // Only an image prompt is captured: the file lands in the
+                        // project folder, and other tests need that folder untouched.
+                        let has_image =
+                            r.prompt.iter().any(|b| matches!(b, ContentBlock::Image(_)));
+                        if has_image && let Some(s) = state.lock().unwrap().sessions.get(&id) {
                             std::fs::write(
                                 s.cwd.join("image-prompt.json"),
                                 serde_json::to_vec(&r.prompt).unwrap(),

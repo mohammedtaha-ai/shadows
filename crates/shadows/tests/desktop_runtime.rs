@@ -75,7 +75,8 @@ async fn server() -> Server {
                 .unwrap(),
         },
     };
-    for _ in 0..200 {
+    // A cold CI runner starts Core in more than five seconds.
+    for _ in 0..800 {
         if let Ok(bytes) = std::fs::read(&record)
             && let Ok(receipt) = serde_json::from_slice::<RuntimeReceipt>(&bytes)
         {
