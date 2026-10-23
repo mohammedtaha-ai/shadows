@@ -104,6 +104,7 @@ and OS acceptance.
 
 ### F-25 · Paste, drop and pick images, and send them
 - Status: blocked
+- Blocker: Baseline `npm run typecheck` fails because `web/src/test/contract-fixtures.ts` lacks the generated schema's required `SessionChoices.capabilities` (line 54) and `ThreadEntry.attachments` (line 156). That file is outside Touch; amend scope to update these fixtures before F-25 can pass its required checks. `draft.tsx` also lacks `capabilities`, within Touch.
 - Plan: none. Owner specs: §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
 - Read: `web/src/app/conversation/contract.yaml`; `composer.tsx`, `composer-bar.tsx`, `draft.tsx`, `web/src/api/client.ts`
 - Touch: `web/src/app/conversation/` (paste, drop, picker, thumbnails, sending, the transcript's images, tests, `contract.yaml`), `web/src/api/` (the calls; `schema.d.ts` via `npm run gen:api`)
