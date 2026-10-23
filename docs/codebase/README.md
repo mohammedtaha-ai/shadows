@@ -207,6 +207,10 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/shadows-core/src/harness/assistant.rs` |
 | `crates/shadows-core/src/harness/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/harness/sessions.rs` |
 | `crates/shadows-core/src/harness/settings.rs` | setting an open session's options | `crates/shadows-core/src/harness/settings.rs` |
+| `crates/shadows-core/src/harness/mode.rs` | durable conversation mode commands | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/harness/fork.rs` | atomic conversation fork composition | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/harness/store/mode.rs` | conversation permission persistence | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/harness/store/remove.rs` | thread removal composition | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
 | `crates/shadows-core/src/harness/standards.rs` | Planner standards rendering | `crates/shadows-core/src/harness/standards.rs` |
 | `crates/shadows-core/src/harness/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/harness/offers.rs` |

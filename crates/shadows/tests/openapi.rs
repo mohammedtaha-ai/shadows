@@ -220,6 +220,7 @@ fn the_document_names_every_route() {
             "PUT /api/projects/{id}/planner-instructions",
             "PUT /api/projects/{id}/standards/additions",
             "PUT /api/threads/{id}/session/effort",
+            "PUT /api/threads/{id}/session/mode",
             "PUT /api/threads/{id}/session/model",
         ]
     );

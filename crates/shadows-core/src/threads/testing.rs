@@ -73,9 +73,7 @@ impl Threads {
         ctx: &CommandContext,
         thread: &ThreadId,
     ) -> Result<PlanningThread, StorageError> {
-        store::ThreadsStore::with_storage(storage.clone())
-            .remove_thread(ctx, thread)
-            .await
+        crate::harness::Harness::remove_thread_record_for_test(storage, ctx, thread).await
     }
     pub async fn get_thread_for_test(
         storage: &Storage,

@@ -52,6 +52,20 @@ impl HarnessStore {
         .bind(ts)
         .execute(&mut *conn)
         .await?;
+        let recorded = crate::operations::Operations::get_operation_in(
+            conn,
+            &crate::operations::OperationId::from_stored(operation.to_owned()),
+        )
+        .await?;
+        if let Some(thread) = recorded.thread_id {
+            Self::remember_mode_in(
+                conn,
+                &crate::threads::ThreadId::from_stored(thread),
+                kind,
+                &settings.mode,
+            )
+            .await?;
+        }
         if let Some(snapshot) = &snapshot {
             sqlx::query(
                 "UPDATE agent_invocation SET usage_agent_slug=?,

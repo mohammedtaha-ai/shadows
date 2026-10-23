@@ -32,6 +32,7 @@ durable_event :: db
 harness_limit :: harness
 harness_model_effort :: harness
 harness_preference :: harness
+harness_thread_mode :: harness
 mcp_grant :: grants
 operation :: operations
 plan :: plans

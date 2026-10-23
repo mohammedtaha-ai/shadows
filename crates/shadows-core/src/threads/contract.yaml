@@ -45,6 +45,7 @@
 # the harness before and after, not by the request.
 
 name: threads
+# Harness composes remove_in with its mode removal, then Threads stops and closes.
 version: 1
 status: current
 source: crates/shadows-core/src/threads
@@ -212,8 +213,8 @@ functions:
     list_threads_for_project:
       signature: "(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>"
       # Removed threads are omitted.
-    remove_thread:
-      signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
+    remove_in:
+      signature: "(conn, ctx, thread, ts) -> Result<PlanningThread, StorageError>"
       # One write: classify, live thread/project, removed_at, revoke grants,
       # ThreadRemoved, record command. A replay returns the removed row.
     get_thread:
@@ -225,7 +226,7 @@ functions:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>"
     fork_in:
       signature: "(conn, ctx, source, at, completed, ts) -> Result<PlanningThread, ThreadsError>"
-      note: Caller Operations owns replay and operation eligibility; this method writes the fork and copied entries without committing.
+      note: Caller Harness owns replay; Operations owns operation eligibility; this method writes the fork and copied entries without committing.
     fork_point:
       signature: "(conn, source, at, completed) -> Result<(i64, String), ThreadsError>"
       private: true
@@ -309,8 +310,9 @@ enums:
 
 
 shared_in_transaction:
+  remove_in: Harness composes thread removal with its permission row in one transaction.
   set_harness_in: "Harness calls the guarded thread-row update in its command transaction."
-  fork_in: Operations owns replay and eligibility, then calls this thread mutation in the same transaction.
+  fork_in: Harness checks replay and asks Operations for eligibility before this thread mutation.
   entry_in: "Grants reads retained approval entry identity and ordinal in the caller snapshot."
   request_entry_in: "Grants reads the latest user request for an opaque turn ref inside approval writes."
   harness_in: "Grants reads a retained thread's harness in its project during approval authorization."
@@ -495,7 +497,7 @@ not_the_caller's:
       Close the thread's session after a harness change, or reach `Sessions`
       for it; Harness::set_thread_harness owns that effect.
   - >
-      Judge operation eligibility for a fork; `Operations::fork_thread` does inside its own
+      Judge operation eligibility for a fork; `Operations::fork_eligible_in` does inside Harness's
       write.
 
 

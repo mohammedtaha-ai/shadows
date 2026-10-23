@@ -9,7 +9,9 @@ mod assistant;
 mod commands;
 mod context;
 mod extension_home;
+mod fork;
 mod live;
+mod mode;
 mod model;
 mod offers;
 mod profile_home;
@@ -187,6 +189,7 @@ impl Harness {
         .await?;
         self.check_available(&context).await?;
         self.sessions.open(thread).await?;
+        self.apply_idle_mode(thread).await?;
         let offered = self.sessions.offered(thread).await.ok_or_else(|| {
             CoreError::HarnessStartFailed("the session closed as it opened".into())
         })?;
@@ -366,7 +369,9 @@ impl Harness {
             .projects
             .allowed_modes(&context.project_id, &context.harness)
             .await?;
-        Ok(for_client(offered, &context.harness, &allowed))
+        let mut choices = for_client(offered, &context.harness, &allowed);
+        choices.current.mode = self.selected_mode(thread).await?;
+        Ok(choices)
     }
 }
 

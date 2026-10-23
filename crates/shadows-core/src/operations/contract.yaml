@@ -2,6 +2,7 @@
 # Live turns, cancellation effects, invocation observations and usage composition belong to Turns.
 # Every *_in writes in its caller's transaction; only a committed Transition is logged.
 name: operations
+# Harness composes the fork transaction; Operations checks only durable eligibility.
 version: 1
 status: current
 source: crates/shadows-core/src/operations
@@ -46,7 +47,7 @@ functions:
   service:
     recover_for_test: Test-support entry for explicitly testing recovery against a chosen runtime.
     recover: "(&self, current: &RuntimeInstanceId) -> Result<ReconcileReport, StorageError>"
-    fork_thread: "(&self, command_id, thread, at) -> Result<PlanningThread, CoreError>"
+    fork_eligible_in: "(conn, source, at) -> Result<bool, ThreadsError>"
     thread_is_busy: "(&self, thread) -> Result<bool, StorageError>"
     running_for: "(&self, thread) -> Result<Option<OperationId>, StorageError>"
     non_terminal_operations_owned_by: "(&self, runtime) -> Result<Vec<OperationId>, StorageError>"

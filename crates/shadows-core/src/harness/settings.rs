@@ -1,7 +1,7 @@
 //! One job: setting an open session's options.
 //!
 //! Every `session/set_config_option` Shadows sends goes through here: the
-//! opening's default mode and remembered model and effort, the model or effort
+//! opening's remembered settings, the model, effort or mode
 //! a person picks (and the picked model's remembered effort), and a turn's own
 //! settings before its prompt. The harness answers
 //! each with the complete set, which becomes the thread's latest offer
@@ -31,6 +31,24 @@ pub(crate) enum SettingRefused {
 }
 
 impl Sessions {
+    pub(super) async fn set_mode(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        offered: Offered,
+        mode: &str,
+    ) -> Result<Offered, SettingRefused> {
+        if !offered.offers_mode(mode) {
+            return Err(SettingRefused::NotOffered);
+        }
+        if offered.current.mode == mode {
+            return Ok(offered);
+        }
+        self.set_option(thread, opened, &offered.ids.mode, mode)
+            .await
+            .map_err(refused)
+    }
+
     /// Sets one of the session's options. The harness answers the complete
     /// set, which becomes the thread's latest offer and is published.
     pub async fn set_option(
@@ -144,24 +162,17 @@ impl Sessions {
             .unwrap_or(offered))
     }
 
-    /// Every opening sets the policy's default mode, since a new or
-    /// resumed session starts at the person's own Claude defaults. Then the
-    /// harness's remembered model, then the remembered effort of the model
-    /// the session then holds, each skipped when the session does not
-    /// offer it or the harness refuses it; a model change can move the mode,
-    /// so the default is set again after.
+    /// Opening restores model and effort before applying the conversation's mode,
+    /// because a model change may move the mode. The caller supplies the policy
+    /// default when no remembered mode remains allowed.
     pub(super) async fn apply_opening_settings(
         &self,
         thread: &ThreadId,
         opened: &OpenSession,
         mut offered: Offered,
-        default_mode: &str,
+        mode: &str,
         remembered: Remembered,
     ) -> Result<(), AcpError> {
-        if offered.current.mode != default_mode {
-            let id = offered.ids.mode.clone();
-            offered = self.set_option(thread, opened, &id, default_mode).await?;
-        }
         if let Some(model) = remembered.model
             && offered.current.model != model
         {
@@ -181,10 +192,9 @@ impl Sessions {
         offered = self
             .remembered_effort(thread, opened, offered, effort)
             .await?;
-        if offered.current.mode != default_mode {
-            let id = offered.ids.mode.clone();
-            self.set_option(thread, opened, &id, default_mode).await?;
-        }
+        self.set_mode(thread, opened, offered, mode)
+            .await
+            .map_err(|error| AcpError::Rpc(error.to_string()))?;
         Ok(())
     }
 
@@ -245,12 +255,9 @@ impl Sessions {
                 .await
                 .map_err(|e| refused("effort", effort, e))?;
         }
-        if offered.current.mode != settings.mode {
-            let id = offered.ids.mode.clone();
-            self.set_option(thread, opened, &id, &settings.mode)
-                .await
-                .map_err(|e| refused("mode", &settings.mode, e))?;
-        }
+        self.set_mode(thread, opened, offered, &settings.mode)
+            .await
+            .map_err(|e| format!("mode {}: {e}", settings.mode))?;
         Ok(())
     }
 }

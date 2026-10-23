@@ -124,7 +124,7 @@ impl Threads {
             "thread.remove",
             serde_json::json!({ "thread_id": thread }),
         );
-        let removed = self.store.remove_thread(&c, thread).await?;
+        let removed = self.harness.remove_thread_record(&c, thread).await?;
         match self.stopper.stop_running(thread).await {
             Ok(StopOutcome::TerminationFailed) => {
                 tracing::error!(thread_id = %thread, "thread.remove_stop_failed");

@@ -795,6 +795,21 @@
         ],
         "type": "object"
       },
+      "ChangeMode": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "mode"
+        ],
+        "type": "object"
+      },
       "ChangeModel": {
         "description": "The model a person picked (spec §12.7).",
         "properties": {
@@ -11447,6 +11462,98 @@
           }
         },
         "summary": "Sets the thread's session to `effort` as soon as a person picks it (spec\n§12.7), as `PUT .../session/model` sets a model: it opens the session\nfirst if it is not open, answers its choices exactly as `POST\n.../session` does, writes nothing durable and carries no `command_id`.\nThe remembered settings do not move (§12.4).\nA running turn's session is not changed (`THREAD_BUSY`).",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/session/mode": {
+      "put": {
+        "operationId": "change_mode",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeMode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionChoices"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "MODE_NOT_ALLOWED"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT; PATH_NOT_FOUND"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED; HARNESS_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED"
+          }
+        },
+        "summary": "Remembers the conversation's mode. A running turn keeps its current mode.",
         "tags": [
           "threads"
         ]

@@ -263,7 +263,7 @@ async fn fork_keeps_profile() {
         .await
         .unwrap();
     let fork = core
-        .operations()
+        .harness()
         .fork_thread("fork".into(), &t.id, &entry.id)
         .await
         .unwrap();

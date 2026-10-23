@@ -2,8 +2,10 @@
 mod invocation;
 mod invocations;
 mod limits;
+mod mode;
 mod preferences;
 mod reads;
+mod remove;
 mod thread;
 use crate::db::Storage;
 pub(super) use preferences::Remembered;

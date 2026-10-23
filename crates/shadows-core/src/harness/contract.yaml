@@ -54,6 +54,10 @@ name: harness
 # The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1
 modules:
+  mode.rs: durable conversation mode commands
+  fork.rs: atomic conversation fork composition
+  store/mode.rs: conversation permission persistence
+  store/remove.rs: thread removal composition
   mod.rs: harness service boundary
   access.rs: live session owner operations
   store/invocation.rs: invocation transaction entry points
@@ -184,6 +188,27 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
+    remove_thread_record:
+      signature: "(&self, command, thread) -> Result<PlanningThread, StorageError>"
+      # Threads requests the atomic record removal, then performs its retained stop and close.
+    fork_thread:
+      signature: "(&self, command_id, source, at) -> Result<PlanningThread, CoreError>"
+      # Replay first, Operations eligibility, Threads fork, then mode copy in one write.
+    change_mode:
+      signature: "(&self, command_id, thread, mode) -> Result<SessionChoices, CoreError>"
+      # thread.mode, schema 1, fingerprint {thread_id, mode}, Thread scope.
+      # Policy is checked before opening and again in the write transaction.
+      # A leased or durably busy turn keeps its mode; choices report the saved selection.
+      # Equal replay preserves later choices; a different mode is CommandConflict.
+    selected_mode_in:
+      signature: "(conn, thread) -> Result<String, CoreError>"
+      # Harness-only: remembered mode when still allowed, otherwise policy default.
+    copy_mode_in:
+      signature: "(conn, source, fork) -> Result<(), StorageError>"
+      # Harness composes this after Threads::fork_in in the same transaction.
+    remove_mode_in:
+      signature: "(conn, thread) -> Result<(), StorageError>"
+      # Thread removal deletes only this conversation's preference in its transaction.
     set_thread_harness:
       signature: "(&self, command_id, thread, harness) -> Result<PlanningThread, CoreError>"
       # Harness guards the command with Operations, calls Threads::set_harness_in, and closes only on a kind change.
@@ -393,8 +418,8 @@ functions:
       # Called by a turn's watcher (`turns/turn.rs`) as the harness reports.
     remember_settings:
       signature: "(conn, kind: &str, settings: &TurnSettings, ts: &str) -> Result<(), StorageError>"
-      # The model, and its effort for that model when the turn has one; the
-      # mode is never remembered (§12.4).
+      # The harness-wide model and effort. record_invocation_in separately
+      # remembers the conversation's mode in the same turn-start transaction.
 
 
 enums:
@@ -423,10 +448,14 @@ called_by_other_services:
 
 
 shared_in_transaction:
+  copy_mode_in: Harness copies a conversation preference in the fork transaction.
+  remove_mode_in: Harness deletes the conversation preference in the removal transaction.
+  remove_thread_record: Threads delegates the durable removal transaction to Harness.
+  remove_thread_record_for_test: Test-support removal uses the same Harness transaction.
   delete_invocation_for_test: "Unit fixtures remove historical metadata through its owner; test-support only."
   set_invocation_pin_for_test: "Unit fixtures simulate legacy or foreign pins through its owner; test-support only."
   remember_settings_in: "Turns' start (turns/store/turn.rs start_turn): the turn's model is remembered for its harness, and its effort for that model, in the same write that records the turn, so a refused or replayed start remembers nothing"
-  record_invocation_in: "Turns records immutable invocation input with its turn command in the same write."
+  record_invocation_in: "Turns records immutable invocation input and the conversation mode with its turn command in the same write."
   observe_invocation_in: "Turns records the harness observation with terminal status and measured usage."
   invocation_in: "Turns enriches an operation or completion event from Harness metadata."
   invocations_in: "Turns enriches an operation list with bounded batches in its read snapshot."
@@ -607,7 +636,7 @@ obligations:
 
   - rule: >
       Opening is idempotent: an open session answers the choices it holds,
-      on one adapter, and starts in the policy's default mode.
+      on one adapter, and starts in the remembered allowed mode or the policy default.
     tested_by:
       - opening_a_session_answers_the_harness_choices_after_the_policy
       - opening_twice_reuses_one_adapter_and_starts_in_accept_edits
@@ -668,6 +697,10 @@ obligations:
 
 
 agreements:
+  - between: [change_mode, open_session, prepare_turn]
+    must: Apply session modes through Sessions::set_mode; a leased running turn keeps its settings.
+    holds: true
+    tested_by: [running_turn_keeps_its_mode_and_next_turn_uses_the_pick]
   - between: [write_extensions, extensions::agent_extensions]
     must: Snapshot per-agent enablement under the library mutation guard before projecting owned files.
     holds: true
@@ -731,6 +764,22 @@ not_the_caller's:
 
 
 tests:
+  - name: picking_auto_without_sending_survives_reopen_and_core_restart
+    checks: Saving Auto sends no turn and survives adapter replacement and a Core restart.
+  - name: disallowed_mode_is_refused_before_any_write
+    checks: Policy refusal creates no preference, command, or live adapter.
+  - name: disallowed_remembered_mode_falls_back_on_open
+    checks: The session and client both receive the policy default after a policy restriction.
+  - name: a_new_conversation_including_a_draft_uses_its_own_default
+    checks: A conversation's Auto choice does not affect a new draft conversation.
+  - name: a_replay_with_another_mode_conflicts_and_equal_replay_keeps_later_choice
+    checks: Different-mode replay conflicts; equal replay never restores an obsolete choice.
+  - name: running_turn_keeps_its_mode_and_next_turn_uses_the_pick
+    checks: Busy picks leave ACP unchanged and the next invocation records Auto.
+  - name: fork_copies_the_mode_and_removal_deletes_only_its_row
+    checks: Fork copies the saved choice; source removal preserves the fork's choice.
+  - name: a_turn_start_remembers_its_explicit_mode_in_its_transaction
+    checks: A turn carrying Auto survives adapter replacement at Auto.
   - name: opening_uses_agent_and_provider
     checks: >
       tests/aylul_session/opening.rs: a send on an agent's thread spawns with

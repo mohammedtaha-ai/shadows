@@ -77,6 +77,10 @@ impl Sessions {
         let default_mode = policy::default_mode(&context.harness).ok_or_else(|| {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))
         })?;
+        let selected_mode = super::store::HarnessStore::with_storage(self.storage.clone())
+            .opening_mode(thread)
+            .await
+            .map_err(OpenError::Env)?;
         let preference = super::preference_key(&context.harness, context.profile.as_deref());
         let mut remembered = super::store::HarnessStore::with_storage(self.storage.clone())
             .remembered(&preference)
@@ -138,7 +142,16 @@ impl Sessions {
                         .map_err(|e| e.to_string())?;
                 }
             }
-            self.apply_opening_settings(thread, &opened, offered, default_mode, remembered)
+            let opening_mode = if offered.offers_mode(&selected_mode) {
+                selected_mode.as_str()
+            } else {
+                super::store::HarnessStore::with_storage(self.storage.clone())
+                    .forget_mode(thread)
+                    .await
+                    .map_err(|error| error.to_string())?;
+                default_mode
+            };
+            self.apply_opening_settings(thread, &opened, offered, opening_mode, remembered)
                 .await
                 .map_err(|e| e.to_string())?;
             Ok::<_, String>(opened)

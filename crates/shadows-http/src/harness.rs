@@ -15,6 +15,44 @@ use super::{AppState, Failure};
 use shadows_core::ThreadId;
 use shadows_core::{ContextBreakdown, HarnessInfo, SessionChoices};
 
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct ChangeMode {
+    command_id: String,
+    mode: String,
+}
+
+/// Remembers the conversation's mode. A running turn keeps its current mode.
+#[utoipa::path(
+    put,
+    path = "/api/threads/{id}/session/mode",
+    tag = "threads",
+    params(("id" = ThreadId, Path, description = "The thread")),
+    request_body = ChangeMode,
+    responses(
+        (status = 200, body = SessionChoices),
+        (status = 403, description = "MODE_NOT_ALLOWED", body = ErrorBody),
+        (status = 404, description = "INVALID_COMMAND", body = ErrorBody),
+        (status = 409, description = "COMMAND_CONFLICT; PATH_NOT_FOUND", body = ErrorBody),
+        (status = 422, description = "SETTING_NOT_OFFERED; HARNESS_UNAVAILABLE",
+            body = ErrorBody),
+        (status = 502, description = "HARNESS_START_FAILED", body = ErrorBody),
+    )
+)]
+pub(super) async fn change_mode(
+    State(s): State<AppState>,
+    Path(thread): Path<ThreadId>,
+    Json(body): Json<ChangeMode>,
+) -> Result<Json<SessionChoices>, Failure> {
+    let choices = detached(async move {
+        Ok(s.core
+            .harness()
+            .change_mode(body.command_id, &thread, &body.mode)
+            .await?)
+    })
+    .await?;
+    Ok(Json(choices))
+}
+
 /// Every harness Shadows knows, runnable or not, with the model and effort
 /// last used on it and the account limits it last reported.
 #[utoipa::path(
