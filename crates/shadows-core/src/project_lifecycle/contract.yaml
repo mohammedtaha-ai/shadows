@@ -31,6 +31,8 @@ functions:
         A replay returns retained project metadata without another write.
         After commit a detached task forgets its Code worker, even if the client disconnects.
 obligations:
+  - rule: Creation and replay each activate the project's code index.
+    tested_by: creation_and_replay_activate_the_project_index
   - rule: A project holding a live planning thread is refused with PROJECT_HAS_THREADS.
     tested_by: a_project_with_a_thread_is_not_removed
   - rule: Removal atomically removes the index, links and grants, then stops the worker.

@@ -136,6 +136,10 @@ enums:
 
 
 obligations:
+  - rule: Fingerprints and derived ids are byte-compatible with persisted command identities.
+    tested_by:
+      - fingerprints_match_persisted_values
+      - derived_ids_match_persisted_values
   - rule: >
       The fingerprint ignores object key order, depends on the command kind
       and on every value, and a key cannot impersonate the separator structure.
@@ -169,6 +173,10 @@ obligations:
 
 
 tests:
+  - name: fingerprints_match_persisted_values
+    checks: Fixed SHA-256 vectors from 5169647 cover nested keys, arrays, escaping, Unicode and null.
+  - name: derived_ids_match_persisted_values
+    checks: Fixed ids from 5169647 cover all anchors, truncation, short and empty fingerprints.
   - name: the_fingerprint_ignores_key_order_but_not_command_kind
     checks: Reordered keys hash equal; a different kind does not.
   - name: the_fingerprint_does_not_let_a_key_impersonate_the_separator_structure

@@ -155,3 +155,42 @@ pub(crate) async fn record_command(
     .await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::CommandContext;
+    use serde_json::json;
+
+    #[test]
+    fn fingerprints_match_persisted_values() {
+        let cases = [
+            (
+                "project.create",
+                json!({ "name": "Demo", "slug": "demo" }),
+                "c0d9607592de82e95eb135537b3a6e3917fbbc9adea901a34e58917003996a71",
+            ),
+            (
+                "PlanEdit",
+                json!({ "a": 1 }),
+                "c2daffdac71b1da272da47656f5a77a5fab0bc3b1890ac2d292b99e1cf4b7ad8",
+            ),
+            (
+                "k",
+                json!({
+                    "z": [null, true, false, -7, 1.25, "é\n\""],
+                    "a": { "b": 2, "a": 1 },
+                    "a:1,bc": 2,
+                }),
+                "2f1656af179d76595cb6880593915bc40e35759d3c5bc166ed985f82c2447d00",
+            ),
+            (
+                "",
+                json!(null),
+                "b018d21dce8b6a938aecc2bb5ffdef6c1cd0d821f0f282c0eb96a08a36ef7bfe",
+            ),
+        ];
+        for (kind, params, expected) in cases {
+            assert_eq!(CommandContext::fingerprint(kind, &params), expected);
+        }
+    }
+}

@@ -29,3 +29,22 @@ impl Anchor<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Anchor;
+
+    #[test]
+    fn derived_ids_match_persisted_values() {
+        let fingerprint = "c2daffdac71b1da272da47656f5a77a5fab0bc3b1890ac2d292b99e1cf4b7ad8";
+        for (anchor, expected) in [
+            (Anchor::Revision(7), "rev:7:c2daffdac71b1da2"),
+            (Anchor::Operation("op-1"), "op:op-1:c2daffdac71b1da2"),
+            (Anchor::DraftRef("dr-1"), "ref:dr-1"),
+        ] {
+            assert_eq!(anchor.derived_id(fingerprint), expected);
+        }
+        assert_eq!(Anchor::Revision(-1).derived_id("abc"), "rev:-1:abc");
+        assert_eq!(Anchor::Operation("op:é").derived_id(""), "op:op:é:");
+    }
+}

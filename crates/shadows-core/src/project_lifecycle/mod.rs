@@ -60,3 +60,37 @@ impl ProjectLifecycle {
         Ok(removed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::code::CodeConfig;
+
+    #[tokio::test]
+    async fn creation_and_replay_activate_the_project_index() {
+        let tmp = tempfile::tempdir().unwrap();
+        let core = crate::testing::app(tmp.path().join("core.db"))
+            .await
+            .unwrap();
+        core.code().start(CodeConfig::default()).await.unwrap();
+        let directory = tmp.path().join("project");
+        std::fs::create_dir(&directory).unwrap();
+        let create = || {
+            core.project_lifecycle().create(
+                "register-project".into(),
+                "project",
+                "Project",
+                directory.to_str().unwrap(),
+            )
+        };
+        let project = create().await.unwrap();
+        assert!(core.code().active_for_test().await.contains(&project.id));
+        core.code().forget(&project.id).await;
+        assert!(!core.code().active_for_test().await.contains(&project.id));
+        let replay = create().await.unwrap();
+        assert_eq!(replay.id, project.id);
+        assert!(core.code().active_for_test().await.contains(&project.id));
+        core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+            .await
+            .unwrap();
+    }
+}
