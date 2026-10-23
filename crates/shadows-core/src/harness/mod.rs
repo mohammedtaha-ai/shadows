@@ -370,7 +370,15 @@ impl Harness {
             .allowed_modes(&context.project_id, &context.harness)
             .await?;
         let mut choices = for_client(offered, &context.harness, &allowed);
-        choices.current.mode = self.selected_mode(thread).await?;
+        let slot = self.sessions.slot(thread).await;
+        let live = slot.lock().await;
+        // A busy session has not applied a deferred pick. An idle session's
+        // reported mode can differ because its model moved it.
+        if live.as_ref().is_some_and(|item| item.events.is_none())
+            || self.operations.thread_is_busy(thread).await?
+        {
+            choices.current.mode = self.selected_mode(thread).await?;
+        }
         Ok(choices)
     }
 }

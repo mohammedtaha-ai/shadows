@@ -272,6 +272,8 @@ functions:
     # no adapter reaches `Sessions` or the store for them (Task 10).
     choices:
       signature: "(&self, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, CoreError>"
+      # Busy or leased sessions report the deferred selection; idle sessions report
+      # the adapter's mode so model-driven changes remain visible to the client.
       # pub(crate). `for_client` over the thread's harness and its project's
       # allowed modes; `open_session` and `change_model` answer through it,
       # and `Events` for each offer it delivers (an `Err` delivers nothing).
@@ -764,6 +766,8 @@ not_the_caller's:
 
 
 tests:
+  - name: idle_choices_report_the_adapters_mode
+    checks: Idle choices expose an adapter mode change without overwriting the saved pick.
   - name: picking_auto_without_sending_survives_reopen_and_core_restart
     checks: Saving Auto sends no turn and survives adapter replacement and a Core restart.
   - name: disallowed_mode_is_refused_before_any_write

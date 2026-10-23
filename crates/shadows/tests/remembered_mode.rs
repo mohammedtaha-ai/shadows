@@ -230,3 +230,34 @@ async fn a_turn_start_remembers_its_explicit_mode_in_its_transaction() {
         "auto"
     );
 }
+
+#[tokio::test]
+async fn idle_choices_report_the_adapters_mode() {
+    let app = test_app().await;
+    assert_eq!(pick(&app, "auto", "auto").await.0, 200);
+    let opened = app.sessions.open(&app.thread).await.unwrap();
+    // Model changes can move the adapter's mode without changing the saved pick.
+    app.sessions
+        .set_option(&app.thread, &opened, "mode", "acceptEdits")
+        .await
+        .unwrap();
+    let (status, choices) = call(
+        &app,
+        "PUT",
+        &format!("/api/threads/{}/session/model", app.thread),
+        Some(json!({"model": "fake-large"})),
+    )
+    .await;
+    assert_eq!(status, 200, "{choices}");
+    assert_eq!(choices["current"]["mode"], "acceptEdits");
+    let saved: String =
+        sqlx::query_scalar("SELECT mode FROM harness_thread_mode WHERE thread_id = ?")
+            .bind(app.thread.as_str())
+            .fetch_one(app.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(
+        saved, "auto",
+        "the adapter's mode does not overwrite the pick"
+    );
+}

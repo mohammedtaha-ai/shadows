@@ -28,8 +28,8 @@ pub fn allowed_modes(kind: &str) -> &'static [&'static str] {
     }
 }
 
-/// The mode every new conversation on `kind` starts in, and every opening of
-/// its session is set to (§12.2). Never remembered.
+/// The mode a new conversation on `kind` starts in, also used when its
+/// remembered mode is disallowed.
 pub fn default_mode(kind: &str) -> Option<&'static str> {
     match kind {
         CLAUDE_CODE | AYLUL => Some("acceptEdits"),
