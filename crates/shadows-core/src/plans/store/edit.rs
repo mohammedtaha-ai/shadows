@@ -23,7 +23,7 @@ use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use crate::turns::OperationId;
 
 impl PlansStore {
-    /// order of work: the grant, then a recorded command (answered
+    /// The order of work: the grant, then a recorded command (answered
     /// from its event, before any revision check), then the revision, then
     /// the change with its event and command record in one transaction.
     /// `operation` is a Planner's running turn, which its event names.
@@ -124,7 +124,7 @@ impl PlansStore {
             .await
     }
 
-    /// : a person's approval freezes a Draft that has no blockers, and
+    /// A person's approval freezes a Draft that has no blockers, and
     /// says so in the conversation that wrote it: none when
     /// that conversation is deleted or an external agent wrote the version.
     /// A replay answers the recorded `WorkflowFrozen` payload, never the

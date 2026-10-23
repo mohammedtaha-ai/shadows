@@ -302,7 +302,7 @@ impl ReadRows {
     }
 }
 
-/// : a version with a grant is an external agent's, whether or not a
+/// Who wrote a version: one with a grant is an external agent's, whether or not a
 /// thread stands beside it (the versions 2a wrote have both); one with a
 /// thread only is its Planner's, with the model and harness of the turn's
 /// invocation when a turn was recorded.

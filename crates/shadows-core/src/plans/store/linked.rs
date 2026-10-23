@@ -1,4 +1,4 @@
-//! Outgoing/incoming task dependency views for one captured LinkedRows::read.
+//! Outgoing/incoming task dependency views for one captured read.
 
 use sqlx::SqliteConnection;
 

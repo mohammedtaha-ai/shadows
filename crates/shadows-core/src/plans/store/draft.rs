@@ -2,8 +2,8 @@
 //! new plan's first version, the next one copied from a frozen version with
 //! its reason, or the Draft already there. `DraftStarted` names the version,
 //! which never changes as the draft is edited, so a replay answers the same.
-//! Changing a version is `edit.rs`. A start may also tie its plan to parts
-//!, in the same transaction.
+//! Changing a version is `edit.rs`. A start may also tie its plan to parts,
+//! in the same transaction.
 
 use super::PlansStore;
 use sqlx::SqliteConnection;

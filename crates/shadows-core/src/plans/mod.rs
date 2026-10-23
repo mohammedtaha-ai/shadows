@@ -1,4 +1,4 @@
-//! One job: plan versions under the rules of — the `Plans` service.
+//! One job: plan versions under their lifecycle rules — the `Plans` service.
 //!
 //! Every way to read, start, edit, show or approve a plan ends in a method
 //! here: the HTTP routes as a person, the MCP tools under a grant. A
@@ -6,7 +6,8 @@
 //! thread and reaches every plan in its project; an external agent writes as
 //! its grant and reaches any plan in its project. Storage
 //! checks the grant again inside every write's transaction. When a
-//! caller names no command, the id is derived as table says.
+//! caller names no command, the id is derived from the command's anchor and
+//! fingerprint.
 //!
 //! `model` holds the types, `ops` and `rules` the pure edit and check rules,
 //! `conversation` the plan in the conversation, `scope` what a grant reaches,
@@ -60,8 +61,8 @@ pub(crate) mod for_tests {
     pub use super::rules::Rules;
 }
 
-/// Plans: what storage holds, the live turns a Planner's `draft_start` and
-/// `plan_show` anchor to, and the live-only signal `plan_show` sends.
+/// Plans: what storage holds and the running turns a Planner's `draft_start`
+/// and `plan_show` anchor to. `plan_show`'s live signal is sent by Turns.
 #[derive(Clone)]
 pub struct Plans {
     store: Arc<store::PlansStore>,
@@ -181,7 +182,7 @@ impl Plans {
         Ok(self.store.get_plan_versions(plan).await?)
     }
 
-    /// A person's archive Scope::command: "PlanArchive", params { "plan" }.
+    /// A person's archive command:"PlanArchive", params { "plan" }.
     pub async fn archive(
         &self,
         command_id: String,
@@ -192,7 +193,7 @@ impl Plans {
         Ok(self.store.archive_plan(&c, plan).await?)
     }
 
-    /// A person's unarchive Scope::command: "PlanUnarchive", params { "plan" }.
+    /// A person's unarchive command:"PlanUnarchive", params { "plan" }.
     pub async fn unarchive(
         &self,
         command_id: String,
@@ -273,7 +274,7 @@ impl Plans {
             GrantKind::Project => self.external_draft(grant, args).await,
         };
         match started {
-            // : a request missing its reason, not an invalid plan.
+            // A request missing its reason, not an invalid plan.
             Err(CoreError::ReasonMissing) => Err(Scope::refused(
                 ErrorCode::InvalidCommand,
                 "a new version needs its reason: say in a sentence or two what \

@@ -137,10 +137,10 @@ impl PlanOp {
     }
 }
 
-/// Applies `ops` in order to a copy of `current`. Refused, with every problem
-/// found, when an operation cannot apply or the final state breaks a rule of
-/// ; `current` is never changed.
 impl Ops {
+    /// Applies `ops` in order to a copy of `current`. Refused, with every
+    /// problem found, when an operation cannot apply or the final state breaks
+    /// an edit rule; `current` is never changed.
     pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>> {
         let refusals = refusals(current, ops);
         if !refusals.is_empty() {

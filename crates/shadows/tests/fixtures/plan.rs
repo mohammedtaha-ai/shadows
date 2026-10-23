@@ -312,7 +312,7 @@ pub async fn tie_to_part(app: &App, workflow: &WorkflowId) {
         .await
         .unwrap();
     shadows_core::AppCore::plans_for_tests(app.storage.clone())
-        .link_plan_part_for_tests_for_test(&plan.project_id, &plan.plan_id, &part)
+        .link_plan_part_for_test(&plan.project_id, &plan.plan_id, &part)
         .await
         .unwrap();
 }

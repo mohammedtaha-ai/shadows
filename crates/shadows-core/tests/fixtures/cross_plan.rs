@@ -77,7 +77,7 @@ pub async fn approve_roadmap(storage: &std::sync::Arc<Storage>, project: &str, p
     for plan in plans {
         let plan = shadows_core::PlanId::from_literal(*plan);
         shadows_core::AppCore::plans_for_tests(storage.clone())
-            .link_plan_part_for_tests_for_test(&project, &plan, &part)
+            .link_plan_part_for_test(&project, &plan, &part)
             .await
             .unwrap();
     }

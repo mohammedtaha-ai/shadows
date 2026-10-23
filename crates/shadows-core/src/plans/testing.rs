@@ -10,8 +10,7 @@ use crate::operations::OperationId;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 impl Plans {
-    #[allow(clippy::too_many_arguments)]
-    pub async fn link_plan_part_for_tests_for_test(
+    pub async fn link_plan_part_for_test(
         &self,
         p: &ProjectId,
         plan: &PlanId,
@@ -39,7 +38,6 @@ impl Plans {
             )
             .await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn edit_plan_for_test(
         &self,
         ctx: &CommandContext,
@@ -53,7 +51,6 @@ impl Plans {
             .edit_plan(ctx, writer, operation, workflow, expected_revision, ops)
             .await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn approve_plan_for_test(
         &self,
         ctx: &CommandContext,
@@ -64,7 +61,6 @@ impl Plans {
             .approve_plan(ctx, workflow, expected_revision)
             .await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn approve_plan_with_for_test(
         &self,
         ctx: &CommandContext,
@@ -76,18 +72,15 @@ impl Plans {
             .approve_plan_with(ctx, workflow, expected_revision, approver)
             .await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn plan_map_for_test(&self, project: &ProjectId) -> Result<PlanMap, StorageError> {
         self.store.plan_map(project).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn get_plan_versions_for_test(
         &self,
         plan: &PlanId,
     ) -> Result<PlanVersions, StorageError> {
         self.store.get_plan_versions(plan).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn archive_plan_for_test(
         &self,
         ctx: &CommandContext,
@@ -95,7 +88,6 @@ impl Plans {
     ) -> Result<PlanVersions, StorageError> {
         self.store.archive_plan(ctx, plan).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn unarchive_plan_for_test(
         &self,
         ctx: &CommandContext,
@@ -103,11 +95,9 @@ impl Plans {
     ) -> Result<PlanVersions, StorageError> {
         self.store.unarchive_plan(ctx, plan).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn get_plan_for_test(&self, workflow: &WorkflowId) -> Result<Plan, crate::CoreError> {
         self.store.get_plan(workflow).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn get_plan_scoped_for_test(
         &self,
         workflow: &WorkflowId,
@@ -116,7 +106,6 @@ impl Plans {
     ) -> Result<Plan, crate::CoreError> {
         self.store.get_plan_scoped(workflow, origin, project).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn list_plans_scoped_for_test(
         &self,
         origin: &ProjectId,
@@ -127,7 +116,6 @@ impl Plans {
             .list_plans_scoped(origin, archived, project)
             .await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn list_plans_for_test(
         &self,
         project: &ProjectId,
@@ -135,14 +123,12 @@ impl Plans {
     ) -> Result<Vec<PlanListing>, StorageError> {
         self.store.list_plans(project, archived).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn thread_plan_for_test(
         &self,
         thread: &ThreadId,
     ) -> Result<Option<WorkflowId>, StorageError> {
         self.store.thread_plan(thread).await
     }
-    #[allow(clippy::too_many_arguments)]
     pub async fn show_plan_for_test(
         &self,
         ctx: &CommandContext,

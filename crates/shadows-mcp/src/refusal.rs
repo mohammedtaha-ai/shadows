@@ -82,10 +82,13 @@ impl From<CoreError> for Refusal {
             CoreError::ValidationFailed { problems, .. } => {
                 Self::new(ErrorCode::WorkflowValidationFailed, problems.join("; "))
             }
-            CoreError::ReasonMissing | CoreError::Unavailable(_) => Self::new(
-                ErrorCode::StorageUnavailable,
-                "the daemon could not read or write its database",
-            ),
+            other @ (CoreError::ReasonMissing | CoreError::Unavailable(_)) => {
+                tracing::error!(error = %other, "mcp.storage_failed");
+                Self::new(
+                    ErrorCode::StorageUnavailable,
+                    "the daemon could not read or write its database",
+                )
+            }
             CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => e.into(),
             CoreError::Refused {
                 code: ErrorCode::GrantInvalid,

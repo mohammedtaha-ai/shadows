@@ -677,8 +677,8 @@ not_the_caller's:
       Build a CommandContext, derive a command id or fingerprint a plan
       command; the service does, so every path replays alike.
   - >
-      Send `plan_show`'s UI signal; `show` sends it, after the card is recorded
-      and never on a replay.
+      Send `plan_show`'s UI signal; `Turns::show_plan` sends it, after `show`
+      has recorded the card and never on a replay.
 
 
 open_questions:
@@ -887,7 +887,7 @@ modules:
   design_views.rs: Workspace views composed from Design
   error.rs: Plan lifecycle refusals, converted to the application error vocabulary
   map.rs: Values in a project's latest-plan dependency map
-  mod.rs: 'One job: plan versions under the rules of spec §13 — the `Plans` service'
+  mod.rs: 'One job: plan versions under their lifecycle rules — the `Plans` service'
   model.rs: 'One job: the plan types callers meet'
   ops.rs: 'One job: applying one batch of plan edits'
   project_links.rs: Project-link commands composed above code

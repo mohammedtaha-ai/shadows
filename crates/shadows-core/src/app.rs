@@ -638,10 +638,8 @@ impl AppCore {
     pub fn plans_for_tests(storage: Arc<Storage>) -> Plans {
         let grants = Grants::new(storage.clone(), String::new());
         let operations = Operations::new(storage.clone());
-        {
-            let design = Design::new(storage.clone(), operations.clone());
-            Plans::new(storage, grants, operations, design)
-        }
+        let design = Design::new(storage.clone(), operations.clone());
+        Plans::new(storage, grants, operations, design)
     }
 }
 

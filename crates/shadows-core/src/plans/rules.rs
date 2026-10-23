@@ -26,17 +26,17 @@ impl Problem {
     }
 }
 
-/// What every edit's final state must hold. Empty means
-/// the content may be stored as a `Draft`.
 impl Rules {
+    /// What every edit's final state must hold. Empty means
+    /// the content may be stored as a `Draft`.
     pub fn edit_problems(content: &PlanContent) -> Vec<Problem> {
         Rules::edit_problems_after_removing(content, &BTreeSet::new())
     }
 }
 
-/// [`edit_problems`], plus what a plan needs before it can be approved (,
-/// "Approval"). Empty means the content may be frozen.
 impl Rules {
+    /// [`Self::edit_problems`], plus what a plan needs before it can be
+    /// approved. Empty means the content may be frozen.
     pub fn approval_problems(content: &PlanContent) -> Vec<Problem> {
         let mut problems = Rules::edit_problems(content);
         if content.title.trim().is_empty() {
@@ -57,10 +57,11 @@ impl Rules {
     }
 }
 
-/// [`edit_problems`] for the state an edit left behind: a link still naming a
-/// task the same edit removed says so ("T4 is still linked from T2"), instead
-/// of calling it a task that never existed. Nothing is removed implicitly.
 impl Rules {
+    /// [`Self::edit_problems`] for the state an edit left behind: a link still
+    /// naming a task the same edit removed says so ("T4 is still linked from
+    /// T2"), instead of calling it a task that never existed. Nothing is
+    /// removed implicitly.
     pub(super) fn edit_problems_after_removing(
         content: &PlanContent,
         removed: &BTreeSet<u32>,
@@ -164,7 +165,7 @@ fn link_problems(content: &PlanContent, removed: &BTreeSet<u32>, link: &Link) ->
     }
 }
 
-/// : each task is two events, start and complete, start before complete.
+/// Each task is two events, start and complete, start before complete.
 /// `B needs A`: complete(A) → start(B). `B completes_after A`: complete(A) → complete(B).
 /// A cycle is a strongly connected set of more than one event; its tasks are
 /// named, never a task that merely comes after it. When several exist, the one
