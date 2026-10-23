@@ -17,6 +17,7 @@ import {
   stopTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
+import { ApiError } from '@/api/error'
 import { queuedQuery } from '@/api/queries'
 import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
@@ -218,16 +219,29 @@ export function Composer({
   })
   const stop = useMutation({ mutationFn: stopTurn })
 
+  // A lost answer may already have saved the mode. Keep its replay key until
+  // Core answers, or the person chooses a different request.
+  const modeAttempt = useRef<Attempt | null>(null)
   const switchMode = useMutation({
     mutationFn: ({ threadId, commandId, mode }: { threadId: string; commandId: string; mode: string }) =>
       changeMode(threadId, commandId, mode),
-    onSuccess: (answer, { threadId }) => writeSaved(queryClient, sessionKey(threadId), answer),
+    onSuccess: async (answer, { threadId }) => {
+      modeAttempt.current = null
+      await writeSaved(queryClient, sessionKey(threadId), answer)
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.problem.kind === 'daemon') modeAttempt.current = null
+    },
   })
   const choose = (next: TurnSettings) => {
     if (threadId !== null && choices !== null && next.mode !== choices.current.mode) {
       pending.current = null
-      switchMode.mutate({ threadId, commandId: attemptFor(null, { mode: next.mode }).commandId, mode: next.mode })
-    } else chooseLocal(next)
+      modeAttempt.current = attemptFor(modeAttempt.current, { threadId, mode: next.mode })
+      switchMode.mutate({ threadId, commandId: modeAttempt.current.commandId, mode: next.mode })
+    } else {
+      modeAttempt.current = null
+      chooseLocal(next)
+    }
   }
 
   // A picked model is set on the session at once, so its efforts

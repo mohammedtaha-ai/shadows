@@ -662,6 +662,8 @@ obligations:
 
   - rule: >
       A saved conversation writes each picked mode immediately, with a fresh command id.
+      A lost answer keeps that attempt's id for a retry of the same choice; success or
+      a daemon refusal ends the attempt, including COMMAND_CONFLICT.
       Its menu and turns use Core's current.mode, including after navigation or a fresh
       QueryClient remount. A pending write disables settings and Send; a refusal or lost
       connection keeps the last Core mode and displays the usual error. A draft keeps
@@ -670,7 +672,9 @@ obligations:
       - "choosing Auto saves at once and shows only Core’s answer"
       - "Auto survives navigating away and back and a fresh QueryClient remount"
       - "a mode refusal %s keeps Core’s mode and shows its message"
-      - "an unreachable mode save keeps the last Core mode and shows the error"
+      - "a lost mode answer keeps Core’s mode and retries with the same command id"
+      - "a mode save cancels an older session read before caching Core’s answer"
+      - "switching conversations isolates their modes and a late save answer"
       - "every mode choice uses a fresh command and options frames remain authoritative"
       - "a draft starts at the policy default without a session mode write"
       - "the first message creates the thread, then sends, then opens the thread"
@@ -690,12 +694,9 @@ obligations:
     tested_by: "keeps the person where they went"
 
   - rule: >
-      A draft's opened session is the same cache entry the thread page reads, so the thread
-      page does not open the session again.
-    tested_by: none
-    note: >
-      Holds by code reading: `useFirstSend` sets `sessionKey(thread.id)` and `useSession` has
-      `staleTime: Infinity`. No test counts session opens after the navigation.
+      The thread page opens its session after a draft sends, so it reads Core's mode
+      after the first turn rather than caching a mode supplied by the web.
+    tested_by: "the mode chosen in the draft stays on the thread page and runs the second turn"
 
   - rule: >
       A removed conversation shows its history read-only: no session is opened and there is
@@ -984,9 +985,6 @@ not_the_caller's:
   - >
       Decide whether a reply is shown from the entries list alone. Pass the entries' ordinals and
       fetch time to `shownReply` along with the reply state.
-  - >
-      Open a thread's session after a draft has sent. The draft seeds its cache entry; a second POST
-      would open the harness again.
   - >
       Treat `useCommands` as a fetch. It has no query function; only the stream fills it.
 

@@ -199,16 +199,74 @@ describe('the composer bar', () => {
     expect(turnStarts(app)).toBe(0)
   })
 
-  it('an unreachable mode save keeps the last Core mode and shows the error', async () => {
+  it('a lost mode answer keeps Core’s mode and retries with the same command id', async () => {
+    let attempts = 0
     const app = await start('/projects/p1/threads/t1', {
       ...answers(),
-      'PUT /api/threads/t1/session/mode': () => { throw new TypeError('connection lost') },
+      'PUT /api/threads/t1/session/mode': () => {
+        if (++attempts === 1) throw new TypeError('connection lost')
+        return Response.json({ ...fakeChoices, current: { ...fakeChoices.current, mode: 'auto' } })
+      },
     })
     await until(ready(app))
     await choose(app, 'Mode', 'Auto')
     await until(() => app.text().includes('The daemon is not reachable.'))
     expect(app.button('Mode')?.textContent).toContain('Accept edits')
     expect(app.calls.filter(c => c === 'PUT /api/threads/t1/session/mode')).toHaveLength(1)
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
+    expect(app.bodies).toHaveLength(2)
+    expect(app.bodies[1]).toEqual(app.bodies[0])
+    expect(app.text()).not.toContain('The daemon is not reachable.')
+  })
+
+  it('a mode save cancels an older session read before caching Core’s answer', async () => {
+    let release!: () => void
+    let reads = 0
+    const app = await start('/projects/p1/threads/t1', {
+      ...answers({ session: () => ++reads === 1 ? Response.json(fakeChoices) : new Promise<Response>(resolve => {
+        release = () => resolve(Response.json(fakeChoices))
+      }) }),
+    })
+    await until(ready(app))
+    const key = ['threads', 't1', 'session'] as const
+    let refetch!: Promise<void>
+    act(() => { refetch = app.queryClient.refetchQueries({ queryKey: key, exact: true }) })
+    await until(() => reads === 2)
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
+    await act(async () => { release(); await refetch })
+    expect(app.queryClient.getQueryData(key)).toEqual({ ...fakeChoices, current: { ...fakeChoices.current, mode: 'auto' } })
+    expect(app.button('Mode')?.textContent).toContain('Auto')
+  })
+
+  it('switching conversations isolates their modes and a late save answer', async () => {
+    let release!: () => void
+    const second = { ...threadFixture, id: 't2', title: 'Second conversation' }
+    const app = await start('/projects/p1/threads/t1', {
+      ...answers(),
+      'GET /api/projects/p1/threads': [threadFixture, second],
+      'POST /api/threads/t2/session': fakeChoices,
+      'GET /api/threads/t2/entries': [],
+      'GET /api/threads/t2/operations': [],
+      'GET /api/threads/t2/queue': [],
+      'PUT /api/threads/t1/session/mode': () => new Promise<Response>(resolve => {
+        release = () => resolve(Response.json({ ...fakeChoices, current: { ...fakeChoices.current, mode: 'auto' } }))
+      }),
+    })
+    await until(ready(app))
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.button('Mode')?.disabled === true)
+    const { router } = await import('@/router')
+    await act(() => router.navigate({ to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't2' } }))
+    await until(() => app.button('Mode')?.disabled === false)
+    expect(app.button('Mode')?.textContent).toContain('Accept edits')
+    act(() => release())
+    await until(() => app.queryClient.getQueryData<{ current: { mode: string } }>(['threads', 't1', 'session'])?.current.mode === 'auto')
+    expect(app.button('Mode')?.textContent).toContain('Accept edits')
+    await act(() => router.navigate({ to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't1' } }))
+    await until(() => app.button('Auto')?.disabled === false)
+    expect(app.calls).not.toContain('PUT /api/threads/t2/session/mode')
   })
 
   it('every mode choice uses a fresh command and options frames remain authoritative', async () => {
