@@ -6,7 +6,7 @@ use crate::threads::{ThreadEntryId, ThreadId};
 pub use crate::operations::OperationId;
 
 newtype_id! {
-    /// Spec §20.2: a message written while a turn ran, waiting to be sent.
+    /// A message written while a turn ran, waiting to be sent.
     QueuedMessageId
 }
 

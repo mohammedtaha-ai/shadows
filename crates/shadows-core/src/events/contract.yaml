@@ -207,7 +207,7 @@ enums:
     source: crate::harness::Harness
     values: []
   Bus:
-    source: crate::app::Bus
+    source: crate::turns::Bus
     values: []
   HarnessEvent:
     source: shadows_agent::events::HarnessEvent
@@ -309,7 +309,8 @@ obligations:
       or the UI channel, or appends to the journal.
     tested_by: none
     note: >
-      Structural: `Events` calls only `subscribe` on its senders, and
+      Structural: `Events` takes the turn receiver through `Turns::subscribe_live`,
+      subscribes to its other live sources, and
       appending is `db::append_event`, which no file here calls. A test
       would have to observe the bus and the journal across a subscription
       that receives every kind of delivery.

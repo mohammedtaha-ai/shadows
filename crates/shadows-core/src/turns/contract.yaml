@@ -42,7 +42,7 @@ modules:
   error.rs: turn refusal mapping
   remove.rs: thread removal orchestration
   handles.rs: live turn registry
-  model.rs: turn transport values
+  model.rs: turn transport values # Derived schema comments remain; UUID id docs are schema-independent.
   prompt.rs: prompt composition
   queue.rs: queue orchestration
   record.rs: start validation
