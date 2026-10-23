@@ -26,6 +26,7 @@ pub(super) struct Live {
     /// Whether a Planner turn has answered in this adapter: before one has,
     /// `/context` can stall a fresh session for tens of seconds.
     pub(super) answered: bool,
+    pub(super) window: Option<u32>,
 }
 
 /// One thread's place in `Sessions`: empty until an adapter opens, and while
@@ -42,6 +43,15 @@ impl Sessions {
         thread: &ThreadId,
         has_images: bool,
     ) -> Result<OpenSession, OpenError> {
+        self.open_selected(thread, has_images, None).await
+    }
+
+    pub(super) async fn open_selected(
+        &self,
+        thread: &ThreadId,
+        has_images: bool,
+        replacement: Option<(&OpenSession, &shadows_agent::choices::Offered)>,
+    ) -> Result<OpenSession, OpenError> {
         let slot = self.slot(thread).await;
         let mut live = slot.lock().await;
         // Deletion commits before Stop/close. Even a cached adapter cannot
@@ -57,6 +67,35 @@ impl Sessions {
         )
         .await?;
         self.check_context(&context).await?;
+        let mut resume = None;
+        if let Some((expected, offered)) = replacement {
+            let current = live
+                .as_mut()
+                .filter(|item| item.opened.generation == expected.generation)
+                .ok_or_else(|| OpenError::Start("the harness session closed".into()))?;
+            let Some(snapshot) = &expected.aylul_usage else {
+                return Ok(expected.clone());
+            };
+            let provider = self
+                .owners
+                .providers
+                .provider(&snapshot.provider_slug)
+                .await?;
+            let window = super::Harness::model_window(&provider, &offered.current.model)?;
+            if current.window == Some(window) {
+                return Ok(expected.clone());
+            }
+            // The caller holds the events, so replacement cannot interrupt a prompt.
+            if current.events.is_some() {
+                return Err(OpenError::Start("the harness session is not leased".into()));
+            }
+            resume = Some(expected.session_id.clone());
+            Self::stop_handle(&mut current.handle)
+                .await
+                .map_err(|error| OpenError::Start(error.to_string()))?;
+            *live = None;
+            self.forget(thread).await;
+        }
         if let Some(current) = live.as_mut() {
             if !current.handle.has_exited() && !current.opened.connection.is_closed() {
                 super::Harness::check_images(current.opened.connection(), has_images)?;
@@ -72,7 +111,7 @@ impl Sessions {
         // A fork's first opening forks the source's session; once
         // the fork's first turn has recorded its own, it resumes that.
         let (how, start) = match (
-            context.harness_session_id.clone(),
+            resume.or_else(|| context.harness_session_id.clone()),
             context.fork_session_id.clone(),
         ) {
             (Some(id), _) => ("resume", SessionStart::Resume(id)),
@@ -86,13 +125,22 @@ impl Sessions {
         let mut remembered = super::store::HarnessStore::with_storage(self.storage.clone())
             .remembered(&preference)
             .await?;
+        if let Some((_, offered)) = replacement {
+            remembered.model = Some(offered.current.model.clone());
+            if let Some(effort) = &offered.current.effort {
+                remembered
+                    .efforts
+                    .insert(offered.current.model.clone(), effort.clone());
+            }
+        }
         let Opening {
             cwd,
             setup,
             spec,
             aylul_models,
             aylul_usage,
-        } = self.opening(&context).await?;
+            window,
+        } = self.opening(&context, remembered.model.as_deref()).await?;
         if let Some((models, default)) = &aylul_models {
             if !remembered
                 .model
@@ -128,10 +176,13 @@ impl Sessions {
                 image_refusal = Some(error);
                 return Err(reason);
             }
-            let selected_mode = super::store::HarnessStore::with_storage(self.storage.clone())
-                .opening_mode(thread)
-                .await
-                .map_err(|e| e.to_string())?;
+            let selected_mode = match replacement {
+                Some((_, offered)) => offered.current.mode.clone(),
+                None => super::store::HarnessStore::with_storage(self.storage.clone())
+                    .opening_mode(thread)
+                    .await
+                    .map_err(|e| e.to_string())?,
+            };
             let setup = if context.harness == policy::AYLUL {
                 setup
             } else {
@@ -200,6 +251,7 @@ impl Sessions {
             events: Some(rx),
             last_used: Instant::now(),
             answered: false,
+            window,
         });
         Ok(opened)
     }

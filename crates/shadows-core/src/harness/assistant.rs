@@ -29,6 +29,7 @@ pub(super) struct Opening {
     pub(super) spec: ProcessSpec,
     pub(super) aylul_usage: Option<super::AylulUsageSnapshot>,
     pub(super) aylul_models: Option<(Vec<String>, String)>,
+    pub(super) window: Option<u32>,
 }
 
 impl Sessions {
@@ -53,7 +54,11 @@ impl Sessions {
         Ok(())
     }
 
-    pub(super) async fn opening(&self, context: &TurnContext) -> Result<Opening, OpenError> {
+    pub(super) async fn opening(
+        &self,
+        context: &TurnContext,
+        selected: Option<&str>,
+    ) -> Result<Opening, OpenError> {
         if context.harness != policy::AYLUL {
             let cwd = workspace(context).map_err(OpenError::Workspace)?;
             let setup = SessionSetup::default();
@@ -63,6 +68,7 @@ impl Sessions {
                 setup,
                 aylul_usage: None,
                 aylul_models: None,
+                window: None,
             });
         }
         self.check_context(context).await?;
@@ -79,12 +85,10 @@ impl Sessions {
         let provider = self.owners.providers.provider(&agent.provider).await?;
         let home = self.owners.agents.home(slug)?;
         let models: Vec<_> = provider.models.iter().map(|m| m.id.clone()).collect();
-        let window = provider
-            .models
-            .iter()
-            .find(|m| m.id == agent.default_model)
-            .ok_or_else(|| CoreError::ProfileInvalid("default model is not offered".into()))?
-            .context_window;
+        let model = selected
+            .filter(|model| models.iter().any(|id| id == model))
+            .unwrap_or(&agent.default_model);
+        let window = super::Harness::model_window(&provider, model)?;
         self.homes
             .write_extensions(&self.owners.extensions, &config.home_root, &home, slug)
             .await?;
@@ -146,7 +150,19 @@ impl Sessions {
             spec,
             aylul_usage,
             aylul_models: Some((models, agent.default_model)),
+            window: Some(window),
         })
+    }
+}
+
+impl super::Harness {
+    pub(super) fn model_window(provider: &crate::Provider, model: &str) -> Result<u32, CoreError> {
+        provider
+            .models
+            .iter()
+            .find(|candidate| candidate.id == model)
+            .map(|candidate| candidate.context_window)
+            .ok_or_else(|| CoreError::ProfileInvalid("model is not offered".into()))
     }
 }
 

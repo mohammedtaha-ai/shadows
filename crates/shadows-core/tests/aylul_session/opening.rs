@@ -183,6 +183,55 @@ async fn auto_compact_window_is_capped_or_omitted() {
 }
 
 #[tokio::test]
+async fn switching_model_uses_the_new_models_window() {
+    let w = world().await;
+    provider_window(&w, 321000).await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    let choices = w
+        .core
+        .harness()
+        .change_model(&w.thread, "fake-large")
+        .await
+        .unwrap();
+    assert_eq!(choices.current.model, "fake-large");
+    let report = reply(&w, &w.thread, "fake-large", "high").await;
+    assert_eq!(report["context_tokens"], "1000");
+    assert!(report["compact_window"].is_null());
+}
+
+#[tokio::test]
+async fn opening_and_turn_model_selection_use_the_same_window() {
+    let w = world().await;
+    provider_window(&w, 321000).await;
+    let report = reply(&w, &w.thread, "fake-large", "high").await;
+    assert_eq!(report["context_tokens"], "1000");
+    assert!(report["compact_window"].is_null());
+    w.sessions.terminate(&w.thread).await.unwrap();
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(choices.current.model, "fake-large");
+    let report = reply(&w, &w.thread, "fake-large", "high").await;
+    assert_eq!(report["context_tokens"], "1000");
+    assert!(report["compact_window"].is_null());
+}
+
+#[tokio::test]
+async fn a_leased_adapter_is_not_replaced_by_a_model_pick() {
+    let w = world().await;
+    provider_window(&w, 321000).await;
+    let opened = w.sessions.open(&w.thread).await.unwrap();
+    let events = w.sessions.lease_events(&w.thread, &opened).await.unwrap();
+    let pid = w.sessions.pid(&w.thread).await;
+    let changed = w.core.harness().change_model(&w.thread, "fake-large").await;
+    assert!(matches!(changed, Err(CoreError::Refused { .. })));
+    assert_eq!(w.sessions.pid(&w.thread).await, pid);
+    w.sessions
+        .give_back_events(&w.thread, &opened, events)
+        .await;
+    let report = reply(&w, &w.thread, "fake-small", "high").await;
+    assert_eq!(report["context_tokens"], "321000");
+}
+
+#[tokio::test]
 async fn opening_names_the_person() {
     let w = world().await;
     for (i, calls, expected) in [(0, Some("Lex"), "Lex"), (1, None, "Alex")] {

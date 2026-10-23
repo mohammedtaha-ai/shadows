@@ -49,7 +49,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: `a_slash_command_is_sent_as_one_block`, `context_skipped_by_a_command_reaches_the_next_turn` and the planner context tests pass
 
 ### A-3 · The AYLUL window follows the current model
-- Status: todo
+- Status: done
 - Ruling (controller, 2026-10-23, on the adapter-handoff blocker): Turns settles the turn's model with Harness (`offer_for_model` and any adapter replacement it needs) before it leases the connection's events, then leases from the session Harness returns, so no turn holds an old `OpenSession` or receiver. Touch adds turns/mod.rs, turns/record.rs, the turns contract lines and the turn lifecycle tests they change. A running turn keeps its adapter; the switch applies from the next turn.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-3--the-aylul-window-follows-the-current-model
 - Read: harness/contract.yaml

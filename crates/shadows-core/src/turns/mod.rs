@@ -257,6 +257,12 @@ impl Turns {
             .await?;
         self.sessions
             .require_images(&opened, !attachments.is_empty())?;
+        let (opened, offered, previous) = self
+            .sessions
+            .offer_for_model(&thread_id, &opened, &settings.model)
+            .await?;
+        self.sessions
+            .require_images(&opened, !attachments.is_empty())?;
         // The turn holds the session from here: a second start, or a `/context`
         // read, cannot change or prompt it until this turn gives it back.
         let events =
@@ -264,6 +270,13 @@ impl Turns {
                 LeaseError::Busy => CoreError::from(error::TurnsError::ThreadBusy),
                 LeaseError::Closed => CoreError::HarnessStartFailed(e.to_string()),
             })?;
+        // A concurrent pick may finish between model settlement and this lease.
+        if self.sessions.offered(&thread_id).await != Some(offered.clone()) {
+            self.sessions
+                .give_back_events(&thread_id, &opened, events)
+                .await;
+            return Err(CoreError::from(error::TurnsError::ThreadBusy));
+        }
         let turn = Turn {
             command: &command,
             attachments: &attachments,
@@ -275,12 +288,20 @@ impl Turns {
                 also: also.as_ref(),
             }),
         };
-        let started = match self.record(&thread_id, &opened, &context, turn).await {
+        let started = match self
+            .record(&thread_id, &opened, &context, turn, &offered)
+            .await
+        {
             Ok(started) if !started.replayed => started,
             other => {
                 (self.sessions)
                     .give_back_events(&thread_id, &opened, events)
                     .await;
+                if let Some(previous) = previous {
+                    self.sessions
+                        .set_model_back(&thread_id, &opened, &offered, &previous)
+                        .await;
+                }
                 return other.map(|replay| replay.operation_id);
             }
         };

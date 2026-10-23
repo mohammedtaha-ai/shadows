@@ -12,8 +12,8 @@
 # state the step before it relies on: a replay is answered first, before the
 # registry, the harness or the thread is looked at; the harness's availability
 # is checked before any session work; the thread's busyness before the session
-# is touched; the session is opened, then its events leased, before any
-# setting changes; the one transaction checks busyness again under
+# is touched; Harness settles the model and returns the current session before
+# its events are leased; the one transaction checks busyness again under
 # `BEGIN IMMEDIATE`; only a committed, non-replayed turn is started. Any
 # refusal after the lease gives the events back, and any refusal after the
 # model was set sets the session's model back.
@@ -735,6 +735,10 @@ obligations:
 
 
 agreements:
+  - between: [send, harness::offer_for_model]
+    must: Lease events from the settled adapter; a running turn keeps its original adapter.
+    holds: true
+    tested_by: [opening_and_turn_model_selection_use_the_same_window]
   - between: [operations::thread_is_busy, start_turn]
     must: >
       judge a thread busy identically: the early check and the transaction's
