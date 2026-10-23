@@ -103,10 +103,9 @@ and OS acceptance.
 - Validation: `npm run typecheck` and `npm run lint` passed. Six menu tests written; vitest not run as instructed while the backend agent builds Rust. Browser acceptance not run.
 
 ### F-25 · Paste, drop and pick images, and send them
-- Status: blocked
-- Blocker: Baseline `npm run typecheck` fails because `web/src/test/contract-fixtures.ts` lacks the generated schema's required `SessionChoices.capabilities` (line 54) and `ThreadEntry.attachments` (line 156). That file is outside Touch; amend scope to update these fixtures before F-25 can pass its required checks. `draft.tsx` also lacks `capabilities`, within Touch.
+- Status: todo
 - Plan: none. Owner specs: §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
 - Read: `web/src/app/conversation/contract.yaml`; `composer.tsx`, `composer-bar.tsx`, `draft.tsx`, `web/src/api/client.ts`
-- Touch: `web/src/app/conversation/` (paste, drop, picker, thumbnails, sending, the transcript's images, tests, `contract.yaml`), `web/src/api/` (the calls; `schema.d.ts` via `npm run gen:api`)
+- Touch: `web/src/app/conversation/` (paste, drop, picker, thumbnails, sending, the transcript's images, tests, `contract.yaml`), `web/src/api/` (the calls; `schema.d.ts` via `npm run gen:api`), `web/src/test/contract-fixtures.ts` and any other shared test fixture typed from `schema.d.ts` (the new required fields only)
 - Needs: B-11, F-24
 - Done when: Ctrl+V of a screenshot, a drop and Add photos (Ctrl+U) each upload at once and show a thumbnail with remove; ordinary text paste is unchanged; Send waits for uploads and sends the ids in order; an image-only message sends; a failed upload or a refused send keeps the text and images and shows Core's reason; Add photos and paste are disabled with the reason when `capabilities.image` is false; the draft's first send keeps its images; the transcript shows a message's images; the tests pass with `npm run typecheck` and `npm run lint`
