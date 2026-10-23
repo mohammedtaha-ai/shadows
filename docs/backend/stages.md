@@ -49,7 +49,8 @@ are reference material; they do not replace the project's template or code.
 - Done when: `a_slash_command_is_sent_as_one_block`, `context_skipped_by_a_command_reaches_the_next_turn` and the planner context tests pass
 
 ### A-3 · The AYLUL window follows the current model
-- Status: todo
+- Status: blocked
+- Blocker: The window is process environment, but Turns::send_with leases the connection's events before Turns::record calls Harness::offer_for_model; replacing the adapter in Harness leaves Turns with the old OpenSession and receiver. A complete fix needs an approved handoff in turns/mod.rs and turns/record.rs, their contract and lifecycle tests, outside this task's Touch. Temporary synthetic regressions on 2026-10-23 confirmed both explicit switching and turn-selected models retained 321000 instead of 1000 (existing default-window test: 1 passed; regressions: 2 failed); the temporary tests were removed, with no implementation changed.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-3--the-aylul-window-follows-the-current-model
 - Read: harness/contract.yaml
 - Touch: crates/shadows-core/src/harness/ (assistant.rs, live.rs, settings.rs), harness/contract.yaml, its tests
