@@ -236,6 +236,7 @@ are reference material; they do not replace the project's template or code.
 
 ### A-16b · Project removal has its own owner
 - Status: blocked
+- Blocker: The A-8c graph declares projects dependency-free, but Projects::create calls Code::touch (projects/mod.rs), including replays; moving removal alone leaves projects -> code -> projects. The controller must assign creation's indexing effect an owner and amend the ledger/Touch before implementation.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-16b
 - Read: projects/contract.yaml; the ledger's `project-removal` row
 - Touch: new crates/shadows-core/src/project_removal/, crates/shadows-core/src/projects/, the project-removal route in crates/shadows-http/src/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
