@@ -219,6 +219,7 @@ are reference material; they do not replace the project's template or code.
 
 ### A-16 · Prepare the service boundaries: design and plans
 - Status: blocked
+- Blocker: `Plans::show` retains `turns::LiveHandles` for `client_tab_for`, but the fixed graph forbids plans -> turns. Preserving `plan_show` targeting requires moving its live orchestration to Turns above Plans; A-16 Touch permits only caller edits there, not that method and contract change. Controller must authorize that Turns scope and the MCP reroute; Operations cannot supply the live tab.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-16
 - Read: design/contract.yaml, plans/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/{design,plans}/, crates/shadows-core/src/code/ (the link commands move to `Plans`), crates/shadows-http/src/{design.rs,plans*.rs} and crates/shadows-mcp/src/ for the moved methods, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
