@@ -3,8 +3,7 @@ name: AYLUL desktop
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
