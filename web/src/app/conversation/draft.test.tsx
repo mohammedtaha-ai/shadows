@@ -6,7 +6,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { planFixture, planListing, threadFixture } from '@/test/contract-fixtures'
+import { fakeChoices, planFixture, planListing, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, startApp, typeInto, until } from '../test-app'
 
@@ -17,6 +17,14 @@ afterEach(() => {
 })
 
 describe('the draft', () => {
+  it('a draft starts at the policy default without a session mode write', async () => {
+    const app = open = await startApp('/projects/p1/new', answers())
+    await until(() => app.button('Mode') !== undefined)
+    expect(app.button('Mode')?.textContent).toContain('Accept edits')
+    await choose(app, 'Mode', 'Auto')
+    expect(app.button('Mode')?.textContent).toContain('Auto')
+    expect(app.calls.some(c => c.includes('/session'))).toBe(false)
+  })
   it('shows the project stage before the first message', async () => {
     const app = open = await startApp('/projects/p1/new', answers())
     await until(() => app.text().includes('Stage: idea'))
@@ -75,7 +83,15 @@ describe('the draft', () => {
   })
 
   it('the mode chosen in the draft stays on the thread page and runs the second turn', async () => {
-    const routes = answers()
+    let core = fakeChoices
+    const routes = answers({
+      session: () => Response.json(core),
+      start: async (request: Request) => {
+        const { mode } = await request.json() as { mode: string }
+        core = { ...core, current: { ...core.current, mode } }
+        return Response.json({ operation_id: 'op1' }, { status: 202 })
+      },
+    })
     routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
     const app = (open = await startApp('/projects/p1/new', routes))
     await until(() => app.button('Accept edits') !== undefined)
@@ -86,7 +102,7 @@ describe('the draft', () => {
 
     await until(() => app.path() === '/projects/p1/threads/t1')
     await until(() => app.button('Auto') !== undefined || app.button('Accept edits') !== undefined)
-    // The thread page's composer holds the draft's mode, not the session's opening one.
+    // Core reports the mode remembered from the first turn.
     expect(app.button('Auto')).toBeDefined()
     expect(app.button('Accept edits')).toBeUndefined()
 

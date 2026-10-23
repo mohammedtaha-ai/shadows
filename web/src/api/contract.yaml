@@ -71,6 +71,7 @@ threads_and_turns:
   openSession: "(threadId: string) -> Promise<SessionChoices>"
   changeModel: "(threadId: string, model: string) -> Promise<SessionChoices>"
   changeEffort: "(threadId: string, effort: string) -> Promise<SessionChoices>"
+  changeMode: "(threadId: string, commandId: string, mode: string) -> Promise<SessionChoices>; saves the mode and returns Core's choices"
   readContext: "(threadId: string) -> Promise<ContextBreakdown>"
   listThreads: "(projectId: string) -> Promise<PlanningThread[]>"
   getThread: "(threadId: string) -> Promise<PlanningThread>"

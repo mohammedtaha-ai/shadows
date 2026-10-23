@@ -100,6 +100,15 @@ export function changeEffort(threadId: string, effort: string): Promise<SessionC
   )
 }
 
+export function changeMode(threadId: string, commandId: string, mode: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/mode', {
+      params: { path: { id: threadId } },
+      body: { command_id: commandId, mode },
+    }),
+  )
+}
+
 /** The session's context breakdown, read on demand, or none with the reason
  * (spec §12.8). */
 export function readContext(threadId: string): Promise<ContextBreakdown> {

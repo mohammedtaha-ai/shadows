@@ -46,7 +46,7 @@ export function ComposerBar({
   /** `null` until the session has answered. */
   settings: TurnSettings | null
   onSettings: (next: TurnSettings) => void
-  /** The session is being set to a picked model or effort. */
+  /** A session setting is being changed. */
   changingModel: boolean
   /** A draft: no session exists yet, so the model is not chosen until the
    * first message opens one. */
@@ -116,6 +116,7 @@ export function ComposerBar({
             title="Mode"
             options={choices.modes}
             value={settings.mode}
+            disabled={changingModel}
             describe={(mode) => modeDescription(policy, mode)}
             onChange={(mode) => onSettings({ ...settings, mode })}
           />

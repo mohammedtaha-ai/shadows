@@ -16,7 +16,6 @@ import {
   startTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { writeSaved } from '@/api/saved-answer'
 import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
 import {noteCompanionSend} from '@/desktop/companion-send'
 import { tabId } from '@/stream/tab-id'
@@ -27,7 +26,7 @@ import { carrySend } from './carried-send'
 import { AYLUL_HARNESS, CliMenu } from './cli-picker'
 import { Composer } from './composer'
 import { DEFAULT_HARNESS } from './conversation'
-import { type SessionView, sessionKey } from './use-session'
+import { type SessionView } from './use-session'
 import { StageChip } from './stage-chip'
 
 const route = getRouteApi('/projects/$projectId/new')
@@ -232,13 +231,6 @@ function useFirstSend(projectId: string, harness: string, planId?: string, profi
       if (profile !== undefined && chosen.model !== choices.current.model) {
         choices = await changeModel(thread.id, chosen.model)
       }
-      // The session opens at the policy's mode (§12.4); the turn runs at the
-      // draft's. The thread page's composer starts from this entry, so it
-      // holds the mode the turn ran with, not the one the session opened at.
-      await writeSaved<SessionChoices>(queryClient, sessionKey(thread.id), {
-        ...choices,
-        current: { ...choices.current, mode: chosen.mode },
-      })
       settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
       const operationId = await startTurn(thread.id, commandId, text, settings, {
         plan: planId ?? null,

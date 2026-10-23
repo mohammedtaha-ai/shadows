@@ -18,7 +18,13 @@ afterEach(() => {
 })
 
 async function start(url: string, table: ReturnType<typeof answers>): Promise<TestApp> {
-  open = await startApp(url, table)
+  open = await startApp(url, {
+    'PUT /api/threads/t1/session/mode': async (r: Request) => {
+      const { mode } = await r.json() as { mode: string }
+      return Response.json({ ...fakeChoices, current: { ...fakeChoices.current, mode } })
+    },
+    ...table,
+  })
   return open
 }
 
@@ -120,6 +126,105 @@ it.each(['Close', 'Escape'])('Plugins opens this conversations AYLUL agent setti
 })
 
 describe('the composer bar', () => {
+  it('choosing Auto saves at once and shows only Core’s answer', async () => {
+    let release!: () => void
+    const app = await start('/projects/p1/threads/t1', {
+      ...answers(),
+      'PUT /api/threads/t1/session/mode': () => new Promise<Response>(resolve => {
+        release = () => resolve(Response.json(fakeChoices))
+      }),
+    })
+    await until(ready(app))
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.bodies.length === 1)
+    expect(app.bodies).toEqual([{ command_id: expect.any(String), mode: 'auto' }])
+    expect(app.button('Mode')?.textContent).toContain('Accept edits')
+    expect(app.button('Mode')?.disabled).toBe(true)
+    expect(app.button('Send')?.disabled).toBe(true)
+    expect(turnStarts(app)).toBe(0)
+    act(() => release())
+    await until(() => app.button('Mode')?.disabled === false)
+    expect(app.button('Mode')?.textContent).toContain('Accept edits')
+    expect(app.button('Auto')).toBeUndefined()
+  })
+
+  it('Auto survives navigating away and back and a fresh QueryClient remount', async () => {
+    let core = fakeChoices
+    const routes = {
+      ...answers({ session: () => Response.json(core) }),
+      'PUT /api/threads/t1/session/mode': async (r: Request) => {
+        const { mode } = await r.json() as { mode: string }
+        core = { ...core, current: { ...core.current, mode } }
+        return Response.json(core)
+      },
+    }
+    const app = await start('/projects/p1/threads/t1', routes)
+    await until(ready(app))
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
+    const { router } = await import('@/router')
+    await act(() => router.navigate({ to: '/projects/$projectId/settings', params: { projectId: 'p1' } }))
+    await until(() => app.container.querySelector('textarea') === null)
+    await act(() => router.navigate({ to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't1' } }))
+    await until(() => app.button('Auto') !== undefined)
+    const previousClient = app.queryClient
+    app.unmount()
+    open = null
+    const remounted = await start('/projects/p1/threads/t1', routes)
+    await until(() => remounted.button('Auto') !== undefined)
+    expect(remounted.queryClient).not.toBe(previousClient)
+    expect(remounted.calls).toContain('POST /api/threads/t1/session')
+    expect(remounted.calls).not.toContain('PUT /api/threads/t1/session/mode')
+  })
+
+  it.each([
+    [403, 'MODE_NOT_ALLOWED', 'This project does not allow Auto'],
+    [409, 'COMMAND_CONFLICT', 'This command was already used with another mode'],
+    [422, 'SETTING_NOT_OFFERED', 'The harness has no such mode'],
+  ])('a mode refusal %s keeps Core’s mode and shows its message', async (status, code, message) => {
+    const app = await start('/projects/p1/threads/t1', {
+      ...answers(),
+      'PUT /api/threads/t1/session/mode': () => Response.json({ code, message }, { status }),
+    })
+    await until(ready(app))
+    typeInto(textarea(app), 'Keep this prompt')
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.text().includes(message))
+    expect(app.button('Mode')?.textContent).toContain('Accept edits')
+    expect(textarea(app).value).toBe('Keep this prompt')
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.bodies.length === 2 && app.button('Mode')?.disabled === false)
+    const [first, second] = app.bodies as { command_id: string }[]
+    expect(second.command_id).not.toBe(first.command_id)
+    expect(turnStarts(app)).toBe(0)
+  })
+
+  it('an unreachable mode save keeps the last Core mode and shows the error', async () => {
+    const app = await start('/projects/p1/threads/t1', {
+      ...answers(),
+      'PUT /api/threads/t1/session/mode': () => { throw new TypeError('connection lost') },
+    })
+    await until(ready(app))
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.text().includes('The daemon is not reachable.'))
+    expect(app.button('Mode')?.textContent).toContain('Accept edits')
+    expect(app.calls.filter(c => c === 'PUT /api/threads/t1/session/mode')).toHaveLength(1)
+  })
+
+  it('every mode choice uses a fresh command and options frames remain authoritative', async () => {
+    const app = await start('/projects/p1/threads/t1', answers())
+    await until(ready(app))
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
+    act(() => app.pushFrame('options', { thread_id: 't1', choices: fakeChoices }))
+    await until(() => app.button('Accept edits') !== undefined)
+    await choose(app, 'Mode', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
+    const [first, second] = app.bodies as { command_id: string }[]
+    expect(second.command_id).not.toBe(first.command_id)
+    expect(app.bodies).toHaveLength(2)
+    expect(turnStarts(app)).toBe(0)
+  })
   it('says it is connecting, then builds every menu from the session', async () => {
     let release!: () => void
     const app = await start(
@@ -193,6 +298,7 @@ describe('the composer bar', () => {
     const app = await start('/projects/p1/threads/t1', answers())
     await until(ready(app))
     await choose(app, 'Accept edits', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
     await until(() => menuItem('Auto') === undefined)
     expect(app.button('Auto')).toBeDefined()
   })
@@ -201,6 +307,7 @@ describe('the composer bar', () => {
     const app = await start('/projects/p1/threads/t1', answers())
     await until(ready(app))
     await choose(app, 'Accept edits', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
     typeInto(textarea(app), 'hi')
     act(() => app.button('Send')?.click())
     await until(() => app.calls.includes('POST /api/threads/t1/turns'))
@@ -216,6 +323,7 @@ describe('the composer bar', () => {
     const app = await start('/projects/p1/threads/t1', answers())
     await until(ready(app))
     await choose(app, 'Accept edits', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
     // The daemon answers the model change with the session's choices, whose
     // current mode is acceptEdits.
     await choose(app, 'fake-large', 'fake-small')
@@ -426,6 +534,7 @@ describe('the composer bar', () => {
     act(() => app.button('Send')?.click())
     await until(() => turnStarts(app) === 1 && app.button('Send')?.disabled === false)
     await choose(app, 'Accept edits', 'Auto')
+    await until(() => app.button('Auto')?.disabled === false)
     act(() => app.button('Send')?.click())
     await until(() => turnStarts(app) === 2)
     const [a, b] = app.bodies.slice(-2) as { command_id: string }[]

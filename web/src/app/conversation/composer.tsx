@@ -11,6 +11,7 @@ import {
   type TurnSettings,
   changeEffort,
   changeModel,
+  changeMode,
   queueMessage,
   startTurn,
   stopTurn,
@@ -212,10 +213,22 @@ export function Composer({
 
   const choices = session.state === 'ready' ? session.choices : null
   const busy = send.isPending || running !== null
-  const { settings, note, choose, refuse, keepEffort } = useTurnSettings(choices, busy, () => {
+  const { settings, note, choose: chooseLocal, refuse, keepEffort } = useTurnSettings(choices, busy, threadId !== null, () => {
     pending.current = null
   })
   const stop = useMutation({ mutationFn: stopTurn })
+
+  const switchMode = useMutation({
+    mutationFn: ({ threadId, commandId, mode }: { threadId: string; commandId: string; mode: string }) =>
+      changeMode(threadId, commandId, mode),
+    onSuccess: (answer, { threadId }) => writeSaved(queryClient, sessionKey(threadId), answer),
+  })
+  const choose = (next: TurnSettings) => {
+    if (threadId !== null && choices !== null && next.mode !== choices.current.mode) {
+      pending.current = null
+      switchMode.mutate({ threadId, commandId: attemptFor(null, { mode: next.mode }).commandId, mode: next.mode })
+    } else chooseLocal(next)
+  }
 
   // A picked model is set on the session at once, so its efforts
   // are known before Send. The answer is the session's new choices; a refusal
@@ -282,6 +295,7 @@ export function Composer({
     known &&
     !changing &&
     !changingEffort &&
+    !switchMode.isPending &&
     choices !== null &&
     settings !== null &&
     (('draft' in to && to.selectableModels === true) || effortsKnown(choices, settings.model)) &&
@@ -304,7 +318,7 @@ export function Composer({
     } else send.mutate(args)
   }
 
-  const error = send.error ?? queue.error ?? stop.error ?? switchEffort.error ?? carriedError
+  const error = send.error ?? queue.error ?? stop.error ?? switchMode.error ?? switchEffort.error ?? carriedError
 
   return (
     <div className="border-t border-border bg-background/95 px-6 pt-3 pb-4 backdrop-blur-md">
@@ -395,7 +409,7 @@ export function Composer({
           session={session}
           settings={settings}
           onSettings={choose}
-          changingModel={changing || changingEffort}
+          changingModel={changing || changingEffort || switchMode.isPending}
           sessionless={threadId === null}
           selectableModels={'draft' in to && to.selectableModels === true}
           harness={harness}
@@ -431,6 +445,7 @@ export function Composer({
 function useTurnSettings(
   choices: SessionChoices | null,
   busy: boolean,
+  saved: boolean,
   changed: () => void,
 ): {
   settings: TurnSettings | null
@@ -450,11 +465,11 @@ function useTurnSettings(
   if (choices === null && held !== null) setHeld(null)
   if (choices !== null && held?.choices !== choices) {
     if (held === null) {
-      setHeld({ choices, settings: initialSettings(choices), note: null })
+      setHeld({ choices, settings: saved ? choices.current : initialSettings(choices), note: null })
     } else {
       const next = afterOptions(held.choices, choices, held.settings, busy)
       // A note stays until the person changes a setting.
-      setHeld({ choices, settings: next.settings, note: next.note ?? held.note })
+      setHeld({ choices, settings: saved ? { ...next.settings, mode: choices.current.mode } : next.settings, note: next.note ?? held.note })
     }
   }
 

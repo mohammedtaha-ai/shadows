@@ -86,7 +86,7 @@ and OS acceptance.
 - Done when: `npm run gen:api` regenerates the schema; focused tests prove the ring makes no hidden breakdown request, summary usage remains visible and explicit `/context` still sends; typecheck and lint pass; both sides land on the same delivery branch
 
 ### F-23 · The Mode menu saves the mode and shows Core's
-- Status: blocked
+- Status: done
 - Plan: none. Owner spec: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.4 ("The mode is remembered per conversation"); request docs/shared/requests/2026-10-22-remembered-mode.md (accepted)
 - Read: `web/src/app/conversation/contract.yaml`; `composer-bar.tsx`, `composer.tsx`, `turn-settings.ts`, `use-session.ts`, `web/src/api/client.ts`
 - Touch: `web/src/app/conversation/` (the mode choice, its tests, its `contract.yaml`), `web/src/api/` (the new call, regenerated `schema.d.ts` via `npm run gen:api`)
