@@ -1,0 +1,41 @@
+name: shadows-http
+version: 1
+status: current
+source: crates/shadows-http/src
+modules:
+  design.rs: Design service HTTP translation
+  plan_design.rs: Plans service design association HTTP translation
+  standards.rs: Standards service HTTP translation
+  aylul_providers.rs: Providers service HTTP translation
+  aylul_agents.rs: Agents service HTTP translation
+  aylul_threads.rs: Threads service agent listing
+  aylul_person.rs: PersonSettings service HTTP translation
+  aylul_usage.rs: Usage service HTTP translation
+  transport.rs: shared HTTP request execution
+  sse.rs: Events stream framing through private handlers
+agreements:
+  - between: [plans::get, plans::get_for]
+    must: Preserve stored values within scope; grant reads independently enforce project reach.
+    tested_by: [plan_adapter_pairs_keep_their_authorization_boundaries,
+      incoming_previews_obey_the_grants_one_way_project_reach]
+  - between: [plans::approve, plans::approve_as_planner]
+    must: >
+      Both end in approve_plan_with. Person approval and Planner approval keep
+      their distinct authority and provenance; project grants cannot approve.
+    tested_by: [plan_adapter_pairs_keep_their_authorization_boundaries,
+      a_replayed_approval_answers_the_first_result]
+  - between: [design::agreements, design::agreements_for]
+    must: Answer the same project listing while the grant is live.
+    tested_by: agreement_adapter_pairs_preserve_content_and_reach
+  - between: [design::agreement, design::agreement_for]
+    must: Answer the same selected version while the grant is live.
+    tested_by: agreement_adapter_pairs_preserve_content_and_reach
+  - between: [design::start_agreement, design::start_agreement_for]
+    must: Normalize the same content while preserving distinct person and grant writers.
+    tested_by: agreement_adapter_pairs_preserve_content_and_reach
+  - between: [design::edit_agreement, design::edit_agreement_for]
+    must: Apply equivalent content edits with each caller's writer authority.
+    tested_by: agreement_adapter_pairs_preserve_content_and_reach
+  - between: [plans::review_agreement, plans::review_agreement_for]
+    must: Answer the same review while the grant is live.
+    tested_by: agreement_adapter_pairs_preserve_content_and_reach

@@ -35,7 +35,9 @@ struct Routers {
 
 impl Tools {
     pub(super) fn new() -> Self {
-        let every = Shadows::tool_router()
+        let every = Shadows::plan_tool_router()
+            + Shadows::code_tool_router()
+            + Shadows::turn_tool_router()
             + Shadows::agreement_tool_router()
             + Shadows::workspace_tool_router();
         let only = |names: &[&str]| {

@@ -18,7 +18,7 @@ use shadows_core::{Delivery, ProjectId, StoredEvent, Subscription, ThreadId};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
-pub struct ProjectSubscribeQuery {
+pub(super) struct ProjectSubscribeQuery {
     /// Resume after the last durable sequence delivered; 0 replays all project plan/design events.
     #[serde(default)]
     pub after: i64,
@@ -38,7 +38,7 @@ pub struct ProjectSubscribeQuery {
         (status = 404, description = "Unknown or removed project", body = ErrorBody),
     )
 )]
-pub async fn subscribe_project(
+pub(super) async fn subscribe_project(
     State(state): State<AppState>,
     Path(project): Path<ProjectId>,
     Query(q): Query<ProjectSubscribeQuery>,
@@ -63,7 +63,7 @@ pub async fn subscribe_project(
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
-pub struct SubscribeQuery {
+pub(super) struct SubscribeQuery {
     /// The thread to watch.
     pub thread_id: ThreadId,
     /// The last durable sequence this client has already applied; 0 replays
@@ -102,7 +102,7 @@ pub struct SubscribeQuery {
         description = STREAM_DESCRIPTION,
     ))
 )]
-pub async fn subscribe(
+pub(super) async fn subscribe(
     State(state): State<AppState>,
     Query(q): Query<SubscribeQuery>,
 ) -> Sse<ReceiverStream<Result<Event, Infallible>>> {

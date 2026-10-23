@@ -3,10 +3,10 @@
 //!
 //! Every handler here is `pub(super)`, for the reason `project.rs` gives.
 
+use super::transport::Transport;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use tracing::Instrument;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
@@ -172,7 +172,7 @@ pub(super) async fn start_turn(
 ) -> Result<(StatusCode, Json<TurnStarted>), Failure> {
     let turn: SendTurn = body.into();
     let core = s.core.clone();
-    let operation_id = detached(async move {
+    let operation_id = Transport::detached(async move {
         core.turns()
             .send(thread_id, turn)
             .await
@@ -180,23 +180,6 @@ pub(super) async fn start_turn(
     })
     .await?;
     Ok((StatusCode::ACCEPTED, Json(TurnStarted { operation_id })))
-}
-
-/// Spec §8.4 case 7: a client disconnecting cancels nothing. Hyper drops a
-/// handler's future when its connection closes, and a turn route dropped
-/// between its writes strands work: a `Pending` operation nothing will ever
-/// start, or a tree `stop` killed without writing `Cancelled`. So the work runs
-/// in its own task and the request only awaits it; a dropped request leaves
-/// the task running to its end. A panic in it is re-raised here, exactly as
-/// if the handler itself had panicked. `harness.rs` runs a model change the
-/// same way: a dropped request must not drop the session it holds.
-pub(super) async fn detached<T: Send + 'static>(
-    work: impl Future<Output = Result<T, Failure>> + Send + 'static,
-) -> Result<T, Failure> {
-    match tokio::spawn(work.in_current_span()).await {
-        Ok(answer) => answer,
-        Err(error) => std::panic::resume_unwind(error.into_panic()),
-    }
 }
 
 /// Stops a turn: asks the harness to cancel it, and if the harness does not
@@ -235,6 +218,7 @@ pub(super) async fn stop_turn(
 ) -> Result<Json<Operation>, Failure> {
     let core = s.core.clone();
     let operation =
-        detached(async move { core.turns().stop(&op_id).await.map_err(Failure::from) }).await?;
+        Transport::detached(async move { core.turns().stop(&op_id).await.map_err(Failure::from) })
+            .await?;
     Ok(Json(operation))
 }

@@ -269,7 +269,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: each move passes affected public-API/caller tests and architecture checks; no cycles, cross-owner SQL or service-to-AppCore dependency; integration tests still run through AppCore
 
 ### A-20 · `shadows-http` and `shadows-mcp` split by job
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-20--shadows-http-and-shadows-mcp-split-by-job
 - Read: the plan section
 - Touch: crates/shadows-http/src/, crates/shadows-mcp/src/

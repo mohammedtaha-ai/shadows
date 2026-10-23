@@ -133,7 +133,7 @@ pub(super) struct CreateThread {
 pub(super) async fn create_thread(
     State(s): State<AppState>,
     Path(project_id): Path<ProjectId>,
-    super::aylul_env::EnvJson(body): super::aylul_env::EnvJson<CreateThread>,
+    super::transport::EnvJson(body): super::transport::EnvJson<CreateThread>,
 ) -> Result<Json<PlanningThread>, Failure> {
     Ok(Json(
         s.core

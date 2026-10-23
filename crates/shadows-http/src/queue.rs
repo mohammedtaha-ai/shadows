@@ -5,8 +5,9 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use shadows_core::{Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow, ThreadId};
 
-use super::conversation::{StartTurn, detached};
+use super::conversation::StartTurn;
 use super::failure::ErrorBody;
+use super::transport::Transport;
 use super::{AppState, Failure};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -38,7 +39,7 @@ pub(super) async fn queue(
 ) -> Result<(StatusCode, Json<Queued>), Failure> {
     let turn: SendTurn = body.into();
     let core = s.core.clone();
-    let answer = detached(async move {
+    let answer = Transport::detached(async move {
         core.turns()
             .queue(thread, turn)
             .await
@@ -98,7 +99,7 @@ pub(super) async fn send_now(
     Json(body): Json<SendNowBody>,
 ) -> Result<(StatusCode, Json<SentNow>), Failure> {
     let core = s.core.clone();
-    let answer = detached(async move {
+    let answer = Transport::detached(async move {
         core.turns()
             .send_now(&thread, &qid, body.command_id, body.attachments)
             .await
