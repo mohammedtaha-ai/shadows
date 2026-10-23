@@ -1,5 +1,4 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-# A-18: Threads::remove retains ThreadStopper and Harness close until removal moves.
 # A-19: thread model OperationId/WorkflowId/TaskId imports remain for extraction.
 crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: unknown table _sqlx_migrations [588f191de74f5cc2] #1
 crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: unknown table sqlite_schema [b22bec229f27366b] #1
@@ -12,13 +11,6 @@ crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove SQL table pla
 crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
 crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
-# A-18: remaining turn dispatch and persistence boundaries move with Turns.
-crates/shadows-core/src/turns/entries.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows-core/src/turns/store/queue.rs :: Storage::queue_message SQL review: dynamic or indirect query [7d829bdfee6bff72] #1
-crates/shadows-core/src/turns/store/queue.rs :: Storage::queued_message SQL review: dynamic or indirect query [4dcdfbd051210c52] #1
-crates/shadows-core/src/turns/store/queue.rs :: Storage::queued_messages SQL review: dynamic or indirect query [4463baf3a2c71b00] #1
-crates/shadows-core/src/turns/store/turn.rs :: focused SQL table plan belongs to plans [1efd83c86379fa29] #1
-crates/shadows-core/src/turns/store/turn.rs :: focused SQL table workflow belongs to plans [1efd83c86379fa29] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::app::CoreParts [eb819e5a3702e515] #1
 # A-20: adapter fixtures retain explicit storage, session and live-registry handles.
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::db::Storage [9c1c6a74e7ff5b3b] #1

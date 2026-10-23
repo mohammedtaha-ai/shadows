@@ -1,5 +1,5 @@
-//! One job: the checks and the one transaction that commit a turn (spec §12.7)
-//! — the offer's checks on the turn's settings, then `Storage::start_turn`.
+//! One job: the checks and the one transaction that commit a turn
+//! — the offer's checks on the turn's settings, then `TurnsStore::start_turn`.
 
 use shadows_agent::TurnSettings;
 use shadows_agent::choices::{Offered, refusal};
@@ -22,7 +22,7 @@ pub(super) struct Turn<'a> {
 }
 
 impl Turns {
-    /// The rest of §12.7's checks on the leased session, then the one
+    /// Checks the leased session, then commits the turn in one
     /// transaction. A model set for the turn is set back when the turn is not
     /// started, so a refused turn leaves the session as it found it.
     pub(super) async fn record(
@@ -91,11 +91,11 @@ impl Turns {
             adapter.adapter.to_string_lossy().into_owned(),
             adapter.agent.to_string_lossy().into_owned(),
         );
-        // §13.8: recorded so a later turn tells the session only what changed.
+        // recorded so a later turn tells the session only what changed.
         let instructions = self.instructions.current(&context.project_id).await?;
         let additions = self.standards.current(&context.project_id).await?;
         let started = self
-            .storage
+            .store
             .start_turn(
                 command,
                 NewTurn {

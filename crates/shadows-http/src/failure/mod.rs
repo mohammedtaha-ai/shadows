@@ -157,7 +157,9 @@ impl Failure {
         }
         Failure {
             status: match code {
-                ErrorCode::HarnessLocked
+                ErrorCode::QueuedMessageGone => StatusCode::NOT_FOUND,
+                ErrorCode::ThreadBusy
+                | ErrorCode::HarnessLocked
                 | ErrorCode::StageBlocked
                 | ErrorCode::WorkflowFrozenImmutable => StatusCode::CONFLICT,
                 _ => StatusCode::UNPROCESSABLE_ENTITY,

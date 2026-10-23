@@ -1,15 +1,13 @@
-//! One job: starting a turn as one command (spec §12.7).
+//! One job: starting a turn as one command.
 //!
 //! The user's entry, the `Pending` operation, its invocation, the remembered
-//! settings, the thread's title from its first message (§4.2) and the
+//! settings, the thread's title from its first message and the
 //! command record commit together or not at all, so a retried request can
 //! never become a second message or a second run.
 
 use sqlx::SqliteConnection;
 
-use crate::db::{
-    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
-};
+use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::harness::{Harness, NewInvocation};
 use crate::operations::Operations;
@@ -20,7 +18,7 @@ use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, T
 use crate::turns::model::{OperationId, QueuedMessageId};
 use shadows_agent::TurnSettings;
 
-/// A waiting message the turn sends (§20.3, §20.4): taken in the turn's own
+/// A waiting message the turn sends: taken in the turn's own
 /// transaction, so it is sent once or not at all. `also` is Send now's own
 /// command, recorded with the turn so its replay answers the turn.
 #[derive(Debug, Clone, Copy)]
@@ -30,7 +28,7 @@ pub struct Dequeue<'a> {
 }
 
 /// Everything the turn command records. The paths and versions are the
-/// adapter's and the CLI's it runs (§12.2), frozen on the invocation.
+/// adapter's and the CLI's it runs, frozen on the invocation.
 #[derive(Debug, Clone, Copy)]
 pub struct NewTurn<'a> {
     pub aylul_usage: Option<&'a crate::AylulUsageSnapshot>,
@@ -44,14 +42,14 @@ pub struct NewTurn<'a> {
     pub agent_path: &'a str,
     pub agent_version: &'a str,
     pub settings: &'a TurnSettings,
-    /// `harness::prompt_version()` when the turn started (§13.8).
+    /// `harness::prompt_version()` when the turn started.
     pub prompt_version: Option<&'a str>,
     /// The project's current `planner_instructions_version` id, if it has one.
     pub instructions_version: Option<&'a str>,
-    /// The base version and additions id selected for this turn (§23.4).
+    /// The base version and additions id selected for this turn.
     pub standards_version: Option<i64>,
     pub standards_additions_version: Option<&'a str>,
-    /// The task the person points at (§13.9), kept with their message.
+    /// The task the person points at, kept with their message.
     pub focus: Option<&'a Focus>,
     /// The waiting message this turn sends, taken in the same transaction.
     pub dequeue: Option<Dequeue<'a>>,
@@ -64,7 +62,7 @@ pub struct StartedTurn {
     pub entry_id: ThreadEntryId,
     pub replayed: bool,
     /// The focused task's number and title, read in the transaction that
-    /// checked it (§13.9); `None` without a focus, and on a replay.
+    /// checked it; `None` without a focus, and on a replay.
     pub focus_task: Option<(u32, String)>,
 }
 
@@ -89,21 +87,15 @@ fn recorded(outcome: &str) -> Result<StartedTurn, StorageError> {
 }
 
 /// The focused task's number and title, when it is a task of the focus's
-/// version and that version belongs to this thread's project (§13.9, §16.4).
+/// version and that version belongs to this thread's project.
 async fn focused(
     conn: &mut SqliteConnection,
     thread: &ThreadId,
     focus: &Focus,
 ) -> Result<(u32, String), crate::CoreError> {
-    let in_project: Option<i64> = sqlx::query_scalar(
-        "SELECT 1 FROM workflow w JOIN plan p ON p.id = w.plan_id
-            WHERE w.id = ? AND p.project_id = ?",
-    )
-    .bind(focus.workflow_id.as_str())
-    .bind(Threads::project_in(conn, thread).await?.as_str())
-    .fetch_optional(&mut *conn)
-    .await?;
-    if in_project.is_none() {
+    let project = Threads::project_in(conn, thread).await?;
+    let in_project = Plans::workflow_in_project_in(conn, &focus.workflow_id, &project).await?;
+    if !in_project {
         return Err(crate::plans::PlansError::TaskNotInPlan(
             "the chosen plan is not in this conversation's project".into(),
         )
@@ -117,8 +109,8 @@ async fn focused(
         })
 }
 
-impl Storage {
-    /// §12.7's one transaction. A replay found inside it answers the recorded
+impl super::TurnsStore {
+    /// One transaction. A replay found inside it answers the recorded
     /// ids with `replayed: true`, so two concurrent first requests produce
     /// one turn; a thread with a turn not yet ended is `ThreadBusy`; a stopped
     /// runtime is refused as `create_pending_operation` refuses it.
@@ -151,6 +143,7 @@ impl Storage {
         ]
         .map(str::to_owned);
         let (started, transition) = self
+            .storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
                     if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
@@ -158,10 +151,10 @@ impl Storage {
                     }
                     crate::threads::Threads::require_live_in(conn, &thread).await?;
                     if Operations::has_open_in(conn, &thread).await? {
-                        return Err(StorageError::ThreadBusy.into());
+                        return Err(crate::turns::error::TurnsError::ThreadBusy.into());
                     }
                     if let Some((id, _)) = &dequeue {
-                        super::queue::take_queued_in(conn, &thread, id).await?;
+                        Self::take_queued_in(conn, &thread, id).await?;
                     }
                     let focus_task = match &focus {
                         Some(focus) => Some(focused(conn, &thread, focus).await?),
@@ -270,13 +263,13 @@ impl Storage {
 
     /// Read-only: the recorded answer to this exact command on `thread`, if it
     /// already happened; `CommandConflict` when its id was used with another
-    /// request. Asked before any validation (§12.7): a replay starts nothing.
+    /// request. Asked before any validation: a replay starts nothing.
     pub async fn replayed_turn(
         &self,
         ctx: &CommandContext,
         thread: &ThreadId,
     ) -> Result<Option<StartedTurn>, StorageError> {
-        let mut conn = self.reader().acquire().await?;
+        let mut conn = self.storage.reader().acquire().await?;
         match classify(&mut conn, ctx, SCOPE, thread.as_str()).await? {
             Some(outcome) => Ok(Some(recorded(&outcome)?)),
             None => Ok(None),
@@ -284,7 +277,7 @@ impl Storage {
     }
 }
 
-impl Storage {
+impl super::TurnsStore {
     /// The prompt, instructions and standards versions of the thread's
     /// latest invocation, by its turn's order (the ordinal of the turn's own
     /// entry); `None` when it has none. Only a turn that started counts: one
@@ -294,7 +287,7 @@ impl Storage {
         &self,
         thread: &ThreadId,
     ) -> Result<Option<InvocationVersions>, StorageError> {
-        let mut conn = self.reader().begin().await?;
+        let mut conn = self.storage.reader().begin().await?;
         let operations = Threads::user_operations_in(&mut conn, thread).await?;
         let started: std::collections::HashSet<_> =
             Operations::started_for_thread_in(&mut conn, thread)

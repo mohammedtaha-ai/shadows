@@ -8,9 +8,3 @@ crates/shadows-core/src/secrets/crypto.rs :: open free public function [27fee9a0
 crates/shadows-core/src/secrets/crypto.rs :: seal free public function [e469694478f83c4a] #1
 crates/shadows-core/src/secrets/mod.rs :: reserved_env_name free public function [096d2b4abc230652] #1
 crates/shadows-core/src/secrets/mod.rs :: validate_env_name free public function [83fa34cecabfcf01] #1
-crates/shadows-core/src/turns/steer.rs :: steer free public function [656fab68c0c3358f] #1
-crates/shadows-core/src/turns/store/queue.rs :: event free public function [11e99f0885846bb2] #1
-crates/shadows-core/src/turns/store/queue.rs :: take_queued_in free public function [be128d5ea4080bcd] #1
-crates/shadows-core/src/turns/store/usage.rs :: record_usage_in free public function [428d0364c5dcfb09] #1
-crates/shadows-core/src/turns/turn.rs :: persist free public function [31c4e04e132d3d9f] #1
-crates/shadows-core/src/turns/turn.rs :: watch_turn free public function [969f23220734f625] #1

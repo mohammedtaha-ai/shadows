@@ -6,7 +6,7 @@ use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
 use crate::turns::model::{FailureStage, OperationId};
 use shadows_agent::events::TurnObservation;
-impl super::TurnsStore<'_> {
+impl super::TurnsStore {
     #[cfg(feature = "test-support")]
     pub async fn create_pending_operation(
         &self,
@@ -65,8 +65,7 @@ impl super::TurnsStore<'_> {
                 Box::pin(async move {
                     Operations::require_status_in(conn, &op_id, "Running").await?;
                     Harness::observe_invocation_in(conn, op_id.as_str(), &seen).await?;
-                    super::usage::record_usage_in(conn, &op_id, seen.token_usage.as_ref(), &ts)
-                        .await?;
+                    Self::record_usage_in(conn, &op_id, seen.token_usage.as_ref(), &ts).await?;
                     let invocation = Harness::invocation_in(conn, op_id.as_str())
                         .await?
                         .map(serde_json::to_value)
@@ -102,7 +101,7 @@ impl super::TurnsStore<'_> {
             .write_txn(move |conn| {
                 Box::pin(async move {
                     Operations::require_unfinished_in(conn, &op_id).await?;
-                    super::usage::record_usage_in(conn, &op_id, usage.as_ref(), &ts).await?;
+                    Self::record_usage_in(conn, &op_id, usage.as_ref(), &ts).await?;
                     Operations::failed_in(conn, &op_id, stage.as_str(), &reason, &ts).await
                 })
             })
@@ -146,7 +145,7 @@ impl super::TurnsStore<'_> {
             .write_txn(move |conn| {
                 Box::pin(async move {
                     Operations::require_unfinished_in(conn, &op_id).await?;
-                    super::usage::record_usage_in(conn, &op_id, usage.as_ref(), &ts).await?;
+                    Self::record_usage_in(conn, &op_id, usage.as_ref(), &ts).await?;
                     Operations::cancelled_in(conn, &op_id, &ts).await
                 })
             })

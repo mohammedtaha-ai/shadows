@@ -105,6 +105,16 @@ impl From<CoreError> for Refusal {
                     workflow_list and workflow_get can read an explicitly linked project; \
                     draft_ref starts a plan only within the hour after draft_prepare",
             ),
+            other @ CoreError::Refused {
+                code: ErrorCode::ThreadBusy | ErrorCode::QueuedMessageGone,
+                ..
+            } => {
+                tracing::error!(error = %other, "mcp.storage_failed");
+                Self::new(
+                    ErrorCode::StorageUnavailable,
+                    "the daemon could not read or write its database",
+                )
+            }
             CoreError::Refused { code, message } => Self::new(code, message),
             other => Self::new(code_of(&other), other.to_string()),
         }

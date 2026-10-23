@@ -95,7 +95,9 @@ async fn a_pending_turn_delivers_the_standards_version_it_recorded() {
     let command = turn_command("pinned", &app.thread, "report", &settings);
     let mut turn = new_turn(&app.thread, &app.runtime, "report", &settings);
     turn.standards_additions_version = Some(&first.id);
-    let started = app.storage.start_turn(&command, turn).await.unwrap();
+    let started = shadows_core::Turns::start_turn_for_test(&app.storage, &command, turn)
+        .await
+        .unwrap();
     save_additions(app, "s2", "shipping").await;
     PlannerTurn::start(
         app.runtime.clone(),

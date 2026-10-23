@@ -47,7 +47,10 @@ pub(super) async fn remove_thread(
     Query(query): Query<RemoveThreadQuery>,
 ) -> Result<Json<PlanningThread>, Failure> {
     Ok(Json(
-        s.core.threads().remove(query.command_id, &thread).await?,
+        s.core
+            .turns()
+            .remove_thread(query.command_id, &thread)
+            .await?,
     ))
 }
 

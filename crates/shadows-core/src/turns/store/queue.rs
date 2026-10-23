@@ -1,10 +1,8 @@
-//! One job: the queue's SQLite queries (spec §20.2).
+//! One job: the queue's SQLite queries.
 
 use sqlx::SqliteConnection;
 
-use crate::db::{
-    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
-};
+use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::operations::Operations;
 use crate::plans::{Focus, PlanId};
@@ -46,19 +44,6 @@ type Row = (
     String,
 );
 
-/// The select every read shares; a `&'static str` because `sqlx` refuses a
-/// built one. Each use adds its `WHERE`.
-macro_rules! queued_select {
-    ($tail:literal) => {
-        concat!(
-            "SELECT q.id, q.thread_id, q.position, q.prompt, q.model, q.mode,
-                    q.effort, q.focus_json, q.plan_id, q.last_error, q.created_at
-               FROM queued_message q ",
-            $tail
-        )
-    };
-}
-
 fn message(r: Row) -> Result<QueuedMessage, StorageError> {
     Ok(QueuedMessage {
         id: QueuedMessageId::from_stored(r.0),
@@ -75,42 +60,46 @@ fn message(r: Row) -> Result<QueuedMessage, StorageError> {
     })
 }
 
-pub(super) async fn event(
-    conn: &mut SqliteConnection,
-    kind: &str,
-    thread: &ThreadId,
-    actor: Actor,
-    payload: serde_json::Value,
-    ts: &str,
-) -> Result<(), StorageError> {
-    let event = DurableEvent::new(kind, actor)
-        .with_thread(thread)
-        .with_payload(payload);
-    append_event(conn, &event, ts).await.map(|_| ())
+impl super::TurnsStore {
+    pub(super) async fn event(
+        conn: &mut SqliteConnection,
+        kind: &str,
+        thread: &ThreadId,
+        actor: Actor,
+        payload: serde_json::Value,
+        ts: &str,
+    ) -> Result<(), StorageError> {
+        let event = DurableEvent::new(kind, actor)
+            .with_thread(thread)
+            .with_payload(payload);
+        append_event(conn, &event, ts).await.map(|_| ())
+    }
 }
 
 /// Removes a waiting message inside the caller's transaction, or answers
 /// `QueuedMessageGone`: of two writers racing for one row, one wins.
-pub(crate) async fn take_queued_in(
-    conn: &mut SqliteConnection,
-    thread: &ThreadId,
-    id: &QueuedMessageId,
-) -> Result<(), StorageError> {
-    let gone = sqlx::query("DELETE FROM queued_message WHERE id = ? AND thread_id = ?")
-        .bind(id.as_str())
-        .bind(thread.as_str())
-        .execute(&mut *conn)
-        .await?
-        .rows_affected()
-        == 0;
-    if gone {
-        return Err(StorageError::QueuedMessageGone);
+impl super::TurnsStore {
+    pub(crate) async fn take_queued_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+        id: &QueuedMessageId,
+    ) -> Result<(), crate::CoreError> {
+        let gone = sqlx::query("DELETE FROM queued_message WHERE id = ? AND thread_id = ?")
+            .bind(id.as_str())
+            .bind(thread.as_str())
+            .execute(&mut *conn)
+            .await?
+            .rows_affected()
+            == 0;
+        if gone {
+            return Err(crate::turns::error::TurnsError::QueuedMessageGone.into());
+        }
+        Ok(())
     }
-    Ok(())
 }
 
-impl Storage {
-    /// §20.2: a replay answers the message as first answered; a removed
+impl super::TurnsStore {
+    /// A replay answers the message as first answered; a removed
     /// thread is `NotFound`; an idle thread writes nothing and is `Idle`;
     /// a busy one gets the row, last in `position` order.
     pub async fn queue_message(
@@ -129,63 +118,67 @@ impl Storage {
             new.focus.map(serde_json::to_string).transpose()?,
             new.plan.map(|p| p.as_str().to_owned()),
         );
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
-                    return Ok(QueueAnswer::Waiting(serde_json::from_str(&outcome)?));
-                }
-                crate::threads::Threads::require_live_in(conn, &thread).await?;
-                if !Operations::has_open_in(conn, &thread).await? {
-                    return Ok(QueueAnswer::Idle);
-                }
-                let position: i64 = sqlx::query_scalar(
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
+                        return Ok(QueueAnswer::Waiting(serde_json::from_str(&outcome)?));
+                    }
+                    crate::threads::Threads::require_live_in(conn, &thread).await?;
+                    if !Operations::has_open_in(conn, &thread).await? {
+                        return Ok(QueueAnswer::Idle);
+                    }
+                    let position: i64 = sqlx::query_scalar(
                     "SELECT COALESCE(MAX(position), 0) + 1 FROM queued_message WHERE thread_id = ?",
                 )
                 .bind(thread.as_str())
                 .fetch_one(&mut *conn)
                 .await?;
-                let (prompt, model, mode, effort, focus, plan) = &fields;
-                sqlx::query(
-                    "INSERT INTO queued_message
+                    let (prompt, model, mode, effort, focus, plan) = &fields;
+                    sqlx::query(
+                        "INSERT INTO queued_message
                        (id, thread_id, position, prompt, model, mode, effort,
                         focus_json, plan_id, last_error, created_at)
                      VALUES (?,?,?,?,?,?,?,?,?,NULL,?)",
-                )
-                .bind(id.as_str())
-                .bind(thread.as_str())
-                .bind(position)
-                .bind(prompt)
-                .bind(model)
-                .bind(mode)
-                .bind(effort)
-                .bind(focus)
-                .bind(plan)
-                .bind(&ts)
-                .execute(&mut *conn)
-                .await?;
-                let row: Row = sqlx::query_as(queued_select!("WHERE q.id = ?"))
+                    )
+                    .bind(id.as_str())
+                    .bind(thread.as_str())
+                    .bind(position)
+                    .bind(prompt)
+                    .bind(model)
+                    .bind(mode)
+                    .bind(effort)
+                    .bind(focus)
+                    .bind(plan)
+                    .bind(&ts)
+                    .execute(&mut *conn)
+                    .await?;
+                    let row: Row = sqlx::query_as(
+                        "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
+                        last_error,created_at FROM queued_message WHERE id=?",
+                    )
                     .bind(id.as_str())
                     .fetch_one(&mut *conn)
                     .await?;
-                let queued = message(row)?;
-                let actor = Actor::user(&ctx.principal_id);
-                let payload = serde_json::json!({ "queued_id": id.as_str() });
-                event(conn, "MessageQueued", &thread, actor, payload, &ts).await?;
-                let outcome = serde_json::to_string(&queued)?;
-                record_command(
-                    conn,
-                    &ctx,
-                    SCOPE,
-                    thread.as_str(),
-                    "QueuedMessage",
-                    &outcome,
-                    &ts,
-                )
-                .await?;
-                Ok(QueueAnswer::Waiting(queued))
+                    let queued = message(row)?;
+                    let actor = Actor::user(&ctx.principal_id);
+                    let payload = serde_json::json!({ "queued_id": id.as_str() });
+                    Self::event(conn, "MessageQueued", &thread, actor, payload, &ts).await?;
+                    let outcome = serde_json::to_string(&queued)?;
+                    record_command(
+                        conn,
+                        &ctx,
+                        SCOPE,
+                        thread.as_str(),
+                        "QueuedMessage",
+                        &outcome,
+                        &ts,
+                    )
+                    .await?;
+                    Ok(QueueAnswer::Waiting(queued))
+                })
             })
-        })
-        .await
+            .await
     }
 
     /// The thread's waiting messages in `position` order; none for a removed thread.
@@ -193,12 +186,16 @@ impl Storage {
         &self,
         thread: &ThreadId,
     ) -> Result<Vec<QueuedMessage>, StorageError> {
-        let rows: Vec<Row> = sqlx::query_as(queued_select!(
-            "JOIN planning_thread t ON t.id = q.thread_id AND t.removed_at IS NULL
-              WHERE q.thread_id = ? ORDER BY q.position"
-        ))
+        let mut conn = self.storage.reader().begin().await?;
+        if !crate::threads::Threads::is_live_in(&mut conn, thread).await? {
+            return Ok(Vec::new());
+        }
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
+                last_error,created_at FROM queued_message WHERE thread_id=? ORDER BY position",
+        )
         .bind(thread.as_str())
-        .fetch_all(self.reader())
+        .fetch_all(&mut *conn)
         .await?;
         rows.into_iter().map(message).collect()
     }
@@ -208,54 +205,59 @@ impl Storage {
         thread: &ThreadId,
         id: &QueuedMessageId,
     ) -> Result<Option<QueuedMessage>, StorageError> {
-        let row: Option<Row> = sqlx::query_as(queued_select!(
-            "JOIN planning_thread t ON t.id = q.thread_id AND t.removed_at IS NULL
-              WHERE q.thread_id = ? AND q.id = ?"
-        ))
+        let mut conn = self.storage.reader().begin().await?;
+        if !crate::threads::Threads::is_live_in(&mut conn, thread).await? {
+            return Ok(None);
+        }
+        let row: Option<Row> = sqlx::query_as(
+            "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
+                last_error,created_at FROM queued_message WHERE thread_id=? AND id=?",
+        )
         .bind(thread.as_str())
         .bind(id.as_str())
-        .fetch_optional(self.reader())
+        .fetch_optional(&mut *conn)
         .await?;
         row.map(message).transpose()
     }
 
-    /// §20.5: a replay is judged first; a new command on a gone row is
+    /// A replay is judged first; a new command on a gone row is
     /// `QueuedMessageGone`.
     pub async fn unqueue_message(
         &self,
         ctx: &CommandContext,
         thread: &ThreadId,
         id: &QueuedMessageId,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), crate::CoreError> {
         let (ctx, thread, id, ts) = (ctx.clone(), thread.clone(), id.clone(), now());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                if classify(conn, &ctx, SCOPE, thread.as_str())
-                    .await?
-                    .is_some()
-                {
-                    return Ok(());
-                }
-                take_queued_in(conn, &thread, &id).await?;
-                let actor = Actor::user(&ctx.principal_id);
-                let payload = serde_json::json!({ "queued_id": id.as_str() });
-                event(conn, "QueuedMessageRemoved", &thread, actor, payload, &ts).await?;
-                record_command(
-                    conn,
-                    &ctx,
-                    SCOPE,
-                    thread.as_str(),
-                    "QueuedMessage",
-                    "{}",
-                    &ts,
-                )
-                .await
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    if classify(conn, &ctx, SCOPE, thread.as_str())
+                        .await?
+                        .is_some()
+                    {
+                        return Ok(());
+                    }
+                    Self::take_queued_in(conn, &thread, &id).await?;
+                    let actor = Actor::user(&ctx.principal_id);
+                    let payload = serde_json::json!({ "queued_id": id.as_str() });
+                    Self::event(conn, "QueuedMessageRemoved", &thread, actor, payload, &ts).await?;
+                    Ok(record_command(
+                        conn,
+                        &ctx,
+                        SCOPE,
+                        thread.as_str(),
+                        "QueuedMessage",
+                        "{}",
+                        &ts,
+                    )
+                    .await?)
+                })
             })
-        })
-        .await
+            .await
     }
 
-    /// §20.3, §20.4: why the last send of a waiting message failed.
+    /// Why the last send of a waiting message failed.
     pub async fn fail_queued(
         &self,
         thread: &ThreadId,
@@ -263,32 +265,34 @@ impl Storage {
         reason: &str,
     ) -> Result<(), StorageError> {
         let (thread, id, reason, ts) = (thread.clone(), id.clone(), reason.to_owned(), now());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                let found = sqlx::query(
-                    "UPDATE queued_message SET last_error = ? WHERE id = ? AND thread_id = ?",
-                )
-                .bind(&reason)
-                .bind(id.as_str())
-                .bind(thread.as_str())
-                .execute(&mut *conn)
-                .await?
-                .rows_affected();
-                if found == 0 {
-                    return Ok(());
-                }
-                let payload = serde_json::json!({ "queued_id": id.as_str(), "last_error": reason });
-                event(
-                    conn,
-                    "QueuedMessageFailed",
-                    &thread,
-                    Actor::system(),
-                    payload,
-                    &ts,
-                )
-                .await
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let found = sqlx::query(
+                        "UPDATE queued_message SET last_error = ? WHERE id = ? AND thread_id = ?",
+                    )
+                    .bind(&reason)
+                    .bind(id.as_str())
+                    .bind(thread.as_str())
+                    .execute(&mut *conn)
+                    .await?
+                    .rows_affected();
+                    if found == 0 {
+                        return Ok(());
+                    }
+                    let payload =
+                        serde_json::json!({ "queued_id": id.as_str(), "last_error": reason });
+                    Self::event(
+                        conn,
+                        "QueuedMessageFailed",
+                        &thread,
+                        Actor::system(),
+                        payload,
+                        &ts,
+                    )
+                    .await
+                })
             })
-        })
-        .await
+            .await
     }
 }

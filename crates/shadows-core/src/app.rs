@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
-use shadows_agent::events::HarnessEvent;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::agents::Agents;
@@ -34,12 +33,9 @@ use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 use crate::secrets::{SecretKey, Secrets};
 use crate::standards::Standards;
-use crate::threads::{ThreadId, Threads};
-use crate::turns::{LiveHandles, OperationId, ThreadStopper, Turns};
+use crate::threads::Threads;
+use crate::turns::{Bus, LiveHandles, Turns};
 use crate::usage::Usage;
-
-/// A running turn's live harness events, for every live subscriber.
-pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
@@ -157,7 +153,7 @@ pub struct CoreParts {
 /// and the stored Grants is the one that revoked thread grants at
 /// startup. No service receives `AppCore`.
 /// `Threads` owns a private store; transaction-local callers use `Threads::*_in`
-/// over the shared connection, without depending on its retained lifecycle effects.
+/// over the shared connection; Turns composes removal with grants and live cleanup.
 pub struct AppCore {
     secrets: Arc<Secrets>,
     providers: Arc<Providers>,
@@ -386,21 +382,7 @@ impl AppCore {
         // it reads are the copy that holds no code index.
         let code = Code::new(storage.clone(), projects.clone());
         let harness = sessions.clone();
-        let stopper = ThreadStopper::new(storage.clone(), handles.clone(), sessions.clone());
-        let threads = Threads::new(
-            storage.clone(),
-            harness.clone(),
-            code.clone(),
-            projects.clone(),
-            stopper,
-        );
-        let events = Events::new(
-            storage.clone(),
-            harness.clone(),
-            projects.clone(),
-            bus.clone(),
-            ui.clone(),
-        );
+        let threads = Threads::new(storage.clone(), code.clone(), projects.clone());
         let AylulOwners {
             providers,
             agents,
@@ -414,6 +396,27 @@ impl AppCore {
             operations.clone(),
             design.clone(),
         );
+        let turns = Turns::new(
+            storage.clone(),
+            operations.clone(),
+            runtime,
+            sessions.clone(),
+            handles,
+            bus.clone(),
+            code.clone(),
+            instructions.clone(),
+            standards.clone(),
+            projects.clone(),
+            plans.clone(),
+            ui.clone(),
+        );
+        let events = Events::new(
+            storage.clone(),
+            harness.clone(),
+            projects.clone(),
+            turns.clone(),
+            ui.clone(),
+        );
         Arc::new(AppCore {
             providers,
             agents,
@@ -424,20 +427,7 @@ impl AppCore {
             design,
             plans: plans.clone(),
             grants,
-            turns: Turns::new(
-                storage.clone(),
-                operations.clone(),
-                runtime,
-                sessions.clone(),
-                handles,
-                bus.clone(),
-                code.clone(),
-                instructions.clone(),
-                standards.clone(),
-                projects.clone(),
-                plans,
-                ui,
-            ),
+            turns,
             operations,
             harness,
             projects: projects.with_code(code.clone()),

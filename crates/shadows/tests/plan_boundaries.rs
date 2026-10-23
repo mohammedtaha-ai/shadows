@@ -136,14 +136,13 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
         .unwrap();
     let settings = default_turn_settings();
     let command = turn_command("pending", &app.thread, "hang", &settings);
-    let started = app
-        .storage
-        .start_turn(
-            &command,
-            new_turn(&app.thread, &app.runtime, "hang", &settings),
-        )
-        .await
-        .unwrap();
+    let started = shadows_core::Turns::start_turn_for_test(
+        &app.storage,
+        &command,
+        new_turn(&app.thread, &app.runtime, "hang", &settings),
+    )
+    .await
+    .unwrap();
     let op = started.operation_id;
     let mut commits = app.storage.watch_committed();
     let ((removed, at_answer), resumed) =
@@ -152,8 +151,8 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
                 async {
                     let removed = app
                         .core
-                        .threads()
-                        .remove("remove-pending".into(), &app.thread)
+                        .turns()
+                        .remove_thread("remove-pending".into(), &app.thread)
                         .await
                         .unwrap();
                     (

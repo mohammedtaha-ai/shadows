@@ -57,7 +57,6 @@ modules:
   mode.rs: durable conversation mode commands
   fork.rs: atomic conversation fork composition
   store/mode.rs: conversation permission persistence
-  store/remove.rs: thread removal composition
   mod.rs: harness service boundary
   access.rs: live session owner operations
   store/invocation.rs: invocation transaction entry points
@@ -188,9 +187,6 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
-    remove_thread_record:
-      signature: "(&self, command, thread) -> Result<PlanningThread, StorageError>"
-      # Threads requests the atomic record removal, then performs its retained stop and close.
     fork_thread:
       signature: "(&self, command_id, source, at) -> Result<PlanningThread, CoreError>"
       # Replay first, Operations eligibility, Threads fork, then mode copy in one write.
@@ -295,7 +291,7 @@ functions:
       # pub(crate). turn_context → latest_limits of its harness; `None` for
       # an unknown thread, no limits, or a failed read, as the SSE usage
       # frame did before the move.
-  for_threads:
+  session_close:
     close_session:
       signature: "(&self, thread: &ThreadId) -> io::Result<()>"
       # pub(crate): Harness::set_thread_harness closes the thread session when
@@ -452,8 +448,6 @@ called_by_other_services:
 shared_in_transaction:
   copy_mode_in: Harness copies a conversation preference in the fork transaction.
   remove_mode_in: Harness deletes the conversation preference in the removal transaction.
-  remove_thread_record: Threads delegates the durable removal transaction to Harness.
-  remove_thread_record_for_test: Test-support removal uses the same Harness transaction.
   delete_invocation_for_test: "Unit fixtures remove historical metadata through its owner; test-support only."
   set_invocation_pin_for_test: "Unit fixtures simulate legacy or foreign pins through its owner; test-support only."
   remember_settings_in: "Turns' start (turns/store/turn.rs start_turn): the turn's model is remembered for its harness, and its effort for that model, in the same write that records the turn, so a refused or replayed start remembers nothing"

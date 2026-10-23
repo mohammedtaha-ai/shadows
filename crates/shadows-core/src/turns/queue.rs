@@ -1,4 +1,4 @@
-//! One job: the waiting messages of a conversation (spec §20) — queueing,
+//! One job: the waiting messages of a conversation — queueing,
 //! listing and removing them, sending the next, and Send now.
 
 use std::sync::Arc;
@@ -8,22 +8,22 @@ use super::handles::SteerTarget;
 use super::spawn::OnCompleted;
 use super::steer::SteerRequest;
 use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, start_command};
-use crate::db::{CommandContext, StorageError};
+use crate::db::CommandContext;
 use crate::error::CoreError;
 use crate::threads::{ThreadEntryId, ThreadId};
 use crate::turns::model::{Queued, QueuedMessage, QueuedMessageId, SentNow};
 
-/// The id of the turn a `turn.queue` starts on an idle thread (§20.2).
+/// The id of the turn a `turn.queue` starts on an idle thread.
 fn idle_start_id(command_id: &str) -> String {
     format!("queue:{command_id}")
 }
 
 impl Turns {
-    /// §20.2: a waiting message on a busy thread; on an idle one, the turn
+    /// A waiting message on a busy thread; on an idle one, the turn
     /// it starts. A replay answers what the first call answered.
     pub async fn queue(&self, thread: ThreadId, turn: SendTurn) -> Result<Queued, CoreError> {
         let derived = start_command(idle_start_id(&turn.command_id), &thread, &turn);
-        if let Some(replay) = self.storage.replayed_turn(&derived, &thread).await? {
+        if let Some(replay) = self.store.replayed_turn(&derived, &thread).await? {
             return Ok(Queued::Started {
                 operation_id: replay.operation_id,
             });
@@ -48,7 +48,7 @@ impl Turns {
         };
         // Twice at most: a turn may take the thread between `Idle` and the start.
         for _ in 0..2 {
-            match self.storage.queue_message(&command, &thread, new()).await? {
+            match self.store.queue_message(&command, &thread, new()).await? {
                 QueueAnswer::Waiting(message) => return Ok(Queued::Waiting { message }),
                 QueueAnswer::Idle => {
                     let start = SendTurn {
@@ -56,7 +56,10 @@ impl Turns {
                         ..turn.clone()
                     };
                     match self.send(thread.clone(), start).await {
-                        Err(CoreError::Storage(StorageError::ThreadBusy)) => continue,
+                        Err(CoreError::Refused {
+                            code: crate::ErrorCode::ThreadBusy,
+                            ..
+                        }) => continue,
                         other => {
                             return other.map(|operation_id| Queued::Started { operation_id });
                         }
@@ -64,15 +67,15 @@ impl Turns {
                 }
             }
         }
-        Err(StorageError::ThreadBusy.into())
+        Err(crate::turns::error::TurnsError::ThreadBusy.into())
     }
 
-    /// §20.5: the thread's waiting messages in `position` order.
+    /// The thread's waiting messages in `position` order.
     pub async fn queued(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, CoreError> {
-        Ok(self.storage.queued_messages(thread).await?)
+        Ok(self.store.queued_messages(thread).await?)
     }
 
-    /// §20.5: removes a waiting message; a replay answers as the first did.
+    /// Removes a waiting message; a replay answers as the first did.
     pub async fn unqueue(
         &self,
         thread: &ThreadId,
@@ -81,18 +84,18 @@ impl Turns {
     ) -> Result<(), CoreError> {
         let params = serde_json::json!({ "thread_id": thread, "queued_id": id });
         let command = CommandContext::user(command_id, "turn.unqueue", params);
-        Ok(self.storage.unqueue_message(&command, thread, id).await?)
+        self.store.unqueue_message(&command, thread, id).await
     }
 }
 
-/// The id of the turn a waiting message starts (§20.3): the watcher's start
+/// The id of the turn a waiting message starts: the watcher's start
 /// and Send now's share it, so the second is a replay.
 fn queued_start_id(id: &QueuedMessageId) -> String {
     format!("queued:{}", id.as_str())
 }
 
 impl Turns {
-    /// §20.3: after a `Completed`, the thread's next waiting message is sent
+    /// After a `Completed`, the thread's next waiting message is sent
     /// by a task of its own, run to its end as `send` must be.
     pub(super) fn on_completed(&self) -> OnCompleted {
         let turns = self.clone();
@@ -102,7 +105,7 @@ impl Turns {
         })
     }
 
-    /// §20.4: into the running turn when the adapter takes it; as a turn of
+    /// Into the running turn when the adapter takes it; as a turn of
     /// its own when none runs; refused while a Stop is pending.
     pub async fn send_now(
         &self,
@@ -112,17 +115,17 @@ impl Turns {
     ) -> Result<SentNow, CoreError> {
         let params = serde_json::json!({ "thread_id": thread, "queued_id": id });
         let command = CommandContext::user(command_id, "turn.send_now", params);
-        if let Some(replay) = self.storage.replayed_send_now(&command, thread).await? {
+        if let Some(replay) = self.store.replayed_send_now(&command, thread).await? {
             return Ok(replay);
         }
         let row = self
-            .storage
+            .store
             .queued_message(thread, id)
             .await?
-            .ok_or(StorageError::QueuedMessageGone)?;
+            .ok_or(crate::turns::error::TurnsError::QueuedMessageGone)?;
         if let Some(target) = self.handles.steer_target(thread).await {
             if target.cancel_requested.load(Ordering::SeqCst) {
-                return Err(StorageError::ThreadBusy.into());
+                return Err(crate::turns::error::TurnsError::ThreadBusy.into());
             }
             if let Some(entry_id) = Self::steer_in(&target, &command, &row.id).await? {
                 return Ok(SentNow::Steered { entry_id });
@@ -132,7 +135,7 @@ impl Turns {
         Ok(SentNow::Started { operation_id })
     }
 
-    /// Asks the turn's watcher to steer `row` in (§20.4). `None` is "no prompt
+    /// Asks the turn's watcher to steer `row` in. `None` is "no prompt
     /// runs": the adapter said so, or the watcher is already gone.
     async fn steer_in(
         target: &SteerTarget,
@@ -152,7 +155,7 @@ impl Turns {
     }
 
     /// Starts `row` as a turn, taking it from the queue in the turn's own
-    /// transaction (§20.3).
+    /// transaction.
     pub(crate) async fn send_queued(
         &self,
         thread: &ThreadId,
@@ -173,11 +176,11 @@ impl Turns {
         self.send_with(thread.clone(), turn, dequeue).await
     }
 
-    /// §20.3: the first waiting message, unless it carries an error and so
+    /// The first waiting message, unless it carries an error and so
     /// waits for the person. `ThreadBusy` is not a failure: the turn that took
     /// the thread sends it when it completes. A gone row was sent by Send now.
     pub(crate) async fn send_next(&self, thread: &ThreadId) {
-        let first = match self.storage.queued_messages(thread).await {
+        let first = match self.store.queued_messages(thread).await {
             Ok(list) => list.into_iter().next(),
             Err(error) => {
                 tracing::error!(%error, thread_id = %thread, "queue.read_failed");
@@ -189,11 +192,13 @@ impl Turns {
         };
         match self.send_queued(thread, &row, None).await {
             Ok(_) => {}
-            Err(CoreError::Storage(StorageError::ThreadBusy | StorageError::QueuedMessageGone)) => {
-            }
+            Err(CoreError::Refused {
+                code: crate::ErrorCode::ThreadBusy | crate::ErrorCode::QueuedMessageGone,
+                ..
+            }) => {}
             Err(error) => {
                 let message = error.to_string();
-                if let Err(e) = self.storage.fail_queued(thread, &row.id, &message).await {
+                if let Err(e) = self.store.fail_queued(thread, &row.id, &message).await {
                     tracing::error!(error = %e, "queue.fail_record_failed");
                 }
             }

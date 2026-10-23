@@ -68,13 +68,6 @@ impl Threads {
             .list_thread_entries(thread_id)
             .await
     }
-    pub async fn remove_thread_for_test(
-        storage: &Arc<Storage>,
-        ctx: &CommandContext,
-        thread: &ThreadId,
-    ) -> Result<PlanningThread, StorageError> {
-        crate::harness::Harness::remove_thread_record_for_test(storage, ctx, thread).await
-    }
     pub async fn get_thread_for_test(
         storage: &Storage,
         thread: &ThreadId,

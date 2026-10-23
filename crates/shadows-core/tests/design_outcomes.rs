@@ -449,8 +449,8 @@ async fn plan_lifecycle_never_completes_outcomes() {
         .archive("archive".into(), &v.plan_id)
         .await
         .unwrap();
-    core.threads()
-        .remove("delete".into(), &thread)
+    core.turns()
+        .remove_thread("delete".into(), &thread)
         .await
         .unwrap();
     let view = core.plans().design_outcome(&p, &id).await.unwrap();

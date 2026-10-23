@@ -3,7 +3,7 @@
 //! `Events` owns subscription and delivery, and emits nothing of its own: a
 //! writer appends its durable event inside its own transaction
 //! (`db::append_event`), `Turns` sends a turn's live items on the bus, and
-//! `Plans` sends `plan_show`'s signal. `subscribe` takes every live source
+//! `Turns` sends `plan_show`'s signal. `subscribe` takes every live source
 //! before the journal is read, and `Subscription::next` replays the journal
 //! after the client's cursor, answers `CaughtUp`, then goes live.
 //!
@@ -22,19 +22,19 @@ pub use model::{DurableEvent, EventCursor, UiSignal};
 pub use store::StoredEvent;
 pub use subscription::{Delivery, Subscription};
 
-use crate::app::Bus;
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::harness::Harness;
 use crate::projects::{ProjectId, Projects};
 use crate::threads::ThreadId;
+use crate::turns::Turns;
 
 /// Events: every subscriber's stream, over the journal and the live sources.
 pub struct Events {
     storage: Arc<Storage>,
     harness: Arc<Harness>,
     projects: Projects,
-    bus: Bus,
+    turns: Turns,
     ui: broadcast::Sender<UiSignal>,
 }
 
@@ -43,14 +43,14 @@ impl Events {
         storage: Arc<Storage>,
         harness: Arc<Harness>,
         projects: Projects,
-        bus: Bus,
+        turns: Turns,
         ui: broadcast::Sender<UiSignal>,
     ) -> Self {
         Self {
             storage,
             harness,
             projects,
-            bus,
+            turns,
             ui,
         }
     }
@@ -68,7 +68,7 @@ impl Events {
             self.harness.clone(),
             subscription::Live {
                 committed: self.storage.watch_committed(),
-                bus: self.bus.subscribe(),
+                bus: self.turns.subscribe_live(),
                 options: self.harness.watch_options(),
                 commands: self.harness.watch_commands(),
                 signals: self.ui.subscribe(),
@@ -91,7 +91,7 @@ impl Events {
             self.harness.clone(),
             subscription::Live {
                 committed: self.storage.watch_committed(),
-                bus: self.bus.subscribe(),
+                bus: self.turns.subscribe_live(),
                 options: self.harness.watch_options(),
                 commands: self.harness.watch_commands(),
                 signals: self.ui.subscribe(),

@@ -382,3 +382,22 @@ impl ReadRows {
 }
 
 pub(in crate::plans) struct ReadRows;
+
+impl crate::plans::Plans {
+    /// Membership of a workflow in the project, inside the caller's snapshot.
+    pub(crate) async fn workflow_in_project_in(
+        conn: &mut SqliteConnection,
+        workflow: &WorkflowId,
+        project: &ProjectId,
+    ) -> Result<bool, StorageError> {
+        let found: Option<i64> = sqlx::query_scalar(
+            "SELECT 1 FROM workflow w JOIN plan p ON p.id=w.plan_id
+             WHERE w.id=? AND p.project_id=?",
+        )
+        .bind(workflow.as_str())
+        .bind(project.as_str())
+        .fetch_optional(conn)
+        .await?;
+        Ok(found.is_some())
+    }
+}

@@ -14,12 +14,6 @@ pub enum StorageError {
     TransitionConflict { expected: String, found: String },
     #[error("command conflict: the same command id was reused with a different request")]
     CommandConflict,
-    /// Spec §12.7, §12.9: the thread has a turn that has not ended.
-    #[error("the thread has a turn running")]
-    ThreadBusy,
-    /// Spec §20.5: the waiting message was already sent or removed.
-    #[error("the waiting message was already sent or removed")]
-    QueuedMessageGone,
     /// Spec §13.5, §18.2: `expected_revision` is not the resource's current one.
     /// `summary` describes what changed since the expected revision.
     #[error("the resource is at revision {current}; changed since: {summary}")]

@@ -37,12 +37,12 @@ async fn start(
     prompt: &str,
     settings: &TurnSettings,
 ) -> Result<StartedTurn, shadows_core::CoreError> {
-    app.storage
-        .start_turn(
-            &turn_command(id, &app.thread, prompt, settings),
-            new_turn(&app.thread, &app.runtime, prompt, settings),
-        )
-        .await
+    shadows_core::Turns::start_turn_for_test(
+        &app.storage,
+        &turn_command(id, &app.thread, prompt, settings),
+        new_turn(&app.thread, &app.runtime, prompt, settings),
+    )
+    .await
 }
 
 async fn patch_modes(app: &App, modes: &[&str]) {
@@ -166,7 +166,10 @@ async fn a_second_turn_while_one_is_running_is_thread_busy() {
     start(&app, "t1", "hello", &small_edits()).await.unwrap();
     assert!(matches!(
         start(&app, "t2", "again", &small_edits()).await,
-        Err(shadows_core::CoreError::Storage(StorageError::ThreadBusy))
+        Err(shadows_core::CoreError::Refused {
+            code: shadows_core::ErrorCode::ThreadBusy,
+            ..
+        })
     ));
 }
 

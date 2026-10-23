@@ -1,4 +1,4 @@
-//! One job: gathering a subagent's tool calls into its card (spec §22.2).
+//! One job: gathering a subagent's tool calls into its card.
 
 use shadows_agent::events::{AgentFacts, SubagentCard};
 

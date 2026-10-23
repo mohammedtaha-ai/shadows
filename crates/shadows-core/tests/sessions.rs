@@ -133,7 +133,7 @@ async fn a_removed_thread_cannot_reuse_its_still_open_adapter() {
             &serde_json::json!({ "thread_id": fx.thread }),
         ),
     };
-    shadows_core::Threads::remove_thread_for_test(&fx.storage, &ctx, &fx.thread)
+    shadows_core::Turns::remove_thread_for_test(&fx.storage, &ctx, &fx.thread)
         .await
         .unwrap();
     // Between the removal commit and Stop/close, the cached adapter still exists.

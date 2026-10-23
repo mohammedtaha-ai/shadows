@@ -93,3 +93,21 @@ fn into_operation(r: OperationRow) -> OperationRecord {
         finished_at: r.12,
     }
 }
+
+impl Operations {
+    /// The newest Pending or Running turn, including the gap before live registration.
+    pub(crate) async fn pending_or_running_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+    ) -> Result<Option<OperationId>, StorageError> {
+        let id: Option<String> = sqlx::query_scalar(
+            "SELECT o.id FROM operation o
+             JOIN durable_event e ON e.operation_id=o.id AND e.kind='OperationCreated'
+             WHERE o.thread_id=? AND o.status_kind IN ('Pending','Running') ORDER BY e.seq DESC",
+        )
+        .bind(thread.as_str())
+        .fetch_optional(conn)
+        .await?;
+        Ok(id.map(OperationId::from_stored))
+    }
+}

@@ -3,7 +3,7 @@ use crate::harness::Harness;
 use crate::operations::Operations;
 use crate::threads::ThreadId;
 use crate::turns::model::{InvocationView, Operation, OperationId};
-impl super::TurnsStore<'_> {
+impl super::TurnsStore {
     pub async fn get_operation(&self, op: &OperationId) -> Result<Operation, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
         let row = Operations::get_operation_in(&mut conn, op).await?;
@@ -54,7 +54,6 @@ fn into_operation(
 
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
-    use crate::db::Storage;
     use crate::testing::turn::{default_turn_settings, new_turn, turn_command};
     use crate::turns::model::FailureStage;
 
@@ -93,7 +92,7 @@ mod tests {
             for index in 0..count {
                 let command =
                     turn_command(&format!("{name}-{index}"), &thread.id, "hello", &settings);
-                let started = Storage::start_turn(
+                let started = crate::Turns::start_turn_for_test(
                     &turns.storage,
                     &command,
                     new_turn(&thread.id, &turns.runtime, "hello", &settings),
@@ -119,7 +118,7 @@ mod tests {
                     .unwrap();
                 // The fixture commits turns without spawning an adapter.
                 super::super::TurnsStore {
-                    storage: &turns.storage,
+                    storage: turns.storage.clone(),
                 }
                 .mark_operation_failed(&op, FailureStage::Prepare, "fixture")
                 .await

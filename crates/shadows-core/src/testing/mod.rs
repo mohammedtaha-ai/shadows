@@ -135,7 +135,7 @@ pub use crate::turns::for_tests::{
 /// Storage, the runtime and the sessions, which the storage, recovery and
 /// session tests open directly and `CoreParts` is built from. Private to the
 /// crate everywhere else (§14.6).
-pub use crate::app::{Bus, adapter_version};
+pub use crate::app::adapter_version;
 pub use crate::db::{
     Anchor, Causation, CommandContext, JournalEntry, Storage, append_event_for_test, derived_id,
     fingerprint,
@@ -148,6 +148,7 @@ pub use crate::operations::ReconcileReport;
 pub use crate::projects::ProjectDirectory;
 pub use crate::runtime::Runtime;
 pub use crate::threads::{NewThreadEntry, TurnContext};
+pub use crate::turns::Bus;
 
 impl crate::code::Code {
     /// `scan`, now, on the test's task: the index a test asks about is the

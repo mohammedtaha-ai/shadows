@@ -29,36 +29,23 @@ pub use model::{
 use crate::code::Code;
 use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
-use crate::harness::Harness;
 use crate::projects::{ProjectId, Projects};
-use crate::turns::{StopOutcome, ThreadStopper};
 pub(crate) use error::ThreadsError;
 use store::ThreadsStore;
 
-/// Threads: what storage holds, the harness whose session a harness change
-/// closes, and the code index a listed project is touched in.
+/// Thread persistence and the project code activity a listing touches.
 pub struct Threads {
     store: ThreadsStore,
-    harness: Arc<Harness>,
     code: Code,
     projects: Projects,
-    stopper: ThreadStopper,
 }
 
 impl Threads {
-    pub(crate) fn new(
-        storage: Arc<Storage>,
-        harness: Arc<Harness>,
-        code: Code,
-        projects: Projects,
-        stopper: ThreadStopper,
-    ) -> Self {
+    pub(crate) fn new(storage: Arc<Storage>, code: Code, projects: Projects) -> Self {
         Self {
             store: ThreadsStore::with_storage(storage),
-            harness,
             code,
             projects,
-            stopper,
         }
     }
 
@@ -111,33 +98,6 @@ impl Threads {
     /// A thread's entries in ordinal order.
     pub async fn entries(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError> {
         Ok(self.store.list_thread_entries(thread).await?)
-    }
-
-    /// Remove first, then stop the turn, then close its adapter.
-    pub async fn remove(
-        &self,
-        command_id: String,
-        thread: &ThreadId,
-    ) -> Result<PlanningThread, CoreError> {
-        let c = CommandContext::user(
-            command_id,
-            "thread.remove",
-            serde_json::json!({ "thread_id": thread }),
-        );
-        let removed = self.harness.remove_thread_record(&c, thread).await?;
-        match self.stopper.stop_running(thread).await {
-            Ok(StopOutcome::TerminationFailed) => {
-                tracing::error!(thread_id = %thread, "thread.remove_stop_failed");
-            }
-            Err(error) => {
-                tracing::error!(%error, thread_id = %thread, "thread.remove_stop_failed");
-            }
-            Ok(_) => {}
-        }
-        if let Err(error) = self.harness.close_session(thread).await {
-            tracing::error!(%error, thread_id = %thread, "thread.remove_close_failed");
-        }
-        Ok(removed)
     }
 
     /// One thread, including a removed one, for historical plan links.

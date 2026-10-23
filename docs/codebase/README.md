@@ -210,7 +210,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/mode.rs` | durable conversation mode commands | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/fork.rs` | atomic conversation fork composition | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/store/mode.rs` | conversation permission persistence | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/harness/store/remove.rs` | thread removal composition | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/turns/store/remove.rs` | thread removal composition | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
 | `crates/shadows-core/src/harness/standards.rs` | Planner standards rendering | `crates/shadows-core/src/harness/standards.rs` |
 | `crates/shadows-core/src/harness/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/harness/offers.rs` |
@@ -377,3 +377,6 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-core/src/plans/store/project_links.rs` | project links boundary | `crates/shadows-core/src/plans/contract.yaml` |
 | `crates/shadows-core/src/plans/testing.rs` | testing boundary | `crates/shadows-core/src/plans/contract.yaml` |
 | `crates/shadows-core/src/turns/plan_show.rs` | plan show boundary | `crates/shadows-core/src/turns/contract.yaml` |
+
+| `crates/shadows-core/src/turns/remove.rs` | thread removal orchestration | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/shadows-core/src/turns/error.rs` | turn refusal mapping | `crates/shadows-core/src/turns/contract.yaml` |

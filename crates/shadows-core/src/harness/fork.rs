@@ -1,7 +1,7 @@
 //! Atomic conversation forks with their permission choice.
 use super::Harness;
 use crate::db::{CommandContext, classify, now};
-use crate::threads::{PlanningThread, ThreadEntryId, ThreadId, Threads, ThreadsError};
+use crate::threads::{PlanningThread, ThreadEntryId, ThreadId, Threads};
 use crate::{CoreError, Operations};
 
 impl Harness {
@@ -17,13 +17,12 @@ impl Harness {
             serde_json::json!({"thread_id": source, "at_entry_id": at}),
         );
         let (source, at) = (source.clone(), at.clone());
-        Ok(self
-            .store
+        self.store
             .storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
                     if let Some(id) = classify(conn, &command, "Thread", source.as_str()).await? {
-                        return Ok::<_, ThreadsError>(
+                        return Ok::<_, CoreError>(
                             Threads::get_in(conn, &ThreadId::from_stored(id)).await?,
                         );
                     }
@@ -34,6 +33,6 @@ impl Harness {
                     Ok(fork)
                 })
             })
-            .await?)
+            .await
     }
 }

@@ -8,7 +8,7 @@ use super::subagents::{Call, Subagents};
 pub(crate) enum Durable {
     Message(String),
     Tool(String),
-    /// A subagent's card (§22.2); its steps are no entries of their own.
+    /// A subagent's card; its steps are no entries of their own.
     Subagent(Box<SubagentCard>),
     PermissionRefused(String),
 }
@@ -105,12 +105,12 @@ impl Collector {
         out
     }
 
-    /// Each subagent card changed since the last call (§22.2), to publish.
+    /// Each subagent card changed since the last call, to publish.
     pub(crate) fn changed_cards(&mut self) -> Vec<SubagentCard> {
         self.subagents.take_changed()
     }
 
-    /// The message being streamed, written now (§20.4): a steered message
+    /// The message being streamed, written now: a steered message
     /// goes after the text the person already saw, and the reply continues
     /// as a new message.
     pub(crate) fn cut(&mut self) -> Vec<Durable> {
@@ -135,8 +135,9 @@ impl Collector {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use shadows_agent::events::AgentFacts;
+    use super::{Collector, Durable};
+    use shadows_agent::events::HarnessEvent;
+    use shadows_agent::events::{AgentFacts, SubagentCard};
     fn chunk(id: &str, text: &str) -> HarnessEvent {
         HarnessEvent::Chunk {
             message_id: Some(id.into()),

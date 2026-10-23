@@ -45,7 +45,7 @@
 # the harness before and after, not by the request.
 
 name: threads
-# Harness composes remove_in with its mode removal, then Threads stops and closes.
+# Turns owns removal composition, grant revocation, stop and session close.
 version: 1
 status: current
 source: crates/shadows-core/src/threads
@@ -55,7 +55,7 @@ modules:
   model.rs: public thread values # ID imports follow A-19; schema comments require API regeneration.
   error.rs: thread refusal mapping
   title.rs: conversation title normalization
-  testing.rs: test-only command-context entry points
+  testing.rs: test-only thread entry points
   store/mod.rs: private ThreadsStore handle
   store/thread.rs: planning thread records
   store/entry.rs: ordinal entry persistence
@@ -69,8 +69,7 @@ dependencies:
   code: crates/shadows-core/src/code/contract.yaml
   agents: crates/shadows-core/src/agents/contract.yaml
 
-# Deferred by the A-15 rulings: session close (A-17), removal effects (A-18),
-# model id imports (A-19).
+# Model id imports follow A-19.
 # Other services use associated Threads::*_in methods in their existing snapshot.
 # All journal writes use foundation JournalEntry values, with string subject ids.
 # HarnessLocked and ForkPointNotSupported map beside ThreadsError to CoreError::Refused;
@@ -81,12 +80,8 @@ shapes:
   Threads:
     store: ThreadsStore
     projects: Projects
-    # The core's own `Harness`, shared: a harness change closes its session.
-    harness: Arc<Harness>
     # A clone of the core's `Code`: `list` touches the project (§15.6).
     code: Code
-    # Stops the turn only after the removal write, without holding a session slot.
-    stopper: ThreadStopper
   ThreadsStore:
     storage: Arc<Storage> # Private to threads; uses the existing shared handle.
   PlanningThread:
@@ -179,11 +174,6 @@ functions:
     entries:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError>"
       # In ordinal order.
-    remove:
-      signature: "(&self, command_id: String, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
-      # One storage write removes and revokes; then Stop waits for the turn;
-      # includes a committed Pending turn before live registration, then
-      # close_session takes the slot. Stop/close failures are logged.
     get:
       signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
       # Also reads a removed conversation for its plan history.
@@ -214,9 +204,11 @@ functions:
       signature: "(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>"
       # Removed threads are omitted.
     remove_in:
-      signature: "(conn, ctx, thread, ts) -> Result<PlanningThread, StorageError>"
-      # One write: classify, live thread/project, removed_at, revoke grants,
-      # ThreadRemoved, record command. A replay returns the removed row.
+      signature: "(conn, thread, ts) -> Result<PlanningThread, StorageError>"
+      # Checks thread/project liveness, marks removed_at and returns the retained row.
+    record_removal_in:
+      signature: "(conn, ctx, current, ts) -> Result<(), StorageError>"
+      # Journals ThreadRemoved and records the command after Turns revokes the grants.
     get_thread:
       signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
     append_thread_entry:
@@ -310,7 +302,8 @@ enums:
 
 
 shared_in_transaction:
-  remove_in: Harness composes thread removal with its permission row in one transaction.
+  remove_in: Turns composes the row write with grant revocation and permission removal.
+  record_removal_in: Turns journals removal after grant events in that same transaction.
   set_harness_in: "Harness calls the guarded thread-row update in its command transaction."
   fork_in: Harness checks replay and asks Operations for eligibility before this thread mutation.
   entry_in: "Grants reads retained approval entry identity and ordinal in the caller snapshot."

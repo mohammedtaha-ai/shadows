@@ -61,11 +61,13 @@ impl crate::turns::Turns {
 
 impl crate::turns::Turns {
     pub(in crate::turns) async fn invocation_context(
-        storage: &Storage,
+        storage: &std::sync::Arc<Storage>,
         thread: &ThreadId,
         operation: &OperationId,
     ) -> crate::harness::InvocationContext {
-        let latest = storage.latest_invocation_versions(thread).await;
+        let latest = super::TurnsStore::with_storage(storage.clone())
+            .latest_invocation_versions(thread)
+            .await;
         let standards = async {
             let mut conn = storage.reader().begin().await?;
             let effective = Self::standards_for_invocation_in(&mut conn, operation).await?;
@@ -80,7 +82,7 @@ impl crate::turns::Turns {
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use crate::OperationId;
-    use crate::db::{Storage, StorageError};
+    use crate::db::StorageError;
     use crate::testing::turn::{default_turn_settings, new_turn, turn_command};
 
     #[tokio::test]
@@ -125,7 +127,7 @@ mod tests {
         let turns = core.turns();
         let mut turn = new_turn(&thread.id, &turns.runtime, "hello", &settings);
         turn.standards_additions_version = Some(&first.id);
-        let started = Storage::start_turn(&turns.storage, &command, turn)
+        let started = crate::Turns::start_turn_for_test(&turns.storage, &command, turn)
             .await
             .unwrap();
         core.standards()
@@ -185,8 +187,8 @@ mod tests {
         )
         .await
         .unwrap();
-        core.threads()
-            .remove("remove-thread".into(), &thread.id)
+        core.turns()
+            .remove_thread("remove-thread".into(), &thread.id)
             .await
             .unwrap();
         core.projects()

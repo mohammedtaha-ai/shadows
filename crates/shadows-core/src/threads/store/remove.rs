@@ -1,24 +1,15 @@
 //! One job: the atomic removal of a planning thread.
 
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, record_command};
-use crate::grants::Grants;
+use crate::db::{Actor, CommandContext, StorageError, append_event, record_command};
 use crate::threads::{PlanningThread, ThreadId};
 
 impl crate::threads::Threads {
-    /// Mark the thread removed, revoke every Planner grant, and journal the
-    /// change in one write. A replay returns the same removed thread.
+    /// Marks the live thread removed inside the composing removal transaction.
     pub(crate) async fn remove_in(
         conn: &mut sqlx::SqliteConnection,
-        ctx: &CommandContext,
         thread: &ThreadId,
         ts: &str,
     ) -> Result<PlanningThread, StorageError> {
-        if classify(conn, ctx, "Thread", thread.as_str())
-            .await?
-            .is_some()
-        {
-            return super::ThreadsStore::load_thread(conn, thread).await;
-        }
         let current = super::ThreadsStore::load_thread(conn, thread).await?;
         if current.removed_at.is_some() {
             return Err(StorageError::NotFound("planning_thread"));
@@ -29,8 +20,18 @@ impl crate::threads::Threads {
             .bind(thread.as_str())
             .execute(&mut *conn)
             .await?;
+        super::ThreadsStore::load_thread(conn, thread).await
+    }
+
+    /// Journals and records the removal after its grants were revoked.
+    pub(crate) async fn record_removal_in(
+        conn: &mut sqlx::SqliteConnection,
+        ctx: &CommandContext,
+        current: &PlanningThread,
+        ts: &str,
+    ) -> Result<(), StorageError> {
+        let thread = &current.id;
         let actor = Actor::user(&ctx.principal_id);
-        Grants::revoke_thread_grants_in(conn, thread, actor.clone(), ts).await?;
         append_event(
             conn,
             crate::db::JournalEntry {
@@ -57,7 +58,7 @@ impl crate::threads::Threads {
             ts,
         )
         .await?;
-        super::ThreadsStore::load_thread(conn, thread).await
+        Ok(())
     }
 }
 

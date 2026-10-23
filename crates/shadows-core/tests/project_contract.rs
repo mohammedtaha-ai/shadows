@@ -322,7 +322,7 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
     assert_eq!(order().await, created);
 
     let remove_params = serde_json::json!({ "thread": thread.id });
-    shadows_core::Threads::remove_thread_for_test(
+    shadows_core::Turns::remove_thread_for_test(
         &storage,
         &ctx_kind("rm", "thread.remove", &remove_params),
         &thread.id,

@@ -202,8 +202,8 @@ async fn fork_copies_the_mode_and_removal_deletes_only_its_row() {
     );
     assert_eq!(mode_rows(&app).await, 2);
     app.core
-        .threads()
-        .remove("remove".into(), &app.thread)
+        .turns()
+        .remove_thread("remove".into(), &app.thread)
         .await
         .unwrap();
     assert_eq!(mode_rows(&app).await, 1);

@@ -1,7 +1,7 @@
-//! One job: starting and stopping a Planner turn (spec §12.3, §12.7, §14.4) —
+//! One job: starting and stopping a Planner turn —
 //! the `Turns` service.
 //!
-//! `send` is §12.7's order, and the order is the rule (§14.9): a replay is
+//! `send` follows one order: a replay is
 //! answered first; the harness is checked, then the thread's busyness, before
 //! the session is touched; the session is opened, then its events leased,
 //! before any setting changes; the one transaction checks busyness again,
@@ -11,18 +11,20 @@
 //! messages. `spawn` registers a committed turn and commits `Running`, `turn` records
 //! its ending and arbitrates it with Stop, `handles` is the registry of live
 //! turns, `entries` turns harness events into entries, `subagents` gathers a
-//! subagent's calls into its card (§22), `shutdown` stops every
-//! turn when the runtime stops (§8.5), `model` holds the operation types and
+//! subagent's calls into its card, `shutdown` stops every
+//! turn when the runtime stops, `model` holds the operation types and
 //! `store` the turn queries. All are private: a caller starts or stops a turn
 //! through `Turns` only.
 
 mod entries;
+mod error;
 mod handles;
 mod model;
 mod plan_show;
 mod prompt;
 mod queue;
 mod record;
+mod remove;
 mod shutdown;
 mod spawn;
 mod stage;
@@ -54,7 +56,9 @@ use store::Dequeue;
 use turn::PlannerTurn;
 pub(crate) use turn::StopOutcome;
 
-use crate::app::Bus;
+/// A running turn's live harness events, for every live subscriber.
+pub type Bus =
+    tokio::sync::broadcast::Sender<(ThreadId, OperationId, shadows_agent::events::HarnessEvent)>;
 use crate::code::Code;
 use crate::db::{Actor, CommandContext, Storage, StorageError};
 use crate::error::CoreError;
@@ -84,6 +88,7 @@ pub(crate) mod for_tests {
 #[derive(Clone)]
 pub struct Turns {
     storage: Arc<Storage>,
+    store: store::TurnsStore,
     operations: crate::operations::Operations,
     runtime: Arc<Runtime>,
     sessions: Arc<Harness>,
@@ -97,76 +102,10 @@ pub struct Turns {
     ui: tokio::sync::broadcast::Sender<crate::events::UiSignal>,
 }
 
-/// The narrow turn control that thread removal needs. It owns no session
-/// slot; Stop may take that slot while the turn records its ending.
-#[derive(Clone)]
-pub(crate) struct ThreadStopper {
-    storage: Arc<Storage>,
-    handles: Arc<LiveHandles>,
-    sessions: Arc<Harness>,
-}
-
-impl ThreadStopper {
-    pub(crate) fn new(
-        storage: Arc<Storage>,
-        handles: Arc<LiveHandles>,
-        sessions: Arc<Harness>,
-    ) -> Self {
-        Self {
-            storage,
-            handles,
-            sessions,
-        }
-    }
-
-    pub(crate) async fn stop_running(
-        &self,
-        thread: &ThreadId,
-    ) -> Result<StopOutcome, StorageError> {
-        // A turn commits Pending before it registers a live handle. Removal
-        // must also stop that gap, and wait for the durable terminal write
-        // when a live watcher is still finishing after Stop answers.
-        let Some(op) = (store::TurnsStore {
-            storage: &self.storage,
-        })
-        .list_operations_for_thread(thread)
-        .await?
-        .into_iter()
-        .find(|op| matches!(op.status_kind.as_str(), "Pending" | "Running")) else {
-            return Ok(StopOutcome::NotLive);
-        };
-        let mut committed = self.storage.watch_committed();
-        let outcome = PlannerTurn::stop(
-            self.storage.clone(),
-            self.handles.clone(),
-            self.sessions.clone(),
-            &op.id,
-            Actor::user("local"),
-        )
-        .await?;
-        if outcome == StopOutcome::TerminationFailed {
-            return Ok(outcome);
-        }
-        while (store::TurnsStore {
-            storage: &self.storage,
-        })
-        .get_operation(&op.id)
-        .await?
-        .finished_at
-        .is_none()
-        {
-            committed.changed().await.map_err(|_| {
-                StorageError::Unavailable("storage closed while stopping a turn".into())
-            })?;
-        }
-        Ok(outcome)
-    }
-}
-
-/// A person's turn, as the route received it (§12.7, §13.9).
+/// A person's turn, as the route received it.
 #[derive(Clone)]
 pub struct SendTurn {
-    /// The idempotency key (spec §3.2).
+    /// The idempotency key.
     pub command_id: String,
     pub prompt: String,
     pub model: String,
@@ -181,7 +120,7 @@ pub struct SendTurn {
     pub client_tab: Option<String>,
 }
 
-/// `turn.start`'s command for `turn` on `thread` (§12.7): `send` asks its
+/// `turn.start`'s command for `turn` on `thread`: `send` asks its
 /// replay first, and `queue` asks the replay of the start it derived.
 fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> CommandContext {
     let mut params = serde_json::json!({
@@ -191,7 +130,7 @@ fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> Comm
         "mode": turn.mode,
         "effort": turn.effort,
     });
-    // Absent without a focus, so a turn recorded before §13.9 replays as it did.
+    // Omit absent focus from the fingerprint so plain-turn retries keep their identity.
     if let Some(focus) = &turn.focus {
         params["focus"] = serde_json::json!(focus);
     }
@@ -219,6 +158,7 @@ impl Turns {
         ui: tokio::sync::broadcast::Sender<crate::events::UiSignal>,
     ) -> Self {
         Self {
+            store: store::TurnsStore::with_storage(storage.clone()),
             storage,
             operations,
             runtime,
@@ -234,9 +174,9 @@ impl Turns {
         }
     }
 
-    /// Starts a Planner turn (§12.3, §12.7, §13.9): "turn.start", params
+    /// Starts a Planner turn: "turn.start", params
     /// { "thread_id", "prompt", "model", "mode", "effort" }, and "focus" when
-    /// one is given. §12.7's order: a replay first, answered before anything
+    /// one is given. Order: a replay first, answered before anything
     /// else; then every check, before any write; then the one transaction;
     /// then the run.
     pub async fn send(
@@ -248,7 +188,7 @@ impl Turns {
     }
 
     /// `send`, and when `dequeue` names a waiting message, the turn that takes
-    /// it from the queue in its own transaction (§20.3).
+    /// it from the queue in its own transaction.
     pub(crate) async fn send_with(
         &self,
         thread_id: ThreadId,
@@ -266,7 +206,7 @@ impl Turns {
             plan,
             client_tab,
         } = turn;
-        if let Some(replay) = self.storage.replayed_turn(&command, &thread_id).await? {
+        if let Some(replay) = self.store.replayed_turn(&command, &thread_id).await? {
             return Ok(replay.operation_id);
         }
         if self.handles.is_closed().await {
@@ -303,14 +243,14 @@ impl Turns {
             None => None,
         };
         self.sessions.check_idle(&thread_id, &context).await?;
-        // The checks passed: a turn starts in this project, which is used (§15.6).
+        // The checks passed: a turn starts in this project, which is used.
         self.code.touch(&context.project_id).await;
         let opened = self.sessions.open(&thread_id).await?;
         // The turn holds the session from here: a second start, or a `/context`
         // read, cannot change or prompt it until this turn gives it back.
         let events =
             (self.sessions.lease_events(&thread_id, &opened).await).map_err(|e| match e {
-                LeaseError::Busy => CoreError::from(StorageError::ThreadBusy),
+                LeaseError::Busy => CoreError::from(error::TurnsError::ThreadBusy),
                 LeaseError::Closed => CoreError::HarnessStartFailed(e.to_string()),
             })?;
         let turn = Turn {
@@ -357,7 +297,7 @@ impl Turns {
         .await?)
     }
 
-    /// Stops a turn as the local user (§2.3, §12.3), then answers the
+    /// Stops a turn as the local user, then answers the
     /// operation as it now stands. A tree that could not be terminated is
     /// `TerminationFailed`, and the operation is not `Cancelled`.
     pub async fn stop(&self, op: &OperationId) -> Result<Operation, CoreError> {
@@ -372,15 +312,11 @@ impl Turns {
         if outcome == StopOutcome::TerminationFailed {
             return Err(CoreError::TerminationFailed);
         }
-        Ok((store::TurnsStore {
-            storage: &self.storage,
-        })
-        .get_operation(op)
-        .await?)
+        Ok(self.store.get_operation(op).await?)
     }
 
-    /// §8.5, unchanged: every running turn is stopped and every adapter
-    /// closed; answers the stop kind recorded.
+    /// Stops every running turn and closes every adapter before recording shutdown.
+    /// Answers the stop kind recorded.
     pub(crate) async fn shut_down(
         &self,
         bound: Duration,
@@ -401,10 +337,51 @@ impl Turns {
 
 impl Turns {
     pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError> {
-        Ok((store::TurnsStore {
-            storage: &self.storage,
-        })
-        .list_operations_for_thread(thread)
-        .await?)
+        Ok(self.store.list_operations_for_thread(thread).await?)
+    }
+}
+
+impl Turns {
+    pub(crate) async fn stop_running(
+        &self,
+        thread: &ThreadId,
+    ) -> Result<StopOutcome, StorageError> {
+        // A turn commits Pending before it registers a live handle. Removal
+        // must also stop that gap, and wait for the durable terminal write
+        // when a live watcher is still finishing after Stop answers.
+        let mut conn = self.storage.reader().acquire().await?;
+        let Some(op) =
+            crate::operations::Operations::pending_or_running_in(&mut conn, thread).await?
+        else {
+            return Ok(StopOutcome::NotLive);
+        };
+        drop(conn);
+        let mut committed = self.storage.watch_committed();
+        let outcome = PlannerTurn::stop(
+            self.storage.clone(),
+            self.handles.clone(),
+            self.sessions.clone(),
+            &op,
+            Actor::user("local"),
+        )
+        .await?;
+        if outcome == StopOutcome::TerminationFailed {
+            return Ok(outcome);
+        }
+        while self.store.get_operation(&op).await?.finished_at.is_none() {
+            committed.changed().await.map_err(|_| {
+                StorageError::Unavailable("storage closed while stopping a turn".into())
+            })?;
+        }
+        Ok(outcome)
+    }
+    pub(crate) fn subscribe_live(
+        &self,
+    ) -> tokio::sync::broadcast::Receiver<(
+        ThreadId,
+        OperationId,
+        shadows_agent::events::HarnessEvent,
+    )> {
+        self.bus.subscribe()
     }
 }

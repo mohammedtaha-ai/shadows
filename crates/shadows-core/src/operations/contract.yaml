@@ -1,6 +1,6 @@
 # Owns durable operation rows, lifecycle transitions, crash recovery and fork eligibility.
 # Live turns, cancellation effects, invocation observations and usage composition belong to Turns.
-# Every *_in writes in its caller's transaction; only a committed Transition is logged.
+# Transaction writes share the caller's transaction; only a committed Transition is logged.
 name: operations
 # Harness composes the fork transaction; Operations checks only durable eligibility.
 version: 1
@@ -47,7 +47,7 @@ functions:
   service:
     recover_for_test: Test-support entry for explicitly testing recovery against a chosen runtime.
     recover: "(&self, current: &RuntimeInstanceId) -> Result<ReconcileReport, StorageError>"
-    fork_eligible_in: "(conn, source, at) -> Result<bool, ThreadsError>"
+    fork_eligible_in: "(conn, source, at) -> Result<bool, CoreError>"
     thread_is_busy: "(&self, thread) -> Result<bool, StorageError>"
     running_for: "(&self, thread) -> Result<Option<OperationId>, StorageError>"
     non_terminal_operations_owned_by: "(&self, runtime) -> Result<Vec<OperationId>, StorageError>"
@@ -60,6 +60,7 @@ functions:
     cancelled_in: Compares Pending or Running; caller must confirm execution ended first.
     request_cancellation_in: Records a request without ending the operation; repeated requests are idempotent.
   transaction_reads:
+    pending_or_running_in: "(conn, thread) -> Result<Option<OperationId>, StorageError>; newest Pending or Running turn in event order."
     has_open_in: Any thread operation outside Completed, Failed, Cancelled or Interrupted.
     require_running_in: Exact Running operation plus Threads liveness in the caller's snapshot.
     require_status_in: Exact status or TransitionConflict.
@@ -84,6 +85,7 @@ not_the_caller's:
   - Log a transition before the caller's transaction commits.
 
 shared_in_transaction:
+  pending_or_running_in: Turns reads durable stop eligibility without invocation metadata.
   has_any_in: "Harness reads whether any retained operation locks the harness in its command transaction."
   cancelled_in: Turns records cancellation after confirmed execution end.
   completed_in: Turns adds invocation payload and usage in the same terminal transaction.

@@ -82,10 +82,12 @@ pub async fn start_direct(
     let settings = default_turn_settings();
     let id = format!("direct-{}", NEXT.fetch_add(1, Ordering::SeqCst));
     let command = turn_command(&id, thread, prompt, &settings);
-    let started = match runtime
-        .storage_for_test()
-        .start_turn(&command, new_turn(thread, runtime, prompt, &settings))
-        .await
+    let started = match crate::Turns::start_turn_for_test(
+        &runtime.storage_for_test(),
+        &command,
+        new_turn(thread, runtime, prompt, &settings),
+    )
+    .await
     {
         Ok(started) => started,
         Err(e) => {

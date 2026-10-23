@@ -1,53 +1,36 @@
-//! One job: the recorded ending of a live Planner turn (spec §2.3, §8.4, §12.3).
+//! One job: the recorded ending of a live Planner turn.
 //!
 //! Starting one is the neighbouring file's job. `spawn.rs` turns a request
 //! into a registered, running operation and hands it here; everything after
 //! that — the updates, the ending, the cancellation interlock — is this file.
-//! `handles.rs` is the registry of live turns, `sessions.rs` owns the adapter
+//! `handles.rs` is the registry of live turns, `Harness` owns the adapter
 //! the prompt runs on, and `shutdown.rs` stops every turn when the runtime
-//! stops (§8.5).
+//! stops.
 //!
-//! `Cancelled` means Shadows confirmed the managed execution is no longer
-//! running AND persisted the terminal transition (spec §2.3) — never only
+//! `Cancelled` means Shadows confirmed the managed execution stopped
+//! AND persisted the terminal transition — never only
 //! that a user asked for it. There are two confirmations. The harness answering
 //! the prompt `cancelled` after `session/cancel` is one: the turn stopped, the
 //! adapter lives on for the next turn, and the watcher writes `Cancelled`. If
 //! it does not answer within `cancel_wait`, `stop` terminates the adapter's
 //! tree, confirms it is gone, and only then writes `Cancelled` itself. If
 //! termination cannot be confirmed, nothing terminal is written; the operation
-//! is left for a later runtime's recovery (`Storage::reconcile_orphans`, which
+//! is left for a later runtime's recovery (`Operations::recover`, which
 //! writes `Interrupted`, never `Cancelled`).
 //!
 //! **Why the watcher and `stop` live in one file.** They are the two sides of
-//! one arbitration. §8.4 requires that exactly one of them writes the terminal
+//! one arbitration. The turn contract requires that exactly one of them writes the terminal
 //! transition, and the rule that decides which — claiming the registration in
 //! `LiveHandles`, plus the two facts `LiveTurn` carries — is only reviewable if
 //! both sides are read together.
 //!
-//! | Milestone 0 (a process per turn) | Milestone 1 (a prompt on a live connection) |
-//! |---|---|
-//! | spawn `claude --print` | the thread's adapter is open (§12.2), then
-//!   `session/prompt` is sent |
-//! | handle registered, then `Running` | the prompt is registered in
-//!   `LiveHandles`, then `Running` |
-//! | `stream_event` text deltas | `session/update` chunks: transient,
-//!   rendered, never stored |
-//! | `assistant` / `user` lines → entries | one entry per agent message, and
-//!   one per tool call under its last title (`entries.rs`) |
-//! | `result` line + exit status | the `session/prompt` response: `end_turn`
-//!   is success; any other stop reason, or a JSON-RPC error, fails the turn
-//!   naming it |
-//! | session recorded at turn-end | unchanged: recorded when the first turn
-//!   ends, never earlier |
-//! | the adapter exits mid-turn | `Failed { stage: Run }`, "the harness
-//!   exited during the turn" |
 
 use super::{
     entries::{Collector, Durable},
     handles::LiveHandles,
     model::{FailureStage, OperationId},
     spawn::OnCompleted,
-    steer::{SteerRequest, steer},
+    steer::SteerRequest,
 };
 use crate::{
     db::{Actor, StorageError},
@@ -87,11 +70,11 @@ pub(crate) struct TurnWatch {
     /// The thread's harness, whose account limits a usage report updates.
     pub harness: String,
     pub prompt: String,
-    /// Context blocks sent after the person's text (§13.8).
+    /// Context blocks sent after the person's text.
     pub context: Vec<String>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
-    /// §20.3: called after a `Completed` is recorded, and after nothing else.
+    /// called after a `Completed` is recorded, and after nothing else.
     pub on_completed: Option<OnCompleted>,
     pub span: tracing::Span,
 }
@@ -103,50 +86,52 @@ fn planner() -> Actor {
     }
 }
 
-pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
-    for entry in entries {
-        let (kind, author, body, card) = match entry {
-            Durable::Message(body) => (ThreadEntryKind::AgentMessage, planner(), body, None),
-            Durable::Tool(title) => (ThreadEntryKind::ToolCall, planner(), title, None),
-            // §22.2: drawn as a card; §23.8: its payload is a column.
-            Durable::Subagent(card) => (
-                ThreadEntryKind::Subagent,
-                planner(),
-                card.title.clone(),
-                serde_json::to_value(&*card).ok(),
-            ),
-            Durable::PermissionRefused(body) => (
-                ThreadEntryKind::PermissionRefused,
-                Actor::system(),
-                body,
-                None,
-            ),
-        };
-        let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
-        let ts = crate::db::now();
-        if let Err(error) = w
-            .storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    crate::threads::Threads::append_entry_in(
-                        conn,
-                        &thread,
-                        NewThreadEntry {
-                            kind,
-                            author,
-                            body: &body,
-                            refs: &[],
-                            card: card.as_ref(),
-                            operation_id: Some(&operation),
-                        },
-                        &ts,
-                    )
-                    .await
+impl PlannerTurn {
+    pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
+        for entry in entries {
+            let (kind, author, body, card) = match entry {
+                Durable::Message(body) => (ThreadEntryKind::AgentMessage, planner(), body, None),
+                Durable::Tool(title) => (ThreadEntryKind::ToolCall, planner(), title, None),
+                // Cards are stored as one structured entry, keeping their steps together.
+                Durable::Subagent(card) => (
+                    ThreadEntryKind::Subagent,
+                    planner(),
+                    card.title.clone(),
+                    serde_json::to_value(&*card).ok(),
+                ),
+                Durable::PermissionRefused(body) => (
+                    ThreadEntryKind::PermissionRefused,
+                    Actor::system(),
+                    body,
+                    None,
+                ),
+            };
+            let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
+            let ts = crate::db::now();
+            if let Err(error) = w
+                .storage
+                .write_txn(move |conn| {
+                    Box::pin(async move {
+                        crate::threads::Threads::append_entry_in(
+                            conn,
+                            &thread,
+                            NewThreadEntry {
+                                kind,
+                                author,
+                                body: &body,
+                                refs: &[],
+                                card: card.as_ref(),
+                                operation_id: Some(&operation),
+                            },
+                            &ts,
+                        )
+                        .await
+                    })
                 })
-            })
-            .await
-        {
-            tracing::error!(%error, "planner.append_thread_entry_failed");
+                .await
+            {
+                tracing::error!(%error, "planner.append_thread_entry_failed");
+            }
         }
     }
 }
@@ -165,7 +150,7 @@ async fn accept(
     }
     if let HarnessEvent::Usage { rate_limit, .. } = &e {
         // Recorded before the event is published, so the `usage` frame it
-        // becomes carries these limits as the latest (§12.8).
+        // becomes carries these limits as the latest.
         let limits = rate_limit
             .as_ref()
             .and_then(|r| limits_from(r, &now_rfc3339()));
@@ -177,7 +162,7 @@ async fn accept(
         *last_usage = Some(e.clone());
     }
     let durable = collector.push(&e);
-    persist(w, durable).await;
+    PlannerTurn::persist(w, durable).await;
     let _ = bus.send((w.thread_id.clone(), w.op_id.clone(), e));
     for card in collector.changed_cards() {
         let _ = bus.send((
@@ -188,14 +173,15 @@ async fn accept(
     }
 }
 
-pub(crate) fn watch_turn(
-    w: TurnWatch,
-    mut rx: mpsc::UnboundedReceiver<HarnessEvent>,
-    mut steers: mpsc::UnboundedReceiver<SteerRequest>,
-    bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
-) {
-    let span = w.span.clone();
-    tokio::spawn(
+impl PlannerTurn {
+    pub(super) fn watch_turn(
+        w: TurnWatch,
+        mut rx: mpsc::UnboundedReceiver<HarnessEvent>,
+        mut steers: mpsc::UnboundedReceiver<SteerRequest>,
+        bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
+    ) {
+        let span = w.span.clone();
+        tokio::spawn(
         async move {
             let mut collector = Collector::new();
             let mut first = true;
@@ -237,7 +223,7 @@ pub(crate) fn watch_turn(
                                 accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event)
                                     .await;
                             }
-                            steer(&w, &mut collector, r).await;
+                            w.steer(&mut collector, r).await;
                         }
                     }
                 }
@@ -247,7 +233,7 @@ pub(crate) fn watch_turn(
             while let Ok(event) = rx.try_recv() {
                 accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await;
             }
-            persist(&w, collector.finish()).await;
+            PlannerTurn::persist(&w, collector.finish()).await;
             w.sessions
                 .give_back_events(&w.thread_id, &w.opened, rx)
                 .await;
@@ -272,7 +258,7 @@ pub(crate) fn watch_turn(
                 },
             ));
             // A new session, or a fork's, is recorded when its first turn ends
-            // (§12.3, §12.9); a resumed one is already the thread's.
+            //; a resumed one is already the thread's.
             if answer.is_ok() && w.opened.how != "resume" {
                 let (thread, session) = (w.thread_id.clone(), w.opened.session_id.clone());
                 if let Err(error) = w
@@ -301,7 +287,7 @@ pub(crate) fn watch_turn(
             let result = match answer {
                 // Only a completed turn records an observation: a failed or
                 // cancelled one leaves it NULL, which a client shows as
-                // unavailable (§12.7 — nothing unreported is estimated).
+                // unavailable.
                 Ok(TurnEnd::Ended) => {
                     let seen = TurnObservation {
                         token_usage: token_usage.clone(),
@@ -309,7 +295,7 @@ pub(crate) fn watch_turn(
                         ..TurnObservation::from_usage(last_usage.as_ref())
                     };
                     super::store::TurnsStore {
-                        storage: &w.storage,
+                        storage: w.storage.clone(),
                     }
                     .mark_operation_completed(
                         &w.op_id,
@@ -320,14 +306,14 @@ pub(crate) fn watch_turn(
                 }
                 Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => {
                     super::store::TurnsStore {
-                        storage: &w.storage,
+                        storage: w.storage.clone(),
                     }
                     .mark_operation_cancelled_with_usage(&w.op_id, token_usage.as_ref())
                     .await
                 }
                 Ok(TurnEnd::Cancelled) => {
                     super::store::TurnsStore {
-                        storage: &w.storage,
+                        storage: w.storage.clone(),
                     }
                     .mark_operation_failed_with_usage(
                         &w.op_id,
@@ -339,7 +325,7 @@ pub(crate) fn watch_turn(
                 }
                 Ok(TurnEnd::Refused(reason)) => {
                     super::store::TurnsStore {
-                        storage: &w.storage,
+                        storage: w.storage.clone(),
                     }
                     .mark_operation_failed_with_usage(
                         &w.op_id,
@@ -355,7 +341,7 @@ pub(crate) fn watch_turn(
                         tracing::error!(%error, "planner.dead_adapter_cleanup_failed");
                     }
                     super::store::TurnsStore {
-                        storage: &w.storage,
+                        storage: w.storage.clone(),
                     }
                     .mark_operation_failed(
                         &w.op_id,
@@ -366,7 +352,7 @@ pub(crate) fn watch_turn(
                 }
                 Err(AcpError::Rpc(reason)) => {
                     super::store::TurnsStore {
-                        storage: &w.storage,
+                        storage: w.storage.clone(),
                     }
                     .mark_operation_failed(&w.op_id, FailureStage::Run, &reason)
                     .await
@@ -382,6 +368,7 @@ pub(crate) fn watch_turn(
         }
         .instrument(span),
     );
+    }
 }
 
 impl PlannerTurn {
@@ -392,9 +379,11 @@ impl PlannerTurn {
         op_id: &OperationId,
         requester: Actor,
     ) -> Result<StopOutcome, StorageError> {
-        super::store::TurnsStore { storage: &storage }
-            .request_cancellation(op_id, requester)
-            .await?;
+        super::store::TurnsStore {
+            storage: storage.clone(),
+        }
+        .request_cancellation(op_id, requester)
+        .await?;
         let Some((thread_id, session, flag, ended, span)) = ({
             let r = handles.0.lock().await;
             r.turns.get(op_id).map(|t| {
@@ -435,9 +424,11 @@ impl PlannerTurn {
             return Ok(StopOutcome::TerminationFailed);
         }
         tracing::info!(parent: &span, "planner.stop: the harness did not confirm; tree reaped");
-        super::store::TurnsStore { storage: &storage }
-            .mark_operation_cancelled(op_id)
-            .await?;
+        super::store::TurnsStore {
+            storage: storage.clone(),
+        }
+        .mark_operation_cancelled(op_id)
+        .await?;
         Ok(StopOutcome::Cancelled)
     }
 }

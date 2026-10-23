@@ -10,10 +10,10 @@
 # and again each time the committed signal moves — so each is delivered
 # once, in `seq` order; the bus's `Entry` items are never delivered.
 #
-# Trap: `Events` emits nothing of its own. It holds the bus and UI senders
+# Trap: `Events` emits nothing of its own. It holds Turns and the UI sender
 # only to subscribe to them; a writer appends its durable event inside its
 # own transaction (`db::append_event`), `Turns` sends a turn's live items and
-# `Plans` sends `plan_show`'s signal.
+# `Turns` sends `plan_show`'s signal.
 # Trap: the frames themselves — event names, JSON bodies, `durable`'s payload
 # parse, the bounded channel, `shutdown` and the `sse.*` lines around a
 # delivery — are `shadows-http/src/sse.rs`'s. A `Delivery` is not a frame.
@@ -31,7 +31,7 @@ shapes:
   Events:
     storage: Arc<Storage>
     harness: Arc<Harness>
-    bus: Bus
+    turns: Turns
     ui: broadcast::Sender<UiSignal>
   Subscription:
     scope: Scope
@@ -113,7 +113,7 @@ functions:
       # so project clients can refresh agreement reads after committed writes.
     subscribe:
       signature: "(&self, thread: ThreadId, after: i64) -> Subscription"
-      # Takes `storage.watch_committed()`, `bus.subscribe()`,
+      # Takes `storage.watch_committed()`, `turns.subscribe_live()`,
       # `harness.watch_options()`, `harness.watch_commands()` and
       # `ui.subscribe()`, in that order, and reads nothing.
   subscription:

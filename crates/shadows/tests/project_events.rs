@@ -115,8 +115,8 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
         "PlanDependenciesChanged"
     );
     app.core
-        .threads()
-        .remove("remove-foreign-thread".into(), &thread)
+        .turns()
+        .remove_thread("remove-foreign-thread".into(), &thread)
         .await
         .unwrap();
     app.core
@@ -324,8 +324,8 @@ async fn a_project_stream_sends_another_conversations_plan_edit() {
         404
     );
     app.core
-        .threads()
-        .remove("remove-other".into(), &other_thread)
+        .turns()
+        .remove_thread("remove-other".into(), &other_thread)
         .await
         .unwrap();
     app.core

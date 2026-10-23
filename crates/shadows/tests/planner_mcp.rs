@@ -640,13 +640,11 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
         )
     );
     assert_eq!(shadows_core::testing::Harness::prompt_version().len(), 16);
-    let versions = l
-        .app
-        .storage
-        .latest_invocation_versions(&l.app.thread)
-        .await
-        .unwrap()
-        .unwrap();
+    let versions =
+        shadows_core::Turns::latest_invocation_versions_for_test(&l.app.storage, &l.app.thread)
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!((versions.prompt, versions.instructions), recorded);
     assert_eq!(versions.standards, Some(1));
     assert_eq!(versions.additions, None);

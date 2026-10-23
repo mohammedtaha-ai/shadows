@@ -427,6 +427,7 @@ enums:
 
 
 shared_in_transaction:
+  workflow_in_project_in: "(conn, workflow, project) -> Result<bool, StorageError>; Turns reads focus membership in its snapshot."
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."

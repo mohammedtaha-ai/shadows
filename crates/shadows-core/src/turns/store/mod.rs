@@ -1,6 +1,7 @@
 mod operation;
 mod operation_read;
 mod queue;
+mod remove;
 mod standards;
 mod steer;
 mod turn;
@@ -11,6 +12,13 @@ pub use queue::{NewQueued, QueueAnswer};
 pub use turn::InvocationVersions;
 pub use turn::{Dequeue, NewTurn, StartedTurn};
 
-pub(crate) struct TurnsStore<'a> {
-    pub(crate) storage: &'a std::sync::Arc<crate::db::Storage>,
+#[derive(Clone)]
+pub(super) struct TurnsStore {
+    pub(super) storage: std::sync::Arc<crate::db::Storage>,
+}
+
+impl TurnsStore {
+    pub(super) fn with_storage(storage: std::sync::Arc<crate::db::Storage>) -> Self {
+        Self { storage }
+    }
 }

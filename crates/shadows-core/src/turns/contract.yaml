@@ -39,6 +39,8 @@ status: current
 source: crates/shadows-core/src/turns
 modules:
   mod.rs: turn execution boundary
+  error.rs: turn refusal mapping
+  remove.rs: thread removal orchestration
   handles.rs: live turn registry
   model.rs: turn transport values
   prompt.rs: prompt composition
@@ -58,14 +60,30 @@ modules:
   store/operation_read.rs: operation composition with Harness batched reads
   store/turn.rs: turn command persistence
   store/queue.rs: queue persistence
+  store/remove.rs: atomic thread removal composition
   store/steer.rs: steer persistence
   store/standards.rs: invocation standards composition
   store/usage.rs: terminal usage composition
 
 
+dependencies:
+  harness: crates/shadows-core/src/harness/contract.yaml
+  operations: crates/shadows-core/src/operations/contract.yaml
+  threads: crates/shadows-core/src/threads/contract.yaml
+  grants: crates/shadows-core/src/grants/contract.yaml
+  plans: crates/shadows-core/src/plans/contract.yaml
+  design: crates/shadows-core/src/design/contract.yaml
+  standards: crates/shadows-core/src/standards/contract.yaml
+  instructions: crates/shadows-core/src/instructions/contract.yaml
+  usage: crates/shadows-core/src/usage/contract.yaml
+  runtime: crates/shadows-core/src/runtime/contract.yaml
+  code: crates/shadows-core/src/code/contract.yaml
+  projects: crates/shadows-core/src/projects/contract.yaml
+
 shapes:
   Turns:
     storage: Arc<Storage>
+    store: TurnsStore
     operations: Operations
     # Owns the operations: its `instance_id` goes on every new one.
     runtime: Arc<Runtime>
@@ -83,11 +101,12 @@ shapes:
     standards: Standards
     plans: Plans
     ui: broadcast::Sender<UiSignal>
-  ThreadStopper:
-    # Narrow handle built at composition, held by Threads.
-    storage: Arc<Storage>
-    handles: Arc<LiveHandles>
-    sessions: Arc<Harness>
+  TurnsError:
+    ThreadBusy: unit # 409 THREAD_BUSY; the durable or live turn prevents the command.
+    QueuedMessageGone: unit # 404 QUEUED_MESSAGE_GONE; the waiting row was consumed.
+  TurnsStore:
+    storage: Arc<Storage> # Private persistence over the same shared database handle.
+  Bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>
   SendTurn:
     command_id: String
     prompt: String
@@ -236,10 +255,19 @@ functions:
   plan_cards:
     show_plan: "(&self, grant, PlanShow) -> Result<PlanShown, CoreError>; calls Plans::show, reads its live tab and signals only a non-replay"
   service:
+    remove_thread:
+      signature: "(&self, command_id, thread) -> Result<PlanningThread, CoreError>"
+      # Replay first; Threads marks the row, Grants revokes, Threads journals and records
+      # the command, and Harness removes the conversation mode, all in one transaction.
+      # After commit stop the live turn, wait for its terminal write, then close its session.
+      # Stop and close failures are logged without changing the removed result.
+    subscribe_live:
+      signature: "(&self) -> broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>"
+      # Events takes this receiver before reading the journal; Turns retains the sender.
     operations: "(&self, thread) -> Result<Vec<Operation>, CoreError>; Operations rows enriched with invocation reads"
     stop_running:
       signature: "(&self, thread: &ThreadId) -> Result<StopOutcome, StorageError>"
-      # On ThreadStopper: finds the durable Pending or Running turn, including
+      # Reads Operations::pending_or_running_in, including
       # before live registration, then PlannerTurn::stop; waits for finished_at
       # through the committed watch without holding a session slot. A failed
       # termination is returned without claiming the operation is terminal.
@@ -318,7 +346,7 @@ functions:
       private: true
       # One snapshot reads the thread and Design's stage line; AYLUL carries no line.
     invocation_context:
-      signature: "(storage: &Storage, thread: &ThreadId, operation: &OperationId) -> InvocationContext"
+      signature: "(storage: &Arc<Storage>, thread: &ThreadId, operation: &OperationId) -> InvocationContext"
       private: true
       # Composes delivered versions and pinned standards for Harness without an upward call.
     start:
@@ -434,7 +462,7 @@ functions:
       signature: "(&self, thread: &ThreadId) -> Result<Option<InvocationVersions>, StorageError>"
       # Threads entry order, Operations started ids and Harness version metadata, in one snapshot.
     start_turn:
-      signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
+      signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, CoreError>"
       # One write: classify (replay), refuse removed thread, has_open_operation (busy), focus,
       # insert_pending, the UserMessage entry, Threads'
       # title_from_first_message_in, Harness::record_invocation_in,
@@ -454,18 +482,18 @@ functions:
     queued_message:
       signature: "(&self, thread: &ThreadId, id: &QueuedMessageId) -> Result<Option<QueuedMessage>, StorageError>"
     unqueue_message:
-      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), StorageError>"
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), CoreError>"
       # A replay is judged first; a new command on a gone row is
       # QueuedMessageGone.
     fail_queued:
       signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, reason: &str) -> Result<(), StorageError>"
       # Why the last send of a waiting message failed (§20.3, §20.4).
     take_queued_in:
-      signature: "(conn, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), StorageError>"
+      signature: "(conn, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), CoreError>"
       # Removes a waiting message inside the caller's transaction, or
       # QueuedMessageGone: of two writers racing for one row, one wins.
     steered_entry:
-      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, op: &OperationId, row: &QueuedMessageId, prompt: &str) -> Result<ThreadEntryId, StorageError>"
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, op: &OperationId, row: &QueuedMessageId, prompt: &str) -> Result<ThreadEntryId, CoreError>"
       # In `store/steer.rs`, §20.4: one write takes the row (QueuedMessageGone
       # if it is not there), appends the steered message as a user entry of
       # the running turn, journals `QueuedMessageSent` and records the
@@ -504,6 +532,7 @@ shared_in_transaction:
 
 
 called_by_other_services:
+  subscribe_live: Events subscribes before replay without accessing the sender.
 
 
 obligations:

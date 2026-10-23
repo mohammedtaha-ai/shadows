@@ -367,8 +367,8 @@ async fn approval_is_scoped_to_its_live_project() {
         Err(CoreError::Storage(StorageError::NotFound(_)))
     ));
     f.core
-        .threads()
-        .remove("remove-thread".into(), f.grant.thread_id.as_ref().unwrap())
+        .turns()
+        .remove_thread("remove-thread".into(), f.grant.thread_id.as_ref().unwrap())
         .await
         .unwrap();
     f.core

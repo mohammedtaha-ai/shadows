@@ -52,14 +52,14 @@ pub enum SentNow {
     Started { operation_id: OperationId },
 }
 
-/// Spec §8.3: Prepare failure ("we could not get ready") and Spawn failure
-/// ("the OS refused to start it") are kept distinct in the durable record.
+/// Prepare failure ("we could not get ready") and Spawn failure
+/// ("process creation failed") are kept distinct in the durable record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureStage {
     /// Resolving the harness, building the environment, readying the
-    /// workspace. The process never existed. Spec §8.3.
+    /// workspace. The process never existed.
     Prepare,
-    /// The OS refused to start the process. Spec §2.7.
+    /// Process creation failed in the OS.
     #[cfg_attr(
         not(feature = "test-support"),
         expect(

@@ -274,7 +274,10 @@ impl Harness {
     ) -> Result<(), CoreError> {
         self.check_available(context).await?;
         if self.operations.thread_is_busy(thread).await? {
-            return Err(StorageError::ThreadBusy.into());
+            return Err(CoreError::Refused {
+                code: crate::ErrorCode::ThreadBusy,
+                message: "the thread has a turn running".into(),
+            });
         }
         Ok(())
     }
@@ -306,8 +309,7 @@ impl Harness {
     }
 
     /// Closes the thread's open session, if it has one: its adapter's
-    /// tree is ended and its grant revoked. `Threads` calls it when a thread's
-    /// harness changes.
+    /// tree is ended and its grant revoked. Turns calls it after thread removal.
     pub(crate) async fn close_session(&self, thread: &ThreadId) -> std::io::Result<()> {
         self.sessions.terminate(thread).await
     }
@@ -393,7 +395,10 @@ fn refusal(what: &str, id: &str, refused: SettingRefused) -> CoreError {
     match refused {
         SettingRefused::NotOffered => not_offered(None),
         SettingRefused::Harness(message) => not_offered(Some(message)),
-        SettingRefused::Lease(LeaseError::Busy) => StorageError::ThreadBusy.into(),
+        SettingRefused::Lease(LeaseError::Busy) => CoreError::Refused {
+            code: crate::ErrorCode::ThreadBusy,
+            message: "the thread has a turn running".into(),
+        },
         SettingRefused::Lease(e @ LeaseError::Closed) => {
             CoreError::HarnessStartFailed(e.to_string())
         }
