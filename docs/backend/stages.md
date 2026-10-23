@@ -63,7 +63,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: the table test over every `CoreError` variant passes through both adapters
 
 ### A-5 · ACP connection safety
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-5--acp-connection-safety
 - Read: crates/shadows-agent/src/acp.rs
 - Touch: crates/shadows-agent/src/acp.rs, crates/shadows-agent/src/usage.rs, their tests

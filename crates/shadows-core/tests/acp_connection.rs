@@ -91,6 +91,32 @@ async fn a_cancelled_prompt_answers_cancelled() {
 }
 
 #[tokio::test]
+async fn a_dropped_prompt_frees_the_session() {
+    let (_handle, connection, _events) = open_fake().await;
+    let session = connection
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
+        .await
+        .unwrap()
+        .session_id;
+    {
+        let prompt = connection.prompt(&session, "hang", &[]);
+        tokio::pin!(prompt);
+        tokio::select! {
+            biased;
+            result = &mut prompt => panic!("prompt unexpectedly ended: {result:?}"),
+            () = tokio::task::yield_now() => {}
+        }
+    }
+    let result = tokio::time::timeout(
+        Duration::from_secs(5),
+        connection.prompt(&session, "hi", &[]),
+    )
+    .await
+    .expect("the session accepts another prompt after its caller is dropped");
+    assert_eq!(result.unwrap().end, TurnEnd::Ended);
+}
+
+#[tokio::test]
 async fn a_permission_request_is_refused_and_reported() {
     let (_h, c, mut ev) = open_fake().await;
     let s = c

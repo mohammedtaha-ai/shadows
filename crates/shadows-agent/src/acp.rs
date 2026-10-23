@@ -175,6 +175,24 @@ pub struct PromptResult {
     pub usage: Option<TurnUsage>,
 }
 
+struct ActivePrompt<'a> {
+    costs: &'a Mutex<HashMap<String, SessionCost>>,
+    session: &'a str,
+}
+
+impl Drop for ActivePrompt<'_> {
+    fn drop(&mut self) {
+        if let Some(state) = self
+            .costs
+            .lock()
+            .expect("cost ledger")
+            .get_mut(self.session)
+        {
+            state.active = false;
+        }
+    }
+}
+
 impl Connection {
     pub fn is_closed(&self) -> bool {
         self.cx.is_incoming_closed()
@@ -393,6 +411,11 @@ impl Connection {
             state.current = None;
             state.active = true;
         }
+        // The caller can drop this future while the RPC is still pending.
+        let _active = ActivePrompt {
+            costs: &self.costs,
+            session,
+        };
         let blocks = Self::acp_blocks(blocks);
         let response = self
             .cx
@@ -404,7 +427,6 @@ impl Connection {
             let state = costs.entry(session.into()).or_default();
             let delta = cost_delta(state.previous.as_ref(), state.current.as_ref());
             state.previous = state.current.take();
-            state.active = false;
             delta
         };
         let r = response.map_err(rpc)?;
@@ -595,7 +617,7 @@ fn forward_stderr(stderr: ChildErr) {
     tokio::spawn(async move {
         let mut lines = BufReader::new(stderr).lines();
         while let Ok(Some(line)) = lines.next_line().await {
-            tracing::debug!(target: "harness.stderr", %line);
+            tracing::debug!(target: "harness.stderr", bytes = line.len());
         }
     });
 }
