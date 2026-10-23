@@ -1140,6 +1140,38 @@ export interface paths {
         patch: operations["update_thread"];
         trace?: never;
     };
+    "/api/threads/{id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/{id}/attachments/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/context": {
         parameters: {
             query?: never;
@@ -1644,6 +1676,20 @@ export interface components {
             agent: string;
             principal: string;
             request?: null | components["schemas"]["ApprovalRequest"];
+        };
+        Attachment: {
+            /** Format: int64 */
+            byte_len: number;
+            id: components["schemas"]["AttachmentId"];
+            media_type: string;
+            name?: string | null;
+        };
+        /** Format: uuid */
+        AttachmentId: string;
+        AttachmentRef: {
+            id: components["schemas"]["AttachmentId"];
+            media_type: string;
+            name?: string | null;
         };
         BaseStandards: {
             contract_template: components["schemas"]["ContractTemplate"];
@@ -2507,6 +2553,10 @@ export interface components {
             state: components["schemas"]["IndexState"];
             updated_at?: string | null;
         };
+        PromptCapabilities: {
+            image: boolean;
+            image_reason?: string | null;
+        };
         /** @enum {string} */
         ProposalStatus: "Pending" | "Approved" | "Superseded";
         /** @description One outcome of a proposal, with the parts it references. */
@@ -2619,6 +2669,7 @@ export interface components {
         };
         /** @description Spec §20.2: a waiting message with the settings it will be sent under. */
         QueuedMessage: {
+            attachments?: components["schemas"]["AttachmentId"][];
             created_at: string;
             effort?: string | null;
             focus?: null | components["schemas"]["Focus"];
@@ -2674,6 +2725,7 @@ export interface components {
             api_key?: string | null;
         };
         SendNowBody: {
+            attachments?: components["schemas"]["AttachmentId"][];
             /** @description The idempotency key (spec §3.2). */
             command_id: string;
         };
@@ -2694,6 +2746,7 @@ export interface components {
          *     this project"`.
          */
         SessionChoices: {
+            capabilities: components["schemas"]["PromptCapabilities"];
             current: components["schemas"]["TurnSettings"];
             efforts: components["schemas"]["Choice"][];
             models: components["schemas"]["Choice"][];
@@ -2744,6 +2797,7 @@ export interface components {
         };
         /** @description Starts a turn as one command (spec §12.7). */
         StartTurn: {
+            attachments?: components["schemas"]["AttachmentId"][];
             /**
              * @description The sending tab's id, made once per page load (§13.9). Kept in memory
              *     for the turn only, so a `plan-show` frame can name it; not part of the
@@ -2800,6 +2854,7 @@ export interface components {
         /** @enum {string} */
         Theme: "dark" | "light" | "system";
         ThreadEntry: {
+            attachments: components["schemas"]["AttachmentRef"][];
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
              *     `db::Actor`, which already has exactly this shape (`kind` + `id`) and
@@ -2878,6 +2933,11 @@ export interface components {
             command_id: string;
             /** @description `claude-code` or `codex`. */
             harness: string;
+        };
+        Upload: {
+            command_id: string;
+            /** Format: binary */
+            file: string;
         };
         UsageReport: {
             by_model: components["schemas"]["ModelUsage"][];
@@ -6852,6 +6912,93 @@ export interface operations {
             };
             /** @description SETTING_NOT_OFFERED: a harness Shadows does not know */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Upload"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ThreadId"];
+                attachment_id: components["schemas"]["AttachmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": number[];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
