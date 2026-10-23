@@ -275,7 +275,8 @@ are reference material; they do not replace the project's template or code.
 - Done when: `cargo test -p shadows-http -p shadows-mcp -p shadows` passes; `api/` unchanged
 
 ### A-21 · `shadows-agent` and `shadows-process` split by job
-- Status: todo
+- Status: blocked
+- Blocker: Touch excludes required production callers: crates/shadows-core/src/harness/{assistant,context,live,offers,mod}.rs and crates/shadows-core/src/turns/record.rs; private Claude fields and choices/breakdown methods require those edits, plus affected contracts and docs/codebase/README.md. Controller must expand Touch before implementation.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-21--shadows-agent-and-shadows-process-split-by-job
 - Read: the plan section
 - Touch: crates/shadows-agent/src/, crates/shadows-process/src/, crates/fake-acp/src/
