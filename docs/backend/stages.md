@@ -49,14 +49,15 @@ are reference material; they do not replace the project's template or code.
 - Done when: `a_slash_command_is_sent_as_one_block`, `context_skipped_by_a_command_reaches_the_next_turn` and the planner context tests pass
 
 ### A-3 · The AYLUL window follows the current model
-- Status: todo
+- Status: done
+- Ruling (controller, 2026-10-23, on the adapter-handoff blocker): Turns settles the turn's model with Harness (`offer_for_model` and any adapter replacement it needs) before it leases the connection's events, then leases from the session Harness returns, so no turn holds an old `OpenSession` or receiver. Touch adds turns/mod.rs, turns/record.rs, the turns contract lines and the turn lifecycle tests they change. A running turn keeps its adapter; the switch applies from the next turn.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-3--the-aylul-window-follows-the-current-model
 - Read: harness/contract.yaml
 - Touch: crates/shadows-core/src/harness/ (assistant.rs, live.rs, settings.rs), harness/contract.yaml, its tests
 - Done when: `switching_model_uses_the_new_models_window` and the agreement test pass
 
 ### A-4 · One error mapping for HTTP and MCP
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-4--one-error-mapping-for-http-and-mcp
 - Read: crates/shadows-core/src/error.rs
 - Touch: crates/shadows-core/src/error.rs, crates/shadows-http/src/failure/, crates/shadows-mcp/src/refusal.rs, their tests
@@ -78,7 +79,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: the MCP tool-list tests pass against the ruling
 
 ### A-7 · Correct the context-meter evidence
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-7--correct-the-context-meter-evidence
 - Read: docs/evidence/2026-10-21-context-meter-probe.md; §12.8
 - Touch: docs/evidence/2026-10-21-context-meter-probe.md, docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8
@@ -269,7 +270,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: each move passes affected public-API/caller tests and architecture checks; no cycles, cross-owner SQL or service-to-AppCore dependency; integration tests still run through AppCore
 
 ### A-20 · `shadows-http` and `shadows-mcp` split by job
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-20--shadows-http-and-shadows-mcp-split-by-job
 - Read: the plan section
 - Touch: crates/shadows-http/src/, crates/shadows-mcp/src/

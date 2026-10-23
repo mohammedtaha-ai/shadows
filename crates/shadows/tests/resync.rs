@@ -12,8 +12,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::extract::{Query, State};
-use axum::response::IntoResponse;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
 use shadows_core::OperationId;
@@ -27,8 +25,8 @@ use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{PlanningThread, ThreadEntryKind, ThreadId};
 use shadows_http::AppState;
-use shadows_http::sse::{SubscribeQuery, subscribe};
 use tokio_stream::StreamExt;
+use tower::ServiceExt;
 
 use shadows_core::testing::acp;
 
@@ -490,15 +488,18 @@ impl Live {
     /// Subscribes as a client that has already applied every event up to
     /// `after`, as one reconnecting does.
     async fn open_after(&self, thread_id: &ThreadId, after: i64) -> Stream {
-        let response = subscribe(
-            State(self.state.clone()),
-            Query(SubscribeQuery {
-                thread_id: thread_id.clone(),
-                after,
-            }),
-        )
-        .await
-        .into_response();
+        let response = shadows_http::router(self.state.clone(), axum::Router::new())
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!(
+                        "/api/subscribe?thread_id={thread_id}&after={after}"
+                    ))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
         Stream {
             body: response.into_body().into_data_stream(),
             text: String::new(),

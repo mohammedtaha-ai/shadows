@@ -79,8 +79,29 @@ impl Sessions {
         model: &str,
         effort: Option<&str>,
     ) -> Result<Offered, SettingRefused> {
+        self.settle_model(thread, opened, model, effort)
+            .await
+            .map(|(_, offered)| offered)
+    }
+
+    async fn settle_model(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        model: &str,
+        effort: Option<&str>,
+    ) -> Result<(OpenSession, Offered), SettingRefused> {
         let events = self.lease_events(thread, opened).await?;
-        let changed = self.set_model(thread, opened, model, effort).await;
+        let changed = async {
+            let offered = self.set_model(thread, opened, model, effort).await?;
+            let current = self
+                .open_selected(thread, false, Some((opened, &offered)))
+                .await
+                .map_err(|error| SettingRefused::Harness(error.to_string()))?;
+            let offered = self.offered(thread).await.ok_or(LeaseError::Closed)?;
+            Ok((current, offered))
+        }
+        .await;
         self.give_back_events(thread, opened, events).await;
         changed
     }
@@ -297,25 +318,20 @@ impl super::Harness {
         thread: &ThreadId,
         opened: &OpenSession,
         model: &str,
-    ) -> Result<(Offered, Option<String>), CoreError> {
+    ) -> Result<(OpenSession, Offered, Option<String>), CoreError> {
         let closed = || CoreError::HarnessStartFailed("the harness session closed".into());
         let offered = self.sessions.offered(thread).await.ok_or_else(closed)?;
         if offered.current.model == model || !offered.offers_model(model) {
-            return Ok((offered, None));
+            return Ok((opened.clone(), offered, None));
         }
         let previous = offered.current.model.clone();
         match self
             .sessions
-            .model_for_turn(thread, opened, offered, model)
+            .settle_model(thread, opened, model, None)
             .await
         {
-            Ok(next) => Ok((next, Some(previous))),
-            Err(AcpError::Rpc(message)) => Err(CoreError::SettingNotOffered {
-                what: "model".into(),
-                id: model.into(),
-                detail: Some(message),
-            }),
-            Err(AcpError::Closed) => Err(closed()),
+            Ok((current, next)) => Ok((current, next, Some(previous))),
+            Err(error) => Err(super::refusal("model", model, error)),
         }
     }
 
@@ -326,11 +342,14 @@ impl super::Harness {
         &self,
         thread: &ThreadId,
         opened: &OpenSession,
-        offered: &Offered,
+        _offered: &Offered,
         previous: &str,
     ) {
-        let id = &offered.ids.model;
-        if let Err(e) = self.sessions.set_option(thread, opened, id, previous).await {
+        if let Err(e) = self
+            .sessions
+            .settle_model(thread, opened, previous, None)
+            .await
+        {
             tracing::warn!(
                 thread_id = %thread,
                 model = previous,

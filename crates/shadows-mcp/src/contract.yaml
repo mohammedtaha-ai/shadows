@@ -1,0 +1,19 @@
+name: shadows-mcp
+version: 1
+status: current
+source: crates/shadows-mcp/src
+modules:
+  plan_tools.rs: Plans service MCP translation
+  code_tools.rs: Code service MCP translation
+  turn_tools.rs: Turns service MCP translation
+  agreement_tools.rs: grant scoped agreement translation
+  workspace_tools.rs: workspace read translation
+  server.rs: composition of tool routers under Core grant policy
+  refusal.rs: stable MCP error envelope
+agreements:
+  http_pairs: crates/shadows-http/src/contract.yaml
+  must: >
+    Every tool calls AppCore's owning service. The HTTP contract lists the
+    equivalent person and grant methods, their intentional differences and tests.
+  tested_by: [agreement_adapter_pairs_preserve_content_and_reach,
+    plan_adapter_pairs_keep_their_authorization_boundaries]

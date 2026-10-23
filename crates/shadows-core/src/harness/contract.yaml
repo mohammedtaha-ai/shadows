@@ -214,11 +214,12 @@ functions:
       signature: "(&self, thread, context) -> Result<(), CoreError>"
       # Availability, then durable busyness, before any session work; shared with Turns.
     offer_for_model:
-      signature: "(&self, thread, opened, model) -> Result<(Offered, Option<String>), CoreError>"
-      # Shares model_for_turn with prepare_turn; the previous model enables refused-start restoration.
+      signature: "(&self, thread, opened, model) -> Result<(OpenSession, Offered, Option<String>), CoreError>"
+      # Settles the model before Turns leases events, returning any replacement adapter.
+      # The previous model enables refused-start restoration.
     set_model_back:
       signature: "(&self, thread, opened, offered, previous)"
-      # Failed restoration is logged without replacing the original refusal.
+      # Restores through the same idle replacement path; failure preserves the original refusal.
     delete_agent:
       signature: "(&self, command_id: String, slug: &str) -> Result<(), CoreError>"
       # The one way an agent is deleted (the HTTP route calls it; no MCP tool
@@ -332,7 +333,7 @@ functions:
       # turn compares with them too; otherwise they are cleared. Kept with the
       # thread's held session state: a reopened or forgotten session drops it.
     opening:
-      signature: "(&self, thread: &ThreadId, context: &TurnContext) -> Result<Opening, OpenError>"
+      signature: "(&self, context: &TurnContext, selected: Option<&str>) -> Result<Opening, OpenError>"
       # assistant.rs, private to harness, called by `open_live`: cwd, session
       # setup and spawn spec. A Planner thread gets its project folder and
       # `for_opening`'s setup; an `aylul` thread the profile home, no
@@ -486,8 +487,16 @@ obligations:
     tested_by: [usage_snapshot_survives_provider_changes]
   - rule: An AYLUL opening appends aylul_calls_me or name, or nothing when neither is set.
     tested_by: [opening_names_the_person, opening_without_person_appends_nothing]
-  - rule: AYLUL context variables use the default model window; compact is capped or omitted below 100000.
-    tested_by: [opening_uses_the_default_models_window, auto_compact_window_is_capped_or_omitted]
+  - rule: >
+      AYLUL context variables use the accepted model window, including when a
+      remembered model is refused; compact is capped or omitted below 100000.
+      A fallback adapter is replaced under the thread lock before any prompt.
+      A failed replacement invalidates outstanding sessions and stays owned for
+      cleanup; openings cannot reuse its stale process limits.
+    tested_by: [switching_model_uses_the_new_models_window, auto_compact_window_is_capped_or_omitted,
+      a_refused_remembered_model_uses_the_fallback_models_window,
+      model_replacement_keeps_turn_output_and_closes_the_current_adapter,
+      a_failed_model_replacement_cannot_prompt_with_stale_process_limits]
   - rule: AYLUL resolves encrypted pairs at each spawn; live adapters retain their starting environment.
     tested_by: [two_agents_share_one_provider_key, settings_json_keeps_other_keys]
   - rule: Missing and unreadable stored keys keep their typed client errors before any spawn.
@@ -697,6 +706,10 @@ obligations:
 
 
 agreements:
+  - between: [open_session, change_model, offer_for_model]
+    must: Resolve the current provider model window through Harness::model_window.
+    holds: true
+    tested_by: [opening_and_turn_model_selection_use_the_same_window]
   - between: [change_mode, open_session, prepare_turn]
     must: Apply session modes through Sessions::set_mode; a leased running turn keeps its settings.
     holds: true

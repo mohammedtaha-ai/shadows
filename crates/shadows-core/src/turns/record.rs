@@ -23,37 +23,23 @@ pub(super) struct Turn<'a> {
 }
 
 impl Turns {
-    /// Checks the leased session, then commits the turn in one
-    /// transaction. A model set for the turn is set back when the turn is not
-    /// started, so a refused turn leaves the session as it found it.
+    /// Commits against the offer settled before this session's events were leased.
     pub(super) async fn record(
         &self,
         thread_id: &ThreadId,
         opened: &OpenSession,
         context: &TurnContext,
         turn: Turn<'_>,
+        offered: &Offered,
     ) -> Result<StartedTurn, CoreError> {
-        let (offered, previous) = self
-            .sessions
-            .offer_for_model(thread_id, opened, &turn.settings.model)
-            .await?;
-        let started = self
-            .start(
-                thread_id,
-                context,
-                turn,
-                &offered,
-                opened.aylul_usage.as_ref(),
-            )
-            .await;
-        if let Some(previous) = previous
-            && !matches!(&started, Ok(s) if !s.replayed)
-        {
-            self.sessions
-                .set_model_back(thread_id, opened, &offered, &previous)
-                .await;
-        }
-        started
+        self.start(
+            thread_id,
+            context,
+            turn,
+            offered,
+            opened.aylul_usage.as_ref(),
+        )
+        .await
     }
 
     /// The offer's checks on the turn's settings, then `start_turn`.

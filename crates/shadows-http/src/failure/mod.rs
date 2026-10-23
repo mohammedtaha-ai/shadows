@@ -17,6 +17,9 @@ use shadows_core::StartError;
 mod other;
 mod storage;
 
+#[cfg(test)]
+mod mapping_tests;
+
 /// A failed request: its status and the body it answers with.
 pub struct Failure {
     status: StatusCode,

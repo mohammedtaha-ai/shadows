@@ -476,21 +476,25 @@ corrects it after the turn's result (1M, measured). A report with no usable
 **What `used` is, and why it stays the figure** (context-meter probe,
 `docs/evidence/2026-10-21-context-meter-probe.md`). `used` is the token total
 of the turn's last model call: its input, its cache reads and writes, and its
-output. The provider counts it with the current model's tokenizer. It grows
-with the conversation on one model (15407, then 16572), but a model change
-recounts it (21248 after the switch, uncached). So it can fall when the next
+output. The provider counts it with the current model's tokenizer. In the
+recorded turns it rose on one model (15407, then 16572), then was 21248 after
+the switch, with no cache reads. The run does not isolate why it rose. It can fall when the next
 model counts the same conversation as fewer tokens, or when a provider leaves
 out its cache fields. Mohammed asked (2026-10-21) for the conversation's size
-instead, as Claude's own Context panel shows it. `/context` cannot supply it on
-these providers. Its Messages row was absent, 417, absent and 1 over three
+instead, as Claude's own Context panel shows it. This probe does not establish
+`/context` as a reliable source for it. Its Messages row was absent, 417, absent and 1 over three
 OpenRouter turns. Its other rows change with the process, and its total is the
-window by construction. Shadows estimates nothing (above), so the ring keeps
+forced 200000-token window by construction, not a measured model limit. See
+the dated correction in the evidence for the inspected commits and limits of
+these conclusions. Shadows estimates nothing (above), so the ring keeps
 `used` and names it as the last request's size.
 
-**No live turn figure.** The adapter sends `used` twice per turn: `0` at the
-first chunk, then the real figure after the last chunk. Nothing arrives while
+**No live turn figure in the probe.** On T1-T3 the adapter sent `used=0` near
+the first chunk, the final figure after the last chunk, then a cost-bearing
+copy. Nothing arrived while
 the reply streams (380 chunks over 2.4 s, no report between). A running token
-count under a streaming reply ("3s · 507 tokens") has no source over ACP. The
+count under a streaming reply ("3s · 507 tokens") was not measured on this path.
+This establishes no live relay behavior. The
 ring and the turn show the figures only once the turn has ended.
 
 **Account limits.** The adapter forwards Claude's rate-limit report in
@@ -531,11 +535,13 @@ and its chunks never reach the conversation.
 > answered by the context-meter probe (`docs/evidence/2026-10-21-context-meter-probe.md`).
 > The exchange **is written into the session transcript**: the `/context` line
 > and its `local-command-stdout` answer are written once per reading. The
-> figures also suggest that the model is sent it. On one model with no reading
-> between, turn 2's input grew by 783 tokens over turn 1's total, where an
-> 11-token reply and a one-line prompt account for well under 100. The two
-> readings between them would account for the rest. That is an inference: the
+> figures also suggest that the model is sent it. On the same model, with two
+> readings between the turns, turn 2's input grew by 783 tokens over turn 1's
+> total, where an 11-token reply and a one-line prompt account for well under
+> 100. The two readings between them would account for the rest. That is an inference: the
 > probe's direct check (step 6, after a resume) timed out and gave no answer.
+> The dated evidence correction preserves this as inference; neither a key
+> expiry diagnosis nor later controller figures have inspected supporting logs.
 > **Trigger that closes this:** a control run, the same three turns on one
 > model in two sessions, one with readings between the turns and one without.
 > If turn 2's input differs by about the readings' size, the breakdown route is

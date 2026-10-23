@@ -152,7 +152,6 @@ crates/shadows-http/src/conversation.rs :: StartTurn comment [831bbd66ad836d5f] 
 crates/shadows-http/src/conversation.rs :: module comment [00bb6720640f266d] #1
 crates/shadows-http/src/conversation.rs :: module comment [81a2c2544bdffc56] #1
 crates/shadows-http/src/conversation.rs :: module comment [85ca3bb79a422a4f] #1
-crates/shadows-http/src/conversation.rs :: module comment [b0bbf9625b3f9322] #1
 crates/shadows-http/src/conversation.rs :: module comment [b65e4e74a2d90b15] #1
 crates/shadows-http/src/conversation.rs :: module comment [e1a105337ce5f673] #1
 crates/shadows-http/src/failure/mod.rs :: Failure comment [37a8f91bd9456476] #1
@@ -247,8 +246,6 @@ crates/shadows-mcp/src/refusal.rs :: Refusal comment [d17ba5d10032030b] #1
 crates/shadows-mcp/src/refusal.rs :: Refusal comment [feaf1761f1cf0cc4] #1
 crates/shadows-mcp/src/refusal.rs :: module comment [73e99feb25204df2] #1
 crates/shadows-mcp/src/server.rs :: module comment [6d86a60d102e7dcd] #1
-crates/shadows-mcp/src/tools.rs :: module comment [094d4135ad661df5] #1
-crates/shadows-mcp/src/tools.rs :: module comment [bef7b704f10b76ee] #1
 crates/shadows-mcp/src/workspace_tools.rs :: module comment [5a35d089ca01c7e2] #1
 crates/shadows-process/src/lib.rs :: ProcessHandle comment [152c2c3a7236f126] #1
 crates/shadows-process/src/lib.rs :: ProcessHandle comment [4300f898b75af6bb] #1

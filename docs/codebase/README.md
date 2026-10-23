@@ -14,8 +14,8 @@ Two kinds of file, split by what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
-| `crates/shadows-http/src/aylul_profiles.rs` | AYLUL configuration HTTP translation | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-http/src/aylul_profiles_tests.rs` | AYLUL configuration route acceptance tests | `crates/shadows-http/src/aylul_profiles.rs` |
+| `crates/shadows-http/src/aylul_providers.rs` | provider HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/aylul_profiles_tests.rs` | AYLUL configuration route acceptance tests | `crates/shadows-http/src/contract.yaml` |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
 | each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
 
@@ -151,12 +151,14 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
 | `crates/shadows-http/src/failure/` | the transport mapping of a failure | `crates/shadows-http/src/failure/mod.rs` |
 | `crates/shadows-http/src/failure/storage.rs` | how a storage failure becomes a status | `crates/shadows-http/src/failure/storage.rs` |
+| `crates/shadows-http/src/failure/cases.rs` | shared transport error expectations | `crates/shadows-core/src/error.rs` |
+| `crates/shadows-http/src/failure/mapping_tests.rs` | HTTP error mapping acceptance | `crates/shadows-core/src/error.rs` |
 | `crates/shadows-http/src/failure/other.rs` | how a start, core or directory failure becomes a status | `crates/shadows-http/src/failure/other.rs` |
 | `crates/shadows-http/src/guard.rs` | refusing requests pages were made to send | `crates/shadows-http/src/guard.rs` |
 | `crates/shadows-mcp/src/lib.rs` | Shadows' MCP server | `crates/shadows-mcp/src/lib.rs` |
 | `crates/shadows-mcp/src/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows-mcp/src/auth.rs` |
 | `crates/shadows-mcp/src/server.rs` | the tools a grant's kind may see | `crates/shadows-mcp/src/server.rs` |
-| `crates/shadows-mcp/src/tools.rs` | each MCP tool's one service call | `crates/shadows-mcp/src/tools.rs` |
+| `crates/shadows-mcp/src/plan_tools.rs` | plan MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/agreement_tools.rs` | agreement tool translation | `crates/shadows-mcp/src/agreement_tools.rs` |
 | `crates/shadows-mcp/src/workspace_tools.rs` | workspace read tool translation | `crates/shadows-mcp/src/workspace_tools.rs` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
@@ -407,3 +409,16 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/shadows-core/src/plans/store/event_projection.rs` | identifier-only plan event projection | `crates/shadows-core/src/plans/contract.yaml` |
 | `crates/shadows-core/src/events/store.rs` | private journal replay persistence | `crates/shadows-core/src/events/contract.yaml` |
+| `crates/shadows-http/src/aylul_agents.rs` | agent HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/aylul_person.rs` | person settings HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/aylul_usage.rs` | usage HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/aylul_threads.rs` | agent conversation listing | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/plan_design.rs` | plan association HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/standards.rs` | standards HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/transport.rs` | shared HTTP request handling | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-mcp/src/code_tools.rs` | code query MCP translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/turn_tools.rs` | plan display MCP translation | `crates/shadows-mcp/src/contract.yaml` |
+
+| `crates/shadows-http/src/adapter_agreements_tests.rs` | adapter entry point agreements | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/contract.yaml` | HTTP adapter obligations | `crates/shadows-http/src/lib.rs` |
+| `crates/shadows-mcp/src/contract.yaml` | MCP adapter obligations | `crates/shadows-mcp/src/lib.rs` |

@@ -21,9 +21,13 @@
 
 mod agreements;
 mod attachments;
+mod aylul_agents;
 mod aylul_env;
 mod aylul_extensions;
-mod aylul_profiles;
+mod aylul_person;
+mod aylul_providers;
+mod aylul_threads;
+mod aylul_usage;
 mod code;
 mod conversation;
 mod design;
@@ -34,12 +38,15 @@ mod guard;
 mod harness;
 mod instructions;
 mod openapi;
+mod plan_design;
 mod project;
 mod queue;
 mod roadmap;
 mod runtime;
+mod standards;
+mod transport;
 pub use runtime::RuntimeIdentity;
-pub mod sse;
+mod sse;
 mod thread;
 mod workflow;
 
@@ -139,33 +146,30 @@ fn routes() -> OpenApiRouter<AppState> {
             shadows_core::MAX_IMAGE_BYTES + 65536,
         ))
         .routes(routes!(runtime::identity))
-        .routes(routes!(aylul_profiles::person, aylul_profiles::set_person))
-        .routes(routes!(aylul_profiles::provider_presets))
-        .routes(routes!(aylul_profiles::usage))
+        .routes(routes!(aylul_person::person, aylul_person::set_person))
+        .routes(routes!(aylul_providers::provider_presets))
+        .routes(routes!(aylul_usage::usage))
         .routes(routes!(aylul_extensions::library, aylul_extensions::import))
         .routes(routes!(aylul_extensions::remove))
         .routes(routes!(aylul_extensions::agent))
         .routes(routes!(aylul_extensions::toggle))
-        .routes(routes!(aylul_profiles::test_provider))
-        .routes(routes!(aylul_profiles::test_saved_provider))
+        .routes(routes!(aylul_providers::test_provider))
+        .routes(routes!(aylul_providers::test_saved_provider))
         .routes(routes!(
-            aylul_profiles::providers,
-            aylul_profiles::create_provider
+            aylul_providers::providers,
+            aylul_providers::create_provider
         ))
         .routes(routes!(
-            aylul_profiles::update_provider,
-            aylul_profiles::delete_provider
-        ))
-        .routes(routes!(aylul_profiles::set_key, aylul_profiles::remove_key))
-        .routes(routes!(
-            aylul_profiles::agents,
-            aylul_profiles::create_agent
+            aylul_agents::update_provider,
+            aylul_agents::delete_provider
         ))
         .routes(routes!(
-            aylul_profiles::update_agent,
-            aylul_profiles::delete_agent
+            aylul_providers::set_key,
+            aylul_providers::remove_key
         ))
-        .routes(routes!(aylul_profiles::threads))
+        .routes(routes!(aylul_agents::agents, aylul_agents::create_agent))
+        .routes(routes!(aylul_agents::update_agent, harness::delete_agent))
+        .routes(routes!(aylul_threads::threads))
         .routes(routes!(aylul_env::list))
         .routes(routes!(aylul_env::set, aylul_env::remove))
         .routes(routes!(project::list_projects, project::create_project))
@@ -176,15 +180,15 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(roadmap::roadmap_proposals))
         .routes(routes!(roadmap::approve_roadmap_proposal))
         .routes(routes!(design::approve_vision_proposal))
-        .routes(routes!(design::get_standards))
-        .routes(routes!(design::save_standards_additions))
+        .routes(routes!(standards::get_standards))
+        .routes(routes!(standards::save_standards_additions))
         .routes(routes!(design::get_stage))
         .routes(routes!(design::create_structure))
         .routes(routes!(design::parts))
         .routes(routes!(design::outcomes))
-        .routes(routes!(design::outcome))
-        .routes(routes!(design::part))
-        .routes(routes!(design::edit))
+        .routes(routes!(plan_design::outcome))
+        .routes(routes!(plan_design::part))
+        .routes(routes!(plan_design::edit))
         .routes(routes!(agreements::list, agreements::start))
         .routes(routes!(agreements::get, agreements::edit))
         .routes(routes!(agreements::review))
@@ -273,3 +277,10 @@ fn cors(origins: &[String]) -> CorsLayer {
         ])
         .max_age(Duration::from_secs(600))
 }
+
+#[cfg(test)]
+#[path = "aylul_profiles_tests.rs"]
+mod aylul_profiles_tests;
+
+#[cfg(test)]
+mod adapter_agreements_tests;

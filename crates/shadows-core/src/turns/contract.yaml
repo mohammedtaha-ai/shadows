@@ -14,8 +14,8 @@
 # state the step before it relies on: a replay is answered first, before the
 # registry, the harness or the thread is looked at; the harness's availability
 # is checked before any session work; the thread's busyness before the session
-# is touched; the session is opened, then its events leased, before any
-# setting changes; the one transaction checks busyness again under
+# is touched; Harness settles the model and returns the current session before
+# its events are leased; the one transaction checks busyness again under
 # `BEGIN IMMEDIATE`; only a committed, non-replayed turn is started. Any
 # refusal after the lease gives the events back, and any refusal after the
 # model was set sets the session's model back.
@@ -678,9 +678,10 @@ obligations:
       `write_txn`'s serialized BEGIN IMMEDIATE, which storage's own tests hold.
 
   - rule: >
-      Session before lease. The session is opened, then its events leased,
-      before any setting is changed or any row written; the turn holds them
-      from its checks to its ending. A refusal after the lease, a replay found
+      Session before lease. Harness settles the requested model, replacing an
+      idle adapter when its process limits must change, before Turns leases
+      the returned session's events. The turn holds those events from its
+      remaining checks to its ending. A refusal after the lease, a replay found
       by the transaction, and a Stop before the prompt each give them back.
     tested_by:
       - a_refused_start_gives_the_session_back
@@ -690,7 +691,7 @@ obligations:
       - a_stop_while_pending_cancels_the_turn_before_its_prompt
     note: >
       The order itself is structural: `lease_events` takes the `OpenSession`
-      `open` answered. The first test fails when a refused start keeps the
+      `offer_for_model` answered. The first test fails when a refused start keeps the
       events (the next start waits out the lease and is THREAD_BUSY; tried on
       dc0255e). The second races two sends of one command behind a
       `/context` read, so the later one's replay is found only by
@@ -737,6 +738,10 @@ obligations:
 
 
 agreements:
+  - between: [send, harness::offer_for_model]
+    must: Lease events from the settled adapter; a running turn keeps its original adapter.
+    holds: true
+    tested_by: [opening_and_turn_model_selection_use_the_same_window]
   - between: [operations::thread_is_busy, start_turn]
     must: >
       judge a thread busy identically: the early check and the transaction's

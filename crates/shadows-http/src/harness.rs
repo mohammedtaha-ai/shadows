@@ -9,9 +9,11 @@
 use axum::Json;
 use axum::extract::{Path, State};
 
-use super::conversation::detached;
+use super::aylul_providers::RemoveCommand;
 use super::failure::ErrorBody;
+use super::transport::Transport;
 use super::{AppState, Failure};
+use axum::http::StatusCode;
 use shadows_core::ThreadId;
 use shadows_core::{ContextBreakdown, HarnessInfo, SessionChoices};
 
@@ -43,7 +45,7 @@ pub(super) async fn change_mode(
     Path(thread): Path<ThreadId>,
     Json(body): Json<ChangeMode>,
 ) -> Result<Json<SessionChoices>, Failure> {
-    let choices = detached(async move {
+    let choices = Transport::detached(async move {
         Ok(s.core
             .harness()
             .change_mode(body.command_id, &thread, &body.mode)
@@ -162,9 +164,10 @@ pub(super) async fn change_model(
     Path(thread): Path<ThreadId>,
     Json(body): Json<ChangeModel>,
 ) -> Result<Json<SessionChoices>, Failure> {
-    let choices =
-        detached(async move { Ok(s.core.harness().change_model(&thread, &body.model).await?) })
-            .await?;
+    let choices = Transport::detached(async move {
+        Ok(s.core.harness().change_model(&thread, &body.model).await?)
+    })
+    .await?;
     Ok(Json(choices))
 }
 
@@ -215,7 +218,7 @@ pub(super) async fn change_effort(
     Path(thread): Path<ThreadId>,
     Json(body): Json<ChangeEffort>,
 ) -> Result<Json<SessionChoices>, Failure> {
-    let choices = detached(async move {
+    let choices = Transport::detached(async move {
         Ok(s.core
             .harness()
             .change_effort(&thread, &body.effort)
@@ -245,4 +248,17 @@ pub(super) async fn thread_context(
     Path(thread): Path<ThreadId>,
 ) -> Result<Json<ContextBreakdown>, Failure> {
     Ok(Json(s.core.harness().context(&thread).await?))
+}
+
+#[utoipa::path(delete, path="/api/aylul/agents/{slug}", tag="aylul",
+    params(("slug"=String,Path),RemoveCommand),
+    responses((status=204),(status=404,body=ErrorBody),(status=409,body=ErrorBody),
+        (status=500,body=ErrorBody)))]
+pub(super) async fn delete_agent(
+    State(s): State<AppState>,
+    Path(slug): Path<String>,
+    axum::extract::Query(q): axum::extract::Query<super::aylul_providers::RemoveCommand>,
+) -> Result<StatusCode, Failure> {
+    s.core.harness().delete_agent(q.command_id, &slug).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
