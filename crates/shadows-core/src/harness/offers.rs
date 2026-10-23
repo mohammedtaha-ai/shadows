@@ -11,7 +11,7 @@ use serde_json::Value;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::threads::ThreadId;
-use shadows_agent::choices::{Offered, parse};
+use shadows_agent::choices::Offered;
 use shadows_agent::events::HarnessEvent;
 
 pub(super) struct Offers {
@@ -38,7 +38,7 @@ impl Offers {
 
     /// Parses `options`, keeps it as the thread's latest, and publishes it.
     pub(super) fn record(&self, thread: &ThreadId, options: &Value) -> Result<Offered, String> {
-        let mut offered = parse(options)?;
+        let mut offered = Offered::parse(options)?;
         if let Some((models, default)) = self.models.lock().expect("model rules").get(thread) {
             let mut seen = std::collections::BTreeSet::new();
             offered.models.retain(|m| {

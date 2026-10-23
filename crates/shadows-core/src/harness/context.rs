@@ -9,7 +9,7 @@
 use super::Sessions;
 use crate::threads::ThreadId;
 use shadows_agent::acp::AcpError;
-use shadows_agent::breakdown::{Category, parse};
+use shadows_agent::breakdown::Category;
 use shadows_agent::events::HarnessEvent;
 
 /// Why there is no breakdown to show.
@@ -97,7 +97,7 @@ impl Sessions {
         match answer {
             Err(_) => Err(NoBreakdown::TimedOut),
             Ok(Err(_)) => Err(NoBreakdown::Unreadable),
-            Ok(Ok(_)) => parse(&text).ok_or(NoBreakdown::Unreadable),
+            Ok(Ok(_)) => Category::parse(&text).ok_or(NoBreakdown::Unreadable),
         }
     }
 }

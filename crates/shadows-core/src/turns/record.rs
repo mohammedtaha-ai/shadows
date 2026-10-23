@@ -2,7 +2,7 @@
 //! — the offer's checks on the turn's settings, then `TurnsStore::start_turn`.
 
 use shadows_agent::TurnSettings;
-use shadows_agent::choices::{Offered, refusal};
+use shadows_agent::choices::Offered;
 
 use super::Turns;
 use super::store::{Dequeue, NewTurn, StartedTurn};
@@ -73,7 +73,7 @@ impl Turns {
             focus,
             dequeue,
         } = turn;
-        if let Some((what, id)) = refusal(offered, &context.harness, settings) {
+        if let Some((what, id)) = offered.refusal(&context.harness, settings) {
             return Err(CoreError::SettingNotOffered {
                 what: what.to_string(),
                 id,
@@ -90,8 +90,8 @@ impl Turns {
 
         let adapter = self.sessions.adapter();
         let (harness_path, agent_path) = (
-            adapter.adapter.to_string_lossy().into_owned(),
-            adapter.agent.to_string_lossy().into_owned(),
+            adapter.adapter().to_string_lossy().into_owned(),
+            adapter.agent().to_string_lossy().into_owned(),
         );
         // recorded so a later turn tells the session only what changed.
         let instructions = self.instructions.current(&context.project_id).await?;
@@ -109,9 +109,9 @@ impl Turns {
                     role: "Planner",
                     harness_kind: &context.harness,
                     harness_path: &harness_path,
-                    harness_version: &adapter.adapter_version,
+                    harness_version: adapter.adapter_version(),
                     agent_path: &agent_path,
-                    agent_version: &adapter.agent_version,
+                    agent_version: adapter.agent_version(),
                     settings,
                     prompt_version: Some(crate::harness::Harness::prompt_version()),
                     instructions_version: instructions.as_ref().map(|v| v.id.as_str()),

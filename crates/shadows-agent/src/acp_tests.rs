@@ -43,33 +43,8 @@ fn aylul_meta_loads_only_user_settings() {
 #[test]
 fn a_server_error_mentioning_connection_closed_is_still_an_rpc_error() {
     let error = agent_client_protocol::Error::new(-32603, "connection closed by policy");
-    assert!(
-        matches!(rpc(error), AcpError::Rpc(message) if message == "connection closed by policy")
-    );
-}
-#[test]
-fn session_costs_are_deltas() {
-    let usd = |amount| UsageCost {
-        amount,
-        currency: "USD".into(),
-    };
-    let first = cost_delta(Some(&usd(0.0)), Some(&usd(0.2))).unwrap();
-    let second = cost_delta(Some(&usd(0.2)), Some(&usd(0.5))).unwrap();
-    assert!((first.amount - 0.2).abs() < 1e-12);
-    assert!((second.amount - 0.3).abs() < 1e-12);
-    for amount in [f64::NAN, f64::INFINITY, -1.0, 0.1] {
-        assert!(cost_delta(Some(&usd(0.2)), Some(&usd(amount))).is_none());
-    }
-    assert!(cost_delta(None, Some(&usd(0.5))).is_none());
-    assert!(cost_delta(Some(&usd(0.5)), None).is_none());
-    assert!(
-        cost_delta(
-            Some(&usd(0.0)),
-            Some(&UsageCost {
-                amount: 0.2,
-                currency: "EUR".into()
-            })
-        )
-        .is_none()
-    );
+    assert!(matches!(
+        AcpError::from_rpc(error),
+        AcpError::Rpc(message) if message == "connection closed by policy"
+    ));
 }

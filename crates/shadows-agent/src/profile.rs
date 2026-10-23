@@ -2,9 +2,9 @@
 use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub struct ClaudeProfile {
-    pub name: String,
-    pub home: PathBuf,
-    pub env: Vec<(String, String)>,
+    name: String,
+    home: PathBuf,
+    env: Vec<(String, String)>,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum ProfileError {
@@ -19,6 +19,10 @@ impl std::fmt::Display for ProfileError {
 }
 impl std::error::Error for ProfileError {}
 impl ClaudeProfile {
+    pub fn new(name: String, home: PathBuf, env: Vec<(String, String)>) -> Self {
+        Self { name, home, env }
+    }
+
     /// The token is supplied by the core; daemon variables are never a source.
     pub fn spawn_env_with(
         &self,

@@ -1,10 +1,6 @@
 //! Persistent top-level processes; managed harness children use the normal spawn.
 use crate::ProcessSpec;
-use std::{
-    io,
-    path::PathBuf,
-    process::{Command, Stdio},
-};
+use std::{io, path::PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ProcessIdentity {
@@ -31,31 +27,7 @@ pub fn spawn_persistent(spec: ProcessSpec) -> io::Result<ProcessIdentity> {
             "persistent launch requires absolute paths and closed stdio",
         ));
     }
-    let mut command = Command::new(&spec.executable);
-    command
-        .args(&spec.args)
-        .current_dir(&spec.cwd)
-        .env_clear()
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        use windows_sys::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW};
-        command.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
-        for key in crate::WINDOWS_ESSENTIAL_ENV {
-            if let Some(value) = std::env::var_os(key) {
-                command.env(key, value);
-            }
-        }
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
-    command.envs(spec.env);
+    let mut command = crate::launch::Launch::persistent(&spec);
     let mut child = command.spawn()?;
     let identity = match identify(child.id(), &spec.executable) {
         Ok(Some(identity)) => identity,

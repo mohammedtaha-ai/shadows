@@ -24,7 +24,7 @@ mod titles;
 
 use std::sync::Arc;
 
-use shadows_agent::choices::{Offered, SessionChoices, for_client};
+use shadows_agent::choices::{Offered, SessionChoices};
 use shadows_agent::events::{AccountLimits, SlashCommand};
 use shadows_agent::policy;
 use tokio::sync::broadcast;
@@ -371,7 +371,7 @@ impl Harness {
             .projects
             .allowed_modes(&context.project_id, &context.harness)
             .await?;
-        let mut choices = for_client(offered, &context.harness, &allowed);
+        let mut choices = offered.for_client(&context.harness, &allowed);
         let slot = self.sessions.slot(thread).await;
         let live = slot.lock().await;
         if let Some(item) = live.as_ref() {

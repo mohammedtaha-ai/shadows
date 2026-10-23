@@ -300,6 +300,15 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/events/model.rs` | the event shapes the product records or signals | `crates/shadows-core/src/events/model.rs` |
 | `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |
 | `crates/shadows-agent/src/lib.rs` | the ACP client for a harness adapter | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp/` | private ACP protocol implementation | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp/connection.rs` | ACP transport initialization | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp/session.rs` | ACP session configuration | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp/prompt.rs` | ACP prompt lifecycle | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp/mapping.rs` | ordered ACP event translation | `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/events/subagent.rs` | subagent metadata | `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/events/limits.rs` | reported account limits | `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/events/usage.rs` | reported turn usage | `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/events/` | harness report definitions | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/usage.rs` | session cost accounting | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/acp_tests.rs` | ACP boundary tests | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp.rs` | the ACP client connection to one adapter process | `crates/shadows-agent/src/acp.rs` |
@@ -317,9 +326,14 @@ pattern to follow, not merely an example.
 | `crates/shadows-index/src/languages.rs` | the table of languages Shadows indexes | `crates/shadows-index/src/languages.rs` |
 | `crates/shadows-index/src/extract.rs` | one file's text in, its tags out | `crates/shadows-index/src/extract.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
+| `crates/shadows-process/src/launch.rs` | child launch configuration | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/persistent.rs` | independent process lifetime | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
+| `crates/fake-acp/src/handlers.rs` | fake protocol handler registration | `crates/fake-acp/src/main.rs` |
+| `crates/fake-acp/src/handlers/` | fake protocol request handling | `crates/fake-acp/src/main.rs` |
+| `crates/fake-acp/src/handlers/session.rs` | fake session lifecycle requests | `crates/fake-acp/src/session.rs` |
+| `crates/fake-acp/src/handlers/prompt.rs` | fake prompt requests | `crates/fake-acp/src/prompts.rs` |
 | `crates/fake-acp/src/session.rs` | a fake session's state, offered to the client | `crates/fake-acp/src/session.rs` |
 | `crates/fake-acp/src/mcp.rs` | calling the session's MCP server | `crates/fake-acp/src/mcp.rs` |
 | `crates/fake-acp/src/steer.rs` | steering a prompt that waits for it | `crates/fake-acp/src/steer.rs` |

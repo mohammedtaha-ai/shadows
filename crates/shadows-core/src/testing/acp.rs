@@ -15,15 +15,14 @@ use shadows_agent::claude::ClaudeAdapter;
 pub const MCP_URL: &str = "http://127.0.0.1:4318/mcp";
 
 pub fn adapter_at(node: PathBuf) -> Arc<ClaudeAdapter> {
-    Arc::new(ClaudeAdapter {
+    Arc::new(ClaudeAdapter::new(
         node,
-        adapter: PathBuf::from("fake-adapter/dist/index.js"),
-        agent: super::fake_acp_path(),
-        // What `serve` reads from the adapter's package.json and from the
-        // agent's `--version` (`fake_acp --version` answers the second).
-        adapter_version: "fake-adapter-1".into(),
-        agent_version: "fake-claude-1".into(),
-    })
+        PathBuf::from("fake-adapter/dist/index.js"),
+        super::fake_acp_path(),
+        // Match the package metadata and the executable's reported version.
+        "fake-adapter-1".into(),
+        "fake-claude-1".into(),
+    ))
 }
 
 pub fn fake_adapter() -> Arc<ClaudeAdapter> {

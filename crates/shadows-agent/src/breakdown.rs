@@ -14,38 +14,40 @@ pub struct Category {
     pub percent: f64,
 }
 
-/// The rows of the category table, in its order; `None` when the answer has
-/// no such table or a row cannot be read.
-pub fn parse(markdown: &str) -> Option<Vec<Category>> {
-    let mut lines = markdown.lines().map(str::trim);
-    lines.find(|line| {
-        let cells = cells(line);
-        cells.len() == 3
-            && cells[0].eq_ignore_ascii_case("category")
-            && cells[1].eq_ignore_ascii_case("tokens")
-    })?;
-    let mut categories = Vec::new();
-    for line in lines {
-        if !line.starts_with('|') {
-            break;
+impl Category {
+    /// The rows of the category table, in its order; `None` when the answer has
+    /// no such table or a row cannot be read.
+    pub fn parse(markdown: &str) -> Option<Vec<Category>> {
+        let mut lines = markdown.lines().map(str::trim);
+        lines.find(|line| {
+            let cells = cells(line);
+            cells.len() == 3
+                && cells[0].eq_ignore_ascii_case("category")
+                && cells[1].eq_ignore_ascii_case("tokens")
+        })?;
+        let mut categories = Vec::new();
+        for line in lines {
+            if !line.starts_with('|') {
+                break;
+            }
+            let cells = cells(line);
+            if cells
+                .iter()
+                .all(|c| c.chars().all(|ch| matches!(ch, '-' | ':')))
+            {
+                continue; // the separator row
+            }
+            let [name, tokens, percent] = cells.as_slice() else {
+                return None;
+            };
+            categories.push(Category {
+                name: name.to_string(),
+                tokens: tokens_of(tokens)?,
+                percent: percent.trim_end_matches('%').trim().parse().ok()?,
+            });
         }
-        let cells = cells(line);
-        if cells
-            .iter()
-            .all(|c| c.chars().all(|ch| matches!(ch, '-' | ':')))
-        {
-            continue; // the separator row
-        }
-        let [name, tokens, percent] = cells.as_slice() else {
-            return None;
-        };
-        categories.push(Category {
-            name: name.to_string(),
-            tokens: tokens_of(tokens)?,
-            percent: percent.trim_end_matches('%').trim().parse().ok()?,
-        });
+        (!categories.is_empty()).then_some(categories)
     }
-    (!categories.is_empty()).then_some(categories)
 }
 
 fn cells(line: &str) -> Vec<&str> {
@@ -81,6 +83,6 @@ mod tests {
     #[test]
     fn a_table_without_a_separator_row_is_read_too() {
         let md = "| Category | Tokens | Percentage |\n| Messages | 3.8k | 0.4% |";
-        assert_eq!(parse(md).unwrap()[0].tokens, 3_800);
+        assert_eq!(Category::parse(md).unwrap()[0].tokens, 3_800);
     }
 }

@@ -1,4 +1,6 @@
 # invocation_context supplies read results to Harness without introducing an upward dependency.
+# Offered::refusal validates settings; ClaudeAdapter accessors supply immutable invocation metadata.
+# AccountLimits::from_report reads harness limit notifications.
 # Harness owns all invocation rows; Turns composes each operation with Harness reads.
 # Turns::stage_line reads Design once per prompt and supplies the stage fact to Harness.
 # Durable operation rows and transitions belong to Operations; Turns composes invocation and usage writes.

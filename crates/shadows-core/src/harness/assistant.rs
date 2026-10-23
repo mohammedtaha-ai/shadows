@@ -124,11 +124,7 @@ impl Sessions {
                 window.min(1_000_000).to_string(),
             ));
         }
-        let profile = ClaudeProfile {
-            name: slug.into(),
-            home: home.clone(),
-            env,
-        };
+        let profile = ClaudeProfile::new(slug.into(), home.clone(), env);
         let spec = self
             .adapter
             .process_spec_with(&home, Some(&profile), &stored, Some(token.as_str()))
