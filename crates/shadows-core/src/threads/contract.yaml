@@ -605,7 +605,11 @@ attachments:
   tables: [attachment, thread_attachment]
   maximum_bytes: 5242880
   content_types: [image/png, image/jpeg, image/gif, image/webp]
-  decoding: Full decode on the blocking pool with 8192 pixel sides and 64 MiB allocation ceiling.
+  decoding: >
+    Decode on the blocking pool with 8192 pixel sides and a 64 MiB allocation budget.
+    Validate every GIF, APNG and animated WebP frame, dropping each decoded frame before the next.
+    WebP animation reserves its concurrent canvas, frame, output and conversion buffers up front.
+    Total decoded animation bytes also share the 64 MiB budget to bound decompression work.
   metadata: Command ids are at most 256 bytes; display filenames at most 255 bytes.
   lifecycle: Forks share immutable records; removal deletes references and unreferenced bytes.
   transaction_methods:
@@ -615,3 +619,9 @@ attachments:
   tested_by:
     - upload_validates_content_type_size_and_replay
     - fork_keeps_references_and_removal_reclaims_unreferenced_bytes
+    - a_truncated_later_gif_frame_is_refused_before_writes
+    - a_truncated_later_png_frame_is_refused_before_writes
+    - a_damaged_later_webp_frame_is_refused_before_writes
+    - oversized_decoded_images_are_refused_before_writes
+    - an_animation_with_excessive_total_decoded_bytes_is_refused
+    - the_upload_body_limit_stops_an_unbounded_stream

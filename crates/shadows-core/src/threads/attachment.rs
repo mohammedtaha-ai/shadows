@@ -3,6 +3,7 @@ use super::{ThreadId, Threads};
 use crate::db::CommandContext;
 use crate::db::id::newtype_id;
 use crate::{CoreError, ErrorCode};
+use image::{AnimationDecoder, ImageDecoder};
 use sha2::{Digest, Sha256};
 
 newtype_id! {
@@ -96,14 +97,83 @@ fn checked_type(claimed_type: &str, bytes: &[u8]) -> Result<&'static str, CoreEr
         return Err(invalid("This file type is not supported"));
     }
     // Bound decoder allocations independently of the compressed upload size.
-    let mut reader = image::ImageReader::with_format(std::io::Cursor::new(bytes), format);
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(8192);
     limits.max_image_height = Some(8192);
     limits.max_alloc = Some(64 * 1024 * 1024);
+    if format == image::ImageFormat::Gif {
+        let mut decoder = image::codecs::gif::GifDecoder::new(std::io::Cursor::new(bytes))
+            .map_err(|_| invalid("This file type is not supported"))?;
+        decoder
+            .set_limits(limits.clone())
+            .map_err(|_| invalid("This file type is not supported"))?;
+        checked_animation(decoder.into_frames(), limits)?;
+        return Ok(media_type);
+    }
+    if format == image::ImageFormat::Png {
+        let decoder = image::codecs::png::PngDecoder::with_limits(
+            std::io::Cursor::new(bytes),
+            limits.clone(),
+        )
+        .map_err(|_| invalid("This file type is not supported"))?;
+        if decoder
+            .is_apng()
+            .map_err(|_| invalid("This file type is not supported"))?
+        {
+            let animation = decoder
+                .apng()
+                .map_err(|_| invalid("This file type is not supported"))?;
+            checked_animation(animation.into_frames(), limits)?;
+            return Ok(media_type);
+        }
+    }
+    if format == image::ImageFormat::WebP {
+        let mut decoder = image::codecs::webp::WebPDecoder::new(std::io::Cursor::new(bytes))
+            .map_err(|_| invalid("This file type is not supported"))?;
+        decoder
+            .set_limits(limits.clone())
+            .map_err(|_| invalid("This file type is not supported"))?;
+        if decoder.has_animation() {
+            let (width, height) = decoder.dimensions();
+            // WebP's frame iterator does not enforce an allocation budget itself.
+            // Reserve for its canvas, frame, output and color conversion buffers.
+            let mut buffers = limits.clone();
+            for _ in 0..4 {
+                buffers
+                    .reserve_buffer(width, height, image::ColorType::Rgba8)
+                    .map_err(|_| invalid("This file type is not supported"))?;
+            }
+            checked_animation(decoder.into_frames(), limits)?;
+            return Ok(media_type);
+        }
+    }
+    let mut reader = image::ImageReader::with_format(std::io::Cursor::new(bytes), format);
     reader.limits(limits);
     reader
         .decode()
         .map_err(|_| invalid("This file type is not supported"))?;
     Ok(media_type)
+}
+
+fn checked_animation(
+    mut frames: image::Frames<'_>,
+    mut limits: image::Limits,
+) -> Result<(), CoreError> {
+    // A valid first frame cannot vouch for the rest of an animation.
+    let valid = frames
+        .try_fold(false, |_, frame| {
+            let frame = frame?;
+            // Bound total decoding work as well as simultaneous frame allocations.
+            limits.reserve(frame.buffer().len() as u64)?;
+            Ok::<_, image::ImageError>(true)
+        })
+        .unwrap_or(false);
+    if valid {
+        Ok(())
+    } else {
+        Err(CoreError::Refused {
+            code: ErrorCode::InvalidCommand,
+            message: "This file type is not supported".into(),
+        })
+    }
 }

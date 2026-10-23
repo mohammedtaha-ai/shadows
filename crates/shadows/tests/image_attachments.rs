@@ -7,6 +7,7 @@ use base64::Engine;
 use serde_json::{Value, json};
 use shadows_core::testing::acp;
 use shadows_core::{OperationId, ThreadId};
+use tokio_stream::StreamExt;
 use tower::ServiceExt;
 #[path = "fixtures/app.rs"]
 mod app;
@@ -134,6 +135,7 @@ async fn upload_validates_content_type_size_and_replay() {
         .await
         .unwrap();
     assert_eq!(response.headers()["content-type"], "image/png");
+    assert_eq!(response.headers()["x-content-type-options"], "nosniff");
     assert_eq!(
         to_bytes(response.into_body(), usize::MAX)
             .await
@@ -252,6 +254,17 @@ async fn foreign_or_unknown_images_are_refused_before_writes() {
     let unknown = uuid::Uuid::new_v4().to_string();
     let before = counts(&app).await;
     for id in [foreign["id"].as_str().unwrap(), unknown.as_str()] {
+        let response = app
+            .router
+            .clone()
+            .oneshot(
+                Request::get(format!("/api/threads/{}/attachments/{id}", app.thread))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 404);
         let (status, _) = send(&app, body("refused", "hello", &[id])).await;
         assert_eq!(status, 404);
         let (status, _) = post(
@@ -362,6 +375,16 @@ async fn queued_and_steered_messages_keep_images() {
     assert_eq!(counts(&app).await, before);
     assert_eq!(post(&app, &path, queue_body).await.1, queued);
     let id = queued["message"]["id"].as_str().unwrap();
+    let command_count = counts(&app).await.0;
+    let (status, refused) = post(
+        &app,
+        &format!("{path}/{id}/send-now"),
+        json!({"command_id":"mismatched-steer", "attachments":[red,blue]}),
+    )
+    .await;
+    assert_eq!(status, 422, "{refused}");
+    assert_eq!(refused["code"], "INVALID_COMMAND");
+    assert_eq!(counts(&app).await.0, command_count);
     let (status, answer) = post(
         &app,
         &format!("{path}/{id}/send-now"),
@@ -511,4 +534,175 @@ async fn accepted_types_are_decoded_by_content_and_the_size_boundary_is_inclusiv
     .await;
     assert_eq!(status, 200, "{answer}");
     assert_eq!(answer["byte_len"], 5_242_880);
+}
+
+#[tokio::test]
+async fn a_truncated_later_gif_frame_is_refused_before_writes() {
+    let app = test_app().await;
+    let gif = include_bytes!("fixtures/red.gif");
+    let mut animation = gif[..gif.len() - 1].to_vec();
+    animation.extend(&gif[25..]);
+    let (status, answer) =
+        upload(&app, app.thread.as_str(), "valid", "image/gif", &animation).await;
+    assert_eq!(status, 200, "{answer}");
+    let before = counts(&app).await;
+    let mut truncated = gif[..gif.len() - 1].to_vec();
+    truncated.extend([0x2c, 0]);
+    let (status, answer) = upload(
+        &app,
+        app.thread.as_str(),
+        "truncated-frame",
+        "image/gif",
+        &truncated,
+    )
+    .await;
+    assert_eq!(status, 422, "{answer}");
+    assert_eq!(counts(&app).await, before);
+}
+
+#[tokio::test]
+async fn a_truncated_later_png_frame_is_refused_before_writes() {
+    let app = test_app().await;
+    let png = include_bytes!("fixtures/animated.png");
+    let (status, answer) = upload(&app, app.thread.as_str(), "valid", "image/png", png).await;
+    assert_eq!(status, 200, "{answer}");
+    let before = counts(&app).await;
+    let frame = png.windows(4).position(|b| b == b"fdAT").unwrap();
+    let truncated = &png[..frame + 10];
+    let (status, answer) = upload(
+        &app,
+        app.thread.as_str(),
+        "truncated-frame",
+        "image/png",
+        truncated,
+    )
+    .await;
+    assert_eq!(status, 422, "{answer}");
+    assert_eq!(counts(&app).await, before);
+}
+
+#[tokio::test]
+async fn a_truncated_later_webp_frame_is_refused_before_writes() {
+    let app = test_app().await;
+    let webp = include_bytes!("fixtures/animated.webp");
+    let (status, answer) = upload(&app, app.thread.as_str(), "valid", "image/webp", webp).await;
+    assert_eq!(status, 200, "{answer}");
+    let before = counts(&app).await;
+    let frame = webp.windows(4).rposition(|b| b == b"ANMF").unwrap();
+    let mut truncated = webp[..frame + 26].to_vec();
+    let size = (truncated.len() as u32 - 8).to_le_bytes();
+    truncated[4..8].copy_from_slice(&size);
+    let (status, answer) = upload(
+        &app,
+        app.thread.as_str(),
+        "truncated-frame",
+        "image/webp",
+        &truncated,
+    )
+    .await;
+    assert_eq!(status, 422, "{answer}");
+    assert_eq!(counts(&app).await, before);
+}
+
+#[tokio::test]
+async fn a_damaged_later_webp_frame_is_refused_before_writes() {
+    let app = test_app().await;
+    let before = counts(&app).await;
+    let mut damaged = include_bytes!("fixtures/animated.webp").to_vec();
+    let frame = damaged.windows(4).rposition(|b| b == b"VP8L").unwrap();
+    damaged[frame + 13..].fill(0xff);
+    let (status, answer) = upload(
+        &app,
+        app.thread.as_str(),
+        "damaged-frame",
+        "image/webp",
+        &damaged,
+    )
+    .await;
+    assert_eq!(status, 422, "{answer}");
+    assert_eq!(counts(&app).await, before);
+}
+
+#[tokio::test]
+async fn oversized_decoded_images_are_refused_before_writes() {
+    let app = test_app().await;
+    let before = counts(&app).await;
+    for (command, width, height) in [("wide", 8193_u16, 1_u16), ("allocation", 4097, 4097)] {
+        let mut gif = include_bytes!("fixtures/red.gif").to_vec();
+        gif[6..8].copy_from_slice(&width.to_le_bytes());
+        gif[8..10].copy_from_slice(&height.to_le_bytes());
+        let (status, answer) = upload(&app, app.thread.as_str(), command, "image/gif", &gif).await;
+        assert_eq!(status, 422, "{answer}");
+        assert_eq!(counts(&app).await, before);
+    }
+    let mut webp = include_bytes!("fixtures/animated.webp").to_vec();
+    webp[24..27].copy_from_slice(&4095_u32.to_le_bytes()[..3]);
+    webp[27..30].copy_from_slice(&4095_u32.to_le_bytes()[..3]);
+    let (status, answer) = upload(
+        &app,
+        app.thread.as_str(),
+        "animated-allocation",
+        "image/webp",
+        &webp,
+    )
+    .await;
+    assert_eq!(status, 422, "{answer}");
+    assert_eq!(counts(&app).await, before);
+}
+
+#[tokio::test]
+async fn an_animation_with_excessive_total_decoded_bytes_is_refused() {
+    let app = test_app().await;
+    let gif = include_bytes!("fixtures/red.gif");
+    let mut animation = gif[..25].to_vec();
+    animation[6..8].copy_from_slice(&256_u16.to_le_bytes());
+    animation[8..10].copy_from_slice(&256_u16.to_le_bytes());
+    for _ in 0..257 {
+        animation.extend(&gif[25..gif.len() - 1]);
+    }
+    animation.push(0x3b);
+    let before = counts(&app).await;
+    let (status, answer) = upload(
+        &app,
+        app.thread.as_str(),
+        "animation-bomb",
+        "image/gif",
+        &animation,
+    )
+    .await;
+    assert_eq!(status, 422, "{answer}");
+    assert_eq!(counts(&app).await, before);
+}
+
+#[tokio::test]
+async fn the_upload_body_limit_stops_an_unbounded_stream() {
+    let app = test_app().await;
+    let before = counts(&app).await;
+    let polled = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = polled.clone();
+    let prefix = b"--b\r\nContent-Disposition: form-data; name=\"file\"; \
+        filename=\"image.png\"\r\nContent-Type: image/png\r\n\r\n"
+        .to_vec();
+    let stream =
+        tokio_stream::iter(std::iter::once(prefix).chain(std::iter::repeat_with(|| vec![0; 4096])))
+            .map(move |chunk| {
+                observed.fetch_add(chunk.len(), std::sync::atomic::Ordering::SeqCst);
+                Ok::<_, std::io::Error>(chunk)
+            });
+    let response = app.router.clone().oneshot(
+        Request::post(format!("/api/threads/{}/attachments", app.thread))
+            .header("content-type", "multipart/form-data; boundary=b")
+            .body(Body::from_stream(stream))
+            .unwrap(),
+    );
+    let response = tokio::time::timeout(std::time::Duration::from_secs(10), response)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(response.status(), 422);
+    assert!(
+        polled.load(std::sync::atomic::Ordering::SeqCst)
+            <= shadows_core::MAX_IMAGE_BYTES + 65536 + 4096
+    );
+    assert_eq!(counts(&app).await, before);
 }
