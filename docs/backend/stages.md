@@ -254,10 +254,222 @@ are reference material; they do not replace the project's template or code.
 - Done when: the A-0 cross-owner allowlists are empty, or each remaining line is named in this task's report with its owner; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test project_events --test resync --test stream_frames --test protocol` and `cargo test -p shadows-core --test recovery` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-19b · Extract the prepared database foundation
-- Status: blocked
+- Status: doing
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-19b--extract-the-prepared-database-foundation
 - Read: A-8c's resolved ledger; prepared db boundary and storage tests; owner spec §14.12
-- Touch: controller enumerates crates/core-db/, old db paths, service imports, manifests/lockfile, fixtures, contracts and code map before dispatch
+- Touch: Enumerated for this dispatch before implementation:
+  - New foundation: `crates/core-db/Cargo.toml`, `crates/core-db/src/`,
+    `crates/core-db/tests/`, `crates/core-db/contract.yaml`, `crates/core-db/migrations/`.
+  - Move every file in `crates/shadows-core/src/db/` and
+    `crates/shadows-core/migrations/`; move the database tests from
+    `crates/shadows-core/tests/storage_contract/` (retain an application test entry
+    only if needed for the assigned cross-owner check).
+  - Manifests/features: `Cargo.toml`, `crates/shadows-core/Cargo.toml`, `Cargo.lock`;
+    forward `test-support` for the moved observer without enabling shipping hooks.
+  - Service imports, re-exports, command/journal call sites, test fixtures,
+    contracts and architecture path checks (exact existing paths):
+    - `crates/shadows-core/src/agents/contract.yaml`
+    - `crates/shadows-core/src/agents/error.rs`
+    - `crates/shadows-core/src/agents/home.rs`
+    - `crates/shadows-core/src/agents/mod.rs`
+    - `crates/shadows-core/src/agents/store.rs`
+    - `crates/shadows-core/src/app.rs`
+    - `crates/shadows-core/src/code/contract.yaml`
+    - `crates/shadows-core/src/code/links.rs`
+    - `crates/shadows-core/src/code/mod.rs`
+    - `crates/shadows-core/src/code/store/links.rs`
+    - `crates/shadows-core/src/code/store/mod.rs`
+    - `crates/shadows-core/src/code/store/reach.rs`
+    - `crates/shadows-core/src/code/watch.rs`
+    - `crates/shadows-core/src/db/journal.rs`
+    - `crates/shadows-core/src/db/mod.rs`
+    - `crates/shadows-core/src/db/write_observer.rs`
+    - `crates/shadows-core/src/design/agreement.rs`
+    - `crates/shadows-core/src/design/agreement_scope.rs`
+    - `crates/shadows-core/src/design/agreements.rs`
+    - `crates/shadows-core/src/design/contract.yaml`
+    - `crates/shadows-core/src/design/map_proposals.rs`
+    - `crates/shadows-core/src/design/mod.rs`
+    - `crates/shadows-core/src/design/model.rs`
+    - `crates/shadows-core/src/design/outcomes.rs`
+    - `crates/shadows-core/src/design/parts.rs`
+    - `crates/shadows-core/src/design/proposal_context.rs`
+    - `crates/shadows-core/src/design/proposals.rs`
+    - `crates/shadows-core/src/design/roadmap_proposals.rs`
+    - `crates/shadows-core/src/design/store/agreement_binding.rs`
+    - `crates/shadows-core/src/design/store/agreement_write.rs`
+    - `crates/shadows-core/src/design/store/agreements.rs`
+    - `crates/shadows-core/src/design/store/map_approval.rs`
+    - `crates/shadows-core/src/design/store/map_proposals.rs`
+    - `crates/shadows-core/src/design/store/map_versions.rs`
+    - `crates/shadows-core/src/design/store/mod.rs`
+    - `crates/shadows-core/src/design/store/proposal_approval.rs`
+    - `crates/shadows-core/src/design/store/proposals.rs`
+    - `crates/shadows-core/src/design/store/roadmap_approval.rs`
+    - `crates/shadows-core/src/design/store/roadmap_proposals.rs`
+    - `crates/shadows-core/src/design/store/roadmap_seed.rs`
+    - `crates/shadows-core/src/design/store/stage.rs`
+    - `crates/shadows-core/src/design/store/structure.rs`
+    - `crates/shadows-core/src/design/store/vision.rs`
+    - `crates/shadows-core/src/design/structure_create.rs`
+    - `crates/shadows-core/src/error.rs`
+    - `crates/shadows-core/src/events/contract.yaml`
+    - `crates/shadows-core/src/events/mod.rs`
+    - `crates/shadows-core/src/events/model.rs`
+    - `crates/shadows-core/src/events/store.rs`
+    - `crates/shadows-core/src/extensions/contract.yaml`
+    - `crates/shadows-core/src/extensions/error.rs`
+    - `crates/shadows-core/src/extensions/mod.rs`
+    - `crates/shadows-core/src/extensions/store.rs`
+    - `crates/shadows-core/src/grants/approver.rs`
+    - `crates/shadows-core/src/grants/contract.yaml`
+    - `crates/shadows-core/src/grants/error.rs`
+    - `crates/shadows-core/src/grants/mod.rs`
+    - `crates/shadows-core/src/grants/model.rs`
+    - `crates/shadows-core/src/grants/store.rs`
+    - `crates/shadows-core/src/grants/testing.rs`
+    - `crates/shadows-core/src/grants/writer.rs`
+    - `crates/shadows-core/src/harness/access.rs`
+    - `crates/shadows-core/src/harness/contract.yaml`
+    - `crates/shadows-core/src/harness/fork.rs`
+    - `crates/shadows-core/src/harness/live.rs`
+    - `crates/shadows-core/src/harness/mod.rs`
+    - `crates/shadows-core/src/harness/mode.rs`
+    - `crates/shadows-core/src/harness/setup.rs`
+    - `crates/shadows-core/src/harness/store/invocation.rs`
+    - `crates/shadows-core/src/harness/store/invocations.rs`
+    - `crates/shadows-core/src/harness/store/limits.rs`
+    - `crates/shadows-core/src/harness/store/mod.rs`
+    - `crates/shadows-core/src/harness/store/mode.rs`
+    - `crates/shadows-core/src/harness/store/preferences.rs`
+    - `crates/shadows-core/src/harness/store/reads.rs`
+    - `crates/shadows-core/src/harness/store/thread.rs`
+    - `crates/shadows-core/src/harness/titles.rs`
+    - `crates/shadows-core/src/instructions/contract.yaml`
+    - `crates/shadows-core/src/instructions/mod.rs`
+    - `crates/shadows-core/src/instructions/store.rs`
+    - `crates/shadows-core/src/lib.rs`
+    - `crates/shadows-core/src/operations/contract.yaml`
+    - `crates/shadows-core/src/operations/mod.rs`
+    - `crates/shadows-core/src/operations/model.rs`
+    - `crates/shadows-core/src/operations/store/checks.rs`
+    - `crates/shadows-core/src/operations/store/lifecycle.rs`
+    - `crates/shadows-core/src/operations/store/mod.rs`
+    - `crates/shadows-core/src/operations/store/read.rs`
+    - `crates/shadows-core/src/operations/store/recovery.rs`
+    - `crates/shadows-core/src/operations/store/runtime_stop.rs`
+    - `crates/shadows-core/src/operations/store/transition.rs`
+    - `crates/shadows-core/src/operations/testing.rs`
+    - `crates/shadows-core/src/person/contract.yaml`
+    - `crates/shadows-core/src/person/mod.rs`
+    - `crates/shadows-core/src/person/store.rs`
+    - `crates/shadows-core/src/plans/agreements.rs`
+    - `crates/shadows-core/src/plans/binding_edit.rs`
+    - `crates/shadows-core/src/plans/contract.yaml`
+    - `crates/shadows-core/src/plans/design_edit.rs`
+    - `crates/shadows-core/src/plans/mod.rs`
+    - `crates/shadows-core/src/plans/model.rs`
+    - `crates/shadows-core/src/plans/project_links.rs`
+    - `crates/shadows-core/src/plans/roadmap_approval.rs`
+    - `crates/shadows-core/src/plans/scope.rs`
+    - `crates/shadows-core/src/plans/store/agreement_review.rs`
+    - `crates/shadows-core/src/plans/store/binding_participants.rs`
+    - `crates/shadows-core/src/plans/store/bindings.rs`
+    - `crates/shadows-core/src/plans/store/dependencies.rs`
+    - `crates/shadows-core/src/plans/store/draft.rs`
+    - `crates/shadows-core/src/plans/store/edit.rs`
+    - `crates/shadows-core/src/plans/store/event_projection.rs`
+    - `crates/shadows-core/src/plans/store/graph.rs`
+    - `crates/shadows-core/src/plans/store/linked.rs`
+    - `crates/shadows-core/src/plans/store/map.rs`
+    - `crates/shadows-core/src/plans/store/mod.rs`
+    - `crates/shadows-core/src/plans/store/notifications.rs`
+    - `crates/shadows-core/src/plans/store/plan.rs`
+    - `crates/shadows-core/src/plans/store/project_links.rs`
+    - `crates/shadows-core/src/plans/store/read.rs`
+    - `crates/shadows-core/src/plans/store/task.rs`
+    - `crates/shadows-core/src/plans/store/view.rs`
+    - `crates/shadows-core/src/plans/testing.rs`
+    - `crates/shadows-core/src/project_lifecycle/contract.yaml`
+    - `crates/shadows-core/src/project_lifecycle/mod.rs`
+    - `crates/shadows-core/src/project_lifecycle/store.rs`
+    - `crates/shadows-core/src/projects/contract.yaml`
+    - `crates/shadows-core/src/projects/mod.rs`
+    - `crates/shadows-core/src/projects/model.rs`
+    - `crates/shadows-core/src/projects/store.rs`
+    - `crates/shadows-core/src/providers/contract.yaml`
+    - `crates/shadows-core/src/providers/error.rs`
+    - `crates/shadows-core/src/providers/mod.rs`
+    - `crates/shadows-core/src/providers/store.rs`
+    - `crates/shadows-core/src/runtime/contract.yaml`
+    - `crates/shadows-core/src/runtime/mod.rs`
+    - `crates/shadows-core/src/runtime/store.rs`
+    - `crates/shadows-core/src/secrets/contract.yaml`
+    - `crates/shadows-core/src/secrets/mod.rs`
+    - `crates/shadows-core/src/secrets/store.rs`
+    - `crates/shadows-core/src/standards/contract.yaml`
+    - `crates/shadows-core/src/standards/mod.rs`
+    - `crates/shadows-core/src/standards/store.rs`
+    - `crates/shadows-core/src/testing/acp.rs`
+    - `crates/shadows-core/src/testing/mod.rs`
+    - `crates/shadows-core/src/testing/turn.rs`
+    - `crates/shadows-core/src/threads/attachment.rs`
+    - `crates/shadows-core/src/threads/contract.yaml`
+    - `crates/shadows-core/src/threads/error.rs`
+    - `crates/shadows-core/src/threads/mod.rs`
+    - `crates/shadows-core/src/threads/model.rs`
+    - `crates/shadows-core/src/threads/store/attachment.rs`
+    - `crates/shadows-core/src/threads/store/entry.rs`
+    - `crates/shadows-core/src/threads/store/fork.rs`
+    - `crates/shadows-core/src/threads/store/mod.rs`
+    - `crates/shadows-core/src/threads/store/records.rs`
+    - `crates/shadows-core/src/threads/store/remove.rs`
+    - `crates/shadows-core/src/threads/store/thread.rs`
+    - `crates/shadows-core/src/threads/store/title.rs`
+    - `crates/shadows-core/src/threads/testing.rs`
+    - `crates/shadows-core/src/turns/contract.yaml`
+    - `crates/shadows-core/src/turns/mod.rs`
+    - `crates/shadows-core/src/turns/model.rs`
+    - `crates/shadows-core/src/turns/queue.rs`
+    - `crates/shadows-core/src/turns/record.rs`
+    - `crates/shadows-core/src/turns/remove.rs`
+    - `crates/shadows-core/src/turns/shutdown.rs`
+    - `crates/shadows-core/src/turns/spawn.rs`
+    - `crates/shadows-core/src/turns/store/mod.rs`
+    - `crates/shadows-core/src/turns/store/operation.rs`
+    - `crates/shadows-core/src/turns/store/operation_read.rs`
+    - `crates/shadows-core/src/turns/store/queue.rs`
+    - `crates/shadows-core/src/turns/store/remove.rs`
+    - `crates/shadows-core/src/turns/store/standards.rs`
+    - `crates/shadows-core/src/turns/store/steer.rs`
+    - `crates/shadows-core/src/turns/store/turn.rs`
+    - `crates/shadows-core/src/turns/testing.rs`
+    - `crates/shadows-core/src/turns/turn.rs`
+    - `crates/shadows-core/src/usage/contract.yaml`
+    - `crates/shadows-core/src/usage/mod.rs`
+    - `crates/shadows-core/src/usage/report.rs`
+    - `crates/shadows-core/src/usage/store.rs`
+    - `crates/shadows-core/tests/aylul_extensions.rs`
+    - `crates/shadows-core/tests/aylul_profiles/person.rs`
+    - `crates/shadows-core/tests/aylul_profiles/probe.rs`
+    - `crates/shadows-core/tests/contracts.rs`
+    - `crates/shadows-core/tests/storage_contract/journal.rs`
+    - `crates/shadows-core/tests/storage_contract/txn.rs`
+    - `crates/shadows/tests/architecture/README.md`
+    - `crates/shadows/tests/architecture/comments.allowlist`
+    - `crates/shadows/tests/architecture/fixtures.rs`
+    - `crates/shadows/tests/architecture/main.rs`
+    - `crates/shadows/tests/architecture/ownership.allowlist`
+    - `crates/shadows/tests/architecture/resolution.rs`
+    - `crates/shadows/tests/architecture/scanner.rs`
+    - `crates/shadows/tests/architecture/sql.rs`
+    - `crates/shadows/tests/architecture/table-owners.txt`
+    - `crates/shadows/tests/codemap/main.rs`
+    - `crates/shadows/tests/image_attachments.rs`
+    - `crates/shadows/tests/openapi/read_only.rs`
+  - Documentation: `docs/codebase/README.md`, `docs/backend/stages.md`,
+    `docs/backend/plans/2026-10-21-architecture.md` (A-19b move evidence only).
+  - Resolve and delete the three A-19b SQL-review allowlist records; add none.
 - Needs: A-9 to A-19 preparations complete; no domain impl Storage; persistence inputs/errors have no service dependencies
 - Done when: foundation and affected cross-service tests prove rollback, replay/conflict, cancellation recovery and after-commit notification; workspace targets compile; core-db has no dependency on shadows-core or a service
 
