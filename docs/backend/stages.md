@@ -275,10 +275,10 @@ are reference material; they do not replace the project's template or code.
 - Done when: `cargo test -p shadows-http -p shadows-mcp -p shadows` passes; `api/` unchanged
 
 ### A-21 · `shadows-agent` and `shadows-process` split by job
-- Status: blocked
-- Blocker: Touch excludes required production callers: crates/shadows-core/src/harness/{assistant,context,live,offers,mod}.rs and crates/shadows-core/src/turns/record.rs; private Claude fields and choices/breakdown methods require those edits, plus affected contracts and docs/codebase/README.md. Controller must expand Touch before implementation.
+- Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-21--shadows-agent-and-shadows-process-split-by-job
 - Read: the plan section
+- Ruling (controller, 2026-10-23, on the caller-scope blocker): Touch also covers every caller of a field made private or a free function turned into a method: its call site and import (in harness/ and turns/ named in the blocker, and any other), the contract lines and code-map rows naming them, and the tests that call them. Call-site changes only in those files.
 - Touch: crates/shadows-agent/src/, crates/shadows-process/src/, crates/fake-acp/src/
 - Done when: affected shadows-agent, shadows-process and fake-acp tests pass; compile the affected consumers
 
