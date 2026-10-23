@@ -155,7 +155,7 @@ impl Sessions {
                     if !models.iter().all(|id| offered.offers_model(id)) {
                         return Err("adapter did not offer all provider models".into());
                     }
-                    let raw = shadows_agent::choices::parse(&session.options)?;
+                    let raw = shadows_agent::choices::Offered::parse(&session.options)?;
                     if !models.contains(&raw.current.model) {
                         offered = self
                             .set_option(thread, &opened, &offered.ids.model, default)

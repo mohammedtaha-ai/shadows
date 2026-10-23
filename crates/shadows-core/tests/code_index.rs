@@ -76,13 +76,13 @@ async fn new_project(storage: &Arc<Storage>, slug: &str, dir: &std::path::Path) 
 }
 
 async fn core_over(storage: Arc<Storage>) -> Arc<AppCore> {
-    let no_adapter = Arc::new(ClaudeAdapter {
-        node: "none".into(),
-        adapter: "none".into(),
-        agent: "none".into(),
-        adapter_version: "none".into(),
-        agent_version: "none".into(),
-    });
+    let no_adapter = Arc::new(ClaudeAdapter::new(
+        "none".into(),
+        "none".into(),
+        "none".into(),
+        "none".into(),
+        "none".into(),
+    ));
     let (runtime, _) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
         .unwrap();

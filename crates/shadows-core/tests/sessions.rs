@@ -59,13 +59,13 @@ async fn fixture(config: SessionsConfig) -> Fixture {
     .await
     .unwrap()
     .id;
-    let adapter = Arc::new(ClaudeAdapter {
-        node: shadows_core::testing::fake_acp_path(),
-        adapter: PathBuf::from("unused"),
-        agent: PathBuf::from("unused"),
-        adapter_version: "fake".into(),
-        agent_version: "fake".into(),
-    });
+    let adapter = Arc::new(ClaudeAdapter::new(
+        shadows_core::testing::fake_acp_path(),
+        PathBuf::from("unused"),
+        PathBuf::from("unused"),
+        "fake".into(),
+        "fake".into(),
+    ));
     let sessions = shadows_core::AppCore::harness_for_tests(adapter, storage.clone(), config);
     Fixture {
         _tmp: tmp,

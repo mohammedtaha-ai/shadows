@@ -266,13 +266,13 @@ async fn a_refused_prompt_names_the_acp_stop_reason() {
 
 #[test]
 fn claude_adapter_launches_node_with_the_explicit_agent() {
-    let adapter = ClaudeAdapter {
-        node: PathBuf::from("node.exe"),
-        adapter: PathBuf::from("adapter.js"),
-        agent: PathBuf::from("claude.exe"),
-        adapter_version: "1".into(),
-        agent_version: "2".into(),
-    };
+    let adapter = ClaudeAdapter::new(
+        PathBuf::from("node.exe"),
+        PathBuf::from("adapter.js"),
+        PathBuf::from("claude.exe"),
+        "1".into(),
+        "2".into(),
+    );
     let cwd = tmp();
     let spec = adapter.process_spec(&cwd);
     assert_eq!(spec.executable, PathBuf::from("node.exe"));

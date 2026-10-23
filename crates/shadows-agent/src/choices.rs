@@ -70,47 +70,50 @@ impl Offered {
 
 pub const NOT_ALLOWED: &str = "Not allowed in this project";
 
-/// Reads `configOptions` (the serialized ACP `SessionConfigOption` list):
-/// `category` `model`, `thought_level` and `mode`; options flat or grouped.
-/// Anything else is ignored. A model with no `thought_level` option offers no
-/// effort. `Err` when the model or mode option is missing.
-pub fn parse(options: &Value) -> Result<Offered, String> {
-    let list = options
-        .as_array()
-        .ok_or("the harness's config options are not a list")?;
-    let mut model = None;
-    let mut effort = None;
-    let mut mode = None;
-    for option in list {
-        let slot = match option.get("category").and_then(Value::as_str) {
-            Some("model") => &mut model,
-            Some("thought_level") => &mut effort,
-            Some("mode") => &mut mode,
-            _ => continue,
+impl Offered {
+    /// Reads `configOptions` (the serialized ACP `SessionConfigOption` list):
+    /// `category` `model`, `thought_level` and `mode`; options flat or grouped.
+    /// Anything else is ignored. A model with no `thought_level` option offers no
+    /// effort. `Err` when the model or mode option is missing.
+    pub fn parse(options: &Value) -> Result<Offered, String> {
+        let list = options
+            .as_array()
+            .ok_or("the harness's config options are not a list")?;
+        let mut model = None;
+        let mut effort = None;
+        let mut mode = None;
+        for option in list {
+            let slot = match option.get("category").and_then(Value::as_str) {
+                Some("model") => &mut model,
+                Some("thought_level") => &mut effort,
+                Some("mode") => &mut mode,
+                _ => continue,
+            };
+            *slot = Some(select(option)?);
+        }
+        let (model_id, models, current_model) =
+            model.ok_or("the harness offers no model option")?;
+        let (mode_id, modes, current_mode) = mode.ok_or("the harness offers no mode option")?;
+        let (effort_id, efforts, current_effort) = match effort {
+            Some((id, list, current)) => (Some(id), list, Some(current)),
+            None => (None, Vec::new(), None),
         };
-        *slot = Some(select(option)?);
+        Ok(Offered {
+            models,
+            efforts,
+            modes,
+            current: TurnSettings {
+                model: current_model,
+                mode: current_mode,
+                effort: current_effort,
+            },
+            ids: OptionIds {
+                model: model_id,
+                effort: effort_id,
+                mode: mode_id,
+            },
+        })
     }
-    let (model_id, models, current_model) = model.ok_or("the harness offers no model option")?;
-    let (mode_id, modes, current_mode) = mode.ok_or("the harness offers no mode option")?;
-    let (effort_id, efforts, current_effort) = match effort {
-        Some((id, list, current)) => (Some(id), list, Some(current)),
-        None => (None, Vec::new(), None),
-    };
-    Ok(Offered {
-        models,
-        efforts,
-        modes,
-        current: TurnSettings {
-            model: current_model,
-            mode: current_mode,
-            effort: current_effort,
-        },
-        ids: OptionIds {
-            model: model_id,
-            effort: effort_id,
-            mode: mode_id,
-        },
-    })
 }
 
 /// One select option: its id, its values in order, its current value.
@@ -147,55 +150,57 @@ fn select(option: &Value) -> Result<(String, Vec<Choice>, String), String> {
     Ok((id, choices, current))
 }
 
-/// What a client is offered: modes outside Shadows' policy are dropped; the
-/// rest are disabled, with the reason, when the project does not allow them.
-pub fn for_client(offered: &Offered, harness: &str, allowed: &[String]) -> SessionChoices {
-    let policy = policy::allowed_modes(harness);
-    let modes = offered
-        .modes
-        .iter()
-        .filter(|m| policy.contains(&m.id.as_str()))
-        .map(|m| {
-            let permitted = allowed.contains(&m.id);
-            Choice {
-                enabled: permitted,
-                reason: (!permitted).then(|| NOT_ALLOWED.to_string()),
-                ..m.clone()
-            }
-        })
-        .collect();
-    SessionChoices {
-        capabilities: Default::default(),
-        models: offered.models.clone(),
-        efforts: offered.efforts.clone(),
-        modes,
-        current: offered.current.clone(),
+impl Offered {
+    /// What a client is offered: modes outside Shadows' policy are dropped; the
+    /// rest are disabled, with the reason, when the project does not allow them.
+    pub fn for_client(&self, harness: &str, allowed: &[String]) -> SessionChoices {
+        let policy = policy::allowed_modes(harness);
+        let modes = self
+            .modes
+            .iter()
+            .filter(|m| policy.contains(&m.id.as_str()))
+            .map(|m| {
+                let permitted = allowed.contains(&m.id);
+                Choice {
+                    enabled: permitted,
+                    reason: (!permitted).then(|| NOT_ALLOWED.to_string()),
+                    ..m.clone()
+                }
+            })
+            .collect();
+        SessionChoices {
+            capabilities: Default::default(),
+            models: self.models.clone(),
+            efforts: self.efforts.clone(),
+            modes,
+            current: self.current.clone(),
+        }
     }
 }
 
-/// The first of model, effort and mode that the session does not offer, or
-/// (for the mode) that Shadows' policy refuses, as `(setting, value)`.
-/// `offered` must be the options for `s.model`: a caller changing the model
-/// sets it first and passes the answer. A model with efforts needs one of
-/// them; a model with none needs none.
-pub fn refusal(
-    offered: &Offered,
-    harness: &str,
-    s: &TurnSettings,
-) -> Option<(&'static str, String)> {
-    if !offered.offers_model(&s.model) {
-        return Some(("model", s.model.clone()));
+impl Offered {
+    /// The first of model, effort and mode that the session does not offer, or
+    /// (for the mode) that Shadows' policy refuses, as `(setting, value)`.
+    /// `offered` must be the options for `s.model`: a caller changing the model
+    /// sets it first and passes the answer. A model with efforts needs one of
+    /// them; a model with none needs none.
+    pub fn refusal(&self, harness: &str, s: &TurnSettings) -> Option<(&'static str, String)> {
+        if !self.offers_model(&s.model) {
+            return Some(("model", s.model.clone()));
+        }
+        match (&s.effort, self.efforts.is_empty()) {
+            (Some(e), false) if self.offers_effort(e) => {}
+            (None, true) => {}
+            (effort, _) => {
+                return Some(("effort", effort.clone().unwrap_or_else(|| "none".into())));
+            }
+        }
+        let in_policy = policy::allowed_modes(harness).contains(&s.mode.as_str());
+        if !in_policy || !self.offers_mode(&s.mode) {
+            return Some(("mode", s.mode.clone()));
+        }
+        None
     }
-    match (&s.effort, offered.efforts.is_empty()) {
-        (Some(e), false) if offered.offers_effort(e) => {}
-        (None, true) => {}
-        (effort, _) => return Some(("effort", effort.clone().unwrap_or_else(|| "none".into()))),
-    }
-    let in_policy = policy::allowed_modes(harness).contains(&s.mode.as_str());
-    if !in_policy || !offered.offers_mode(&s.mode) {
-        return Some(("mode", s.mode.clone()));
-    }
-    None
 }
 
 #[cfg(test)]
@@ -265,7 +270,7 @@ mod tests {
 
     #[test]
     fn parse_reads_models_efforts_and_modes_by_category_in_the_harness_order() {
-        let o = parse(&fake_options("fake-large")).unwrap();
+        let o = Offered::parse(&fake_options("fake-large")).unwrap();
         assert_eq!(
             ids(&o.models),
             ["fake-large", "fake-small", "fake-tiny", "fake-locked"]
@@ -300,14 +305,14 @@ mod tests {
             {"id":"x","name":"Mode","category":"mode","type":"select","currentValue":"auto",
              "options":[{"value":"auto","name":"Auto"}]}
         ]);
-        let o = parse(&v).unwrap();
+        let o = Offered::parse(&v).unwrap();
         assert_eq!(ids(&o.models), ["a", "b"]);
         assert_eq!((o.ids.model.as_str(), o.ids.mode.as_str()), ("m", "x"));
     }
 
     #[test]
     fn a_model_without_effort_parses_to_no_efforts_and_no_effort_id() {
-        let o = parse(&fake_options("fake-tiny")).unwrap();
+        let o = Offered::parse(&fake_options("fake-tiny")).unwrap();
         assert!(o.efforts.is_empty());
         assert_eq!(
             (o.ids.effort.as_deref(), o.current.effort.as_deref()),
@@ -317,8 +322,8 @@ mod tests {
 
     #[test]
     fn only_policy_modes_reach_the_client_and_disallowed_ones_say_why() {
-        let o = parse(&fake_options("fake-large")).unwrap();
-        let c = for_client(&o, "claude-code", &["acceptEdits".to_string()]);
+        let o = Offered::parse(&fake_options("fake-large")).unwrap();
+        let c = o.for_client("claude-code", &["acceptEdits".to_string()]);
         assert_eq!(ids(&c.modes), ["acceptEdits", "auto"]);
         let auto = c.modes.iter().find(|m| m.id == "auto").unwrap();
         assert_eq!(
@@ -331,48 +336,48 @@ mod tests {
 
     #[test]
     fn refusal_names_what_is_not_offered() {
-        let o = parse(&fake_options("fake-small")).unwrap();
+        let o = Offered::parse(&fake_options("fake-small")).unwrap();
         let ok = TurnSettings {
             model: "fake-small".into(),
             mode: "acceptEdits".into(),
             effort: Some("high".into()),
         };
-        assert_eq!(refusal(&o, "claude-code", &ok), None);
+        assert_eq!(o.refusal("claude-code", &ok), None);
         let max = TurnSettings {
             effort: Some("max".into()),
             ..ok.clone()
         };
-        assert_eq!(refusal(&o, "claude-code", &max).unwrap().0, "effort");
+        assert_eq!(o.refusal("claude-code", &max).unwrap().0, "effort");
         let none = TurnSettings {
             effort: None,
             ..ok.clone()
         };
         assert_eq!(
-            refusal(&o, "claude-code", &none).unwrap().0,
+            o.refusal("claude-code", &none).unwrap().0,
             "effort",
             "an offered effort must be chosen"
         );
-        let tiny = parse(&fake_options("fake-tiny")).unwrap();
+        let tiny = Offered::parse(&fake_options("fake-tiny")).unwrap();
         let none = TurnSettings {
             model: "fake-tiny".into(),
             effort: None,
             ..ok.clone()
         };
-        assert_eq!(refusal(&tiny, "claude-code", &none), None);
+        assert_eq!(tiny.refusal("claude-code", &none), None);
         let high = TurnSettings {
             effort: Some("high".into()),
             ..none
         };
-        assert_eq!(refusal(&tiny, "claude-code", &high).unwrap().0, "effort");
+        assert_eq!(tiny.refusal("claude-code", &high).unwrap().0, "effort");
         let plan = TurnSettings {
             mode: "plan".into(),
             ..ok.clone()
         };
-        assert_eq!(refusal(&o, "claude-code", &plan).unwrap().0, "mode");
+        assert_eq!(o.refusal("claude-code", &plan).unwrap().0, "mode");
         let gpt = TurnSettings {
             model: "gpt".into(),
             ..ok
         };
-        assert_eq!(refusal(&o, "claude-code", &gpt).unwrap().0, "model");
+        assert_eq!(o.refusal("claude-code", &gpt).unwrap().0, "model");
     }
 }

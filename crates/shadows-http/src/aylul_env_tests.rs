@@ -20,13 +20,13 @@ pub(crate) async fn world(configured: bool, key: bool) -> World {
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = secrets(storage.clone(), key.then(|| SecretKey::from_bytes([7; 32])));
     // Every request here must finish before a spawn; an inert adapter makes that explicit.
-    let adapter = Arc::new(shadows_agent::claude::ClaudeAdapter {
-        node: tmp.path().join("absent-node"),
-        adapter: tmp.path().join("absent-adapter.js"),
-        agent: tmp.path().join("absent-agent"),
-        adapter_version: String::new(),
-        agent_version: String::new(),
-    });
+    let adapter = Arc::new(shadows_agent::claude::ClaudeAdapter::new(
+        tmp.path().join("absent-node"),
+        tmp.path().join("absent-adapter.js"),
+        tmp.path().join("absent-agent"),
+        String::new(),
+        String::new(),
+    ));
     let sessions = shadows_core::AppCore::harness_for_tests(
         adapter,
         storage.clone(),

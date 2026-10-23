@@ -39,13 +39,13 @@ async fn app(
         .unwrap();
     std::fs::create_dir_all(root).unwrap();
     let sessions = shadows_core::AppCore::harness_for_tests(
-        Arc::new(shadows_agent::claude::ClaudeAdapter {
-            node: std::env::current_exe().unwrap(),
-            adapter: "unused.js".into(),
-            agent: std::env::current_exe().unwrap(),
-            adapter_version: "fixture".into(),
-            agent_version: "fixture".into(),
-        }),
+        Arc::new(shadows_agent::claude::ClaudeAdapter::new(
+            std::env::current_exe().unwrap(),
+            "unused.js".into(),
+            std::env::current_exe().unwrap(),
+            "fixture".into(),
+            "fixture".into(),
+        )),
         storage.clone(),
         SessionsConfig {
             secrets: Some(secrets.clone()),

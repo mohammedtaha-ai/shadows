@@ -297,13 +297,13 @@ impl AppCore {
         let instructions = Instructions::new(storage.clone());
         let standards = Standards::new(storage.clone());
         let sessions = Harness::with_owners(
-            Arc::new(ClaudeAdapter {
-                node: config.node_path.clone(),
-                adapter: config.adapter_path.clone(),
-                agent: config.harness_path.clone(),
-                adapter_version: adapter_version.to_string(),
-                agent_version: version.clone(),
-            }),
+            Arc::new(ClaudeAdapter::new(
+                config.node_path.clone(),
+                config.adapter_path.clone(),
+                config.harness_path.clone(),
+                adapter_version.to_string(),
+                version.clone(),
+            )),
             storage.clone(),
             SessionsConfig {
                 secrets: Some(secrets.clone()),

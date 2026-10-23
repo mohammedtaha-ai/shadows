@@ -1,17 +1,13 @@
+mod launch;
 mod persistent;
 pub use persistent::{ProcessIdentity, inspect_process, spawn_persistent};
 
 use std::io;
 use std::path::PathBuf;
-use std::process::Stdio;
 
-#[cfg(windows)]
-use process_wrap::tokio::JobObject;
-#[cfg(unix)]
-use process_wrap::tokio::ProcessSession;
-use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
+use process_wrap::tokio::ChildWrapper;
 use tokio::io::{AsyncBufReadExt, BufReader, Lines};
-use tokio::process::{ChildStderr, ChildStdin, ChildStdout, Command};
+use tokio::process::{ChildStderr, ChildStdin, ChildStdout};
 
 /// OS-level intent and nothing else. Spec §1.5: `shadows-process` knows nothing about
 /// Role, Claude, Codex, planning, workflows, or verification.
@@ -164,21 +160,6 @@ impl ProcessHandle {
     }
 }
 
-/// Windows environment variables a child needs even under an otherwise
-/// explicit environment. Losing any of these breaks the child in ways that
-/// never reproduce on Linux.
-#[cfg(windows)]
-const WINDOWS_ESSENTIAL_ENV: &[&str] = &[
-    "SystemRoot",
-    "SystemDrive",
-    "ComSpec",
-    "PATHEXT",
-    "TEMP",
-    "TMP",
-    "USERPROFILE",
-    "APPDATA",
-];
-
 /// A child's stderr is a pipe, and a pipe nobody reads fills: once its buffer
 /// is full the child blocks on its next write and never exits, so a harness
 /// that warns at length would hang its turn forever. It is read to its end
@@ -200,45 +181,7 @@ fn drain_stderr(stderr: tokio::process::ChildStderr) {
 }
 
 pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
-    let mut cmd = Command::new(&spec.executable);
-    cmd.args(&spec.args)
-        .current_dir(&spec.cwd)
-        .env_clear()
-        // Spec §1.5: stdin is closed unless the child protocol runs over it.
-        .stdin(if spec.pipe_stdin {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
-        .stdout(if spec.capture_stdout {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
-        .stderr(Stdio::piped());
-
-    #[cfg(windows)]
-    for key in WINDOWS_ESSENTIAL_ENV {
-        if let Ok(value) = std::env::var(key) {
-            cmd.env(key, value);
-        }
-    }
-    for (k, v) in &spec.env {
-        cmd.env(k, v);
-    }
-
-    let mut wrapped = CommandWrap::from(cmd);
-    // Load-bearing on Windows, not a convenience. `JobObject` asks
-    // `make_job_object` for `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` only when a
-    // `KillOnDrop` wrapper is registered alongside it, and that flag IS §1.5's
-    // kill-on-owner-close guarantee: without it the harness outlives a killed
-    // daemon. Measured 2026-09-22: removing this line leaves every containment
-    // test green and `clippy -D warnings` clean, so nothing here would tell you.
-    wrapped.wrap(KillOnDrop);
-    #[cfg(windows)]
-    wrapped.wrap(JobObject);
-    #[cfg(unix)]
-    wrapped.wrap(ProcessSession);
+    let mut wrapped = launch::Launch::managed(&spec);
 
     // Spec §8.7 `process.spawn`. The executable and working directory are
     // logged; the arguments and environment never are — a harness's arguments

@@ -39,7 +39,7 @@ use crate::{
 };
 use shadows_agent::{
     acp::{AcpError, TurnEnd},
-    events::{HarnessEvent, TurnObservation, limits_from},
+    events::{AccountLimits, HarnessEvent, TurnObservation},
 };
 use std::sync::{
     Arc,
@@ -151,7 +151,7 @@ async fn accept(
         // becomes carries these limits as the latest.
         let limits = rate_limit
             .as_ref()
-            .and_then(|r| limits_from(r, &now_rfc3339()));
+            .and_then(|r| AccountLimits::from_report(r, &now_rfc3339()));
         if let Some(limits) = limits
             && let Err(error) = w.sessions.record_limits(&w.harness, &limits).await
         {

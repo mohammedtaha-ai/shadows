@@ -158,9 +158,9 @@ fn parse_reads_the_category_table_only() {
               ### MCP Tools\n\
               | Tool | Server | Tokens |\n\
               | x | y | 400 |\n";
-    let c = shadows_agent::breakdown::parse(md).unwrap();
+    let c = shadows_agent::breakdown::Category::parse(md).unwrap();
     assert_eq!(c.len(), 2);
     assert_eq!((c[1].name.as_str(), c[1].tokens), ("Free space", 923_900));
     assert!((c[0].percent - 0.4).abs() < 1e-9);
-    assert!(shadows_agent::breakdown::parse("no table").is_none());
+    assert!(shadows_agent::breakdown::Category::parse("no table").is_none());
 }

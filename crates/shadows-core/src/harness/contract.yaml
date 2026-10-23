@@ -1,4 +1,6 @@
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
+# Adapter configuration uses ClaudeAdapter/ClaudeProfile constructors; options use Offered methods.
+# Context category parsing uses Category::parse; account reports use AccountLimits::from_report.
 # Setups receives Grants from AppCore. Thread liveness and ownership are checked in the grant-issuing write.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns the harnesses and each thread's open session (spec §12.2–§12.4, §12.8,
@@ -29,7 +31,7 @@
 # effort). A value not offered or refused is skipped and the adapter's current
 # value stands. Shadows keeps no list of models or efforts: no `default` is on
 # offer because `initialize` advertises the adapter's `recommendedValue`
-# (shadows-agent `acp.rs` `capabilities`), not because anything filters it.
+# (shadows-agent `acp/connection.rs` `capabilities`), not because anything filters it.
 #
 # Trap: the early busy check is not redundant with the lease. A thread with an
 # operation not yet ended but no live turn holding the events (a Pending
