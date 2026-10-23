@@ -39,7 +39,7 @@ async fn fixture(path: &std::path::Path) -> (Arc<Storage>, Arc<AppCore>) {
     (storage, core)
 }
 async fn project(core: &AppCore, dir: &std::path::Path, slug: &str) -> ProjectId {
-    core.projects()
+    core.project_lifecycle()
         .create(format!("project-{slug}"), slug, slug, dir.to_str().unwrap())
         .await
         .unwrap()

@@ -73,7 +73,7 @@ pub(super) async fn create_project(
     } = body;
     Ok(Json(
         s.core
-            .projects()
+            .project_lifecycle()
             .create(command_id, &slug, &name, &directory)
             .await?,
     ))
@@ -222,6 +222,9 @@ pub(super) async fn remove_project(
     Query(q): Query<RemoveProjectQuery>,
 ) -> Result<Json<Project>, Failure> {
     Ok(Json(
-        s.core.projects().remove(q.command_id, &project_id).await?,
+        s.core
+            .project_lifecycle()
+            .remove(q.command_id, &project_id)
+            .await?,
     ))
 }

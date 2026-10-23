@@ -18,9 +18,6 @@ pub enum StorageError {
     /// `summary` describes what changed since the expected revision.
     #[error("the resource is at revision {current}; changed since: {summary}")]
     RevisionConflict { current: i64, summary: String },
-    /// Spec §4.2: a project that holds a planning thread is not removed.
-    #[error("the project has planning threads; it cannot be removed")]
-    ProjectHasThreads,
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error(transparent)]

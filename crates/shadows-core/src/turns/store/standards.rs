@@ -93,7 +93,7 @@ mod tests {
             .await
             .unwrap();
         let project = core
-            .projects()
+            .project_lifecycle()
             .create(
                 "project".into(),
                 "project",
@@ -103,7 +103,7 @@ mod tests {
             .await
             .unwrap();
         let other = core
-            .projects()
+            .project_lifecycle()
             .create(
                 "other".into(),
                 "other",
@@ -191,7 +191,7 @@ mod tests {
             .remove_thread("remove-thread".into(), &thread.id)
             .await
             .unwrap();
-        core.projects()
+        core.project_lifecycle()
             .remove("remove-project".into(), &project.id)
             .await
             .unwrap();

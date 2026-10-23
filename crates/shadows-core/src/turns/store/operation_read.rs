@@ -65,7 +65,7 @@ mod tests {
             .await
             .unwrap();
         let project = core
-            .projects()
+            .project_lifecycle()
             .create(
                 "project".into(),
                 "project",

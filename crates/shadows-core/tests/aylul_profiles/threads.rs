@@ -11,7 +11,7 @@ async fn aylul_harness_only_in_the_aylul_project() {
         .await
         .unwrap();
     let normal = core
-        .projects()
+        .project_lifecycle()
         .create(
             "normal".into(),
             "normal",
@@ -100,7 +100,7 @@ async fn planner_thread_refuses_an_agent() {
     let w = seeded().await;
     let core = core(&w).await;
     let p = core
-        .projects()
+        .project_lifecycle()
         .create(
             "p2".into(),
             "project",

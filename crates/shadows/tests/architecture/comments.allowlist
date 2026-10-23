@@ -52,7 +52,6 @@ crates/shadows-core/src/db/command.rs :: module comment [18f0fbd096726450] #1
 crates/shadows-core/src/db/command.rs :: module comment [ef5afd335a262a71] #1
 crates/shadows-core/src/db/derive.rs :: module comment [b9d365bc6fb5ddc6] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [4af4d39ea2b34086] #1
-crates/shadows-core/src/db/error.rs :: StorageError comment [8a089c422d2e67d4] #1
 crates/shadows-core/src/db/id.rs :: module comment [caa7beb94100c9c7] #1
 crates/shadows-core/src/db/id.rs :: module comment [cee70f439a1892fd] #1
 crates/shadows-core/src/db/id.rs :: module comment [d4fd1265ff3a0b7e] #1

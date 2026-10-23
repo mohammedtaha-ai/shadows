@@ -347,7 +347,7 @@ mod tests {
         let mut ids = Vec::new();
         for slug in ["zulu", "alpha", "middle"] {
             let project = core
-                .projects()
+                .project_lifecycle()
                 .create(slug.into(), slug, slug, dir.path().to_str().unwrap())
                 .await
                 .unwrap();

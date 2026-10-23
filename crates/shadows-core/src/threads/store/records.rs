@@ -209,3 +209,19 @@ impl Threads {
             .ok_or(StorageError::NotFound("thread_entry"))
     }
 }
+
+impl Threads {
+    /// A project's live threads prevent removal, checked in the removal transaction.
+    pub(crate) async fn has_live_project_threads_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<bool, StorageError> {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM planning_thread WHERE project_id = ? AND removed_at IS NULL",
+        )
+        .bind(project.as_str())
+        .fetch_one(conn)
+        .await?;
+        Ok(count > 0)
+    }
+}

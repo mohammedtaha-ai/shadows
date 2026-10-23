@@ -13,7 +13,7 @@ async fn the_restricted_fixture_starts_and_serves_through_its_accessors() {
 
     let app = testing::app(db.clone()).await.unwrap();
     let created = app
-        .projects()
+        .project_lifecycle()
         .create(
             "create".into(),
             "fixture",

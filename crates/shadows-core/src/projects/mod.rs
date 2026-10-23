@@ -27,34 +27,21 @@ pub use browse::{DirectoryEntry, DirectoryListing};
 pub use directory::{DirectoryError, ProjectDirectory};
 pub use model::{Project, ProjectId};
 
-use crate::code::Code;
 use crate::db::{CommandContext, Storage, StorageError};
 use crate::error::CoreError;
 use store::ProjectsStore;
 
-/// Projects: what storage holds, and the code index a new project is
-/// touched in. Cheap to clone. The copy the readers hold has no code
-/// index (`new`); only the one `AppCore` serves does (`with_code`).
+/// Project registration over its private store.
 #[derive(Clone)]
 pub struct Projects {
     store: ProjectsStore,
-    code: Option<Code>,
 }
 
 impl Projects {
     pub(crate) fn new(storage: Arc<Storage>) -> Self {
         Self {
             store: ProjectsStore::new(storage),
-            code: None,
         }
-    }
-
-    /// This service with the code index that `create` touches and `remove`
-    /// forgets in. Code itself reads projects, so it is built over a copy made
-    /// by `new`.
-    pub(crate) fn with_code(mut self, code: Code) -> Self {
-        self.code = Some(code);
-        self
     }
 
     /// Every project, oldest first.
@@ -148,10 +135,6 @@ impl Projects {
             .store
             .create(&c, slug, name, &directory, &policy::default_modes())
             .await?;
-        // A created project is a used one; a replay touches it again.
-        if let Some(code) = &self.code {
-            code.touch(&project.id).await;
-        }
         Ok(project)
     }
 
@@ -188,28 +171,6 @@ impl Projects {
         let params = serde_json::json!({ "project": project, "allowed_modes": modes });
         let c = CommandContext::user(command_id, "project.modes", params);
         Ok(self.store.set_modes(&c, project, &modes).await?)
-    }
-
-    /// Removes a project that holds no planning thread:
-    /// "project.remove", params { "project" }. Its index, its links both ways
-    /// and its live project grants go in the same write; then the code index
-    /// forgets it, which never fails the removal. A replay answers the
-    /// removed project and changes nothing.
-    pub async fn remove(
-        &self,
-        command_id: String,
-        project: &ProjectId,
-    ) -> Result<Project, CoreError> {
-        let params = serde_json::json!({ "project": project });
-        let c = CommandContext::user(command_id, "project.remove", params);
-        let removed = self.store.remove(&c, project).await?;
-        if let Some(code) = self.code.clone() {
-            // On its own task: a caller dropped after the commit (a client that
-            // hung up) must not leave the removed project's worker running.
-            let gone = project.clone();
-            let _ = tokio::spawn(async move { code.forget(&gone).await }).await;
-        }
-        Ok(removed)
     }
 
     /// A directory's immediate subdirectories, or the roots when `path` is

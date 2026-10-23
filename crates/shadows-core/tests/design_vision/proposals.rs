@@ -355,7 +355,7 @@ async fn approval_is_scoped_to_its_live_project() {
     let p = f.propose(add("A")).await;
     let q = f
         .core
-        .projects()
+        .project_lifecycle()
         .create("q".into(), "q", "Q", f._tmp.path().to_str().unwrap())
         .await
         .unwrap()
@@ -373,7 +373,7 @@ async fn approval_is_scoped_to_its_live_project() {
         .await
         .unwrap();
     f.core
-        .projects()
+        .project_lifecycle()
         .remove("remove".into(), &f.p)
         .await
         .unwrap();

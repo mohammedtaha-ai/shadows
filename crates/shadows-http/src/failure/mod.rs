@@ -160,6 +160,7 @@ impl Failure {
                 ErrorCode::QueuedMessageGone => StatusCode::NOT_FOUND,
                 ErrorCode::ThreadBusy
                 | ErrorCode::HarnessLocked
+                | ErrorCode::ProjectHasThreads
                 | ErrorCode::StageBlocked
                 | ErrorCode::WorkflowFrozenImmutable => StatusCode::CONFLICT,
                 _ => StatusCode::UNPROCESSABLE_ENTITY,

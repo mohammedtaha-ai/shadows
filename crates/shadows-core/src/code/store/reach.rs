@@ -73,12 +73,12 @@ mod tests {
             .await
             .unwrap();
         let home = core
-            .projects()
+            .project_lifecycle()
             .create("home".into(), "home", "Home", dir.path().to_str().unwrap())
             .await
             .unwrap();
         let linked = core
-            .projects()
+            .project_lifecycle()
             .create(
                 "linked".into(),
                 "linked",
@@ -100,7 +100,7 @@ mod tests {
                 .await
                 .unwrap()
         );
-        core.projects()
+        core.project_lifecycle()
             .remove("remove".into(), &linked.id)
             .await
             .unwrap();

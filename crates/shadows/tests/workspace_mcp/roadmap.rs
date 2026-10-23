@@ -13,7 +13,7 @@ async fn structured(
 ) -> (ProjectId, ThreadId, OperationId) {
     let core = &l.app.core;
     let p = core
-        .projects()
+        .project_lifecycle()
         .create(
             "roadmap".into(),
             "roadmap",

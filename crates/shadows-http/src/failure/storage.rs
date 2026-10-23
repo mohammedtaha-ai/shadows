@@ -25,9 +25,6 @@ impl From<StorageError> for Failure {
             StorageError::NotFound(_) => {
                 return own(StatusCode::NOT_FOUND, ErrorCode::InvalidCommand);
             }
-            StorageError::ProjectHasThreads => {
-                return own(StatusCode::CONFLICT, ErrorCode::ProjectHasThreads);
-            }
             StorageError::RevisionConflict { current, summary } => {
                 return Failure {
                     status: StatusCode::CONFLICT,

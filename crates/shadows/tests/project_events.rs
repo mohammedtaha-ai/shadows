@@ -120,7 +120,7 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
         .await
         .unwrap();
     app.core
-        .projects()
+        .project_lifecycle()
         .remove("remove-foreign-project".into(), &foreign)
         .await
         .unwrap();
@@ -329,7 +329,7 @@ async fn a_project_stream_sends_another_conversations_plan_edit() {
         .await
         .unwrap();
     app.core
-        .projects()
+        .project_lifecycle()
         .remove("remove-project".into(), &other_project)
         .await
         .unwrap();

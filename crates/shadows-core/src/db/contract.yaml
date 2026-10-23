@@ -1,3 +1,4 @@
+# ProjectHasThreads belongs to ProjectLifecycleError.
 # GrantInvalid and GrantScope belong to GrantsError; approval provenance belongs to Grants.
 # HarnessLocked and ForkPointNotSupported belong to ThreadsError, mapped by Threads.
 # ThreadBusy and QueuedMessageGone belong to TurnsError, mapped by Turns.

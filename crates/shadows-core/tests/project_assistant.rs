@@ -45,7 +45,7 @@ async fn ensure_assistant_is_idempotent() {
         std::fs::canonicalize(&home).unwrap()
     );
     let ordinary = core
-        .projects()
+        .project_lifecycle()
         .create("c1".into(), "plain", "Plain", tmp.path().to_str().unwrap())
         .await
         .unwrap();
@@ -81,7 +81,7 @@ async fn ensure_assistant_recreates_a_removed_assistant_project() {
         .ensure_assistant("aylul", "AYLUL", &home)
         .await
         .unwrap();
-    core.projects()
+    core.project_lifecycle()
         .remove("rm-1".into(), &first.id)
         .await
         .unwrap();

@@ -10,7 +10,7 @@ async fn create_structure_route_writes_and_refuses() {
     let temp = tempfile::tempdir().unwrap();
     let p = app
         .core
-        .projects()
+        .project_lifecycle()
         .create(
             "structure-project".into(),
             "structure",

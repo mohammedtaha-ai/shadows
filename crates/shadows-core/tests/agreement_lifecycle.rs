@@ -23,7 +23,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "agreements",

@@ -386,3 +386,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-http/src/attachments.rs` | image HTTP translation | `crates/shadows-core/src/threads/contract.yaml` |
 
 | `crates/shadows-core/src/turns/store/images.rs` | neutral image read composition | `crates/shadows-core/src/turns/contract.yaml` |
+
+| `crates/shadows-core/src/project_lifecycle/` | cross-owner project lifecycle | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
+| `crates/shadows-core/src/project_lifecycle/error.rs` | project removal refusal | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
+| `crates/shadows-core/src/project_lifecycle/store.rs` | atomic project removal composition | `crates/shadows-core/src/project_lifecycle/contract.yaml` |

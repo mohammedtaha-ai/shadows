@@ -165,6 +165,8 @@ shapes:
 
 
 functions:
+  project_removal_reads:
+    has_live_project_threads_in: "(conn, project) -> Result<bool, StorageError>"
   service:
     upload_attachment: Validates image content and 5 MiB limit before immutable command persistence.
     attachment: Reads bytes only through a live thread ownership reference.
@@ -316,6 +318,7 @@ enums:
 
 
 shared_in_transaction:
+  has_live_project_threads_in: ProjectLifecycle checks live children before removal.
   attachment_in: Turns reads a thread-owned image in its prompt snapshot.
   attachment_refs_in: Turns validates ordered ids in turn, queue and steering transactions.
   append_entry_with_attachments_in: Turns stores neutral image summaries inside its message transaction.

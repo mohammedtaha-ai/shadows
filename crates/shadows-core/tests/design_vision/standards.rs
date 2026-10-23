@@ -24,7 +24,7 @@ pub(super) async fn core_and_project(tmp: &tempfile::TempDir) -> (Arc<AppCore>, 
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "standards",
@@ -109,7 +109,7 @@ async fn each_additions_save_is_a_new_version_and_a_replay_saves_nothing() {
             .await,
         Err(CoreError::Storage(StorageError::CommandConflict))
     ));
-    core.projects()
+    core.project_lifecycle()
         .remove("remove".into(), &project)
         .await
         .unwrap();

@@ -170,7 +170,7 @@ mod tests {
             .await
             .unwrap();
         let project = core
-            .projects()
+            .project_lifecycle()
             .create(
                 "project".into(),
                 "project",
@@ -180,7 +180,7 @@ mod tests {
             .await
             .unwrap();
         let other = core
-            .projects()
+            .project_lifecycle()
             .create(
                 "other".into(),
                 "other",
@@ -205,7 +205,7 @@ mod tests {
             .save_standards_additions("second".into(), &project.id, Default::default())
             .await
             .unwrap();
-        core.projects()
+        core.project_lifecycle()
             .remove("remove".into(), &project.id)
             .await
             .unwrap();

@@ -27,7 +27,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "review",

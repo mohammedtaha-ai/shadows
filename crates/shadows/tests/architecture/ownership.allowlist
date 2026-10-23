@@ -5,9 +5,6 @@ crates/shadows-core/src/db/embedded_migrations.rs :: for_database SQL review: un
 crates/shadows-core/src/db/write_observer.rs :: DatabaseWrites::version SQL review: unsupported statement [bec5d39792ff9942] #1
 crates/shadows-core/src/events/store.rs :: Storage::current_cursor SQL review: dynamic or indirect query [c1e40c7a3d7dffc8] #1
 crates/shadows-core/src/events/store.rs :: Storage::read_project_events_after SQL table workflow belongs to plans [d2331dc844223516] #1
-# A-16b: project removal checks threads through its new owner.
-# A-16b: retained project-removal writes move to ProjectRemoval.
-crates/shadows-core/src/projects/store.rs :: ProjectsStore::remove SQL table planning_thread belongs to threads [5f4deecc4f5c3ae9] #1
 crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
 crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1

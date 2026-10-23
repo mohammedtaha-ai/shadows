@@ -8,12 +8,10 @@ use sqlx::SqliteConnection;
 use super::Projects;
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
-use crate::code::Code;
 use crate::db::{
     Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
 use crate::events::DurableEvent;
-use crate::grants::Grants;
 use shadows_agent::policy;
 
 /// The service's SQL, over the shared storage handle.
@@ -191,62 +189,6 @@ impl ProjectsStore {
     pub(super) async fn by_slug(&self, slug: &str) -> Result<Option<Project>, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
         Projects::by_slug_in(&mut conn, slug).await
-    }
-
-    /// Removes the project: it stays a row, since the journal
-    /// references it, but is read nowhere again. Refused while it holds a
-    /// planning thread. One write: its index, its links both ways and its
-    /// live project grants go with it. A replay answers the project as the
-    /// command left it.
-    pub(super) async fn remove(
-        &self,
-        ctx: &CommandContext,
-        project_id: &ProjectId,
-    ) -> Result<Project, StorageError> {
-        let (ctx, id, ts) = (ctx.clone(), project_id.clone(), now());
-        self.storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    if classify(conn, &ctx, "Project", id.as_str())
-                        .await?
-                        .is_some()
-                    {
-                        return load_project(conn, &id).await;
-                    }
-                    Projects::require_live_in(conn, &id).await?;
-                    let threads: i64 = sqlx::query_scalar(
-                        "SELECT COUNT(*) FROM planning_thread \
-                         WHERE project_id = ? AND removed_at IS NULL",
-                    )
-                    .bind(id.as_str())
-                    .fetch_one(&mut *conn)
-                    .await?;
-                    if threads > 0 {
-                        return Err(StorageError::ProjectHasThreads);
-                    }
-                    sqlx::query("UPDATE project SET removed_at = ? WHERE id = ?")
-                        .bind(&ts)
-                        .bind(id.as_str())
-                        .execute(&mut *conn)
-                        .await?;
-                    let actor = Actor::user(&ctx.principal_id);
-                    crate::plans::Plans::notify_project_dependencies_in(conn, &id, &actor, &ts)
-                        .await?;
-                    Code::delete_code_index_in(conn, &id).await?;
-                    Code::delete_code_links_in(conn, &id).await?;
-                    Grants::revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
-                    append_event(
-                        conn,
-                        &DurableEvent::new("ProjectRemoved", actor).with_project(&id),
-                        &ts,
-                    )
-                    .await?;
-                    let key = id.as_str();
-                    record_command(conn, &ctx, "Project", key, "Project", key, &ts).await?;
-                    load_project(conn, &id).await
-                })
-            })
-            .await
     }
 
     /// Replaces the modes the project allows for each harness named in
@@ -505,5 +447,30 @@ impl Projects {
             Err(StorageError::NotFound(_)) => Ok(false),
             Err(error) => Err(error),
         }
+    }
+}
+
+impl Projects {
+    /// Retained metadata is needed to answer a replay after removal.
+    pub(crate) async fn retained_in(
+        conn: &mut SqliteConnection,
+        id: &ProjectId,
+    ) -> Result<Project, StorageError> {
+        load_project(conn, id).await
+    }
+
+    /// Soft removal keeps the row referenced by the journal and reserves its slug.
+    pub(crate) async fn mark_removed_in(
+        conn: &mut SqliteConnection,
+        id: &ProjectId,
+        ts: &str,
+    ) -> Result<(), StorageError> {
+        Self::require_live_in(conn, id).await?;
+        sqlx::query("UPDATE project SET removed_at = ? WHERE id = ?")
+            .bind(ts)
+            .bind(id.as_str())
+            .execute(conn)
+            .await?;
+        Ok(())
     }
 }

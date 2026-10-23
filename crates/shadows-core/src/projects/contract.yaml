@@ -16,13 +16,7 @@
 # Trap: a `ProjectDirectory` proves the check ran when it was built, not
 # later: a directory deleted after `create` is caught when a turn opens its
 # session (Harness), not here.
-# `remove` is a soft remove (§4.2): the row stays, since the journal
-# references it ON DELETE RESTRICT, and `removed_at` is set. Every read of a
-# project (`get`, `list`, `by_recent_activity`, `get_in`, `by_slug_in`,
-# `require_live_in`, which Instructions and Code call, and Grants' direct reads)
-# leaves a removed one out, so it answers NotFound everywhere; its slug
-# stays taken. One write takes
-# the index, the links both ways and the live project grants with it.
+# Cross-owner creation indexing and removal belong to ProjectLifecycle.
 #
 # Trap: `list_dirs` and `create_dir` touch the disk only; they record no
 # command and no event, and a directory made here belongs to no project until
@@ -32,22 +26,19 @@ name: projects
 version: 1
 status: current
 source: crates/shadows-core/src/projects
+modules:
+  mod.rs: project registration boundary
+  model.rs: public project values
+  directory.rs: project directory validation
+  browse.rs: directory selection
+  harness_policy.rs: allowed project harnesses
+  store.rs: private project persistence
 
 
 shapes:
   Projects:
     # Private: the service's SQL (`ProjectsStore`), over the shared storage.
     store: ProjectsStore
-    # A clone of the core's `Code`: `create` touches the new project
-    # (§15.6), `remove` forgets the removed one (§15.4). `None` in the copy
-    # the readers hold (`Projects::new`); `with_code` gives it to the one
-    # `AppCore` serves, because Code reads projects and so is built over the
-    # copy without it. Goes with removal in the project-removal task.
-    # Trap: `create` and `remove` on a copy without it skip the touch and the
-    # forget silently, so only `AppCore::projects()` may call them; the
-    # services hold the copy for reads (`get`, `by_slug`, `allowed_modes`,
-    # `harness_fits`) only.
-    code: Option<Code>
   Project:
     id: ProjectId
     slug: String
@@ -89,6 +80,9 @@ shapes:
 
 
 functions:
+  removal_records:
+    retained_in: "(conn, id) -> Result<Project, StorageError>"
+    mark_removed_in: "(conn, id, ts) -> Result<(), StorageError>"
   boundary_reads:
     retained_metadata_in: "(conn, id) -> Result<Option<(name, directory, removed)>, StorageError>; retained metadata for previews"
     is_live_in: "(conn, id) -> Result<bool, StorageError>; delegates to require_live_in"
@@ -133,26 +127,17 @@ functions:
       # `restore_assistant` instead of created again.
     create:
       signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>"
-      # resolve (DirectoryError → CoreError::Directory) → "project.create",
+      # resolve (DirectoryError â†’ CoreError::Directory) â†’ "project.create",
       # principal User/local, schema 1, params { slug, name, directory:
-      # canonical } → the store's `create` with `policy::default_modes()`.
-      # Then `Code::touch` of the project, a replay included (§15.6), when
-      # this copy holds the code index; it never fails the create.
+      # canonical } â†’ the store's `create` with `policy::default_modes()`.
       # Refusals: Directory; CommandConflict; Constraint (the slug in use).
     set_modes:
       signature: "(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, CoreError>"
-      # `Self::known_harness` (SettingNotOffered "harness") → each mode in policy
-      # (SettingNotOffered "mode", the first offending one) → dedup, sort →
-      # "project.modes", params { project, allowed_modes: normalized } →
+      # `Self::known_harness` (SettingNotOffered "harness") â†’ each mode in policy
+      # (SettingNotOffered "mode", the first offending one) â†’ dedup, sort â†’
+      # "project.modes", params { project, allowed_modes: normalized } â†’
       # the store's `set_modes`. Refusals also: NotFound (no such project);
       # CommandConflict.
-    remove:
-      signature: "(&self, command_id: String, project: &ProjectId) -> Result<Project, CoreError>"
-      # "project.remove", principal User/local, schema 1, params { project }
-      # → the store's `remove`, then `Code::forget` of the project on its own
-      # task, awaited, so a caller dropped after the commit still stops the
-      # worker; it never fails the remove. Refusals: NotFound (no such project, or removed);
-      # ProjectHasThreads; CommandConflict.
     list_dirs:
       signature: "(&self, path: Option<String>) -> Result<DirectoryListing, CoreError>"
       # An empty `path` is the same as none: the roots. On a blocking thread.
@@ -201,7 +186,7 @@ functions:
   store:
     create:
       signature: "(&self, ctx: &CommandContext, slug, name, directory: &ProjectDirectory, default_modes) -> Result<Project, StorageError>"
-      # One write: classify (scope Global) → the row, its modes,
+      # One write: classify (scope Global) â†’ the row, its modes,
       # `ProjectCreated` { slug, name, directory }, record_command.
     list:
       signature: "(&self) -> Result<Vec<Project>, StorageError>"
@@ -214,18 +199,10 @@ functions:
       # NotFound for a removed project.
     set_modes:
       signature: "(&self, ctx, project_id, modes) -> Result<Project, StorageError>"
-      # One write: classify (scope Project) → the project must exist, not
-      # removed (`require_live_in`) → replace the named harnesses' rows →
-      # `ProjectModesChanged` → record_command. A replay answers the project
+      # One write: classify (scope Project) â†’ the project must exist, not
+      # removed (`require_live_in`) â†’ replace the named harnesses' rows â†’
+      # `ProjectModesChanged` â†’ record_command. A replay answers the project
       # as it now stands.
-    remove:
-      signature: "(&self, ctx: &CommandContext, project_id: &ProjectId) -> Result<Project, StorageError>"
-      # One write: classify (scope Project; a replay answers the row as it
-      # stands, removed) → `require_live_in` → any nonremoved `planning_thread` row
-      # refuses ProjectHasThreads → `removed_at` → Code's
-      # Plans' `notify_project_dependencies_in`, Code's
-      # `delete_code_index_in` and `delete_code_links_in`, Grants'
-      # `revoke_project_grants_in` → `ProjectRemoved` → record_command.
     get_in:
       signature: "(conn: &mut SqliteConnection, id: &ProjectId) -> Result<Project, StorageError>"
       # Associated read in the caller's snapshot: require_live_in then load_project.
@@ -239,7 +216,7 @@ functions:
       signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>"
       # An associated function in the caller's transaction or connection:
       # NotFound("project") unless the row exists with `removed_at` NULL.
-      # The one liveness check: `get`, `remove` and
+      # The one liveness check: `get` and
       # `set_modes` use it, and Instructions' save and current call
       # it instead of reading `project`.
     load_project:
@@ -261,6 +238,8 @@ enums:
 
 
 shared_in_transaction:
+  retained_in: ProjectLifecycle reads retained metadata for removal replay.
+  mark_removed_in: ProjectLifecycle soft-removes the project in its transaction.
   retained_metadata_in: Retained name, directory and removed flag for plan previews.
   is_live_in: Boolean liveness through require_live_in in the caller snapshot.
   get_in: "Code::code_scope: live project metadata in its read snapshot"
@@ -270,7 +249,7 @@ shared_in_transaction:
 
 called_by_other_services:
   require_live_in: "Instructions (save/current) and Code (link writes, file writes, reach): liveness in the caller's transaction or snapshot"
-  get: "Code (status, scan) and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
+  get: "Code (status, scan) and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (Â§16.8)"
   by_slug: "Agents (assistant_project): the live project `aylul`, kept only when marked assistant"
   allowed_modes: "Turns (turns/record.rs, the mode check) and Harness (harness/mod.rs choices): the modes a project allows for a harness"
   by_recent_activity: "Code::code_order: startup order, filtered to projects with a directory"
@@ -329,46 +308,6 @@ obligations:
     note: >
       The first checks the mode refusal's code only; no test sends an unknown
       harness to `set_modes` (it sends one to thread create and change).
-
-  - rule: >
-      A project holding a planning thread is not removed: 409
-      PROJECT_HAS_THREADS, nothing written; it stays listed, its index and
-      links unchanged.
-    tested_by: a_project_with_a_thread_is_not_removed
-    note: >
-      With the thread check switched off the body fails at its first
-      assertion: the remove answers 200 (tried while writing it).
-
-  - rule: >
-      A removed project is gone from the list; in the same write its
-      `code_file` and `code_tag` rows, every link it reads or that reads it,
-      and its live project grants go, and the code index forgets it (its
-      worker stops). The row and the journal stay.
-    tested_by: a_project_without_threads_is_removed_with_its_index_links_and_grants
-    note: >
-      The body checks another project's index stays and the token no longer
-      authorizes. It does not race a worker's write against the removal;
-      `write_code_file` checks `removed_at` inside its own write, so the two
-      are serialized.
-
-  - rule: >
-      Replay. A remove with the same command id answers the same project and
-      journals nothing; another request under the id in the project's scope
-      is CommandConflict.
-    tested_by: a_replayed_remove_answers_the_same_project_and_changes_nothing
-    note: >
-      The other request is a modes change on the removed project; it
-      conflicts before the project is looked up.
-
-  - rule: >
-      A removed project is NotFound everywhere: creating a thread in it and
-      a code question about it answer 404 INVALID_COMMAND; its instructions
-      and grant list answer as for an unknown project (null, []).
-    tested_by: a_removed_project_is_not_found
-    note: >
-      Grant issue, instructions save, links, turns and choices reach the same
-      NotFound through `get`, `require_live_in` or their own
-      `removed_at IS NULL` check; no test asks each.
 
   - rule: >
       Projects are listed in creation order, by the durable sequence of their

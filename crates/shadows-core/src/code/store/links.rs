@@ -150,7 +150,7 @@ mod tests {
         let mut ids = Vec::new();
         for slug in ["home", "linked"] {
             ids.push(
-                core.projects()
+                core.project_lifecycle()
                     .create(slug.into(), slug, slug, dir.path().to_str().unwrap())
                     .await
                     .unwrap()

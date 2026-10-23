@@ -27,6 +27,7 @@ use crate::instructions::Instructions;
 use crate::operations::Operations;
 use crate::person::PersonSettings;
 use crate::plans::Plans;
+use crate::project_lifecycle::ProjectLifecycle;
 use crate::projects::Projects;
 use crate::providers::Providers;
 use crate::runtime::Runtime;
@@ -123,6 +124,10 @@ pub struct CoreParts {
          project directory registration | \
          `crates/shadows-core/src/projects` | \
          `crates/shadows-core/src/projects/contract.yaml` |"]
+#[doc = " | `ProjectLifecycle` | \
+         cross-owner project lifecycle | \
+         `crates/shadows-core/src/project_lifecycle` | \
+         `crates/shadows-core/src/project_lifecycle/contract.yaml` |"]
 #[doc = " | `Threads` | \
          planning thread lifecycle | \
          `crates/shadows-core/src/threads` | \
@@ -168,6 +173,7 @@ pub struct AppCore {
     turns: Turns,
     harness: Arc<Harness>,
     projects: Projects,
+    project_lifecycle: ProjectLifecycle,
     threads: Threads,
     instructions: Instructions,
     standards: Standards,
@@ -378,8 +384,6 @@ impl AppCore {
             // `mcp_url`, under `test-support`: `grants` was built over it.
             ..
         } = parts;
-        // Before the three services that hold it to call `touch`. The projects
-        // it reads are the copy that holds no code index.
         let code = Code::new(storage.clone(), projects.clone());
         let harness = sessions.clone();
         let threads = Threads::new(storage.clone(), code.clone(), projects.clone());
@@ -417,6 +421,8 @@ impl AppCore {
             turns.clone(),
             ui.clone(),
         );
+        let project_lifecycle =
+            ProjectLifecycle::new(storage.clone(), projects.clone(), code.clone());
         Arc::new(AppCore {
             providers,
             agents,
@@ -430,7 +436,8 @@ impl AppCore {
             turns,
             operations,
             harness,
-            projects: projects.with_code(code.clone()),
+            projects,
+            project_lifecycle,
             threads,
             instructions,
             standards,
@@ -494,6 +501,10 @@ impl AppCore {
 
     pub fn harness(&self) -> &Harness {
         &self.harness
+    }
+
+    pub fn project_lifecycle(&self) -> &ProjectLifecycle {
+        &self.project_lifecycle
     }
 
     pub fn projects(&self) -> &Projects {

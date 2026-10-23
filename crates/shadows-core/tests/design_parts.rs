@@ -41,7 +41,7 @@ async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
 }
 
 async fn project(core: &AppCore, slug: &str, dir: &std::path::Path) -> ProjectId {
-    core.projects()
+    core.project_lifecycle()
         .create(format!("project-{slug}"), slug, slug, dir.to_str().unwrap())
         .await
         .unwrap()
@@ -470,7 +470,10 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
             .revision,
         1
     );
-    core.projects().remove("remove".into(), &p).await.unwrap();
+    core.project_lifecycle()
+        .remove("remove".into(), &p)
+        .await
+        .unwrap();
     assert!(core.design().parts(&p, None, None).await.is_err());
     assert!(core.plans().design_part(&p, &ids[0]).await.is_err());
     assert!(

@@ -53,7 +53,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "vision",
@@ -115,7 +115,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         Err(CoreError::Storage(StorageError::CommandConflict))
     ));
     let other = core
-        .projects()
+        .project_lifecycle()
         .create(
             "other".into(),
             "other",
@@ -142,7 +142,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             ..
         }))
     ));
-    core.projects()
+    core.project_lifecycle()
         .remove("remove".into(), &project)
         .await
         .unwrap();
