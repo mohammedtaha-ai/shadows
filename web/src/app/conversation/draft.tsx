@@ -22,7 +22,7 @@ import { tabId } from '@/stream/tab-id'
 import { agentsQuery, providersQuery, agentThreadsQuery, type Provider } from '@/api/aylul-profiles'
 import { ErrorLine } from '../error-line'
 import { policyOf } from '../mode-policy'
-import { carrySend } from './carried-send'
+import { carrySend, uploadImages, type PendingImage } from './carried-send'
 import { AYLUL_HARNESS, CliMenu } from './cli-picker'
 import { Composer } from './composer'
 import { DEFAULT_HARNESS } from './conversation'
@@ -169,6 +169,8 @@ function draftSession(harness: string, allowed: string[] | undefined, provider?:
   if (allowed === undefined) return { state: 'connecting' }
   const policy = policyOf(harness)
   const choices: SessionChoices = {
+    // Drafts stage files locally; the opened session and Core judge the first send.
+    capabilities: { image: true, image_reason: null },
     current: {
       mode: policy.initial ?? policy.modes[0]?.id ?? '',
       model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!.id,
@@ -209,7 +211,7 @@ function useFirstSend(projectId: string, harness: string, planId?: string, profi
     }
   }, [])
 
-  return async (commandId: string, text: string, chosen: TurnSettings): Promise<string> => {
+  return async (commandId: string, text: string, chosen: TurnSettings, images: PendingImage[], changed: () => void): Promise<string> => {
     const request = { title: DRAFT_TITLE, harness, ...(profile === undefined ? {} : { profile }) }
     create.current = attemptFor(create.current, request)
     const thread = await createThread(projectId, { ...request, command_id: create.current.commandId })
@@ -232,18 +234,24 @@ function useFirstSend(projectId: string, harness: string, planId?: string, profi
         choices = await changeModel(thread.id, chosen.model)
       }
       settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
+      if (images.length > 0 && !choices.capabilities.image) {
+        throw new Error(choices.capabilities.image_reason ?? 'This session does not support images.')
+      }
+      const attachments = await uploadImages(thread.id, images, changed)
       const operationId = await startTurn(thread.id, commandId, text, settings, {
         plan: planId ?? null,
         clientTab: tabId(),
+        attachments,
       })
       void open()
       return operationId
     } catch (error) {
       // The thread page's composer fingerprints what it sends the same way,
       // so sending the same text and settings there replays this command.
-      const request = { text, settings: settings ?? chosen, focus: null, ...(planId === undefined ? {} : { plan: planId }) }
+      const request = { text, settings: settings ?? chosen, ...(images.length === 0 ? {} : { attachments: images.map(image => image.key) }), focus: null, ...(planId === undefined ? {} : { plan: planId }) }
       carrySend(thread.id, {
         text,
+        images,
         attempt: attemptFor(null, request, () => commandId),
         error: error instanceof Error ? error : new Error(String(error)),
         planId,

@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeChoices, threadFixture } from '@/test/contract-fixtures'
-import { forkThread, openSession, setProjectModes, setThreadHarness, startTurn } from './client'
+import { attachmentUrl, uploadAttachment, forkThread, openSession, setProjectModes, setThreadHarness, startTurn } from './client'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -64,4 +64,23 @@ describe('client', () => {
       { command_id: 'cmd-f', at_entry_id: 'e9' },
     ])
   })
+})
+
+
+it('uploadAttachment sends multipart and attachmentUrl encodes byte-route ids', async () => {
+  const file = new File(['image bytes'], 'screen.png', { type: 'image/png' })
+  vi.stubGlobal('fetch', async (request: Request) => {
+    expect(request.method).toBe('POST')
+    expect(new URL(request.url).pathname).toBe('/api/threads/t1/attachments')
+    expect(request.headers.get('content-type')).toContain('multipart/form-data; boundary=')
+    const body = await request.formData()
+    expect(body.get('command_id')).toBe('upload-1')
+    const uploaded = body.get('file') as File
+    expect(uploaded.name).toBe('screen.png')
+    expect(uploaded.type).toBe('image/png')
+    expect(await uploaded.text()).toBe('image bytes')
+    return Response.json({ id: 'image-1', media_type: uploaded.type, byte_len: uploaded.size, name: uploaded.name })
+  })
+  expect(await uploadAttachment('t1', 'upload-1', file)).toMatchObject({ id: 'image-1', name: 'screen.png' })
+  expect(attachmentUrl('thread/one', 'image two')).toMatch(/\/api\/threads\/thread%2Fone\/attachments\/image%20two$/)
 })

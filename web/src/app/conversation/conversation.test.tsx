@@ -36,6 +36,7 @@ const DAEMON = {
       author: { kind: 'User', id: 'local' },
       body: 'Plan the thing',
       refs: [],
+      attachments: [],
       created_at: 'x',
     },
   ],

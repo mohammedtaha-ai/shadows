@@ -85,6 +85,7 @@ shapes:
     entryId: string
   CarriedSend:
     # A draft's first message whose turn failed once its thread existed.
+    images: "PendingImage[] | undefined; files, upload commands, answers and errors"
     text: string
     # The failed turn's command, as `attemptFor` would have made it.
     attempt: Attempt
@@ -100,7 +101,7 @@ shapes:
       message: string }"
   SendTo:
     # Where Send goes: an open thread's next turn, or a draft that makes the thread first.
-    values: "{ threadId: string } | { draft: (commandId, text, settings) => Promise<string>;
+    values: "{ threadId: string } | { draft: (commandId, text, settings, images, changed) => Promise<string>;
       planId?: string; selectableModels?: boolean }"
     # selectableModels: an agent draft, whose Model menu works before a session exists.
   Shown:
@@ -115,7 +116,7 @@ shapes:
 
 enums:
   SessionChoices:
-    source: "web/src/api/client.ts (SessionChoices: current, modes, models, efforts)"
+    source: "web/src/api/client.ts (SessionChoices: current, modes, models, efforts, capabilities)"
     values: []
   TurnSettings:
     source: "web/src/api/client.ts (TurnSettings: mode, model, effort)"
@@ -133,7 +134,7 @@ enums:
     source: web/src/api/client.ts
     values: []
   ThreadEntry:
-    source: "web/src/api/client.ts (fields incl. kind, ordinal, body, card, refs, operation_id)"
+    source: "web/src/api/client.ts (fields incl. kind, ordinal, body, card, refs, operation_id, attachments)"
     values: []
   Operation:
     source: "web/src/api/client.ts (fields incl. status_kind, cancel_requested_at, invocation)"
@@ -201,6 +202,7 @@ components:
       note: string | null; ring?:
       ReactNode; opened?: 'model' | 'effort' | null; onOpened?: (opened: 'model' | 'effort' | null)
       => void; onSlashCommands: () => void; onPlugins?: () => void;
+      onPhotos: () => void; imageReason: string | null;
       messageBox: RefObject<HTMLTextAreaElement | null> }) => JSX.Element"
     # The row under the box: Add, Mode, folder, Model, Effort and the ring. Every setting menu is
     # built from the session's choices. The effort menu is disabled until the session
@@ -415,11 +417,11 @@ queries_and_mutations:
     # Module-level map: a draft that failed after its thread existed hands its text here.
   useFirstSend:
     signature: "(projectId: string, harness: string, planId?: string, profile?: string) =>
-      (commandId: string, text: string, chosen: TurnSettings) => Promise<string>"
+      (commandId: string, text: string, chosen: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>"
     private: true
     # Creates the thread (with `profile` under an agent), opens its session, applies the
     # model chosen in the draft when it differs and takes that answer's effort,
-    # starts the turn, and only then navigates. The thread page reads Core's choices.
+    # uploads the staged images, starts the turn, and only then navigates. The thread page reads Core's choices.
     # On a later failure it carries the send to the thread page and rethrows.
 
 
@@ -596,14 +598,14 @@ obligations:
       - "Slash commands from Add uses the latest harness list and adds no commands"
 
   - rule: >
-      Add opens a Base UI dropdown. Add photos is disabled with Comes with F-25; folders
-      and connectors are absent. Plugins is present only for the conversation's live AYLUL
+      Add opens a Base UI dropdown. Add photos follows capabilities.image and shows Core's
+      image_reason when disabled; folders and connectors are absent. Plugins is present only for the conversation's live AYLUL
       agent and opens that agent's settings, including Plugins & Skills. Dismissing Add or
       closing settings returns focus to Message after the dialog unmounts, so its exit
       animation cannot restore focus to the sidebar afterward. Disabled Add items remain
       keyboard focusable so their reason can be read.
     tested_by:
-      - "Add shows disabled photos with its reason and omits project Plugins, folders and connectors"
+      - "Add shows Core image refusal and omits project Plugins, folders and connectors"
       - "Add opens with Enter, arrows reach Slash commands and Escape returns to Message"
       - "Plugins opens this conversations AYLUL agent settings and closing with %s returns to Message"
 
@@ -946,20 +948,19 @@ agreements:
       draft's command and is not a new turn
     holds: true
     why: >
-      The draft's catch builds its attempt from the same text, settings and plan; the thread
+      The draft's catch builds its attempt from the same text, settings, plan and stable image keys; the thread
       page's composer takes it as `carried.attempt`.
     tested_by: "carries the selected plan and command into a failed first-send retry"
 
-  - between: [useFirstSend (writeSaved sessionKey), useSession]
+  - between: [useFirstSend, useSession]
     must: >
-      share one session cache entry, so the thread page does not open the session again
+      read authoritative session choices after the draft navigates to its thread
     holds: true
     why: >
-      The draft writes the opened choices under the thread's session key, and useSession holds
-      them with staleTime Infinity.
-    tested_by: none
-    note: >
-      Holds by code reading. No test counts POST /session after the navigation.
+      useFirstSend opens the session directly without seeding the query cache. The thread
+      page's useSession opens it again and reads Core's current choices, including the mode
+      remembered by the first turn and its image capabilities.
+    tested_by: "the mode chosen in the draft stays on the thread page and runs the second turn"
 
   - between: [turnReducer, reply shownReply]
     must: >
@@ -1422,3 +1423,28 @@ tests:
     checks: With no live agent, the conversation shows its history and "Deleted agent".
 
 provider_models: Agent drafts project provider model objects into picker choices by id.
+
+
+image_attachments:
+  owner: "Composer; PendingImage in carried-send.ts carries file identity, upload command, answer, error and in-flight promise"
+  uploadImages: "carried-send.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
+  intake: "Paste, drop, Add photos and Ctrl+U share addImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
+  validation: "Core alone accepts content, media type and size. No frontend type list or size limit. Session capabilities disable intake with image_reason. Draft capability is provisional until the first opened session answers."
+  previews: "Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
+  sending: "Send awaits uploads; empty text with images is valid; send/queue carries ordered ids. Text and images survive failure. Only accepted sends remove images. Files cannot change during a pending send."
+  replay: "Stable local image keys participate in the turn attempt; upload command ids survive retries and draft handoff. A command conflict requires a fresh id on the next explicit retry."
+  tests:
+    - "%s uploads immediately with a removable thumbnail"
+    - "ordinary text paste keeps the browser paste behavior"
+    - "Send waits for uploads and sends image-only ids in selection order"
+    - "a failed upload keeps text and images with Core reason and retries the same upload command"
+    - "a refused send keeps text and images and replays the same ordered command"
+    - "Core capability disables image paste, drop and Ctrl+U with its reason"
+    - "removing an uploading image prevents its late answer from being sent"
+    - "draft first-send images survive %s"
+    - "the transcript renders ordered message images from the thread byte route"
+    - "queue preserves ordered image ids and Send now uses the saved queued images"
+    - "command conflict retains the message and makes the next explicit send a new command"
+    - "a refused queue keeps text and images and its unchanged retry command"
+    - "an upload command conflict needs an explicit retry with a fresh command"
+    - "the draft keeps staged images when its opened session refuses images"

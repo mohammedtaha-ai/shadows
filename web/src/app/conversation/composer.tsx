@@ -4,7 +4,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { ArrowUp, Square } from 'lucide-react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import {
   type Focus,
   type SessionChoices,
@@ -15,6 +15,7 @@ import {
   queueMessage,
   startTurn,
   stopTurn,
+  attachmentUrl,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
@@ -26,7 +27,7 @@ import {noteCompanionSend,useCompanionSendProblem} from '@/desktop/companion-sen
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
 import { useOpenSettings } from '../settings/use-settings'
-import type { CarriedSend } from './carried-send'
+import { uploadImages, retryImageUpload, type CarriedSend, type PendingImage } from './carried-send'
 import { AYLUL_HARNESS } from './cli-picker'
 import { ComposerBar } from './composer-bar'
 import { FocusChip, type PointedTask } from './focus-chip'
@@ -41,11 +42,12 @@ import { type SessionView, sessionKey } from './use-session'
  * whose `draft` makes the thread first and answers the turn's operation. */
 export type SendTo =
   | { threadId: string }
-  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string>; planId?: string; selectableModels?: boolean }
+  | { draft: (commandId: string, text: string, settings: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>; planId?: string; selectableModels?: boolean }
 
 const NONE: readonly SlashCommand[] = []
 
 interface Send {
+  images: PendingImage[]
   commandId: string
   text: string
   settings: TurnSettings
@@ -93,6 +95,9 @@ export function Composer({
   /** The live AYLUL agent whose settings belong to this conversation. */
   agentProfile?: string
 }) {
+  const filePicker = useRef<HTMLInputElement | null>(null)
+  const [images, setImages] = useState<PendingImage[]>(carried?.images ?? [])
+  const imagesChanged = () => setImages(now => [...now])
   const messageBox = useRef<HTMLTextAreaElement | null>(null)
   const returnFromPlugins = useRef(false)
   const { settings: settingsSection } = useSearch({ from: '__root__' })
@@ -132,14 +137,19 @@ export function Composer({
   const pending = useRef<Attempt | null>(carried?.attempt ?? null)
 
   const send = useMutation({
-    mutationFn: async ({ commandId, text, settings, pointed, planId }: Send) =>{
-      if('draft' in to)return to.draft(commandId,text,settings)
+    mutationFn: async ({ commandId, text, settings, pointed, planId, images }: Send) =>{
+      if('draft' in to)return to.draft(commandId,text,settings,images,imagesChanged)
+      const attachments = await uploadImages(to.threadId, images, imagesChanged)
       await noteCompanionSend(to.threadId)
       return startTurn(to.threadId,commandId,text,settings,{
-        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),
+        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),attachments,
       })
     },
-    onSuccess: (operationId, { pointed }) => {
+    onError: error => {
+      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT') pending.current = null
+    },
+    onSuccess: (operationId, { pointed, images: sent }) => {
+      setImages(now => now.filter(image => !sent.includes(image)))
       pending.current = null
       setContinuedPlan(undefined)
       setPrompt('')
@@ -152,20 +162,24 @@ export function Composer({
   // hold; it is sent when the turn ends or by Send now.
   const queryClient = useQueryClient()
   const queue = useMutation({
-    mutationFn: async ({commandId,text,settings,pointed,planId}:Send)=>{
+    mutationFn: async ({commandId,text,settings,pointed,planId,images}:Send)=>{
+      const attachments = await uploadImages(threadId as string, images, imagesChanged)
       await noteCompanionSend(threadId as string)
       return queueMessage(threadId as string,commandId,text,settings,{
-        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),
+        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),attachments,
       })
     },
-    // The composer stays open while a turn runs, so it is cleared when Enter
-    // queues, not when the answer comes: the next message may be typed by
-    // then. A refused queue puts the text back if nothing new was typed.
-    onSuccess: () => {
+    // Enter clears the queued text so the next message can be typed. A refusal
+    // restores it if nothing new was typed; images stay until Core accepts them.
+    onSuccess: (_answer, { images: sent }) => {
+      setImages(now => now.filter(image => !sent.includes(image)))
       pending.current = null
       void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId as string).queryKey })
     },
-    onError: (_error, { text }) => setPrompt((now) => (now === '' ? text : now)),
+    onError: (error, { text }) => {
+      setPrompt(now => now === '' ? text : now)
+      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT') pending.current = null
+    },
   })
 
   // The `/` menu: open while the whole text is `/name`; Escape closes
@@ -319,30 +333,84 @@ export function Composer({
     const command = sessionCommand(prompt, choices)
     if (command !== null) return act(command)
     const text = prompt.trim()
-    if (text === '' || !ready || settings === null || send.isPending || queue.isPending) return
+    if ((text === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || settings === null || send.isPending || queue.isPending) return
     setSlashFromMenu(false)
     // The focus is part of the command: pointing elsewhere is a new one.
     setCarriedError(null)
     switchEffort.reset()
-    pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
-    const args = { commandId: pending.current.commandId, text, settings, pointed, planId }
+    pending.current = attemptFor(pending.current, { text, settings, ...(images.length === 0 ? {} : { attachments: images.map(image => image.key) }), focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
+    const args = { commandId: pending.current.commandId, text, settings, pointed, planId, images: [...images] }
     if (running !== null && threadId !== null) {
       queue.mutate(args)
       setPrompt('')
     } else send.mutate(args)
   }
 
+  const imageReason = choices === null ? 'The session is not ready yet.'
+    : !choices.capabilities.image ? choices.capabilities.image_reason ?? 'This session does not support images.' : null
+  const addImages = (files: File[]) => {
+    if (imageReason !== null) {
+      setCarriedError(new Error(imageReason))
+      return
+    }
+    if (send.isPending || queue.isPending) return
+    const added = files.map(file => ({ key: crypto.randomUUID(), file }))
+    pending.current = null
+    setImages(now => [...now, ...added])
+    if (threadId !== null) void uploadImages(threadId, added, imagesChanged).catch(() => {})
+  }
+  const pickPhotos = () => {
+    if (imageReason === null && !send.isPending && !queue.isPending) filePicker.current?.click()
+    else if (imageReason !== null) setCarriedError(new Error(imageReason))
+  }
+
   const error = send.error ?? queue.error ?? stop.error ?? switchMode.error ?? switchEffort.error ?? carriedError
 
   return (
     <div className="border-t border-border bg-background/95 px-6 pt-3 pb-4 backdrop-blur-md">
-      <div className="mx-auto max-w-3xl space-y-2">
+      <div className="mx-auto max-w-3xl space-y-2"
+        onKeyDown={e => {
+          if (e.ctrlKey && e.key.toLowerCase() === 'u') {
+            e.preventDefault()
+            pickPhotos()
+          }
+        }}
+        onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault() }}
+        onDrop={e => {
+          if (e.dataTransfer.files.length === 0) return
+          e.preventDefault()
+          addImages(Array.from(e.dataTransfer.files))
+        }}
+      >
+        <input ref={filePicker} type="file" accept="image/*" multiple hidden aria-label="Add photos"
+          disabled={imageReason !== null || send.isPending || queue.isPending}
+          onChange={e => { addImages(Array.from(e.target.files ?? [])); e.target.value = '' }} />
+        {images.length > 0 && <ul aria-label="Images" className="flex flex-wrap gap-2">
+          {images.map(image => <li key={image.key} className="max-w-40 space-y-1 text-xs">
+            <ImagePreview image={image} threadId={threadId} />
+            <p>{image.error?.message ?? (image.attachment ? 'Uploaded' : threadId === null ? 'Ready to upload on send' : 'Uploading...')}</p>
+            {image.error && threadId !== null && <button type="button" disabled={send.isPending || queue.isPending}
+              onClick={() => {
+                void retryImageUpload(threadId, image, imagesChanged).catch(() => {})
+              }}>Retry {image.file.name}</button>}
+            <button type="button" aria-label={`Remove ${image.file.name}`} disabled={send.isPending || queue.isPending}
+              onClick={() => { pending.current = null; setImages(now => now.filter(item => item !== image)) }}>Remove</button>
+          </li>)}
+        </ul>}
+
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
         <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
           <div className="relative flex-1">
             <textarea
               ref={messageBox}
               value={prompt}
+              disabled={send.isPending}
+              onPaste={e => {
+                const files = Array.from(e.clipboardData.files)
+                if (files.length === 0) return
+                e.preventDefault()
+                addImages(files)
+              }}
               onChange={(e) => {
                 pending.current = null
                 setSlashFromMenu(false)
@@ -399,7 +467,7 @@ export function Composer({
           {running === null ? (
             <Button
               onClick={submit}
-              disabled={prompt.trim() === '' || !ready || send.isPending}
+              disabled={(prompt.trim() === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || send.isPending || queue.isPending}
               size="icon"
               aria-label="Send"
               className="rounded-lg shadow-2xs transition-transform active:scale-95"
@@ -433,6 +501,8 @@ export function Composer({
           opened={opened}
           onOpened={setOpened}
           messageBox={messageBox}
+          imageReason={imageReason}
+          onPhotos={pickPhotos}
           onSlashCommands={() => {
             setHighlighted(0)
             setDismissed(null)
@@ -517,4 +587,20 @@ function useTurnSettings(
 function focusOf(pointed: PointedTask | null): Focus | null {
   if (pointed === null) return null
   return { workflow_id: pointed.workflowId, task_id: pointed.task.id, revision: pointed.revision }
+}
+
+function ImagePreview({ image, threadId }: { image: PendingImage; threadId: string | null }) {
+  const file = image.file
+  const saved = image.attachment?.id
+  const preview = useCallback((node: HTMLImageElement | null) => {
+    if (node === null) return
+    if (saved !== undefined && threadId !== null) {
+      node.src = attachmentUrl(threadId, saved)
+      return
+    }
+    const local = URL.createObjectURL(file)
+    node.src = local
+    return () => URL.revokeObjectURL(local)
+  }, [file, saved, threadId])
+  return <img ref={preview} alt={file.name} className="size-24 rounded object-cover" />
 }

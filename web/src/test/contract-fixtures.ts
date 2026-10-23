@@ -52,6 +52,7 @@ export const codexHarness: HarnessInfo = {
 }
 
 export const fakeChoices: SessionChoices = {
+  capabilities: { image: true, image_reason: null },
   models: [choice('fake-small'), choice('fake-large')],
   efforts: [choice('low'), choice('high'), choice('max')],
   modes: [choice('acceptEdits', 'Accept edits'), choice('auto', 'Auto')],
@@ -161,6 +162,7 @@ export function entryOfKind(
     author: { kind: kind === 'UserMessage' ? 'User' : 'Agent', id: 'local' },
     body,
     refs: [],
+    attachments: [],
     card: null,
     created_at: '2026-09-24T00:00:00Z',
     operation_id: operationId,

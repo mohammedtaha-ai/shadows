@@ -38,6 +38,8 @@ export function ComposerBar({
   onSlashCommands,
   onPlugins,
   messageBox,
+  onPhotos,
+  imageReason,
 }: {
   /** The thread's harness kind, whose mode policy describes each mode. */
   harness: string
@@ -61,6 +63,8 @@ export function ComposerBar({
   onOpened?: (opened: 'model' | 'effort' | null) => void
   onSlashCommands: () => void
   onPlugins?: () => void
+  onPhotos: () => void
+  imageReason: string | null
   messageBox: RefObject<HTMLTextAreaElement | null>
 }) {
   const openingPlugins = useRef(false)
@@ -85,10 +89,10 @@ export function ComposerBar({
             side="top"
             finalFocus={() => openingPlugins.current ? false : messageBox.current}
           >
-            <DropdownMenuItem disabled title="Comes with F-25">
+            <DropdownMenuItem disabled={imageReason !== null} title={imageReason ?? 'Ctrl+U'} onClick={onPhotos}>
               <span className="flex flex-col">
                 <span>Add photos</span>
-                <span className="text-xs text-muted-foreground">Comes with F-25</span>
+                <span className="text-xs text-muted-foreground">{imageReason ?? 'Ctrl+U'}</span>
               </span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onSlashCommands}>Slash commands</DropdownMenuItem>

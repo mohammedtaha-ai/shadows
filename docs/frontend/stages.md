@@ -103,7 +103,7 @@ and OS acceptance.
 - Validation: `npm run typecheck` and `npm run lint` passed. Six menu tests written; vitest not run as instructed while the backend agent builds Rust. Browser acceptance not run.
 
 ### F-25 · Paste, drop and pick images, and send them
-- Status: todo
+- Status: done
 - Plan: none. Owner specs: §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
 - Read: `web/src/app/conversation/contract.yaml`; `composer.tsx`, `composer-bar.tsx`, `draft.tsx`, `web/src/api/client.ts`
 - Touch: `web/src/app/conversation/` (paste, drop, picker, thumbnails, sending, the transcript's images, tests, `contract.yaml`), `web/src/api/` (the calls; `schema.d.ts` via `npm run gen:api`), `web/src/test/contract-fixtures.ts` and any other shared test fixture typed from `schema.d.ts` (the new required fields only)
