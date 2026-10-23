@@ -691,6 +691,48 @@ it('ordinary text paste keeps the browser paste behavior', async () => {
   expect(app.calls.some(call => call.endsWith('/attachments'))).toBe(false)
 })
 
+it('non-image clipboard files keep browser paste behavior and mixed paste uploads only images in order', async () => {
+  const app = await start('/projects/p1/threads/t1', answers())
+  await until(ready(app))
+  imageUploads(app)
+  const text = new File(['notes'], 'notes.txt', { type: 'text/plain' })
+  expect(deliverFiles(app, 'paste', [text]).defaultPrevented).toBe(false)
+  expect(app.container.querySelector('[aria-label="Images"]')).toBeNull()
+  expect(deliverFiles(app, 'paste', [imageFile('first.png'), text, imageFile('second.png')]).defaultPrevented).toBe(true)
+  await until(() => app.container.querySelectorAll('img[src*="/attachments/"]').length === 2)
+  act(() => app.button('Send')!.click())
+  await until(() => turnStarts(app) === 1)
+  expect(app.bodies.at(-1)).toMatchObject({ attachments: ['first.png', 'second.png'] })
+  expect(app.calls.filter(call => call.endsWith('/attachments'))).toHaveLength(2)
+})
+
+it('switching conversations revokes local previews and ignores the old upload answer', async () => {
+  const app = await start('/projects/p1/threads/t1', {
+    ...answers(),
+    'GET /api/projects/p1/threads': [threadFixture, { ...threadFixture, id: 't2' }],
+    'POST /api/threads/t2/session': fakeChoices,
+    'GET /api/threads/t2/entries': [],
+    'GET /api/threads/t2/operations': [],
+    'GET /api/threads/t2/queue': [],
+    'POST /api/threads/t2/turns': () => Response.json({ operation_id: 'op2' }, { status: 202 }),
+  })
+  await until(ready(app))
+  let finish!: () => void
+  imageUploads(app, async () => new Promise<Response>(resolve => { finish = () => resolve(Response.json({ id: 'old-image', media_type: 'image/png', byte_len: 1 })) }))
+  deliverFiles(app, 'paste', [imageFile()])
+  await until(() => finish !== undefined)
+  const { router } = await import('@/router')
+  await act(() => router.navigate({ to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't2' } }))
+  await until(() => app.calls.includes('GET /api/threads/t2/operations') && app.button('fake-large') !== undefined)
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:fixture-preview')
+  act(() => finish())
+  typeInto(textarea(app), 'Another conversation')
+  act(() => app.button('Send')!.click())
+  await until(() => app.calls.includes('POST /api/threads/t2/turns'))
+  expect(app.bodies.at(-1)).toMatchObject({ prompt: 'Another conversation', attachments: [] })
+  expect(app.container.querySelector('[aria-label="Images"]')).toBeNull()
+})
+
 it('Send waits for uploads and sends image-only ids in selection order', async () => {
   const app = await start('/projects/p1/threads/t1', answers())
   await until(ready(app))
@@ -877,6 +919,30 @@ it('a refused queue keeps text and images and its unchanged retry command', asyn
   enter()
   await until(() => requests.length === 2)
   expect(requests[1]).toEqual(requests[0])
+})
+
+it('a queue waiting for an upload keeps the full message locked until Core refuses it', async () => {
+  const app = await start('/projects/p1/threads/t1', {
+    ...answers({ operations: [runningOperation()] }),
+    'GET /api/threads/t1/queue': [],
+    'POST /api/threads/t1/queue': () => Response.json({ code: 'INVALID_COMMAND', message: 'Queue refused' }, { status: 422 }),
+  })
+  await until(ready(app))
+  await until(() => app.button('Stop') !== undefined)
+  let finish!: () => void
+  imageUploads(app, async () => new Promise<Response>(resolve => { finish = () => resolve(Response.json({ id: 'image', media_type: 'image/png', byte_len: 1 })) }))
+  typeInto(textarea(app), 'Keep all of this')
+  deliverFiles(app, 'paste', [imageFile()])
+  await until(() => finish !== undefined)
+  act(() => textarea(app).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+  await until(() => textarea(app).disabled)
+  expect(textarea(app).value).toBe('Keep all of this')
+  expect(app.button('Remove screen.png')?.disabled).toBe(true)
+  act(() => finish())
+  await until(() => app.text().includes('Queue refused'))
+  expect(textarea(app).disabled).toBe(false)
+  expect(textarea(app).value).toBe('Keep all of this')
+  expect(app.button('Remove screen.png')?.disabled).toBe(false)
 })
 
 

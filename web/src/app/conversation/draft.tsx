@@ -16,6 +16,7 @@ import {
   startTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
+import { ApiError } from '@/api/error'
 import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
 import {noteCompanionSend} from '@/desktop/companion-send'
 import { tabId } from '@/stream/tab-id'
@@ -252,7 +253,7 @@ function useFirstSend(projectId: string, harness: string, planId?: string, profi
       carrySend(thread.id, {
         text,
         images,
-        attempt: attemptFor(null, request, () => commandId),
+        attempt: attemptFor(null, request, error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT' ? undefined : () => commandId),
         error: error instanceof Error ? error : new Error(String(error)),
         planId,
       })

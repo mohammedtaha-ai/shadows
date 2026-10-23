@@ -143,11 +143,12 @@ describe('leaving a draft while it sends', () => {
 })
 
 
-it.each(['success', 'upload refusal', 'turn refusal'] as const)('draft first-send images survive %s', async outcome => {
+it.each(['success', 'upload refusal', 'turn refusal', 'turn command conflict'] as const)('draft first-send images survive %s', async outcome => {
   const requests: Record<string, unknown>[] = []
   const routes = answers({ start: async (request: Request) => {
     requests.push(await request.json() as Record<string, unknown>)
     if (outcome === 'turn refusal' && requests.length === 1) return Response.json({ code: 'INVALID_COMMAND', message: 'Core refused the first image turn' }, { status: 422 })
+    if (outcome === 'turn command conflict' && requests.length === 1) return Response.json({ code: 'COMMAND_CONFLICT', message: 'Core refused the first image turn' }, { status: 409 })
     return Response.json({ operation_id: 'op1' }, { status: 202 })
   } })
   routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
@@ -192,11 +193,16 @@ it.each(['success', 'upload refusal', 'turn refusal'] as const)('draft first-sen
     await until(() => app.button('Send')?.disabled === false)
     act(() => app.button('Send')!.click())
   }
-  await until(() => requests.length === (outcome === 'turn refusal' ? 2 : 1))
+  await until(() => requests.length === (outcome === 'turn refusal' || outcome === 'turn command conflict' ? 2 : 1))
   expect(requests.at(-1)).toMatchObject({ prompt: 'My first images', attachments: ['first.png', 'second.png'] })
   expect(app.calls.filter(call => call === 'POST /api/projects/p1/threads')).toHaveLength(1)
   expect(uploads).toBe(outcome === 'upload refusal' ? 3 : 2)
   if (outcome === 'turn refusal') expect(requests[1]).toEqual(requests[0])
+  if (outcome === 'turn command conflict') {
+    expect(requests[1]?.command_id).not.toBe(requests[0]?.command_id)
+    expect(requests[1]).toEqual({ ...requests[0], command_id: requests[1]?.command_id })
+  }
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:draft-preview')
   expect(app.calls.indexOf('POST /api/threads/t1/attachments')).toBeLessThan(app.calls.indexOf('POST /api/threads/t1/turns'))
 })
 

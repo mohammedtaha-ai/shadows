@@ -926,9 +926,10 @@ obligations:
   - rule: >
       A waiting-message retry (Send now, Remove) carries one command id per request, so the daemon
       can recognize the same request.
-    tested_by: none
+    tested_by: "Send now preserves queued images and retries %s with the correct command"
     note: >
-      Violated: see the gap at WaitingMessages. Recorded here so the rule is visible to a reviewer.
+      Send now keeps its key per queued message until accepted, except a command conflict
+      makes the next explicit retry a new command. Remove still has the gap below.
 
 
 # ── agreements ───────────────────────────────────────────────────────────────
@@ -1029,9 +1030,8 @@ gaps:
 
   - at: WaitingMessages
     gap: >
-      Send now and Remove each take a new crypto.randomUUID() per press. A retry after a lost
-      response carries a new command id, so the daemon cannot recognize it as the same request. Send
-      in Composer reuses its command id through attemptFor; this does not.
+      Remove takes a new crypto.randomUUID() per press. A retry after a lost response carries
+      a new command id, so the daemon cannot recognize it as the same request.
 
   - at: ContextRing
     gap: >
@@ -1428,14 +1428,16 @@ provider_models: Agent drafts project provider model objects into picker choices
 image_attachments:
   owner: "Composer; PendingImage in carried-send.ts carries file identity, upload command, answer, error and in-flight promise"
   uploadImages: "carried-send.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
-  intake: "Paste, drop, Add photos and Ctrl+U share addImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
+  intake: "Paste intercepts only image clipboard files in clipboard order; other paste keeps browser behavior. Paste, drop, Add photos and Ctrl+U share addImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
   validation: "Core alone accepts content, media type and size. No frontend type list or size limit. Session capabilities disable intake with image_reason. Draft capability is provisional until the first opened session answers."
   previews: "Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
-  sending: "Send awaits uploads; empty text with images is valid; send/queue carries ordered ids. Text and images survive failure. Only accepted sends remove images. Files cannot change during a pending send."
+  sending: "Send awaits uploads; empty text with images is valid; send/queue carries ordered ids. Text and images survive failure. Only accepted sends clear text and images. Text and files cannot change during a pending send or queue request."
   replay: "Stable local image keys participate in the turn attempt; upload command ids survive retries and draft handoff. A command conflict requires a fresh id on the next explicit retry."
   tests:
     - "%s uploads immediately with a removable thumbnail"
     - "ordinary text paste keeps the browser paste behavior"
+    - "non-image clipboard files keep browser paste behavior and mixed paste uploads only images in order"
+    - "switching conversations revokes local previews and ignores the old upload answer"
     - "Send waits for uploads and sends image-only ids in selection order"
     - "a failed upload keeps text and images with Core reason and retries the same upload command"
     - "a refused send keeps text and images and replays the same ordered command"
@@ -1446,5 +1448,7 @@ image_attachments:
     - "queue preserves ordered image ids and Send now uses the saved queued images"
     - "command conflict retains the message and makes the next explicit send a new command"
     - "a refused queue keeps text and images and its unchanged retry command"
+    - "a queue waiting for an upload keeps the full message locked until Core refuses it"
+    - "Send now preserves queued images and retries %s with the correct command"
     - "an upload command conflict needs an explicit retry with a fresh command"
     - "the draft keeps staged images when its opened session refuses images"

@@ -169,15 +169,15 @@ export function Composer({
         focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),attachments,
       })
     },
-    // Enter clears the queued text so the next message can be typed. A refusal
-    // restores it if nothing new was typed; images stay until Core accepts them.
+    // Keep the complete message until Core accepts it, so a refusal cannot
+    // lose its text while the images remain selected.
     onSuccess: (_answer, { images: sent }) => {
       setImages(now => now.filter(image => !sent.includes(image)))
+      setPrompt('')
       pending.current = null
       void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId as string).queryKey })
     },
-    onError: (error, { text }) => {
-      setPrompt(now => now === '' ? text : now)
+    onError: (error) => {
       if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT') pending.current = null
     },
   })
@@ -342,7 +342,6 @@ export function Composer({
     const args = { commandId: pending.current.commandId, text, settings, pointed, planId, images: [...images] }
     if (running !== null && threadId !== null) {
       queue.mutate(args)
-      setPrompt('')
     } else send.mutate(args)
   }
 
@@ -404,9 +403,9 @@ export function Composer({
             <textarea
               ref={messageBox}
               value={prompt}
-              disabled={send.isPending}
+              disabled={send.isPending || queue.isPending}
               onPaste={e => {
-                const files = Array.from(e.clipboardData.files)
+                const files = Array.from(e.clipboardData.files).filter(file => file.type.startsWith('image/'))
                 if (files.length === 0) return
                 e.preventDefault()
                 addImages(files)

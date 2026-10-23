@@ -62,3 +62,24 @@ it('queues on Enter while a turn runs, and offers Send now and Remove', async ()
   await act(async () => a.button('Remove')?.click())
   await until(() => a.calls.includes('DELETE /api/threads/t1/queue/q1'))
 })
+
+it.each(['INVALID_COMMAND', 'COMMAND_CONFLICT'] as const)('Send now preserves queued images and retries %s with the correct command', async code => {
+  const requests: { command_id: string }[] = []
+  const a = app = await startApp('/projects/p1/threads/t1', {
+    ...DAEMON,
+    'GET /api/threads/t1/queue': [{ ...waiting, attachments: ['image-1', 'image-2'] }],
+    'POST /api/threads/t1/queue/q1/send-now': async (request: Request) => {
+      requests.push(await request.json() as { command_id: string })
+      return requests.length === 1 ? Response.json({ code, message: 'Core refused Send now' }, { status: 409 })
+        : Response.json({ status: 'steered', entry_id: 'e9' }, { status: 202 })
+    },
+  })
+  await until(() => a.button('Send now') !== undefined)
+  act(() => a.button('Send now')!.click())
+  await until(() => a.text().includes('Core refused Send now') && a.button('Send now')?.disabled === false)
+  expect(a.container.querySelectorAll('img[alt="Queued image"]')).toHaveLength(2)
+  act(() => a.button('Send now')!.click())
+  await until(() => requests.length === 2)
+  if (code === 'COMMAND_CONFLICT') expect(requests[1]?.command_id).not.toBe(requests[0]?.command_id)
+  else expect(requests[1]).toEqual(requests[0])
+})
