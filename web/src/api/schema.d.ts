@@ -1327,6 +1327,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/session/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Remembers the conversation's mode. A running turn keeps its current mode. */
+        put: operations["change_mode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/session/model": {
         parameters: {
             query?: never;
@@ -1658,6 +1675,10 @@ export interface components {
         ChangeEffort: {
             /** @description One of the session's `efforts`, for the model it holds. */
             effort: string;
+        };
+        ChangeMode: {
+            command_id: string;
+            mode: string;
         };
         /** @description The model a person picked (spec §12.7). */
         ChangeModel: {
@@ -7350,6 +7371,77 @@ export interface operations {
                 };
             };
             /** @description HARNESS_START_FAILED: the adapter did not start, or its session closed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    change_mode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeMode"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionChoices"];
+                };
+            };
+            /** @description MODE_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT; PATH_NOT_FOUND */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED; HARNESS_UNAVAILABLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED */
             502: {
                 headers: {
                     [name: string]: unknown;
