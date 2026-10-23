@@ -550,8 +550,9 @@ struct Attachment {
 
 - **Owner:** `Threads`. It stores the bytes and the record; no other service writes them.
 - **Upload is its own command** (`POST /api/threads/{id}/attachments`, a `CommandId`, the
-  bytes). It checks the media type by content, not by name, and a size limit; it answers
-  the `AttachmentId`. An attachment is immutable: a new paste is a new attachment.
+  bytes). It checks the media type by content, not by name (PNG, JPEG, GIF, WebP), and a
+  size limit of 5 MiB (5 242 880 bytes) per image, the limit the model providers accept;
+  over it the upload is refused before anything is written. It answers the `AttachmentId`. An attachment is immutable: a new paste is a new attachment.
 - **A message names its attachments in order.** A turn start, a queued message and a
   steered message carry `attachments: [AttachmentId]` beside their text; the ids are part
   of the command fingerprint, and each must belong to the same thread. The user entry
