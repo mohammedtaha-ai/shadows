@@ -1,7 +1,7 @@
 //! Design's shared-agreement entry points.
 use super::{AgreementContent, AgreementId, AgreementVersion, Design};
-use crate::db::CommandContext;
 use crate::{CoreError, ErrorCode, ProjectId};
+use core_db::CommandContext;
 
 impl Design {
     pub async fn agreements(

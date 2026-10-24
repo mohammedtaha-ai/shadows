@@ -1,11 +1,8 @@
 //! Immutable project standards additions over the shared storage handle.
 
 use super::{Standards, StandardsAdditions, StandardsAdditionsVersion};
-use crate::db::{
-    Actor, CommandContext, JournalEntry, Storage, StorageError, append_event, classify, now,
-    record_command,
-};
 use crate::projects::{ProjectId, Projects};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use sqlx::SqliteConnection;
 use std::sync::Arc;
 
@@ -26,11 +23,18 @@ impl StandardsStore {
         project: &ProjectId,
         content: &StandardsAdditions,
     ) -> Result<StandardsAdditionsVersion, StorageError> {
-        let (ctx, project, content, ts) = (ctx.clone(), project.clone(), content.clone(), now());
+        let (ctx, project, content, ts) = (
+            ctx.clone(),
+            project.clone(),
+            content.clone(),
+            Storage::now(),
+        );
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
+                    if let Some(id) =
+                        CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
+                    {
                         return load_version(conn, &id).await;
                     }
                     Standards::validate(&content).map_err(StorageError::Constraint)?;
@@ -68,8 +72,8 @@ impl StandardsStore {
                         correlation_id: None,
                         payload_json: serde_json::json!({"number": number}).to_string(),
                     };
-                    append_event(conn, event, &ts).await?;
-                    record_command(
+                    JournalEntry::append_event(conn, event, &ts).await?;
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Project",
@@ -160,7 +164,7 @@ async fn load_version(
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use super::Standards;
-    use crate::db::StorageError;
+    use core_db::StorageError;
 
     #[tokio::test]
     async fn additions_reads_keep_the_snapshot_and_scope_versions_to_the_project() {

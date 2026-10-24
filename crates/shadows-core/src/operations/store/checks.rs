@@ -1,6 +1,6 @@
-use crate::db::StorageError;
 use crate::operations::Operations;
 use crate::threads::{ThreadId, Threads};
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 impl Operations {
     pub(crate) async fn has_open_in(

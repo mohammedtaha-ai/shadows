@@ -254,7 +254,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: the A-0 cross-owner allowlists are empty, or each remaining line is named in this task's report with its owner; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test project_events --test resync --test stream_frames --test protocol` and `cargo test -p shadows-core --test recovery` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-19b · Extract the prepared database foundation
-- Status: doing
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-19b--extract-the-prepared-database-foundation
 - Read: A-8c's resolved ledger; prepared db boundary and storage tests; owner spec §14.12
 - Touch: Enumerated for this dispatch before implementation:
@@ -467,11 +467,36 @@ are reference material; they do not replace the project's template or code.
     - `crates/shadows/tests/codemap/main.rs`
     - `crates/shadows/tests/image_attachments.rs`
     - `crates/shadows/tests/openapi/read_only.rs`
+    - `crates/shadows-core/src/harness/sessions.rs`
+    - `crates/shadows-core/src/turns/stage.rs`
+    - `crates/shadows-core/src/turns/steer.rs`
+    - `crates/shadows-core/src/turns/store/images.rs`
+    - `crates/shadows-core/src/turns/store/usage.rs`
+    - `crates/shadows-core/src/design/store/hierarchy.rs`
+    - `crates/shadows-core/src/design/store/outcomes.rs`
+    - `crates/shadows-core/src/design/store/outcome_edit.rs`
+    - `crates/shadows-core/src/design/store/parts.rs`
+    - `crates/shadows-core/src/design/store/part_edit.rs`
+    - `crates/shadows-core/build.rs` (move to `crates/core-db/build.rs`)
+    - `crates/shadows-core/tests/design_migration.rs`
+    - `crates/shadows-core/tests/plan_migration.rs`
+    - `crates/shadows-core/tests/profile_migration.rs`
   - Documentation: `docs/codebase/README.md`, `docs/backend/stages.md`,
     `docs/backend/plans/2026-10-21-architecture.md` (A-19b move evidence only).
   - Resolve and delete the three A-19b SQL-review allowlist records; add none.
 - Needs: A-9 to A-19 preparations complete; no domain impl Storage; persistence inputs/errors have no service dependencies
 - Done when: foundation and affected cross-service tests prove rollback, replay/conflict, cancellation recovery and after-commit notification; workspace targets compile; core-db has no dependency on shadows-core or a service
+
+- Verification (2026-10-24): exact CI awk length check, fmt, workspace clippy with all
+  targets/test-support, production clippy, production feature tree and unchanged `api/` passed.
+  `core-db`: 20 passed; assigned Core integration binaries: 31 passed; Core units: 40 passed;
+  assigned adapter binaries: 113 passed. Extra moved-migration callers: 6 passed, 1 existing ignored.
+- Scope gaps fixed: grouped foundation imports, the migration build script and three migration
+  test call sites are enumerated above. The event conversion is an explicit local method because
+  a cross-crate `From` implementation made the private event type reachable in production.
+- Allowlist: deleted all three A-19b SQL-review records and 17 foundation comment records;
+  retained the 13 unrelated ownership records (three resolve to the moved Storage type),
+  251 comments, nine public-function records and zero registration records; no new exemption.
 
 ### A-19c · Extract services in the verified order
 - Status: blocked

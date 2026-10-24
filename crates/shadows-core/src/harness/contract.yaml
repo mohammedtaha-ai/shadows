@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Adapter configuration uses ClaudeAdapter/ClaudeProfile constructors; options use Offered methods.
 # Context category parsing uses Category::parse; account reports use AccountLimits::from_report.
@@ -430,7 +431,7 @@ enums:
     source: crate::error::CoreError
     values: []
   StorageError:
-    source: crate::db::StorageError
+    source: core_db::StorageError
     values: []
   SessionChoices:
     source: shadows_agent::choices::SessionChoices

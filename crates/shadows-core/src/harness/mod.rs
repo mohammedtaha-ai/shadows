@@ -42,11 +42,11 @@ pub(crate) use model::InvocationUsage;
 pub(crate) use model::NewInvocation;
 use settings::SettingRefused;
 
-use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::extensions::Extensions;
 use crate::projects::Projects;
 use crate::threads::ThreadId;
+use core_db::{Storage, StorageError};
 
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {
@@ -115,7 +115,7 @@ impl Harness {
             .harness_fits(&context.project_id, harness)
             .await?;
         let before = context.harness;
-        let command = crate::db::CommandContext::user(
+        let command = core_db::CommandContext::user(
             command_id,
             "thread.harness",
             serde_json::json!({"thread_id": thread, "harness": harness}),
@@ -183,7 +183,7 @@ impl Harness {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             thread,
         )
         .await?;
@@ -244,7 +244,7 @@ impl Harness {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             thread,
         )
         .await?;
@@ -292,7 +292,7 @@ impl Harness {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             thread,
         )
         .await?;
@@ -363,7 +363,7 @@ impl Harness {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             thread,
         )
         .await?;

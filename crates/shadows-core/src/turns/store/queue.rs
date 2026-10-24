@@ -2,12 +2,12 @@
 
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::operations::Operations;
 use crate::plans::{Focus, PlanId};
 use crate::threads::ThreadId;
 use crate::turns::model::{QueuedMessage, QueuedMessageId};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 
 pub(super) const SCOPE: &str = "Thread";
 
@@ -75,7 +75,9 @@ impl super::TurnsStore {
         let event = DurableEvent::new(kind, actor)
             .with_thread(thread)
             .with_payload(payload);
-        append_event(conn, &event, ts).await.map(|_| ())
+        JournalEntry::append_event(conn, event.journal_entry(), ts)
+            .await
+            .map(|_| ())
     }
 }
 
@@ -111,7 +113,7 @@ impl super::TurnsStore {
         thread: &ThreadId,
         new: NewQueued<'_>,
     ) -> Result<QueueAnswer, StorageError> {
-        let (ctx, thread, ts) = (ctx.clone(), thread.clone(), now());
+        let (ctx, thread, ts) = (ctx.clone(), thread.clone(), Storage::now());
         let id = QueuedMessageId::generate();
         let attachments = new.attachments.to_vec();
         let fields = (
@@ -125,7 +127,9 @@ impl super::TurnsStore {
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
+                    if let Some(outcome) =
+                        CommandContext::classify(conn, &ctx, SCOPE, thread.as_str()).await?
+                    {
                         return Ok(QueueAnswer::Waiting(serde_json::from_str(&outcome)?));
                     }
                     crate::threads::Threads::require_live_in(conn, &thread).await?;
@@ -172,7 +176,7 @@ impl super::TurnsStore {
                     let payload = serde_json::json!({ "queued_id": id.as_str() });
                     Self::event(conn, "MessageQueued", &thread, actor, payload, &ts).await?;
                     let outcome = serde_json::to_string(&queued)?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         SCOPE,
@@ -237,11 +241,11 @@ impl super::TurnsStore {
         thread: &ThreadId,
         id: &QueuedMessageId,
     ) -> Result<(), crate::CoreError> {
-        let (ctx, thread, id, ts) = (ctx.clone(), thread.clone(), id.clone(), now());
+        let (ctx, thread, id, ts) = (ctx.clone(), thread.clone(), id.clone(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &ctx, SCOPE, thread.as_str())
+                    if CommandContext::classify(conn, &ctx, SCOPE, thread.as_str())
                         .await?
                         .is_some()
                     {
@@ -251,7 +255,7 @@ impl super::TurnsStore {
                     let actor = Actor::user(&ctx.principal_id);
                     let payload = serde_json::json!({ "queued_id": id.as_str() });
                     Self::event(conn, "QueuedMessageRemoved", &thread, actor, payload, &ts).await?;
-                    Ok(record_command(
+                    Ok(CommandContext::record_command(
                         conn,
                         &ctx,
                         SCOPE,
@@ -273,7 +277,12 @@ impl super::TurnsStore {
         id: &QueuedMessageId,
         reason: &str,
     ) -> Result<(), StorageError> {
-        let (thread, id, reason, ts) = (thread.clone(), id.clone(), reason.to_owned(), now());
+        let (thread, id, reason, ts) = (
+            thread.clone(),
+            id.clone(),
+            reason.to_owned(),
+            Storage::now(),
+        );
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -313,7 +322,7 @@ impl super::TurnsStore {
         thread: &ThreadId,
     ) -> Result<Option<QueuedMessage>, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
-        classify(&mut conn, ctx, SCOPE, thread.as_str())
+        CommandContext::classify(&mut conn, ctx, SCOPE, thread.as_str())
             .await?
             .map(|answer| serde_json::from_str(&answer).map_err(StorageError::from))
             .transpose()

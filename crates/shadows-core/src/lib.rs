@@ -1,7 +1,6 @@
 mod agents;
 mod app;
 mod code;
-mod db;
 mod design;
 mod error;
 mod events;
@@ -40,8 +39,8 @@ pub use code::{
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
 pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
-pub use db::Actor;
-pub use db::StorageError;
+pub use core_db::Actor;
+pub use core_db::StorageError;
 pub use design::StructureWritten;
 pub use design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,

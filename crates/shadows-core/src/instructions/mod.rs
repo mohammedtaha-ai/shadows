@@ -11,9 +11,9 @@ use std::sync::Arc;
 pub use model::InstructionsVersion;
 use store::InstructionsStore;
 
-use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::projects::ProjectId;
+use core_db::{CommandContext, Storage};
 
 /// Instructions: its private store over the shared storage handle.
 #[derive(Clone)]

@@ -1,6 +1,6 @@
 //! SQL for the one person row.
 use super::{Person, PersonInput, Theme};
-use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
+use core_db::{CommandContext, Storage, StorageError};
 use sqlx::Row;
 use std::sync::Arc;
 
@@ -46,7 +46,10 @@ impl PersonStore {
             .write_txn(move |conn| {
                 Box::pin(async move {
                     let (scope, key) = COMMAND_SCOPE;
-                    if classify(conn, &command, scope, key).await?.is_some() {
+                    if CommandContext::classify(conn, &command, scope, key)
+                        .await?
+                        .is_some()
+                    {
                         return Ok(());
                     }
                     let theme = match input.theme {
@@ -64,10 +67,19 @@ impl PersonStore {
                     .bind(input.aylul_calls_me)
                     .bind(input.language)
                     .bind(theme)
-                    .bind(now())
+                    .bind(Storage::now())
                     .execute(&mut *conn)
                     .await?;
-                    record_command(conn, &command, scope, key, "Profile", "person", &now()).await
+                    CommandContext::record_command(
+                        conn,
+                        &command,
+                        scope,
+                        key,
+                        "Profile",
+                        "person",
+                        &Storage::now(),
+                    )
+                    .await
                 })
             })
             .await

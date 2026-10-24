@@ -2,9 +2,9 @@
 
 use std::path::PathBuf;
 
-use crate::db::Actor;
-use crate::db::id::newtype_id;
 use crate::projects::ProjectId;
+use core_db::Actor;
+use core_db::newtype_id;
 
 newtype_id! {
     /// A planning thread has its own identity.

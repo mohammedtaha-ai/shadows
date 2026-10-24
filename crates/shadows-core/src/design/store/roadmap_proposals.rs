@@ -1,11 +1,11 @@
 //! Persist Planner roadmap proposals without approving outcomes.
 use super::DesignStore;
 use super::roadmap_shape as shape;
-use crate::db::{CommandContext, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, RoadmapAction, RoadmapProposal, RoadmapPropose};
 use crate::grants::Writer;
 use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError};
+use core_db::{CommandContext, JournalEntry, Storage};
 
 impl DesignStore {
     pub async fn propose_roadmap_in(
@@ -16,8 +16,13 @@ impl DesignStore {
         turn: &OperationId,
         mut args: RoadmapPropose,
     ) -> Result<RoadmapProposal, crate::CoreError> {
-        let (ctx, writer, p, turn, ts) =
-            (ctx.clone(), writer.clone(), p.clone(), turn.clone(), now());
+        let (ctx, writer, p, turn, ts) = (
+            ctx.clone(),
+            writer.clone(),
+            p.clone(),
+            turn.clone(),
+            Storage::now(),
+        );
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
@@ -25,7 +30,9 @@ impl DesignStore {
                         return Err(crate::grants::GrantsError::GrantScope.into());
                     };
                     crate::grants::Grants::check_writer(conn, &writer, &p).await?;
-                    if let Some(id) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
+                    if let Some(id) =
+                        CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
+                    {
                         let entry: String = sqlx::query_scalar(
                             "SELECT entry_id FROM design_roadmap_proposal WHERE id=?",
                         )
@@ -131,8 +138,8 @@ impl DesignStore {
                         .with_payload(
                             serde_json::json!({"project_id":p,"proposal_id":proposal.id}),
                         );
-                    append_event(conn, &event, &ts).await?;
-                    record_command(
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Thread",

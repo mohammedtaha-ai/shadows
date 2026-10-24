@@ -116,20 +116,20 @@ impl Harness {
     pub async fn remembered_settings(
         &self,
         kind: &str,
-    ) -> Result<Option<(String, Option<String>)>, crate::db::StorageError> {
+    ) -> Result<Option<(String, Option<String>)>, core_db::StorageError> {
         self.store.remembered_settings(kind).await
     }
     pub async fn latest_limits(
         &self,
         kind: &str,
-    ) -> Result<Option<shadows_agent::events::AccountLimits>, crate::db::StorageError> {
+    ) -> Result<Option<shadows_agent::events::AccountLimits>, core_db::StorageError> {
         self.store.latest_limits(kind).await
     }
     pub async fn record_limits(
         &self,
         kind: &str,
         limits: &shadows_agent::events::AccountLimits,
-    ) -> Result<(), crate::db::StorageError> {
+    ) -> Result<(), core_db::StorageError> {
         self.store.record_limits(kind, limits).await
     }
     #[cfg(feature = "test-support")]
@@ -141,8 +141,8 @@ impl Harness {
 #[cfg(feature = "test-support")]
 impl Harness {
     pub async fn set_thread_harness_for_test(
-        storage: &std::sync::Arc<crate::db::Storage>,
-        ctx: &crate::db::CommandContext,
+        storage: &std::sync::Arc<core_db::Storage>,
+        ctx: &core_db::CommandContext,
         thread: &ThreadId,
         harness: &str,
     ) -> Result<crate::threads::PlanningThread, CoreError> {

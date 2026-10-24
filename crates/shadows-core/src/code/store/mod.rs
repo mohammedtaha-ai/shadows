@@ -10,8 +10,8 @@ use sqlx::SqliteConnection;
 
 use super::Code;
 use super::model::{Hit, Skipped};
-use crate::db::{Storage, StorageError};
 use crate::projects::{ProjectId, Projects};
+use core_db::{Storage, StorageError};
 
 /// What `code_file` holds for one file: its stamp, and why it was not
 /// parsed, if it was not.

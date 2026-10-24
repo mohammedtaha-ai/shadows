@@ -101,7 +101,7 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
                             // the service's.
                             if matches!(m.vis, syn::Visibility::Public(_))
                                 && i.trait_.is_none()
-                                && f == dir.join("mod.rs")
+                                && (f == dir.join("mod.rs") || f == dir.join("lib.rs"))
                             {
                                 public.insert(m.sig.ident.to_string());
                             }
@@ -250,8 +250,12 @@ fn every_contract_matches_its_service() {
     let tests = all_tests();
     let mut problems = Vec::new();
     let mut found = BTreeSet::new();
-    for entry in std::fs::read_dir(&src).unwrap() {
-        let dir = entry.unwrap().path();
+    let mut directories: Vec<_> = std::fs::read_dir(&src)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    directories.push(workspace().join("crates/core-db"));
+    for dir in directories {
         let path = dir.join("contract.yaml");
         if !path.exists() {
             continue;

@@ -1,10 +1,10 @@
 //! Snapshot impact reviews and atomic person agreement.
 use super::PlansStore;
 use crate::ProjectId;
-use crate::db::{CommandContext, StorageError, now};
 use crate::design::Design;
 use crate::design::{AgreementContent, AgreementId, AgreementState, AgreementVersion};
 use crate::plans::{AgreementParticipantImpact, AgreementPartyReview, AgreementReview};
+use core_db::{CommandContext, Storage, StorageError};
 use serde_json::{Value, json};
 use sqlx::SqliteConnection;
 
@@ -149,7 +149,7 @@ impl PlansStore {
         expected_revision: i64,
         review_id: String,
     ) -> Result<AgreementVersion, StorageError> {
-        let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.clone(), now());
+        let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {

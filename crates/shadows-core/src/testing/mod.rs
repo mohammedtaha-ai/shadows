@@ -78,7 +78,7 @@ pub async fn app(db_path: std::path::PathBuf) -> anyhow::Result<Arc<AppCore>> {
 pub mod acp;
 pub mod queue;
 pub mod turn;
-pub use crate::db::write_observer::{DatabaseWrites, database_writes};
+pub use core_db::DatabaseWrites;
 
 /// The `fake-acp` binary, built once per test process. `CARGO_BIN_EXE_*`
 /// only names binaries of the test's own package, and `fake-acp` is its own
@@ -113,9 +113,9 @@ fn built(package: &str, bin: &str) -> std::path::PathBuf {
 /// The Planner's instructions, as `harness/setup` compiles them in.
 pub const PROMPT: &str = include_str!("../harness/prompt.txt");
 
-/// This crate's migrations directory.
+/// The foundation's embedded migrations directory.
 pub fn migrations_dir() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations")
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../core-db/migrations")
 }
 
 /// Plans' pure rules, which `tests/workflow_rules.rs` calls directly. They
@@ -136,9 +136,6 @@ pub use crate::turns::for_tests::{
 /// session tests open directly and `CoreParts` is built from. Private to the
 /// crate everywhere else (§14.6).
 pub use crate::app::adapter_version;
-pub use crate::db::{
-    Anchor, Causation, CommandContext, JournalEntry, Storage, append_event_for_test,
-};
 pub use crate::events::{DurableEvent, EventCursor};
 pub use crate::grants::Writer;
 pub use crate::grants::{IssuedGrant, Token};
@@ -148,6 +145,7 @@ pub use crate::projects::ProjectDirectory;
 pub use crate::runtime::Runtime;
 pub use crate::threads::{NewThreadEntry, TurnContext};
 pub use crate::turns::Bus;
+pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
 
 impl crate::code::Code {
     /// `scan`, now, on the test's task: the index a test asks about is the

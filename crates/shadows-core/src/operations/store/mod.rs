@@ -1,4 +1,4 @@
-use crate::db::Storage;
+use core_db::Storage;
 use std::sync::Arc;
 mod checks;
 mod lifecycle;

@@ -1,6 +1,6 @@
-use crate::db::StorageError;
 use crate::operations::Operations;
 use crate::runtime::{RuntimeInstanceId, StopKind};
+use core_db::StorageError;
 impl Operations {
     pub async fn recover_for_test(
         &self,

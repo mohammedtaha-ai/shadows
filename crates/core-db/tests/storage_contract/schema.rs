@@ -1,6 +1,6 @@
 //! A fresh database: its connection policy and its tables.
 
-use shadows_core::testing::Storage;
+use core_db::Storage;
 
 #[tokio::test]
 async fn fresh_database_migrates_and_applies_the_connection_policy() {

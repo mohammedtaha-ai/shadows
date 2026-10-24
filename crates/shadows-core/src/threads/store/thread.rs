@@ -3,11 +3,11 @@
 
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::projects::ProjectId;
 #[cfg(feature = "test-support")]
 use crate::threads::TurnContext;
 use crate::threads::model::{CreatedTitle, PlanningThread, ThreadId};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 
 impl super::ThreadsStore {
     /// `harness` is the thread's CLI; the caller checks it is one
@@ -25,14 +25,16 @@ impl super::ThreadsStore {
             project_id.clone(),
             title.to_string(),
             harness.to_string(),
-            now(),
+            Storage::now(),
         );
         let profile = profile.map(str::to_owned);
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
                     let scope_key = project_id.as_str().to_string();
-                    if let Some(id) = classify(conn, &ctx, "Project", &scope_key).await? {
+                    if let Some(id) =
+                        CommandContext::classify(conn, &ctx, "Project", &scope_key).await?
+                    {
                         return Ok(super::ThreadsStore::load_thread(
                             conn,
                             &ThreadId::from_stored(id),
@@ -59,7 +61,7 @@ impl super::ThreadsStore {
                         .execute(&mut *conn)
                         .await
                         .map_err(StorageError::from)?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Project",
@@ -167,9 +169,9 @@ async fn insert_thread(
     .bind(ts)
     .execute(&mut *conn)
     .await?;
-    append_event(
+    JournalEntry::append_event(
         conn,
-        crate::db::JournalEntry {
+        core_db::JournalEntry {
             event_id: uuid::Uuid::new_v4().to_string(),
             kind: "PlanningThreadCreated".into(),
             actor,
@@ -277,9 +279,9 @@ impl crate::threads::Threads {
                 }
                 _ => e.into(),
             })?;
-        append_event(
+        JournalEntry::append_event(
             conn,
-            crate::db::JournalEntry {
+            core_db::JournalEntry {
                 event_id: uuid::Uuid::new_v4().to_string(),
                 kind: "PlanningThreadHarnessChanged".into(),
                 actor,

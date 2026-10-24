@@ -3,6 +3,7 @@
 //! The watcher sends the steering request itself, and reads no events until it
 //! has the answer: a chunk of the steered reply can reach Shadows before the
 //! answer does, and it must not be written before the steered message.
+use core_db::CommandContext;
 
 use tokio::sync::oneshot;
 
@@ -12,7 +13,7 @@ use super::{
     prompt::Prompt,
     turn::{PlannerTurn, TurnWatch},
 };
-use crate::{db::CommandContext, error::CoreError, threads::ThreadEntryId};
+use crate::{error::CoreError, threads::ThreadEntryId};
 use shadows_agent::acp::Steer;
 
 /// A Send now for the running turn: `Ok(Some(entry))` is the message steered

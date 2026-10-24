@@ -123,7 +123,7 @@ async fn migrated_to(db: &std::path::Path, last: i64) -> sqlx::SqlitePool {
         .connect_with(opts)
         .await
         .unwrap();
-    let mut before = sqlx::migrate!("./migrations");
+    let mut before = sqlx::migrate!("../core-db/migrations");
     before.migrations = Cow::Owned(
         before
             .migrations

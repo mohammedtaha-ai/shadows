@@ -1,6 +1,6 @@
 //! Per-harness model and per-model effort persistence.
 use super::HarnessStore;
-use crate::db::StorageError;
+use core_db::StorageError;
 use shadows_agent::TurnSettings;
 use sqlx::SqliteConnection;
 use std::collections::HashMap;
@@ -89,7 +89,7 @@ impl HarnessStore {
     /// Test-support: remember settings without starting a turn.
     #[cfg(feature = "test-support")]
     pub async fn remember_for_test(&self, kind: &str, model: &str, effort: Option<&str>) {
-        let (kind, ts) = (kind.to_string(), crate::db::now());
+        let (kind, ts) = (kind.to_string(), core_db::Storage::now());
         let settings = TurnSettings {
             model: model.into(),
             mode: String::new(),

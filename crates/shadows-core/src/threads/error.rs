@@ -1,6 +1,6 @@
 //! Thread refusals and their stable application error mapping.
-use crate::db::StorageError;
 use crate::{CoreError, ErrorCode};
+use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ThreadsError {

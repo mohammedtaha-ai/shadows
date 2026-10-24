@@ -4,10 +4,10 @@ use super::PlansStore;
 use sqlx::SqliteConnection;
 
 use super::read::ReadRows;
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::plans::model::{PlanId, PlanState, PlanVersions, VersionLine, WorkflowId};
 use crate::projects::ProjectId;
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 
 /// Design's association check, inside the caller's serialized transaction.
 /// Archived plans remain valid identities; their versions are not touched.
@@ -46,11 +46,11 @@ impl PlansStore {
         ctx: &CommandContext,
         plan: &PlanId,
     ) -> Result<PlanVersions, StorageError> {
-        let (ctx, plan_id, ts) = (ctx.clone(), plan.clone(), now());
+        let (ctx, plan_id, ts) = (ctx.clone(), plan.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &ctx, "Plan", plan_id.as_str())
+                    if CommandContext::classify(conn, &ctx, "Plan", plan_id.as_str())
                         .await?
                         .is_some()
                     {
@@ -66,11 +66,12 @@ impl PlansStore {
                         .execute(&mut *conn)
                         .await?;
                         let actor = Actor::user(&ctx.principal_id);
-                        append_event(
+                        JournalEntry::append_event(
                             conn,
-                            &DurableEvent::new("PlanArchived", actor)
+                            DurableEvent::new("PlanArchived", actor)
                                 .with_project(&current.project_id)
-                                .with_payload(serde_json::json!({ "plan": plan_id })),
+                                .with_payload(serde_json::json!({ "plan": plan_id }))
+                                .journal_entry(),
                             &ts,
                         )
                         .await?;
@@ -84,7 +85,7 @@ impl PlansStore {
                         )
                         .await?;
                     }
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Plan",
@@ -107,11 +108,11 @@ impl PlansStore {
         ctx: &CommandContext,
         plan: &PlanId,
     ) -> Result<PlanVersions, StorageError> {
-        let (ctx, plan_id, ts) = (ctx.clone(), plan.clone(), now());
+        let (ctx, plan_id, ts) = (ctx.clone(), plan.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &ctx, "Plan", plan_id.as_str())
+                    if CommandContext::classify(conn, &ctx, "Plan", plan_id.as_str())
                         .await?
                         .is_some()
                     {
@@ -126,11 +127,12 @@ impl PlansStore {
                         .execute(&mut *conn)
                         .await?;
                         let actor = Actor::user(&ctx.principal_id);
-                        append_event(
+                        JournalEntry::append_event(
                             conn,
-                            &DurableEvent::new("PlanUnarchived", actor)
+                            DurableEvent::new("PlanUnarchived", actor)
                                 .with_project(&current.project_id)
-                                .with_payload(serde_json::json!({ "plan": plan_id })),
+                                .with_payload(serde_json::json!({ "plan": plan_id }))
+                                .journal_entry(),
                             &ts,
                         )
                         .await?;
@@ -144,7 +146,7 @@ impl PlansStore {
                         )
                         .await?;
                     }
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Plan",

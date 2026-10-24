@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns durable operation rows, lifecycle transitions, crash recovery and fork eligibility.
 # Live turns, cancellation effects, invocation observations and usage composition belong to Turns.
 # Transaction writes share the caller's transaction; only a committed Transition is logged.

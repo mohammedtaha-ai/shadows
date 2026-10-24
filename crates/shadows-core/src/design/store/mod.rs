@@ -27,7 +27,7 @@ pub(super) mod structure;
 mod vision;
 mod vision_versions;
 
-use crate::db::Storage;
+use core_db::Storage;
 use std::sync::Arc;
 
 pub(super) struct DesignStore {

@@ -1,7 +1,7 @@
 //! Grouping historical measurements by provider and model, without mutable-provider joins.
 use super::Usage;
 use super::model::{ModelUsage, ProviderUsage, UsageReport, UsageRow};
-use crate::db::StorageError;
+use core_db::StorageError;
 use std::collections::BTreeMap;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 

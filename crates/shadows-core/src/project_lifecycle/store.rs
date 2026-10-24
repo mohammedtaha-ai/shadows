@@ -2,13 +2,11 @@
 use super::error::ProjectLifecycleError;
 use crate::CoreError;
 use crate::code::Code;
-use crate::db::{
-    Actor, CommandContext, JournalEntry, Storage, append_event, classify, now, record_command,
-};
 use crate::grants::Grants;
 use crate::plans::Plans;
 use crate::projects::{Project, ProjectId, Projects};
 use crate::threads::Threads;
+use core_db::{Actor, CommandContext, JournalEntry, Storage};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -26,11 +24,11 @@ impl ProjectLifecycleStore {
         ctx: &CommandContext,
         project: &ProjectId,
     ) -> Result<Project, CoreError> {
-        let (ctx, id, ts) = (ctx.clone(), project.clone(), now());
+        let (ctx, id, ts) = (ctx.clone(), project.clone(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &ctx, "Project", id.as_str())
+                    if CommandContext::classify(conn, &ctx, "Project", id.as_str())
                         .await?
                         .is_some()
                     {
@@ -46,7 +44,7 @@ impl ProjectLifecycleStore {
                     Code::delete_code_index_in(conn, &id).await?;
                     Code::delete_code_links_in(conn, &id).await?;
                     Grants::revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
-                    append_event(
+                    JournalEntry::append_event(
                         conn,
                         JournalEntry {
                             event_id: uuid::Uuid::new_v4().to_string(),
@@ -63,7 +61,8 @@ impl ProjectLifecycleStore {
                     )
                     .await?;
                     let key = id.as_str();
-                    record_command(conn, &ctx, "Project", key, "Project", key, &ts).await?;
+                    CommandContext::record_command(conn, &ctx, "Project", key, "Project", key, &ts)
+                        .await?;
                     Ok(Projects::retained_in(conn, &id).await?)
                 })
             })

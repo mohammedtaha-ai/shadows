@@ -3,21 +3,20 @@
 use std::str::FromStr;
 use std::time::Duration;
 
-use shadows_core::Actor;
-use shadows_core::ProjectId;
-use shadows_core::testing::DurableEvent;
-use shadows_core::testing::Storage;
+use super::fixtures::Event;
+use core_db::Actor;
+use core_db::Storage;
 use sqlx::Connection;
 
 #[tokio::test]
 async fn owner_error_rolls_back_and_the_next_write_succeeds() {
     #[derive(Debug)]
     enum OwnerError {
-        Storage(shadows_core::StorageError),
+        Storage(core_db::StorageError),
         Refused,
     }
-    impl From<shadows_core::StorageError> for OwnerError {
-        fn from(error: shadows_core::StorageError) -> Self {
+    impl From<core_db::StorageError> for OwnerError {
+        fn from(error: core_db::StorageError) -> Self {
             Self::Storage(error)
         }
     }
@@ -33,11 +32,10 @@ async fn owner_error_rolls_back_and_the_next_write_succeeds() {
                 )
                 .execute(&mut *conn)
                 .await
-                .map_err(shadows_core::StorageError::from)?;
-                shadows_core::testing::append_event_for_test(
+                .map_err(core_db::StorageError::from)?;
+                core_db::JournalEntry::append_event_for_test(
                     conn,
-                    &DurableEvent::new("ProjectCreated", Actor::system())
-                        .with_project(&ProjectId::from_literal("p-owner")),
+                    &Event::new("ProjectCreated", Actor::system()).with_project("p-owner"),
                     "2026-10-22T00:00:00Z",
                 )
                 .await?;
@@ -67,7 +65,7 @@ async fn owner_error_rolls_back_and_the_next_write_succeeds() {
                 )
                 .execute(conn)
                 .await
-                .map_err(shadows_core::StorageError::from)?;
+                .map_err(core_db::StorageError::from)?;
                 Ok(())
             })
         })
@@ -100,15 +98,15 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
                 .bind("2026-09-21T00:00:00Z")
                 .execute(&mut *conn)
                 .await?;
-                shadows_core::testing::append_event_for_test(
+                core_db::JournalEntry::append_event_for_test(
                     conn,
-                    &DurableEvent::new("ProjectCreated", Actor::system())
-                        .with_project(&ProjectId::from_literal("p-1"))
+                    &Event::new("ProjectCreated", Actor::system())
+                        .with_project("p-1")
                         .with_payload(serde_json::json!({})),
                     "2026-09-21T00:00:00Z",
                 )
                 .await?;
-                Err::<(), _>(shadows_core::StorageError::NotFound("forced"))
+                Err::<(), _>(core_db::StorageError::NotFound("forced"))
             })
         })
         .await;
@@ -194,7 +192,7 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
 
     let storage2 = storage.clone();
     let handle = tokio::spawn(async move {
-        let _: Result<(), shadows_core::StorageError> = storage2
+        let _: Result<(), core_db::StorageError> = storage2
             .write_txn(|conn| {
                 Box::pin(async move {
                     sqlx::query(

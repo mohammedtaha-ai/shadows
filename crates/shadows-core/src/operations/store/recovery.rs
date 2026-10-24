@@ -1,14 +1,14 @@
 use super::transition::{Before, Transition};
-use crate::db::{Actor, StorageError, now};
 use crate::operations::{OperationId, Operations, ReconcileReport};
 use crate::runtime::{Runtime, RuntimeInstanceId};
+use core_db::{Actor, Storage, StorageError};
 impl Operations {
     pub(crate) async fn recover(
         &self,
         current: &RuntimeInstanceId,
     ) -> Result<ReconcileReport, StorageError> {
         let runtime_id = current.clone();
-        let (current, ts) = (current.as_str().to_string(), now());
+        let (current, ts) = (current.as_str().to_string(), Storage::now());
         let (report, transitions) = self
             .store
             .storage

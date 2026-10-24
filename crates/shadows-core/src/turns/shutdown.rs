@@ -20,10 +20,10 @@ use std::time::Duration;
 
 use super::handles::LiveHandles;
 use super::turn::{PlannerTurn, StopOutcome};
-use crate::db::{Actor, StorageError};
 use crate::harness::Harness;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
+use core_db::{Actor, StorageError};
 
 /// Stops every live turn, waits — at most `confirm_within`, and never past
 /// `escalate` — until every operation this runtime owns is terminal, then
@@ -35,7 +35,7 @@ use crate::runtime::StopKind;
 impl PlannerTurn {
     pub async fn shut_down(
         runtime: Arc<Runtime>,
-        storage: Arc<crate::db::Storage>,
+        storage: Arc<core_db::Storage>,
         operations: crate::operations::Operations,
         handles: Arc<LiveHandles>,
         sessions: Arc<Harness>,
@@ -77,7 +77,7 @@ impl PlannerTurn {
 /// bound over a tree that is known to be alive.
 async fn terminate_all(
     runtime: &Arc<Runtime>,
-    storage: &Arc<crate::db::Storage>,
+    storage: &Arc<core_db::Storage>,
     operations: &crate::operations::Operations,
     handles: &Arc<LiveHandles>,
     sessions: &Arc<Harness>,
@@ -128,7 +128,7 @@ async fn terminate_all(
 /// during a read shows as a change rather than falling between two reads.
 async fn all_owned_terminal(
     runtime: &Runtime,
-    storage: &crate::db::Storage,
+    storage: &core_db::Storage,
     operations: &crate::operations::Operations,
 ) -> Result<(), StorageError> {
     let mut committed = storage.watch_committed();

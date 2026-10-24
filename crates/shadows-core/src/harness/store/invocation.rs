@@ -1,7 +1,7 @@
 //! Invocation entry points for transaction-local callers.
 use super::HarnessStore;
-use crate::db::StorageError;
 use crate::harness::{Harness, InvocationUsage, InvocationVersions, InvocationView, NewInvocation};
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 use std::collections::HashMap;
 impl Harness {

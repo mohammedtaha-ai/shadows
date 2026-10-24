@@ -60,7 +60,6 @@ pub(crate) use turn::StopOutcome;
 pub type Bus =
     tokio::sync::broadcast::Sender<(ThreadId, OperationId, shadows_agent::events::HarnessEvent)>;
 use crate::code::Code;
-use crate::db::{Actor, CommandContext, Storage, StorageError};
 use crate::error::CoreError;
 use crate::harness::{Harness, LeaseError};
 use crate::instructions::Instructions;
@@ -70,6 +69,7 @@ use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 use crate::standards::Standards;
 use crate::threads::ThreadId;
+use core_db::{Actor, CommandContext, Storage, StorageError};
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
 /// `shadows_core::testing` re-exports these, and nothing outside the crate
@@ -229,7 +229,7 @@ impl Turns {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             &thread_id,
         )
         .await?;

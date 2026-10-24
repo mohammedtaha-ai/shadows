@@ -1,10 +1,10 @@
 //! Atomic harness selection over Threads and Operations owner methods.
 use super::HarnessStore;
 use crate::{
-    db::{CommandContext, StorageError, classify, now, record_command},
     operations::Operations,
     threads::{PlanningThread, ThreadId, Threads, ThreadsError},
 };
+use core_db::{CommandContext, Storage, StorageError};
 
 impl HarnessStore {
     pub(in crate::harness) async fn set_thread_harness(
@@ -13,11 +13,16 @@ impl HarnessStore {
         thread: &ThreadId,
         harness: &str,
     ) -> Result<PlanningThread, ThreadsError> {
-        let (ctx, thread, harness, ts) = (ctx.clone(), thread.clone(), harness.to_owned(), now());
+        let (ctx, thread, harness, ts) = (
+            ctx.clone(),
+            thread.clone(),
+            harness.to_owned(),
+            Storage::now(),
+        );
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &ctx, "Thread", thread.as_str())
+                    if CommandContext::classify(conn, &ctx, "Thread", thread.as_str())
                         .await?
                         .is_some()
                     {
@@ -37,11 +42,11 @@ impl HarnessStore {
                         &thread,
                         &current.project_id,
                         &harness,
-                        crate::db::Actor::user(&ctx.principal_id),
+                        core_db::Actor::user(&ctx.principal_id),
                         &ts,
                     )
                     .await?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Thread",

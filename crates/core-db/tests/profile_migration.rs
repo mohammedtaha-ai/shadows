@@ -1,5 +1,5 @@
 //! Compatibility with the first Windows profiles migration, without rewriting history.
-use shadows_core::testing::Storage;
+use core_db::Storage;
 use sqlx::migrate::{Migration, Migrator};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{AssertSqlSafe, SqlSafeStr, SqlitePool};

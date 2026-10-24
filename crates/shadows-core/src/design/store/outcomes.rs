@@ -2,9 +2,9 @@
 use super::DesignStore;
 use crate::{
     ProjectId,
-    db::StorageError,
     design::{Outcome, OutcomeDetails, OutcomeId, OutcomePage, PartId},
 };
+use core_db::StorageError;
 use sqlx::{FromRow, SqliteConnection};
 #[derive(FromRow)]
 struct OutcomeRow {

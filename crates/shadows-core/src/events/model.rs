@@ -1,8 +1,8 @@
-use crate::db::{Actor, Causation, JournalEntry};
 use crate::plans::{Place, WorkflowId};
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
+use core_db::{Actor, Causation, JournalEntry};
 
 /// SQLite assigns sequence numbers while holding the write lock, so journal
 /// sequence order equals commit order. Other backends must preserve this guarantee.
@@ -71,9 +71,10 @@ impl DurableEvent {
 }
 
 /// The domain-to-column step: this service converts the ids it owns.
-impl From<&DurableEvent> for JournalEntry {
-    fn from(e: &DurableEvent) -> Self {
-        Self {
+impl DurableEvent {
+    pub(crate) fn journal_entry(&self) -> JournalEntry {
+        let e = self;
+        JournalEntry {
             event_id: e.event_id.clone(),
             kind: e.kind.clone(),
             project_id: e.project_id.as_ref().map(|i| i.as_str().to_owned()),

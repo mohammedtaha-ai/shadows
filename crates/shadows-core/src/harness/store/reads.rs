@@ -1,7 +1,7 @@
 //! Invocation metadata read in a caller's snapshot.
 use super::HarnessStore;
-use crate::db::StorageError;
 use crate::harness::{InvocationUsage, InvocationVersions, InvocationView};
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 use std::collections::HashMap;
 type VersionsRow = (Option<String>, Option<String>, Option<i64>, Option<String>);

@@ -4,7 +4,7 @@ use crate::operations::{OperationId, OperationRecord, Operations};
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
 
-use crate::db::StorageError;
+use core_db::StorageError;
 
 type OperationRow = (
     String,

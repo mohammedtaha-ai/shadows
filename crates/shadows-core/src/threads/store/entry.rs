@@ -3,10 +3,10 @@
 
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, StorageError, append_event};
 use crate::threads::model::{
     EntryRef, NewThreadEntry, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId,
 };
+use core_db::{Actor, JournalEntry, StorageError};
 
 /// Appends one entry inside the caller's transaction: allocates its ordinal,
 /// inserts it, and journals `ThreadEntryAppended`. The turn command
@@ -71,9 +71,9 @@ impl crate::threads::Threads {
         if !attachments.is_empty() {
             payload["attachments"] = serde_json::to_value(&attachments)?;
         }
-        append_event(
+        JournalEntry::append_event(
             conn,
-            crate::db::JournalEntry {
+            core_db::JournalEntry {
                 event_id: uuid::Uuid::new_v4().to_string(),
                 kind: "ThreadEntryAppended".into(),
                 actor: entry.author.clone(),
@@ -162,7 +162,7 @@ impl super::ThreadsStore {
             entry.refs.to_vec(),
             entry.card.cloned(),
             entry.operation_id.map(str::to_owned),
-            crate::db::now(),
+            core_db::Storage::now(),
         );
         self.storage
             .write_txn(move |conn| {

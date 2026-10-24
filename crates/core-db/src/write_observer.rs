@@ -6,13 +6,13 @@ pub struct DatabaseWrites {
     conn: PoolConnection<Sqlite>,
 }
 
-pub async fn database_writes(storage: &Storage) -> Result<DatabaseWrites, StorageError> {
-    Ok(DatabaseWrites {
-        conn: storage.reader().acquire().await?,
-    })
-}
-
 impl DatabaseWrites {
+    pub async fn observe(storage: &Storage) -> Result<DatabaseWrites, StorageError> {
+        Ok(DatabaseWrites {
+            conn: storage.reader().acquire().await?,
+        })
+    }
+
     pub async fn version(&mut self) -> Result<i64, StorageError> {
         Ok(sqlx::query_scalar("PRAGMA data_version")
             .fetch_one(&mut *self.conn)

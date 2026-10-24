@@ -132,7 +132,7 @@ async fn person_replay_with_other_input_conflicts() {
         .await
         .unwrap();
     v["name"] = "Alex".into();
-    let mut writes = testing::database_writes(&w.storage).await.unwrap();
+    let mut writes = testing::DatabaseWrites::observe(&w.storage).await.unwrap();
     let before = writes.version().await.unwrap();
     let replay = w
         .app

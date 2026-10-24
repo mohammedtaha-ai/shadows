@@ -8,10 +8,8 @@ use sqlx::SqliteConnection;
 use super::Projects;
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
-use crate::db::{
-    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
-};
 use crate::events::DurableEvent;
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use shadows_agent::policy;
 
 /// The service's SQL, over the shared storage handle.
@@ -39,12 +37,14 @@ impl ProjectsStore {
             name.to_string(),
             directory.as_str().to_string(),
             default_modes.clone(),
-            now(),
+            Storage::now(),
         );
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if let Some(existing_id) = classify(conn, &ctx, "Global", "").await? {
+                    if let Some(existing_id) =
+                        CommandContext::classify(conn, &ctx, "Global", "").await?
+                    {
                         return load_project(conn, &ProjectId::from_stored(existing_id)).await;
                     }
                     let id = ProjectId::generate();
@@ -61,18 +61,28 @@ impl ProjectsStore {
                     .await?;
                     replace_modes(conn, &id, &modes).await?;
 
-                    append_event(
+                    JournalEntry::append_event(
                         conn,
-                        &DurableEvent::new("ProjectCreated", Actor::user(&ctx.principal_id))
+                        DurableEvent::new("ProjectCreated", Actor::user(&ctx.principal_id))
                             .with_project(&id)
                             .with_payload(serde_json::json!({
                                 "slug": slug, "name": name, "directory": directory,
-                            })),
+                            }))
+                            .journal_entry(),
                         &ts,
                     )
                     .await?;
 
-                    record_command(conn, &ctx, "Global", "", "Project", id.as_str(), &ts).await?;
+                    CommandContext::record_command(
+                        conn,
+                        &ctx,
+                        "Global",
+                        "",
+                        "Project",
+                        id.as_str(),
+                        &ts,
+                    )
+                    .await?;
                     load_project(conn, &id).await
                 })
             })
@@ -201,11 +211,16 @@ impl ProjectsStore {
         project_id: &ProjectId,
         modes: &BTreeMap<String, Vec<String>>,
     ) -> Result<Project, StorageError> {
-        let (ctx, id, modes, ts) = (ctx.clone(), project_id.clone(), modes.clone(), now());
+        let (ctx, id, modes, ts) = (
+            ctx.clone(),
+            project_id.clone(),
+            modes.clone(),
+            Storage::now(),
+        );
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &ctx, "Project", id.as_str())
+                    if CommandContext::classify(conn, &ctx, "Project", id.as_str())
                         .await?
                         .is_some()
                     {
@@ -213,15 +228,16 @@ impl ProjectsStore {
                     }
                     Projects::require_live_in(conn, &id).await?;
                     replace_modes(conn, &id, &modes).await?;
-                    append_event(
+                    JournalEntry::append_event(
                         conn,
-                        &DurableEvent::new("ProjectModesChanged", Actor::user(&ctx.principal_id))
+                        DurableEvent::new("ProjectModesChanged", Actor::user(&ctx.principal_id))
                             .with_project(&id)
-                            .with_payload(serde_json::json!({ "allowed_modes": modes })),
+                            .with_payload(serde_json::json!({ "allowed_modes": modes }))
+                            .journal_entry(),
                         &ts,
                     )
                     .await?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Project",

@@ -106,7 +106,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/secrets/crypto.rs` | authenticated environment encryption | `crates/shadows-core/src/secrets/crypto.rs` |
 | `crates/shadows-core/src/secrets/crypto_tests.rs` | envelope integrity tests | `crates/shadows-core/src/secrets/crypto_tests.rs` |
 | `crates/shadows-core/src/grants/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
-| `crates/shadows-core/src/db/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
+| `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/shadows-core/src/design/map_proposals.rs` | map proposal service entry points | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/store/map_proposals.rs` | recording map proposals | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/store/map_proposal_shape.rs` | assembling proposed map shapes | `crates/shadows-core/src/design/contract.yaml` |
@@ -165,12 +165,13 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows-core/src/error.rs` |
-| `crates/shadows-core/src/db/command.rs` | external-command identity for idempotency | `crates/shadows-core/src/db/contract.yaml` |
-| `crates/shadows-core/src/db/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows-core/src/db/contract.yaml` |
-| `crates/shadows-core/src/db/journal.rs` | appending to the durable journal | `crates/shadows-core/src/db/contract.yaml` |
-| `crates/shadows-core/src/db/id.rs` | the UUID id newtype pattern | `crates/shadows-core/src/db/contract.yaml` |
-| `crates/shadows-core/src/db/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/superpowers/specs/2026-09-21-persistence-api-and-migrations-design.md` |
-| `crates/shadows-core/src/db/` | the database no service owns | `crates/shadows-core/src/db/mod.rs` |
+| `crates/core-db/src/command.rs` | external-command identity for idempotency | `crates/core-db/contract.yaml` |
+| `crates/core-db/src/derive.rs` | command ids Shadows derives when a caller names none | `crates/core-db/contract.yaml` |
+| `crates/core-db/src/journal.rs` | appending to the durable journal | `crates/core-db/contract.yaml` |
+| `crates/core-db/src/id.rs` | the UUID id newtype pattern | `crates/core-db/contract.yaml` |
+| `crates/core-db/src/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/superpowers/specs/2026-09-21-persistence-api-and-migrations-design.md` |
+| `crates/core-db/src/lib.rs` | shared SQLite lifetime | `crates/core-db/contract.yaml` |
+| `crates/core-db/src/error.rs` | database failure vocabulary | `crates/core-db/contract.yaml` |
 | `crates/shadows-core/src/runtime/` | the runtime instance's lifecycle | `crates/shadows-core/src/runtime/mod.rs` |
 | `crates/shadows-core/src/testing/` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing/mod.rs` |
 | `crates/shadows-core/src/projects/` | the projects, the folders a person picks them from included | `crates/shadows-core/src/projects/mod.rs` |

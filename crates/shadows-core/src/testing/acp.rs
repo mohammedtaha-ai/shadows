@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::db::Storage;
 use crate::harness::{Harness, SessionsConfig};
+use core_db::Storage;
 use shadows_agent::claude::ClaudeAdapter;
 
 /// The `/mcp` URL a daemon built from these fixtures reports: the address

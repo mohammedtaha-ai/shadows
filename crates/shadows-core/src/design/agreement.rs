@@ -1,7 +1,7 @@
 //! Shared HTTP agreement value shapes.
 use super::PartId;
 
-crate::db::id::newtype_id!(AgreementId);
+core_db::newtype_id!(AgreementId);
 
 #[derive(
     Debug,

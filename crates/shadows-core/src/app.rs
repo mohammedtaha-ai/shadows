@@ -16,7 +16,6 @@ use shadows_process::{ProcessSpec, spawn};
 
 use crate::agents::Agents;
 use crate::code::{Code, CodeConfig};
-use crate::db::Storage;
 use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::{Events, UiSignal};
@@ -37,6 +36,7 @@ use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
 use crate::usage::Usage;
+use core_db::Storage;
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
@@ -62,6 +62,9 @@ pub struct CoreParts {
 }
 
 /// The application: every service, built once.
+///
+/// `core-db` owns the shared `Storage` foundation and its transaction lifetime;
+/// its contract is `crates/core-db/contract.yaml`. Services share this one handle.
 ///
 /// Start here for Core ownership; each source is in the existing `shadows-core`
 /// crate. The contract describes that owner's current methods, rules and tests.

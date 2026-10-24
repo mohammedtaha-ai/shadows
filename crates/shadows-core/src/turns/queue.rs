@@ -8,10 +8,10 @@ use super::handles::SteerTarget;
 use super::spawn::OnCompleted;
 use super::steer::SteerRequest;
 use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, start_command};
-use crate::db::CommandContext;
 use crate::error::CoreError;
 use crate::threads::{ThreadEntryId, ThreadId};
 use crate::turns::model::{Queued, QueuedMessage, QueuedMessageId, SentNow};
+use core_db::CommandContext;
 
 /// The id of the turn a `turn.queue` starts on an idle thread.
 fn idle_start_id(command_id: &str) -> String {

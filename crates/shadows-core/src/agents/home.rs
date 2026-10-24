@@ -1,6 +1,6 @@
 //! Seeding an agent's isolated home without replacing the person's files.
 use super::Agents;
-use crate::db::StorageError;
+use core_db::StorageError;
 use std::io::Write;
 use std::path::Path;
 

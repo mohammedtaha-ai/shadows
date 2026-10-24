@@ -5,13 +5,13 @@
 use super::PlansStore;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::db::{CommandContext, append_event, classify, now, record_command};
 use crate::grants::Grants;
 use crate::grants::Writer;
 use crate::plans::conversation::{Place, PlanShown};
 use crate::plans::model::WorkflowId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use crate::turns::OperationId;
+use core_db::{CommandContext, JournalEntry, Storage};
 
 impl PlansStore {
     /// Writes the card — a `PlanView` entry of `turn`, headed by the version
@@ -32,7 +32,7 @@ impl PlansStore {
             writer.clone(),
             turn.clone(),
             workflow.clone(),
-            now(),
+            Storage::now(),
         );
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
@@ -44,7 +44,9 @@ impl PlansStore {
                     };
                     let thread = thread.clone();
                     Grants::check_writer(conn, &writer, &plan.project_id).await?;
-                    if let Some(event) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
+                    if let Some(event) =
+                        CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
+                    {
                         let recorded: PlanShown = ReadRows::recorded_outcome(conn, &event).await?;
                         return Ok(PlanShown {
                             replayed: true,
@@ -88,8 +90,8 @@ impl PlansStore {
                         .with_thread(&thread)
                         .with_operation(&turn)
                         .with_payload(serde_json::to_value(&shown)?);
-                    append_event(conn, &event, &ts).await?;
-                    record_command(
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Thread",

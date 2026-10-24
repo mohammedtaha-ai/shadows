@@ -1,8 +1,8 @@
-use crate::db::StorageError;
 use crate::harness::Harness;
 use crate::operations::Operations;
 use crate::threads::ThreadId;
 use crate::turns::model::{InvocationView, Operation, OperationId};
+use core_db::StorageError;
 impl super::TurnsStore {
     pub async fn get_operation(&self, op: &OperationId) -> Result<Operation, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;

@@ -3,8 +3,8 @@
 use sqlx::SqliteConnection;
 
 use super::task::TaskRows;
-use crate::db::StorageError;
 use crate::plans::{Link, LinkKind, PlanId, TaskId, TaskParent, WorkflowId};
+use core_db::StorageError;
 
 impl DependenciesRows {
     pub(super) async fn links_of(

@@ -6,7 +6,7 @@ mod mode;
 mod preferences;
 mod reads;
 mod thread;
-use crate::db::Storage;
+use core_db::Storage;
 pub(super) use preferences::Remembered;
 use std::sync::Arc;
 

@@ -1,7 +1,7 @@
 //! The refusals a library write returns, and how a caller meets them.
 use crate::CoreError;
 use crate::agents::AgentsError;
-use crate::db::StorageError;
+use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ExtensionsError {

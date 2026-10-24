@@ -36,6 +36,9 @@ comparison. No mutation test edits the real product tree.
   `QueryBuilder::push` inputs require the same classification, including
   direct calls, local bindings and fluent `push`/`push_bind` chains; bound values
   do not become dynamic SQL.
+  SQLite catalog reads (`sqlite_schema`, `_sqlx_migrations`) and the exact
+  `PRAGMA data_version` observation are classified only for the database foundation.
+  Other PRAGMA statements still require explicit review.
   Each statement in a literal batch must be classified. Quoted identifiers
   retain their table names without being mistaken for SQL clause keywords.
 - Adapters cannot name/import/call stores or known live registry types.

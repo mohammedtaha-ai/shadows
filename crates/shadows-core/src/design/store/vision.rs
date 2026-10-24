@@ -1,10 +1,10 @@
 //! Atomic workspace edits with immutable command results.
 
 use super::DesignStore;
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::design::{DesignAnchor, DesignChange, VisionContent, VisionView, WorkspaceOp};
 use crate::events::DurableEvent;
 use crate::projects::ProjectId;
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use std::collections::BTreeSet;
 
 impl DesignStore {
@@ -37,7 +37,7 @@ impl crate::design::Design {
         ctx: &CommandContext,
         project: &ProjectId,
     ) -> Result<Option<DesignChange>, StorageError> {
-        if let Some(id) = classify(conn, ctx, "Project", project.as_str()).await? {
+        if let Some(id) = CommandContext::classify(conn, ctx, "Project", project.as_str()).await? {
             let result: String = sqlx::query_scalar(
                 "SELECT result_json FROM design_command_result
                          WHERE id = ? AND project_id = ?",
@@ -59,7 +59,7 @@ impl crate::design::Design {
         ops: Vec<WorkspaceOp>,
         facts: &std::collections::BTreeMap<String, Option<String>>,
     ) -> Result<DesignChange, crate::CoreError> {
-        let ts = now();
+        let ts = Storage::now();
         let current = super::parts::PartsRows::revision(conn, project).await?;
         if current != expected_revision {
             return Err(StorageError::RevisionConflict {
@@ -318,8 +318,8 @@ impl crate::design::Design {
                 "changed_outcomes": changed_outcomes,
                 "vision_changed": vision_changed
             }));
-        append_event(conn, &event, &ts).await?;
-        record_command(
+        JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+        CommandContext::record_command(
             conn,
             ctx,
             "Project",

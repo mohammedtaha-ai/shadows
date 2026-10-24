@@ -52,7 +52,7 @@ async fn outcome(status: u16, body: &str) -> ProviderTestOutcome {
 #[tokio::test]
 async fn tested_key_is_not_stored_or_echoed() {
     let w = world().await;
-    let mut writes = testing::database_writes(&w.storage).await.unwrap();
+    let mut writes = testing::DatabaseWrites::observe(&w.storage).await.unwrap();
     let before = writes.version().await.unwrap();
     let (url, handle) = peer(400, "test-key-not-real".into(), "").await;
     let request = input(url);
@@ -189,7 +189,7 @@ async fn saved_test_uses_the_stored_key() {
         .set_key("k".into(), "provider", "test-key-not-real")
         .await
         .unwrap();
-    let mut writes = testing::database_writes(&w.storage).await.unwrap();
+    let mut writes = testing::DatabaseWrites::observe(&w.storage).await.unwrap();
     let before = writes.version().await.unwrap();
     let r = core
         .providers()

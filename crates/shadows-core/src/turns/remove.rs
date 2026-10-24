@@ -1,8 +1,8 @@
 //! Thread removal commits before live cancellation, so a new turn cannot race it.
 use super::{StopOutcome, Turns};
 use crate::CoreError;
-use crate::db::CommandContext;
 use crate::threads::{PlanningThread, ThreadId};
+use core_db::CommandContext;
 impl Turns {
     /// Remove first, then stop the turn, then close its adapter.
     pub async fn remove_thread(

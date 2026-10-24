@@ -11,7 +11,6 @@ use super::plan::PlanRows;
 use super::plan_event;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::db::{CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::grants::Grants;
 use crate::grants::Writer;
@@ -21,6 +20,7 @@ use crate::plans::ops::PlanOp;
 use crate::projects::ProjectId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use crate::turns::OperationId;
+use core_db::{CommandContext, JournalEntry, Storage, StorageError};
 
 impl PlansStore {
     /// The order of work: the grant, then a recorded command (answered
@@ -41,7 +41,7 @@ impl PlansStore {
             writer.clone(),
             workflow.clone(),
             ops.to_vec(),
-            now(),
+            Storage::now(),
         );
         let operation = operation.cloned();
         self.storage
@@ -49,7 +49,8 @@ impl PlansStore {
                 Box::pin(async move {
                     let (_, project) = owner(conn, &workflow).await?;
                     Grants::check_writer(conn, &writer, &project).await?;
-                    if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await?
+                    if let Some(event) =
+                        CommandContext::classify(conn, &ctx, "Workflow", workflow.as_str()).await?
                     {
                         return ReadRows::recorded_outcome(conn, &event)
                             .await
@@ -98,7 +99,7 @@ impl PlansStore {
                     };
                     let event = plan_event("WorkflowEdited", &writer, &project, operation.as_ref())
                         .with_payload(serde_json::to_value(&outcome)?);
-                    append_event(conn, &event, &ts).await?;
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
                     super::notifications::NotificationsRows::notify_plan(
                         conn,
                         &project,
@@ -108,7 +109,7 @@ impl PlansStore {
                         &ts,
                     )
                     .await?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Workflow",
@@ -151,7 +152,7 @@ impl PlansStore {
         expected_revision: i64,
         approver: &crate::grants::Approver,
     ) -> Result<Approved, crate::CoreError> {
-        let (mut ctx, workflow, ts) = (ctx.clone(), workflow.clone(), now());
+        let (mut ctx, workflow, ts) = (ctx.clone(), workflow.clone(), Storage::now());
         let approver = approver.clone();
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
@@ -170,7 +171,8 @@ impl PlansStore {
                     let request =
                         crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
                     ctx.agent = Some(approver.agent());
-                    if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await?
+                    if let Some(event) =
+                        CommandContext::classify(conn, &ctx, "Workflow", workflow.as_str()).await?
                     {
                         return ReadRows::recorded_outcome(conn, &event)
                             .await
@@ -256,7 +258,7 @@ impl PlansStore {
                         event = event.with_thread(thread);
                     }
                     let event = event.with_payload(serde_json::to_value(&approved)?);
-                    append_event(conn, &event, &ts).await?;
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
                     super::notifications::NotificationsRows::notify_plan(
                         conn,
                         &project,
@@ -266,7 +268,7 @@ impl PlansStore {
                         &ts,
                     )
                     .await?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Workflow",

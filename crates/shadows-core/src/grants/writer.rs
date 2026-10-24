@@ -1,6 +1,6 @@
-use crate::db::Actor;
 use crate::grants::GrantId;
 use crate::threads::ThreadId;
+use core_db::Actor;
 /// The authenticated principal recorded for each write.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Writer {

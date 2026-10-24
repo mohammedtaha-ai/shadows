@@ -1,8 +1,8 @@
 //! Shared identity and authority for Planner proposals.
 use super::Design;
-use crate::db::{Anchor, CommandContext};
 use crate::grants::Writer;
 use crate::{CoreError, ErrorCode, Grant, OperationId};
+use core_db::{Anchor, CommandContext};
 impl Design {
     pub(super) async fn proposal_writer(
         &self,

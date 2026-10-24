@@ -1,6 +1,6 @@
 //! Persisted exact shared-agreement pins for task versions.
-use crate::db::StorageError;
 use crate::{AgreementBinding, AgreementId, AgreementRole, PartId, ProjectId, WorkflowId};
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 
 impl BindingsRows {

@@ -1,8 +1,8 @@
 //! Test-only owner entry points over the fixture's shared storage handle.
 use super::{NewThreadEntry, PlanningThread, ThreadEntry, ThreadId, Threads, TurnContext, store};
-use crate::db::StorageError;
-use crate::db::{CommandContext, Storage};
 use crate::projects::ProjectId;
+use core_db::StorageError;
+use core_db::{CommandContext, Storage};
 use std::sync::Arc;
 
 impl Threads {
@@ -84,7 +84,7 @@ impl Threads {
             return Ok(false);
         };
         let thread = thread.clone();
-        let ts = crate::db::now();
+        let ts = core_db::Storage::now();
         storage
             .write_txn(move |conn| {
                 Box::pin(

@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Harness::set_thread_harness owns the close after its guarded command commits.
 # set_harness_in(conn, thread, project, harness, actor, ts) updates and journals its own row.
 # Harness owns the operation/fork guard; Threads owns the row update and trigger error mapping.
@@ -305,7 +306,7 @@ enums:
     source: crate::error::CoreError
     values: []
   StorageError:
-    source: crate::db::StorageError
+    source: core_db::StorageError
     values: []
   Operation:
     source: crate::turns::Operation
@@ -314,7 +315,7 @@ enums:
     source: crate::turns::OperationId
     values: []
   Actor:
-    source: crate::db::Actor
+    source: core_db::Actor
     values: []
   Harness:
     source: crate::harness::Harness

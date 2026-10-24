@@ -5,8 +5,8 @@ mod model;
 mod store;
 mod validation;
 
-use crate::db::{CommandContext, Storage};
 use crate::{CoreError, ProjectId};
+use core_db::{CommandContext, Storage};
 pub use model::{
     AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
     StandardRule, StandardsAdditions, StandardsAdditionsVersion,

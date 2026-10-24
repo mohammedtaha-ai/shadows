@@ -1,5 +1,5 @@
-use crate::db::id::newtype_id;
-use crate::db::{Storage, StorageError};
+use core_db::newtype_id;
+use core_db::{Storage, StorageError};
 use std::sync::Arc;
 mod store;
 pub use store::StopKind;

@@ -7,9 +7,9 @@ use std::collections::HashMap;
 
 use sqlx::SqliteConnection;
 
-use crate::db::StorageError;
 use crate::plans::TaskParent;
 use crate::plans::TaskPreview;
+use core_db::StorageError;
 
 impl TaskRows {
     pub(in crate::plans) async fn preview(

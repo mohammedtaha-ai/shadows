@@ -1,9 +1,9 @@
 //! Stage facts supplied to both normal and steered Planner prompts.
 use crate::{
-    db::{Storage, StorageError},
     threads::{ThreadId, Threads},
     turns::Turns,
 };
+use core_db::{Storage, StorageError};
 
 impl Turns {
     pub(super) async fn stage_line(

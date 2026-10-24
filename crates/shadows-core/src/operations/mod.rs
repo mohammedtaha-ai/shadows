@@ -4,8 +4,8 @@ mod model;
 mod store;
 #[cfg(feature = "test-support")]
 mod testing;
-use crate::db::{Storage, StorageError};
 use crate::threads::ThreadId;
+use core_db::{Storage, StorageError};
 pub(crate) use model::OperationRecord;
 pub use model::{OperationId, ReconcileReport};
 use std::sync::Arc;

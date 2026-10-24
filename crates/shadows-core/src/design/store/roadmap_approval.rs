@@ -1,12 +1,12 @@
 //! Atomic approval of a roadmap proposal by the person or at their request.
 use super::DesignStore;
 use super::{outcome_edit, roadmap_proposal_read as read};
-use crate::db::{CommandContext, append_event, classify, now, record_command};
 use crate::design::{
     DesignChange, OutcomeId, ProposalStatus, ProposedOutcome, RoadmapAction, RoadmapProposal,
     WorkspaceOp,
 };
 use crate::{ProjectId, StorageError};
+use core_db::{CommandContext, JournalEntry, Storage};
 use sqlx::SqliteConnection;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -21,7 +21,7 @@ impl DesignStore {
         approver: &crate::grants::Approver,
         planned: &BTreeSet<String>,
     ) -> Result<DesignChange, crate::CoreError> {
-        let (mut ctx, ts) = (ctx.clone(), now());
+        let (mut ctx, ts) = (ctx.clone(), Storage::now());
         if let crate::grants::Approver::Planner {
             writer: writer @ crate::grants::Writer::Planner { thread, .. },
             turn,
@@ -33,7 +33,7 @@ impl DesignStore {
         }
         let request = crate::grants::Grants::authorise_in(conn, approver, p).await?;
         ctx.agent = Some(approver.agent());
-        if let Some(result) = classify(conn, &ctx, "Project", p.as_str()).await? {
+        if let Some(result) = CommandContext::classify(conn, &ctx, "Project", p.as_str()).await? {
             let json: String = sqlx::query_scalar(
                 "SELECT result_json FROM design_command_result WHERE id=? AND project_id=?",
             )
@@ -93,13 +93,13 @@ impl DesignStore {
         let approved = crate::events::DurableEvent::new("RoadmapApproved", approver.actor())
             .with_project(p)
             .with_payload(serde_json::json!({"project_id":p,"proposal_id":id}));
-        append_event(conn, &approved, &ts).await?;
+        JournalEntry::append_event(conn, approved.journal_entry(), &ts).await?;
         let event = crate::events::DurableEvent::new("ProjectDesignChanged", approver.actor())
             .with_project(p)
             .with_payload(serde_json::json!({"project_id":p,"revision":revision,
             "changed_parts":[],"changed_outcomes":changed,"vision_changed":false}));
-        append_event(conn, &event, &ts).await?;
-        record_command(
+        JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+        CommandContext::record_command(
             conn,
             &ctx,
             "Project",

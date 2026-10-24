@@ -1,5 +1,6 @@
 //! Transactional containment checks with explicit sibling ordering.
-use crate::{ProjectId, db::StorageError};
+use crate::ProjectId;
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 use std::collections::BTreeSet;
 

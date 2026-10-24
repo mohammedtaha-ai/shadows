@@ -1,4 +1,5 @@
 //! The project design workspace service.
+use core_db::Storage;
 
 mod agreement;
 mod agreement_scope;
@@ -27,7 +28,7 @@ mod workspace;
 
 use std::sync::Arc;
 
-use crate::{db::Storage, error::CoreError, projects::ProjectId};
+use crate::{error::CoreError, projects::ProjectId};
 pub(crate) use model::WorkspaceOp;
 pub use model::{
     ContractHead, DesignAnchor, DesignChange, DesignRevision, InitialFile, Outcome, OutcomeContent,
@@ -63,7 +64,7 @@ impl Design {
     pub(crate) async fn stage_line_in(
         conn: &mut sqlx::SqliteConnection,
         project: &ProjectId,
-    ) -> Result<String, crate::db::StorageError> {
+    ) -> Result<String, core_db::StorageError> {
         Ok(stage::StageRules::line(
             &Self::stage_view_in(conn, project).await?,
         ))
@@ -90,7 +91,7 @@ pub(crate) use model::OutcomeDetails;
 impl Design {
     pub async fn approve_vision_proposal_for_test(
         &self,
-        ctx: &crate::db::CommandContext,
+        ctx: &core_db::CommandContext,
         project: &ProjectId,
         id: &str,
         approver: &crate::grants::Approver,
@@ -101,7 +102,7 @@ impl Design {
     }
     pub async fn propose_vision_for_test(
         &self,
-        ctx: &crate::db::CommandContext,
+        ctx: &core_db::CommandContext,
         writer: &crate::grants::Writer,
         project: &ProjectId,
         turn: &crate::OperationId,

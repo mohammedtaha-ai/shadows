@@ -671,6 +671,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-db"
+version = "0.1.0"
+dependencies = [
+ "core-db",
+ "futures-core",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3340,6 +3359,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
+ "core-db",
  "dunce",
  "escargot",
  "futures-core",

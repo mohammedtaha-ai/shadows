@@ -1,10 +1,10 @@
 //! Recording Planner vision proposals.
 use super::DesignStore;
-use crate::db::{CommandContext, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 use crate::grants::Writer;
 use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError, VisionContent, VisionField};
+use core_db::{CommandContext, JournalEntry, Storage};
 
 impl DesignStore {
     pub async fn propose_vision_in(
@@ -20,7 +20,7 @@ impl DesignStore {
             writer.clone(),
             project.clone(),
             turn.clone(),
-            now(),
+            Storage::now(),
         );
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
@@ -29,7 +29,9 @@ impl DesignStore {
                         return Err(crate::grants::GrantsError::GrantScope.into());
                     };
                     crate::grants::Grants::check_writer(conn, &writer, &project).await?;
-                    if let Some(id) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
+                    if let Some(id) =
+                        CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
+                    {
                         let entry: String = sqlx::query_scalar(
                             "SELECT entry_id FROM design_vision_proposal WHERE id=?",
                         )
@@ -168,8 +170,8 @@ impl DesignStore {
                         .with_thread(thread)
                         .with_operation(&turn)
                         .with_payload(serde_json::json!({"project_id":project,"proposal_id":p.id}));
-                    append_event(conn, &event, &ts).await?;
-                    record_command(
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Thread",

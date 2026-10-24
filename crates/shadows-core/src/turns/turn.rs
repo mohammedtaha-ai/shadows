@@ -24,6 +24,7 @@
 //! `LiveHandles`, plus the two facts `LiveTurn` carries — is only reviewable if
 //! both sides are read together.
 //!
+use core_db::{Actor, StorageError};
 
 use super::{
     entries::{Collector, Durable},
@@ -33,7 +34,6 @@ use super::{
     steer::SteerRequest,
 };
 use crate::{
-    db::{Actor, StorageError},
     harness::{Harness, OpenSession},
     threads::{NewThreadEntry, ThreadEntryKind, ThreadId},
 };
@@ -62,7 +62,7 @@ pub enum StopOutcome {
 
 pub(crate) struct TurnWatch {
     pub op_id: OperationId,
-    pub storage: Arc<crate::db::Storage>,
+    pub storage: Arc<core_db::Storage>,
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Harness>,
     pub opened: OpenSession,
@@ -105,7 +105,7 @@ impl PlannerTurn {
                 ),
             };
             let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
-            let ts = crate::db::now();
+            let ts = core_db::Storage::now();
             if let Err(error) = w
                 .storage
                 .write_txn(move |conn| {
@@ -371,7 +371,7 @@ impl PlannerTurn {
 
 impl PlannerTurn {
     pub async fn stop(
-        storage: Arc<crate::db::Storage>,
+        storage: Arc<core_db::Storage>,
         handles: Arc<LiveHandles>,
         sessions: Arc<Harness>,
         op_id: &OperationId,

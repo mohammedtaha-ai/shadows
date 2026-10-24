@@ -29,9 +29,9 @@ pub use model::{
 };
 
 use crate::code::Code;
-use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::projects::{ProjectId, Projects};
+use core_db::{CommandContext, Storage};
 pub(crate) use error::ThreadsError;
 use store::ThreadsStore;
 

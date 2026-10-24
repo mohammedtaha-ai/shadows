@@ -1,9 +1,9 @@
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, JournalEntry};
-use crate::db::{StorageError, append_event};
 use crate::operations::OperationId;
 use crate::threads::ThreadId;
+use core_db::StorageError;
+use core_db::{Actor, JournalEntry};
 
 pub(crate) struct Before {
     status: String,
@@ -89,7 +89,7 @@ impl Transition {
             event.thread_id = Some(thread.as_str().to_owned());
         }
         let kind = event.kind.clone();
-        append_event(conn, event, ts).await?;
+        JournalEntry::append_event(conn, event, ts).await?;
         Ok(Transition {
             op_id: op_id.clone(),
             thread: before.thread,

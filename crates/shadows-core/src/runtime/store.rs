@@ -1,6 +1,5 @@
-use crate::db::JournalEntry;
-use crate::db::{Actor, Storage, StorageError, append_event, now};
 use crate::runtime::{Runtime, RuntimeInstanceId};
+use core_db::{Actor, JournalEntry, Storage, StorageError};
 use sqlx::SqliteConnection;
 pub(super) struct RuntimeStore<'a> {
     pub(super) storage: &'a Storage,
@@ -24,7 +23,7 @@ impl RuntimeStore<'_> {
         version: &str,
     ) -> Result<RuntimeInstanceId, StorageError> {
         let id = RuntimeInstanceId::generate();
-        let ts = now();
+        let ts = Storage::now();
         let (id2, version, ts2) = (id.as_str().to_string(), version.to_string(), ts.clone());
         self.storage
             .write_txn(move |conn| {
@@ -37,7 +36,7 @@ impl RuntimeStore<'_> {
                     .bind(&ts2)
                     .execute(&mut *conn)
                     .await?;
-                    append_event(
+                    JournalEntry::append_event(
                         conn,
                         RuntimeStore::event(
                             "RuntimeStarted",
@@ -76,7 +75,7 @@ impl Runtime {
                 found: "already stopped or missing".into(),
             });
         }
-        append_event(
+        JournalEntry::append_event(
             conn,
             RuntimeStore::event(
                 "RuntimeStopped",

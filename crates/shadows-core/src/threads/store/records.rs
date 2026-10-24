@@ -1,7 +1,7 @@
 //! Thread records accessed inside another owner's transaction or read snapshot.
-use crate::db::StorageError;
 use crate::projects::{ProjectId, Projects};
 use crate::threads::{PlanningThread, ThreadEntryId, ThreadId, Threads, TurnContext};
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 use std::path::PathBuf;
 

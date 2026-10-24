@@ -145,6 +145,9 @@ pub(super) fn check(
             return;
         }
     };
+    if source.owner == "db" && tokens == ["pragma", "data_version"] {
+        return;
+    }
     if tokens.split(|token| token == ";").any(|statement| {
         statement.first().is_some_and(|first| {
             ![
@@ -228,6 +231,9 @@ pub(super) fn check(
                 node,
                 &format!("SQL table {table} belongs to {owner}"),
             ),
+            None if source.owner == "db"
+                && first == "select"
+                && ["sqlite_schema", "_sqlx_migrations"].contains(&table.as_str()) => {}
             None => review(recorder, &format!("unknown table {table}")),
         }
     }

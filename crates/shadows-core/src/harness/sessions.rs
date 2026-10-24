@@ -1,4 +1,5 @@
 //! One job: the live adapter connection each open thread holds.
+use core_db::{Storage, StorageError};
 
 use std::{
     collections::HashMap,
@@ -19,10 +20,7 @@ use super::commands::Commands;
 use super::live::{Live, LiveMap, Slot};
 use super::offers::Offers;
 use super::setup::Setups;
-use crate::{
-    db::{Storage, StorageError},
-    threads::ThreadId,
-};
+use crate::threads::ThreadId;
 use shadows_agent::{
     acp::Connection, choices::Offered, claude::ClaudeAdapter, events::HarnessEvent,
 };

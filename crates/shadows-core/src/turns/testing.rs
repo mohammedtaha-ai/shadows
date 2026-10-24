@@ -1,14 +1,14 @@
-use crate::db::{Actor, CommandContext, Storage, StorageError};
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
 use crate::turns::model::FailureStage;
 use crate::turns::{Operation, OperationId, Turns};
+use core_db::{Actor, CommandContext, Storage, StorageError};
 use shadows_agent::events::{TurnObservation, TurnUsage};
 use std::sync::Arc;
 impl Turns {
     pub async fn start_turn_for_test(
         storage: &std::sync::Arc<Storage>,
-        command: &crate::db::CommandContext,
+        command: &core_db::CommandContext,
         turn: super::store::NewTurn<'_>,
     ) -> Result<super::store::StartedTurn, crate::CoreError> {
         super::store::TurnsStore::with_storage(storage.clone())
@@ -17,7 +17,7 @@ impl Turns {
     }
     pub async fn queue_message_for_test(
         storage: &std::sync::Arc<Storage>,
-        command: &crate::db::CommandContext,
+        command: &core_db::CommandContext,
         thread: &ThreadId,
         new: super::store::NewQueued<'_>,
     ) -> Result<super::store::QueueAnswer, StorageError> {
@@ -35,7 +35,7 @@ impl Turns {
     }
     pub async fn unqueue_message_for_test(
         storage: &std::sync::Arc<Storage>,
-        command: &crate::db::CommandContext,
+        command: &core_db::CommandContext,
         thread: &ThreadId,
         row: &super::QueuedMessageId,
     ) -> Result<(), crate::CoreError> {

@@ -22,12 +22,12 @@ pub use model::{DurableEvent, EventCursor, UiSignal};
 pub use store::StoredEvent;
 pub use subscription::{Delivery, Subscription};
 
-use crate::db::Storage;
 use crate::error::CoreError;
 use crate::harness::Harness;
 use crate::projects::{ProjectId, Projects};
 use crate::threads::ThreadId;
 use crate::turns::Turns;
+use core_db::Storage;
 
 /// Events: every subscriber's stream, over the journal and the live sources.
 pub struct Events {

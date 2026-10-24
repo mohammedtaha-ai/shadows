@@ -1,11 +1,11 @@
 //! The mode remembered for one conversation.
 use super::HarnessStore;
 use crate::CoreError;
-use crate::db::{CommandContext, StorageError, classify, now, record_command};
 use crate::harness::Harness;
 use crate::operations::Operations;
 use crate::projects::Projects;
 use crate::threads::{ThreadId, Threads};
+use core_db::{CommandContext, Storage, StorageError};
 use shadows_agent::policy;
 use sqlx::SqliteConnection;
 
@@ -86,19 +86,20 @@ impl HarnessStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let replay = classify(conn, &command, "Thread", thread.as_str()).await?;
+                    let replay =
+                        CommandContext::classify(conn, &command, "Thread", thread.as_str()).await?;
                     let context = Threads::turn_context_in(conn, &thread).await?;
                     if replay.is_none() {
                         Harness::check_mode_in(conn, &thread, &mode).await?;
                         Self::remember_mode_in(conn, &thread, &context.harness, &mode).await?;
-                        record_command(
+                        CommandContext::record_command(
                             conn,
                             &command,
                             "Thread",
                             thread.as_str(),
                             "PlanningThread",
                             thread.as_str(),
-                            &now(),
+                            &Storage::now(),
                         )
                         .await?;
                     }

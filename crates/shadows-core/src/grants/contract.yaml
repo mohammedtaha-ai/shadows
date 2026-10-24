@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns MCP grants from issue to revocation (spec §13.7): a person's issue and
 # revoke of an external agent's project grant, the bearer check `/mcp` asks of
 # every request, and startup's revocation of every thread grant an earlier
@@ -205,7 +206,7 @@ enums:
     source: crate::error::CoreError
     values: []
   StorageError:
-    source: crate::db::StorageError
+    source: core_db::StorageError
     values: []
 
 

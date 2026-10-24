@@ -1,11 +1,11 @@
 //! Transactional map snapshots and per-part review baselines.
 #[cfg(feature = "test-support")]
 use super::DesignStore;
-#[cfg(feature = "test-support")]
-use crate::db::now;
 use crate::design::{PartContent, VisionContent, map_rules};
 use crate::standards::{EffectiveStandards, Standards};
 use crate::{ProjectId, StorageError};
+#[cfg(feature = "test-support")]
+use core_db::Storage;
 use sqlx::{FromRow, SqliteConnection};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -175,7 +175,7 @@ impl DesignStore {
                     .fetch_one(&mut *conn)
                     .await?;
                     if n == 0 {
-                        MapVersionsRows::insert_version(conn, &p, None, &now()).await?;
+                        MapVersionsRows::insert_version(conn, &p, None, &Storage::now()).await?;
                     }
                     Ok(())
                 })

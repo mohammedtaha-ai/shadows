@@ -1,10 +1,10 @@
 use crate::{
-    db::{Storage, StorageError},
     operations::OperationId,
     projects::Projects,
     standards::{EffectiveStandards, Standards},
     threads::ThreadId,
 };
+use core_db::{Storage, StorageError};
 use sqlx::SqliteConnection;
 
 impl crate::turns::Turns {
@@ -82,8 +82,8 @@ impl crate::turns::Turns {
 #[cfg(all(test, feature = "test-support"))]
 mod tests {
     use crate::OperationId;
-    use crate::db::StorageError;
     use crate::testing::turn::{default_turn_settings, new_turn, turn_command};
+    use core_db::StorageError;
 
     #[tokio::test]
     async fn invocation_standards_preserve_pins_nulls_and_missing_results() {

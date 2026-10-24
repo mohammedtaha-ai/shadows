@@ -1,8 +1,8 @@
 //! Transactional SQL for agent identities.
 use super::{Agent, AgentInput, Agents, AgentsError};
 use crate::CoreError;
-use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
 use crate::providers::{Providers, SlugBase};
+use core_db::{CommandContext, Storage, StorageError};
 use futures_core::future::BoxFuture;
 use sqlx::{Row, SqliteConnection};
 use std::path::PathBuf;
@@ -145,7 +145,9 @@ impl AgentsStore {
                         CommandContext::user(command_id, "agent.create", serde_json::json!(input))
                     }
                 };
-                if let Some(id) = classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
+                if let Some(id) =
+                    CommandContext::classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
+                        .await?
                 {
                     return Ok(id);
                 }
@@ -193,7 +195,7 @@ impl AgentsStore {
         id: &str,
         input: &AgentInput,
     ) -> Result<(), AgentsError> {
-        let ts = now();
+        let ts = Storage::now();
         sqlx::query(
             "INSERT INTO aylul_agent
             (slug,name,provider,default_model,created_at,updated_at,character_color)
@@ -219,8 +221,8 @@ impl AgentsStore {
         slug: &str,
     ) -> Result<(), AgentsError> {
         sqlx::query("UPDATE aylul_agent SET deleted_at=?, updated_at=? WHERE slug=?")
-            .bind(now())
-            .bind(now())
+            .bind(Storage::now())
+            .bind(Storage::now())
             .bind(slug)
             .execute(conn)
             .await?;
@@ -233,6 +235,7 @@ impl AgentsStore {
         id: &str,
     ) -> Result<(), StorageError> {
         let (scope, key) = COMMAND_SCOPE;
-        record_command(conn, command, scope, key, "Profile", id, &now()).await
+        CommandContext::record_command(conn, command, scope, key, "Profile", id, &Storage::now())
+            .await
     }
 }

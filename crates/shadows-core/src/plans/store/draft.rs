@@ -12,7 +12,6 @@ use super::plan::PlanRows;
 use super::plan_event;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::db::{CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::design::PartId;
 use crate::grants::Grants;
 use crate::grants::Writer;
@@ -20,6 +19,7 @@ use crate::plans::model::{DraftStarted, PlanContent, PlanId, WorkflowId, Workflo
 use crate::plans::rules::Problem;
 use crate::projects::ProjectId;
 use crate::turns::OperationId;
+use core_db::{CommandContext, JournalEntry, Storage, StorageError};
 
 impl PlansStore {
     /// draft_start in `project`. Without a `plan`, a new plan with v1
@@ -46,7 +46,8 @@ impl PlansStore {
         draft_ref: Option<&str>,
         parts: &[PartId],
     ) -> Result<DraftStarted, crate::CoreError> {
-        let (ctx, writer, project, ts) = (ctx.clone(), writer.clone(), project.clone(), now());
+        let (ctx, writer, project, ts) =
+            (ctx.clone(), writer.clone(), project.clone(), Storage::now());
         let (plan, source, operation) = (plan.cloned(), source.cloned(), operation.cloned());
         let fresh = fresh.map(|(t, g)| (t.to_string(), g.to_string()));
         let reason = reason.map(str::to_string);
@@ -149,8 +150,16 @@ impl PlansStore {
                         &parts,
                     )
                     .await?;
-                    record_command(conn, &ctx, scope.0, scope.1, "Workflow", id.as_str(), &ts)
-                        .await?;
+                    CommandContext::record_command(
+                        conn,
+                        &ctx,
+                        scope.0,
+                        scope.1,
+                        "Workflow",
+                        id.as_str(),
+                        &ts,
+                    )
+                    .await?;
                     Ok(started)
                 })
             })
@@ -214,13 +223,13 @@ async fn recorded(
     scope: (&str, &str),
     project: &ProjectId,
 ) -> Result<Option<String>, StorageError> {
-    if let Some(id) = classify(conn, ctx, scope.0, scope.1).await? {
+    if let Some(id) = CommandContext::classify(conn, ctx, scope.0, scope.1).await? {
         return Ok(Some(id));
     }
     if scope.0 == "Project" {
         return Ok(None);
     }
-    classify(conn, ctx, "Project", project.as_str()).await
+    CommandContext::classify(conn, ctx, "Project", project.as_str()).await
 }
 
 /// A new Active plan of `project`, for its first version.
@@ -294,7 +303,7 @@ async fn insert_version(
     TaskRows::write_content(conn, &id, &[], content, ts).await?;
     let event = plan_event("WorkflowDraftStarted", by.writer, by.project, by.operation)
         .with_payload(serde_json::json!({ "workflow_id": id, "version": v.number }));
-    append_event(conn, &event, ts).await?;
+    JournalEntry::append_event(conn, event.journal_entry(), ts).await?;
     super::notifications::NotificationsRows::notify_plan(
         conn,
         by.project,

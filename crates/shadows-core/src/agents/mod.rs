@@ -8,11 +8,11 @@ mod store;
 pub(crate) use error::AgentsError;
 pub use model::{Agent, AgentInput, AgentWorkspace};
 
-use crate::db::{CommandContext, Storage, classify};
 use crate::projects::Projects;
 use crate::providers::{Provider, ProviderInput, Providers};
 use crate::secrets::{EnvEntry, Secrets};
 use crate::{CoreError, ProjectId};
+use core_db::{CommandContext, Storage};
 use sqlx::SqliteConnection;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -113,7 +113,8 @@ impl Agents {
             .write(move |conn| {
                 Box::pin(async move {
                     if let Some(id) =
-                        classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
+                        CommandContext::classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
+                            .await?
                     {
                         return Ok(id);
                     }
@@ -140,7 +141,7 @@ impl Agents {
         self.store
             .write(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
+                    if CommandContext::classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
                         .await?
                         .is_some()
                     {
@@ -228,7 +229,7 @@ impl Agents {
     ) -> Result<(), CoreError> {
         let command =
             CommandContext::user(command_id, "agent.delete", serde_json::json!({"slug":slug}));
-        if classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
+        if CommandContext::classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
             .await?
             .is_some()
         {

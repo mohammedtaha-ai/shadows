@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns the bundled base standards and immutable project additions.
 # Project liveness is checked through Projects in the caller's snapshot.
 # Invocation selection belongs to Turns; this service loads only its own versions.

@@ -1,7 +1,7 @@
 //! The durable shutdown claim over operations and their runtime owner.
-use crate::db::{StorageError, now};
 use crate::operations::Operations;
 use crate::runtime::{Runtime, RuntimeInstanceId, StopKind};
+use core_db::{Storage, StorageError};
 impl Operations {
     pub(crate) async fn stop_runtime(
         &self,
@@ -28,7 +28,7 @@ impl Operations {
                             });
                         }
                     }
-                    Runtime::stop_in(conn, id.as_str(), kind, &now()).await
+                    Runtime::stop_in(conn, id.as_str(), kind, &Storage::now()).await
                 })
             })
             .await?;

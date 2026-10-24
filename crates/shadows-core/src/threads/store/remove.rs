@@ -1,7 +1,7 @@
 //! One job: the atomic removal of a planning thread.
 
-use crate::db::{Actor, CommandContext, StorageError, append_event, record_command};
 use crate::threads::{PlanningThread, ThreadId};
+use core_db::{Actor, CommandContext, JournalEntry, StorageError};
 
 impl crate::threads::Threads {
     /// Marks the live thread removed inside the composing removal transaction.
@@ -42,9 +42,9 @@ impl crate::threads::Threads {
     ) -> Result<(), StorageError> {
         let thread = &current.id;
         let actor = Actor::user(&ctx.principal_id);
-        append_event(
+        JournalEntry::append_event(
             conn,
-            crate::db::JournalEntry {
+            core_db::JournalEntry {
                 event_id: uuid::Uuid::new_v4().to_string(),
                 kind: "ThreadRemoved".into(),
                 actor,
@@ -58,7 +58,7 @@ impl crate::threads::Threads {
             ts,
         )
         .await?;
-        record_command(
+        CommandContext::record_command(
             conn,
             ctx,
             "Thread",

@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns the shared AYLUL extension library (plugins and skills copied into owned,
 # immutable library folders) and each agent's enabled switch over it.
 # An agent's liveness is proved through Agents::require_live_in inside the same

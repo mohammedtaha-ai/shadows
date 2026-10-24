@@ -1,7 +1,7 @@
-use crate::db::StorageError;
 use crate::harness::OpenError;
 use crate::projects::DirectoryError;
 use crate::turns::StartError;
+use core_db::StorageError;
 
 /// Stable codes clients pattern-match on. Never match on human text.
 /// Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.

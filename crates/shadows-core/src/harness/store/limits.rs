@@ -1,6 +1,6 @@
 //! Latest reported account limit windows.
 use super::HarnessStore;
-use crate::db::StorageError;
+use core_db::StorageError;
 use shadows_agent::events::{AccountLimits, LimitWindow};
 type LimitRow = (Option<f64>, Option<i64>, Option<f64>, Option<i64>, String);
 

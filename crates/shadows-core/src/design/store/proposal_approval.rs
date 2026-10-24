@@ -1,9 +1,9 @@
 //! Person approval of one vision proposal.
 use super::DesignStore;
-use crate::db::{CommandContext, append_event, classify, now, record_command};
 use crate::design::WorkspaceOp;
 use crate::design::{ProposalStatus, VisionAction};
 use crate::{DesignChange, ProjectId, StorageError, VisionContent};
+use core_db::{CommandContext, JournalEntry, Storage};
 
 impl DesignStore {
     pub async fn approve_vision_proposal_in(
@@ -13,8 +13,12 @@ impl DesignStore {
         proposal: &str,
         approver: &crate::grants::Approver,
     ) -> Result<DesignChange, crate::CoreError> {
-        let (mut ctx, project, proposal, ts) =
-            (ctx.clone(), project.clone(), proposal.to_string(), now());
+        let (mut ctx, project, proposal, ts) = (
+            ctx.clone(),
+            project.clone(),
+            proposal.to_string(),
+            Storage::now(),
+        );
         let approver = approver.clone();
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
@@ -32,7 +36,9 @@ impl DesignStore {
                     let request =
                         crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
                     ctx.agent = Some(approver.agent());
-                    if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
+                    if let Some(id) =
+                        CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
+                    {
                         let json: String = sqlx::query_scalar(
                             "SELECT result_json FROM design_command_result
                     WHERE id=? AND project_id=?",
@@ -177,8 +183,8 @@ impl DesignStore {
                             .with_project(&project)
                             .with_payload(serde_json::json!({"project_id":project,"revision":next,
                     "changed_parts":[],"changed_outcomes":[],"vision_changed":true}));
-                    append_event(conn, &event, &ts).await?;
-                    record_command(
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Project",

@@ -1,7 +1,7 @@
 //! Immutable image persistence and thread ownership references.
 use super::ThreadsStore;
-use crate::db::{CommandContext, StorageError, classify, now, record_command};
 use crate::threads::{Attachment, AttachmentId, AttachmentRef, ThreadId, Threads};
+use core_db::{CommandContext, Storage, StorageError};
 use sqlx::SqliteConnection;
 
 type AttachmentRow = (String, String, i64, Option<String>, Vec<u8>);
@@ -34,7 +34,9 @@ impl ThreadsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if let Some(answer) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
+                    if let Some(answer) =
+                        CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
+                    {
                         return Ok(serde_json::from_str(&answer)?);
                     }
                     Threads::require_live_in(conn, &thread).await?;
@@ -44,7 +46,7 @@ impl ThreadsStore {
                         byte_len: bytes.len() as u64,
                         name,
                     };
-                    let ts = now();
+                    let ts = Storage::now();
                     sqlx::query(
                         "INSERT INTO attachment
                 (id,media_type,byte_len,sha256,name,bytes,created_at) VALUES (?,?,?,?,?,?,?)",
@@ -65,7 +67,7 @@ impl ThreadsStore {
                     .bind(attachment.id.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Thread",

@@ -5,12 +5,12 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::db::CommandContext;
 use crate::harness::Harness;
 use crate::runtime::Runtime;
 use crate::threads::ThreadId;
 use crate::turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
 use crate::turns::{LiveHandles, OperationId, StartError};
+use core_db::CommandContext;
 use shadows_agent::TurnSettings;
 use shadows_agent::events::HarnessEvent;
 

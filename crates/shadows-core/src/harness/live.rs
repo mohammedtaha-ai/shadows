@@ -64,7 +64,7 @@ impl Sessions {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             thread,
         )
         .await?;

@@ -1,8 +1,8 @@
 //! Atomic workspace edits with plan-owned associations.
 use super::{DesignOp, Plans};
-use crate::db::CommandContext;
 use crate::design::{Design, DesignChange, WorkspaceOp};
 use crate::{CoreError, ProjectId};
+use core_db::CommandContext;
 
 impl Plans {
     pub async fn edit_design(

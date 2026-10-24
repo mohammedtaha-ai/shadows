@@ -5,9 +5,9 @@ use sqlx::SqliteConnection;
 use super::CodeStore;
 use crate::code::Code;
 use crate::code::model::ProjectLink;
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::projects::{ProjectId, Projects};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 
 impl CodeStore {
     /// How many projects are active at once: `code_setting.active_limit`.
@@ -56,11 +56,13 @@ impl CodeStore {
         ctx: &CommandContext,
         limit: u32,
     ) -> Result<u32, StorageError> {
-        let (ctx, ts) = (ctx.clone(), now());
+        let (ctx, ts) = (ctx.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if let Some(done) = classify(conn, &ctx, "Code", "settings").await? {
+                    if let Some(done) =
+                        CommandContext::classify(conn, &ctx, "Code", "settings").await?
+                    {
                         return done
                             .parse()
                             .map_err(|_| StorageError::NotFound("active limit"));
@@ -72,10 +74,18 @@ impl CodeStore {
                     let event =
                         DurableEvent::new("CodeActiveLimitSet", Actor::user(&ctx.principal_id))
                             .with_payload(serde_json::json!({ "active_limit": limit }));
-                    append_event(conn, &event, &ts).await?;
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
                     let set = limit.to_string();
-                    record_command(conn, &ctx, "Code", "settings", "CodeSetting", &set, &ts)
-                        .await?;
+                    CommandContext::record_command(
+                        conn,
+                        &ctx,
+                        "Code",
+                        "settings",
+                        "CodeSetting",
+                        &set,
+                        &ts,
+                    )
+                    .await?;
                     Ok(limit)
                 })
             })
@@ -161,12 +171,12 @@ mod tests {
         let storage = &code.inner.store.storage;
         let [home, linked] = [ids[0].clone(), ids[1].clone()];
         let (source, target) = (home.clone(), linked.clone());
-        let result: Result<(), crate::db::StorageError> = storage
+        let result: Result<(), core_db::StorageError> = storage
             .write_txn(move |conn| {
                 Box::pin(async move {
                     assert!(Code::put_link_in(conn, &source, &target, "test").await?);
                     assert!(!Code::put_link_in(conn, &source, &target, "test").await?);
-                    Err(crate::db::StorageError::NotFound("force rollback"))
+                    Err(core_db::StorageError::NotFound("force rollback"))
                 })
             })
             .await;
@@ -176,12 +186,12 @@ mod tests {
             .link_projects("link".into(), &home, &linked)
             .await
             .unwrap();
-        let result: Result<(), crate::db::StorageError> = storage
+        let result: Result<(), core_db::StorageError> = storage
             .write_txn(move |conn| {
                 Box::pin(async move {
                     assert!(Code::remove_link_in(conn, &home, &linked).await?);
                     assert!(!Code::remove_link_in(conn, &home, &linked).await?);
-                    Err(crate::db::StorageError::NotFound("force rollback"))
+                    Err(core_db::StorageError::NotFound("force rollback"))
                 })
             })
             .await;

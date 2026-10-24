@@ -1,4 +1,4 @@
-//! One job: the failures a store can return.
+//! Persistence failures independent of domain services.
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
@@ -14,8 +14,6 @@ pub enum StorageError {
     TransitionConflict { expected: String, found: String },
     #[error("command conflict: the same command id was reused with a different request")]
     CommandConflict,
-    /// Spec §13.5, §18.2: `expected_revision` is not the resource's current one.
-    /// `summary` describes what changed since the expected revision.
     #[error("the resource is at revision {current}; changed since: {summary}")]
     RevisionConflict { current: i64, summary: String },
     #[error("stored JSON is invalid: {0}")]
@@ -24,9 +22,6 @@ pub enum StorageError {
     Database(sqlx::Error),
 }
 
-/// A write the schema refused — a second project with a slug already in use —
-/// is `Constraint`, which a client can act on; any other database failure is
-/// `Database`. Classified by the driver's kind, never by message text.
 impl From<sqlx::Error> for StorageError {
     fn from(error: sqlx::Error) -> Self {
         use sqlx::error::ErrorKind;

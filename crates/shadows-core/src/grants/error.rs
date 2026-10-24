@@ -1,6 +1,6 @@
 //! Grant authority failures with stable application codes.
-use crate::db::StorageError;
 use crate::{CoreError, ErrorCode};
+use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GrantsError {

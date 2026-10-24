@@ -27,8 +27,8 @@ pub use browse::{DirectoryEntry, DirectoryListing};
 pub use directory::{DirectoryError, ProjectDirectory};
 pub use model::{Project, ProjectId};
 
-use crate::db::{CommandContext, Storage, StorageError};
 use crate::error::CoreError;
+use core_db::{CommandContext, Storage, StorageError};
 use store::ProjectsStore;
 
 /// Project registration over its private store.

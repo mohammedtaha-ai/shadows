@@ -262,7 +262,7 @@ impl Run {
         }
         s.scanned.store(true, Ordering::Relaxed);
         if let Ok(mut at) = s.updated_at.lock() {
-            *at = Some(crate::db::now());
+            *at = Some(core_db::Storage::now());
         }
         match result {
             Ok(indexed) if indexed > 0 && watched && unreported => {

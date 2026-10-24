@@ -1,8 +1,8 @@
 //! Durable conversation mode commands and idle session application.
 use super::{Harness, LeaseError, refusal};
 use crate::CoreError;
-use crate::db::{CommandContext, StorageError, classify};
 use crate::threads::{ThreadId, Threads};
+use core_db::{CommandContext, StorageError};
 use shadows_agent::choices::SessionChoices;
 
 impl Harness {
@@ -25,7 +25,7 @@ impl Harness {
             .begin()
             .await
             .map_err(StorageError::from)?;
-        let replay = classify(&mut conn, &command, "Thread", thread.as_str())
+        let replay = CommandContext::classify(&mut conn, &command, "Thread", thread.as_str())
             .await?
             .is_some();
         let context = Threads::turn_context_in(&mut conn, thread).await?;

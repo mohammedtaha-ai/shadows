@@ -2,8 +2,8 @@
 use super::DesignStore;
 use super::parts;
 use crate::ProjectId;
-use crate::db::StorageError;
 use crate::design::{AgreementContent, AgreementId, AgreementState, AgreementVersion, Design};
+use core_db::StorageError;
 use sqlx::{FromRow, SqliteConnection};
 
 #[derive(FromRow)]

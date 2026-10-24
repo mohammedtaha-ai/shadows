@@ -1,6 +1,6 @@
 //! Roadmap proposal values and service entry points.
 use super::{Design, DesignChange, OutcomeContent, OutcomeId, PartId, ProposalStatus};
-use crate::db::CommandContext;
+use core_db::CommandContext;
 
 use crate::{CoreError, Grant, ProjectId, ThreadId};
 use serde::{Deserialize, Serialize};

@@ -2,7 +2,6 @@
 use super::DesignStore;
 use super::{agreements::AgreementsRows, parts};
 use crate::ProjectId;
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::design::AgreementOrigin;
 use crate::design::agreement_validation::AgreementValidation;
 use crate::design::{
@@ -10,6 +9,7 @@ use crate::design::{
 };
 use crate::events::DurableEvent;
 use crate::grants::Writer;
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use sqlx::SqliteConnection;
 
 impl DesignStore {
@@ -22,7 +22,7 @@ impl DesignStore {
         content: Option<AgreementContent>,
         reason: Option<String>,
     ) -> Result<AgreementVersion, crate::CoreError> {
-        let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.cloned(), now());
+        let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.cloned(), Storage::now());
         let origin = origin.cloned();
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
@@ -124,7 +124,7 @@ impl DesignStore {
         expected_revision: i64,
         content: AgreementContent,
     ) -> Result<AgreementVersion, crate::CoreError> {
-        let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.clone(), now());
+        let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.clone(), Storage::now());
         let origin = origin.cloned();
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
@@ -256,7 +256,8 @@ impl AgreementWriteRows {
         ctx: &CommandContext,
         project: &ProjectId,
     ) -> Result<Option<AgreementVersion>, StorageError> {
-        let Some(id) = classify(conn, ctx, "Project", project.as_str()).await? else {
+        let Some(id) = CommandContext::classify(conn, ctx, "Project", project.as_str()).await?
+        else {
             return Ok(None);
         };
         let json: String = sqlx::query_scalar(
@@ -308,9 +309,9 @@ impl AgreementWriteRows {
                     event = event.with_operation(operation);
                 }
             }
-            append_event(conn, &event, ts).await?;
+            JournalEntry::append_event(conn, event.journal_entry(), ts).await?;
         }
-        record_command(
+        CommandContext::record_command(
             conn,
             ctx,
             "Project",

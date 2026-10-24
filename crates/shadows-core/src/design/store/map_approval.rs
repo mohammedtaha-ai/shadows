@@ -1,9 +1,9 @@
 //! Atomic person approval of a map proposal.
 use super::DesignStore;
 use super::{map_proposal_shape as shape, map_versions as maps};
-use crate::db::{CommandContext, append_event, classify, now, record_command};
 use crate::design::{DesignChange, MapAction, MapPropose, ProposalStatus, map_rules};
 use crate::{PartId, ProjectId, StorageError};
+use core_db::{CommandContext, JournalEntry, Storage};
 use std::collections::{BTreeMap, BTreeSet};
 
 impl DesignStore {
@@ -14,7 +14,7 @@ impl DesignStore {
         id: &str,
         approver: &crate::grants::Approver,
     ) -> Result<DesignChange, crate::CoreError> {
-        let (mut ctx, p, id, ts) = (ctx.clone(), p.clone(), id.to_owned(), now());
+        let (mut ctx, p, id, ts) = (ctx.clone(), p.clone(), id.to_owned(), Storage::now());
         let approver = approver.clone();
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
@@ -31,7 +31,9 @@ impl DesignStore {
                     }
                     let request = crate::grants::Grants::authorise_in(conn, &approver, &p).await?;
                     ctx.agent = Some(approver.agent());
-                    if let Some(result) = classify(conn, &ctx, "Project", p.as_str()).await? {
+                    if let Some(result) =
+                        CommandContext::classify(conn, &ctx, "Project", p.as_str()).await?
+                    {
                         let json: String = sqlx::query_scalar(
                         "SELECT result_json FROM design_command_result WHERE id=? AND project_id=?",
                     )
@@ -226,8 +228,8 @@ impl DesignStore {
                             .with_project(&p)
                             .with_payload(serde_json::json!({"project_id":p,"revision":revision,
                     "changed_parts":changed,"changed_outcomes":[],"vision_changed":false}));
-                    append_event(conn, &event, &ts).await?;
-                    record_command(
+                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Project",

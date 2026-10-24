@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 name: project_lifecycle
 version: 1
 status: current

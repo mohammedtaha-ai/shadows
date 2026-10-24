@@ -7,8 +7,8 @@
 
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, CommandContext, StorageError, append_event, record_command};
 use crate::threads::model::{PlanningThread, ThreadEntryId, ThreadId};
+use core_db::{Actor, CommandContext, JournalEntry, StorageError};
 
 /// The session to fork, when `at` is a valid fork point of `source`.
 async fn fork_point(
@@ -83,9 +83,9 @@ impl crate::threads::Threads {
         .bind(&original.profile)
         .execute(&mut *conn)
         .await?;
-        append_event(
+        JournalEntry::append_event(
             conn,
-            crate::db::JournalEntry {
+            core_db::JournalEntry {
                 event_id: uuid::Uuid::new_v4().to_string(),
                 kind: "PlanningThreadCreated".into(),
                 actor: Actor::user(&ctx.principal_id),
@@ -111,7 +111,7 @@ impl crate::threads::Threads {
             .bind(id.as_str())
             .execute(&mut *conn)
             .await?;
-        record_command(
+        CommandContext::record_command(
             conn,
             ctx,
             "Thread",
@@ -209,9 +209,9 @@ async fn copy_entries(
             .execute(&mut *conn)
             .await?;
         }
-        append_event(
+        JournalEntry::append_event(
             conn,
-            crate::db::JournalEntry {
+            core_db::JournalEntry {
                 event_id: uuid::Uuid::new_v4().to_string(),
                 kind: "ThreadEntryAppended".into(),
                 actor: Actor {

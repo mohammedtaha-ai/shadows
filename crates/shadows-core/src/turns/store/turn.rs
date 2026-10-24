@@ -7,7 +7,6 @@
 
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::harness::{Harness, NewInvocation};
 use crate::operations::Operations;
@@ -16,6 +15,7 @@ use crate::plans::Plans;
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use shadows_agent::TurnSettings;
 
 /// A waiting message the turn sends: taken in the turn's own
@@ -121,7 +121,7 @@ impl super::TurnsStore {
         turn: NewTurn<'_>,
     ) -> Result<StartedTurn, crate::CoreError> {
         let snapshot = turn.aylul_usage.cloned();
-        let (ctx, ts) = (ctx.clone(), now());
+        let (ctx, ts) = (ctx.clone(), Storage::now());
         let thread = turn.thread_id.clone();
         let runtime = turn.runtime.clone();
         let prompt = turn.prompt.to_string();
@@ -148,7 +148,9 @@ impl super::TurnsStore {
             .storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
-                    if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
+                    if let Some(outcome) =
+                        CommandContext::classify(conn, &ctx, SCOPE, thread.as_str()).await?
+                    {
                         return Ok((recorded(&outcome)?, None));
                     }
                     crate::threads::Threads::require_live_in(conn, &thread).await?;
@@ -223,7 +225,7 @@ impl super::TurnsStore {
                         "operation_id": op.as_str(),
                         "entry_id": entry.id.as_str(),
                     });
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         SCOPE,
@@ -241,12 +243,20 @@ impl super::TurnsStore {
                             DurableEvent::new("QueuedMessageSent", Actor::user(&ctx.principal_id))
                                 .with_thread(&thread)
                                 .with_payload(payload);
-                        append_event(conn, &sent, &ts).await?;
+                        JournalEntry::append_event(conn, sent.journal_entry(), &ts).await?;
                         if let Some(also) = also {
                             let answer = outcome.to_string();
                             let (scope, id) = (SCOPE, thread.as_str());
-                            record_command(conn, also, scope, id, "Operation", &answer, &ts)
-                                .await?;
+                            CommandContext::record_command(
+                                conn,
+                                also,
+                                scope,
+                                id,
+                                "Operation",
+                                &answer,
+                                &ts,
+                            )
+                            .await?;
                         }
                     }
                     let started = StartedTurn {
@@ -274,7 +284,7 @@ impl super::TurnsStore {
         thread: &ThreadId,
     ) -> Result<Option<StartedTurn>, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
-        match classify(&mut conn, ctx, SCOPE, thread.as_str()).await? {
+        match CommandContext::classify(&mut conn, ctx, SCOPE, thread.as_str()).await? {
             Some(outcome) => Ok(Some(recorded(&outcome)?)),
             None => Ok(None),
         }

@@ -2,9 +2,9 @@
 use super::DesignStore;
 use crate::{
     ProjectId,
-    db::StorageError,
     design::{Part, PartContent, PartDetails, PartId, PartPage},
 };
+use core_db::StorageError;
 use sqlx::{FromRow, SqliteConnection};
 
 #[derive(FromRow)]

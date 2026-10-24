@@ -12,7 +12,7 @@ impl Design {
             .design_outcomes(project, parent, after)
             .await
             .map_err(|error| match error {
-                crate::db::StorageError::Constraint(message) => CoreError::Refused {
+                core_db::StorageError::Constraint(message) => CoreError::Refused {
                     code: ErrorCode::InvalidCommand,
                     message,
                 },

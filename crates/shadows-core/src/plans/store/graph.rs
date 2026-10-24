@@ -5,10 +5,10 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use sqlx::SqliteConnection;
 
 use super::task::TaskRows;
-use crate::db::StorageError;
 use crate::plans::dependency_graph::DependencyGraph;
 use crate::plans::{Plan, PlanContent, PlanId, PlanOp, Problem, TaskParent, WorkflowId};
 use crate::projects::ProjectId;
+use core_db::StorageError;
 
 type Owner = (ProjectId, Option<WorkflowId>, Option<String>);
 

@@ -1,9 +1,9 @@
 //! Test-support seeds that put a project at the plans stage without a conversation.
 
 use super::DesignStore;
-use crate::db::now;
 use crate::design::{PartContent, PartId, VisionContent};
 use crate::{ProjectId, StorageError};
+use core_db::Storage;
 
 impl DesignStore {
     /// Seeds the map if absent, one part, and an approved roadmap; answers the part.
@@ -60,7 +60,7 @@ impl DesignStore {
                             conn,
                             &p,
                             None,
-                            &now(),
+                            &Storage::now(),
                         )
                         .await?;
                     }

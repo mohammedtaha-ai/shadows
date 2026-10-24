@@ -1,6 +1,7 @@
 //! Atomically record one terminal AYLUL invocation's measured counters.
+use crate::OperationId;
 use crate::usage::{Usage, UsageRecord};
-use crate::{OperationId, db::StorageError};
+use core_db::StorageError;
 use shadows_agent::events::TurnUsage;
 use sqlx::SqliteConnection;
 

@@ -1,28 +1,13 @@
-# Command helpers are methods on CommandContext and Anchor; command identity stays in the foundation.
-# ProjectHasThreads belongs to ProjectLifecycleError.
-# GrantInvalid and GrantScope belong to GrantsError; approval provenance belongs to Grants.
-# HarnessLocked and ForkPointNotSupported belong to ThreadsError, mapped by Threads.
-# ThreadBusy and QueuedMessageGone belong to TurnsError, mapped by Turns.
-# The foundation: what belongs to no service. Every service's write records its
-# command and appends its event through these, inside its own transaction.
-#
-# This contract covers the foundation modules that carry no service type:
-# `command.rs` (a command's identity, its replay check and its record),
-# `derive.rs` (the command ids Shadows derives), `journal.rs` (the journal's
-# append), `id.rs` (the id newtype pattern) and `mod.rs` (Storage).
-# `error.rs`, `embedded_migrations.rs` and `write_observer.rs`
-# are not described here yet. The newtype_id macro generates String-backed UUID
-# ids with generate/as_str/from_stored, test-support from_literal, Display,
-# Serialize, Deserialize and OpenAPI schema; each service declares its own ids.
-#
-# Trap: nothing here may import a service type. A subject id reaches the
-# journal as a string (`JournalEntry`), converted by the service that owns it;
-# an operation id reaches `Anchor::Operation` as `&str`.
+# Shared database foundation. No service or shadows-core dependency is permitted.
+# Storage owns WAL connections, SQLx BEGIN IMMEDIATE serialization, abandoned
+# transaction rollback, migrations and publication of committed journal sequences.
+# Tx is the borrowed SQLx connection; command and journal methods never commit.
+# Subject ids are strings; domain ids and rules stay in their owning services.
 
-name: db
+name: core-db
 version: 1
 status: current
-source: crates/shadows-core/src/db
+source: crates/core-db/src
 
 
 shapes:
@@ -65,7 +50,7 @@ functions:
   command:
     user:
       signature: "CommandContext::user(command_id: String, kind: &str, params: Value) -> CommandContext"
-      # pub(crate). A person's command: agent None, principal `User`/`local`,
+      # Public to service crates. A person's command: agent None, principal `User`/`local`,
       # schema version 1, `fingerprint(kind, &params)`.
     fingerprint:
       signature: "CommandContext::fingerprint(command_kind: &str, params: &Value) -> String"
@@ -74,13 +59,13 @@ functions:
       # scalars as serde_json prints them.
     classify:
       signature: "(conn, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>"
-      # pub(crate). Reads `command_record` by principal, scope and command id.
+      # Public to service crates. Reads `command_record` by principal, scope and command id.
       # None when new; Some(outcome_ref) when kind, schema version and
       # fingerprint all match (NotFound("outcome_ref") if the row has none);
       # otherwise CommandConflict.
     record_command:
       signature: "(conn, ctx, scope_kind, scope_key, entity_kind, outcome_ref, ts) -> Result<(), StorageError>"
-      # pub(crate). Inserts one `command_record` row, outcome_kind 'Entity';
+      # Public to service crates. Inserts one `command_record` row, outcome_kind 'Entity';
       # audit_principal is "user:local" and audit_agent the agent when the
       # command has one, both NULL otherwise.
   derive:
@@ -99,13 +84,16 @@ functions:
       # kind "User".
     append_event:
       signature: "(conn, event: impl Into<JournalEntry>, now: &str) -> Result<i64, StorageError>"
-      # pub(crate). Inserts one `durable_event` row with every JournalEntry
+      # Public to service crates. Inserts one `durable_event` row with every JournalEntry
       # field and `created_at = now`; answers its `seq`. Called inside the
       # transaction that writes the state the event describes.
     append_event_for_test:
       signature: "(conn, event: impl Into<JournalEntry>, now: &str) -> Result<i64, StorageError>"
-      # test-support only: `append_event` without a state write.
+      # JournalEntry method; test-support only, without a state write.
   storage:
+    now:
+      signature: "Storage::now() -> String"
+      # RFC3339 UTC clock used by persisted records.
     open:
       signature: "(db_path: &Path) -> Result<Self, StorageError>"
       # Opens WAL storage with foreign keys, migrations, an eight-connection reader
@@ -127,15 +115,27 @@ functions:
       # owner's error and the transaction still rolls back; recovery, rollback and
       # the committed-journal publish are the same path as write_txn.
 
-
+  observation:
+    observe:
+      signature: "DatabaseWrites::observe(storage: &Storage) -> Result<DatabaseWrites, StorageError>"
+      # test-support only; retains one reader connection for PRAGMA data_version.
+    version:
+      signature: "DatabaseWrites::version(&mut self) -> Result<i64, StorageError>"
+      # test-support only; observes other connections' committed changes.
 
 enums:
   StorageError:
-    source: crate::db::StorageError
+    source: core_db::StorageError
     values: []
 
 
 obligations:
+  - rule: Cancellation rolls back partial commands and events before another serialized write.
+    tested_by: cancelled_write_rolls_back_command_and_event_before_recovery
+  - rule: The observer detects committed writes and ignores rolled-back command records.
+    tested_by: command_rollback_is_invisible_to_replay_and_the_write_observer
+  - rule: Command replay compares every persisted identity field within its principal and scope.
+    tested_by: commands_replay_only_with_identical_persistence_inputs
   - rule: Fingerprints and derived ids are byte-compatible with persisted command identities.
     tested_by:
       - fingerprints_match_persisted_values
@@ -197,3 +197,13 @@ tests:
     checks: causation_kind, causation_ref and correlation_id are stored.
   - name: the_committed_signal_moves_on_commit_and_never_on_rollback
     checks: A rolled-back append is not signalled; a committed one is, with its seq.
+
+modules:
+  lib.rs: Storage lifetime, Tx and the UTC persistence clock
+  command.rs: CommandContext identity and durable replay classification
+  derive.rs: Anchor-derived command ids
+  journal.rs: Transaction-local journal append
+  embedded_migrations.rs: SQLx migration catalog validation
+  error.rs: Database failure vocabulary
+  id.rs: Exported newtype_id macro with service-owned id declarations
+  write_observer.rs: Feature-gated committed-write observation

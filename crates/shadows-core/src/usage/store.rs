@@ -1,6 +1,6 @@
 //! SQL for measured usage rows.
 use super::model::{UsageRecord, UsageRow};
-use crate::db::{Storage, StorageError};
+use core_db::{Storage, StorageError};
 use sqlx::{Row, SqliteConnection};
 use std::sync::Arc;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};

@@ -24,7 +24,7 @@ async fn migration_24_backfills_preexisting_approved_proposal_views() {
         )
         .await
         .unwrap();
-    let mut old = sqlx::migrate!("./migrations");
+    let mut old = sqlx::migrate!("../core-db/migrations");
     old.migrations = Cow::Owned(
         old.migrations
             .iter()
@@ -170,7 +170,7 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
         .connect_with(opts)
         .await
         .unwrap();
-    let mut old = sqlx::migrate!("./migrations");
+    let mut old = sqlx::migrate!("../core-db/migrations");
     old.migrations = Cow::Owned(
         old.migrations
             .iter()

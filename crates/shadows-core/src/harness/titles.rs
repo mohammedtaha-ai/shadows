@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 use tokio::sync::mpsc;
 
-use crate::db::Storage;
 use crate::threads::ThreadId;
+use core_db::Storage;
 use shadows_agent::events::HarnessEvent;
 
 /// Hands every event but a title on to `next`. The task ends when the
@@ -28,7 +28,7 @@ impl super::Harness {
                     continue;
                 };
                 let owned_thread = thread.clone();
-                let ts = crate::db::now();
+                let ts = core_db::Storage::now();
                 let result = storage
                     .write_txn(move |conn| {
                         Box::pin(async move {

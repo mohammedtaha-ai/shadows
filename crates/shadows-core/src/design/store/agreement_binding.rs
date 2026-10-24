@@ -1,6 +1,6 @@
 //! Agreed-version checks shared with Plans in its write transaction.
-use crate::db::StorageError;
 use crate::{AgreementId, AgreementRole, AgreementState, PartId, ProjectId};
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 
 impl crate::design::Design {

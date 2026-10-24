@@ -15,11 +15,11 @@ pub use turn::{Dequeue, NewTurn, StartedTurn};
 
 #[derive(Clone)]
 pub(super) struct TurnsStore {
-    pub(super) storage: std::sync::Arc<crate::db::Storage>,
+    pub(super) storage: std::sync::Arc<core_db::Storage>,
 }
 
 impl TurnsStore {
-    pub(super) fn with_storage(storage: std::sync::Arc<crate::db::Storage>) -> Self {
+    pub(super) fn with_storage(storage: std::sync::Arc<core_db::Storage>) -> Self {
         Self { storage }
     }
 }

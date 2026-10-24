@@ -1,6 +1,6 @@
 //! Identifier-only plan payloads read in the event subscriber's snapshot.
-use crate::db::StorageError;
 use crate::plans::Plans;
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 
 impl Plans {

@@ -55,7 +55,7 @@ async fn extension_commands_replay_and_conflict() {
         .add_extension("add".into(), ExtensionKind::Skill, &src)
         .await
         .unwrap();
-    let mut writes = testing::database_writes(&w.storage).await.unwrap();
+    let mut writes = testing::DatabaseWrites::observe(&w.storage).await.unwrap();
     w.core
         .extensions()
         .set_agent_extension(

@@ -7,7 +7,7 @@ pub(crate) use model::UsageRecord;
 pub use model::{ModelUsage, ProviderUsage, UsageReport};
 
 use crate::CoreError;
-use crate::db::{Storage, StorageError};
+use core_db::{Storage, StorageError};
 use sqlx::SqliteConnection;
 use std::sync::Arc;
 use store::UsageStore;

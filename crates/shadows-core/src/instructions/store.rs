@@ -7,11 +7,8 @@ use std::sync::Arc;
 use sqlx::SqliteConnection;
 
 use super::model::InstructionsVersion;
-use crate::db::{
-    Actor, CommandContext, JournalEntry, Storage, StorageError, append_event, classify, now,
-    record_command,
-};
 use crate::projects::{ProjectId, Projects};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 
 type VersionRow = (String, i64, String, String);
 
@@ -35,11 +32,18 @@ impl InstructionsStore {
         project: &ProjectId,
         body: &str,
     ) -> Result<InstructionsVersion, StorageError> {
-        let (ctx, project, body, ts) = (ctx.clone(), project.clone(), body.to_string(), now());
+        let (ctx, project, body, ts) = (
+            ctx.clone(),
+            project.clone(),
+            body.to_string(),
+            Storage::now(),
+        );
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
+                    if let Some(id) =
+                        CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
+                    {
                         return load_version(conn, &id).await;
                     }
                     Projects::require_live_in(conn, &project).await?;
@@ -74,9 +78,18 @@ impl InstructionsStore {
                         correlation_id: None,
                         payload_json: serde_json::json!({ "number": number }).to_string(),
                     };
-                    append_event(conn, event, &ts).await?;
+                    JournalEntry::append_event(conn, event, &ts).await?;
                     let (scope, key) = ("Project", project.as_str());
-                    record_command(conn, &ctx, scope, key, "PlannerInstructions", &id, &ts).await?;
+                    CommandContext::record_command(
+                        conn,
+                        &ctx,
+                        scope,
+                        key,
+                        "PlannerInstructions",
+                        &id,
+                        &ts,
+                    )
+                    .await?;
                     load_version(conn, &id).await
                 })
             })

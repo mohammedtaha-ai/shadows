@@ -3,9 +3,9 @@
 use sqlx::SqliteConnection;
 
 use super::{graph, read::ReadRows, task::TaskRows};
-use crate::db::StorageError;
 use crate::plans::{Link, LinkedTask, Plan, PlanId, TaskParent, WorkflowId};
 use crate::projects::ProjectId;
+use core_db::StorageError;
 
 impl LinkedRows {
     pub(super) async fn read(

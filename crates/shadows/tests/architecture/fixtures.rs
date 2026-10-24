@@ -688,3 +688,40 @@ fn appcore_map_accepts_internal_owner_in_block_documentation() {
     );
     assert!(compare(&scanner::scan(root), &before).is_empty());
 }
+
+#[test]
+fn sqlite_catalog_reads_and_write_observation_belong_only_to_foundation() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    let queries = [
+        "SELECT name FROM sqlite_schema",
+        "SELECT checksum FROM _sqlx_migrations WHERE version = 29",
+        "PRAGMA data_version",
+    ];
+    for query in queries {
+        let source = format!("fn inspect() {{ sqlx::query({query:?}); }}");
+        put(root, "crates/core-db/src/catalog.rs", &source);
+        put(root, "crates/core-db/src/lib.rs", "pub struct Storage;");
+        let map = std::fs::read_to_string(root.join("docs/codebase/README.md")).unwrap();
+        put(
+            root,
+            "docs/codebase/README.md",
+            &format!("{map}\ncrates/core-db/src/"),
+        );
+        let errors = compare(&scanner::scan(root), &before);
+        assert!(
+            errors.is_empty(),
+            "foundation SQL classification: {errors:#?}"
+        );
+        put(root, "crates/shadows-core/src/projects/catalog.rs", &source);
+        rejected(root, &before, "ownership");
+        std::fs::remove_file(root.join("crates/shadows-core/src/projects/catalog.rs")).unwrap();
+    }
+    put(
+        root,
+        "crates/core-db/src/catalog.rs",
+        "fn inspect() { sqlx::query(\"PRAGMA journal_mode\"); }",
+    );
+    rejected(root, &before, "ownership");
+}

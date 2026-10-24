@@ -9,13 +9,13 @@ use std::sync::{Arc, Mutex, OnceLock};
 use sha2::{Digest, Sha256};
 
 use super::Harness;
-use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::grants::GrantId;
 use crate::instructions::{Instructions, InstructionsVersion};
 use crate::projects::ProjectId;
 use crate::standards::{EffectiveStandards, Standards};
 use crate::threads::ThreadId;
+use core_db::{Storage, StorageError};
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 
@@ -222,7 +222,7 @@ impl Setups {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             thread,
         )
         .await?;

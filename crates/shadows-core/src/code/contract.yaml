@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # selected_project_in promotes reach refusals as CoreError::Refused with GrantScope; Code does not depend on Grants.
 # Owns the code index (spec §15.4–§15.6): walking a project's folder into
 # `code_file` and `code_tag`, keeping that copy true while the project is
@@ -569,7 +570,7 @@ enums:
     source: crate::error::CoreError
     values: []
   StorageError:
-    source: crate::db::StorageError
+    source: core_db::StorageError
     values: []
   ProjectId:
     source: crate::projects::ProjectId

@@ -1,9 +1,9 @@
 //! Intent, snapshot and completion records for structure writing.
 use super::DesignStore;
 use crate::ProjectId;
-use crate::db::{Actor, CommandContext, append_event, classify, now, record_command};
 use crate::design::{PartContent, StructureWritten, map_rules};
 use crate::events::DurableEvent;
+use core_db::{Actor, CommandContext, JournalEntry, Storage};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct FileHash {
@@ -39,7 +39,7 @@ impl DesignStore {
         p: &ProjectId,
     ) -> Result<Read, crate::CoreError> {
         let mut tx = self.storage.reader().begin().await?;
-        if let Some(id) = classify(&mut tx, ctx, "Project", p.as_str()).await? {
+        if let Some(id) = CommandContext::classify(&mut tx, ctx, "Project", p.as_str()).await? {
             let json: String = sqlx::query_scalar(
                 "SELECT result_json FROM design_command_result WHERE id=? AND project_id=?",
             )
@@ -167,7 +167,7 @@ impl DesignStore {
                         .bind(intent.standards_additions_version_id)
                         .bind(intent.files_json)
                         .bind(intent.folders_json)
-                        .bind(now())
+                        .bind(Storage::now())
                         .execute(conn)
                         .await?;
                     Ok(())
@@ -206,8 +206,9 @@ impl DesignStore {
                         .with_project(&p)
                         .with_payload(serde_json::json!({"project_id":p,
                     "map_version":result.map_version,"paths":result.paths}));
-                    append_event(conn, &event, &result.completed_at).await?;
-                    record_command(
+                    JournalEntry::append_event(conn, event.journal_entry(), &result.completed_at)
+                        .await?;
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Project",

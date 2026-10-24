@@ -1,10 +1,10 @@
 //! Reading every stage input in one consistent project snapshot.
 
 use super::DesignStore;
-use crate::db::StorageError;
 use crate::design::{PartContent, StageView, VisionContent, stage};
 use crate::projects::ProjectId;
 use crate::standards::{EffectiveStandards, Standards};
+use core_db::StorageError;
 
 impl DesignStore {
     pub async fn project_stage(&self, project: &ProjectId) -> Result<StageView, StorageError> {

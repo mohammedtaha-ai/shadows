@@ -6,9 +6,9 @@ use std::collections::BTreeSet;
 use sqlx::SqliteConnection;
 
 use super::read::ReadRows;
-use crate::db::StorageError;
 use crate::plans::{MapLink, MapPlan, PlanId, PlanMap, WorkflowId};
 use crate::projects::ProjectId;
+use core_db::StorageError;
 
 impl PlansStore {
     pub async fn plan_map(&self, project: &ProjectId) -> Result<PlanMap, StorageError> {

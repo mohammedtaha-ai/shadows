@@ -3,7 +3,7 @@ use super::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
 use crate::agents::Agents;
-use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
+use core_db::{CommandContext, Storage, StorageError};
 use sqlx::{Row, SqliteConnection};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -77,7 +77,7 @@ impl ExtensionsStore {
         out: &str,
     ) -> Result<(), StorageError> {
         let (scope, key) = COMMAND_SCOPE;
-        record_command(conn, c, scope, key, "Extension", out, &now()).await
+        CommandContext::record_command(conn, c, scope, key, "Extension", out, &Storage::now()).await
     }
     pub(super) async fn add(
         &self,
@@ -92,7 +92,9 @@ impl ExtensionsStore {
             .storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if let Some(out) = classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await? {
+                    if let Some(out) =
+                        CommandContext::classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
+                    {
                         return Ok(serde_json::from_str(&out)?);
                     }
                     let id = uuid::Uuid::new_v4().to_string();
@@ -123,7 +125,7 @@ impl ExtensionsStore {
                     .bind(&item.name)
                     .bind(&item.description)
                     .bind(digest)
-                    .bind(now())
+                    .bind(Storage::now())
                     .execute(&mut *conn)
                     .await?;
                     Self::record(conn, &c, &serde_json::to_string(&item)?).await?;
@@ -148,7 +150,7 @@ impl ExtensionsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
+                    if CommandContext::classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
                         .await?
                         .is_some()
                     {
@@ -190,7 +192,9 @@ impl ExtensionsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if let Some(out) = classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await? {
+                    if let Some(out) =
+                        CommandContext::classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
+                    {
                         return Ok(serde_json::from_str(&out)?);
                     }
                     Agents::require_live_in(conn, &slug).await?;

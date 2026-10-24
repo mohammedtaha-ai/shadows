@@ -7,7 +7,7 @@ use sqlx::SqliteConnection;
 
 use super::crypto::Sealed;
 use super::{EnvEntry, SealedEnv};
-use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
+use core_db::{CommandContext, Storage, StorageError};
 
 /// The command scope and record kind of every secret write.
 const COMMAND_SCOPE: &str = "aylul_env";
@@ -102,7 +102,7 @@ impl SecretsStore {
         ctx: &CommandContext,
         scope: &str,
     ) -> Result<Option<String>, StorageError> {
-        classify(conn, ctx, COMMAND_SCOPE, scope).await
+        CommandContext::classify(conn, ctx, COMMAND_SCOPE, scope).await
     }
 
     pub(super) async fn put_in(
@@ -111,14 +111,23 @@ impl SecretsStore {
         value: SealedEnv,
     ) -> Result<EnvEntry, StorageError> {
         let scope = format!("{}/{}", value.profile, value.name);
-        let ts = now();
+        let ts = Storage::now();
         Self::upsert(conn, &value, &ts).await?;
         let entry = EnvEntry {
             name: value.name,
             updated_at: ts.clone(),
         };
         let outcome = serde_json::to_string(&entry).expect("metadata serializes");
-        record_command(conn, ctx, COMMAND_SCOPE, &scope, RECORD_KIND, &outcome, &ts).await?;
+        CommandContext::record_command(
+            conn,
+            ctx,
+            COMMAND_SCOPE,
+            &scope,
+            RECORD_KIND,
+            &outcome,
+            &ts,
+        )
+        .await?;
         Ok(entry)
     }
 
@@ -134,9 +143,10 @@ impl SecretsStore {
             .bind(name)
             .execute(&mut *conn)
             .await?;
-        let ts = now();
+        let ts = Storage::now();
         let outcome = serde_json::json!({"name": name, "updated_at": ts}).to_string();
-        record_command(conn, ctx, COMMAND_SCOPE, &scope, RECORD_KIND, &outcome, &ts).await
+        CommandContext::record_command(conn, ctx, COMMAND_SCOPE, &scope, RECORD_KIND, &outcome, &ts)
+            .await
     }
 
     pub(super) async fn remove_scope_in(

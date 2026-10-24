@@ -1,12 +1,9 @@
-//! The command record decides whether a command already happened and records its outcome.
+//! Durable command identity and replay classification.
 
 use sha2::{Digest, Sha256};
-use sqlx::SqliteConnection;
 
-use super::StorageError;
+use super::{StorageError, Tx};
 
-/// External write origin: everything needed to decide whether
-/// a submission is new, a replay, or a conflict.
 #[derive(Debug, Clone)]
 pub struct CommandContext {
     pub agent: Option<String>,
@@ -19,14 +16,7 @@ pub struct CommandContext {
 }
 
 impl CommandContext {
-    /// A person's command: principal `User`, id `local`, schema version 1,
-    /// the fingerprint of `params`.
-    ///
-    /// Every route that mutates carries the caller's command id, and the
-    /// fingerprint is derived from the same parameters the capability is about
-    /// to act on, never supplied by the client, which would let a replay with a
-    /// different body claim to be the same command.
-    pub(crate) fn user(command_id: String, kind: &str, params: serde_json::Value) -> Self {
+    pub fn user(command_id: String, kind: &str, params: serde_json::Value) -> Self {
         Self {
             agent: None,
             principal_kind: "User".into(),
@@ -40,9 +30,6 @@ impl CommandContext {
 }
 
 impl CommandContext {
-    /// Canonicalise before hashing, so that key order, which carries no meaning,
-    /// cannot turn a replay into a conflict. The command kind is mixed in so the
-    /// same params under a different command are not interchangeable.
     pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String {
         let mut hasher = Sha256::new();
         hasher.update(command_kind.as_bytes());
@@ -74,88 +61,79 @@ fn canonical(v: &serde_json::Value) -> String {
     }
 }
 
-/// `Some(outcome_ref)` when this exact command was already recorded, `None`
-/// when it is new, `Err(CommandConflict)` when the id was reused with a
-/// different request.
-///
-/// Replay identity compares three fields: command kind,
-/// schema version, and fingerprint. The schema version is not decoration — it
-/// says which normalisation rules produced the fingerprint, so equal
-/// fingerprints under different versions do not prove the requests are the
-/// same one. Dropping it from this comparison would replay an outcome computed
-/// under a different normalisation rule, and nothing would fail.
-pub(crate) async fn classify(
-    conn: &mut SqliteConnection,
-    ctx: &CommandContext,
-    scope_kind: &str,
-    scope_key: &str,
-) -> Result<Option<String>, StorageError> {
-    let existing: Option<(String, i64, String, Option<String>)> = sqlx::query_as(
-        "SELECT command_kind, command_schema_ver, request_fingerprint, outcome_ref
+impl CommandContext {
+    pub async fn classify(
+        conn: &mut Tx,
+        ctx: &CommandContext,
+        scope_kind: &str,
+        scope_key: &str,
+    ) -> Result<Option<String>, StorageError> {
+        let existing: Option<(String, i64, String, Option<String>)> = sqlx::query_as(
+            "SELECT command_kind, command_schema_ver, request_fingerprint, outcome_ref
            FROM command_record
           WHERE principal_kind = ? AND principal_id = ?
             AND command_scope_kind = ? AND command_scope_key = ?
             AND command_id = ?",
-    )
-    .bind(&ctx.principal_kind)
-    .bind(&ctx.principal_id)
-    .bind(scope_kind)
-    .bind(scope_key)
-    .bind(&ctx.command_id)
-    .fetch_optional(&mut *conn)
-    .await?;
+        )
+        .bind(&ctx.principal_kind)
+        .bind(&ctx.principal_id)
+        .bind(scope_kind)
+        .bind(scope_key)
+        .bind(&ctx.command_id)
+        .fetch_optional(&mut *conn)
+        .await?;
 
-    match existing {
-        None => Ok(None),
-        Some((kind, schema_ver, fp, outcome_ref)) => {
-            if kind == ctx.command_kind
-                && schema_ver == ctx.command_schema_ver
-                && fp == ctx.request_fingerprint
-            {
-                Ok(Some(
-                    outcome_ref.ok_or(StorageError::NotFound("outcome_ref"))?,
-                ))
-            } else {
-                Err(StorageError::CommandConflict)
+        match existing {
+            None => Ok(None),
+            Some((kind, schema_ver, fp, outcome_ref)) => {
+                if kind == ctx.command_kind
+                    && schema_ver == ctx.command_schema_ver
+                    && fp == ctx.request_fingerprint
+                {
+                    Ok(Some(
+                        outcome_ref.ok_or(StorageError::NotFound("outcome_ref"))?,
+                    ))
+                } else {
+                    Err(StorageError::CommandConflict)
+                }
             }
         }
     }
-}
 
-pub(crate) async fn record_command(
-    conn: &mut SqliteConnection,
-    ctx: &CommandContext,
-    scope_kind: &str,
-    scope_key: &str,
-    entity_kind: &str,
-    outcome_ref: &str,
-    ts: &str,
-) -> Result<(), StorageError> {
-    sqlx::query(
-        "INSERT INTO command_record
+    pub async fn record_command(
+        conn: &mut Tx,
+        ctx: &CommandContext,
+        scope_kind: &str,
+        scope_key: &str,
+        entity_kind: &str,
+        outcome_ref: &str,
+        ts: &str,
+    ) -> Result<(), StorageError> {
+        sqlx::query(
+            "INSERT INTO command_record
            (principal_kind, principal_id, command_scope_kind, command_scope_key,
             command_id, command_kind, command_schema_ver, request_fingerprint,
             outcome_kind, entity_kind, outcome_ref, recorded_at, audit_principal, audit_agent)
          VALUES (?,?,?,?,?,?,?,?,'Entity',?,?,?,?,?)",
-    )
-    .bind(&ctx.principal_kind)
-    .bind(&ctx.principal_id)
-    .bind(scope_kind)
-    .bind(scope_key)
-    .bind(&ctx.command_id)
-    .bind(&ctx.command_kind)
-    .bind(ctx.command_schema_ver)
-    .bind(&ctx.request_fingerprint)
-    .bind(entity_kind)
-    .bind(outcome_ref)
-    .bind(ts)
-    .bind(ctx.agent.as_ref().map(|_| "user:local"))
-    .bind(&ctx.agent)
-    .execute(&mut *conn)
-    .await?;
-    Ok(())
+        )
+        .bind(&ctx.principal_kind)
+        .bind(&ctx.principal_id)
+        .bind(scope_kind)
+        .bind(scope_key)
+        .bind(&ctx.command_id)
+        .bind(&ctx.command_kind)
+        .bind(ctx.command_schema_ver)
+        .bind(&ctx.request_fingerprint)
+        .bind(entity_kind)
+        .bind(outcome_ref)
+        .bind(ts)
+        .bind(ctx.agent.as_ref().map(|_| "user:local"))
+        .bind(&ctx.agent)
+        .execute(&mut *conn)
+        .await?;
+        Ok(())
+    }
 }
-
 #[cfg(test)]
 mod tests {
     use super::CommandContext;

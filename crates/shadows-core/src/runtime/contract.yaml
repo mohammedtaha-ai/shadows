@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns runtime identity rows and their journal events. Operations composes recovery and
 # the Graceful unfinished-work guard with Runtime::stop_in in one write transaction.
 name: runtime

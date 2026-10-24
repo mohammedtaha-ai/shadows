@@ -10,11 +10,11 @@ use super::{
     turn::{PlannerTurn, TurnWatch},
 };
 use crate::{
-    db::{Actor, StorageError},
     harness::{Harness, OpenSession},
     runtime::Runtime,
     threads::ThreadId,
 };
+use core_db::{Actor, StorageError};
 use shadows_agent::{TurnSettings, events::HarnessEvent};
 use std::sync::{Arc, atomic::AtomicBool};
 use tokio::sync::{broadcast, mpsc};
@@ -59,7 +59,7 @@ pub struct PlannerTurnRequest {
 impl PlannerTurn {
     pub async fn start(
         runtime: Arc<Runtime>,
-        storage: Arc<crate::db::Storage>,
+        storage: Arc<core_db::Storage>,
         handles: Arc<LiveHandles>,
         sessions: Arc<Harness>,
         opened: OpenSession,

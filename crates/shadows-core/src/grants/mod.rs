@@ -19,9 +19,9 @@ pub use model::{Grant, GrantId, GrantKind};
 #[cfg(feature = "test-support")]
 pub use model::{IssuedGrant, Token};
 
-use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::projects::ProjectId;
+use core_db::{CommandContext, Storage};
 
 /// Grants: what storage holds, and the `/mcp` address a `claude mcp add`
 /// line names.
@@ -104,13 +104,13 @@ impl Grants {
         conn: &mut sqlx::SqliteConnection,
         project: &ProjectId,
         thread: &crate::threads::ThreadId,
-    ) -> Result<(Grant, model::Token), crate::db::StorageError> {
+    ) -> Result<(Grant, model::Token), core_db::StorageError> {
         store::GrantsStore::issue_thread_grant_in(conn, project, thread).await
     }
     pub(crate) async fn revoke_thread_grant(
         &self,
         id: &GrantId,
-    ) -> Result<(), crate::db::StorageError> {
+    ) -> Result<(), core_db::StorageError> {
         self.store.revoke_thread_grant(id).await
     }
     pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, CoreError> {

@@ -1,9 +1,9 @@
 //! One job: recording a steered message.
 
 use super::queue::SCOPE;
-use crate::db::{Actor, CommandContext, StorageError, classify, now, record_command};
 use crate::threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId, SentNow};
+use core_db::{Actor, CommandContext, Storage, StorageError};
 
 impl super::TurnsStore {
     /// The steered message as a user entry of the running turn, and
@@ -23,13 +23,15 @@ impl super::TurnsStore {
             op.clone(),
             row.clone(),
             prompt.to_owned(),
-            now(),
+            Storage::now(),
         );
         let attachments = attachments.to_vec();
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
+                    if let Some(outcome) =
+                        CommandContext::classify(conn, &ctx, SCOPE, thread.as_str()).await?
+                    {
                         let v: serde_json::Value = serde_json::from_str(&outcome)?;
                         let id = v["entry_id"]
                             .as_str()
@@ -59,7 +61,7 @@ impl super::TurnsStore {
                     let actor = Actor::user(&ctx.principal_id);
                     Self::event(conn, "QueuedMessageSent", &thread, actor, payload, &ts).await?;
                     let outcome = serde_json::json!({ "entry_id": entry.id.as_str() }).to_string();
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         SCOPE,
@@ -82,7 +84,9 @@ impl super::TurnsStore {
         thread: &ThreadId,
     ) -> Result<Option<SentNow>, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
-        let Some(outcome) = classify(&mut conn, ctx, SCOPE, thread.as_str()).await? else {
+        let Some(outcome) =
+            CommandContext::classify(&mut conn, ctx, SCOPE, thread.as_str()).await?
+        else {
             return Ok(None);
         };
         let v: serde_json::Value = serde_json::from_str(&outcome)?;

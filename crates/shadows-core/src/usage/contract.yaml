@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns measured AYLUL usage: the one row each finished invocation records, and
 # reports over a period. It owns the one pricing rule (only Anthropic's finite,
 # non-negative USD cost is trusted), applied when a row is recorded and again when a

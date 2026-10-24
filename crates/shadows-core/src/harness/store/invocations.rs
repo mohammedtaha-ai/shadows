@@ -1,7 +1,7 @@
 //! Invocation writes in the transaction that owns the turn command or ending.
 use super::HarnessStore;
-use crate::db::StorageError;
 use crate::harness::NewInvocation;
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 
 impl HarnessStore {

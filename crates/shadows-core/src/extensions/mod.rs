@@ -8,7 +8,7 @@ pub(crate) use error::ExtensionsError;
 pub use model::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item};
 
 use crate::CoreError;
-use crate::db::{CommandContext, Storage};
+use core_db::{CommandContext, Storage};
 use sha2::{Digest, Sha256};
 use sqlx::SqliteConnection;
 use std::path::{Path, PathBuf};

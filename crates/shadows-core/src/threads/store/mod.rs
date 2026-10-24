@@ -8,7 +8,7 @@ mod remove;
 mod thread;
 mod title;
 
-use crate::db::Storage;
+use core_db::Storage;
 use std::sync::Arc;
 
 pub(super) struct ThreadsStore {

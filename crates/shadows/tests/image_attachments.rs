@@ -470,7 +470,7 @@ async fn a_harness_without_image_capability_refuses_with_its_reason() {
     .unwrap();
     let red = image(&app, "red", RED).await;
     let cold_before = counts(&app).await;
-    let mut observer = shadows_core::testing::database_writes(&app.storage)
+    let mut observer = shadows_core::testing::DatabaseWrites::observe(&app.storage)
         .await
         .unwrap();
     let version = observer.version().await.unwrap();

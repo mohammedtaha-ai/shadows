@@ -3,12 +3,10 @@ use sqlx::SqliteConnection;
 
 use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token};
 use super::{Grants, GrantsError, Writer};
-use crate::db::{
-    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
-};
 use crate::events::DurableEvent;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use std::sync::Arc;
 
 const DRAFT_REF_LIFETIME: time::Duration = time::Duration::HOUR;
@@ -27,18 +25,20 @@ impl GrantsStore {
         ctx: &CommandContext,
         project: &ProjectId,
     ) -> Result<IssuedGrant, StorageError> {
-        let (ctx, project, ts) = (ctx.clone(), project.clone(), now());
+        let (ctx, project, ts) = (ctx.clone(), project.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
+                    if let Some(id) =
+                        CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
+                    {
                         let grant = load_grant(conn, &GrantId::from_stored(id)).await?;
                         return Ok(IssuedGrant { grant, token: None });
                     }
                     crate::projects::Projects::require_live_in(conn, &project).await?;
                     let actor = Actor::user(&ctx.principal_id);
                     let (grant, token) = insert_grant(conn, &project, None, actor, &ts).await?;
-                    record_command(
+                    CommandContext::record_command(
                         conn,
                         &ctx,
                         "Project",
@@ -61,18 +61,28 @@ impl GrantsStore {
         project: &ProjectId,
         thread: &ThreadId,
     ) -> Result<(Grant, Token), StorageError> {
-        insert_grant(conn, project, Some(thread), Actor::system(), &now()).await
+        insert_grant(
+            conn,
+            project,
+            Some(thread),
+            Actor::system(),
+            &Storage::now(),
+        )
+        .await
     }
     pub(super) async fn revoke_grant(
         &self,
         ctx: &CommandContext,
         id: &GrantId,
     ) -> Result<Grant, StorageError> {
-        let (ctx, id, ts) = (ctx.clone(), id.clone(), now());
+        let (ctx, id, ts) = (ctx.clone(), id.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    if classify(conn, &ctx, "Grant", id.as_str()).await?.is_some() {
+                    if CommandContext::classify(conn, &ctx, "Grant", id.as_str())
+                        .await?
+                        .is_some()
+                    {
                         return load_grant(conn, &id).await;
                     }
                     let grant = find_grant(conn, &id)
@@ -81,14 +91,15 @@ impl GrantsStore {
                         .ok_or(StorageError::NotFound("project grant"))?;
                     revoke_in(conn, &grant, Actor::user(&ctx.principal_id), &ts).await?;
                     let (scope, key) = ("Grant", id.as_str());
-                    record_command(conn, &ctx, scope, key, "McpGrant", key, &ts).await?;
+                    CommandContext::record_command(conn, &ctx, scope, key, "McpGrant", key, &ts)
+                        .await?;
                     load_grant(conn, &id).await
                 })
             })
             .await
     }
     pub(super) async fn revoke_thread_grant(&self, id: &GrantId) -> Result<(), StorageError> {
-        let (id, ts) = (id.clone(), now());
+        let (id, ts) = (id.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -102,7 +113,7 @@ impl GrantsStore {
             .await
     }
     pub(super) async fn revoke_all_thread_grants(&self) -> Result<u64, StorageError> {
-        let ts = now();
+        let ts = Storage::now();
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -263,7 +274,7 @@ async fn insert_grant(
         Some(thread) => event.with_thread(thread),
         None => event,
     };
-    append_event(conn, &event.with_payload(payload), ts).await?;
+    JournalEntry::append_event(conn, event.with_payload(payload).journal_entry(), ts).await?;
     Ok((load_grant(conn, &id).await?, token))
 }
 async fn revoke_in(
@@ -287,7 +298,7 @@ async fn revoke_in(
         Some(thread) => event.with_thread(thread),
         None => event,
     };
-    append_event(conn, &event.with_payload(payload), ts)
+    JournalEntry::append_event(conn, event.with_payload(payload).journal_entry(), ts)
         .await
         .map(|_| ())
 }

@@ -61,3 +61,23 @@ fn repository_obeys_the_architecture_ratchet() {
         errors.join("\n")
     );
 }
+
+#[test]
+fn database_foundation_depends_on_no_service() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    let package = lock
+        .split("[[package]]")
+        .find(|entry| entry.lines().any(|line| line == r#"name = "core-db""#))
+        .expect("core-db is a workspace package");
+    for line in package
+        .lines()
+        .filter(|line| line.trim_start().starts_with('"'))
+    {
+        let name = line.trim().trim_matches(',').trim_matches('"');
+        assert!(
+            !name.starts_with("shadows") && (!name.starts_with("core-") || name == "core-db"),
+            "foundation must not depend on a service: {name}"
+        );
+    }
+}

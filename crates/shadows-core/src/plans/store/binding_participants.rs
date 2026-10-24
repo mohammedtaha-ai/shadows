@@ -1,9 +1,9 @@
 //! Captured current and historical adoption reads for Design.
-use crate::db::StorageError;
 use crate::{
     AgreementBinding, AgreementId, AgreementRole, BindingParticipant, PartId, PlanId, PlanState,
     ProjectId, WorkflowId, WorkflowState,
 };
+use core_db::StorageError;
 use sqlx::{FromRow, SqliteConnection};
 
 #[derive(FromRow)]

@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns AYLUL agent identities: an agent's configuration, its permanent slug, its
 # isolated home and its environment variables (through Secrets), and the rule that
 # no live agent loses its provider or its default model.

@@ -5,9 +5,9 @@ use super::{
 };
 use crate::{
     ProjectId,
-    db::StorageError,
     design::{DesignAnchor, OutcomeId, WorkspaceOp},
 };
+use core_db::StorageError;
 use sqlx::SqliteConnection;
 use std::collections::BTreeSet;
 async fn require(

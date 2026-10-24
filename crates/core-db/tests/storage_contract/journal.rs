@@ -1,9 +1,8 @@
 //! The journal's append: provenance, and the committed signal.
 
-use shadows_core::Actor;
-use shadows_core::ProjectId;
-use shadows_core::testing::DurableEvent;
-use shadows_core::testing::Storage;
+use super::fixtures::Event;
+use core_db::Actor;
+use core_db::Storage;
 
 /// Finding 3, fix round 1: `causation` and `correlation_id` must round-trip
 /// through `append_event` — a future edit to the INSERT column list that
@@ -26,10 +25,10 @@ async fn event_provenance_round_trips_through_append_event() {
                 .bind("2026-09-21T00:00:00Z")
                 .execute(&mut *conn)
                 .await?;
-                shadows_core::testing::append_event_for_test(
+                core_db::JournalEntry::append_event_for_test(
                     conn,
-                    &DurableEvent::new("ProjectCreated", Actor::system())
-                        .with_project(&ProjectId::from_literal("p-1"))
+                    &Event::new("ProjectCreated", Actor::system())
+                        .with_project("p-1")
                         .with_payload(serde_json::json!({}))
                         .with_causation("Command", "cmd-1")
                         .with_correlation("corr-1"),
@@ -76,17 +75,16 @@ async fn the_committed_signal_moves_on_commit_and_never_on_rollback() {
         let outcome = storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    let seq = shadows_core::testing::append_event_for_test(
+                    let seq = core_db::JournalEntry::append_event_for_test(
                         conn,
-                        &DurableEvent::new("Probe", Actor::system())
-                            .with_payload(serde_json::json!({})),
+                        &Event::new("Probe", Actor::system()).with_payload(serde_json::json!({})),
                         "2026-09-21T00:00:00Z",
                     )
                     .await?;
                     if commit {
                         Ok(seq)
                     } else {
-                        Err(shadows_core::StorageError::NotFound("forced"))
+                        Err(core_db::StorageError::NotFound("forced"))
                     }
                 })
             })

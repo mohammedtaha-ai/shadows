@@ -25,10 +25,10 @@ pub use model::{
 };
 pub use scope::Asker;
 
-use crate::db::Storage;
 use crate::error::CoreError;
 use crate::projects::{ProjectId, Projects};
 use active::Active;
+use core_db::Storage;
 use store::{CodeStore, ScopeRow};
 use watch::Job;
 
@@ -151,7 +151,7 @@ impl Code {
                     .collect(),
             ),
             // An unknown project, as `Threads::list` may be asked for, is no use.
-            Err(crate::db::StorageError::NotFound(_)) => None,
+            Err(core_db::StorageError::NotFound(_)) => None,
             Err(error) => {
                 tracing::warn!(project = project.as_str(), error = %error, "code.touch_failed");
                 None

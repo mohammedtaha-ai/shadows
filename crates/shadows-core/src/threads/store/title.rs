@@ -8,9 +8,9 @@
 
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, StorageError, append_event};
 use crate::threads::Threads;
 use crate::threads::model::{ThreadEntryId, ThreadId};
+use core_db::{Actor, JournalEntry, StorageError};
 
 /// Inside the turn's write, after `entry` (its user message) was appended:
 /// titles the thread after the message when it is the thread's first and the
@@ -103,9 +103,9 @@ async fn retitled(
     actor: Actor,
     ts: &str,
 ) -> Result<(), StorageError> {
-    append_event(
+    JournalEntry::append_event(
         conn,
-        crate::db::JournalEntry {
+        core_db::JournalEntry {
             event_id: uuid::Uuid::new_v4().to_string(),
             kind: "ThreadRetitled".into(),
             actor,

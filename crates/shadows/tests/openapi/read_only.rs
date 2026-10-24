@@ -162,7 +162,7 @@ async fn no_get_route_changes_state() {
         )
         .await
         .unwrap();
-    let mut observer = shadows_core::testing::database_writes(&a.storage)
+    let mut observer = shadows_core::testing::DatabaseWrites::observe(&a.storage)
         .await
         .unwrap();
     let (status, body) = app::call(&a, "GET", "/api/runtime", None).await;

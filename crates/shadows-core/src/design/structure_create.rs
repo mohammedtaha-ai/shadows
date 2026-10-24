@@ -34,7 +34,7 @@ impl Design {
         stop: Option<usize>,
     ) -> Result<StructureWritten, CoreError> {
         let _guard = self.structure_lock.lock().await;
-        let ctx = crate::db::CommandContext::user(
+        let ctx = core_db::CommandContext::user(
             command,
             "CreateStructure",
             serde_json::json!({"project":p}),
@@ -92,7 +92,7 @@ impl Design {
                 StructureWritten {
                     map_version,
                     paths: plan.files.into_iter().map(|f| f.path).collect(),
-                    completed_at: crate::db::now(),
+                    completed_at: core_db::Storage::now(),
                     resumed: snapshot.resumed,
                 },
             )

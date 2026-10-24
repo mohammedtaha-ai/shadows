@@ -5,7 +5,7 @@ mod store;
 pub use model::{Person, PersonInput, Theme};
 
 use crate::CoreError;
-use crate::db::{CommandContext, Storage};
+use core_db::{CommandContext, Storage};
 use std::sync::Arc;
 use store::PersonStore;
 

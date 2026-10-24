@@ -1,3 +1,4 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns what clients watch live (spec §2.10, §14.4): one subscriber's stream
 # over one thread — the durable journal after the client's `after`, then
 # `CaughtUp`, then live — and reading the journal back (`store.rs`).
@@ -175,9 +176,9 @@ functions:
     with_correlation:
       signature: "(self, id) -> Self"
       # test-support only.
-    from:
-      signature: "impl From<&DurableEvent> for JournalEntry"
-      # What `db::append_event` takes: every field carried over, the typed
+    journal_entry:
+      signature: "DurableEvent::journal_entry(&self) -> core_db::JournalEntry"
+      # What `JournalEntry::append_event` takes: every field carried over, the typed
       # subject ids as their strings, so the journal names no service type.
   testing:
     read_events_after_for_test:
@@ -205,19 +206,19 @@ functions:
 
 enums:
   Storage:
-    source: crate::db::Storage
+    source: core_db::Storage
     values: []
   StorageError:
-    source: crate::db::StorageError
+    source: core_db::StorageError
     values: []
   Actor:
-    source: crate::db::Actor
+    source: core_db::Actor
     values: []
   Causation:
-    source: crate::db::Causation
+    source: core_db::Causation
     values: []
   JournalEntry:
-    source: crate::db::JournalEntry
+    source: core_db::JournalEntry
     values: []
   Harness:
     source: crate::harness::Harness

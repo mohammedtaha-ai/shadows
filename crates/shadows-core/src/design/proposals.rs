@@ -1,7 +1,7 @@
 //! Vision proposal values and the person/Planner entry points.
 use super::{Design, DesignChange, VisionField};
-use crate::db::CommandContext;
 use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId, grants::Writer};
+use core_db::CommandContext;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -75,7 +75,7 @@ impl Design {
                 .reader()
                 .begin()
                 .await
-                .map_err(crate::db::StorageError::from)?,
+                .map_err(core_db::StorageError::from)?,
             thread,
         )
         .await?

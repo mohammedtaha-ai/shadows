@@ -1,10 +1,10 @@
-use crate::db::{Actor, StorageError, now};
 use crate::harness::Harness;
 use crate::operations::Operations;
 use crate::runtime::RuntimeInstanceId;
 #[cfg(feature = "test-support")]
 use crate::threads::ThreadId;
 use crate::turns::model::{FailureStage, OperationId};
+use core_db::{Actor, Storage, StorageError};
 use shadows_agent::events::TurnObservation;
 impl super::TurnsStore {
     #[cfg(feature = "test-support")]
@@ -18,7 +18,7 @@ impl super::TurnsStore {
             id.clone(),
             thread_id.clone(),
             runtime_instance_id.clone(),
-            now(),
+            Storage::now(),
         );
         self.storage
             .write_txn(move |conn| {
@@ -36,7 +36,8 @@ impl super::TurnsStore {
         op_id: &OperationId,
         expected_runtime: &RuntimeInstanceId,
     ) -> Result<(), StorageError> {
-        let (op_id, expected_runtime, ts) = (op_id.clone(), expected_runtime.clone(), now());
+        let (op_id, expected_runtime, ts) =
+            (op_id.clone(), expected_runtime.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -58,7 +59,7 @@ impl super::TurnsStore {
             op_id.clone(),
             outcome.to_string(),
             observation.clone(),
-            now(),
+            Storage::now(),
         );
         self.storage
             .write_txn(move |conn| {
@@ -96,7 +97,7 @@ impl super::TurnsStore {
         usage: Option<&shadows_agent::events::TurnUsage>,
     ) -> Result<(), StorageError> {
         let usage = usage.cloned();
-        let (op_id, reason, ts) = (op_id.clone(), reason.to_string(), now());
+        let (op_id, reason, ts) = (op_id.clone(), reason.to_string(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -115,7 +116,7 @@ impl super::TurnsStore {
         op_id: &OperationId,
         requester: Actor,
     ) -> Result<(), StorageError> {
-        let (op_id, requester, ts) = (op_id.clone(), requester, now());
+        let (op_id, requester, ts) = (op_id.clone(), requester, Storage::now());
         let transition = self
             .storage
             .write_txn(move |conn| {
@@ -140,7 +141,7 @@ impl super::TurnsStore {
         usage: Option<&shadows_agent::events::TurnUsage>,
     ) -> Result<(), StorageError> {
         let usage = usage.cloned();
-        let (op_id, ts) = (op_id.clone(), now());
+        let (op_id, ts) = (op_id.clone(), Storage::now());
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {

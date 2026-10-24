@@ -1,7 +1,7 @@
 //! Transactional SQL for provider configuration.
 use super::{Provider, ProviderInput, ProviderModel, ProvidersError, SlugBase};
 use crate::CoreError;
-use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
+use core_db::{CommandContext, Storage, StorageError};
 use futures_core::future::BoxFuture;
 use sqlx::{Row, SqliteConnection};
 use std::sync::Arc;
@@ -69,7 +69,8 @@ impl ProvidersStore {
             .write_txn_as(move |conn| {
                 Box::pin(async move {
                     if let Some(id) =
-                        classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
+                        CommandContext::classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
+                            .await?
                     {
                         return Ok(id);
                     }
@@ -108,7 +109,7 @@ impl ProvidersStore {
         id: &str,
         input: &ProviderInput,
     ) -> Result<(), ProvidersError> {
-        let ts = now();
+        let ts = Storage::now();
         sqlx::query(
             "INSERT INTO aylul_provider
             (slug,name,base_url,models,context_window,created_at,updated_at,preset,label)
@@ -163,6 +164,7 @@ impl ProvidersStore {
         id: &str,
     ) -> Result<(), StorageError> {
         let (scope, key) = COMMAND_SCOPE;
-        record_command(conn, command, scope, key, "Profile", id, &now()).await
+        CommandContext::record_command(conn, command, scope, key, "Profile", id, &Storage::now())
+            .await
     }
 }

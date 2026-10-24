@@ -1,6 +1,6 @@
 //! The refusals a provider write returns, and how a caller meets them.
 use crate::CoreError;
-use crate::db::StorageError;
+use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ProvidersError {

@@ -458,6 +458,33 @@ rollback of partial cross-owner writes, replay/conflict behavior, cancellation
 recovery and notification only after commit. Compile the workspace's targets;
 run the affected foundation and cross-service tests, not the full release gate.
 
+Completed on `context-meter` (2026-10-24). `crates/core-db` now owns the eight
+foundation source modules, migration build script and all 37 migration files.
+Their Git blobs are unchanged. `Tx` names the borrowed SQLx connection; the same
+serialized `BEGIN IMMEDIATE`, rollback recovery and after-commit watch remain in
+`Storage`. Domain stores call `CommandContext` and `JournalEntry` methods, and
+convert private durable events explicitly; adapters retain only `shadows-core`.
+The exported id macro leaves each id with its service. Only `test-support`
+forwards the write observer and test hooks; the production feature tree is clean.
+
+The pinned fingerprint/derived-id test bodies remain unchanged. Foundation tests
+cover cancellation of partial command/event writes, recovery, replay/conflict,
+observer rollback and committed notification. The application test forces command
+recording to fail after project state and its event have been written, proving
+that partial writes roll back together. The migration compatibility tests moved
+with the foundation; domain migration tests use the new migration directory.
+Contract validation follows the moved contract. Architecture fixtures classify
+catalog reads and `PRAGMA data_version` only in the foundation, preserve adapter
+sensitivity to the moved crate and reject service dependencies in its package.
+All three A-19b SQL-review allowlist records are deleted; none were added.
+
+Verification: the exact CI awk line-length command, fmt, both assigned workspace
+clippy modes, production feature-leak check and unchanged API diff passed.
+`core-db` passed 20 tests; the named Core integrations passed 31; Core units passed
+40; the named adapter suites passed 113. The two affected domain migration suites
+add six passes and one pre-existing ignored manual probe. These are local automated
+checks; browser, native and production acceptance were not run in this extraction.
+
 ### A-19c · Extract services in the verified order
 The controller expands this milestone into one task per service using A-8c's
 resolved graph, including type-only and test dependencies. It is blocked until

@@ -1,8 +1,8 @@
 //! Image upload validation and public attachment values.
 use super::{ThreadId, Threads};
-use crate::db::CommandContext;
-use crate::db::id::newtype_id;
 use crate::{CoreError, ErrorCode};
+use core_db::CommandContext;
+use core_db::newtype_id;
 use image::{AnimationDecoder, ImageDecoder};
 use sha2::{Digest, Sha256};
 

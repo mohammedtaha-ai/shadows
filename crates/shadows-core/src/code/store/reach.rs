@@ -3,8 +3,8 @@
 use sqlx::SqliteConnection;
 
 use crate::code::Code;
-use crate::db::StorageError;
 use crate::projects::{ProjectId, Projects};
+use core_db::StorageError;
 
 impl Code {
     /// Live same-project or direct-link reach in the caller's snapshot.

@@ -7,7 +7,6 @@ use super::PlansStore;
 use sqlx::SqliteConnection;
 
 use super::task::TaskRows;
-use crate::db::StorageError;
 use crate::grants::GrantId;
 use crate::plans::model::{
     EditOutcome, LastEdit, Plan, PlanId, PlanListing, PlanState, WorkflowId, WorkflowState,
@@ -16,6 +15,7 @@ use crate::plans::model::{
 use crate::plans::rules::Rules;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
+use core_db::StorageError;
 
 impl PlansStore {
     pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, crate::CoreError> {

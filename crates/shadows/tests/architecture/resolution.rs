@@ -499,7 +499,8 @@ impl Index {
 fn sensitive(path: &str) -> bool {
     path.contains("::store::")
         || path.ends_with("::store")
-        || ((path.contains("::db::") || path.ends_with("::db")) && !path.contains("::StorageError"))
+        || ((path.contains("::db::") || path.ends_with("::db") || path.starts_with("core_db::"))
+            && !path.contains("::StorageError"))
         || [
             "Storage",
             "Sessions",
