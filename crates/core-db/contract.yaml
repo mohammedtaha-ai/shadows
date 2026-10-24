@@ -107,7 +107,7 @@ functions:
     write_txn:
       signature: "(&self, f: F) -> Result<T, StorageError>"
       # Serializes BEGIN IMMEDIATE writes; commits on success, rolls back on error,
-      # recovers abandoned transactions on entry and publishes only after commit.
+      # uses SQLx drop rollback for abandoned transactions and publishes only after commit.
       # A thin call to write_txn_as with E = StorageError.
     write_txn_as:
       signature: "(&self, f: F) -> Result<T, E> where E: From<StorageError>"
@@ -130,6 +130,10 @@ enums:
 
 
 obligations:
+  - rule: A failed BEGIN does not poison later serialized writes.
+    tested_by: write_txn_recovers_after_begin_times_out
+  - rule: The embedded migration catalog preserves every base version, description and checksum.
+    tested_by: embedded_migrations_match_the_base_catalog
   - rule: Cancellation rolls back partial commands and events before another serialized write.
     tested_by: cancelled_write_rolls_back_command_and_event_before_recovery
   - rule: The observer detects committed writes and ignores rolled-back command records.
@@ -173,6 +177,10 @@ obligations:
 
 
 tests:
+  - name: embedded_migrations_match_the_base_catalog
+    checks: All 37 versions, descriptions and SHA-384 checksums match the 0327292 Git catalog.
+  - name: write_txn_recovers_after_begin_times_out
+    checks: An external writer exceeds busy_timeout; the next write succeeds after it releases its lock.
   - name: fingerprints_match_persisted_values
     checks: Fixed SHA-256 vectors from 5169647 cover nested keys, arrays, escaping, Unicode and null.
   - name: derived_ids_match_persisted_values

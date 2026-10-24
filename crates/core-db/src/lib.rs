@@ -31,17 +31,10 @@ pub use journal::{Actor, Causation, JournalEntry};
 
 const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 
-// The flag survives a dropped write future so the next lock holder can roll back
-// before starting another transaction on this same SQLx connection.
-struct WriteConn {
-    conn: SqliteConnection,
-    txn_open: bool,
-}
-
 /// One serialized BEGIN IMMEDIATE writer plus a WAL reader pool.
 pub struct Storage {
     read: SqlitePool,
-    write: Mutex<WriteConn>,
+    write: Mutex<SqliteConnection>,
     committed: watch::Sender<i64>,
 }
 
@@ -76,10 +69,7 @@ impl Storage {
 
         Ok(Self {
             read,
-            write: Mutex::new(WriteConn {
-                conn: write,
-                txn_open: false,
-            }),
+            write: Mutex::new(write),
             committed: watch::channel(highest.unwrap_or(0)).0,
         })
     }
@@ -128,56 +118,27 @@ impl Storage {
         F: for<'a> FnOnce(&'a mut Tx) -> BoxFuture<'a, Result<T, E>>,
         E: From<StorageError>,
     {
-        use sqlx::Executor;
         let mut guard = self.write.lock().await;
-
-        if guard.txn_open {
-            tracing::warn!(
-                "write connection had an open transaction on entry (a previous \
-                 write_txn panicked or was cancelled); rolling back before proceeding"
-            );
-            match guard.conn.execute("ROLLBACK").await {
-                Ok(_) => guard.txn_open = false,
-                Err(e) => {
-                    tracing::error!(
-                        error = %e,
-                        "failed to roll back a recovered transaction; the write \
-                         connection may be poisoned"
-                    );
-                    return Err(StorageError::from(e).into());
-                }
-            }
-        }
-
-        // Set before awaiting BEGIN: cancellation may occur after SQLite accepts
-        // the statement but before its result reaches this future.
-        guard.txn_open = true;
-        guard
-            .conn
-            .execute("BEGIN IMMEDIATE")
+        // SQLx queues rollback when the guard is dropped, including cancellation.
+        // Its worker also cleans up BEGIN if the waiting future disappears.
+        let mut transaction = guard
+            .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(StorageError::from)?;
 
-        match f(&mut guard.conn).await {
+        match f(&mut transaction).await {
             Ok(v) => {
-                guard
-                    .conn
-                    .execute("COMMIT")
-                    .await
-                    .map_err(StorageError::from)?;
-                guard.txn_open = false;
-                self.publish_committed(&mut guard.conn).await;
+                transaction.commit().await.map_err(StorageError::from)?;
+                self.publish_committed(&mut guard).await;
                 Ok(v)
             }
             Err(e) => {
-                if let Err(rollback_err) = guard.conn.execute("ROLLBACK").await {
+                if let Err(rollback_err) = transaction.rollback().await {
                     tracing::error!(
                         error = %rollback_err,
                         "rollback failed after a write_txn error; the write \
                          connection may be poisoned"
                     );
-                } else {
-                    guard.txn_open = false;
                 }
                 Err(e)
             }

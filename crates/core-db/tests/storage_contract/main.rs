@@ -1,5 +1,4 @@
-//! The storage layer every service shares (spec §6.23, §2.4): one test
-//! binary, one module per job.
+//! The shared storage contract, with one module per persistence concern.
 
 mod journal;
 mod schema;

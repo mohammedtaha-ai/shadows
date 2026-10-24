@@ -4,7 +4,7 @@ use super::fixtures::Event;
 use core_db::Actor;
 use core_db::Storage;
 
-/// Finding 3, fix round 1: `causation` and `correlation_id` must round-trip
+/// `causation` and `correlation_id` must round-trip
 /// through `append_event` — a future edit to the INSERT column list that
 /// silently drops one of the three provenance columns must fail this test.
 #[tokio::test]
@@ -62,7 +62,7 @@ async fn event_provenance_round_trips_through_append_event() {
     assert_eq!(correlation_id.as_deref(), Some("corr-1"));
 }
 
-/// Spec §2.4: live publication happens after commit. The committed-sequence
+/// Live publication happens after commit. The committed-sequence
 /// signal must not move for a transaction that rolled back — its event never
 /// existed — and must move, to the committed `seq`, once one commits.
 #[tokio::test]

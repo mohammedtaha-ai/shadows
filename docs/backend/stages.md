@@ -498,6 +498,15 @@ are reference material; they do not replace the project's template or code.
   retained the 13 unrelated ownership records (three resolve to the moved Storage type),
   251 comments, nine public-function records and zero registration records; no new exemption.
 
+- Review (2026-10-24): reproduced and fixed writer poisoning after BEGIN timeout
+  using the SQLx BEGIN IMMEDIATE transaction guard; added the timeout regression.
+  A pinned catalog checks all 37 embedded migration versions, descriptions and
+  SHA-384 checksums against `0327292`. Corrected local CRLF bytes in migration 37
+  without changing its Git blob. Eight moved tests retain their assertions;
+  pinned identity test bodies match `6c4505a`. Review test counts: core-db 22;
+  assigned Core command 77 passed, 1 existing ignored; assigned architecture/adapter
+  command 129 passed. Moved test comments no longer carry history/spec references.
+
 ### A-19c · Extract services in the verified order
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-19c--extract-services-in-the-verified-order

@@ -485,6 +485,19 @@ clippy modes, production feature-leak check and unchanged API diff passed.
 add six passes and one pre-existing ignored manual probe. These are local automated
 checks; browser, native and production acceptance were not run in this extraction.
 
+Review (2026-10-24): a regression reproduced permanent writer failure after an
+external writer made BEGIN time out. Storage now uses SQLx's BEGIN IMMEDIATE
+transaction guard, including SQLx drop rollback, rather than a manual open flag.
+The timeout regression and cancellation/recovery tests pass. All 37 Git blobs
+match `0327292`; a pinned SHA-384 catalog also checks the embedded versions,
+descriptions, order and checksums. It caught CRLF bytes in the local migration 37;
+restoring its canonical LF bytes changed no Git blob. The build script remains
+unchanged. All eight moved storage tests retain their assertions, and both pinned
+identity test bodies match `6c4505a`. Moved test comments now state the invariant.
+The review commands passed 22 foundation tests, 77 Core tests (one existing
+manual migration probe ignored), and 129 architecture/adapter tests. No browser,
+native or production acceptance was run.
+
 ### A-19c · Extract services in the verified order
 The controller expands this milestone into one task per service using A-8c's
 resolved graph, including type-only and test dependencies. It is blocked until
