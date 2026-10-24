@@ -17,7 +17,6 @@ use shadows_process::{ProcessSpec, spawn};
 use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::Events;
-use crate::extensions::Extensions;
 use crate::grants::Grants;
 use crate::harness::{AylulOwners, Harness, SessionsConfig};
 use crate::operations::Operations;
@@ -29,6 +28,7 @@ use crate::turns::{Bus, LiveHandles, Turns};
 use core_agents::Agents;
 use core_code::{Code, CodeConfig};
 use core_db::Storage;
+use core_extensions::Extensions;
 use core_instructions::Instructions;
 use core_person::PersonSettings;
 use core_projects::Projects;
@@ -86,8 +86,8 @@ pub struct CoreParts {
          `crates/core-agents/contract.yaml` |"]
 #[doc = " | `Extensions` | \
          the shared extension library | \
-         `crates/shadows-core/src/extensions` | \
-         `crates/shadows-core/src/extensions/contract.yaml` |"]
+         `crates/core-extensions/src` | \
+         `crates/core-extensions/contract.yaml` |"]
 #[doc = " | `Usage` | \
          measured AYLUL usage | \
          `crates/core-usage/src` | \

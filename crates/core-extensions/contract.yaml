@@ -7,14 +7,14 @@
 name: extensions
 version: 1
 status: current
-source: crates/shadows-core/src/extensions
+source: crates/core-extensions/src
 
 modules:
-  mod.rs: library commands and the projection guard
+  lib.rs: library commands and the projection guard
   model.rs: public extension metadata
   files.rs: bounded library file copies
   error.rs: library refusals
-  store.rs: extension configuration SQL
+  store/: extension configuration SQL
 
 dependencies:
   agents: crates/core-agents/contract.yaml
@@ -30,6 +30,7 @@ shapes:
     NotFound: ExtensionNotFound for a caller
     NameConflict: ExtensionNameConflict for a caller
     Invalid: String # ProfileInvalid for a caller
+    NotConfigured: AYLUL configuration is absent
     Agent: AgentsError
     Storage: StorageError
   ExtensionKind:
@@ -44,15 +45,15 @@ shapes:
     note: Whole library with per-agent switches
 
 functions:
-  new: "crate-private: (storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Extensions>"
+  new: "public: (storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Extensions>"
   extensions: List the shared extension library ordered by name and id.
   add_extension: Import a bounded immutable local copy under one replayable command.
   delete_extension: Remove the item and every enablement in one transaction, then retire its files.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
-  extension_guard: crate-private; the library mutation guard the harness holds while projecting.
-  remove_agent_in: crate-private; remove every switch of an agent in the caller's write.
-  copy_tree: crate-private; copy one library item's bounded regular files into a managed snapshot.
+  extension_guard: public; the library mutation guard the harness holds while projecting.
+  remove_agent_in: public; remove every switch of an agent in the caller's write.
+  copy_tree: public; copy one library item's bounded regular files into a managed snapshot.
   publish: private; copy a bounded source into the library and answer its metadata and digest.
   retire: private; remove a deleted item's owned folder; failure leaves an inert copy.
 
@@ -61,7 +62,8 @@ called_by_other_services:
   copy_tree: Harness copies bounded regular library files into a managed snapshot.
   remove_agent_in: Harness::delete_agent, in the same write as Agents::delete_in.
 
-shared_in_transaction: {}
+shared_in_transaction:
+  remove_agent_in: Agent enablements removed in the caller write.
 
 obligations:
   - rule: Imports copy owned data with UUID ids and return no source path.

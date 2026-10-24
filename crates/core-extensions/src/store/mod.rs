@@ -1,5 +1,5 @@
 //! Transactional extension library metadata and per-agent enablement.
-use super::{
+use crate::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
 use core_agents::Agents;

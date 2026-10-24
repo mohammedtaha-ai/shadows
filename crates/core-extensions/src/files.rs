@@ -125,7 +125,7 @@ impl Extensions {
     }
 
     /// Copies one library item's regular files into a managed snapshot.
-    pub(crate) fn copy_tree(source: &Path, target: &Path) -> Result<(), ExtensionsError> {
+    pub fn copy_tree(source: &Path, target: &Path) -> Result<(), ExtensionsError> {
         copy_tree(source, target)
     }
 

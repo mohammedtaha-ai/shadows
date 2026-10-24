@@ -1,3 +1,4 @@
+# Extension library methods and refusals are imported from core-extensions.
 # AgentsError is translated through CoreError with unchanged responses.
 # Project standards are imported from core-standards.
 # Planner instructions are read through core-instructions.

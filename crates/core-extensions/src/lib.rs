@@ -4,10 +4,9 @@ mod files;
 mod model;
 mod store;
 
-pub(crate) use error::ExtensionsError;
+pub use error::ExtensionsError;
 pub use model::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item};
 
-use crate::CoreError;
 use core_db::{CommandContext, Storage};
 use sha2::{Digest, Sha256};
 use sqlx::SqliteConnection;
@@ -23,7 +22,7 @@ pub struct Extensions {
 }
 
 impl Extensions {
-    pub(crate) fn new(storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Self> {
+    pub fn new(storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Self> {
         Arc::new(Self {
             store: ExtensionsStore::new(storage),
             lock: Arc::default(),
@@ -31,12 +30,12 @@ impl Extensions {
         })
     }
 
-    pub async fn extensions(&self) -> Result<ExtensionLibrary, CoreError> {
-        Ok(self.store.library().await?)
+    pub async fn extensions(&self) -> Result<ExtensionLibrary, ExtensionsError> {
+        self.store.library().await
     }
 
-    pub async fn agent_extensions(&self, slug: &str) -> Result<AgentExtensions, CoreError> {
-        Ok(self.store.agent_library(slug).await?)
+    pub async fn agent_extensions(&self, slug: &str) -> Result<AgentExtensions, ExtensionsError> {
+        self.store.agent_library(slug).await
     }
 
     pub async fn add_extension(
@@ -44,10 +43,10 @@ impl Extensions {
         command_id: String,
         kind: ExtensionKind,
         path: &Path,
-    ) -> Result<Item, CoreError> {
+    ) -> Result<Item, ExtensionsError> {
         let _guard = self.extension_guard().await;
         if !path.is_absolute() {
-            return Err(CoreError::ProfileInvalid(
+            return Err(ExtensionsError::Invalid(
                 "extension source must be absolute".into(),
             ));
         }
@@ -70,9 +69,9 @@ impl Extensions {
         let root = self
             .home_root
             .as_ref()
-            .ok_or(CoreError::AylulNotConfigured)?
+            .ok_or(ExtensionsError::NotConfigured)?
             .join("library");
-        Ok(self.store.add(c, kind, source, root).await?)
+        self.store.add(c, kind, source, root).await
     }
 
     pub async fn delete_extension(
@@ -80,7 +79,7 @@ impl Extensions {
         command_id: String,
         kind: ExtensionKind,
         id: &str,
-    ) -> Result<(), CoreError> {
+    ) -> Result<(), ExtensionsError> {
         let _guard = self.extension_guard().await;
         let c = CommandContext::user(
             command_id,
@@ -101,7 +100,7 @@ impl Extensions {
         kind: ExtensionKind,
         id: &str,
         enabled: bool,
-    ) -> Result<AgentItem, CoreError> {
+    ) -> Result<AgentItem, ExtensionsError> {
         let _guard = self.extension_guard().await;
         let c = CommandContext::user(
             command_id,
@@ -109,16 +108,16 @@ impl Extensions {
             serde_json::json!({
             "slug":slug,"kind":kind,"id":id,"enabled":enabled}),
         );
-        Ok(self.store.toggle(c, slug, kind, id, enabled).await?)
+        self.store.toggle(c, slug, kind, id, enabled).await
     }
 
     /// Held while the harness projects the library into a home.
-    pub(crate) async fn extension_guard(&self) -> tokio::sync::OwnedMutexGuard<()> {
+    pub async fn extension_guard(&self) -> tokio::sync::OwnedMutexGuard<()> {
         self.lock.clone().lock_owned().await
     }
 
     /// Removes every switch of an agent inside the caller's write.
-    pub(crate) async fn remove_agent_in(
+    pub async fn remove_agent_in(
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<(), ExtensionsError> {

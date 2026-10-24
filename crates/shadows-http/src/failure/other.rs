@@ -169,3 +169,9 @@ impl From<shadows_core::AgentsError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::ExtensionsError> for Failure {
+    fn from(error: shadows_core::ExtensionsError) -> Self {
+        CoreError::from(error).into()
+    }
+}

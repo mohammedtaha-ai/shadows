@@ -1,7 +1,7 @@
 //! Project the enabled library into one isolated agent home at opening.
 use super::profile_home::Homes;
-use crate::extensions::Extensions;
 use crate::{CoreError, Item};
+use core_extensions::Extensions;
 use serde_json::json;
 use std::{io::Write, path::Path};
 

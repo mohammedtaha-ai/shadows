@@ -80,11 +80,11 @@ pattern to follow, not merely an example.
 | `crates/core-agents/src/home.rs` | agent home seeding | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/src/error.rs` | agent refusals | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/src/store/` | agent identity SQL | `crates/core-agents/contract.yaml` |
-| `crates/shadows-core/src/extensions/` | the shared extension library | `crates/shadows-core/src/extensions/contract.yaml` |
-| `crates/shadows-core/src/extensions/model.rs` | public extension metadata | `crates/shadows-core/src/extensions/contract.yaml` |
-| `crates/shadows-core/src/extensions/files.rs` | bounded library file copies | `crates/shadows-core/src/extensions/contract.yaml` |
-| `crates/shadows-core/src/extensions/error.rs` | extension library refusals | `crates/shadows-core/src/extensions/contract.yaml` |
-| `crates/shadows-core/src/extensions/store.rs` | extension configuration SQL | `crates/shadows-core/src/extensions/contract.yaml` |
+| `crates/core-extensions/src/` | the shared extension library | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/model.rs` | public extension metadata | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/files.rs` | bounded library file copies | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/error.rs` | extension library refusals | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/store/` | extension configuration SQL | `crates/core-extensions/contract.yaml` |
 | `crates/core-usage/src/` | measured AYLUL usage | `crates/core-usage/contract.yaml` |
 | `crates/core-usage/src/model.rs` | usage report shapes | `crates/core-usage/contract.yaml` |
 | `crates/core-usage/src/report.rs` | historical usage aggregation | `crates/core-usage/contract.yaml` |
@@ -93,7 +93,7 @@ pattern to follow, not merely an example.
 | `crates/core-person/src/model.rs` | public person record | `crates/core-person/contract.yaml` |
 | `crates/core-person/src/store/` | person record SQL | `crates/core-person/contract.yaml` |
 | `crates/shadows-core/src/harness/extension_home.rs` | per-agent extension projection | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/shadows-core/src/extensions/contract.yaml` |
+| `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/core-extensions/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
 | `crates/shadows-core/src/turns/store/usage.rs` | atomic turn usage insertion | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/harness/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
@@ -457,3 +457,5 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |
+
+| `crates/core-extensions/src/lib.rs` | extension library boundary | `crates/core-extensions/contract.yaml` |

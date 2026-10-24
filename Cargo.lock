@@ -729,6 +729,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-extensions"
+version = "0.1.0"
+dependencies = [
+ "core-agents",
+ "core-db",
+ "core-projects",
+ "core-providers",
+ "core-secrets",
+ "dunce",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "shadows-process",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "utoipa",
+ "uuid",
+ "yaml-rust2",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3534,6 +3557,7 @@ dependencies = [
  "core-agents",
  "core-code",
  "core-db",
+ "core-extensions",
  "core-instructions",
  "core-person",
  "core-projects",

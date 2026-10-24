@@ -369,3 +369,17 @@ impl From<core_agents::AgentsError> for CoreError {
         }
     }
 }
+
+impl From<core_extensions::ExtensionsError> for CoreError {
+    fn from(error: core_extensions::ExtensionsError) -> Self {
+        use core_extensions::ExtensionsError;
+        match error {
+            ExtensionsError::NotFound => Self::ExtensionNotFound,
+            ExtensionsError::NameConflict => Self::ExtensionNameConflict,
+            ExtensionsError::Invalid(reason) => Self::ProfileInvalid(reason),
+            ExtensionsError::NotConfigured => Self::AylulNotConfigured,
+            ExtensionsError::Agent(error) => error.into(),
+            ExtensionsError::Storage(error) => error.into(),
+        }
+    }
+}
