@@ -166,7 +166,7 @@ impl MapProposalShapeRows {
         p: &ProjectId,
         turn: &crate::OperationId,
     ) -> Result<EffectiveStandards, StorageError> {
-        let (base, id) = crate::harness::Harness::pinned_standards_in(conn, turn.as_str()).await?;
+        let (base, id) = core_harness::Harness::pinned_standards_in(conn, turn.as_str()).await?;
         let mut standards = super::map_versions::MapVersionsRows::effective(conn, p).await?;
         standards.base.version = base;
         standards.additions = match id {

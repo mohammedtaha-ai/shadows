@@ -1,6 +1,6 @@
 //! Session operations exposed by the Harness owner.
 use super::{Harness, LeaseError, OpenError, OpenSession};
-use crate::CoreError;
+use crate::HarnessError;
 use core_threads::ThreadId;
 use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered, events::HarnessEvent};
 use std::{io, time::Duration};
@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 
 impl Harness {
     #[cfg(feature = "test-support")]
-    pub(crate) fn aylul_owners(&self) -> crate::harness::AylulOwners {
+    pub fn aylul_owners(&self) -> crate::AylulOwners {
         self.sessions.owners.clone()
     }
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
@@ -57,7 +57,7 @@ impl Harness {
     pub fn cancel_wait(&self) -> Duration {
         self.sessions.cancel_wait()
     }
-    pub async fn harness_available(&self, kind: &str) -> Result<bool, CoreError> {
+    pub async fn harness_available(&self, kind: &str) -> Result<bool, HarnessError> {
         self.sessions.harness_available(kind).await
     }
 
@@ -99,18 +99,18 @@ impl Harness {
     ) -> Option<mpsc::UnboundedReceiver<HarnessEvent>> {
         self.sessions.take_events(thread).await
     }
-    pub(crate) async fn context_facts(
+    pub async fn context_facts(
         &self,
         thread: &ThreadId,
         invocation: Option<super::InvocationContext>,
         stage: String,
-    ) -> Result<super::setup::ContextFacts, CoreError> {
+    ) -> Result<crate::ContextFacts, HarnessError> {
         self.sessions
             .setups
             .context_facts(thread, invocation, stage)
             .await
     }
-    pub(crate) fn withhold(&self, thread: &ThreadId, skipped: bool) {
+    pub fn withhold(&self, thread: &ThreadId, skipped: bool) {
         self.sessions.setups.withhold(thread, skipped);
     }
     pub async fn remembered_settings(
@@ -145,7 +145,7 @@ impl Harness {
         ctx: &core_db::CommandContext,
         thread: &ThreadId,
         harness: &str,
-    ) -> Result<core_threads::PlanningThread, CoreError> {
+    ) -> Result<core_threads::PlanningThread, HarnessError> {
         Ok(super::store::HarnessStore::with_storage(storage.clone())
             .set_thread_harness(ctx, thread, harness)
             .await?)
@@ -153,35 +153,34 @@ impl Harness {
 }
 
 impl super::Harness {
-    pub(crate) fn require_images(
+    pub fn require_images(
         &self,
         opened: &super::OpenSession,
         has_images: bool,
-    ) -> Result<(), crate::CoreError> {
+    ) -> Result<(), crate::HarnessError> {
         Self::check_images(opened.connection(), has_images)
     }
 
     pub(super) fn check_images(
         connection: &shadows_agent::acp::Connection,
         has_images: bool,
-    ) -> Result<(), crate::CoreError> {
+    ) -> Result<(), crate::HarnessError> {
         let caps = connection.prompt_capabilities();
         if has_images && !caps.image {
-            return Err(crate::CoreError::Refused {
-                code: crate::ErrorCode::InvalidCommand,
-                message: caps.image_reason.unwrap_or_default(),
-            });
+            return Err(crate::HarnessError::ImagesUnsupported(
+                caps.image_reason.unwrap_or_default(),
+            ));
         }
         Ok(())
     }
 }
 
 impl Harness {
-    pub(crate) async fn open_for_images(
+    pub async fn open_for_images(
         &self,
         thread: &ThreadId,
         has_images: bool,
-    ) -> Result<OpenSession, CoreError> {
+    ) -> Result<OpenSession, HarnessError> {
         Ok(self.sessions.open_with_images(thread, has_images).await?)
     }
 }

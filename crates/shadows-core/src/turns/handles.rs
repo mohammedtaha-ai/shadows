@@ -1,6 +1,6 @@
 //! One job: register live turns for watcher/stop arbitration.
 use super::{model::OperationId, steer::SteerRequest};
-use crate::harness::OpenSession;
+use core_harness::OpenSession;
 use core_threads::ThreadId;
 use std::{
     collections::HashMap,

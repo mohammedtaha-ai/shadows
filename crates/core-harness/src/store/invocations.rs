@@ -1,11 +1,11 @@
 //! Invocation writes in the transaction that owns the turn command or ending.
 use super::HarnessStore;
-use crate::harness::NewInvocation;
+use crate::NewInvocation;
 use core_db::StorageError;
 use sqlx::SqliteConnection;
 
 impl HarnessStore {
-    pub(in crate::harness) async fn record_invocation_in(
+    pub(crate) async fn record_invocation_in(
         conn: &mut SqliteConnection,
         operation: &str,
         input: NewInvocation<'_>,
@@ -83,7 +83,7 @@ impl HarnessStore {
         }
         Ok(())
     }
-    pub(in crate::harness) async fn observe_invocation_in(
+    pub(crate) async fn observe_invocation_in(
         conn: &mut SqliteConnection,
         operation: &str,
         seen: &shadows_agent::events::TurnObservation,
@@ -104,9 +104,9 @@ impl HarnessStore {
     }
 }
 
-#[cfg(all(test, feature = "test-support"))]
-impl crate::harness::Harness {
-    pub(crate) async fn delete_invocation_for_test(
+#[cfg(feature = "test-support")]
+impl crate::Harness {
+    pub async fn delete_invocation_for_test(
         conn: &mut SqliteConnection,
         operation: &str,
     ) -> Result<(), StorageError> {
@@ -116,7 +116,7 @@ impl crate::harness::Harness {
             .await?;
         Ok(())
     }
-    pub(crate) async fn set_invocation_pin_for_test(
+    pub async fn set_invocation_pin_for_test(
         conn: &mut SqliteConnection,
         operation: &str,
         pin: Option<&str>,

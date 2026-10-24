@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use super::store::Remembered;
 use super::{LeaseError, OpenSession, Sessions};
-use crate::CoreError;
+use crate::HarnessError;
 use core_threads::ThreadId;
 use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered};
 
@@ -313,13 +313,13 @@ impl super::Harness {
     /// the session holds sets it first: the only session change made
     /// before the transaction, since it records nothing. The harness refusing
     /// it is `SettingNotOffered` in its words.
-    pub(crate) async fn offer_for_model(
+    pub async fn offer_for_model(
         &self,
         thread: &ThreadId,
         opened: &OpenSession,
         model: &str,
-    ) -> Result<(OpenSession, Offered, Option<String>), CoreError> {
-        let closed = || CoreError::HarnessStartFailed("the harness session closed".into());
+    ) -> Result<(OpenSession, Offered, Option<String>), HarnessError> {
+        let closed = || HarnessError::HarnessStartFailed("the harness session closed".into());
         let offered = self.sessions.offered(thread).await.ok_or_else(closed)?;
         if offered.current.model == model || !offered.offers_model(model) {
             return Ok((opened.clone(), offered, None));
@@ -338,7 +338,7 @@ impl super::Harness {
     /// Sets back the model `offer_for_model` replaced. The turn's refusal is
     /// the answer either way, so a harness that will not take the model back
     /// is logged, not returned.
-    pub(crate) async fn set_model_back(
+    pub async fn set_model_back(
         &self,
         thread: &ThreadId,
         opened: &OpenSession,

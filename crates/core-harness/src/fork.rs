@@ -1,7 +1,8 @@
 //! Atomic conversation forks with their permission choice.
 use super::Harness;
-use crate::{CoreError, Operations};
+use crate::HarnessError;
 use core_db::{CommandContext, Storage};
+use core_operations::Operations;
 use core_threads::{PlanningThread, ThreadEntryId, ThreadId, Threads};
 
 impl Harness {
@@ -10,7 +11,7 @@ impl Harness {
         command_id: String,
         source: &ThreadId,
         at: &ThreadEntryId,
-    ) -> Result<PlanningThread, CoreError> {
+    ) -> Result<PlanningThread, HarnessError> {
         let command = CommandContext::user(
             command_id,
             "thread.fork",
@@ -24,7 +25,7 @@ impl Harness {
                     if let Some(id) =
                         CommandContext::classify(conn, &command, "Thread", source.as_str()).await?
                     {
-                        return Ok::<_, CoreError>(
+                        return Ok::<_, HarnessError>(
                             Threads::get_in(conn, &ThreadId::from_recorded(id)).await?,
                         );
                     }

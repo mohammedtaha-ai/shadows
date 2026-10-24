@@ -57,7 +57,7 @@ impl Default for SessionsConfig {
 #[derive(Debug, thiserror::Error)]
 pub enum OpenError {
     #[error(transparent)]
-    Env(#[from] crate::CoreError),
+    Env(#[from] crate::HarnessError),
     #[error(transparent)]
     Secrets(#[from] core_secrets::SecretsError),
     #[error(transparent)]
@@ -110,7 +110,7 @@ impl OpenSession {
 }
 
 pub(super) struct Sessions {
-    pub(super) owners: crate::harness::AylulOwners,
+    pub(super) owners: crate::AylulOwners,
     pub(super) homes: super::profile_home::Homes,
     pub(super) adapter: Arc<ClaudeAdapter>,
     pub(super) storage: Arc<Storage>,
@@ -128,7 +128,7 @@ impl Sessions {
         adapter: Arc<ClaudeAdapter>,
         storage: Arc<Storage>,
         config: SessionsConfig,
-        owners: crate::harness::AylulOwners,
+        owners: crate::AylulOwners,
         instructions: core_instructions::Instructions,
         grants: core_grants::Grants,
     ) -> Arc<Self> {
@@ -168,7 +168,7 @@ impl Sessions {
 
     /// Closes every live adapter of a deleted agent's threads. A close that fails is
     /// logged and does not undo the deletion.
-    pub(crate) async fn close_agent(&self, slug: &str) -> Result<(), crate::CoreError> {
+    pub(crate) async fn close_agent(&self, slug: &str) -> Result<(), crate::HarnessError> {
         for thread in core_threads::Threads::list_for_profile_in(
             &mut *self
                 .storage

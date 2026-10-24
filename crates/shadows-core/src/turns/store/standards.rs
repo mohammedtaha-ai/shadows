@@ -21,7 +21,7 @@ impl crate::turns::Turns {
             .thread_id
             .ok_or(StorageError::NotFound("invocation"))?;
         let (_, pin) =
-            crate::harness::Harness::invocation_standards_in(conn, operation.as_str()).await?;
+            core_harness::Harness::invocation_standards_in(conn, operation.as_str()).await?;
         let project =
             core_threads::Threads::project_in(conn, &core_threads::ThreadId::from_recorded(thread))
                 .await
@@ -60,7 +60,7 @@ impl crate::turns::Turns {
         storage: &std::sync::Arc<Storage>,
         thread: &ThreadId,
         operation: &OperationId,
-    ) -> crate::harness::InvocationContext {
+    ) -> core_harness::InvocationContext {
         let latest = super::TurnsStore::with_storage(storage.clone())
             .latest_invocation_versions(thread)
             .await;
@@ -71,7 +71,7 @@ impl crate::turns::Turns {
             Ok(effective)
         }
         .await;
-        crate::harness::InvocationContext { latest, standards }
+        core_harness::InvocationContext { latest, standards }
     }
 }
 
@@ -138,7 +138,7 @@ mod tests {
                 .additions,
             Some(first)
         );
-        crate::harness::Harness::set_invocation_pin_for_test(
+        core_harness::Harness::set_invocation_pin_for_test(
             &mut conn,
             started.operation_id.as_str(),
             None,
@@ -158,7 +158,7 @@ mod tests {
             .save_standards_additions("foreign".into(), &other.id, Default::default())
             .await
             .unwrap();
-        crate::harness::Harness::set_invocation_pin_for_test(
+        core_harness::Harness::set_invocation_pin_for_test(
             &mut conn,
             started.operation_id.as_str(),
             Some(&foreign.id),

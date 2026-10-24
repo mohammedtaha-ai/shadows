@@ -52,3 +52,4 @@ agreements:
     tested_by: agreement_adapter_pairs_preserve_content_and_reach
 
 # Provider service failures translate through CoreError before HTTP mapping.
+# Harness errors translate through CoreError with unchanged adapter responses.

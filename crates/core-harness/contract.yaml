@@ -2,12 +2,12 @@
 # Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
 # Extension library methods and refusals are imported from core-extensions.
-# AgentsError is translated through CoreError with unchanged responses.
+# AgentsError is translated through HarnessError with unchanged responses.
 # Project standards are imported from core-standards.
 # Planner instructions are read through core-instructions.
 # Person preferences are read through core-person.
 # Project identities and registration methods are imported from core-projects.
-# Providers is imported from core-providers; CoreError preserves adapter failure semantics.
+# Providers is imported from core-providers; HarnessError preserves adapter failure semantics.
 # Secrets is imported from core-secrets; application error conversion preserves caller responses.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
@@ -71,7 +71,9 @@ modules:
   mode.rs: durable conversation mode commands
   fork.rs: atomic conversation fork composition
   store/mode.rs: conversation permission persistence
-  mod.rs: harness service boundary
+  lib.rs: harness service boundary
+  error.rs: harness failure vocabulary
+  owners.rs: harness configuration dependencies
   access.rs: live session owner operations
   store/invocation.rs: invocation transaction entry points
   model.rs: public harness values with unchanged schema description metadata
@@ -94,7 +96,7 @@ modules:
   store/reads.rs: invocation snapshot reads
   store/thread.rs: atomic harness selection
 status: current
-source: crates/shadows-core/src/harness
+source: crates/core-harness/src
 
 
 shapes:
@@ -190,7 +192,7 @@ shapes:
   OpenError:
     Secrets: core_secrets::SecretsError
     Provider: core_providers::ProvidersError
-    Env: CoreError
+    Env: HarnessError
     Storage: StorageError
     # Includes "harness setup timed out" after `setup_wait`.
     Start: String
@@ -207,16 +209,16 @@ functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
     fork_thread:
-      signature: "(&self, command_id, source, at) -> Result<PlanningThread, CoreError>"
+      signature: "(&self, command_id, source, at) -> Result<PlanningThread, HarnessError>"
       # Replay first, Operations eligibility, Threads fork, then mode copy in one write.
     change_mode:
-      signature: "(&self, command_id, thread, mode) -> Result<SessionChoices, CoreError>"
+      signature: "(&self, command_id, thread, mode) -> Result<SessionChoices, HarnessError>"
       # thread.mode, schema 1, fingerprint {thread_id, mode}, Thread scope.
       # Policy is checked before opening and again in the write transaction.
       # A leased or durably busy turn keeps its mode; choices report the saved selection.
       # Equal replay preserves later choices; a different mode is CommandConflict.
     selected_mode_in:
-      signature: "(conn, thread) -> Result<String, CoreError>"
+      signature: "(conn, thread) -> Result<String, HarnessError>"
       # Harness-only: remembered mode when still allowed, otherwise policy default.
     copy_mode_in:
       signature: "(conn, source, fork) -> Result<(), StorageError>"
@@ -225,20 +227,20 @@ functions:
       signature: "(conn, thread) -> Result<(), StorageError>"
       # Thread removal deletes only this conversation's preference in its transaction.
     set_thread_harness:
-      signature: "(&self, command_id, thread, harness) -> Result<PlanningThread, CoreError>"
+      signature: "(&self, command_id, thread, harness) -> Result<PlanningThread, HarnessError>"
       # Harness guards the command with Operations, calls Threads::set_harness_in, and closes only on a kind change.
     check_idle:
-      signature: "(&self, thread, context) -> Result<(), CoreError>"
+      signature: "(&self, thread, context) -> Result<(), HarnessError>"
       # Availability, then durable busyness, before any session work; shared with Turns.
     offer_for_model:
-      signature: "(&self, thread, opened, model) -> Result<(OpenSession, Offered, Option<String>), CoreError>"
+      signature: "(&self, thread, opened, model) -> Result<(OpenSession, Offered, Option<String>), HarnessError>"
       # Settles the model before Turns leases events, returning any replacement adapter.
       # The previous model enables refused-start restoration.
     set_model_back:
       signature: "(&self, thread, opened, offered, previous)"
       # Restores through the same idle replacement path; failure preserves the original refusal.
     delete_agent:
-      signature: "(&self, command_id: String, slug: &str) -> Result<(), CoreError>"
+      signature: "(&self, command_id: String, slug: &str) -> Result<(), HarnessError>"
       # The one way an agent is deleted (the HTTP route calls it; no MCP tool
       # deletes an agent). One write runs `Agents::delete_in` (its command, the
       # tombstone and its variables) and `Extensions::remove_agent_in` (its
@@ -246,39 +248,39 @@ functions:
       # of the agent's threads (`terminate`); a failed close is logged
       # (`agent.adapter_close_failed`) and does not undo the deletion.
     aylul_profile:
-      signature: "(&self) -> Result<&str, CoreError>"
+      signature: "(&self) -> Result<&str, HarnessError>"
       # Configuration-only metadata; absence is AylulNotConfigured.
     list:
-      signature: "(&self) -> Result<Vec<HarnessInfo>, CoreError>"
+      signature: "(&self) -> Result<Vec<HarnessInfo>, HarnessError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
       # `latest_limits`. Refusals: Storage.
     open_session:
-      signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError>"
+      signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError>"
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
       # (HarnessUnavailable) → Sessions::open (OpenError through
       # `From<OpenError>`: HarnessStartFailed, ProjectDirectoryUnusable,
       # Storage, typed Env errors) → the offer, or HarnessStartFailed "the session closed as it
       # opened" → `choices`.
     change_model:
-      signature: "(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, CoreError>"
+      signature: "(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, HarnessError>"
       # open_idle → `remembered` (the model's effort) → Sessions::change_model
       # under the lease → `choices`. `refusal` maps SettingRefused:
       # NotOffered → SettingNotOffered { "model", model, None }; Harness(m) →
       # SettingNotOffered with Some(m); Lease(Busy) → ThreadBusy;
       # Lease(Closed) → HarnessStartFailed("the harness session closed").
     change_effort:
-      signature: "(&self, thread: &ThreadId, effort: &str) -> Result<SessionChoices, CoreError>"
+      signature: "(&self, thread: &ThreadId, effort: &str) -> Result<SessionChoices, HarnessError>"
       # open_idle → Sessions::change_effort under the lease → `choices`;
       # `refusal` maps as for the model, with "effort". An effort the
       # session's model does not offer (none, for a model without effort) is
       # NotOffered before the harness is asked.
     open_idle:
-      signature: "(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError>"
+      signature: "(&self, thread: &ThreadId) -> Result<(String, OpenSession), HarnessError>"
       # Private: turn_context → harness_available (HarnessUnavailable) →
       # thread_is_busy (ThreadBusy) → Sessions::open. The one copy of the
       # order both changes keep.
     context:
-      signature: "(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError>"
+      signature: "(&self, thread: &ThreadId) -> Result<ContextBreakdown, HarnessError>"
       # turn_context (NotFound for an unknown thread), then
       # Sessions::context; its refusals are a reason, not an error. No
       # availability check: a thread whose harness cannot run has no session,
@@ -287,7 +289,7 @@ functions:
     # `Events` delivers a thread's offers and usage through these three, so
     # no adapter reaches `Sessions` or the store for them (Task 10).
     choices:
-      signature: "(&self, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, CoreError>"
+      signature: "(&self, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, HarnessError>"
       # Busy or leased sessions report the deferred selection; idle sessions report
       # the adapter's mode so model-driven changes remain visible to the client.
       # pub(crate). `for_client` over the thread's harness and its project's
@@ -335,7 +337,7 @@ functions:
     set_option:
       signature: "(&self, thread, opened, config_id: &str, value: &str) -> Result<Offered, AcpError>"
     context_facts:
-      signature: "(&self, thread: &ThreadId, invocation: Option<InvocationContext>, stage: String) -> Result<ContextFacts, CoreError>"
+      signature: "(&self, thread: &ThreadId, invocation: Option<InvocationContext>, stage: String) -> Result<ContextFacts, HarnessError>"
       # Harness forwards the stage fact supplied by Turns; changes are read from private Setups.
       # §13.8's text of what changed since the session last heard: compared
       # with the versions held back by command turns when there are any, else
@@ -359,7 +361,7 @@ functions:
       # env. OpenError::Env preserves AylulKeyMissing before
       # any spawn, or AylulNotConfigured when no profile exists.
     harness_available:
-      signature: "(&self, kind: &str) -> Result<bool, CoreError>"
+      signature: "(&self, kind: &str) -> Result<bool, HarnessError>"
       # Harness delegates to private Sessions in assistant.rs, checking whether a
       # profile is configured with `policy::is_available_with`. Shared by `list`,
       # `open_session`, `open_idle` and `Turns::send` share.
@@ -399,7 +401,7 @@ functions:
     with_owners:
       signature: "(adapter, storage, config, owners, instructions, grants, operations, projects) -> Arc<Harness>"
       # AppCore builds one Harness; its private Sessions cache reads explicit dependencies.
-    # Tests build the same owner through AppCore::harness_for_tests.
+    # Owner-local fixtures construct declared dependencies without AppCore.
   titles:
     keep_titles:
       signature: "(storage: Arc<Storage>, thread: ThreadId, next: impl Fn(HarnessEvent)) -> impl Fn(HarnessEvent)"
@@ -409,6 +411,8 @@ functions:
       # other event goes on to `next`. The adapter sends its title after the
       # turn answered, when no turn reads the events (§12.3).
   for_tests:
+    report_commands_for_test: Delivers a command report through the session event dispatcher.
+    aylul_owners: Returns declared configuration owners for test fixtures.
     # Behind `test-support`, reached through `shadows_core::testing`.
     take_events:
       signature: "(&self, thread: &ThreadId) -> Option<UnboundedReceiver<HarnessEvent>>"
@@ -443,8 +447,8 @@ functions:
 
 
 enums:
-  CoreError:
-    source: crate::error::CoreError
+  HarnessError:
+    source: core_harness::HarnessError
     values: []
   StorageError:
     source: core_db::StorageError
@@ -468,6 +472,15 @@ called_by_other_services:
 
 
 shared_in_transaction:
+  change_mode: Private store command; Harness owns permission persistence and replay.
+  check_mode_in: Private store policy guard within the caller's transaction.
+  forget_mode: Private store cleanup during a failed opening.
+  opening_mode: Private store selection before opening an adapter.
+  remember_mode_in: Private store write of a validated conversation mode.
+  remember_settings: Private store write called by the public transaction entry.
+  remembered: Private store snapshot of remembered model and effort.
+  selected_mode_in: Turns reads the validated conversation mode in its start transaction.
+  set_thread_harness: Private store command composed through Threads and Operations.
   copy_mode_in: Harness copies a conversation preference in the fork transaction.
   remove_mode_in: Harness deletes the conversation preference in the removal transaction.
   delete_invocation_for_test: "Unit fixtures remove historical metadata through its owner; test-support only."
@@ -788,7 +801,7 @@ not_the_caller's:
       `change_model` or `open_session`; they do, in the only safe order.
   - >
       Map `SettingRefused`, `OpenError` or `NoBreakdown`; the service answers a
-      `CoreError`, or a `ContextBreakdown` with its reason.
+      `HarnessError`, or a `ContextBreakdown` with its reason.
   - >
       Filter the offer by policy or the project's modes; `choices` does.
 
@@ -991,3 +1004,16 @@ image_input:
   capability: Session choices carry image and image_reason from Connection initialize.
   require_images: Refuses image-bearing input when the harness reports no image capability.
   tested_by: a_harness_without_image_capability_refuses_with_its_reason
+
+dependencies:
+  agents: crates/core-agents/contract.yaml
+  extensions: crates/core-extensions/contract.yaml
+  grants: crates/core-grants/contract.yaml
+  instructions: crates/core-instructions/contract.yaml
+  operations: crates/core-operations/contract.yaml
+  person: crates/core-person/contract.yaml
+  projects: crates/core-projects/contract.yaml
+  providers: crates/core-providers/contract.yaml
+  secrets: crates/core-secrets/contract.yaml
+  standards: crates/core-standards/contract.yaml
+  threads: crates/core-threads/contract.yaml

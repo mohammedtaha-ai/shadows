@@ -5,10 +5,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::harness::Harness;
 use crate::turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
 use crate::turns::{LiveHandles, OperationId, StartError};
 use core_db::CommandContext;
+use core_harness::Harness;
 use core_runtime::Runtime;
 use core_threads::ThreadId;
 use shadows_agent::TurnSettings;
@@ -59,7 +59,7 @@ pub fn new_turn<'a>(
         agent_path: "fake_acp",
         agent_version: "fake-claude-1",
         settings,
-        prompt_version: Some(crate::harness::Harness::prompt_version()),
+        prompt_version: Some(core_harness::Harness::prompt_version()),
         instructions_version: None,
         standards_version: Some(core_standards::Standards::base().version),
         standards_additions_version: None,

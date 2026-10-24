@@ -1,6 +1,6 @@
-use crate::harness::Harness;
 use crate::turns::model::{InvocationView, Operation, OperationId};
 use core_db::StorageError;
+use core_harness::Harness;
 use core_operations::Operations;
 use core_threads::ThreadId;
 impl super::TurnsStore {
@@ -105,7 +105,7 @@ mod tests {
                     .write_txn(move |conn| {
                         Box::pin(async move {
                             if index == 1 {
-                                crate::harness::Harness::delete_invocation_for_test(
+                                core_harness::Harness::delete_invocation_for_test(
                                     conn,
                                     started.operation_id.as_str(),
                                 )

@@ -23,7 +23,7 @@ async fn the_restricted_fixture_starts_and_serves_through_its_accessors() {
         .await
         .unwrap();
     assert!(matches!(
-        app.harness().aylul_profile(),
+        app.harness().aylul_profile().map_err(CoreError::from),
         Err(CoreError::AylulNotConfigured)
     ));
     app.shut_down(Duration::from_secs(5), std::future::pending())

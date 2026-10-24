@@ -121,7 +121,7 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
     )
     .await;
     assert!(matches!(
-        locked,
+        locked.map_err(shadows_core::CoreError::from),
         Err(shadows_core::CoreError::Refused {
             code: shadows_core::ErrorCode::HarnessLocked,
             ..

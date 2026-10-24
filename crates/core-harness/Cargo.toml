@@ -1,0 +1,45 @@
+[package]
+name = "core-harness"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+core-db = { path = "../core-db" }
+core-agents = { path = "../core-agents" }
+core-extensions = { path = "../core-extensions" }
+core-grants = { path = "../core-grants" }
+core-instructions = { path = "../core-instructions" }
+core-operations = { path = "../core-operations" }
+core-person = { path = "../core-person" }
+core-projects = { path = "../core-projects" }
+core-providers = { path = "../core-providers" }
+core-secrets = { path = "../core-secrets" }
+core-standards = { path = "../core-standards" }
+core-threads = { path = "../core-threads" }
+dunce = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+shadows-agent = { path = "../shadows-agent" }
+shadows-process = { path = "../shadows-process" }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+
+[features]
+test-support = ["core-db/test-support", "core-threads/test-support", "shadows-process/test-support"]
+
+[dev-dependencies]
+core-harness = { path = ".", features = ["test-support"] }
+tempfile = { workspace = true }

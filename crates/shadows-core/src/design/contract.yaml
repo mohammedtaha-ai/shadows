@@ -1,3 +1,4 @@
+# Harness invocation and session APIs are imported from core-harness.
 # Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
 # Project standards are imported from core-standards.

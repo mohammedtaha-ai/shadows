@@ -790,6 +790,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-harness"
+version = "0.1.0"
+dependencies = [
+ "core-agents",
+ "core-db",
+ "core-extensions",
+ "core-grants",
+ "core-harness",
+ "core-instructions",
+ "core-operations",
+ "core-person",
+ "core-projects",
+ "core-providers",
+ "core-secrets",
+ "core-standards",
+ "core-threads",
+ "dunce",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "shadows-agent",
+ "shadows-process",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "core-instructions"
 version = "0.1.0"
 dependencies = [
@@ -3623,6 +3655,7 @@ dependencies = [
  "core-db",
  "core-extensions",
  "core-grants",
+ "core-harness",
  "core-instructions",
  "core-operations",
  "core-person",

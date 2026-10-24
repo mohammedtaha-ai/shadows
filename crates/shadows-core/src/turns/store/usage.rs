@@ -16,7 +16,7 @@ impl super::TurnsStore {
         else {
             return Ok(());
         };
-        let row = crate::harness::Harness::invocation_usage_in(conn, op.as_str()).await?;
+        let row = core_harness::Harness::invocation_usage_in(conn, op.as_str()).await?;
         let Some(row) = row else {
             return Ok(());
         };

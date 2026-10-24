@@ -69,28 +69,12 @@ impl Commands {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{Commands, SlashCommand, ThreadId};
-
-    fn one(name: &str) -> SlashCommand {
-        SlashCommand {
-            name: name.into(),
-            description: String::new(),
-            hint: None,
-        }
-    }
-
-    #[test]
-    fn a_new_list_replaces_the_old_and_forget_drops_it() {
-        let commands = Commands::new();
-        let thread = ThreadId::generate();
-        let mut rx = commands.subscribe();
-        commands.record(&thread, vec![one("a")]);
-        commands.record(&thread, vec![one("b")]);
-        assert_eq!(commands.get(&thread), Some(vec![one("b")]));
-        assert_eq!(rx.try_recv().unwrap().1, vec![one("a")]);
-        commands.forget(&thread);
-        assert_eq!(commands.get(&thread), None);
+#[cfg(feature = "test-support")]
+impl crate::Harness {
+    /// Delivers a harness command report through the opening event dispatcher.
+    pub fn report_commands_for_test(&self, thread: &ThreadId, list: Vec<SlashCommand>) {
+        Commands::keep_commands(self.sessions.commands.clone(), thread.clone(), |_| {})(
+            HarnessEvent::Commands(list),
+        );
     }
 }

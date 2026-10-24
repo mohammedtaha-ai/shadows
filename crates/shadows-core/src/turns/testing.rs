@@ -46,7 +46,7 @@ impl Turns {
     pub async fn latest_invocation_versions_for_test(
         storage: &std::sync::Arc<Storage>,
         thread: &ThreadId,
-    ) -> Result<Option<crate::harness::InvocationVersions>, StorageError> {
+    ) -> Result<Option<core_harness::InvocationVersions>, StorageError> {
         super::store::TurnsStore::with_storage(storage.clone())
             .latest_invocation_versions(thread)
             .await

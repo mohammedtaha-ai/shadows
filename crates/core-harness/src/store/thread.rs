@@ -5,7 +5,7 @@ use core_operations::Operations;
 use core_threads::{PlanningThread, ThreadId, Threads, ThreadsError};
 
 impl HarnessStore {
-    pub(in crate::harness) async fn set_thread_harness(
+    pub(crate) async fn set_thread_harness(
         &self,
         ctx: &CommandContext,
         thread: &ThreadId,

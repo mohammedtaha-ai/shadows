@@ -1,6 +1,6 @@
-use crate::harness::OpenError;
 use crate::turns::StartError;
 use core_db::StorageError;
+use core_harness::OpenError;
 use core_projects::DirectoryError;
 
 /// Stable codes clients pattern-match on. Never match on human text.
@@ -157,7 +157,7 @@ impl From<StorageError> for CoreError {
 impl From<OpenError> for CoreError {
     fn from(e: OpenError) -> Self {
         match e {
-            OpenError::Env(e) => e,
+            OpenError::Env(e) => e.into(),
             OpenError::Secrets(error) => error.into(),
             OpenError::Provider(error) => error.into(),
             OpenError::Person(error) => error.into(),
@@ -439,6 +439,46 @@ impl From<core_operations::OperationsError> for CoreError {
             },
             OperationsError::Threads(error) => error.into(),
             OperationsError::Storage(error) => error.into(),
+        }
+    }
+}
+
+impl From<core_harness::HarnessError> for CoreError {
+    fn from(error: core_harness::HarnessError) -> Self {
+        use core_harness::HarnessError;
+        match error {
+            HarnessError::AylulProfileNotFound(value) => Self::AylulProfileNotFound(value),
+            HarnessError::AylulKeyMissing(value) => Self::AylulKeyMissing(value),
+            HarnessError::ProfileInvalid(value) => Self::ProfileInvalid(value),
+            HarnessError::SecretNameReserved(value) => Self::SecretNameReserved(value),
+            HarnessError::HarnessStartFailed(value) => Self::HarnessStartFailed(value),
+            HarnessError::ProjectDirectoryUnusable(value) => Self::ProjectDirectoryUnusable(value),
+            HarnessError::HarnessUnavailable(value) => Self::HarnessUnavailable(value),
+            HarnessError::ModeNotAllowed(value) => Self::ModeNotAllowed(value),
+            HarnessError::AylulNotConfigured => Self::AylulNotConfigured,
+            HarnessError::SecretsUnavailable => Self::SecretsUnavailable,
+            HarnessError::SettingNotOffered { what, id, detail } => {
+                Self::SettingNotOffered { what, id, detail }
+            }
+            HarnessError::ThreadBusy => Self::Refused {
+                code: ErrorCode::ThreadBusy,
+                message: "the thread has a turn running".into(),
+            },
+            HarnessError::ImagesUnsupported(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            HarnessError::Agents(error) => error.into(),
+            HarnessError::Extensions(error) => error.into(),
+            HarnessError::Grants(error) => error.into(),
+            HarnessError::Instructions(error) => error.into(),
+            HarnessError::Operations(error) => error.into(),
+            HarnessError::Person(error) => error.into(),
+            HarnessError::Projects(error) => error.into(),
+            HarnessError::Providers(error) => error.into(),
+            HarnessError::Secrets(error) => error.into(),
+            HarnessError::Threads(error) => error.into(),
+            HarnessError::Storage(error) => error.into(),
         }
     }
 }

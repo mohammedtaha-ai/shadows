@@ -1,6 +1,6 @@
 //! Opening an assistant on the agent's provider configuration.
 use super::sessions::{OpenError, Sessions};
-use crate::CoreError;
+use crate::HarnessError;
 use core_threads::TurnContext;
 use shadows_agent::{acp::SessionSetup, policy, profile::ClaudeProfile};
 use shadows_process::ProcessSpec;
@@ -34,21 +34,21 @@ pub(super) struct Opening {
 }
 
 impl Sessions {
-    pub(crate) async fn harness_available(&self, kind: &str) -> Result<bool, CoreError> {
+    pub(crate) async fn harness_available(&self, kind: &str) -> Result<bool, HarnessError> {
         let configured =
             self.config.aylul.is_some() && !self.owners.agents.agents().await?.is_empty();
         Ok(policy::is_available_with(kind, configured))
     }
 
-    pub(crate) async fn check_context(&self, context: &TurnContext) -> Result<(), CoreError> {
+    pub(crate) async fn check_context(&self, context: &TurnContext) -> Result<(), HarnessError> {
         if context.harness == policy::AYLUL {
             let slug = context
                 .profile
                 .as_deref()
-                .ok_or_else(|| CoreError::AylulProfileNotFound("agent required".into()))?;
+                .ok_or_else(|| HarnessError::AylulProfileNotFound("agent required".into()))?;
             let agent = self.owners.agents.agent(slug).await?;
             if agent.deleted {
-                return Err(CoreError::AylulProfileNotFound(slug.into()));
+                return Err(HarnessError::AylulProfileNotFound(slug.into()));
             }
             self.owners.providers.provider(&agent.provider).await?;
         }
@@ -77,11 +77,11 @@ impl Sessions {
             .config
             .aylul
             .as_ref()
-            .ok_or(CoreError::AylulNotConfigured)?;
+            .ok_or(HarnessError::AylulNotConfigured)?;
         let slug = context
             .profile
             .as_deref()
-            .ok_or(CoreError::AylulNotConfigured)?;
+            .ok_or(HarnessError::AylulNotConfigured)?;
         let agent = self.owners.agents.agent(slug).await?;
         let provider = self.owners.providers.provider(&agent.provider).await?;
         let home = self.owners.agents.home(slug)?;
@@ -100,12 +100,12 @@ impl Sessions {
             .config
             .secrets
             .as_ref()
-            .ok_or(CoreError::SecretsUnavailable)?;
+            .ok_or(HarnessError::SecretsUnavailable)?;
         let stored = secrets.resolve_env(slug).await?;
         let token = secrets
             .resolve_provider_key(&provider.slug)
             .await?
-            .ok_or_else(|| CoreError::AylulKeyMissing(provider.slug.clone()))?;
+            .ok_or_else(|| HarnessError::AylulKeyMissing(provider.slug.clone()))?;
         let aylul_usage = Some(super::AylulUsageSnapshot {
             agent_slug: slug.into(),
             provider_slug: provider.slug.clone(),
@@ -133,12 +133,12 @@ impl Sessions {
         let spec = self
             .adapter
             .process_spec_with(&home, Some(&profile), &stored, Some(token.as_str()))
-            .map_err(|_| CoreError::AylulKeyMissing(provider.slug))?;
+            .map_err(|_| HarnessError::AylulKeyMissing(provider.slug))?;
         let person = self.owners.person.person().await?;
         let mut setup = Self::aylul_setup();
         if let Some(name) = person.aylul_calls_me.or(person.name) {
             let quoted = serde_json::to_string(&name)
-                .map_err(|_| CoreError::ProfileInvalid("invalid person name".into()))?;
+                .map_err(|_| HarnessError::ProfileInvalid("invalid person name".into()))?;
             setup.append = Some(format!("Call the person {quoted}."));
         }
         Ok(Opening {
@@ -153,13 +153,16 @@ impl Sessions {
 }
 
 impl super::Harness {
-    pub(super) fn model_window(provider: &crate::Provider, model: &str) -> Result<u32, CoreError> {
+    pub(super) fn model_window(
+        provider: &core_providers::Provider,
+        model: &str,
+    ) -> Result<u32, HarnessError> {
         provider
             .models
             .iter()
             .find(|candidate| candidate.id == model)
             .map(|candidate| candidate.context_window)
-            .ok_or_else(|| CoreError::ProfileInvalid("model is not offered".into()))
+            .ok_or_else(|| HarnessError::ProfileInvalid("model is not offered".into()))
     }
 }
 

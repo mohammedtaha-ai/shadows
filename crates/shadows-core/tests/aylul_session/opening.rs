@@ -80,7 +80,11 @@ async fn deleting_last_agent_is_not_found_not_unavailable() {
         .await
         .unwrap();
     assert!(matches!(
-        w.core.harness().open_session(&w.thread).await,
+        w.core
+            .harness()
+            .open_session(&w.thread)
+            .await
+            .map_err(CoreError::from),
         Err(CoreError::AylulProfileNotFound(_))
     ));
     assert!(matches!(
@@ -109,8 +113,10 @@ async fn missing_provider_key_is_named() {
         .remove_key("remove".into(), "test-2")
         .await
         .unwrap();
-    assert!(matches!(w.core.harness().open_session(&w.thread).await,
-        Err(CoreError::AylulKeyMissing(provider)) if provider == "test-2"));
+    assert!(
+        matches!(w.core.harness().open_session(&w.thread).await.map_err(CoreError::from),
+        Err(CoreError::AylulKeyMissing(provider)) if provider == "test-2")
+    );
     assert_eq!(w.sessions.live_count().await, 0);
 }
 
@@ -126,8 +132,10 @@ async fn reserved_variable_row_fails_opening() {
         .execute(w.storage.reader())
         .await
         .unwrap();
-    assert!(matches!(w.core.harness().open_session(&w.thread).await,
-        Err(CoreError::SecretNameReserved(name)) if name == "ANTHROPIC_BASE_URL"));
+    assert!(
+        matches!(w.core.harness().open_session(&w.thread).await.map_err(CoreError::from),
+        Err(CoreError::SecretNameReserved(name)) if name == "ANTHROPIC_BASE_URL")
+    );
     assert_eq!(w.sessions.live_count().await, 0);
 }
 
@@ -245,7 +253,10 @@ async fn a_leased_adapter_is_not_replaced_by_a_model_pick() {
     let events = w.sessions.lease_events(&w.thread, &opened).await.unwrap();
     let pid = w.sessions.pid(&w.thread).await;
     let changed = w.core.harness().change_model(&w.thread, "fake-large").await;
-    assert!(matches!(changed, Err(CoreError::Refused { .. })));
+    assert!(matches!(
+        changed.map_err(CoreError::from),
+        Err(CoreError::Refused { .. })
+    ));
     assert_eq!(w.sessions.pid(&w.thread).await, pid);
     w.sessions
         .give_back_events(&w.thread, &opened, events)

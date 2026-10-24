@@ -1,7 +1,8 @@
 //! Project the enabled library into one isolated agent home at opening.
 use super::profile_home::Homes;
-use crate::{CoreError, Item};
+use crate::HarnessError;
 use core_extensions::Extensions;
+use core_extensions::Item;
 use serde_json::json;
 use std::{io::Write, path::Path};
 
@@ -13,8 +14,8 @@ struct Manifest {
     #[serde(default)]
     items: Vec<String>,
 }
-fn invalid() -> CoreError {
-    CoreError::ProfileInvalid("cannot project agent extensions".into())
+fn invalid() -> HarnessError {
+    HarnessError::ProfileInvalid("cannot project agent extensions".into())
 }
 fn safe_name(s: &str) -> bool {
     !s.is_empty()
@@ -22,7 +23,7 @@ fn safe_name(s: &str) -> bool {
         && s.bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
-fn local(path: &Path) -> Result<(), CoreError> {
+fn local(path: &Path) -> Result<(), HarnessError> {
     if let Ok(meta) = std::fs::symlink_metadata(path) {
         #[cfg(windows)]
         {
@@ -37,7 +38,7 @@ fn local(path: &Path) -> Result<(), CoreError> {
     }
     Ok(())
 }
-fn atomic(path: &Path, bytes: &[u8]) -> Result<(), CoreError> {
+fn atomic(path: &Path, bytes: &[u8]) -> Result<(), HarnessError> {
     let temp = path.with_file_name(format!(".extension-write-{}", uuid::Uuid::new_v4()));
     let result = (|| -> std::io::Result<()> {
         let mut f = std::fs::OpenOptions::new()
@@ -55,7 +56,7 @@ fn atomic(path: &Path, bytes: &[u8]) -> Result<(), CoreError> {
     }
     Ok(())
 }
-fn copy(root: &Path, stage: &Path, item: &Item) -> Result<(), CoreError> {
+fn copy(root: &Path, stage: &Path, item: &Item) -> Result<(), HarnessError> {
     if uuid::Uuid::parse_str(&item.id).is_err() || !safe_name(&item.name) {
         return Err(invalid());
     }
@@ -67,7 +68,7 @@ fn project(
     home: &Path,
     skills: Vec<Item>,
     plugins: Vec<Item>,
-) -> Result<(), CoreError> {
+) -> Result<(), HarnessError> {
     let mut settings = Homes::check(home)?;
     let settings_path = home.join("settings.json");
     let prior_settings = std::fs::read(&settings_path).map_err(|_| invalid())?;
@@ -102,14 +103,14 @@ fn project(
             .pointer("/extraKnownMarketplaces/aylul-managed")
             .is_some()
     {
-        return Err(CoreError::ProfileInvalid(
+        return Err(HarnessError::ProfileInvalid(
             "managed marketplace name is already owned".into(),
         ));
     }
     for item in &skills {
         local(&home.join("skills").join(&item.name))?;
         if home.join("skills").join(&item.name).exists() && !prior.skills.contains(&item.name) {
-            return Err(CoreError::ProfileInvalid(
+            return Err(HarnessError::ProfileInvalid(
                 "skill name is already owned".into(),
             ));
         }
@@ -203,7 +204,7 @@ fn project(
             let key = format!("{}@aylul-managed", item.name);
             if !prior.plugins.contains(&item.name) && settings["enabledPlugins"].get(&key).is_some()
             {
-                return Err(CoreError::ProfileInvalid(
+                return Err(HarnessError::ProfileInvalid(
                     "plugin setting is already owned".into(),
                 ));
             }
@@ -277,7 +278,7 @@ impl Homes {
         root: &Path,
         home: &Path,
         slug: &str,
-    ) -> Result<(), CoreError> {
+    ) -> Result<(), HarnessError> {
         let _library = extensions.extension_guard().await;
         let _home = self.lock_home(home).await?;
         let items = extensions.agent_extensions(slug).await?;

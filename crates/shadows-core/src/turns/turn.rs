@@ -33,7 +33,7 @@ use super::{
     spawn::OnCompleted,
     steer::SteerRequest,
 };
-use crate::harness::{Harness, OpenSession};
+use core_harness::{Harness, OpenSession};
 use core_threads::{NewThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_agent::{
     acp::{AcpError, TurnEnd},

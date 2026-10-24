@@ -9,8 +9,8 @@ use super::{
     prompt::{Prompt, PromptParts},
     turn::{PlannerTurn, TurnWatch},
 };
-use crate::harness::{Harness, OpenSession};
 use core_db::{Actor, StorageError};
+use core_harness::{Harness, OpenSession};
 use core_runtime::Runtime;
 use core_threads::ThreadId;
 use shadows_agent::{TurnSettings, events::HarnessEvent};

@@ -21,3 +21,4 @@ agreements:
     equivalent person and grant methods, their intentional differences and tests.
   tested_by: [agreement_adapter_pairs_preserve_content_and_reach,
     plan_adapter_pairs_keep_their_authorization_boundaries]
+# Harness errors translate through CoreError with unchanged tool refusals.

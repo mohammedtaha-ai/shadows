@@ -20,8 +20,8 @@ use std::time::Duration;
 
 use super::handles::LiveHandles;
 use super::turn::{PlannerTurn, StopOutcome};
-use crate::harness::Harness;
 use core_db::{Actor, StorageError};
+use core_harness::Harness;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
 

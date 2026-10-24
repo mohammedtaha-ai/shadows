@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use sha2::{Digest, Sha256};
 
 use super::Harness;
-use crate::error::CoreError;
+use crate::error::HarnessError;
 use core_db::{Storage, StorageError};
 use core_grants::GrantId;
 use core_instructions::{Instructions, InstructionsVersion};
@@ -66,15 +66,15 @@ struct Heard {
 /// What the harness knows about a turn's context. `Turns` decides which of it
 /// the turn sends.
 /// Read failures are applied only when the session needs the corresponding context.
-pub(crate) struct InvocationContext {
-    pub(crate) latest: Result<Option<super::InvocationVersions>, StorageError>,
-    pub(crate) standards: Result<EffectiveStandards, StorageError>,
+pub struct InvocationContext {
+    pub latest: Result<Option<super::InvocationVersions>, StorageError>,
+    pub standards: Result<EffectiveStandards, StorageError>,
 }
 
-pub(crate) struct ContextFacts {
+pub struct ContextFacts {
     /// What changed since the session last heard, withheld changes included.
-    pub(crate) changes: Option<String>,
-    pub(crate) stage: String,
+    pub changes: Option<String>,
+    pub stage: String,
 }
 
 pub(crate) struct Setups {
@@ -190,7 +190,7 @@ impl Setups {
         thread: &ThreadId,
         invocation: Option<InvocationContext>,
         stage: String,
-    ) -> Result<ContextFacts, CoreError> {
+    ) -> Result<ContextFacts, HarnessError> {
         Ok(ContextFacts {
             changes: self.context_before_turn(thread, invocation).await?,
             stage,
@@ -214,7 +214,7 @@ impl Setups {
         &self,
         thread: &ThreadId,
         invocation: Option<InvocationContext>,
-    ) -> Result<Option<String>, CoreError> {
+    ) -> Result<Option<String>, HarnessError> {
         let context = core_threads::Threads::turn_context_in(
             &mut *self
                 .storage

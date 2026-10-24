@@ -94,18 +94,18 @@ pub struct InvocationVersions {
 }
 
 /// Nonsecret input pinned by the transaction that starts a turn.
-pub(crate) struct NewInvocation<'a> {
-    pub(crate) identity: &'a [String; 6],
-    pub(crate) settings: &'a shadows_agent::TurnSettings,
-    pub(crate) versions: &'a InvocationVersions,
-    pub(crate) snapshot: Option<&'a AylulUsageSnapshot>,
+pub struct NewInvocation<'a> {
+    pub identity: &'a [String; 6],
+    pub settings: &'a shadows_agent::TurnSettings,
+    pub versions: &'a InvocationVersions,
+    pub snapshot: Option<&'a AylulUsageSnapshot>,
 }
 
-pub(crate) struct InvocationUsage {
-    pub(crate) agent_slug: String,
-    pub(crate) provider_slug: String,
-    pub(crate) provider_name: String,
-    pub(crate) label: Option<String>,
-    pub(crate) preset: Option<String>,
-    pub(crate) model: String,
+pub struct InvocationUsage {
+    pub agent_slug: String,
+    pub provider_slug: String,
+    pub provider_name: String,
+    pub label: Option<String>,
+    pub preset: Option<String>,
+    pub model: String,
 }

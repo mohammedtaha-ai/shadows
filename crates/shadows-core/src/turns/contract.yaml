@@ -1,3 +1,4 @@
+# Harness invocation and session APIs are imported from core-harness.
 # Operations lifecycle and transactions are imported from core-operations.
 # Grant authority and approval provenance are imported from core-grants.
 # Index access and project reach use core-code.
@@ -79,7 +80,7 @@ modules:
 
 
 dependencies:
-  harness: crates/shadows-core/src/harness/contract.yaml
+  harness: crates/core-harness/contract.yaml
   operations: crates/core-operations/contract.yaml
   threads: crates/core-threads/contract.yaml
   grants: crates/core-grants/contract.yaml
@@ -104,7 +105,7 @@ shapes:
     runtime: Arc<Runtime>
     # Harness's. Every call a turn makes on it (`prepare_turn`,
     # `context_facts` and `withhold` in `spawn.rs` included) is declared in
-    # `harness/contract.yaml` under `functions.harness_for_turns`.
+    # `crates/core-harness/contract.yaml` under `functions.harness_for_turns`.
     sessions: Arc<Harness>
     # The registry of live turns; closed by shutdown, after which `send`
     # refuses a new turn with RuntimeStopping.

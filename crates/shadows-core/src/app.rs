@@ -17,7 +17,6 @@ use shadows_process::{ProcessSpec, spawn};
 use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::Events;
-use crate::harness::{AylulOwners, Harness, SessionsConfig};
 use crate::plans::Plans;
 use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
@@ -27,6 +26,7 @@ use core_code::{Code, CodeConfig};
 use core_db::Storage;
 use core_extensions::Extensions;
 use core_grants::Grants;
+use core_harness::{AylulOwners, Harness, SessionsConfig};
 use core_instructions::Instructions;
 use core_operations::Operations;
 use core_person::PersonSettings;
@@ -122,8 +122,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/turns/contract.yaml` |"]
 #[doc = " | `Harness` | \
          thread harness sessions | \
-         `crates/shadows-core/src/harness` | \
-         `crates/shadows-core/src/harness/contract.yaml` |"]
+         `crates/core-harness/src` | \
+         `crates/core-harness/contract.yaml` |"]
 #[doc = " | `Projects` | \
          project directory registration | \
          `crates/core-projects/src` | \
@@ -219,7 +219,7 @@ pub struct StartConfig {
     pub adapter_path: PathBuf,
     pub harness_path: PathBuf,
     /// AYLUL's profile; `None` leaves AYLUL absent.
-    pub aylul: Option<crate::harness::AylulConfig>,
+    pub aylul: Option<core_harness::AylulConfig>,
 }
 
 impl AppCore {

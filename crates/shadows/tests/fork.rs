@@ -244,7 +244,7 @@ async fn a_fork_is_locked_to_its_sources_harness_from_birth() {
     )
     .await;
     assert!(matches!(
-        direct,
+        direct.map_err(shadows_core::CoreError::from),
         Err(shadows_core::CoreError::Refused {
             code: shadows_core::ErrorCode::HarnessLocked,
             ..

@@ -111,7 +111,7 @@ fn built(package: &str, bin: &str) -> std::path::PathBuf {
 }
 
 /// The Planner's instructions, as `harness/setup` compiles them in.
-pub const PROMPT: &str = include_str!("../harness/prompt.txt");
+pub use core_harness::TEST_PROMPT as PROMPT;
 
 /// The foundation's embedded migrations directory.
 pub fn migrations_dir() -> std::path::PathBuf {
@@ -137,12 +137,12 @@ pub use crate::turns::for_tests::{
 /// crate everywhere else (§14.6).
 pub use crate::app::adapter_version;
 pub use crate::events::EventCursor;
-pub use crate::harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use crate::turns::Bus;
 pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
 pub use core_grants::Writer;
 pub use core_grants::{IssuedGrant, Token};
+pub use core_harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use core_operations::ReconcileReport;
 pub use core_projects::ProjectDirectory;
 pub use core_runtime::Runtime;

@@ -7,11 +7,11 @@
 
 use sqlx::SqliteConnection;
 
-use crate::harness::{Harness, NewInvocation};
 use crate::plans::Focus;
 use crate::plans::Plans;
 use crate::turns::model::{OperationId, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_harness::{Harness, NewInvocation};
 use core_operations::Operations;
 use core_runtime::RuntimeInstanceId;
 use core_threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
@@ -66,7 +66,7 @@ pub struct StartedTurn {
     pub focus_task: Option<(u32, String)>,
 }
 
-pub use crate::harness::InvocationVersions;
+pub use core_harness::InvocationVersions;
 
 const SCOPE: &str = "Thread";
 
@@ -200,7 +200,7 @@ impl super::TurnsStore {
                         NewInvocation {
                             identity: &invocation,
                             settings: &settings,
-                            versions: &crate::harness::InvocationVersions {
+                            versions: &core_harness::InvocationVersions {
                                 prompt: versions.0,
                                 instructions: versions.1,
                                 standards: versions.2,

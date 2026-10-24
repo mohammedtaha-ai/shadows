@@ -108,4 +108,4 @@ pub struct Operation {
     pub invocation: Option<InvocationView>,
 }
 
-pub use crate::harness::InvocationView;
+pub use core_harness::InvocationView;

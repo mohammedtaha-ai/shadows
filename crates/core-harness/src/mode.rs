@@ -1,6 +1,6 @@
 //! Durable conversation mode commands and idle session application.
 use super::{Harness, LeaseError, refusal};
-use crate::CoreError;
+use crate::HarnessError;
 use core_db::{CommandContext, StorageError};
 use core_threads::{ThreadId, Threads};
 use shadows_agent::choices::SessionChoices;
@@ -12,7 +12,7 @@ impl Harness {
         command_id: String,
         thread: &ThreadId,
         mode: &str,
-    ) -> Result<SessionChoices, CoreError> {
+    ) -> Result<SessionChoices, HarnessError> {
         let command = CommandContext::user(
             command_id,
             "thread.mode",
@@ -42,10 +42,10 @@ impl Harness {
             .ok_or_else(|| refusal("mode", mode, LeaseError::Closed.into()))?;
         let offered =
             self.sessions.offered(thread).await.ok_or_else(|| {
-                CoreError::HarnessStartFailed("the harness session closed".into())
+                HarnessError::HarnessStartFailed("the harness session closed".into())
             })?;
         if !replay && !offered.offers_mode(mode) {
-            return Err(CoreError::SettingNotOffered {
+            return Err(HarnessError::SettingNotOffered {
                 what: "mode".into(),
                 id: mode.into(),
                 detail: None,
@@ -65,12 +65,12 @@ impl Harness {
         drop(live);
         let offered =
             self.sessions.offered(thread).await.ok_or_else(|| {
-                CoreError::HarnessStartFailed("the harness session closed".into())
+                HarnessError::HarnessStartFailed("the harness session closed".into())
             })?;
         self.choices(thread, &offered).await
     }
 
-    pub(super) async fn selected_mode(&self, thread: &ThreadId) -> Result<String, CoreError> {
+    pub(super) async fn selected_mode(&self, thread: &ThreadId) -> Result<String, HarnessError> {
         let mut conn = self
             .store
             .storage
@@ -81,7 +81,7 @@ impl Harness {
         Self::selected_mode_in(&mut conn, thread).await
     }
 
-    pub(super) async fn apply_idle_mode(&self, thread: &ThreadId) -> Result<(), CoreError> {
+    pub(super) async fn apply_idle_mode(&self, thread: &ThreadId) -> Result<(), HarnessError> {
         let slot = self.sessions.slot(thread).await;
         let mut live = slot.lock().await;
         let Some(item) = live.as_mut() else {
@@ -93,7 +93,7 @@ impl Harness {
         let mode = self.selected_mode(thread).await?;
         let offered =
             self.sessions.offered(thread).await.ok_or_else(|| {
-                CoreError::HarnessStartFailed("the harness session closed".into())
+                HarnessError::HarnessStartFailed("the harness session closed".into())
             })?;
         self.sessions
             .set_mode(thread, &item.opened, offered, &mode)

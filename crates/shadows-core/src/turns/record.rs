@@ -7,9 +7,9 @@ use shadows_agent::choices::Offered;
 use super::Turns;
 use super::store::{Dequeue, NewTurn, StartedTurn};
 use crate::error::CoreError;
-use crate::harness::OpenSession;
 use crate::plans::Focus;
 use core_db::{CommandContext, StorageError};
+use core_harness::OpenSession;
 use core_threads::{ThreadId, TurnContext};
 
 /// What the person asked for: the command and what it records.
@@ -99,7 +99,7 @@ impl Turns {
                     agent_path: &agent_path,
                     agent_version: adapter.agent_version(),
                     settings,
-                    prompt_version: Some(crate::harness::Harness::prompt_version()),
+                    prompt_version: Some(core_harness::Harness::prompt_version()),
                     instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
                     standards_version: Some(core_standards::Standards::base().version),
                     standards_additions_version: additions.as_ref().map(|v| v.id.as_str()),

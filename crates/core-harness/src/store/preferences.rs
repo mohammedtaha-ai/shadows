@@ -8,7 +8,7 @@ use std::collections::HashMap;
 /// effort for that model; a turn without an effort leaves the model's
 /// remembered effort as it was. The mode is never remembered.
 impl HarnessStore {
-    pub(in crate::harness) async fn remember_settings(
+    pub(crate) async fn remember_settings(
         conn: &mut SqliteConnection,
         kind: &str,
         settings: &TurnSettings,
@@ -46,9 +46,9 @@ impl HarnessStore {
 /// What a harness remembers: the model of the last turn started on
 /// it, and per model the effort of the last turn started on that model.
 #[derive(Debug, Default)]
-pub(in crate::harness) struct Remembered {
-    pub(in crate::harness) model: Option<String>,
-    pub(in crate::harness) efforts: HashMap<String, String>,
+pub(crate) struct Remembered {
+    pub(crate) model: Option<String>,
+    pub(crate) efforts: HashMap<String, String>,
 }
 
 impl HarnessStore {
@@ -66,10 +66,7 @@ impl HarnessStore {
     }
 
     /// Everything `kind` remembers: its model, and every model's effort.
-    pub(in crate::harness) async fn remembered(
-        &self,
-        kind: &str,
-    ) -> Result<Remembered, StorageError> {
+    pub(crate) async fn remembered(&self, kind: &str) -> Result<Remembered, StorageError> {
         let model: Option<String> =
             sqlx::query_scalar("SELECT model FROM harness_preference WHERE harness_kind = ?")
                 .bind(kind)

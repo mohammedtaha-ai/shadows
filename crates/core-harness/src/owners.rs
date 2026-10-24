@@ -7,9 +7,9 @@ use core_providers::Providers;
 
 /// The configuration dependencies read by a harness opening.
 #[derive(Clone)]
-pub(crate) struct AylulOwners {
-    pub(crate) providers: Arc<Providers>,
-    pub(crate) agents: Arc<Agents>,
-    pub(crate) extensions: Arc<Extensions>,
-    pub(crate) person: PersonSettings,
+pub struct AylulOwners {
+    pub providers: Arc<Providers>,
+    pub agents: Arc<Agents>,
+    pub extensions: Arc<Extensions>,
+    pub person: PersonSettings,
 }

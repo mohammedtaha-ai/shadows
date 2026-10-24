@@ -138,8 +138,7 @@ impl DesignStore {
                     )
                     .await?;
                     let (_, additions) =
-                        crate::harness::Harness::invocation_standards_in(conn, turn.as_str())
-                            .await?;
+                        core_harness::Harness::invocation_standards_in(conn, turn.as_str()).await?;
                     sqlx::query(
                         "INSERT INTO design_vision_proposal
                 (id,project_id,thread_id,operation_id,entry_id,action,field,item_id,text,old_text,

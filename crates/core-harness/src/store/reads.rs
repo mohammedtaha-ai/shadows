@@ -1,6 +1,6 @@
 //! Invocation metadata read in a caller's snapshot.
 use super::HarnessStore;
-use crate::harness::{InvocationUsage, InvocationVersions, InvocationView};
+use crate::{InvocationUsage, InvocationVersions, InvocationView};
 use core_db::StorageError;
 use sqlx::SqliteConnection;
 use std::collections::HashMap;
@@ -34,7 +34,7 @@ fn into_view(r: InvocationRow) -> InvocationView {
 }
 
 impl HarnessStore {
-    pub(in crate::harness) async fn invocation_in(
+    pub(crate) async fn invocation_in(
         conn: &mut SqliteConnection,
         op: &str,
     ) -> Result<Option<InvocationView>, StorageError> {
@@ -50,7 +50,7 @@ impl HarnessStore {
         Ok(row.map(into_view))
     }
 
-    pub(in crate::harness) async fn invocations_in(
+    pub(crate) async fn invocations_in(
         conn: &mut SqliteConnection,
         ids: &[&str],
     ) -> Result<HashMap<String, InvocationView>, StorageError> {
@@ -76,7 +76,7 @@ impl HarnessStore {
         }
         Ok(invocations)
     }
-    pub(in crate::harness) async fn invocation_versions_in(
+    pub(crate) async fn invocation_versions_in(
         conn: &mut SqliteConnection,
         op: &str,
     ) -> Result<Option<InvocationVersions>, StorageError> {
@@ -97,7 +97,7 @@ impl HarnessStore {
             },
         ))
     }
-    pub(in crate::harness) async fn invocation_model_in(
+    pub(crate) async fn invocation_model_in(
         conn: &mut SqliteConnection,
         op: &str,
     ) -> Result<Option<(String, String)>, StorageError> {
@@ -109,7 +109,7 @@ impl HarnessStore {
         .fetch_optional(conn)
         .await?)
     }
-    pub(in crate::harness) async fn invocation_standards_in(
+    pub(crate) async fn invocation_standards_in(
         conn: &mut SqliteConnection,
         op: &str,
     ) -> Result<(Option<i64>, Option<String>), StorageError> {
@@ -122,7 +122,7 @@ impl HarnessStore {
         .await?
         .ok_or(StorageError::NotFound("invocation"))
     }
-    pub(in crate::harness) async fn invocation_usage_in(
+    pub(crate) async fn invocation_usage_in(
         conn: &mut SqliteConnection,
         op: &str,
     ) -> Result<Option<InvocationUsage>, StorageError> {
@@ -158,7 +158,7 @@ impl HarnessStore {
 }
 
 impl HarnessStore {
-    pub(in crate::harness) async fn pinned_standards_in(
+    pub(crate) async fn pinned_standards_in(
         conn: &mut SqliteConnection,
         op: &str,
     ) -> Result<(i64, Option<String>), StorageError> {

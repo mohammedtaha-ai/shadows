@@ -62,8 +62,8 @@ pattern to follow, not merely an example.
 | Module | Its one job | Reference file |
 |---|---|---|
 | `crates/shadows-core/src/plans/signal.rs` | live plan-show vocabulary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/harness/owners.rs` | harness configuration dependencies | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/harness/live.rs` | live adapter opening | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/core-harness/src/owners.rs` | harness configuration dependencies | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/live.rs` | live adapter opening | `crates/core-harness/contract.yaml` |
 | `crates/core-providers/src/lib.rs` | provider configuration boundary | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/` | AYLUL provider configuration | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/model.rs` | public provider metadata | `crates/core-providers/contract.yaml` |
@@ -92,11 +92,11 @@ pattern to follow, not merely an example.
 | `crates/core-person/src/` | the local person record | `crates/core-person/contract.yaml` |
 | `crates/core-person/src/model.rs` | public person record | `crates/core-person/contract.yaml` |
 | `crates/core-person/src/store/` | person record SQL | `crates/core-person/contract.yaml` |
-| `crates/shadows-core/src/harness/extension_home.rs` | per-agent extension projection | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/core-harness/src/extension_home.rs` | per-agent extension projection | `crates/core-harness/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/core-extensions/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
 | `crates/shadows-core/src/turns/store/usage.rs` | atomic turn usage insertion | `crates/shadows-core/src/turns/contract.yaml` |
-| `crates/shadows-core/src/harness/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
+| `crates/core-harness/src/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/core-agents/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
@@ -212,22 +212,22 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
 | `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
 | `crates/shadows-core/src/turns/subagents.rs` | gathering a subagent's tool calls into its card (§22) | `crates/shadows-core/src/turns/subagents.rs` |
-| `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
-| `crates/shadows-core/src/harness/model.rs` | the harness shapes callers meet | `crates/shadows-core/src/harness/model.rs` |
-| `crates/shadows-core/src/harness/store/` | harness persistence | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/harness/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/shadows-core/src/harness/assistant.rs` |
-| `crates/shadows-core/src/harness/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/harness/sessions.rs` |
-| `crates/shadows-core/src/harness/settings.rs` | setting an open session's options | `crates/shadows-core/src/harness/settings.rs` |
-| `crates/shadows-core/src/harness/mode.rs` | durable conversation mode commands | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/harness/fork.rs` | atomic conversation fork composition | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/harness/store/mode.rs` | conversation permission persistence | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/core-harness/src/` | the harnesses, each thread's open session included | `crates/core-harness/src/lib.rs` |
+| `crates/core-harness/src/model.rs` | the harness shapes callers meet | `crates/core-harness/src/model.rs` |
+| `crates/core-harness/src/store/` | harness persistence | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/core-harness/src/assistant.rs` |
+| `crates/core-harness/src/sessions.rs` | the live adapter connection each open thread holds | `crates/core-harness/src/sessions.rs` |
+| `crates/core-harness/src/settings.rs` | setting an open session's options | `crates/core-harness/src/settings.rs` |
+| `crates/core-harness/src/mode.rs` | durable conversation mode commands | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/fork.rs` | atomic conversation fork composition | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/store/mode.rs` | conversation permission persistence | `crates/core-harness/contract.yaml` |
 | `crates/shadows-core/src/turns/store/remove.rs` | thread removal composition | `crates/shadows-core/src/turns/contract.yaml` |
-| `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
-| `crates/shadows-core/src/harness/standards.rs` | Planner standards rendering | `crates/shadows-core/src/harness/standards.rs` |
-| `crates/shadows-core/src/harness/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/harness/offers.rs` |
-| `crates/shadows-core/src/harness/commands.rs` | the latest `/` list each open session sent | `crates/shadows-core/src/harness/commands.rs` |
-| `crates/shadows-core/src/harness/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/harness/context.rs` |
-| `crates/shadows-core/src/harness/titles.rs` | handing the titles a harness sends to its thread | `crates/shadows-core/src/harness/titles.rs` |
+| `crates/core-harness/src/setup.rs` | what a Planner session opens with | `crates/core-harness/src/setup.rs` |
+| `crates/core-harness/src/standards.rs` | Planner standards rendering | `crates/core-harness/src/standards.rs` |
+| `crates/core-harness/src/offers.rs` | the latest choices each open session offers | `crates/core-harness/src/offers.rs` |
+| `crates/core-harness/src/commands.rs` | the latest `/` list each open session sent | `crates/core-harness/src/commands.rs` |
+| `crates/core-harness/src/context.rs` | reading a session's context breakdown on demand | `crates/core-harness/src/context.rs` |
+| `crates/core-harness/src/titles.rs` | handing the titles a harness sends to its thread | `crates/core-harness/src/titles.rs` |
 | `crates/shadows-core/src/plans/` | project plans under the rules of §16 | `crates/shadows-core/src/plans/mod.rs` |
 | `crates/shadows-core/src/plans/model.rs` | the plan types callers meet | `crates/shadows-core/src/plans/model.rs` |
 | `crates/shadows-core/src/plans/dependencies.rs` | task dependency value shapes | `crates/shadows-core/src/plans/dependencies.rs` |
@@ -384,8 +384,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-grants/src/tools.rs` | grant tool policy | `crates/core-grants/contract.yaml` |
 | `crates/core-grants/src/testing.rs` | test-only grant entry points | `crates/core-grants/contract.yaml` |
 
-| `crates/shadows-core/src/harness/access.rs` | live session owner operations | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/harness/store/invocation.rs` | invocation transaction entry points | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/core-harness/src/access.rs` | live session owner operations | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/store/invocation.rs` | invocation transaction entry points | `crates/core-harness/contract.yaml` |
 | `crates/shadows-core/src/turns/stage.rs` | shared prompt stage facts | `crates/shadows-core/src/turns/contract.yaml` |
 
 | `crates/shadows-core/src/design/error.rs` | error boundary | `crates/shadows-core/src/design/contract.yaml` |
@@ -466,3 +466,7 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-operations/src/lib.rs` | durable lifecycle boundary | `crates/core-operations/contract.yaml` |
 | `crates/core-operations/src/error.rs` | operation failure vocabulary | `crates/core-operations/contract.yaml` |
+
+| `crates/core-harness/src/error.rs` | harness failure vocabulary | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/prompt.txt` | Planner opening instructions | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/schema_descriptions/` | harness wire description metadata | `crates/core-harness/contract.yaml` |

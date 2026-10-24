@@ -2,7 +2,6 @@ mod app;
 mod design;
 mod error;
 mod events;
-mod harness;
 mod plans;
 mod project_lifecycle;
 pub use project_lifecycle::ProjectLifecycle;
@@ -31,6 +30,10 @@ pub use core_extensions::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
 pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
+pub use core_harness::{
+    AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessError, HarnessInfo,
+    LeaseError, OpenError, OpenSession, RememberedSettings,
+};
 pub use core_instructions::{Instructions, InstructionsVersion};
 pub use core_operations::{
     OperationId, OperationRecord, Operations, OperationsError, ReconcileReport, Transition,
@@ -64,10 +67,6 @@ pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use error::{CoreError, ErrorCode};
 pub use events::{Delivery, Events, StoredEvent, Subscription};
-pub use harness::{
-    AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, LeaseError, OpenError,
-    OpenSession, RememberedSettings,
-};
 pub use plans::UiSignal;
 pub use plans::{
     AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,

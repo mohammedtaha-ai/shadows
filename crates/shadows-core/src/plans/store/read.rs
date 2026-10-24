@@ -322,7 +322,7 @@ impl ReadRows {
             core_threads::Threads::get_in(conn, &ThreadId::from_recorded(thread.clone())).await?;
         let (thread_title, removed_at) = (metadata.title, metadata.removed_at);
         let invocation: Option<(String, String)> = match operation {
-            Some(op) => crate::harness::Harness::invocation_model_in(conn, &op).await?,
+            Some(op) => core_harness::Harness::invocation_model_in(conn, &op).await?,
             None => None,
         };
         let (model, harness) = invocation.map_or((None, None), |(m, h)| (Some(m), Some(h)));
