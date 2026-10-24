@@ -4,8 +4,9 @@ mod store;
 
 pub use model::{Person, PersonInput, Theme};
 
-use crate::CoreError;
+mod error;
 use core_db::{CommandContext, Storage};
+pub use error::PersonError;
 use std::sync::Arc;
 use store::PersonStore;
 
@@ -15,13 +16,13 @@ pub struct PersonSettings {
 }
 
 impl PersonSettings {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
+    pub fn new(storage: Arc<Storage>) -> Self {
         Self {
             store: PersonStore::new(storage),
         }
     }
 
-    pub async fn person(&self) -> Result<Person, CoreError> {
+    pub async fn person(&self) -> Result<Person, PersonError> {
         Ok(self.store.get().await?)
     }
 
@@ -29,7 +30,7 @@ impl PersonSettings {
         &self,
         command_id: String,
         mut input: PersonInput,
-    ) -> Result<Person, CoreError> {
+    ) -> Result<Person, PersonError> {
         normalize_name(&mut input.name)?;
         normalize_name(&mut input.aylul_calls_me)?;
         if input
@@ -37,7 +38,7 @@ impl PersonSettings {
             .as_deref()
             .is_some_and(|tag| !language_tag(tag))
         {
-            return Err(CoreError::ProfileInvalid("invalid language tag".into()));
+            return Err(PersonError::InvalidLanguage);
         }
         let command = CommandContext::user(command_id, "person.set", serde_json::json!(input));
         self.store.save(command, input).await?;
@@ -45,7 +46,7 @@ impl PersonSettings {
     }
 }
 
-fn normalize_name(value: &mut Option<String>) -> Result<(), CoreError> {
+fn normalize_name(value: &mut Option<String>) -> Result<(), PersonError> {
     let Some(name) = value.take() else {
         return Ok(());
     };
@@ -53,11 +54,11 @@ fn normalize_name(value: &mut Option<String>) -> Result<(), CoreError> {
         .chars()
         .any(|c| c.is_control() || matches!(c as u32, 0x2028 | 0x2029))
     {
-        return Err(CoreError::ProfileInvalid("invalid person name".into()));
+        return Err(PersonError::InvalidName);
     }
     let name = name.trim();
     if name.chars().count() > 64 {
-        return Err(CoreError::ProfileInvalid("person name is too long".into()));
+        return Err(PersonError::NameTooLong);
     }
     *value = (!name.is_empty()).then(|| name.to_owned());
     Ok(())

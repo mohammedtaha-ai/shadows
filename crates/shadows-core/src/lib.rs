@@ -9,7 +9,6 @@ mod grants;
 mod harness;
 mod instructions;
 mod operations;
-mod person;
 mod plans;
 mod project_lifecycle;
 pub use project_lifecycle::ProjectLifecycle;
@@ -36,6 +35,7 @@ pub use code::{
 pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+pub use core_person::{Person, PersonInput, PersonSettings, Theme};
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };
@@ -69,7 +69,6 @@ pub use harness::{
 };
 pub use instructions::{Instructions, InstructionsVersion};
 pub use operations::Operations;
-pub use person::{Person, PersonInput, PersonSettings, Theme};
 pub use plans::UiSignal;
 pub use plans::{
     AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,
@@ -109,3 +108,5 @@ pub use core_providers::ProvidersError;
 pub use core_projects::ProjectsError;
 
 pub use core_usage::UsageError;
+
+pub use core_person::PersonError;

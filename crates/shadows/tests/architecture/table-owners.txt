@@ -61,3 +61,5 @@ workflow :: plans
 # projects SQL lives in crates/core-projects/src/store/.
 
 # usage SQL lives in crates/core-usage/src/store/.
+
+# person SQL lives in crates/core-person/src/store/.

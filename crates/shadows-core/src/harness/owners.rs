@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::agents::Agents;
 use crate::extensions::Extensions;
-use crate::person::PersonSettings;
+use core_person::PersonSettings;
 use core_providers::Providers;
 
 /// The configuration dependencies read by a harness opening.

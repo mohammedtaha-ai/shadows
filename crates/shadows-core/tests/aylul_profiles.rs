@@ -115,6 +115,3 @@ mod threads;
 
 #[path = "aylul_profiles/probe.rs"]
 mod probe;
-
-#[path = "aylul_profiles/person.rs"]
-mod person;

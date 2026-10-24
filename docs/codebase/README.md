@@ -88,9 +88,9 @@ pattern to follow, not merely an example.
 | `crates/core-usage/src/model.rs` | usage report shapes | `crates/core-usage/contract.yaml` |
 | `crates/core-usage/src/report.rs` | historical usage aggregation | `crates/core-usage/contract.yaml` |
 | `crates/core-usage/src/store/` | usage row SQL | `crates/core-usage/contract.yaml` |
-| `crates/shadows-core/src/person/` | the local person record | `crates/shadows-core/src/person/contract.yaml` |
-| `crates/shadows-core/src/person/model.rs` | public person record | `crates/shadows-core/src/person/contract.yaml` |
-| `crates/shadows-core/src/person/store.rs` | person record SQL | `crates/shadows-core/src/person/contract.yaml` |
+| `crates/core-person/src/` | the local person record | `crates/core-person/contract.yaml` |
+| `crates/core-person/src/model.rs` | public person record | `crates/core-person/contract.yaml` |
+| `crates/core-person/src/store/` | person record SQL | `crates/core-person/contract.yaml` |
 | `crates/shadows-core/src/harness/extension_home.rs` | per-agent extension projection | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/shadows-core/src/extensions/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
@@ -437,3 +437,6 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-usage/src/lib.rs` | measured usage boundary | `crates/core-usage/contract.yaml` |
 | `crates/core-usage/src/error.rs` | usage refusals | `crates/core-usage/contract.yaml` |
+
+| `crates/core-person/src/lib.rs` | person preference boundary | `crates/core-person/contract.yaml` |
+| `crates/core-person/src/error.rs` | person refusals | `crates/core-person/contract.yaml` |

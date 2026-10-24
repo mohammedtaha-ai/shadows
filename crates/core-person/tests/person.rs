@@ -1,6 +1,8 @@
 //! The local person's normalization, preferences and command replay.
-use super::*;
+use core_db::{DatabaseWrites, Storage, StorageError};
+use core_person::{PersonError, PersonSettings};
 use serde_json::{Value, json};
+use std::sync::Arc;
 
 fn input() -> Value {
     json!({"name":null,"aylul_calls_me":null,"language":null,"theme":"system"})
@@ -10,7 +12,7 @@ fn input() -> Value {
 async fn person_names_are_checked() {
     let w = world().await;
     assert_eq!(
-        serde_json::to_value(w.app.person().person().await.unwrap()).unwrap(),
+        serde_json::to_value(w.person.person().await.unwrap()).unwrap(),
         json!({"name":null,"aylul_calls_me":null,"language":null,"theme":"system",
             "updated_at":null})
     );
@@ -25,8 +27,7 @@ async fn person_names_are_checked() {
             let mut v = input();
             v[field] = name.into();
             let p = w
-                .app
-                .person()
+                .person
                 .set_person(
                     uuid::Uuid::new_v4().to_string(),
                     serde_json::from_value(v).unwrap(),
@@ -45,14 +46,13 @@ async fn person_names_are_checked() {
             let mut v = input();
             v[field] = name.into();
             assert!(matches!(
-                w.app
-                    .person()
+                w.person
                     .set_person(
                         uuid::Uuid::new_v4().to_string(),
                         serde_json::from_value(v).unwrap()
                     )
                     .await,
-                Err(CoreError::ProfileInvalid(_))
+                Err(PersonError::InvalidName | PersonError::NameTooLong)
             ));
         }
     }
@@ -65,8 +65,7 @@ async fn language_tag_shape_is_checked() {
         let mut v = input();
         v["language"] = tag.into();
         let p = w
-            .app
-            .person()
+            .person
             .set_person(
                 uuid::Uuid::new_v4().to_string(),
                 serde_json::from_value(v).unwrap(),
@@ -89,14 +88,13 @@ async fn language_tag_shape_is_checked() {
         let mut v = input();
         v["language"] = tag.into();
         assert!(matches!(
-            w.app
-                .person()
+            w.person
                 .set_person(
                     uuid::Uuid::new_v4().to_string(),
                     serde_json::from_value(v).unwrap()
                 )
                 .await,
-            Err(CoreError::ProfileInvalid(_))
+            Err(PersonError::InvalidLanguage)
         ));
     }
 }
@@ -108,8 +106,7 @@ async fn theme_values_are_checked() {
         let mut v = input();
         v["theme"] = theme.into();
         let p = w
-            .app
-            .person()
+            .person
             .set_person(theme.into(), serde_json::from_value(v).unwrap())
             .await
             .unwrap();
@@ -117,7 +114,7 @@ async fn theme_values_are_checked() {
     }
     let mut v = input();
     v["theme"] = "other".into();
-    assert!(serde_json::from_value::<shadows_core::PersonInput>(v).is_err());
+    assert!(serde_json::from_value::<core_person::PersonInput>(v).is_err());
 }
 
 #[tokio::test]
@@ -126,17 +123,15 @@ async fn person_replay_with_other_input_conflicts() {
     let mut v = input();
     v["name"] = "  Alex  ".into();
     let p = w
-        .app
-        .person()
+        .person
         .set_person("p".into(), serde_json::from_value(v.clone()).unwrap())
         .await
         .unwrap();
     v["name"] = "Alex".into();
-    let mut writes = testing::DatabaseWrites::observe(&w.storage).await.unwrap();
+    let mut writes = DatabaseWrites::observe(&w.storage).await.unwrap();
     let before = writes.version().await.unwrap();
     let replay = w
-        .app
-        .person()
+        .person
         .set_person("p".into(), serde_json::from_value(v.clone()).unwrap())
         .await
         .unwrap();
@@ -153,25 +148,38 @@ async fn person_replay_with_other_input_conflicts() {
         let mut changed = v.clone();
         changed[field] = value.into();
         assert!(matches!(
-            w.app
-                .person()
+            w.person
                 .set_person("p".into(), serde_json::from_value(changed).unwrap())
                 .await,
-            Err(CoreError::Storage(
-                shadows_core::StorageError::CommandConflict
-            ))
+            Err(PersonError::Storage(StorageError::CommandConflict))
         ));
     }
     assert_eq!(writes.version().await.unwrap(), before);
-    w.app
-        .person()
+    w.person
         .set_person("clear".into(), serde_json::from_value(input()).unwrap())
         .await
         .unwrap();
-    assert!(w.app.person().person().await.unwrap().name.is_none());
+    assert!(w.person.person().await.unwrap().name.is_none());
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM aylul_person")
         .fetch_one(w.storage.reader())
         .await
         .unwrap();
     assert_eq!(count, 1);
+}
+
+struct World {
+    _tmp: tempfile::TempDir,
+    storage: Arc<Storage>,
+    person: PersonSettings,
+}
+
+async fn world() -> World {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let person = PersonSettings::new(storage.clone());
+    World {
+        _tmp: tmp,
+        storage,
+        person,
+    }
 }

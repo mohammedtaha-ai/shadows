@@ -5,12 +5,13 @@
 name: person
 version: 1
 status: current
-source: crates/shadows-core/src/person
+source: crates/core-person/src
 
 modules:
-  mod.rs: person record rules
+  lib.rs: person record rules
+  error.rs: person refusals
   model.rs: public person record
-  store.rs: person SQL
+  store/mod.rs: person SQL
 
 dependencies: {}
 
@@ -27,7 +28,7 @@ shapes:
     note: Dark, light or system; defaults to system before the first write
 
 functions:
-  new: "crate-private: (storage: Arc<Storage>) -> PersonSettings"
+  new: "(storage: Arc<Storage>) -> PersonSettings"
   person: Read the person record or its defaults without a write.
   set_person: Validate and replace the record under one command.
   normalize_name: private; trim a name, refuse controls and line breaks, and make empty null.

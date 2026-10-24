@@ -24,7 +24,6 @@ use crate::grants::Grants;
 use crate::harness::{AylulOwners, Harness, SessionsConfig};
 use crate::instructions::Instructions;
 use crate::operations::Operations;
-use crate::person::PersonSettings;
 use crate::plans::Plans;
 use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
@@ -32,6 +31,7 @@ use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
 use core_db::Storage;
+use core_person::PersonSettings;
 use core_projects::Projects;
 use core_providers::Providers;
 use core_runtime::Runtime;
@@ -94,8 +94,8 @@ pub struct CoreParts {
          `crates/core-usage/contract.yaml` |"]
 #[doc = " | `PersonSettings` | \
          the local person record | \
-         `crates/shadows-core/src/person` | \
-         `crates/shadows-core/src/person/contract.yaml` |"]
+         `crates/core-person/src` | \
+         `crates/core-person/contract.yaml` |"]
 #[doc = " | `Standards` | \
          project standards versions | \
          `crates/shadows-core/src/standards` | \

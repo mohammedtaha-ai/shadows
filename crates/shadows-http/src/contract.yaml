@@ -1,3 +1,4 @@
+# PersonError converts through CoreError to preserve HTTP refusals.
 # UsageError converts through CoreError to preserve HTTP refusals.
 # ProjectsError converts through CoreError to preserve HTTP refusals.
 name: shadows-http

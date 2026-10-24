@@ -160,6 +160,7 @@ impl From<OpenError> for CoreError {
             OpenError::Env(e) => e,
             OpenError::Secrets(error) => error.into(),
             OpenError::Provider(error) => error.into(),
+            OpenError::Person(error) => error.into(),
             OpenError::Storage(e) => CoreError::Storage(e),
             OpenError::Start(reason) => CoreError::HarnessStartFailed(reason),
             OpenError::Workspace(reason) => CoreError::ProjectDirectoryUnusable(reason),
@@ -298,6 +299,18 @@ impl From<core_usage::UsageError> for CoreError {
                 Self::ProfileInvalid("invalid usage period".into())
             }
             core_usage::UsageError::Storage(error) => Self::Storage(error),
+        }
+    }
+}
+
+impl From<core_person::PersonError> for CoreError {
+    fn from(error: core_person::PersonError) -> Self {
+        use core_person::PersonError;
+        match error {
+            PersonError::InvalidName => Self::ProfileInvalid("invalid person name".into()),
+            PersonError::NameTooLong => Self::ProfileInvalid("person name is too long".into()),
+            PersonError::InvalidLanguage => Self::ProfileInvalid("invalid language tag".into()),
+            PersonError::Storage(error) => Self::Storage(error),
         }
     }
 }

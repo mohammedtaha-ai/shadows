@@ -82,7 +82,7 @@ dependencies:
   design: crates/shadows-core/src/design/contract.yaml
   standards: crates/shadows-core/src/standards/contract.yaml
   instructions: crates/shadows-core/src/instructions/contract.yaml
-  usage: crates/shadows-core/src/usage/contract.yaml
+  usage: crates/core-usage/contract.yaml
   runtime: crates/core-runtime/contract.yaml
   code: crates/shadows-core/src/code/contract.yaml
   projects: crates/core-projects/contract.yaml

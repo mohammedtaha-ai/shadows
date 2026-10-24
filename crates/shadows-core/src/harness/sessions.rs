@@ -63,6 +63,8 @@ pub enum OpenError {
     #[error(transparent)]
     Provider(#[from] core_providers::ProvidersError),
     #[error(transparent)]
+    Person(#[from] core_person::PersonError),
+    #[error(transparent)]
     Storage(#[from] StorageError),
     #[error("harness start failed: {0}")]
     Start(String),
