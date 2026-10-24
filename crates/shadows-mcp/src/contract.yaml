@@ -1,3 +1,4 @@
+# CodeError converts through CoreError to preserve the MCP scope and storage envelope.
 name: shadows-mcp
 version: 1
 status: current

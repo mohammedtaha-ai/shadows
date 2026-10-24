@@ -3,7 +3,7 @@ mod error;
 mod store;
 
 use crate::CoreError;
-use crate::code::Code;
+use core_code::Code;
 use core_db::{CommandContext, Storage};
 use core_projects::{Project, ProjectId, Projects};
 use std::sync::Arc;
@@ -63,7 +63,7 @@ impl ProjectLifecycle {
 
 #[cfg(test)]
 mod tests {
-    use crate::code::CodeConfig;
+    use core_code::CodeConfig;
 
     #[tokio::test]
     async fn creation_and_replay_activate_the_project_index() {

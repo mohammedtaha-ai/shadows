@@ -17,7 +17,7 @@ use tokio::io::AsyncReadExt;
 
 use super::Code;
 use super::store::FileRow;
-use crate::error::CoreError;
+use crate::CodeError;
 use core_projects::ProjectId;
 
 /// A file over this many bytes is not parsed: `too_large`.
@@ -202,7 +202,7 @@ impl Code {
         &self,
         project: &ProjectId,
         progress: &Progress,
-    ) -> Result<u32, CoreError> {
+    ) -> Result<u32, CodeError> {
         let started = Instant::now();
         let store = &self.inner.store;
         let Some(directory) = self.inner.projects.get(project).await?.directory else {

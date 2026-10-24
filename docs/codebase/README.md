@@ -296,16 +296,16 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/store/part_edit.rs` | transactional part mutations | `crates/shadows-core/src/design/store/part_edit.rs` |
 | `crates/shadows-core/src/design/store/` | persistence of the design workspace | `crates/shadows-core/src/design/store/vision.rs` |
 | `crates/shadows-core/src/design/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/shadows-core/src/design/store/vision.rs` |
-| `crates/shadows-core/src/code/` | the code index of each project's folder | `crates/shadows-core/src/code/mod.rs` |
-| `crates/shadows-core/src/code/model.rs` | the code index types callers meet | `crates/shadows-core/src/code/model.rs` |
-| `crates/shadows-core/src/code/store/` | private CodeStore index persistence | `crates/shadows-core/src/code/store/mod.rs` |
-| `crates/shadows-core/src/code/store/links.rs` | transactional code link persistence | `crates/shadows-core/src/code/store/links.rs` |
-| `crates/shadows-core/src/code/store/reach.rs` | live one-way project reach in a snapshot | `crates/shadows-core/src/code/store/reach.rs` |
-| `crates/shadows-core/src/code/scan.rs` | walking a project's folder into the index | `crates/shadows-core/src/code/scan.rs` |
-| `crates/shadows-core/src/code/scope.rs` | what a code question may read | `crates/shadows-core/src/code/scope.rs` |
-| `crates/shadows-core/src/code/watch.rs` | keeping one active project's index current | `crates/shadows-core/src/code/watch.rs` |
-| `crates/shadows-core/src/code/active.rs` | which projects are active, in order of use | `crates/shadows-core/src/code/active.rs` |
-| `crates/shadows-core/src/code/links.rs` | the commands over links or the active limit | `crates/shadows-core/src/code/links.rs` |
+| `crates/core-code/src/` | the code index of each project's folder | `crates/core-code/src/lib.rs` |
+| `crates/core-code/src/model.rs` | the code index types callers meet | `crates/core-code/src/model.rs` |
+| `crates/core-code/src/store/` | private CodeStore index persistence | `crates/core-code/src/store/mod.rs` |
+| `crates/core-code/src/store/links.rs` | transactional code link persistence | `crates/core-code/src/store/links.rs` |
+| `crates/core-code/src/store/reach.rs` | live one-way project reach in a snapshot | `crates/core-code/src/store/reach.rs` |
+| `crates/core-code/src/scan.rs` | walking a project's folder into the index | `crates/core-code/src/scan.rs` |
+| `crates/core-code/src/scope.rs` | what a code question may read | `crates/core-code/src/scope.rs` |
+| `crates/core-code/src/watch.rs` | keeping one active project's index current | `crates/core-code/src/watch.rs` |
+| `crates/core-code/src/active.rs` | which projects are active, in order of use | `crates/core-code/src/active.rs` |
+| `crates/core-code/src/links.rs` | the commands over links or the active limit | `crates/core-code/src/links.rs` |
 | `crates/shadows-core/src/events/` | what clients watch live | `crates/shadows-core/src/events/mod.rs` |
 | `crates/shadows-core/src/events/model.rs` | journal replay cursor | `crates/shadows-core/src/events/model.rs` |
 | `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |
@@ -449,3 +449,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-standards/src/lib.rs` | project standards boundary | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/error.rs` | standards refusals | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/standards.yaml` | bundled standards definition | `crates/core-standards/contract.yaml` |
+
+| `crates/core-code/src/lib.rs` | code indexing boundary | `crates/core-code/contract.yaml` |
+| `crates/core-code/src/error.rs` | index refusals | `crates/core-code/contract.yaml` |
+| `crates/core-code/src/testing.rs` | gated index inspection | `crates/core-code/contract.yaml` |

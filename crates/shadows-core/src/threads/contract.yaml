@@ -1,3 +1,4 @@
+# Index access and project reach use core-code.
 # Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Harness::set_thread_harness owns the close after its guarded command commits.
@@ -70,7 +71,7 @@ modules:
 
 dependencies:
   projects: crates/core-projects/contract.yaml
-  code: crates/shadows-core/src/code/contract.yaml
+  code: crates/core-code/contract.yaml
   agents: crates/shadows-core/src/agents/contract.yaml
 
 # OperationRef, WorkflowRef and TaskRef are opaque provenance strings, interpreted by their owners.

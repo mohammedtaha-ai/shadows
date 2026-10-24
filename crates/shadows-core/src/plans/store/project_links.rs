@@ -1,6 +1,6 @@
 //! Atomic project-link commands with plan dependency notifications.
 use super::PlansStore;
-use crate::code::{Code, ProjectLink};
+use core_code::{Code, ProjectLink};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::{ProjectId, Projects};
 impl PlansStore {

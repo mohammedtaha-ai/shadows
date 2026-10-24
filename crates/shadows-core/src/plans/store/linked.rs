@@ -21,7 +21,7 @@ impl LinkedRows {
             if let Some(mut view) = related(conn, plan_id, *task, None, link, false, origin).await?
             {
                 if let Some(project) = &view.project_id
-                    && !crate::code::Code::project_reachable_in(conn, &root.project_id, project)
+                    && !core_code::Code::project_reachable_in(conn, &root.project_id, project)
                         .await?
                 {
                     view.broken = Some("the target project's link was removed".into());
@@ -69,7 +69,7 @@ impl LinkedRows {
                     ));
                 }
                 if let Some(project) = &view.project_id
-                    && !crate::code::Code::project_reachable_in(conn, project, &root.project_id)
+                    && !core_code::Code::project_reachable_in(conn, project, &root.project_id)
                         .await?
                 {
                     view.broken = Some("the source project's link was removed".into());
@@ -125,7 +125,7 @@ async fn related(
         .await?
         .ok_or(StorageError::NotFound("project"))?;
     if let Some(origin) = origin
-        && !crate::code::Code::project_reachable_in(conn, origin, &project).await?
+        && !core_code::Code::project_reachable_in(conn, origin, &project).await?
     {
         if incoming {
             return Ok(None);

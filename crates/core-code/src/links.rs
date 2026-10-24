@@ -4,7 +4,7 @@
 
 use super::Code;
 use super::model::{CodeSettings, ProjectLink};
-use crate::error::{CoreError, ErrorCode};
+use crate::CodeError;
 use core_db::CommandContext;
 use core_projects::ProjectId;
 
@@ -13,12 +13,12 @@ const LIMITS: std::ops::RangeInclusive<u32> = 1..=20;
 
 impl Code {
     /// The projects `project` reads, by their slug.
-    pub async fn links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CoreError> {
+    pub async fn links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodeError> {
         Ok(self.inner.store.code_links(project).await?)
     }
 
     /// The stored settings.
-    pub async fn settings(&self) -> Result<CodeSettings, CoreError> {
+    pub async fn settings(&self) -> Result<CodeSettings, CodeError> {
         let limit = self.inner.store.code_active_limit().await?;
         Ok(CodeSettings {
             active_limit: limit as u32,
@@ -32,9 +32,9 @@ impl Code {
         &self,
         command_id: String,
         active_limit: u32,
-    ) -> Result<CodeSettings, CoreError> {
+    ) -> Result<CodeSettings, CodeError> {
         if !LIMITS.contains(&active_limit) {
-            return Err(invalid(format!(
+            return Err(CodeError::InvalidCommand(format!(
                 "the active limit must be from 1 to 20, not {active_limit}"
             )));
         }
@@ -50,12 +50,5 @@ impl Code {
         active.limit(now);
         active.settle(self);
         Ok(CodeSettings { active_limit: set })
-    }
-}
-
-fn invalid(message: String) -> CoreError {
-    CoreError::Refused {
-        code: ErrorCode::InvalidCommand,
-        message,
     }
 }

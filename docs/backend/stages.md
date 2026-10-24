@@ -584,10 +584,7 @@ module references and their owning macro declarations establish their provenance
 and blocked the remaining moves. The controller continuation and its verified
 order below supersede those blocked statuses.
 
-Each move runs the dispatch's line-length, fmt, all-target clippy, owner tests,
-Core lib tests, architecture/codemap/openapi tests and its named integration
-binaries. Final checks also run production clippy, production feature isolation,
-all Core binaries and the unchanged-api diff. Never run workspace-wide tests.
+Controller check amendment (2026-10-24): each subsequent move runs exact line length, fmt, workspace all-target/test-support clippy, owner tests, architecture/codemap/openapi and affected Core/adapter integration binaries only. No whole Core suite per move or library tests for unchanged crates. Once after the session's last move, run production clippy, production feature isolation, all Core binaries, all shadows/shadows-http/shadows-mcp adapter binaries and the unchanged-api diff. Final-run failures are fixed in separate fix(backend): A-19c commits. Never run workspace-wide tests.
 
 Controller continuation: the preparation tasks above supersede the prior blocked
 statuses. After their boundary changes, the service order is runtime (done),
@@ -637,7 +634,7 @@ Harness includes person. Runtime, Secrets and Providers are extracted. The contr
 
 #### A-19c.0 · Give each service its own error
 - Status: doing
-- Progress: Secrets (A-19c.2), Providers (A-19c.7), Projects (A-19c.3), Usage (A-19c.10), Person (A-19c.11), Instructions (A-19c.4) and Standards (A-19c.5) error splits are complete. Remaining splits accompany their moves; Runtime still needs its owned wrapper.
+- Progress: Secrets (A-19c.2), Providers (A-19c.7), Projects (A-19c.3), Usage (A-19c.10), Person (A-19c.11), Instructions (A-19c.4) Standards (A-19c.5) and Code (A-19c.6) error splits are complete. Remaining splits accompany their moves; Runtime still needs its owned wrapper.
 - Ruling: controller continuation at 9b3735e supersedes the error-vocabulary blocker; no shared error crate. Apply each owner's split in its extraction commit, lowest first. Runtime currently exposes only StorageError; its owned wrapper remains part of A-19c.0 completion.
 - Touch: each service's error.rs, model and methods; its declared callers and tests; shadows-core/src/error.rs From conversions and public error re-exports; adapter translation conversions and failure-case tests where a service error crosses the application boundary; affected contracts and code-map rows; manifests and Cargo.lock. No route documentation or wire shape change.
 - Done when: no service names CoreError; each owns only its failures plus Storage where applicable and declared callee errors; existing HTTP status/code/message and MCP failure tests pass; api/ is unchanged.
@@ -736,10 +733,15 @@ automation; no browser/native/provider/production acceptance was performed.
 - Done when: `cargo test -p core-standards`, `cargo test -p shadows-core --lib` and Core integration binaries `design_vision` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.
 
 #### A-19c.6 · Extract core-code
-- Status: todo
+- Status: done
+- Evidence: per-move checks passed under the controller amendment: owner 3; Core code_index 3, code_snapshot 2, contracts 4, cross_plan_links 5, cross_plan_resolution 4, cross_plan_views 3; architecture 36, codemap 1, openapi 7; adapter code_scope 1, cross_plan_mcp 2, plan_map 2, project_remove 4, thread_routes 9. Exact line length, fmt, workspace all-target/test-support clippy, LF and api diff pass. Session-final full suites follow the last extraction commit.
+- Error split and graph: CodeError owns InvalidCommand, GrantScope, Storage and the declared Projects error. CoreError plus HTTP/MCP translations preserve application codes, status and text. Rust LSP module/struct references verified Projects as the only lower service and all AppCore/Plans/ProjectLifecycle/Threads/Turns/test-support callers. No new graph edge, cycle or cross-owner SQL. Model bytes and API-feeding comments are unchanged; no allowlist record changed.
+- Test placement: watcher and startup-order tests move with Code. Link transaction/snapshot tests that call Plans and ProjectLifecycle remain Core tests in code_snapshot.rs, with one retained storage handle. Code test-support methods move out of the Core inherent impl into their owning crate; production shutdown is an owner method.
+- Small gaps fixed: nested store methods retain their restricted owner visibility; the removed invalid helper contract entry is removed; stale Projects/CodeStore orchestration descriptions now name ProjectLifecycle and Plans. No ratchet logic or exception changed.
+- Dependencies: no new external package; existing core-db/core-projects, shadows-index, anyhow, ignore, notify, serde/serde_json, SQLx, thiserror, Tokio, tracing and utoipa infrastructure. The self dev-dependency enables test-only inspection methods; production has no default test-support feature.
 - Needs: A-19c.0 error split in this move; A-19c.0a and A-19c.0b; A-19b ; A-19c.3
 - Touch: `crates/core-code/` (`Cargo.toml`, `src/lib.rs`, `src/model.rs`, `src/store/`, `contract.yaml`, `tests/`); old `crates/shadows-core/src/code/`; `crates/shadows-core/src/{lib,app,testing/**}.rs`; `Cargo.toml`, `Cargo.lock`, `crates/shadows-core/Cargo.toml`; caller imports in `crates/shadows-core/src/plans/project_links.rs`, `crates/shadows-core/src/plans/store/graph.rs`, `crates/shadows-core/src/plans/store/linked.rs`, `crates/shadows-core/src/plans/store/map.rs`, `crates/shadows-core/src/plans/store/project_links.rs`, `crates/shadows-core/src/plans/store/read.rs`, `crates/shadows-core/src/project_lifecycle/mod.rs`, `crates/shadows-core/src/project_lifecycle/store.rs`, `crates/shadows-core/src/threads/mod.rs`, `crates/shadows-core/src/turns/mod.rs`; those callers' owner contracts; moved owner-local tests and their old registrations; `crates/shadows-core/tests/contracts.rs`; `docs/codebase/README.md`; `docs/backend/stages.md`; `crates/shadows/tests/architecture/{scanner,resolution,sql,fixtures,main}.rs`, `table-owners.txt` and allowlists (delete lines only, except exact moved-file comment path relocations); `crates/shadows/tests/codemap/main.rs`. AppCore integration tests remain in Core.
-- Done when: `cargo test -p core-code`, `cargo test -p shadows-core --lib` and Core integration binaries `code_index` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.
+- Done when: `cargo test -p core-code` and affected Core/adapter integration binaries (including code_index and code_snapshot) pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.
 
 #### A-19c.7 · Extract core-providers
 - Status: done

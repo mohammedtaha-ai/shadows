@@ -12,6 +12,7 @@ doctest = false
 workspace = true
 
 [dependencies]
+core-code = { path = "../core-code" }
 core-standards = { path = "../core-standards" }
 core-instructions = { path = "../core-instructions" }
 core-person = { path = "../core-person" }
@@ -61,7 +62,7 @@ yaml-rust2 = { workspace = true }
 # and `shadows-process`'s `force_termination_failure`. Enabled for
 # `cargo test` only via the self dev-dependency below, and by `shadows`' and
 # `fake-acp`'s own `test-support`; never a default feature.
-test-support = ["dep:escargot", "shadows-process/test-support", "core-db/test-support", "core-runtime/test-support", "core-secrets/test-support", "core-providers/test-support", "core-projects/test-support"]
+test-support = ["dep:escargot", "shadows-process/test-support", "core-db/test-support", "core-runtime/test-support", "core-secrets/test-support", "core-providers/test-support", "core-projects/test-support", "core-code/test-support"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -1,7 +1,7 @@
 # Project identities and registration methods are imported from core-projects.
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
-# selected_project_in promotes reach refusals as CoreError::Refused with GrantScope; Code does not depend on Grants.
+# selected_project_in promotes reach refusals as CodeError::GrantScope; Code does not depend on Grants.
 # Owns the code index (spec §15.4–§15.6): walking a project's folder into
 # `code_file` and `code_tag`, keeping that copy true while the project is
 # one of the most recently used, and answering three questions from it —
@@ -45,13 +45,13 @@
 name: code
 version: 4
 status: current
-source: crates/shadows-core/src/code
+source: crates/core-code/src
 
 
 shapes:
   Code:
     # Cheap to clone: an `Arc` over its private store, Projects and the active set.
-    # `Projects`, `Threads`, `Turns` and every worker hold a clone.
+    # ProjectLifecycle, Threads, Turns and every worker hold a clone.
     inner: Arc<Inner>
   Inner:
     store: CodeStore
@@ -183,15 +183,36 @@ shapes:
     pending: HashSet<String>
 
 
+modules:
+  lib.rs: code indexing boundary
+  error.rs: index refusals
+  testing.rs: gated index inspection
+  model.rs: public index values
+  active.rs: active project selection
+  scan.rs: filesystem indexing
+  scope.rs: question scope validation
+  links.rs: active limit commands
+  watch.rs: project indexing worker
+  store/: private index SQL
+
+dependencies:
+  projects: crates/core-projects/contract.yaml
+
 functions:
+  construction:
+    new: "(storage: Arc<Storage>, projects: Projects) -> Code"
+    scan_for_test: "test-support: synchronous fixture scan"
+    pause_watcher_for_test: "test-support: pause watcher file jobs"
+    active_for_test: "test-support: active project order"
+    shut_down_for_test: "test-support: await index workers"
   lifecycle:
     code_order:
-      signature: "(&self) -> Result<Vec<(ProjectId, String)>, CoreError>"
+      signature: "(&self) -> Result<Vec<(ProjectId, String)>, CodeError>"
       # Private Code method: Projects::by_recent_activity, filtered to
       # projects with a directory, preserving activity sequence DESC, id ASC.
       # Code reads project metadata only through Projects.
     start:
-      signature: "(&self, config: CodeConfig) -> Result<(), CoreError>"
+      signature: "(&self, config: CodeConfig) -> Result<(), CodeError>"
       # `code_order`, then under the lock: `code_active_limit`, `begin`,
       # the touches recorded before it applied oldest first, `settle`.
       # Awaits no scan. A second call does nothing; so does one after
@@ -224,23 +245,23 @@ functions:
       private: true
   questions:
     definitions:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>"
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodeError>"
       # Exact, case-sensitive name, role definition. With no hit, up to 10
       # definition names containing the text, case-insensitively.
     references:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>"
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodeError>"
       # As `definitions` with role reference; every hit matched_by "name".
     outline:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CoreError>"
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CodeError>"
       # `inside` first; the scope; `touch` of the asker's project; the
       # definitions whose key is the path's or under it, every one for ""
       # or "."; `recheck`, and the query once more when it sent any. No
       # suggestions.
     status:
-      signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CodeError>"
       # `status_of`; it does not touch. NotFound for an unknown project.
     by_name:
-      signature: "(&self, asker, only, name, role) -> Result<Answer, CoreError>"
+      signature: "(&self, asker, only, name, role) -> Result<Answer, CodeError>"
       private: true
       # The scope (its refusals first), `touch` of the asker's project, the
       # query, `recheck` and the query once more when it sent any, then the
@@ -253,39 +274,36 @@ functions:
       # worker, if it has one. Sending and every reply are awaited within
       # 2 s in all (`code.recheck_timeout` past it). True when any was sent.
     answer:
-      signature: "(&self, scope, hits, suggestions) -> Result<Answer, CoreError>"
+      signature: "(&self, scope, hits, suggestions) -> Result<Answer, CodeError>"
       private: true
       # Keeps 50 of at most 51 rows; `more` is the 51st. One status per
       # project in the scope, in the scope's order.
     status_of:
-      signature: "(&self, project: &ScopeRow) -> Result<ProjectStatus, CoreError>"
+      signature: "(&self, project: &ScopeRow) -> Result<ProjectStatus, CodeError>"
       private: true
       # NoDirectory with no folder; else the worker's `state` and
       # `updated_at`; Inactive and None without a worker.
   links:
     links:
-      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodeError>"
       # By the linked slug; empty for an unknown project.
     put_link_in:
       signature: "(conn, project, linked, ts) -> Result<bool, StorageError>; inserts a link row in the caller transaction"
     remove_link_in:
       signature: "(conn, project, linked) -> Result<bool, StorageError>; removes a link row in the caller transaction"
     settings:
-      signature: "(&self) -> Result<CodeSettings, CoreError>"
+      signature: "(&self) -> Result<CodeSettings, CodeError>"
     set_active_limit:
-      signature: "(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CoreError>"
+      signature: "(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CodeError>"
       # Outside 1..=20: INVALID_COMMAND, before any write.
       # "CodeActiveLimitSet", params { active_limit }, scope Code, key
       # "settings" → `set_code_active_limit`; then, under the lock, `limit`
       # with the stored value read there (a replay answers an older one; of
       # two calls at once, the last to lock reads the newer) and `settle`:
       # lowering it stops the least recently used workers at once.
-    invalid:
-      signature: "(message: String) -> CoreError"
-      private: true
   scope:
     projects:
-      signature: "(&self, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CoreError>"
+      signature: "(&self, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CodeError>"
       # The asker's project, then its direct links by slug. An `only` not in
       # it: GRANT_SCOPE for a grant, INVALID_COMMAND for a person, "the
       # project <slug> is not linked to this project".
@@ -293,18 +311,18 @@ functions:
       signature: "(&self) -> &ProjectId"
       # Asker method: the project a question starts from, and touches.
     inside:
-      signature: "(path: &str) -> Result<String, CoreError>"
+      signature: "(path: &str) -> Result<String, CodeError>"
       # '\' becomes '/', "./" and a trailing '/' are dropped; absolute, a
       # ':' or a ".." component is INVALID_COMMAND "the path must be inside
       # the project".
   indexing:
     # Shared indexing helpers are associated Code methods; walk/names_itself are private.
     scan:
-      signature: "(&self, project: &ProjectId) -> Result<(), CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<(), CodeError>"
       # pub(crate): tests reach it as `scan_for_test` (`testing`). A worker
       # calls `scan_project` with its own `Progress`.
     scan_project:
-      signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CoreError>"
+      signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CodeError>"
       # No folder, or a missing one: nothing changes. Walks on a blocking
       # thread, sets `found`, `index_file` per kept path (a failure is
       # `code.index_failed` and the walk goes on), `done` after each, and
@@ -552,24 +570,23 @@ functions:
 shared_in_transaction:
   load_link_in: Retained project link with slugs in the caller snapshot.
   replayed_link_in: Recorded link result even after removal; Plans owns command replay classification.
-  # CodeStore link commands call the Code _in writes, then Plans' notification
-  # in that same transaction. Command orchestration remains here until A-16.
-  put_link_in: "CodeStore::put_code_link: raw insert in its command transaction"
-  remove_link_in: "CodeStore::remove_code_link: raw delete in its command transaction"
+  # Plans owns command replay and dependency notifications around the Code writes.
+  put_link_in: "PlansStore::put_code_link: raw insert in its command transaction"
+  remove_link_in: "PlansStore::remove_code_link: raw delete in its command transaction"
   selected_project_in: "Plans' store: resolves an optional project slug within the origin's live one-way reach in its read snapshot"
   project_reachable_in: "Plans' store: checks live same-project or existing one-way project-link reach in the dependency read/approval snapshot"
-  delete_code_index_in: "Projects' store (projects/store.rs ProjectsStore::remove): a removed project's index goes in the removal's own write (§15.4)"
-  delete_code_links_in: "Projects' store (projects/store.rs ProjectsStore::remove): the links a removed project reads, and those reading it, go in the removal's own write (§15.4)"
+  delete_code_index_in: "ProjectLifecycle's removal transaction: a removed project's index goes in the removal's own write (§15.4)"
+  delete_code_links_in: "ProjectLifecycle's removal transaction: the links a removed project reads, and those reading it, go in the removal's own write (§15.4)"
 
 
 called_by_other_services:
-  touch: "Turns (turns/mod.rs send, once its checks pass), Threads (threads/mod.rs list) and Projects (projects/mod.rs create): each is a use of the project (§15.6); it returns at once and never fails its caller"
-  forget: "Projects (projects/mod.rs remove), after its write: the removed project's worker stops and it leaves the active set (§15.4); it never fails its caller"
+  touch: "Turns send, Threads list and ProjectLifecycle create record project use without waiting for indexing."
+  forget: "ProjectLifecycle removal stops the worker after its committed removal write."
 
 
 enums:
-  CoreError:
-    source: crate::error::CoreError
+  CodeError:
+    source: core_code::CodeError
     values: []
   StorageError:
     source: core_db::StorageError

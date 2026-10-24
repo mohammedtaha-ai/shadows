@@ -67,3 +67,5 @@ workflow :: plans
 # instructions SQL lives in crates/core-instructions/src/store/.
 
 # standards SQL lives in crates/core-standards/src/store/.
+
+# code SQL lives in crates/core-code/src/store/.

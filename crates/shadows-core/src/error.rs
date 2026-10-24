@@ -334,3 +334,21 @@ impl From<core_standards::StandardsError> for CoreError {
         }
     }
 }
+
+impl From<core_code::CodeError> for CoreError {
+    fn from(error: core_code::CodeError) -> Self {
+        use core_code::CodeError;
+        match error {
+            CodeError::InvalidCommand(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            CodeError::GrantScope(message) => Self::Refused {
+                code: ErrorCode::GrantScope,
+                message,
+            },
+            CodeError::Projects(error) => error.into(),
+            CodeError::Storage(error) => Self::Storage(error),
+        }
+    }
+}

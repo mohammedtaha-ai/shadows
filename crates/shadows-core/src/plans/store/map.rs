@@ -46,7 +46,7 @@ impl PlansStore {
             let broken = missing
                 || !core_projects::Projects::is_live_in(&mut snapshot, &source_project).await?
                 || !core_projects::Projects::is_live_in(&mut snapshot, &target_project).await?
-                || !crate::code::Code::project_reachable_in(
+                || !core_code::Code::project_reachable_in(
                     &mut snapshot,
                     &source_project,
                     &target_project,

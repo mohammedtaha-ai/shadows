@@ -25,7 +25,10 @@ pub use model::{
 };
 pub use scope::Asker;
 
-use crate::error::CoreError;
+mod error;
+pub use error::CodeError;
+#[cfg(feature = "test-support")]
+mod testing;
 use active::Active;
 use core_db::Storage;
 use core_projects::{ProjectId, Projects};
@@ -43,7 +46,7 @@ struct Inner {
     active: tokio::sync::Mutex<Active>,
 }
 
-/// The code index. Cheap to clone: `Projects`, `Threads` and `Turns` hold a
+/// The code index. Cheap to clone: `ProjectLifecycle`, `Threads` and `Turns` hold a
 /// clone to call `touch`, and each worker holds one.
 #[derive(Clone)]
 pub struct Code {
@@ -51,7 +54,7 @@ pub struct Code {
 }
 
 impl Code {
-    pub(crate) fn new(storage: Arc<Storage>, projects: Projects) -> Self {
+    pub fn new(storage: Arc<Storage>, projects: Projects) -> Self {
         Self {
             inner: Arc::new(Inner {
                 store: CodeStore::with_storage(storage),
@@ -62,7 +65,7 @@ impl Code {
     }
 
     /// Projects with a directory, in the owner's explicit activity order.
-    async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, CoreError> {
+    async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, CodeError> {
         Ok(self
             .inner
             .projects
@@ -76,7 +79,7 @@ impl Code {
     /// Chooses the active set and starts a worker per active project;
     /// it waits for no scan. `AppCore::start` calls it with the default; a
     /// test calls it when it wants workers.
-    pub async fn start(&self, config: CodeConfig) -> Result<(), CoreError> {
+    pub async fn start(&self, config: CodeConfig) -> Result<(), CodeError> {
         let store = &self.inner.store;
         let order = self.code_order().await?;
         let order = order
@@ -121,7 +124,7 @@ impl Code {
     }
 
     /// Stops every watcher and worker; a worker finishes the file it is on.
-    pub(crate) async fn shut_down(&self) {
+    pub async fn shut_down(&self) {
         let tasks = self.inner.active.lock().await.close();
         for task in tasks {
             let _ = task.await;
@@ -165,7 +168,7 @@ impl Code {
         asker: Asker<'_>,
         only: Option<&str>,
         name: &str,
-    ) -> Result<Answer, CoreError> {
+    ) -> Result<Answer, CodeError> {
         self.by_name(asker, only, name, "definition").await
     }
 
@@ -175,7 +178,7 @@ impl Code {
         asker: Asker<'_>,
         only: Option<&str>,
         name: &str,
-    ) -> Result<Answer, CoreError> {
+    ) -> Result<Answer, CodeError> {
         let mut answer = self.by_name(asker, only, name, "reference").await?;
         for hit in &mut answer.hits {
             hit.matched_by = Some("name".into());
@@ -190,7 +193,7 @@ impl Code {
         asker: Asker<'_>,
         only: Option<&str>,
         path: &str,
-    ) -> Result<Answer, CoreError> {
+    ) -> Result<Answer, CodeError> {
         let path = Self::path_key(&Self::inside(path)?);
         let store = &self.inner.store;
         let scope = self.projects(&asker, only).await?;
@@ -203,7 +206,7 @@ impl Code {
     }
 
     /// How the project's index stands. It does not touch the project.
-    pub async fn status(&self, project: &ProjectId) -> Result<ProjectStatus, CoreError> {
+    pub async fn status(&self, project: &ProjectId) -> Result<ProjectStatus, CodeError> {
         let p = self.inner.projects.get(project).await?;
         self.status_of(&(p.id, p.slug, p.directory)).await
     }
@@ -214,7 +217,7 @@ impl Code {
         not(feature = "test-support"),
         expect(dead_code, reason = "only tests scan outside a worker")
     )]
-    pub(crate) async fn scan(&self, project: &ProjectId) -> Result<(), CoreError> {
+    pub(crate) async fn scan(&self, project: &ProjectId) -> Result<(), CodeError> {
         self.scan_project(project, &scan::Progress::default())
             .await
             .map(|_| ())
@@ -226,7 +229,7 @@ impl Code {
         only: Option<&str>,
         name: &str,
         role: &str,
-    ) -> Result<Answer, CoreError> {
+    ) -> Result<Answer, CodeError> {
         let store = &self.inner.store;
         let scope = self.projects(&asker, only).await?;
         self.touch(asker.home()).await;
@@ -296,7 +299,7 @@ impl Code {
         scope: &[ScopeRow],
         mut hits: Vec<Hit>,
         suggestions: Vec<String>,
-    ) -> Result<Answer, CoreError> {
+    ) -> Result<Answer, CodeError> {
         let more = hits.len() > HITS;
         hits.truncate(HITS);
         let mut status = Vec::with_capacity(scope.len());
@@ -316,7 +319,7 @@ impl Code {
     async fn status_of(
         &self,
         (id, slug, directory): &ScopeRow,
-    ) -> Result<ProjectStatus, CoreError> {
+    ) -> Result<ProjectStatus, CodeError> {
         let (files, skipped) = self.inner.store.code_counts(id).await?;
         let (state, updated_at) = match directory {
             None => (IndexState::NoDirectory, None),
@@ -332,52 +335,5 @@ impl Code {
             skipped,
             updated_at,
         })
-    }
-}
-
-#[cfg(all(test, feature = "test-support"))]
-mod tests {
-    #[tokio::test]
-    async fn startup_order_uses_creation_sequence_then_project_id_for_ties() {
-        let db = tempfile::tempdir().unwrap();
-        let dir = tempfile::tempdir().unwrap();
-        let core = crate::testing::app(db.path().join("code.sqlite3"))
-            .await
-            .unwrap();
-        let mut ids = Vec::new();
-        for slug in ["zulu", "alpha", "middle"] {
-            let project = core
-                .project_lifecycle()
-                .create(slug.into(), slug, slug, dir.path().to_str().unwrap())
-                .await
-                .unwrap();
-            ids.push(project.id);
-        }
-        let storage = &core.code().inner.store.storage;
-        let order = core.code().code_order().await.unwrap();
-        assert_eq!(
-            order.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
-            ids.iter().rev().cloned().collect::<Vec<_>>(),
-            "creation sequence must decide startup order"
-        );
-        storage
-            .write_txn(|conn| {
-                Box::pin(async move {
-                    sqlx::query("DELETE FROM durable_event WHERE kind = 'ProjectCreated'")
-                        .execute(conn)
-                        .await?;
-                    Ok(())
-                })
-            })
-            .await
-            .unwrap();
-        ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-        let order = core.code().code_order().await.unwrap();
-        assert_eq!(
-            order.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
-            ids,
-            "equal activity sequences must sort by project id"
-        );
-        core.code().shut_down().await;
     }
 }

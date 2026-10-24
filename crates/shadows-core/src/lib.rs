@@ -1,6 +1,5 @@
 mod agents;
 mod app;
-mod code;
 mod design;
 mod error;
 mod events;
@@ -24,7 +23,7 @@ pub use grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 #[cfg(feature = "test-support")]
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
-pub use code::{
+pub use core_code::{
     Answer, Asker, Code, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus,
     Skipped,
 };
@@ -112,3 +111,5 @@ pub use core_person::PersonError;
 pub use core_instructions::InstructionsError;
 
 pub use core_standards::StandardsError;
+
+pub use core_code::CodeError;

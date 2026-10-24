@@ -334,7 +334,7 @@ impl CodeStore {
 
 impl Code {
     /// Removes an index in the caller's project-removal transaction.
-    pub(crate) async fn delete_code_index_in(
+    pub async fn delete_code_index_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<(), StorageError> {

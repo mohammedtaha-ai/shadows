@@ -157,3 +157,9 @@ impl From<shadows_core::StandardsError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::CodeError> for Failure {
+    fn from(error: shadows_core::CodeError) -> Self {
+        CoreError::from(error).into()
+    }
+}

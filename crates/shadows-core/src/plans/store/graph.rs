@@ -36,7 +36,7 @@ impl GraphRows {
             let Some((project, version, _)) = GraphRows::owner(conn, plan_id).await? else {
                 return Err(invalid(format!("plan {plan_id} T{task} is unavailable")));
             };
-            if !crate::code::Code::project_reachable_in(conn, &source.project_id, &project).await? {
+            if !core_code::Code::project_reachable_in(conn, &source.project_id, &project).await? {
                 return Err(invalid(format!(
                     "a project link to plan {plan_id}'s project is missing"
                 )));
@@ -150,8 +150,7 @@ impl GraphRows {
                     )));
                     continue;
                 };
-                if !crate::code::Code::project_reachable_in(conn, &source_project, &project).await?
-                {
+                if !core_code::Code::project_reachable_in(conn, &source_project, &project).await? {
                     problems.push(Problem::new(format!(
                         "T{} needs a project link to plan {plan_id} T{task}",
                         link.task,
@@ -178,7 +177,7 @@ impl GraphRows {
                         tasks,
                         links: TaskRows::links_of(conn, &version).await?,
                     };
-                    if crate::code::Code::project_reachable_in(
+                    if core_code::Code::project_reachable_in(
                         conn,
                         origin.unwrap_or(&root.project_id),
                         &project,

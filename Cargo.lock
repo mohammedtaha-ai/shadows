@@ -671,6 +671,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-code"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "core-code",
+ "core-db",
+ "core-projects",
+ "ignore",
+ "notify",
+ "serde",
+ "serde_json",
+ "shadows-index",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "core-db"
 version = "0.1.0"
 dependencies = [
@@ -3492,6 +3513,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
+ "core-code",
  "core-db",
  "core-instructions",
  "core-person",

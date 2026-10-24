@@ -36,7 +36,7 @@ impl PlansStore {
             .map_err(StorageError::from)?;
         if let Some(origin) = origin {
             let selected =
-                crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
+                core_code::Code::selected_project_in(&mut snapshot, origin, project).await?;
             let owner: Option<String> = sqlx::query_scalar(
                 "SELECT p.project_id FROM workflow w JOIN plan p ON p.id=w.plan_id WHERE w.id=?",
             )
@@ -66,8 +66,7 @@ impl PlansStore {
             .begin()
             .await
             .map_err(StorageError::from)?;
-        let selected =
-            crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
+        let selected = core_code::Code::selected_project_in(&mut snapshot, origin, project).await?;
         let plans = listings(&mut snapshot, &selected, archived).await?;
         snapshot.commit().await.map_err(StorageError::from)?;
         Ok(plans)

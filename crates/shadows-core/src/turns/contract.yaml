@@ -1,3 +1,4 @@
+# Index access and project reach use core-code.
 # Project standards are imported from core-standards.
 # Planner instructions are read through core-instructions.
 # Usage measurements are recorded through core-usage in the terminal transaction.
@@ -86,7 +87,7 @@ dependencies:
   instructions: crates/core-instructions/contract.yaml
   usage: crates/core-usage/contract.yaml
   runtime: crates/core-runtime/contract.yaml
-  code: crates/shadows-core/src/code/contract.yaml
+  code: crates/core-code/contract.yaml
   projects: crates/core-projects/contract.yaml
 
 shapes:

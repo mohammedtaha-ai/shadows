@@ -1,0 +1,38 @@
+[package]
+name = "core-code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+core-db = { path = "../core-db" }
+core-projects = { path = "../core-projects" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+utoipa = { workspace = true }
+
+shadows-index = { path = "../shadows-index" }
+ignore = { workspace = true }
+notify = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+test-support = ["core-db/test-support", "core-projects/test-support"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+# Fixtures exercise gated inspection methods without enabling ordinary builds.
+core-code = { path = ".", features = ["test-support"] }

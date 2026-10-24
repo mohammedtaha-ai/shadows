@@ -15,7 +15,6 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::agents::Agents;
-use crate::code::{Code, CodeConfig};
 use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::Events;
@@ -28,6 +27,7 @@ use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
+use core_code::{Code, CodeConfig};
 use core_db::Storage;
 use core_instructions::Instructions;
 use core_person::PersonSettings;
@@ -146,8 +146,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/events/contract.yaml` |"]
 #[doc = " | `Code` | \
          project code indexing | \
-         `crates/shadows-core/src/code` | \
-         `crates/shadows-core/src/code/contract.yaml` |"]
+         `crates/core-code/src` | \
+         `crates/core-code/contract.yaml` |"]
 #[doc = " | `Runtime` | \
          runtime instance lifecycle | \
          `crates/core-runtime/src` | \

@@ -3,14 +3,14 @@
 use sqlx::SqliteConnection;
 
 use super::CodeStore;
-use crate::code::Code;
-use crate::code::model::ProjectLink;
+use crate::Code;
+use crate::model::ProjectLink;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::{ProjectId, Projects};
 
 impl CodeStore {
     /// How many projects are active at once: `code_setting.active_limit`.
-    pub(in crate::code) async fn code_active_limit(&self) -> Result<i64, StorageError> {
+    pub(in super::super) async fn code_active_limit(&self) -> Result<i64, StorageError> {
         Ok(
             sqlx::query_scalar("SELECT active_limit FROM code_setting WHERE id = 1")
                 .fetch_one(self.storage.reader())
@@ -19,7 +19,7 @@ impl CodeStore {
     }
 
     /// The projects `project` reads, by the linked slug.
-    pub(in crate::code) async fn code_links(
+    pub(in super::super) async fn code_links(
         &self,
         project: &ProjectId,
     ) -> Result<Vec<ProjectLink>, StorageError> {
@@ -51,7 +51,7 @@ impl CodeStore {
 
     /// Sets `code_setting.active_limit`, already checked 1..=20. A replay
     /// answers the limit it set, which its outcome ref holds.
-    pub(in crate::code) async fn set_code_active_limit(
+    pub(in super::super) async fn set_code_active_limit(
         &self,
         ctx: &CommandContext,
         limit: u32,
@@ -96,7 +96,7 @@ impl CodeStore {
 impl Code {
     /// Inserts a link in the caller's transaction. The caller owns validation,
     /// command replay, events and dependency notifications. True only for a new row.
-    pub(crate) async fn put_link_in(
+    pub async fn put_link_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
         linked: &ProjectId,
@@ -116,7 +116,7 @@ impl Code {
     }
 
     /// Removes a link in the caller's transaction. True only when a row existed.
-    pub(crate) async fn remove_link_in(
+    pub async fn remove_link_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
         linked: &ProjectId,
@@ -133,7 +133,7 @@ impl Code {
     }
 
     /// Removes links in both directions in the caller's project-removal write.
-    pub(crate) async fn delete_code_links_in(
+    pub async fn delete_code_links_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<(), StorageError> {
@@ -146,63 +146,8 @@ impl Code {
     }
 }
 
-#[cfg(all(test, feature = "test-support"))]
-mod tests {
-    use super::Code;
-
-    #[tokio::test]
-    async fn link_writes_rollback_with_the_callers_transaction() {
-        let db = tempfile::tempdir().unwrap();
-        let dir = tempfile::tempdir().unwrap();
-        let core = crate::testing::app(db.path().join("code.sqlite3"))
-            .await
-            .unwrap();
-        let mut ids = Vec::new();
-        for slug in ["home", "linked"] {
-            ids.push(
-                core.project_lifecycle()
-                    .create(slug.into(), slug, slug, dir.path().to_str().unwrap())
-                    .await
-                    .unwrap()
-                    .id,
-            );
-        }
-        let code = core.code();
-        let storage = &code.inner.store.storage;
-        let [home, linked] = [ids[0].clone(), ids[1].clone()];
-        let (source, target) = (home.clone(), linked.clone());
-        let result: Result<(), core_db::StorageError> = storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    assert!(Code::put_link_in(conn, &source, &target, "test").await?);
-                    assert!(!Code::put_link_in(conn, &source, &target, "test").await?);
-                    Err(core_db::StorageError::NotFound("force rollback"))
-                })
-            })
-            .await;
-        assert!(result.is_err());
-        assert!(code.links(&home).await.unwrap().is_empty());
-        core.plans()
-            .link_projects("link".into(), &home, &linked)
-            .await
-            .unwrap();
-        let result: Result<(), core_db::StorageError> = storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    assert!(Code::remove_link_in(conn, &home, &linked).await?);
-                    assert!(!Code::remove_link_in(conn, &home, &linked).await?);
-                    Err(core_db::StorageError::NotFound("force rollback"))
-                })
-            })
-            .await;
-        assert!(result.is_err());
-        assert_eq!(code.links(&ids[0]).await.unwrap().len(), 1);
-        core.code().shut_down().await;
-    }
-}
-
 impl Code {
-    pub(crate) async fn load_link_in(
+    pub async fn load_link_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
         linked: &ProjectId,
@@ -224,7 +169,7 @@ impl Code {
 }
 
 impl Code {
-    pub(crate) async fn replayed_link_in(
+    pub async fn replayed_link_in(
         conn: &mut SqliteConnection,
         ctx: &CommandContext,
         project: &ProjectId,

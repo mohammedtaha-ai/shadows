@@ -1,8 +1,8 @@
 //! Project-link commands composed above code and plans.
 use super::Plans;
 use super::scope::Scope;
-use crate::code::ProjectLink;
 use crate::error::{CoreError, ErrorCode};
+use core_code::ProjectLink;
 use core_db::CommandContext;
 use core_projects::ProjectId;
 fn invalid(message: String) -> CoreError {

@@ -59,11 +59,11 @@ pub(crate) use turn::StopOutcome;
 /// A running turn's live harness events, for every live subscriber.
 pub type Bus =
     tokio::sync::broadcast::Sender<(ThreadId, OperationId, shadows_agent::events::HarnessEvent)>;
-use crate::code::Code;
 use crate::error::CoreError;
 use crate::harness::{Harness, LeaseError};
 use crate::plans::{Focus, PlanId};
 use crate::threads::ThreadId;
+use core_code::Code;
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_instructions::Instructions;
 use core_projects::Projects;

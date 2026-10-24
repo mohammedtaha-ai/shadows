@@ -1,10 +1,10 @@
 //! Removal composes table owners in one serialized transaction.
 use super::error::ProjectLifecycleError;
 use crate::CoreError;
-use crate::code::Code;
 use crate::grants::Grants;
 use crate::plans::Plans;
 use crate::threads::Threads;
+use core_code::Code;
 use core_db::{Actor, CommandContext, JournalEntry, Storage};
 use core_projects::{Project, ProjectId, Projects};
 use std::sync::Arc;

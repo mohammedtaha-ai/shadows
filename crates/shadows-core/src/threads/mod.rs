@@ -28,8 +28,8 @@ pub use model::{
     ThreadEntryKind, ThreadId, TurnContext, WorkflowRef,
 };
 
-use crate::code::Code;
 use crate::error::CoreError;
+use core_code::Code;
 use core_db::{CommandContext, Storage};
 use core_projects::{ProjectId, Projects};
 pub(crate) use error::ThreadsError;
