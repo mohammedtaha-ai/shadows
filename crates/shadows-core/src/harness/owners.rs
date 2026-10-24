@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::agents::Agents;
 use crate::extensions::Extensions;
+use core_agents::Agents;
 use core_person::PersonSettings;
 use core_providers::Providers;
 

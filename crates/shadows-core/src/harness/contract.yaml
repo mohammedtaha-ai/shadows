@@ -1,3 +1,4 @@
+# AgentsError is translated through CoreError with unchanged responses.
 # Project standards are imported from core-standards.
 # Planner instructions are read through core-instructions.
 # Person preferences are read through core-person.

@@ -5,11 +5,11 @@ mod home;
 mod model;
 mod store;
 
-pub(crate) use error::AgentsError;
+pub use error::AgentsError;
 pub use model::{Agent, AgentInput, AgentWorkspace};
 
-use crate::{CoreError, ProjectId};
 use core_db::{CommandContext, Storage};
+use core_projects::ProjectId;
 use core_projects::Projects;
 use core_providers::{Provider, ProviderInput, Providers};
 use core_secrets::{EnvEntry, Secrets};
@@ -27,7 +27,7 @@ pub struct Agents {
 }
 
 impl Agents {
-    pub(crate) fn new(
+    pub fn new(
         storage: Arc<Storage>,
         providers: Arc<Providers>,
         secrets: Arc<Secrets>,
@@ -43,35 +43,35 @@ impl Agents {
         })
     }
 
-    pub async fn agents(&self) -> Result<Vec<Agent>, CoreError> {
-        Ok(self.store.list().await?)
+    pub async fn agents(&self) -> Result<Vec<Agent>, AgentsError> {
+        self.store.list().await
     }
 
-    pub async fn agent(&self, slug: &str) -> Result<Agent, CoreError> {
-        Ok(self.store.get(slug).await?)
+    pub async fn agent(&self, slug: &str) -> Result<Agent, AgentsError> {
+        self.store.get(slug).await
     }
 
-    pub async fn workspace(&self) -> Result<AgentWorkspace, CoreError> {
+    pub async fn workspace(&self) -> Result<AgentWorkspace, AgentsError> {
         Ok(AgentWorkspace {
             project_id: self.assistant_project().await?,
             agents: self.agents().await?,
         })
     }
 
-    pub async fn assistant_project(&self) -> Result<ProjectId, CoreError> {
+    pub async fn assistant_project(&self) -> Result<ProjectId, AgentsError> {
         self.projects
             .by_slug("aylul")
             .await?
             .filter(|p| p.assistant)
             .map(|p| p.id)
-            .ok_or(CoreError::AylulNotConfigured)
+            .ok_or(AgentsError::NotConfigured)
     }
 
     pub async fn create_agent(
         &self,
         command_id: String,
         input: AgentInput,
-    ) -> Result<Agent, CoreError> {
+    ) -> Result<Agent, AgentsError> {
         let input = Self::validated(input)?;
         let root = self.root()?;
         let slug = self.store.save(command_id, None, input, root).await?;
@@ -83,7 +83,7 @@ impl Agents {
         command_id: String,
         slug: &str,
         input: AgentInput,
-    ) -> Result<Agent, CoreError> {
+    ) -> Result<Agent, AgentsError> {
         let input = Self::validated(input)?;
         let root = self.root()?;
         let slug = self
@@ -100,7 +100,7 @@ impl Agents {
         command_id: String,
         slug: &str,
         input: ProviderInput,
-    ) -> Result<Provider, CoreError> {
+    ) -> Result<Provider, AgentsError> {
         let input = self.providers.validated(input)?;
         let command = CommandContext::user(
             command_id,
@@ -131,7 +131,7 @@ impl Agents {
     }
 
     /// Removes a provider no live agent uses, with its key, in one write.
-    pub async fn delete_provider(&self, command_id: String, slug: &str) -> Result<(), CoreError> {
+    pub async fn delete_provider(&self, command_id: String, slug: &str) -> Result<(), AgentsError> {
         let command = CommandContext::user(
             command_id,
             "provider.delete",
@@ -156,7 +156,7 @@ impl Agents {
             .await
     }
 
-    pub async fn list_env(&self, slug: &str) -> Result<Vec<EnvEntry>, CoreError> {
+    pub async fn list_env(&self, slug: &str) -> Result<Vec<EnvEntry>, AgentsError> {
         self.store.require_live(slug).await?;
         self.secrets.list_env(slug).await.map_err(Into::into)
     }
@@ -168,7 +168,7 @@ impl Agents {
         slug: &str,
         name: &str,
         value: &str,
-    ) -> Result<EnvEntry, CoreError> {
+    ) -> Result<EnvEntry, AgentsError> {
         let write = self.secrets.env_write(command_id, slug, name, value)?;
         let slug = slug.to_owned();
         self.store
@@ -190,7 +190,7 @@ impl Agents {
         command_id: String,
         slug: &str,
         name: &str,
-    ) -> Result<(), CoreError> {
+    ) -> Result<(), AgentsError> {
         let removal = self.secrets.env_removal(command_id, slug, name)?;
         let slug = slug.to_owned();
         self.store
@@ -207,12 +207,12 @@ impl Agents {
     }
 
     /// The agent's isolated home, where its sessions run.
-    pub(crate) fn home(&self, slug: &str) -> Result<PathBuf, CoreError> {
+    pub fn home(&self, slug: &str) -> Result<PathBuf, AgentsError> {
         Ok(self.root()?.join("profiles").join(slug))
     }
 
     /// Refuses an unknown or deleted agent inside the caller's write.
-    pub(crate) async fn require_live_in(
+    pub async fn require_live_in(
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<(), AgentsError> {
@@ -221,12 +221,12 @@ impl Agents {
 
     /// Tombstones a live agent and removes its variables inside the caller's write,
     /// under its own command. The caller removes what other owners keep for the agent.
-    pub(crate) async fn delete_in(
+    pub async fn delete_in(
         &self,
         conn: &mut SqliteConnection,
         command_id: String,
         slug: &str,
-    ) -> Result<(), CoreError> {
+    ) -> Result<(), AgentsError> {
         let command =
             CommandContext::user(command_id, "agent.delete", serde_json::json!({"slug":slug}));
         if CommandContext::classify(conn, &command, COMMAND_SCOPE.0, COMMAND_SCOPE.1)
@@ -241,21 +241,21 @@ impl Agents {
         Ok(AgentsStore::record_in(conn, &command, slug).await?)
     }
 
-    fn root(&self) -> Result<PathBuf, CoreError> {
-        self.home_root.clone().ok_or(CoreError::AylulNotConfigured)
+    fn root(&self) -> Result<PathBuf, AgentsError> {
+        self.home_root.clone().ok_or(AgentsError::NotConfigured)
     }
 
-    fn validated(mut input: AgentInput) -> Result<AgentInput, CoreError> {
+    fn validated(mut input: AgentInput) -> Result<AgentInput, AgentsError> {
         if input
             .character_color
             .as_deref()
             .is_some_and(|color| !valid_color(color))
         {
-            return Err(CoreError::ProfileInvalid("invalid character color".into()));
+            return Err(AgentsError::Invalid("invalid character color".into()));
         }
         input.name = input.name.trim().into();
         if input.name.is_empty() || input.name.len() > 256 {
-            return Err(CoreError::ProfileInvalid("invalid agent name".into()));
+            return Err(AgentsError::Invalid("invalid agent name".into()));
         }
         Ok(input)
     }

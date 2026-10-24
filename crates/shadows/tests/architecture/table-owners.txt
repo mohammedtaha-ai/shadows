@@ -69,3 +69,5 @@ workflow :: plans
 # standards SQL lives in crates/core-standards/src/store/.
 
 # code SQL lives in crates/core-code/src/store/.
+
+# agents SQL lives in crates/core-agents/src/store/.

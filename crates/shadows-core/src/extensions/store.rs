@@ -2,7 +2,7 @@
 use super::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
-use crate::agents::Agents;
+use core_agents::Agents;
 use core_db::{CommandContext, Storage, StorageError};
 use sqlx::{Row, SqliteConnection};
 use std::path::PathBuf;

@@ -1,6 +1,6 @@
 //! The refusals a library write returns, and how a caller meets them.
 use crate::CoreError;
-use crate::agents::AgentsError;
+use core_agents::AgentsError;
 use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]

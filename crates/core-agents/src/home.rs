@@ -12,11 +12,11 @@ impl Agents {
         for (name, content) in [
             (
                 "CLAUDE.md",
-                include_str!("../../assets/aylul-profile/CLAUDE.md"),
+                include_str!("../assets/aylul-profile/CLAUDE.md"),
             ),
             (
                 "settings.json",
-                include_str!("../../assets/aylul-profile/settings.json"),
+                include_str!("../assets/aylul-profile/settings.json"),
             ),
         ] {
             match std::fs::OpenOptions::new()

@@ -1,5 +1,5 @@
 //! Provider configuration is transactional; deleted agent identities remain reserved.
-use shadows_core::{AgentInput, CoreError, ProviderInput, SecretKey, testing};
+use shadows_core::{AgentInput, ProviderInput, SecretKey, testing};
 use std::sync::Arc;
 
 struct World {

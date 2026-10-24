@@ -72,7 +72,7 @@ modules:
 dependencies:
   projects: crates/core-projects/contract.yaml
   code: crates/core-code/contract.yaml
-  agents: crates/shadows-core/src/agents/contract.yaml
+  agents: crates/core-agents/contract.yaml
 
 # OperationRef, WorkflowRef and TaskRef are opaque provenance strings, interpreted by their owners.
 # Their schema aliases preserve OperationId, WorkflowId and TaskId on the wire.

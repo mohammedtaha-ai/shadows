@@ -14,7 +14,6 @@ use std::time::Duration;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_process::{ProcessSpec, spawn};
 
-use crate::agents::Agents;
 use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::Events;
@@ -27,6 +26,7 @@ use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
+use core_agents::Agents;
 use core_code::{Code, CodeConfig};
 use core_db::Storage;
 use core_instructions::Instructions;
@@ -82,8 +82,8 @@ pub struct CoreParts {
          `crates/core-providers/contract.yaml` |"]
 #[doc = " | `Agents` | \
          permanent AYLUL agent identities | \
-         `crates/shadows-core/src/agents` | \
-         `crates/shadows-core/src/agents/contract.yaml` |"]
+         `crates/core-agents/src` | \
+         `crates/core-agents/contract.yaml` |"]
 #[doc = " | `Extensions` | \
          the shared extension library | \
          `crates/shadows-core/src/extensions` | \

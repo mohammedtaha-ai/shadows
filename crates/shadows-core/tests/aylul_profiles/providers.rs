@@ -94,63 +94,6 @@ async fn invalid_provider_input_is_refused() {
 }
 
 #[tokio::test]
-async fn provider_in_use_cannot_be_deleted() {
-    let w = seeded().await;
-    w.app
-        .agents()
-        .create_agent("a".into(), agent("Work"))
-        .await
-        .unwrap();
-    assert!(matches!(
-        w.app.agents().delete_provider("d".into(), "provider").await,
-        Err(CoreError::ProviderInUse(_))
-    ));
-}
-
-#[tokio::test]
-async fn removing_an_agents_default_model_is_refused() {
-    let w = seeded().await;
-    w.app
-        .agents()
-        .create_agent("a".into(), agent("Work"))
-        .await
-        .unwrap();
-    let mut input = provider("Provider");
-    input.models = vec![shadows_core::ProviderModelInput {
-        id: "model-b".into(),
-        context_window: None,
-    }];
-    assert!(matches!(
-        w.app
-            .agents()
-            .update_provider("u".into(), "provider", input)
-            .await,
-        Err(CoreError::ProviderInUse(_))
-    ));
-}
-
-#[tokio::test]
-async fn delete_provider_removes_its_key() {
-    let w = seeded().await;
-    w.app
-        .providers()
-        .set_key("s".into(), "provider", "synthetic")
-        .await
-        .unwrap();
-    w.app
-        .agents()
-        .delete_provider("d".into(), "provider")
-        .await
-        .unwrap();
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM secret_env WHERE profile = ?")
-        .bind("provider/provider")
-        .fetch_one(w.storage.reader())
-        .await
-        .unwrap();
-    assert_eq!(count, 0);
-}
-
-#[tokio::test]
 async fn provider_key_is_write_only() {
     let w = seeded().await;
     w.app

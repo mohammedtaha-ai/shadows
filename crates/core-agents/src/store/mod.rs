@@ -1,6 +1,5 @@
 //! Transactional SQL for agent identities.
-use super::{Agent, AgentInput, Agents, AgentsError};
-use crate::CoreError;
+use crate::{Agent, AgentInput, Agents, AgentsError};
 use core_db::{CommandContext, Storage, StorageError};
 use core_providers::{Providers, SlugBase};
 use futures_core::future::BoxFuture;
@@ -35,9 +34,9 @@ impl AgentsStore {
     }
 
     /// One write on the shared connection; the closure refuses with any owner's error.
-    pub(super) async fn write<F, T>(&self, f: F) -> Result<T, CoreError>
+    pub(super) async fn write<F, T>(&self, f: F) -> Result<T, AgentsError>
     where
-        F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, CoreError>>,
+        F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, AgentsError>>,
     {
         self.storage.write_txn_as(f).await
     }
@@ -118,7 +117,7 @@ impl AgentsStore {
         existing: Option<String>,
         mut input: AgentInput,
         root: PathBuf,
-    ) -> Result<String, CoreError> {
+    ) -> Result<String, AgentsError> {
         self.write(move |conn| {
             Box::pin(async move {
                 if input.character_color.is_none() {
@@ -153,7 +152,7 @@ impl AgentsStore {
                 }
                 let models = Providers::models_in(conn, &input.provider).await?;
                 if !models.contains(&input.default_model) {
-                    return Err(AgentsError::Invalid("default model is not offered".into()).into());
+                    return Err(AgentsError::Invalid("default model is not offered".into()));
                 }
                 let id = match existing {
                     Some(id) => {

@@ -1,4 +1,3 @@
-mod agents;
 mod app;
 mod design;
 mod error;
@@ -29,7 +28,7 @@ pub use core_code::{
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
-pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
+pub use core_agents::{Agent, AgentInput, AgentWorkspace, Agents, AgentsError};
 pub use core_db::Actor;
 pub use core_db::StorageError;
 pub use core_instructions::{Instructions, InstructionsVersion};

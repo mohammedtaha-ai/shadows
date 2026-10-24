@@ -161,6 +161,7 @@ impl From<OpenError> for CoreError {
             OpenError::Secrets(error) => error.into(),
             OpenError::Provider(error) => error.into(),
             OpenError::Person(error) => error.into(),
+            OpenError::Agent(error) => error.into(),
             OpenError::Storage(e) => CoreError::Storage(e),
             OpenError::Start(reason) => CoreError::HarnessStartFailed(reason),
             OpenError::Workspace(reason) => CoreError::ProjectDirectoryUnusable(reason),
@@ -349,6 +350,22 @@ impl From<core_code::CodeError> for CoreError {
             },
             CodeError::Projects(error) => error.into(),
             CodeError::Storage(error) => Self::Storage(error),
+        }
+    }
+}
+
+impl From<core_agents::AgentsError> for CoreError {
+    fn from(error: core_agents::AgentsError) -> Self {
+        use core_agents::AgentsError;
+        match error {
+            AgentsError::NotFound(slug) => Self::AylulProfileNotFound(slug),
+            AgentsError::ProviderInUse(names) => Self::ProviderInUse(names),
+            AgentsError::Invalid(reason) => Self::ProfileInvalid(reason),
+            AgentsError::NotConfigured => Self::AylulNotConfigured,
+            AgentsError::Provider(error) => error.into(),
+            AgentsError::Secrets(error) => error.into(),
+            AgentsError::Projects(error) => error.into(),
+            AgentsError::Storage(error) => error.into(),
         }
     }
 }

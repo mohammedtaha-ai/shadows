@@ -42,7 +42,7 @@ impl super::ThreadsStore {
                         .await?);
                     }
                     if let Some(profile) = &profile {
-                        crate::agents::Agents::require_live_in(conn, profile).await?;
+                        core_agents::Agents::require_live_in(conn, profile).await?;
                     }
                     let actor = Actor::user(&ctx.principal_id);
                     let id = insert_thread(

@@ -1,3 +1,4 @@
+# AgentsError is translated through CoreError with unchanged responses.
 # CodeError converts through CoreError to preserve index and scope refusals.
 # StandardsError converts through CoreError to preserve InvalidCommand refusals.
 # InstructionsError converts through CoreError to preserve HTTP refusals.

@@ -65,6 +65,8 @@ pub enum OpenError {
     #[error(transparent)]
     Person(#[from] core_person::PersonError),
     #[error(transparent)]
+    Agent(#[from] core_agents::AgentsError),
+    #[error(transparent)]
     Storage(#[from] StorageError),
     #[error("harness start failed: {0}")]
     Start(String),

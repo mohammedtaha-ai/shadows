@@ -23,6 +23,6 @@ pub struct AgentInput {
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct AgentWorkspace {
-    pub project_id: crate::ProjectId,
+    pub project_id: core_projects::ProjectId,
     pub agents: Vec<Agent>,
 }

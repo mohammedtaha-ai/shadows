@@ -17,7 +17,7 @@ modules:
   store.rs: extension configuration SQL
 
 dependencies:
-  agents: crates/shadows-core/src/agents/contract.yaml
+  agents: crates/core-agents/contract.yaml
 
 shapes:
   Extensions:

@@ -74,11 +74,12 @@ pattern to follow, not merely an example.
 | `crates/core-providers/src/slug.rs` | generated configuration slug shape | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/error.rs` | provider refusals | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/store/` | provider configuration SQL | `crates/core-providers/contract.yaml` |
-| `crates/shadows-core/src/agents/` | permanent AYLUL agent identities | `crates/shadows-core/src/agents/contract.yaml` |
-| `crates/shadows-core/src/agents/model.rs` | public agent metadata | `crates/shadows-core/src/agents/contract.yaml` |
-| `crates/shadows-core/src/agents/home.rs` | agent home seeding | `crates/shadows-core/src/agents/contract.yaml` |
-| `crates/shadows-core/src/agents/error.rs` | agent refusals | `crates/shadows-core/src/agents/contract.yaml` |
-| `crates/shadows-core/src/agents/store.rs` | agent identity SQL | `crates/shadows-core/src/agents/contract.yaml` |
+| `crates/core-agents/src/lib.rs` | agent configuration service | `crates/core-agents/contract.yaml` |
+| `crates/core-agents/src/` | permanent AYLUL agent identities | `crates/core-agents/contract.yaml` |
+| `crates/core-agents/src/model.rs` | public agent metadata | `crates/core-agents/contract.yaml` |
+| `crates/core-agents/src/home.rs` | agent home seeding | `crates/core-agents/contract.yaml` |
+| `crates/core-agents/src/error.rs` | agent refusals | `crates/core-agents/contract.yaml` |
+| `crates/core-agents/src/store/` | agent identity SQL | `crates/core-agents/contract.yaml` |
 | `crates/shadows-core/src/extensions/` | the shared extension library | `crates/shadows-core/src/extensions/contract.yaml` |
 | `crates/shadows-core/src/extensions/model.rs` | public extension metadata | `crates/shadows-core/src/extensions/contract.yaml` |
 | `crates/shadows-core/src/extensions/files.rs` | bounded library file copies | `crates/shadows-core/src/extensions/contract.yaml` |
@@ -96,7 +97,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
 | `crates/shadows-core/src/turns/store/usage.rs` | atomic turn usage insertion | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/harness/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
-| `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/shadows-core/src/agents/contract.yaml` |
+| `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/core-agents/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
 | `crates/shadows/src/master_key.contract.yaml` | master key storage obligations | `crates/shadows/src/master_key.rs` |
@@ -453,3 +454,6 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-code/src/lib.rs` | code indexing boundary | `crates/core-code/contract.yaml` |
 | `crates/core-code/src/error.rs` | index refusals | `crates/core-code/contract.yaml` |
 | `crates/core-code/src/testing.rs` | gated index inspection | `crates/core-code/contract.yaml` |
+
+| `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |
+| `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |

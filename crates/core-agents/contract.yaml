@@ -1,5 +1,5 @@
 # Project identities and registration methods are imported from core-projects.
-# Providers is imported from core-providers; CoreError preserves adapter failure semantics.
+# Providers is imported from core-providers; AgentsError preserves adapter failure semantics.
 # Secrets is imported from core-secrets; application error conversion preserves caller responses.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns AYLUL agent identities: an agent's configuration, its permanent slug, its
@@ -13,14 +13,16 @@
 name: agents
 version: 1
 status: current
-source: crates/shadows-core/src/agents
+source: crates/core-agents/src
 
 modules:
-  mod.rs: agent reads, writes, provider use and environment
+  lib.rs: agent reads, writes, provider use and environment
   model.rs: public agent metadata
   home.rs: agent home seeding
   error.rs: agent refusals
-  store.rs: agent SQL
+  store/: agent SQL
+  ../assets/aylul-profile/CLAUDE.md: bundled home instructions
+  ../assets/aylul-profile/settings.json: bundled home settings
 
 dependencies:
   providers: crates/core-providers/contract.yaml
@@ -40,6 +42,10 @@ shapes:
     NotFound: String # AylulProfileNotFound for a caller
     ProviderInUse: String # the live agents' names, ordered by slug
     Invalid: String # ProfileInvalid for a caller
+    NotConfigured: AYLUL configuration is absent
+    Provider: ProvidersError
+    Secrets: SecretsError
+    Projects: ProjectsError
     Storage: StorageError
   Agent:
     deleted: Permanent identity tombstone
@@ -51,7 +57,7 @@ shapes:
     agents: Live agents
 
 functions:
-  new: "crate-private: (storage, providers, secrets, projects, home_root) -> Arc<Agents>"
+  new: "public: (storage, providers, secrets, projects, home_root) -> Arc<Agents>"
   agents: List live agents in creation order with slug tie break.
   agent: Read an agent including a tombstone.
   workspace: Read the hidden project identity with its live agent list.
@@ -63,9 +69,9 @@ functions:
   list_env: Check the agent is live, then list its variable metadata.
   set_env: Seal the value, then in one write replay or check the agent is live and store it through Secrets::put_in.
   remove_env: In one write replay or check the agent is live and remove the value through Secrets::remove_in.
-  home: crate-private; the agent's isolated home under the configured root, which Harness opens in.
-  require_live_in: crate-private; refuse an unknown or deleted agent in the caller's write.
-  delete_in: crate-private; classify agent.delete, tombstone a live agent and remove its variables in the caller's write.
+  home: public; the agent's isolated home under the configured root, which Harness opens in.
+  require_live_in: public; refuse an unknown or deleted agent in the caller's write.
+  delete_in: public; classify agent.delete, tombstone a live agent and remove its variables in the caller's write.
   seed_home: private; write each default home file the home lacks, never replacing one.
 
 called_by_other_services:
@@ -73,7 +79,9 @@ called_by_other_services:
   delete_in: Harness::delete_agent, in the same write as Extensions::remove_agent_in.
   home: Harness asks for the home an opening runs in.
 
-shared_in_transaction: {}
+shared_in_transaction:
+  require_live_in: Agent existence in the caller snapshot.
+  delete_in: Agent tombstone and secret removal in the caller write.
 
 obligations:
   - rule: Color ids are 1..=32 ASCII lowercase letters, digits or hyphens, starting with a letter.
