@@ -637,7 +637,7 @@ Harness includes person. Runtime, Secrets and Providers are extracted. The contr
 
 #### A-19c.0 · Give each service its own error
 - Status: doing
-- Progress: Secrets, Providers and Projects error splits are complete in A-19c.2, A-19c.7 and A-19c.3. Remaining owner error splits accompany their moves; Runtime still needs its owned wrapper.
+- Progress: Secrets, Providers, Projects and Usage error splits are complete in A-19c.2, A-19c.7, A-19c.3 and A-19c.10. Remaining owner error splits accompany their moves; Runtime still needs its owned wrapper.
 - Ruling: controller continuation at 9b3735e supersedes the error-vocabulary blocker; no shared error crate. Apply each owner's split in its extraction commit, lowest first. Runtime currently exposes only StorageError; its owned wrapper remains part of A-19c.0 completion.
 - Touch: each service's error.rs, model and methods; its declared callers and tests; shadows-core/src/error.rs From conversions and public error re-exports; adapter translation conversions and failure-case tests where a service error crosses the application boundary; affected contracts and code-map rows; manifests and Cargo.lock. No route documentation or wire shape change.
 - Done when: no service names CoreError; each owns only its failures plus Storage where applicable and declared callee errors; existing HTTP status/code/message and MCP failure tests pass; api/ is unchanged.
@@ -755,7 +755,11 @@ automation; no browser/native/provider/production acceptance was performed.
 - Done when: `cargo test -p core-extensions`, `cargo test -p shadows-core --lib` and Core integration binaries `aylul_extensions` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.
 
 #### A-19c.10 · Extract core-usage
-- Status: todo
+- Status: done
+- Small caller gap: aylul_usage directly matches UsageError::InvalidPeriod; adapters still receive the original CoreError::ProfileInvalid mapping.
+- Evidence: owner tests 3, Core lib 29, aylul_usage 6 and contracts 4 passed. Architecture 32, codemap 1, openapi 7, HTTP lib 24 and MCP lib 1 passed. Workspace all-target/test-support clippy, fmt, exact CI line length, LF and api diff pass. No allowlist records changed.
+- Error split: UsageError owns InvalidPeriod and Storage; CoreError preserves the ProfileInvalid code/message for a bad period. UsageRecord moves with its owner. LSP module references found only AppCore, the Core re-export and Turns record_usage_in as external callers; no service dependency or AppCore dependency remains in the crate.
+- Dependencies: no new external dependency; existing core-db, serde, SQLx, thiserror, time and utoipa infrastructure, with Tokio/tempfile for tests. Existing AppCore usage tests stay in Core; the owner constructor fixture checks period endpoints, historical metadata, trusted costs and rollback.
 - Needs: A-19c.0 error split in this move; A-19c.0a and A-19c.0b; A-19b
 - Touch: `crates/core-usage/` (`Cargo.toml`, `src/lib.rs`, `src/model.rs`, `src/store/`, `contract.yaml`, `tests/`); old `crates/shadows-core/src/usage/`; `crates/shadows-core/src/{lib,app,testing/**}.rs`; `Cargo.toml`, `Cargo.lock`, `crates/shadows-core/Cargo.toml`; caller imports in `crates/shadows-core/src/turns/store/usage.rs`; those callers' owner contracts; moved owner-local tests and their old registrations; `crates/shadows-core/tests/contracts.rs`; `docs/codebase/README.md`; `docs/backend/stages.md`; `crates/shadows/tests/architecture/{scanner,resolution,sql,fixtures,main}.rs`, `table-owners.txt` and allowlists (delete lines only, except exact moved-file comment path relocations); `crates/shadows/tests/codemap/main.rs`. AppCore integration tests remain in Core.
 - Done when: `cargo test -p core-usage`, `cargo test -p shadows-core --lib` and Core integration binaries `aylul_usage` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.

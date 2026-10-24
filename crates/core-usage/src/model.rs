@@ -29,22 +29,22 @@ pub struct ModelUsage {
 }
 
 /// One finished invocation's counters, with the provider metadata it ran under.
-pub(crate) struct UsageRecord {
-    pub(crate) operation_id: String,
-    pub(crate) thread_id: String,
-    pub(crate) agent_slug: String,
-    pub(crate) provider_slug: String,
-    pub(crate) provider_name: String,
-    pub(crate) label: Option<String>,
-    pub(crate) preset: Option<String>,
-    pub(crate) model: String,
-    pub(crate) input_tokens: Option<u64>,
-    pub(crate) output_tokens: Option<u64>,
-    pub(crate) cached_read_tokens: Option<u64>,
-    pub(crate) cached_write_tokens: Option<u64>,
-    pub(crate) total_tokens: Option<u64>,
+pub struct UsageRecord {
+    pub operation_id: String,
+    pub thread_id: String,
+    pub agent_slug: String,
+    pub provider_slug: String,
+    pub provider_name: String,
+    pub label: Option<String>,
+    pub preset: Option<String>,
+    pub model: String,
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub cached_read_tokens: Option<u64>,
+    pub cached_write_tokens: Option<u64>,
+    pub total_tokens: Option<u64>,
     /// The reported amount and its currency, before the pricing rule.
-    pub(crate) cost: Option<(f64, String)>,
+    pub cost: Option<(f64, String)>,
 }
 
 /// One stored measurement, as a report reads it.

@@ -2,8 +2,8 @@
 use serde_json::{Value, json};
 use shadows_core::testing::{self, Harness, LiveHandles, SessionsConfig, Storage, acp};
 use shadows_core::{
-    AgentInput, AppCore, AylulConfig, CoreError, CoreParts, OperationId, ProviderInput, SecretKey,
-    SendTurn, ThreadId,
+    AgentInput, AppCore, AylulConfig, CoreParts, OperationId, ProviderInput, SecretKey, SendTurn,
+    ThreadId, UsageError,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -415,7 +415,7 @@ async fn usage_periods_group_and_sort() {
     ] {
         assert!(matches!(
             w.core.usage().usage(from, to).await,
-            Err(CoreError::ProfileInvalid(_))
+            Err(UsageError::InvalidPeriod)
         ));
     }
 }

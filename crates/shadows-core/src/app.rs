@@ -31,13 +31,13 @@ use crate::project_lifecycle::ProjectLifecycle;
 use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
-use crate::usage::Usage;
 use core_db::Storage;
 use core_projects::Projects;
 use core_providers::Providers;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
 use core_secrets::{SecretKey, Secrets};
+use core_usage::Usage;
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
@@ -90,8 +90,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/extensions/contract.yaml` |"]
 #[doc = " | `Usage` | \
          measured AYLUL usage | \
-         `crates/shadows-core/src/usage` | \
-         `crates/shadows-core/src/usage/contract.yaml` |"]
+         `crates/core-usage/src` | \
+         `crates/core-usage/contract.yaml` |"]
 #[doc = " | `PersonSettings` | \
          the local person record | \
          `crates/shadows-core/src/person` | \

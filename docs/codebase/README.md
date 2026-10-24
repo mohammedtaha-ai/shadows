@@ -84,10 +84,10 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/extensions/files.rs` | bounded library file copies | `crates/shadows-core/src/extensions/contract.yaml` |
 | `crates/shadows-core/src/extensions/error.rs` | extension library refusals | `crates/shadows-core/src/extensions/contract.yaml` |
 | `crates/shadows-core/src/extensions/store.rs` | extension configuration SQL | `crates/shadows-core/src/extensions/contract.yaml` |
-| `crates/shadows-core/src/usage/` | measured AYLUL usage | `crates/shadows-core/src/usage/contract.yaml` |
-| `crates/shadows-core/src/usage/model.rs` | usage report shapes | `crates/shadows-core/src/usage/contract.yaml` |
-| `crates/shadows-core/src/usage/report.rs` | historical usage aggregation | `crates/shadows-core/src/usage/contract.yaml` |
-| `crates/shadows-core/src/usage/store.rs` | usage row SQL | `crates/shadows-core/src/usage/contract.yaml` |
+| `crates/core-usage/src/` | measured AYLUL usage | `crates/core-usage/contract.yaml` |
+| `crates/core-usage/src/model.rs` | usage report shapes | `crates/core-usage/contract.yaml` |
+| `crates/core-usage/src/report.rs` | historical usage aggregation | `crates/core-usage/contract.yaml` |
+| `crates/core-usage/src/store/` | usage row SQL | `crates/core-usage/contract.yaml` |
 | `crates/shadows-core/src/person/` | the local person record | `crates/shadows-core/src/person/contract.yaml` |
 | `crates/shadows-core/src/person/model.rs` | public person record | `crates/shadows-core/src/person/contract.yaml` |
 | `crates/shadows-core/src/person/store.rs` | person record SQL | `crates/shadows-core/src/person/contract.yaml` |
@@ -434,3 +434,6 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-projects/src/lib.rs` | project registration boundary | `crates/core-projects/contract.yaml` |
 | `crates/core-projects/src/error.rs` | project refusals | `crates/core-projects/contract.yaml` |
 | `crates/core-projects/src/directory.rs` | project directory validation | `crates/core-projects/contract.yaml` |
+
+| `crates/core-usage/src/lib.rs` | measured usage boundary | `crates/core-usage/contract.yaml` |
+| `crates/core-usage/src/error.rs` | usage refusals | `crates/core-usage/contract.yaml` |

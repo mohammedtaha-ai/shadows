@@ -12,6 +12,7 @@ doctest = false
 workspace = true
 
 [dependencies]
+core-usage = { path = "../core-usage" }
 core-projects = { path = "../core-projects" }
 core-db = { path = "../core-db" }
 core-runtime = { path = "../core-runtime" }

@@ -290,3 +290,14 @@ impl From<core_projects::ProjectsError> for CoreError {
         }
     }
 }
+
+impl From<core_usage::UsageError> for CoreError {
+    fn from(error: core_usage::UsageError) -> Self {
+        match error {
+            core_usage::UsageError::InvalidPeriod => {
+                Self::ProfileInvalid("invalid usage period".into())
+            }
+            core_usage::UsageError::Storage(error) => Self::Storage(error),
+        }
+    }
+}

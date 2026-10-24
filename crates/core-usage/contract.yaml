@@ -7,13 +7,14 @@
 name: usage
 version: 1
 status: current
-source: crates/shadows-core/src/usage
+source: crates/core-usage/src
 
 modules:
-  mod.rs: period validation, recording and the pricing rule
+  lib.rs: period validation, recording and the pricing rule
+  error.rs: usage refusals
   model.rs: usage report shapes
   report.rs: historical usage aggregation
-  store.rs: usage SQL
+  store/mod.rs: usage SQL
 
 dependencies: {}
 
@@ -36,16 +37,17 @@ shapes:
     note: Grouped by provider slug and model
 
 functions:
-  new: "crate-private: (storage: Arc<Storage>) -> Usage"
+  new: "(storage: Arc<Storage>) -> Usage"
   usage: Validate a half-open RFC3339 period and aggregate historical measurements.
-  record_in: crate-private; record one finished invocation's counters in the caller's write, keeping only a trusted cost.
+  record_in: public owner boundary; record one finished invocation's counters in the caller's write, keeping only a trusted cost.
   trusted_cost: private; the one pricing rule.
   aggregate: private; keep rows exactly inside the period and group them with stable ordering.
 
 called_by_other_services:
   record_in: Turns records a terminal AYLUL operation's usage in the write that ends it.
 
-shared_in_transaction: {}
+shared_in_transaction:
+  record_in: Turns records terminal counters in the same transaction as operation completion.
 
 obligations:
   - rule: Input totals include cache reads and writes once; context counters are never summed.

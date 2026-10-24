@@ -59,3 +59,5 @@ workflow :: plans
 # providers owner source: crates/core-providers/src/store/
 
 # projects SQL lives in crates/core-projects/src/store/.
+
+# usage SQL lives in crates/core-usage/src/store/.

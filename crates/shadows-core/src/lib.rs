@@ -18,7 +18,6 @@ mod standards;
 pub mod testing;
 mod threads;
 mod turns;
-mod usage;
 pub use grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
 // The public surface (spec §14.4, §14.6): the application, its failure, the
@@ -46,6 +45,7 @@ pub use core_providers::{
 };
 pub use core_runtime::{RuntimeInstanceId, StopKind};
 pub use core_secrets::{EnvEntry, SecretKey, Secrets, SecretsError};
+pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 pub use design::StructureWritten;
 pub use design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -88,7 +88,6 @@ pub use turns::{
     InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SendTurn,
     SentNow, StartError, Turns,
 };
-pub use usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
@@ -108,3 +107,5 @@ pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
 pub use core_providers::ProvidersError;
 
 pub use core_projects::ProjectsError;
+
+pub use core_usage::UsageError;

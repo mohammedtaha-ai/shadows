@@ -3,11 +3,12 @@ mod model;
 mod report;
 mod store;
 
-pub(crate) use model::UsageRecord;
+pub use model::UsageRecord;
 pub use model::{ModelUsage, ProviderUsage, UsageReport};
 
-use crate::CoreError;
+mod error;
 use core_db::{Storage, StorageError};
+pub use error::UsageError;
 use sqlx::SqliteConnection;
 use std::sync::Arc;
 use store::UsageStore;
@@ -18,15 +19,15 @@ pub struct Usage {
 }
 
 impl Usage {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
+    pub fn new(storage: Arc<Storage>) -> Self {
         Self {
             store: UsageStore::new(storage),
         }
     }
 
     /// Aggregates the measurements recorded in the half-open period `[from, to)`.
-    pub async fn usage(&self, from: &str, to: &str) -> Result<UsageReport, CoreError> {
-        let invalid = || CoreError::ProfileInvalid("invalid usage period".into());
+    pub async fn usage(&self, from: &str, to: &str) -> Result<UsageReport, UsageError> {
+        let invalid = || UsageError::InvalidPeriod;
         let from = OffsetDateTime::parse(from, &Rfc3339).map_err(|_| invalid())?;
         let to = OffsetDateTime::parse(to, &Rfc3339).map_err(|_| invalid())?;
         if from >= to {
@@ -38,7 +39,7 @@ impl Usage {
 
     /// Records one finished invocation's counters inside the caller's write. Its cost is
     /// kept only when trusted.
-    pub(crate) async fn record_in(
+    pub async fn record_in(
         conn: &mut SqliteConnection,
         mut record: UsageRecord,
         ts: &str,

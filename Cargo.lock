@@ -777,6 +777,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-usage"
+version = "0.1.0"
+dependencies = [
+ "core-db",
+ "serde",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "utoipa",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3435,6 +3449,7 @@ dependencies = [
  "core-providers",
  "core-runtime",
  "core-secrets",
+ "core-usage",
  "dunce",
  "escargot",
  "futures-core",
