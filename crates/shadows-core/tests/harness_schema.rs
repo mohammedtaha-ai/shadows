@@ -109,7 +109,7 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
     shadows_core::Turns::create_pending_operation_for_test(
         &fx.storage,
         &thread,
-        &fx.runtime.instance_id,
+        fx.runtime.instance_id(),
     )
     .await
     .unwrap();
@@ -144,7 +144,7 @@ async fn the_lock_holds_below_the_application() {
     shadows_core::Turns::create_pending_operation_for_test(
         &fx.storage,
         &thread,
-        &fx.runtime.instance_id,
+        fx.runtime.instance_id(),
     )
     .await
     .unwrap();
@@ -189,7 +189,7 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
     let op = shadows_core::Turns::create_pending_operation_for_test(
         &fx.storage,
         &thread,
-        &fx.runtime.instance_id,
+        fx.runtime.instance_id(),
     )
     .await
     .unwrap();

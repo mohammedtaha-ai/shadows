@@ -80,7 +80,7 @@ dependencies:
   standards: crates/shadows-core/src/standards/contract.yaml
   instructions: crates/shadows-core/src/instructions/contract.yaml
   usage: crates/shadows-core/src/usage/contract.yaml
-  runtime: crates/shadows-core/src/runtime/contract.yaml
+  runtime: crates/core-runtime/contract.yaml
   code: crates/shadows-core/src/code/contract.yaml
   projects: crates/shadows-core/src/projects/contract.yaml
 
@@ -533,7 +533,7 @@ enums:
     source: core_db::StorageError
     values: []
   StopKind:
-    source: crate::runtime::StopKind
+    source: core_runtime::StopKind
     values: []
 
 

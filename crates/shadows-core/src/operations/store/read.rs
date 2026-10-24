@@ -1,8 +1,8 @@
 use sqlx::SqliteConnection;
 
 use crate::operations::{OperationId, OperationRecord, Operations};
-use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
+use core_runtime::RuntimeInstanceId;
 
 use core_db::StorageError;
 
@@ -82,7 +82,7 @@ fn into_operation(r: OperationRow) -> OperationRecord {
         kind: r.1,
         status_kind: r.2,
         thread_id: r.3,
-        runtime_instance_id: RuntimeInstanceId::from_stored(r.4),
+        runtime_instance_id: RuntimeInstanceId::from_recorded(r.4),
         outcome_json: r.5,
         failure_stage: r.6,
         failure_reason: r.7,

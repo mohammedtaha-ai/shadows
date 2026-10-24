@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 core-db = { path = "../core-db" }
+core-runtime = { path = "../core-runtime" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 reqwest = { workspace = true, features = ["rustls"] }
 aes-gcm = "0.10"
@@ -53,7 +54,7 @@ yaml-rust2 = { workspace = true }
 # and `shadows-process`'s `force_termination_failure`. Enabled for
 # `cargo test` only via the self dev-dependency below, and by `shadows`' and
 # `fake-acp`'s own `test-support`; never a default feature.
-test-support = ["dep:escargot", "shadows-process/test-support", "core-db/test-support"]
+test-support = ["dep:escargot", "shadows-process/test-support", "core-db/test-support", "core-runtime/test-support"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

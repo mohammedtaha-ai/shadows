@@ -171,6 +171,22 @@ fn shared(dir: &Path) -> BTreeSet<String> {
         files.push(dir.join("store.rs"))
     }
     let mut out = BTreeSet::new();
+    // Extracted owners expose transaction methods on the service, never its store.
+    if dir.file_name().is_some_and(|name| name == "src") {
+        let file = syn::parse_file(&std::fs::read_to_string(dir.join("lib.rs")).unwrap()).unwrap();
+        for item in file.items {
+            if let syn::Item::Impl(i) = item {
+                for item in i.items {
+                    if let syn::ImplItem::Fn(method) = item
+                        && matches!(method.vis, syn::Visibility::Public(_))
+                        && method.sig.ident.to_string().ends_with("_in")
+                    {
+                        out.insert(method.sig.ident.to_string());
+                    }
+                }
+            }
+        }
+    }
     for f in files {
         let Ok(file) = syn::parse_file(&std::fs::read_to_string(&f).unwrap()) else {
             continue;
@@ -254,13 +270,22 @@ fn every_contract_matches_its_service() {
         .unwrap()
         .map(|entry| entry.unwrap().path())
         .collect();
-    directories.push(workspace().join("crates/core-db"));
+    directories.extend(
+        std::fs::read_dir(workspace().join("crates"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with("core-"))
+            }),
+    );
     for dir in directories {
         let path = dir.join("contract.yaml");
         if !path.exists() {
             continue;
         }
         let name = dir.file_name().unwrap().to_string_lossy().to_string();
+        let name = name.strip_prefix("core-").unwrap_or(&name).to_string();
         found.insert(name.clone());
         let docs = match YamlLoader::load_from_str(&std::fs::read_to_string(&path).unwrap()) {
             Ok(d) => d,

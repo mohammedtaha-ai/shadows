@@ -172,7 +172,10 @@ pattern to follow, not merely an example.
 | `crates/core-db/src/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/superpowers/specs/2026-09-21-persistence-api-and-migrations-design.md` |
 | `crates/core-db/src/lib.rs` | shared SQLite lifetime | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/error.rs` | database failure vocabulary | `crates/core-db/contract.yaml` |
-| `crates/shadows-core/src/runtime/` | the runtime instance's lifecycle | `crates/shadows-core/src/runtime/mod.rs` |
+| `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
+| `crates/core-runtime/src/lib.rs` | runtime registration boundary | `crates/core-runtime/contract.yaml` |
+| `crates/core-runtime/src/store/` | runtime row persistence | `crates/core-runtime/contract.yaml` |
+| `crates/core-runtime/src/model.rs` | runtime identity values | `crates/core-runtime/contract.yaml` |
 | `crates/shadows-core/src/testing/` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing/mod.rs` |
 | `crates/shadows-core/src/projects/` | the projects, the folders a person picks them from included | `crates/shadows-core/src/projects/mod.rs` |
 | `crates/shadows-core/src/projects/model.rs` | the project types callers meet | `crates/shadows-core/src/projects/model.rs` |

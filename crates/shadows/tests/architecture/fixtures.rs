@@ -725,3 +725,49 @@ fn sqlite_catalog_reads_and_write_observation_belong_only_to_foundation() {
     );
     rejected(root, &before, "ownership");
 }
+
+#[test]
+fn extracted_runtime_keeps_sql_adapter_and_registration_checks() {
+    let tree = fixture();
+    let root = tree.path();
+    let clean = scanner::scan(root);
+    put(
+        root,
+        "crates/core-runtime/src/lib.rs",
+        "pub struct Runtime; mod store;",
+    );
+    put(root, "crates/core-runtime/contract.yaml", "name: runtime\n");
+    put(
+        root,
+        "crates/core-runtime/src/store/mod.rs",
+        "pub(super) struct RuntimeStore;",
+    );
+    rejected(root, &clean, "registration");
+    put(
+        root,
+        "crates/shadows-core/src/app.rs",
+        "/// | Projects | project ownership | crates/shadows-core/src/projects | \
+         crates/shadows-core/src/projects/contract.yaml |\n\
+         /// | Runtime | runtime identity | crates/core-runtime/src | \
+         crates/core-runtime/contract.yaml |\npub struct AppCore;",
+    );
+    assert!(compare(&scanner::scan(root), &clean).is_empty());
+    put(
+        root,
+        "crates/core-runtime/src/store/mod.rs",
+        "pub(super) struct RuntimeStore; \
+         fn leak() { sqlx::query(\"UPDATE project SET name = 'x'\"); }",
+    );
+    rejected(root, &clean, "ownership");
+    put(
+        root,
+        "crates/core-runtime/src/store/mod.rs",
+        "pub(super) struct RuntimeStore;",
+    );
+    put(
+        root,
+        "crates/shadows-http/src/leak.rs",
+        "use core_runtime::store::RuntimeStore;",
+    );
+    rejected(root, &clean, "ownership");
+}

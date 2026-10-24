@@ -11,10 +11,10 @@ use super::{
 };
 use crate::{
     harness::{Harness, OpenSession},
-    runtime::Runtime,
     threads::ThreadId,
 };
 use core_db::{Actor, StorageError};
+use core_runtime::Runtime;
 use shadows_agent::{TurnSettings, events::HarnessEvent};
 use std::sync::{Arc, atomic::AtomicBool};
 use tokio::sync::{broadcast, mpsc};
@@ -194,7 +194,7 @@ impl PlannerTurn {
         if let Err(e) = (super::store::TurnsStore {
             storage: storage.clone(),
         })
-        .mark_operation_started(&op_id, &runtime.instance_id)
+        .mark_operation_started(&op_id, runtime.instance_id())
         .await
         {
             handles.claim(&op_id).await;

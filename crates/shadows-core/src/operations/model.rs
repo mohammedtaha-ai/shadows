@@ -1,5 +1,5 @@
-use crate::runtime::RuntimeInstanceId;
 use core_db::newtype_id;
+use core_runtime::RuntimeInstanceId;
 
 newtype_id! {
     /// Identifies the durable operation independently of its owning runtime.

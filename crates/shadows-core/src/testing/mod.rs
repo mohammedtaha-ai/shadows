@@ -142,10 +142,10 @@ pub use crate::grants::{IssuedGrant, Token};
 pub use crate::harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use crate::operations::ReconcileReport;
 pub use crate::projects::ProjectDirectory;
-pub use crate::runtime::Runtime;
 pub use crate::threads::{NewThreadEntry, TurnContext};
 pub use crate::turns::Bus;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
+pub use core_runtime::Runtime;
 
 impl crate::code::Code {
     /// `scan`, now, on the test's task: the index a test asks about is the

@@ -21,9 +21,9 @@ use std::time::Duration;
 use super::handles::LiveHandles;
 use super::turn::{PlannerTurn, StopOutcome};
 use crate::harness::Harness;
-use crate::runtime::Runtime;
-use crate::runtime::StopKind;
 use core_db::{Actor, StorageError};
+use core_runtime::Runtime;
+use core_runtime::StopKind;
 
 /// Stops every live turn, waits — at most `confirm_within`, and never past
 /// `escalate` — until every operation this runtime owns is terminal, then
@@ -134,7 +134,7 @@ async fn all_owned_terminal(
     let mut committed = storage.watch_committed();
     loop {
         let live = operations
-            .non_terminal_operations_owned_by(&runtime.instance_id)
+            .non_terminal_operations_owned_by(runtime.instance_id())
             .await?;
         if live.is_empty() {
             return Ok(());
@@ -155,7 +155,7 @@ async fn log_unconfirmed(
     message: &'static str,
 ) {
     match operations
-        .non_terminal_operations_owned_by(&runtime.instance_id)
+        .non_terminal_operations_owned_by(runtime.instance_id())
         .await
     {
         Ok(live) => {
@@ -176,7 +176,7 @@ async fn record(
 ) -> Result<StopKind, StorageError> {
     if confirmed {
         match operations
-            .stop_runtime(&runtime.instance_id, StopKind::Graceful)
+            .stop_runtime(runtime.instance_id(), StopKind::Graceful)
             .await
         {
             Ok(()) => return Ok(StopKind::Graceful),
@@ -187,7 +187,7 @@ async fn record(
         }
     }
     operations
-        .stop_runtime(&runtime.instance_id, StopKind::Escalated)
+        .stop_runtime(runtime.instance_id(), StopKind::Escalated)
         .await?;
     Ok(StopKind::Escalated)
 }

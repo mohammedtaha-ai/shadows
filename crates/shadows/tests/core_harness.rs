@@ -84,7 +84,7 @@ async fn change_model_on_a_busy_thread_opens_no_session() {
     shadows_core::Turns::create_pending_operation_for_test(
         &app.storage,
         &app.thread,
-        &app.runtime.instance_id,
+        app.runtime.instance_id(),
     )
     .await
     .unwrap();

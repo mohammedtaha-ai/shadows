@@ -29,14 +29,14 @@ use crate::plans::Plans;
 use crate::project_lifecycle::ProjectLifecycle;
 use crate::projects::Projects;
 use crate::providers::Providers;
-use crate::runtime::Runtime;
-use crate::runtime::StopKind;
 use crate::secrets::{SecretKey, Secrets};
 use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
 use crate::usage::Usage;
 use core_db::Storage;
+use core_runtime::Runtime;
+use core_runtime::StopKind;
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
@@ -66,8 +66,8 @@ pub struct CoreParts {
 /// `core-db` owns the shared `Storage` foundation and its transaction lifetime;
 /// its contract is `crates/core-db/contract.yaml`. Services share this one handle.
 ///
-/// Start here for Core ownership; each source is in the existing `shadows-core`
-/// crate. The contract describes that owner's current methods, rules and tests.
+/// Start here for Core ownership; each source names its owning crate.
+/// The contract describes that owner's current methods, rules and tests.
 ///
 /// | Service | One job | Source | Contract |
 /// |---|---|---|---|
@@ -149,8 +149,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/code/contract.yaml` |"]
 #[doc = " | `Runtime` | \
          runtime instance lifecycle | \
-         `crates/shadows-core/src/runtime` | \
-         `crates/shadows-core/src/runtime/contract.yaml` |"]
+         `crates/core-runtime/src` | \
+         `crates/core-runtime/contract.yaml` |"]
 ///
 /// Every owner except `Runtime` has a typed accessor on `AppCore`. `Runtime` is
 /// internal: `start` builds it before assembly, then `Turns` holds the shared
@@ -281,7 +281,7 @@ impl AppCore {
         // Recover durable work before grants, sessions or callers can accept new turns.
         let runtime = Runtime::start(storage.clone()).await?;
         let operations = Operations::new(storage.clone());
-        operations.recover(&runtime.instance_id).await?;
+        operations.recover(runtime.instance_id()).await?;
         let runtime = Arc::new(runtime);
         // Spec §13.7: a Planner's grant lives as long as its adapter, and every
         // adapter of an earlier daemon is gone. Before anything is served.
@@ -631,7 +631,7 @@ impl AppCore {
     ) -> Result<(Runtime, crate::operations::ReconcileReport), crate::StorageError> {
         let runtime = Runtime::start(storage.clone()).await?;
         let report = Operations::new(storage)
-            .recover(&runtime.instance_id)
+            .recover(runtime.instance_id())
             .await?;
         Ok((runtime, report))
     }

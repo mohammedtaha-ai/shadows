@@ -12,10 +12,10 @@ use crate::harness::{Harness, NewInvocation};
 use crate::operations::Operations;
 use crate::plans::Focus;
 use crate::plans::Plans;
-use crate::runtime::RuntimeInstanceId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_runtime::RuntimeInstanceId;
 use shadows_agent::TurnSettings;
 
 /// A waiting message the turn sends: taken in the turn's own

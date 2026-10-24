@@ -42,7 +42,7 @@ async fn fixture() -> Fixture {
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
         .unwrap();
-    let runtime_id = runtime.instance_id.clone();
+    let runtime_id = runtime.instance_id().clone();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let handles = Arc::new(LiveHandles::default());

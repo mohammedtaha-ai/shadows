@@ -43,7 +43,7 @@ shapes:
     anomalies: Vec<OperationId>
 dependencies:
   threads: crates/shadows-core/src/threads/contract.yaml
-  runtime: crates/shadows-core/src/runtime/contract.yaml
+  runtime: crates/core-runtime/contract.yaml
 functions:
   service:
     recover_for_test: Test-support entry for explicitly testing recovery against a chosen runtime.

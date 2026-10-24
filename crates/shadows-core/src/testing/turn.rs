@@ -6,11 +6,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::harness::Harness;
-use crate::runtime::Runtime;
 use crate::threads::ThreadId;
 use crate::turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
 use crate::turns::{LiveHandles, OperationId, StartError};
 use core_db::CommandContext;
+use core_runtime::Runtime;
 use shadows_agent::TurnSettings;
 use shadows_agent::events::HarnessEvent;
 
@@ -49,7 +49,7 @@ pub fn new_turn<'a>(
     NewTurn {
         aylul_usage: None,
         thread_id: thread,
-        runtime: &runtime.instance_id,
+        runtime: runtime.instance_id(),
         prompt,
         attachments: &[],
         role: "Planner",

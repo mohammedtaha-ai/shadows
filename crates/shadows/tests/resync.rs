@@ -395,7 +395,7 @@ async fn operation_transitions_reach_their_threads_stream() {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
     let live = Live::start(storage.clone()).await;
-    let runtime = &live.runtime.instance_id;
+    let runtime = live.runtime.instance_id();
     let op = shadows_core::Turns::create_pending_operation_for_test(&storage, &thread.id, runtime)
         .await
         .unwrap();

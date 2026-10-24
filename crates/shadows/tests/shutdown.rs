@@ -138,7 +138,7 @@ impl Fixture {
     /// value `shut_down` returned.
     async fn recorded_stop_kind(&self) -> Option<String> {
         sqlx::query_scalar("SELECT stop_kind FROM runtime_instance WHERE id = ?")
-            .bind(self.runtime.instance_id.as_str())
+            .bind(self.runtime.instance_id().as_str())
             .fetch_one(self.runtime.storage_for_test().reader())
             .await
             .unwrap()
@@ -289,7 +289,7 @@ async fn unconfirmed_work_is_escalated_when_the_bound_runs_out() {
     let pending = shadows_core::Turns::create_pending_operation_for_test(
         &f.runtime.storage_for_test(),
         &f.thread,
-        &f.runtime.instance_id,
+        f.runtime.instance_id(),
     )
     .await
     .unwrap();
@@ -314,7 +314,7 @@ async fn a_second_stop_signal_escalates_at_once() {
     let pending = shadows_core::Turns::create_pending_operation_for_test(
         &f.runtime.storage_for_test(),
         &f.thread,
-        &f.runtime.instance_id,
+        f.runtime.instance_id(),
     )
     .await
     .unwrap();
@@ -361,7 +361,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
     let stored = shadows_core::Turns::create_pending_operation_for_test(
         &f.runtime.storage_for_test(),
         &f.thread,
-        &f.runtime.instance_id,
+        f.runtime.instance_id(),
     )
     .await;
     assert!(

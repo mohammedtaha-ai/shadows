@@ -35,7 +35,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
         .unwrap();
-    let runtime_id = runtime.instance_id.clone();
+    let runtime_id = runtime.instance_id().clone();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {

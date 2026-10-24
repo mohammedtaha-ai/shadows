@@ -73,7 +73,7 @@ async fn a_busy_thread_is_refused_before_its_session_opens() {
     shadows_core::Turns::create_pending_operation_for_test(
         &app.storage,
         &app.thread,
-        &app.runtime.instance_id,
+        app.runtime.instance_id(),
     )
     .await
     .unwrap();

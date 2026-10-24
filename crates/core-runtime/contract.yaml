@@ -4,13 +4,14 @@
 name: runtime
 version: 1
 status: current
-source: crates/shadows-core/src/runtime
+source: crates/core-runtime/src
 modules:
-  mod.rs: process identity registration
-  store.rs: private runtime row persistence
+  lib.rs: process identity registration
+  model.rs: runtime identity values
+  store/mod.rs: private runtime row persistence
 shapes:
   Runtime:
-    instance_id: RuntimeInstanceId
+    instance_id: private RuntimeInstanceId
     storage: Arc<Storage> # Exists only with test-support for the legacy fixture accessor.
   RuntimeStore:
     storage: "&Storage"
@@ -19,6 +20,8 @@ enums:
     values: [Graceful, Escalated]
 functions:
   service:
+    instance_id: "Borrow the runtime identity without exposing mutable state."
+    from_recorded: "Reconstruct a persisted runtime id without changing its text."
     start: "(storage: Arc<Storage>) -> Result<Self, StorageError>; registers the package version"
   transaction_writes:
     stop_in: Updates the unstopped runtime row and appends RuntimeStopped; caller checks owned work.
@@ -32,10 +35,9 @@ functions:
     register_runtime_instance_for_test: Registers the fixture's explicit version through RuntimeStore.
 obligations:
   - rule: Register and stop journal events share the row transaction.
-    tested_by: unknown
-    note: Registration is exercised by the runtime fixtures; journal-specific assertions are not traced here.
+    tested_by: [registration_persists_identity_and_journal_together, stop_and_journal_roll_back_together]
   - rule: A stopped runtime cannot accept a Pending operation.
-    tested_by: a_turn_requested_after_shutdown_began_is_refused
+    tested_by: [stopped_runtime_refuses_work_and_duplicate_stop_without_another_event, a_turn_requested_after_shutdown_began_is_refused]
 not_the_caller's:
   - Read runtime_instance directly; use the transaction-local Runtime methods.
   - Treat runtime registration as recovery; AppCore calls Operations::recover before accepting work.

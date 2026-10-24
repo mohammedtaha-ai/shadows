@@ -1,24 +1,11 @@
-use crate::runtime::{Runtime, RuntimeInstanceId};
+use crate::{RuntimeInstanceId, StopKind};
 use core_db::{Actor, JournalEntry, Storage, StorageError};
 use sqlx::SqliteConnection;
 pub(super) struct RuntimeStore<'a> {
     pub(super) storage: &'a Storage,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StopKind {
-    Graceful,
-    Escalated,
-}
-impl StopKind {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Graceful => "Graceful",
-            Self::Escalated => "Escalated",
-        }
-    }
-}
 impl RuntimeStore<'_> {
-    pub async fn register_runtime_instance(
+    pub(super) async fn register_runtime_instance(
         &self,
         version: &str,
     ) -> Result<RuntimeInstanceId, StorageError> {
@@ -52,8 +39,8 @@ impl RuntimeStore<'_> {
         Ok(id)
     }
 }
-impl Runtime {
-    pub(crate) async fn stop_in(
+impl RuntimeStore<'_> {
+    pub(super) async fn stop_in(
         conn: &mut SqliteConnection,
         id: &str,
         kind: StopKind,
@@ -88,7 +75,7 @@ impl Runtime {
         .await?;
         Ok(())
     }
-    pub(crate) async fn require_active_in(
+    pub(super) async fn require_active_in(
         conn: &mut SqliteConnection,
         id: &RuntimeInstanceId,
     ) -> Result<(), StorageError> {
@@ -105,7 +92,7 @@ impl Runtime {
         }
         Ok(())
     }
-    pub(crate) async fn stop_kind_in(
+    pub(super) async fn stop_kind_in(
         conn: &mut SqliteConnection,
         id: &str,
     ) -> Result<Option<String>, StorageError> {

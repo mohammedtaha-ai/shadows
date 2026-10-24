@@ -89,7 +89,7 @@ impl Turns {
                 NewTurn {
                     aylul_usage: snapshot,
                     thread_id,
-                    runtime: &self.runtime.instance_id,
+                    runtime: self.runtime.instance_id(),
                     prompt,
                     attachments,
                     role: "Planner",

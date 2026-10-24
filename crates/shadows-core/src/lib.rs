@@ -15,7 +15,6 @@ mod project_lifecycle;
 mod projects;
 pub use project_lifecycle::ProjectLifecycle;
 mod providers;
-mod runtime;
 mod secrets;
 mod standards;
 #[cfg(feature = "test-support")]
@@ -41,6 +40,7 @@ pub use code::{
 pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+pub use core_runtime::{RuntimeInstanceId, StopKind};
 pub use design::StructureWritten;
 pub use design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -80,7 +80,6 @@ pub use providers::{
     ListedModel, PresetRegion, Provider, ProviderInput, ProviderModel, ProviderModelInput,
     ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
 };
-pub use runtime::{RuntimeInstanceId, StopKind};
 pub use secrets::{EnvEntry, SecretKey, Secrets, validate_env_name};
 pub use threads::{
     Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,

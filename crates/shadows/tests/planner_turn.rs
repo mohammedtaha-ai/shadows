@@ -381,14 +381,14 @@ async fn stop_without_a_live_turn_records_the_request_and_stays_non_terminal() {
     let op = shadows_core::Turns::create_pending_operation_for_test(
         &app.runtime.storage_for_test(),
         &app.thread,
-        &app.runtime.instance_id,
+        app.runtime.instance_id(),
     )
     .await
     .unwrap();
     shadows_core::Turns::mark_operation_started_for_test(
         &app.runtime.storage_for_test(),
         &op,
-        &app.runtime.instance_id,
+        app.runtime.instance_id(),
     )
     .await
     .unwrap();

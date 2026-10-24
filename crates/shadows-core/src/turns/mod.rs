@@ -65,11 +65,11 @@ use crate::harness::{Harness, LeaseError};
 use crate::instructions::Instructions;
 use crate::plans::{Focus, PlanId};
 use crate::projects::Projects;
-use crate::runtime::Runtime;
-use crate::runtime::StopKind;
 use crate::standards::Standards;
 use crate::threads::ThreadId;
 use core_db::{Actor, CommandContext, Storage, StorageError};
+use core_runtime::Runtime;
+use core_runtime::StopKind;
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
 /// `shadows_core::testing` re-exports these, and nothing outside the crate

@@ -1,8 +1,8 @@
 use super::transition::{Before, Transition};
 use crate::operations::{OperationId, Operations};
-use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
 use core_db::{Actor, StorageError};
+use core_runtime::RuntimeInstanceId;
 use sqlx::SqliteConnection;
 
 impl Operations {
@@ -13,7 +13,7 @@ impl Operations {
         runtime_id: &RuntimeInstanceId,
         ts: &str,
     ) -> Result<Transition, StorageError> {
-        crate::runtime::Runtime::require_active_in(conn, runtime_id).await?;
+        core_runtime::Runtime::require_active_in(conn, runtime_id).await?;
         sqlx::query(
             "INSERT INTO operation
            (id, kind, status_kind, thread_id, runtime_instance_id, created_at)

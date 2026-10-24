@@ -508,7 +508,7 @@ are reference material; they do not replace the project's template or code.
   command 129 passed. Moved test comments no longer carry history/spec references.
 
 ### A-19c · Extract services in the verified order
-- Status: doing
+- Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-19c--extract-services-in-the-verified-order
 - Read: A-8c's runtime/type/test graph; owner spec §14.12
 - Touch: controller expands this milestone into exact per-service tasks, including manifests, lockfile, re-exports, app wiring, callers, contracts, maps and tests
@@ -592,10 +592,36 @@ binaries. Final checks also run production clippy, production feature isolation,
 all Core binaries and the unchanged-api diff. Never run workspace-wide tests.
 
 #### A-19c.1 · Extract core-runtime
-- Status: todo
+- Status: done
+- Caller gap: the fixed private-field shape replaces Runtime.instance_id field reads with instance_id(); LSP identified Core turns/record.rs plus the harness_schema and aylul_usage Core fixtures and adapter test binaries core_harness, core_turns, planner_turn, protocol, resync, shutdown and stream_frames. These mechanical test call sites are included under the dispatch standing rule; product adapter source and serialized types do not change.
 - Needs: A-19b
 - Touch: `crates/core-runtime/` (`Cargo.toml`, `src/lib.rs`, `src/model.rs`, `src/store/`, `contract.yaml`, `tests/`); old `crates/shadows-core/src/runtime/`; `crates/shadows-core/src/{lib,app,testing/**}.rs`; `Cargo.toml`, `Cargo.lock`, `crates/shadows-core/Cargo.toml`; caller imports in `crates/shadows-core/src/operations/model.rs`, `crates/shadows-core/src/operations/store/lifecycle.rs`, `crates/shadows-core/src/operations/store/read.rs`, `crates/shadows-core/src/operations/store/recovery.rs`, `crates/shadows-core/src/operations/store/runtime_stop.rs`, `crates/shadows-core/src/operations/testing.rs`, `crates/shadows-core/src/turns/mod.rs`, `crates/shadows-core/src/turns/model.rs`, `crates/shadows-core/src/turns/shutdown.rs`, `crates/shadows-core/src/turns/spawn.rs`, `crates/shadows-core/src/turns/store/operation.rs`, `crates/shadows-core/src/turns/store/turn.rs`, `crates/shadows-core/src/turns/testing.rs`; those callers' owner contracts; moved owner-local tests and their old registrations; `crates/shadows-core/tests/contracts.rs`; `docs/codebase/README.md`; `docs/backend/stages.md`; `crates/shadows/tests/architecture/{scanner,resolution,sql,fixtures,main}.rs`, `table-owners.txt` and allowlists (delete lines only); `crates/shadows/tests/codemap/main.rs`. AppCore integration tests remain in Core.
 - Done when: `cargo test -p core-runtime`, `cargo test -p shadows-core --lib` and Core integration binaries `operation_lifecycle`, `recovery` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.
+
+Runtime move verification (2026-10-24): core-runtime's three public-constructor
+integration tests pass. Core lib: 40 passed. Full Core: 322 passed across 32
+binaries, three existing tests ignored (live extension acceptance, live provider
+keys, manual migration copy). Included operation_lifecycle 12, recovery 6,
+harness_schema 5 and aylul_usage 6. Architecture 27, codemap 1 and openapi 7
+passed. Affected adapter binaries: core_harness 5, core_turns 8, planner_turn 10,
+protocol 8, resync 8, shutdown 6 and stream_frames 1: all 46 passed.
+
+The exact CI awk line-length check, fmt, workspace all-target/test-support
+clippy and production clippy pass. Production feature grep prints nothing;
+api diff, whitespace and LF checks are clean. No allowlist lines were added,
+renamed or deleted. No new external dependency: the moved crate reuses core-db
+and existing serde/serde_json/sqlx/uuid/utoipa infrastructure. `from_recorded`
+preserves the stored runtime-id text without introducing validation; Operations
+uses it where the id macro's crate-private constructor no longer crosses the
+crate boundary. The store remains private. Runtime's instance_id is private
+with a borrowing accessor; all LSP field callers were mechanically updated.
+Product adapter source, schema and system event semantics are unchanged.
+
+A-19c remains blocked: all remaining moves require the error-vocabulary
+preparation, and the additional cyclic edges above remain. No independent
+service remains to extract. Existing CLAUDE.md crate-table wording that SQLite
+lives only in shadows-core is outside this task's Touch. These checks are local
+automation; no browser/native/provider/production acceptance was performed.
 
 #### A-19c.2 · Extract core-secrets
 - Status: blocked

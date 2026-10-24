@@ -1,7 +1,7 @@
 use super::transition::{Before, Transition};
 use crate::operations::{OperationId, Operations, ReconcileReport};
-use crate::runtime::{Runtime, RuntimeInstanceId};
 use core_db::{Actor, Storage, StorageError};
+use core_runtime::{Runtime, RuntimeInstanceId};
 impl Operations {
     pub(crate) async fn recover(
         &self,

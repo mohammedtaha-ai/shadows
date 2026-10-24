@@ -295,7 +295,7 @@ async fn usage_refusal_cancel_and_missing_are_honest() {
     let pending = shadows_core::Turns::create_pending_operation_for_test(
         &w.storage,
         &w.thread,
-        &runtime.instance_id,
+        runtime.instance_id(),
     )
     .await
     .unwrap();
