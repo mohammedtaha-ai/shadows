@@ -3,8 +3,8 @@ use super::Plans;
 use super::scope::Scope;
 use crate::code::ProjectLink;
 use crate::error::{CoreError, ErrorCode};
-use crate::projects::ProjectId;
 use core_db::CommandContext;
+use core_projects::ProjectId;
 fn invalid(message: String) -> CoreError {
     Scope::refused(ErrorCode::InvalidCommand, message)
 }

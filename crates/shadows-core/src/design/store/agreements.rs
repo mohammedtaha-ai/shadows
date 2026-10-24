@@ -1,9 +1,9 @@
 //! Snapshot reads of exact shared-agreement versions.
 use super::DesignStore;
 use super::parts;
-use crate::ProjectId;
 use crate::design::{AgreementContent, AgreementId, AgreementState, AgreementVersion, Design};
 use core_db::StorageError;
+use core_projects::ProjectId;
 use sqlx::{FromRow, SqliteConnection};
 
 #[derive(FromRow)]
@@ -25,7 +25,7 @@ impl VersionRow {
         let issues = Design::validate_agreement(&content);
         Ok(AgreementVersion {
             agreement_id: AgreementId::from_stored(self.agreement_id),
-            project_id: ProjectId::from_stored(self.project_id),
+            project_id: ProjectId::from_recorded(self.project_id),
             version: self.version,
             revision: self.revision,
             state: if self.state == "Draft" {

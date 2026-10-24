@@ -14,7 +14,7 @@ impl crate::threads::Threads {
         if current.removed_at.is_some() {
             return Err(StorageError::NotFound("planning_thread"));
         }
-        crate::projects::Projects::require_live_in(conn, &current.project_id).await?;
+        core_projects::Projects::require_live_in(conn, &current.project_id).await?;
         sqlx::query("UPDATE planning_thread SET removed_at = ? WHERE id = ?")
             .bind(ts)
             .bind(thread.as_str())

@@ -13,9 +13,9 @@ use crate::plans::model::{
     WrittenBy,
 };
 use crate::plans::rules::Rules;
-use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use core_db::StorageError;
+use core_projects::ProjectId;
 
 impl PlansStore {
     pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, crate::CoreError> {
@@ -249,7 +249,7 @@ impl ReadRows {
                 .bind(id.as_str())
                 .fetch_optional(&mut *conn)
                 .await?;
-        let project_id = ProjectId::from_stored(project);
+        let project_id = ProjectId::from_recorded(project);
         let last_edit = ReadRows::edits_of(conn, &project_id, id)
             .await?
             .into_iter()

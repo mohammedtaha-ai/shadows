@@ -7,13 +7,13 @@ use sqlx::SqliteConnection;
 
 use super::read::ReadRows;
 use crate::plans::{MapLink, MapPlan, PlanId, PlanMap, WorkflowId};
-use crate::projects::ProjectId;
 use core_db::StorageError;
+use core_projects::ProjectId;
 
 impl PlansStore {
     pub async fn plan_map(&self, project: &ProjectId) -> Result<PlanMap, StorageError> {
         let mut snapshot = self.storage.reader().begin().await?;
-        crate::projects::Projects::require_live_in(&mut snapshot, project).await?;
+        core_projects::Projects::require_live_in(&mut snapshot, project).await?;
         let roots: Vec<String> = sqlx::query_scalar(
             "SELECT id FROM plan WHERE project_id=? AND state='Active' ORDER BY id",
         )
@@ -41,11 +41,11 @@ impl PlansStore {
         .await?;
         let mut links = Vec::with_capacity(edges.len());
         for (source, target, count, missing, source_project, target_project) in edges {
-            let source_project = ProjectId::from_stored(source_project);
-            let target_project = ProjectId::from_stored(target_project);
+            let source_project = ProjectId::from_recorded(source_project);
+            let target_project = ProjectId::from_recorded(target_project);
             let broken = missing
-                || !crate::projects::Projects::is_live_in(&mut snapshot, &source_project).await?
-                || !crate::projects::Projects::is_live_in(&mut snapshot, &target_project).await?
+                || !core_projects::Projects::is_live_in(&mut snapshot, &source_project).await?
+                || !core_projects::Projects::is_live_in(&mut snapshot, &target_project).await?
                 || !crate::code::Code::project_reachable_in(
                     &mut snapshot,
                     &source_project,
@@ -98,15 +98,15 @@ async fn node(conn: &mut SqliteConnection, plan: &PlanId) -> Result<MapPlan, Sto
     .fetch_one(&mut *conn)
     .await?;
     let (project, plan_state, workflow, title, goal, version, state, count) = row;
-    let (name, _, removed) = crate::projects::Projects::retained_metadata_in(
+    let (name, _, removed) = core_projects::Projects::retained_metadata_in(
         conn,
-        &ProjectId::from_stored(project.clone()),
+        &ProjectId::from_recorded(project.clone()),
     )
     .await?
     .ok_or(StorageError::NotFound("project"))?;
     Ok(MapPlan {
         plan_id: plan.clone(),
-        project_id: ProjectId::from_stored(project),
+        project_id: ProjectId::from_recorded(project),
         project_name: name,
         plan_state: ReadRows::parse_plan_state(&plan_state)?,
         workflow_id: workflow.map(WorkflowId::from_stored),

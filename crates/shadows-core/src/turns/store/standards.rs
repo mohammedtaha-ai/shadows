@@ -1,10 +1,10 @@
 use crate::{
     operations::OperationId,
-    projects::Projects,
     standards::{EffectiveStandards, Standards},
     threads::ThreadId,
 };
 use core_db::{Storage, StorageError};
+use core_projects::Projects;
 use sqlx::SqliteConnection;
 
 impl crate::turns::Turns {

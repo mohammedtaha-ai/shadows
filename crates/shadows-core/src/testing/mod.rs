@@ -26,7 +26,7 @@ pub async fn resolve_secret_env(
 
 /// The projects service over `storage`, for a test that has no `AppCore`.
 pub fn projects(storage: Arc<Storage>) -> crate::Projects {
-    crate::Projects::new(storage)
+    AppCore::projects_for_tests(storage)
 }
 
 /// A project written with the command context the test built.
@@ -141,11 +141,11 @@ pub use crate::grants::Writer;
 pub use crate::grants::{IssuedGrant, Token};
 pub use crate::harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use crate::operations::ReconcileReport;
-pub use crate::projects::ProjectDirectory;
 pub use crate::threads::{NewThreadEntry, TurnContext};
 pub use crate::turns::Bus;
 pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
+pub use core_projects::ProjectDirectory;
 pub use core_runtime::Runtime;
 
 impl crate::code::Code {
@@ -153,7 +153,7 @@ impl crate::code::Code {
     /// one its files were just written into.
     pub async fn scan_for_test(
         &self,
-        project: &crate::projects::ProjectId,
+        project: &core_projects::ProjectId,
     ) -> Result<(), crate::error::CoreError> {
         self.scan(project).await
     }
@@ -161,12 +161,12 @@ impl crate::code::Code {
     /// That project's worker drops every `Files` job until shutdown; its
     /// watcher and its periodic scan keep running, so a change the scan
     /// finds proves the scan, not the watcher.
-    pub async fn pause_watcher_for_test(&self, project: &crate::projects::ProjectId) {
+    pub async fn pause_watcher_for_test(&self, project: &core_projects::ProjectId) {
         self.pause_watcher(project).await
     }
 
     /// The active projects, most recent first.
-    pub async fn active_for_test(&self) -> Vec<crate::projects::ProjectId> {
+    pub async fn active_for_test(&self) -> Vec<core_projects::ProjectId> {
         self.active_projects().await
     }
 

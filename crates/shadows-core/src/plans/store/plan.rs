@@ -5,8 +5,8 @@ use sqlx::SqliteConnection;
 
 use super::read::ReadRows;
 use crate::plans::model::{PlanId, PlanState, PlanVersions, VersionLine, WorkflowId};
-use crate::projects::ProjectId;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::ProjectId;
 
 /// Design's association check, inside the caller's serialized transaction.
 /// Archived plans remain valid identities; their versions are not touched.
@@ -179,7 +179,7 @@ impl PlanRows {
         .await?
         .ok_or(StorageError::NotFound("plan"))?;
 
-        if !crate::projects::Projects::is_live_in(conn, &ProjectId::from_stored(project.clone()))
+        if !core_projects::Projects::is_live_in(conn, &ProjectId::from_recorded(project.clone()))
             .await?
         {
             return Err(StorageError::NotFound("plan"));
@@ -226,7 +226,7 @@ impl PlanRows {
 
         Ok(PlanVersions {
             plan_id: plan_id.clone(),
-            project_id: ProjectId::from_stored(project),
+            project_id: ProjectId::from_recorded(project),
             state: ReadRows::parse_plan_state(&state)?,
             archived_at,
             versions,

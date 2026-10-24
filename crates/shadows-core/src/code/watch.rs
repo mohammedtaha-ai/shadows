@@ -30,7 +30,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 use super::Code;
 use super::model::{CodeConfig, IndexState};
 use super::scan::Progress;
-use crate::projects::ProjectId;
+use core_projects::ProjectId;
 
 /// Paths the watcher may hold for the worker before it counts as lost.
 const SEEN_CAPACITY: usize = 8192;

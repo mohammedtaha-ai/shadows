@@ -706,6 +706,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "core-projects"
+version = "0.1.0"
+dependencies = [
+ "core-db",
+ "core-projects",
+ "dunce",
+ "futures-core",
+ "serde",
+ "serde_json",
+ "shadows-agent",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "core-providers"
 version = "0.1.0"
 dependencies = [
@@ -3411,6 +3431,7 @@ dependencies = [
  "aes-gcm",
  "anyhow",
  "core-db",
+ "core-projects",
  "core-providers",
  "core-runtime",
  "core-secrets",

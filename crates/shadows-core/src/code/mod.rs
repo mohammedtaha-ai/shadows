@@ -26,9 +26,9 @@ pub use model::{
 pub use scope::Asker;
 
 use crate::error::CoreError;
-use crate::projects::{ProjectId, Projects};
 use active::Active;
 use core_db::Storage;
+use core_projects::{ProjectId, Projects};
 use store::{CodeStore, ScopeRow};
 use watch::Job;
 

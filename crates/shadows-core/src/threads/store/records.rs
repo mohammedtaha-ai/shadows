@@ -1,7 +1,7 @@
 //! Thread records accessed inside another owner's transaction or read snapshot.
-use crate::projects::{ProjectId, Projects};
 use crate::threads::{PlanningThread, ThreadEntryId, ThreadId, Threads, TurnContext};
 use core_db::StorageError;
+use core_projects::{ProjectId, Projects};
 use sqlx::SqliteConnection;
 use std::path::PathBuf;
 
@@ -25,7 +25,7 @@ impl Threads {
                 .fetch_optional(conn)
                 .await?
                 .ok_or(StorageError::NotFound("planning_thread"))?;
-        Ok(ProjectId::from_stored(project))
+        Ok(ProjectId::from_recorded(project))
     }
 
     pub(crate) async fn is_live_in(
@@ -71,7 +71,7 @@ impl Threads {
         .fetch_optional(&mut *conn)
         .await?
         .ok_or(StorageError::NotFound("planning_thread"))?;
-        let project_id = ProjectId::from_stored(project);
+        let project_id = ProjectId::from_recorded(project);
         let project = Projects::get_in(conn, &project_id).await?;
         Ok(TurnContext {
             profile,

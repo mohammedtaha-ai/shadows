@@ -18,7 +18,7 @@ use tokio::io::AsyncReadExt;
 use super::Code;
 use super::store::FileRow;
 use crate::error::CoreError;
-use crate::projects::ProjectId;
+use core_projects::ProjectId;
 
 /// A file over this many bytes is not parsed: `too_large`.
 const MAX_BYTES: u64 = 1_048_576;

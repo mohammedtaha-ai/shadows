@@ -2,10 +2,10 @@
 use super::Events;
 use crate::events::EventCursor;
 use crate::plans::Plans;
-use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
 use core_db::{Storage, StorageError};
+use core_projects::ProjectId;
 use std::sync::Arc;
 
 /// One replayed journal row, as a client resuming a thread sees it.

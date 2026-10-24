@@ -27,14 +27,15 @@
 name: projects
 version: 1
 status: current
-source: crates/shadows-core/src/projects
+source: crates/core-projects/src
 modules:
-  mod.rs: project registration boundary
+  lib.rs: project registration boundary
   model.rs: public project values
+  error.rs: project refusals
   directory.rs: project directory validation
   browse.rs: directory selection
   harness_policy.rs: allowed project harnesses
-  store.rs: private project persistence
+  store/mod.rs: private project persistence
 
 
 shapes:
@@ -82,6 +83,12 @@ shapes:
 
 
 functions:
+  identities:
+    from_recorded: "(value: String) -> ProjectId; preserves recorded identity text"
+  construction:
+    new: "(storage: Arc<Storage>) -> Projects"
+    create_for_test: "test-support command context fixture"
+    set_modes_for_test: "test-support command context fixture"
   removal_records:
     retained_in: "(conn, id) -> Result<Project, StorageError>"
     mark_removed_in: "(conn, id, ts) -> Result<(), StorageError>"
@@ -90,27 +97,27 @@ functions:
     is_live_in: "(conn, id) -> Result<bool, StorageError>; delegates to require_live_in"
   service:
     list:
-      signature: "(&self) -> Result<Vec<Project>, CoreError>"
+      signature: "(&self) -> Result<Vec<Project>, ProjectsError>"
       # Oldest first by the `ProjectCreated` event's seq.
     get:
-      signature: "(&self, id: &ProjectId) -> Result<Project, CoreError>"
+      signature: "(&self, id: &ProjectId) -> Result<Project, ProjectsError>"
       # NotFound for a removed project. Read by Code (`status`, a scan),
       # Events (`subscribe_project` refuses unknown or removed projects),
       # `allowed_modes` and `harness_fits`.
     by_slug:
-      signature: "(&self, slug: &str) -> Result<Option<Project>, CoreError>"
-      # crate-visible. The live project holding `slug`, assistant or not;
+      signature: "(&self, slug: &str) -> Result<Option<Project>, ProjectsError>"
+      # Public to declared service callers. The live project holding `slug`, assistant or not;
       # `None` when none does. The one slug lookup: `ensure_assistant` and
       # Agents (`assistant_project`, which keeps it only when `assistant`).
     allowed_modes:
-      signature: "(&self, project: &ProjectId, harness: &str) -> Result<Vec<String>, CoreError>"
-      # crate-visible. The modes the live project allows for `harness`;
+      signature: "(&self, project: &ProjectId, harness: &str) -> Result<Vec<String>, ProjectsError>"
+      # Public to declared service callers. The modes the live project allows for `harness`;
       # empty when it names none. NotFound for a removed project. The one
       # rule for both readers: Turns (a turn's mode check, ModeNotAllowed
       # unless it contains the mode) and Harness (`choices`, what a client
       # is offered).
     by_recent_activity:
-      signature: "(&self) -> Result<Vec<Project>, CoreError>"
+      signature: "(&self) -> Result<Vec<Project>, ProjectsError>"
       # Live projects, most recently used first, from the journal alone: the
       # newest `OperationCreated` seq among the project's threads, else its
       # `ProjectCreated` seq, else 0; ties by id. An operation event carries
@@ -120,7 +127,7 @@ functions:
       # directory are included; the caller filters. Code's start order
       # calls it.
     ensure_assistant:
-      signature: "(&self, slug: &str, name: &str, directory: &Path) -> Result<Project, CoreError>"
+      signature: "(&self, slug: &str, name: &str, directory: &Path) -> Result<Project, ProjectsError>"
       # AYLUL's project. A live project already holding `slug` (`by_slug`) is returned
       # as is (never claimed unless it is already `assistant`); else created
       # as "project.create" with a fixed command id over the resolved
@@ -128,23 +135,23 @@ functions:
       # A removed assistant project (its slug stays taken) is restored by
       # `restore_assistant` instead of created again.
     create:
-      signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>"
-      # resolve (DirectoryError â†’ CoreError::Directory) â†’ "project.create",
+      signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, ProjectsError>"
+      # resolve (DirectoryError â†’ ProjectsError::Directory) â†’ "project.create",
       # principal User/local, schema 1, params { slug, name, directory:
       # canonical } â†’ the store's `create` with `policy::default_modes()`.
       # Refusals: Directory; CommandConflict; Constraint (the slug in use).
     set_modes:
-      signature: "(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, CoreError>"
+      signature: "(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, ProjectsError>"
       # `Self::known_harness` (SettingNotOffered "harness") â†’ each mode in policy
       # (SettingNotOffered "mode", the first offending one) â†’ dedup, sort â†’
       # "project.modes", params { project, allowed_modes: normalized } â†’
       # the store's `set_modes`. Refusals also: NotFound (no such project);
       # CommandConflict.
     list_dirs:
-      signature: "(&self, path: Option<String>) -> Result<DirectoryListing, CoreError>"
+      signature: "(&self, path: Option<String>) -> Result<DirectoryListing, ProjectsError>"
       # An empty `path` is the same as none: the roots. On a blocking thread.
     create_dir:
-      signature: "(&self, parent: String, name: String) -> Result<DirectoryEntry, CoreError>"
+      signature: "(&self, parent: String, name: String) -> Result<DirectoryEntry, ProjectsError>"
       # `check_name`, then the parent resolved, then `create_dir`; an
       # existing one is AlreadyExists, never reused. On a blocking thread.
   directory:
@@ -174,12 +181,12 @@ functions:
       private: true
   harness_policy:
     known_harness:
-      signature: "(harness: &str) -> Result<(), CoreError>"
+      signature: "(harness: &str) -> Result<(), ProjectsError>"
       # An associated function: SettingNotOffered { "harness", id, None }
       # unless `policy::is_known`. Called by `set_modes` and by Threads
       # (create, set_harness).
     harness_fits:
-      signature: "(&self, project: &ProjectId, harness: &str) -> Result<(), CoreError>"
+      signature: "(&self, project: &ProjectId, harness: &str) -> Result<(), ProjectsError>"
       # AYLUL's harness lives only in the project marked `assistant`, and that
       # project runs nothing else; otherwise SettingNotOffered { "harness", id,
       # Some(reason) }. A project that is unknown or removed is not judged:
@@ -228,8 +235,8 @@ functions:
 
 
 enums:
-  CoreError:
-    source: crate::error::CoreError
+  ProjectsError:
+    source: core_projects::ProjectsError
     values: []
   StorageError:
     source: core_db::StorageError

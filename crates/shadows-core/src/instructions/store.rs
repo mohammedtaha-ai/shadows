@@ -7,8 +7,8 @@ use std::sync::Arc;
 use sqlx::SqliteConnection;
 
 use super::model::InstructionsVersion;
-use crate::projects::{ProjectId, Projects};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::{ProjectId, Projects};
 
 type VersionRow = (String, i64, String, String);
 

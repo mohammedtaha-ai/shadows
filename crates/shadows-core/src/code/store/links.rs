@@ -5,8 +5,8 @@ use sqlx::SqliteConnection;
 use super::CodeStore;
 use crate::code::Code;
 use crate::code::model::ProjectLink;
-use crate::projects::{ProjectId, Projects};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::{ProjectId, Projects};
 
 impl CodeStore {
     /// How many projects are active at once: `code_setting.active_limit`.
@@ -35,7 +35,8 @@ impl CodeStore {
         if !rows.is_empty() {
             let slug = Projects::slug_in(&mut snapshot, project).await?;
             for (id, created_at) in rows {
-                let linked = Projects::slug_in(&mut snapshot, &ProjectId::from_stored(id)).await?;
+                let linked =
+                    Projects::slug_in(&mut snapshot, &ProjectId::from_recorded(id)).await?;
                 out.push(ProjectLink {
                     project: slug.clone(),
                     linked,

@@ -384,7 +384,7 @@ async fn load_project(
 
 impl Projects {
     /// A live project's metadata in the caller's snapshot.
-    pub(crate) async fn get_in(
+    pub async fn get_in(
         conn: &mut SqliteConnection,
         id: &ProjectId,
     ) -> Result<Project, StorageError> {
@@ -393,7 +393,7 @@ impl Projects {
     }
 
     /// The live project holding a slug in the caller's snapshot.
-    pub(crate) async fn by_slug_in(
+    pub async fn by_slug_in(
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<Option<Project>, StorageError> {
@@ -412,7 +412,7 @@ impl Projects {
     }
 
     /// A retained project's slug, including removed rows needed by command replays.
-    pub(crate) async fn slug_in(
+    pub async fn slug_in(
         conn: &mut SqliteConnection,
         id: &ProjectId,
     ) -> Result<String, StorageError> {
@@ -427,7 +427,7 @@ impl Projects {
     /// `NotFound("project")` for an unknown or removed one. The one liveness
     /// check: this store's own reads and writes use it, and other services
     /// call it instead of reading the `project` table.
-    pub(crate) async fn require_live_in(
+    pub async fn require_live_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<(), StorageError> {
@@ -442,7 +442,7 @@ impl Projects {
 
 impl Projects {
     /// Retained project metadata for plan previews that also describe removed projects.
-    pub(crate) async fn retained_metadata_in(
+    pub async fn retained_metadata_in(
         conn: &mut SqliteConnection,
         id: &ProjectId,
     ) -> Result<Option<(String, Option<String>, bool)>, StorageError> {
@@ -453,7 +453,7 @@ impl Projects {
                 .await?,
         )
     }
-    pub(crate) async fn is_live_in(
+    pub async fn is_live_in(
         conn: &mut SqliteConnection,
         id: &ProjectId,
     ) -> Result<bool, StorageError> {
@@ -467,7 +467,7 @@ impl Projects {
 
 impl Projects {
     /// Retained metadata is needed to answer a replay after removal.
-    pub(crate) async fn retained_in(
+    pub async fn retained_in(
         conn: &mut SqliteConnection,
         id: &ProjectId,
     ) -> Result<Project, StorageError> {
@@ -475,7 +475,7 @@ impl Projects {
     }
 
     /// Soft removal keeps the row referenced by the journal and reserves its slug.
-    pub(crate) async fn mark_removed_in(
+    pub async fn mark_removed_in(
         conn: &mut SqliteConnection,
         id: &ProjectId,
         ts: &str,

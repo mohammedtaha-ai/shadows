@@ -3,9 +3,9 @@ use sqlx::SqliteConnection;
 
 use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token};
 use super::{Grants, GrantsError, Writer};
-use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::ProjectId;
 use std::sync::Arc;
 
 const DRAFT_REF_LIFETIME: time::Duration = time::Duration::HOUR;
@@ -34,7 +34,7 @@ impl GrantsStore {
                         let grant = load_grant(conn, &GrantId::from_stored(id)).await?;
                         return Ok(IssuedGrant { grant, token: None });
                     }
-                    crate::projects::Projects::require_live_in(conn, &project).await?;
+                    core_projects::Projects::require_live_in(conn, &project).await?;
                     let actor = Actor::user(&ctx.principal_id);
                     let (grant, token) = insert_grant(conn, &project, None, actor, &ts).await?;
                     CommandContext::record_command(
@@ -148,7 +148,7 @@ impl GrantsStore {
         project: &ProjectId,
     ) -> Result<Vec<Grant>, StorageError> {
         let mut snapshot = self.storage.reader().begin().await?;
-        match crate::projects::Projects::require_live_in(&mut snapshot, project).await {
+        match core_projects::Projects::require_live_in(&mut snapshot, project).await {
             Ok(()) => {}
             Err(StorageError::NotFound(_)) => return Ok(Vec::new()),
             Err(error) => return Err(error),
@@ -217,7 +217,7 @@ fn into_grant(
     Ok(Grant {
         id: GrantId::from_stored(id),
         kind,
-        project_id: ProjectId::from_stored(project),
+        project_id: ProjectId::from_recorded(project),
         thread_id: thread.map(ThreadId::from_stored),
         created_at,
         revoked_at,

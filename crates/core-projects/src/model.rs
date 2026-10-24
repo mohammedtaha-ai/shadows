@@ -31,3 +31,10 @@ pub struct Project {
     /// home of AYLUL's conversations, which clients list apart from projects.
     pub assistant: bool,
 }
+
+impl ProjectId {
+    /// Reconstitutes an identity already recorded by a service store.
+    pub fn from_recorded(value: String) -> Self {
+        Self::from_stored(value)
+    }
+}

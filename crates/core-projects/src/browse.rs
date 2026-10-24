@@ -12,7 +12,9 @@
 
 use std::path::{Path, PathBuf};
 
-use super::directory::{DirectoryError, canonical_dir, utf8};
+use super::{DirectoryError, ProjectDirectory};
+
+pub(super) struct Browser;
 
 /// One directory a person could open or choose.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
@@ -41,45 +43,53 @@ pub struct DirectoryListing {
 /// `path`'s subdirectories, or the roots when it is `None`. `path` must be an
 /// absolute path to a readable directory; entries inside it that cannot be
 /// read are skipped rather than failing the whole listing.
-pub(super) fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError> {
-    let Some(path) = path else {
-        return Ok(DirectoryListing {
-            path: None,
-            parent: None,
-            entries: roots(),
+impl Browser {
+    pub(super) fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError> {
+        let Some(path) = path else {
+            return Ok(DirectoryListing {
+                path: None,
+                parent: None,
+                entries: roots(),
+            });
+        };
+        let dir = ProjectDirectory::canonical_dir(path)?;
+        let reader = std::fs::read_dir(&dir).map_err(|e| DirectoryError::from_io(&dir, e))?;
+        let mut entries: Vec<DirectoryEntry> = reader
+            .filter_map(Result::ok)
+            .filter_map(|entry| subdirectory(&entry))
+            .collect();
+        entries.sort_by(|a, b| {
+            (a.name.to_lowercase(), &a.name).cmp(&(b.name.to_lowercase(), &b.name))
         });
-    };
-    let dir = canonical_dir(path)?;
-    let reader = std::fs::read_dir(&dir).map_err(|e| DirectoryError::from_io(&dir, e))?;
-    let mut entries: Vec<DirectoryEntry> = reader
-        .filter_map(Result::ok)
-        .filter_map(|entry| subdirectory(&entry))
-        .collect();
-    entries.sort_by(|a, b| (a.name.to_lowercase(), &a.name).cmp(&(b.name.to_lowercase(), &b.name)));
-    Ok(DirectoryListing {
-        parent: dir.parent().and_then(|p| utf8(p.to_path_buf()).ok()),
-        path: Some(utf8(dir)?),
-        entries,
-    })
+        Ok(DirectoryListing {
+            parent: dir
+                .parent()
+                .and_then(|p| ProjectDirectory::utf8(p.to_path_buf()).ok()),
+            path: Some(ProjectDirectory::utf8(dir)?),
+            entries,
+        })
+    }
 }
 
 /// Creates `name` inside `parent` and returns it. `name` must be one path
 /// component that Windows would also accept, so a project folder made here can
 /// be opened on any machine the project reaches. An existing directory is
 /// `AlreadyExists`, never silently reused: the person asked for a new one.
-pub(super) fn create_subdirectory(
-    parent: &Path,
-    name: &str,
-) -> Result<DirectoryEntry, DirectoryError> {
-    check_name(name)?;
-    let parent = canonical_dir(parent)?;
-    let path = parent.join(name);
-    std::fs::create_dir(&path).map_err(|e| DirectoryError::from_io(&path, e))?;
-    Ok(DirectoryEntry {
-        name: name.to_string(),
-        path: utf8(path)?,
-        hidden: name.starts_with('.'),
-    })
+impl Browser {
+    pub(super) fn create_subdirectory(
+        parent: &Path,
+        name: &str,
+    ) -> Result<DirectoryEntry, DirectoryError> {
+        check_name(name)?;
+        let parent = ProjectDirectory::canonical_dir(parent)?;
+        let path = parent.join(name);
+        std::fs::create_dir(&path).map_err(|e| DirectoryError::from_io(&path, e))?;
+        Ok(DirectoryEntry {
+            name: name.to_string(),
+            path: ProjectDirectory::utf8(path)?,
+            hidden: name.starts_with('.'),
+        })
+    }
 }
 
 /// A listing entry for `entry` if it is a directory — or a link to one — that
@@ -95,7 +105,7 @@ fn subdirectory(entry: &std::fs::DirEntry) -> Option<DirectoryEntry> {
     let name = entry.file_name().into_string().ok()?;
     Some(DirectoryEntry {
         hidden: name.starts_with('.') || hidden_by_attribute(entry),
-        path: utf8(path).ok()?,
+        path: ProjectDirectory::utf8(path).ok()?,
         name,
     })
 }
@@ -140,7 +150,7 @@ fn roots() -> Vec<DirectoryEntry> {
 }
 
 fn root_entry(root: PathBuf) -> Option<DirectoryEntry> {
-    let path = utf8(root).ok()?;
+    let path = ProjectDirectory::utf8(root).ok()?;
     Some(DirectoryEntry {
         name: path.clone(),
         path,
@@ -150,15 +160,17 @@ fn root_entry(root: PathBuf) -> Option<DirectoryEntry> {
 
 /// Runs `work` on a blocking thread: listing a large or slow directory must
 /// not stall the async runtime. A panicked or cancelled task is `Unavailable`.
-pub(super) async fn blocking<T: Send + 'static>(
-    work: impl FnOnce() -> Result<T, DirectoryError> + Send + 'static,
-) -> Result<T, DirectoryError> {
-    tokio::task::spawn_blocking(work)
-        .await
-        .map_err(|e| DirectoryError::Unavailable {
-            path: String::new(),
-            source: std::io::Error::other(e),
-        })?
+impl Browser {
+    pub(super) async fn blocking<T: Send + 'static>(
+        work: impl FnOnce() -> Result<T, DirectoryError> + Send + 'static,
+    ) -> Result<T, DirectoryError> {
+        tokio::task::spawn_blocking(work)
+            .await
+            .map_err(|e| DirectoryError::Unavailable {
+                path: String::new(),
+                source: std::io::Error::other(e),
+            })?
+    }
 }
 
 /// Refuses anything that is not exactly one new name: empty, `.`, `..`, a

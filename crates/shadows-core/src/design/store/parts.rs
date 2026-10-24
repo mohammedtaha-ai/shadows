@@ -32,7 +32,7 @@ impl PartsRows {
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<i64, StorageError> {
-        crate::projects::Projects::require_live_in(conn, project).await?;
+        core_projects::Projects::require_live_in(conn, project).await?;
         Ok(
             sqlx::query_scalar("SELECT revision FROM design_workspace WHERE project_id=?")
                 .bind(project.as_str())

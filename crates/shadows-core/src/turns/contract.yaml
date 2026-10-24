@@ -1,3 +1,4 @@
+# Project identities and registration methods are imported from core-projects.
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # invocation_context supplies read results to Harness without introducing an upward dependency.
@@ -83,7 +84,7 @@ dependencies:
   usage: crates/shadows-core/src/usage/contract.yaml
   runtime: crates/core-runtime/contract.yaml
   code: crates/shadows-core/src/code/contract.yaml
-  projects: crates/shadows-core/src/projects/contract.yaml
+  projects: crates/core-projects/contract.yaml
 
 shapes:
   Prompt:

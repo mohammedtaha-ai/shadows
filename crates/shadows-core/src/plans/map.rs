@@ -1,7 +1,7 @@
 //! Values in a project's latest-plan dependency map.
 
 use super::{PlanId, PlanState, WorkflowId, WorkflowState};
-use crate::projects::ProjectId;
+use core_projects::ProjectId;
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct PlanMap {

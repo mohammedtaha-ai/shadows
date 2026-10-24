@@ -127,3 +127,9 @@ impl From<shadows_core::ProvidersError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::ProjectsError> for Failure {
+    fn from(error: shadows_core::ProjectsError) -> Self {
+        CoreError::from(error).into()
+    }
+}

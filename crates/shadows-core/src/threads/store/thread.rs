@@ -3,11 +3,11 @@
 
 use sqlx::SqliteConnection;
 
-use crate::projects::ProjectId;
 #[cfg(feature = "test-support")]
 use crate::threads::TurnContext;
 use crate::threads::model::{CreatedTitle, PlanningThread, ThreadId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::ProjectId;
 
 impl super::ThreadsStore {
     /// `harness` is the thread's CLI; the caller checks it is one
@@ -153,7 +153,7 @@ async fn insert_thread(
     actor: Actor,
     ts: &str,
 ) -> Result<ThreadId, StorageError> {
-    crate::projects::Projects::require_live_in(conn, project_id).await?;
+    core_projects::Projects::require_live_in(conn, project_id).await?;
     let id = ThreadId::generate();
     sqlx::query(
         "INSERT INTO planning_thread
@@ -204,7 +204,7 @@ impl super::ThreadsStore {
     pub(super) fn into_thread(r: ThreadRow) -> PlanningThread {
         PlanningThread {
             id: ThreadId::from_stored(r.0),
-            project_id: ProjectId::from_stored(r.1),
+            project_id: ProjectId::from_recorded(r.1),
             title: r.2,
             status: r.3,
             created_at: r.4,

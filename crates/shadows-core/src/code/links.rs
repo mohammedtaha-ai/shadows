@@ -5,8 +5,8 @@
 use super::Code;
 use super::model::{CodeSettings, ProjectLink};
 use crate::error::{CoreError, ErrorCode};
-use crate::projects::ProjectId;
 use core_db::CommandContext;
+use core_projects::ProjectId;
 
 /// The values `active_limit` may take.
 const LIMITS: std::ops::RangeInclusive<u32> = 1..=20;

@@ -500,6 +500,8 @@ native or production acceptance was run.
 
 ### A-19c · Extract services in the verified order
 
+Controller ruling (2026-10-24): a comment ratchet record keyed to a moved file is relocated one-for-one in the extraction commit, with identical text and count and only its path changed. This is a rename. API-feeding doc comments move unchanged; the API artifact diff must remain empty. Other allowlists may only shrink.
+
 Controller continuation (2026-10-24, `9b3735e`): service-owned error enums replace
 CoreError in each owner, lowest first, in its extraction commit; CoreError stays
 in shadows-core and converts those errors without changing adapter responses.

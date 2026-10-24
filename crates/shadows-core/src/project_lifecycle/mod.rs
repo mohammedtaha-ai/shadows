@@ -4,8 +4,8 @@ mod store;
 
 use crate::CoreError;
 use crate::code::Code;
-use crate::projects::{Project, ProjectId, Projects};
 use core_db::{CommandContext, Storage};
+use core_projects::{Project, ProjectId, Projects};
 use std::sync::Arc;
 use store::ProjectLifecycleStore;
 

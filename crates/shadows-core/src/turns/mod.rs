@@ -64,10 +64,10 @@ use crate::error::CoreError;
 use crate::harness::{Harness, LeaseError};
 use crate::instructions::Instructions;
 use crate::plans::{Focus, PlanId};
-use crate::projects::Projects;
 use crate::standards::Standards;
 use crate::threads::ThreadId;
 use core_db::{Actor, CommandContext, Storage, StorageError};
+use core_projects::Projects;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
 

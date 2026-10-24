@@ -1,3 +1,4 @@
+# Project identities and registration methods are imported from core-projects.
 # Providers is imported from core-providers; CoreError preserves adapter failure semantics.
 # Secrets is imported from core-secrets; application error conversion preserves caller responses.
 # Database infrastructure: core-db; domain rules and private stores remain here.

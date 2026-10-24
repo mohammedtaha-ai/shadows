@@ -46,9 +46,9 @@ use settings::SettingRefused;
 
 use crate::error::CoreError;
 use crate::extensions::Extensions;
-use crate::projects::Projects;
 use crate::threads::ThreadId;
 use core_db::{Storage, StorageError};
+use core_projects::Projects;
 
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {

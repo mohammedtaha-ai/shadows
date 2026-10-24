@@ -4,8 +4,8 @@ use sqlx::SqliteConnection;
 
 use super::{graph, read::ReadRows, task::TaskRows};
 use crate::plans::{Link, LinkedTask, Plan, PlanId, TaskParent, WorkflowId};
-use crate::projects::ProjectId;
 use core_db::StorageError;
+use core_projects::ProjectId;
 
 impl LinkedRows {
     pub(super) async fn read(
@@ -120,8 +120,8 @@ async fn related(
         view.broken = Some(format!("plan {plan} T{number} is unavailable"));
         return Ok(Some(view));
     };
-    let project = ProjectId::from_stored(project);
-    let (name, _, removed) = crate::projects::Projects::retained_metadata_in(conn, &project)
+    let project = ProjectId::from_recorded(project);
+    let (name, _, removed) = core_projects::Projects::retained_metadata_in(conn, &project)
         .await?
         .ok_or(StorageError::NotFound("project"))?;
     if let Some(origin) = origin

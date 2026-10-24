@@ -30,8 +30,8 @@ pub use model::{
 
 use crate::code::Code;
 use crate::error::CoreError;
-use crate::projects::{ProjectId, Projects};
 use core_db::{CommandContext, Storage};
+use core_projects::{ProjectId, Projects};
 pub(crate) use error::ThreadsError;
 use store::ThreadsStore;
 

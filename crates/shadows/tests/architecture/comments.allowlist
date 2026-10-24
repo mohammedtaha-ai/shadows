@@ -80,10 +80,10 @@ crates/shadows-core/src/plans/model.rs :: module comment [f70e53c75effea15] #1
 crates/shadows-core/src/plans/model.rs :: module comment [fdd0803e9233ad10] #1
 crates/shadows-core/src/plans/model.rs :: module comment [fe11ed1ce5737d83] #1
 crates/shadows-core/src/plans/ops.rs :: PlanOp comment [32a8d3a0b354b993] #1
-crates/shadows-core/src/projects/model.rs :: Project comment [81088cef37f25415] #1
-crates/shadows-core/src/projects/model.rs :: Project comment [f62a4ea16ef252ea] #1
-crates/shadows-core/src/projects/model.rs :: module comment [2e3e8754146bae4f] #1
-crates/shadows-core/src/projects/model.rs :: module comment [80f2a97e1598e288] #1
+crates/core-projects/src/model.rs :: Project comment [81088cef37f25415] #1
+crates/core-projects/src/model.rs :: Project comment [f62a4ea16ef252ea] #1
+crates/core-projects/src/model.rs :: module comment [2e3e8754146bae4f] #1
+crates/core-projects/src/model.rs :: module comment [80f2a97e1598e288] #1
 crates/shadows-core/src/testing/mod.rs :: module comment [5a094d369fbab9a4] #1
 crates/shadows-core/src/testing/mod.rs :: module comment [6026fc164b6507f9] #1
 crates/shadows-core/src/testing/mod.rs :: module comment [83d5f5b9622e54ad] #1

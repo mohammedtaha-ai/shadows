@@ -10,8 +10,8 @@ use sqlx::SqliteConnection;
 
 use super::Code;
 use super::model::{Hit, Skipped};
-use crate::projects::{ProjectId, Projects};
 use core_db::{Storage, StorageError};
+use core_projects::{ProjectId, Projects};
 
 /// What `code_file` holds for one file: its stamp, and why it was not
 /// parsed, if it was not.
@@ -197,7 +197,7 @@ impl CodeStore {
         .await?;
         let mut rows = Vec::new();
         for id in linked {
-            match Projects::get_in(&mut snapshot, &ProjectId::from_stored(id)).await {
+            match Projects::get_in(&mut snapshot, &ProjectId::from_recorded(id)).await {
                 Ok(p) => rows.push((p.id, p.slug, p.directory)),
                 Err(StorageError::NotFound(_)) => {}
                 Err(error) => return Err(error),

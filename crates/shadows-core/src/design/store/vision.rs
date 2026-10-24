@@ -2,14 +2,14 @@
 
 use super::DesignStore;
 use crate::design::{DesignAnchor, DesignChange, VisionContent, VisionView, WorkspaceOp};
-use crate::projects::ProjectId;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::ProjectId;
 use std::collections::BTreeSet;
 
 impl DesignStore {
     pub async fn design_vision(&self, project: &ProjectId) -> Result<VisionView, StorageError> {
         let mut tx = self.storage.reader().begin().await?;
-        crate::projects::Projects::require_live_in(&mut tx, project).await?;
+        core_projects::Projects::require_live_in(&mut tx, project).await?;
         let row: Option<(i64, Option<String>)> = sqlx::query_as(
             "SELECT revision,vision_content FROM design_workspace WHERE project_id=?",
         )

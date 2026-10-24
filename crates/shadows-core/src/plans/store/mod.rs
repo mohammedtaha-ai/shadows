@@ -24,8 +24,8 @@ mod view;
 
 use crate::grants::Writer;
 use crate::operations::OperationId;
-use crate::projects::ProjectId;
 use core_db::JournalEntry;
+use core_projects::ProjectId;
 
 /// A plan event records its subject: always its project, with the writer as
 /// the actor; the thread, and the turn when there is one, only for a Planner.

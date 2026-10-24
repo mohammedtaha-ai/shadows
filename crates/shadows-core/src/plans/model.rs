@@ -12,9 +12,9 @@ use std::collections::BTreeMap;
 use super::dependencies::{LinkedTask, TaskParent};
 use super::rules::Problem;
 use crate::grants::GrantId;
-use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use core_db::newtype_id;
+use core_projects::ProjectId;
 
 newtype_id! {
     /// One version of a plan.

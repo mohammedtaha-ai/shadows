@@ -28,12 +28,12 @@ use crate::person::PersonSettings;
 use crate::plans::Plans;
 use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
-use crate::projects::Projects;
 use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
 use crate::usage::Usage;
 use core_db::Storage;
+use core_projects::Projects;
 use core_providers::Providers;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
@@ -126,8 +126,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/harness/contract.yaml` |"]
 #[doc = " | `Projects` | \
          project directory registration | \
-         `crates/shadows-core/src/projects` | \
-         `crates/shadows-core/src/projects/contract.yaml` |"]
+         `crates/core-projects/src` | \
+         `crates/core-projects/contract.yaml` |"]
 #[doc = " | `ProjectLifecycle` | \
          cross-owner project lifecycle | \
          `crates/shadows-core/src/project_lifecycle` | \
@@ -650,5 +650,13 @@ impl AppCore {
 impl AppCore {
     pub fn secrets_for_tests(storage: Arc<Storage>, key: Option<SecretKey>) -> Arc<Secrets> {
         Secrets::new(storage, key)
+    }
+}
+
+#[cfg(feature = "test-support")]
+impl AppCore {
+    /// Builds the project service for fixtures that retain the database handle.
+    pub fn projects_for_tests(storage: Arc<Storage>) -> Projects {
+        Projects::new(storage)
     }
 }

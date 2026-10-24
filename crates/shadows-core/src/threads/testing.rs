@@ -1,8 +1,8 @@
 //! Test-only owner entry points over the fixture's shared storage handle.
 use super::{NewThreadEntry, PlanningThread, ThreadEntry, ThreadId, Threads, TurnContext, store};
-use crate::projects::ProjectId;
 use core_db::StorageError;
 use core_db::{CommandContext, Storage};
+use core_projects::ProjectId;
 use std::sync::Arc;
 
 impl Threads {

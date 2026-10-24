@@ -48,7 +48,7 @@ impl DesignStore {
             .await?;
             return Ok(Read::Replay(serde_json::from_str(&json)?));
         }
-        let metadata = crate::projects::Projects::get_in(&mut tx, p).await?;
+        let metadata = core_projects::Projects::get_in(&mut tx, p).await?;
         let (name, directory) = (metadata.name, metadata.directory);
         let revision: i64 =
             sqlx::query_scalar("SELECT map_revision FROM design_workspace WHERE project_id=?")
@@ -131,7 +131,7 @@ impl DesignStore {
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
-                    let live = crate::projects::Projects::is_live_in(conn, &p).await?;
+                    let live = core_projects::Projects::is_live_in(conn, &p).await?;
                     let current: Option<i64> = if live {
                         sqlx::query_scalar(
                             "SELECT map_revision FROM design_workspace WHERE project_id=?",

@@ -12,8 +12,8 @@ pub use model::InstructionsVersion;
 use store::InstructionsStore;
 
 use crate::error::CoreError;
-use crate::projects::ProjectId;
 use core_db::{CommandContext, Storage};
+use core_projects::ProjectId;
 
 /// Instructions: its private store over the shared storage handle.
 #[derive(Clone)]

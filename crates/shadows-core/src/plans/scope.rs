@@ -139,7 +139,7 @@ impl Plans {
 
     async fn plan_in_project(
         &self,
-        project: &crate::projects::ProjectId,
+        project: &core_projects::ProjectId,
         plan_id: Option<&PlanId>,
     ) -> Result<Option<super::model::PlanListing>, CoreError> {
         let Some(plan_id) = plan_id else {

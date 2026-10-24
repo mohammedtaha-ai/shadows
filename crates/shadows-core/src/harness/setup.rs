@@ -12,10 +12,10 @@ use super::Harness;
 use crate::error::CoreError;
 use crate::grants::GrantId;
 use crate::instructions::{Instructions, InstructionsVersion};
-use crate::projects::ProjectId;
 use crate::standards::{EffectiveStandards, Standards};
 use crate::threads::ThreadId;
 use core_db::{Storage, StorageError};
+use core_projects::ProjectId;
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 

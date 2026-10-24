@@ -61,7 +61,7 @@ impl ProposalReadRows {
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<VisionContent, StorageError> {
-        crate::projects::Projects::require_live_in(conn, project).await?;
+        core_projects::Projects::require_live_in(conn, project).await?;
         let json: Option<Option<String>> =
             sqlx::query_scalar("SELECT vision_content FROM design_workspace WHERE project_id=?")
                 .bind(project.as_str())

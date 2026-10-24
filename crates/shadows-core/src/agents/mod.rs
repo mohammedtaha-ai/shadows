@@ -8,9 +8,9 @@ mod store;
 pub(crate) use error::AgentsError;
 pub use model::{Agent, AgentInput, AgentWorkspace};
 
-use crate::projects::Projects;
 use crate::{CoreError, ProjectId};
 use core_db::{CommandContext, Storage};
+use core_projects::Projects;
 use core_providers::{Provider, ProviderInput, Providers};
 use core_secrets::{EnvEntry, Secrets};
 use sqlx::SqliteConnection;

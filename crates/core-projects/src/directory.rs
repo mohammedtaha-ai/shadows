@@ -69,7 +69,7 @@ pub struct ProjectDirectory(String);
 
 impl ProjectDirectory {
     pub fn resolve(raw: &Path) -> Result<Self, DirectoryError> {
-        Ok(Self(utf8(canonical_dir(raw)?)?))
+        Ok(Self(Self::utf8(Self::canonical_dir(raw)?)?))
     }
 
     pub fn as_str(&self) -> &str {
@@ -78,23 +78,25 @@ impl ProjectDirectory {
 }
 
 /// `raw`, made canonical, provided it is absolute and names a directory.
-pub(super) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError> {
-    if !raw.is_absolute() {
-        return Err(DirectoryError::NotAbsolute(raw.display().to_string()));
+impl ProjectDirectory {
+    pub(super) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError> {
+        if !raw.is_absolute() {
+            return Err(DirectoryError::NotAbsolute(raw.display().to_string()));
+        }
+        let canonical = dunce::canonicalize(raw).map_err(|e| DirectoryError::from_io(raw, e))?;
+        let metadata =
+            std::fs::metadata(&canonical).map_err(|e| DirectoryError::from_io(&canonical, e))?;
+        if !metadata.is_dir() {
+            return Err(DirectoryError::NotADirectory(
+                canonical.display().to_string(),
+            ));
+        }
+        Ok(canonical)
     }
-    let canonical = dunce::canonicalize(raw).map_err(|e| DirectoryError::from_io(raw, e))?;
-    let metadata =
-        std::fs::metadata(&canonical).map_err(|e| DirectoryError::from_io(&canonical, e))?;
-    if !metadata.is_dir() {
-        return Err(DirectoryError::NotADirectory(
-            canonical.display().to_string(),
-        ));
-    }
-    Ok(canonical)
-}
 
-pub(super) fn utf8(path: PathBuf) -> Result<String, DirectoryError> {
-    path.into_os_string()
-        .into_string()
-        .map_err(|_| DirectoryError::NotUtf8)
+    pub(super) fn utf8(path: PathBuf) -> Result<String, DirectoryError> {
+        path.into_os_string()
+            .into_string()
+            .map_err(|_| DirectoryError::NotUtf8)
+    }
 }

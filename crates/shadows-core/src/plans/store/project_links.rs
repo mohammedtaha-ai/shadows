@@ -1,8 +1,8 @@
 //! Atomic project-link commands with plan dependency notifications.
 use super::PlansStore;
 use crate::code::{Code, ProjectLink};
-use crate::projects::{ProjectId, Projects};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::{ProjectId, Projects};
 impl PlansStore {
     pub(in crate::plans) async fn put_code_link(
         &self,
@@ -18,7 +18,7 @@ impl PlansStore {
                     if let Some(done) =
                         CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
                     {
-                        let done = ProjectId::from_stored(done);
+                        let done = ProjectId::from_recorded(done);
                         return Code::replayed_link_in(conn, &ctx, &project, &done)
                             .await
                             .map(Some);

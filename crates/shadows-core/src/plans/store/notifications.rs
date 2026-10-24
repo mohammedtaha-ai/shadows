@@ -5,8 +5,8 @@ use std::collections::BTreeSet;
 use sqlx::SqliteConnection;
 
 use crate::plans::{Link, PlanId, TaskParent};
-use crate::projects::ProjectId;
 use core_db::{Actor, JournalEntry, StorageError};
+use core_projects::ProjectId;
 
 impl NotificationsRows {
     pub(in crate::plans) async fn notify_plan(
@@ -34,7 +34,7 @@ impl NotificationsRows {
         .await?;
         let mut affected = BTreeSet::new();
         for row in rows {
-            if crate::projects::Projects::is_live_in(conn, &ProjectId::from_stored(row.clone()))
+            if core_projects::Projects::is_live_in(conn, &ProjectId::from_recorded(row.clone()))
                 .await?
             {
                 affected.insert(row);
@@ -86,7 +86,7 @@ impl NotificationsRows {
         .await?;
         let mut affected = BTreeSet::new();
         for row in rows {
-            if crate::projects::Projects::is_live_in(conn, &ProjectId::from_stored(row.clone()))
+            if core_projects::Projects::is_live_in(conn, &ProjectId::from_recorded(row.clone()))
                 .await?
             {
                 affected.insert(row);
@@ -115,7 +115,7 @@ async fn publish(
     affected.remove(project.as_str());
     for target in affected {
         let event = JournalEntry::new("PlanDependenciesChanged", actor.clone())
-            .with_project(ProjectId::from_stored(target).as_str())
+            .with_project(ProjectId::from_recorded(target).as_str())
             .with_payload(payload.clone());
         JournalEntry::append_event(conn, event.clone(), ts).await?;
     }

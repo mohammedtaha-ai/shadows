@@ -20,8 +20,8 @@ pub use model::{Grant, GrantId, GrantKind};
 pub use model::{IssuedGrant, Token};
 
 use crate::error::CoreError;
-use crate::projects::ProjectId;
 use core_db::{CommandContext, Storage};
+use core_projects::ProjectId;
 
 /// Grants: what storage holds, and the `/mcp` address a `claude mcp add`
 /// line names.

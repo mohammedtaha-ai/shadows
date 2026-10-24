@@ -181,11 +181,11 @@ pattern to follow, not merely an example.
 | `crates/core-runtime/src/store/` | runtime row persistence | `crates/core-runtime/contract.yaml` |
 | `crates/core-runtime/src/model.rs` | runtime identity values | `crates/core-runtime/contract.yaml` |
 | `crates/shadows-core/src/testing/` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing/mod.rs` |
-| `crates/shadows-core/src/projects/` | the projects, the folders a person picks them from included | `crates/shadows-core/src/projects/mod.rs` |
-| `crates/shadows-core/src/projects/model.rs` | the project types callers meet | `crates/shadows-core/src/projects/model.rs` |
-| `crates/shadows-core/src/projects/store.rs` | a project's rows | `crates/shadows-core/src/projects/store.rs` |
-| `crates/shadows-core/src/projects/harness_policy.rs` | which harness a thread or a project's modes may name | `crates/shadows-core/src/projects/harness_policy.rs` |
-| `crates/shadows-core/src/projects/browse.rs` | showing a person the directories they can choose from | `crates/shadows-core/src/projects/browse.rs` |
+| `crates/core-projects/src/` | the projects, the folders a person picks them from included | `crates/core-projects/src/lib.rs` |
+| `crates/core-projects/src/model.rs` | the project types callers meet | `crates/core-projects/src/model.rs` |
+| `crates/core-projects/src/store/` | a project's rows | `crates/core-projects/src/store/` |
+| `crates/core-projects/src/harness_policy.rs` | which harness a thread or a project's modes may name | `crates/core-projects/src/harness_policy.rs` |
+| `crates/core-projects/src/browse.rs` | showing a person the directories they can choose from | `crates/core-projects/src/browse.rs` |
 | `crates/shadows-core/src/threads/` | the planning threads, what they recorded included | `crates/shadows-core/src/threads/mod.rs` |
 | `crates/shadows-core/src/threads/error.rs` | stable thread refusals | `crates/shadows-core/src/threads/contract.yaml` |
 | `crates/shadows-core/src/threads/testing.rs` | test-only thread command contexts | `crates/shadows-core/src/threads/contract.yaml` |
@@ -430,3 +430,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-http/src/adapter_agreements_tests.rs` | adapter entry point agreements | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/contract.yaml` | HTTP adapter obligations | `crates/shadows-http/src/lib.rs` |
 | `crates/shadows-mcp/src/contract.yaml` | MCP adapter obligations | `crates/shadows-mcp/src/lib.rs` |
+
+| `crates/core-projects/src/lib.rs` | project registration boundary | `crates/core-projects/contract.yaml` |
+| `crates/core-projects/src/error.rs` | project refusals | `crates/core-projects/contract.yaml` |
+| `crates/core-projects/src/directory.rs` | project directory validation | `crates/core-projects/contract.yaml` |

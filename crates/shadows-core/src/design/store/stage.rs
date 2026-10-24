@@ -2,9 +2,9 @@
 
 use super::DesignStore;
 use crate::design::{PartContent, StageView, VisionContent, stage};
-use crate::projects::ProjectId;
 use crate::standards::{EffectiveStandards, Standards};
 use core_db::StorageError;
+use core_projects::ProjectId;
 
 impl DesignStore {
     pub async fn project_stage(&self, project: &ProjectId) -> Result<StageView, StorageError> {
@@ -19,7 +19,7 @@ impl crate::design::Design {
         tx: &mut sqlx::SqliteConnection,
         project: &ProjectId,
     ) -> Result<StageView, StorageError> {
-        crate::projects::Projects::require_live_in(tx, project).await?;
+        core_projects::Projects::require_live_in(tx, project).await?;
         let content: Option<Option<String>> =
             sqlx::query_scalar("SELECT vision_content FROM design_workspace WHERE project_id=?")
                 .bind(project.as_str())

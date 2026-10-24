@@ -1,7 +1,7 @@
 use crate::harness::OpenError;
-use crate::projects::DirectoryError;
 use crate::turns::StartError;
 use core_db::StorageError;
+use core_projects::DirectoryError;
 
 /// Stable codes clients pattern-match on. Never match on human text.
 /// Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
@@ -274,6 +274,19 @@ impl From<core_providers::ProvidersError> for CoreError {
             ProvidersError::KeyMissing(slug) => Self::AylulKeyMissing(slug),
             ProvidersError::Secrets(error) => error.into(),
             ProvidersError::Storage(error) => error.into(),
+        }
+    }
+}
+
+impl From<core_projects::ProjectsError> for CoreError {
+    fn from(error: core_projects::ProjectsError) -> Self {
+        use core_projects::ProjectsError;
+        match error {
+            ProjectsError::Directory(error) => Self::Directory(error),
+            ProjectsError::SettingNotOffered { what, id, detail } => {
+                Self::SettingNotOffered { what, id, detail }
+            }
+            ProjectsError::Storage(error) => Self::Storage(error),
         }
     }
 }

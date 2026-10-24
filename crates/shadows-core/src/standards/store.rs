@@ -1,8 +1,8 @@
 //! Immutable project standards additions over the shared storage handle.
 
 use super::{Standards, StandardsAdditions, StandardsAdditionsVersion};
-use crate::projects::{ProjectId, Projects};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::{ProjectId, Projects};
 use sqlx::SqliteConnection;
 use std::sync::Arc;
 

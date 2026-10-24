@@ -18,8 +18,8 @@ use crate::grants::Writer;
 use crate::operations::OperationId;
 use crate::plans::model::{DraftStarted, PlanContent, PlanId, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
-use crate::projects::ProjectId;
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::ProjectId;
 
 impl PlansStore {
     /// draft_start in `project`. Without a `plan`, a new plan with v1

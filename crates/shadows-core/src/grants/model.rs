@@ -2,9 +2,9 @@
 
 use sha2::{Digest, Sha256};
 
-use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use core_db::newtype_id;
+use core_projects::ProjectId;
 
 newtype_id! {
     /// A thread grant (the internal Planner) or a project grant

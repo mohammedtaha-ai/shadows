@@ -51,8 +51,8 @@ use scope::Scope;
 
 use crate::error::{CoreError, ErrorCode};
 use crate::grants::{Grant, GrantKind};
-use crate::projects::ProjectId;
 use core_db::{Anchor, CommandContext, Storage};
+use core_projects::ProjectId;
 
 /// The pure rules, for `shadows_core::testing` only: its rule tests call them
 /// directly, and nothing outside the crate does.

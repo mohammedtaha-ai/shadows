@@ -1,3 +1,4 @@
+# ProjectsError converts through CoreError to preserve HTTP refusals.
 name: shadows-http
 version: 1
 status: current

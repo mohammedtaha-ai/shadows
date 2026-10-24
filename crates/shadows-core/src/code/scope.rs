@@ -2,7 +2,7 @@
 //! in its scope, and a path inside one. `Code`'s questions call these first.
 
 use crate::error::{CoreError, ErrorCode};
-use crate::projects::ProjectId;
+use core_projects::ProjectId;
 
 use super::Code;
 use super::store::ScopeRow;

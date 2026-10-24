@@ -1,3 +1,4 @@
+# Project identities and registration methods are imported from core-projects.
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns MCP grants from issue to revocation (spec §13.7): a person's issue and
@@ -195,7 +196,7 @@ functions:
 
 enums:
   ProjectId:
-    source: crate::projects::ProjectId
+    source: core_projects::ProjectId
     values: []
   ThreadId:
     source: crate::threads::ThreadId

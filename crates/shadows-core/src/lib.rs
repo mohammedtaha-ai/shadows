@@ -12,7 +12,6 @@ mod operations;
 mod person;
 mod plans;
 mod project_lifecycle;
-mod projects;
 pub use project_lifecycle::ProjectLifecycle;
 mod standards;
 #[cfg(feature = "test-support")]
@@ -38,6 +37,9 @@ pub use code::{
 pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+pub use core_projects::{
+    DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
+};
 pub use core_providers::{
     ListedModel, PresetRegion, Provider, ProviderInput, ProviderModel, ProviderModelInput,
     ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
@@ -77,9 +79,6 @@ pub use plans::{
     PlanState, PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent,
     TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
-pub use projects::{
-    DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
-};
 pub use threads::{
     Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,
     PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
@@ -107,3 +106,5 @@ pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
 }
 
 pub use core_providers::ProvidersError;
+
+pub use core_projects::ProjectsError;

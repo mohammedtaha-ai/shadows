@@ -4,9 +4,9 @@ use crate::CoreError;
 use crate::code::Code;
 use crate::grants::Grants;
 use crate::plans::Plans;
-use crate::projects::{Project, ProjectId, Projects};
 use crate::threads::Threads;
 use core_db::{Actor, CommandContext, JournalEntry, Storage};
+use core_projects::{Project, ProjectId, Projects};
 use std::sync::Arc;
 
 #[derive(Clone)]

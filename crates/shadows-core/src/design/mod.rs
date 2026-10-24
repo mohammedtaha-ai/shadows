@@ -28,7 +28,8 @@ mod workspace;
 
 use std::sync::Arc;
 
-use crate::{error::CoreError, projects::ProjectId};
+use crate::error::CoreError;
+use core_projects::ProjectId;
 pub(crate) use model::WorkspaceOp;
 pub use model::{
     ContractHead, DesignAnchor, DesignChange, DesignRevision, InitialFile, Outcome, OutcomeContent,

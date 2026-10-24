@@ -231,7 +231,10 @@ fn shared(dir: &Path) -> BTreeSet<String> {
                 syn::Item::Impl(i) => {
                     for it in &i.items {
                         if let syn::ImplItem::Fn(m) = it
-                            && crate_visible(&m.vis)
+                            && (crate_visible(&m.vis)
+                                || (dir.file_name().is_some_and(|name| name == "src")
+                                    && matches!(m.vis, syn::Visibility::Public(_))
+                                    && m.sig.ident.to_string().ends_with("_in")))
                         {
                             out.insert(m.sig.ident.to_string());
                         }
@@ -480,4 +483,18 @@ fn every_contract_matches_its_service() {
         "contracts out of date (spec §14.7):\n{}",
         problems.join("\n")
     );
+}
+
+#[test]
+fn extracted_transaction_methods_are_checked_in_private_store_modules() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("src");
+    std::fs::create_dir_all(source.join("store")).unwrap();
+    std::fs::write(source.join("lib.rs"), "pub struct Projects;").unwrap();
+    std::fs::write(
+        source.join("store/mod.rs"),
+        "impl Projects { pub async fn retained_in() {} pub(super) fn load() {} }",
+    )
+    .unwrap();
+    assert_eq!(shared(&source), BTreeSet::from(["retained_in".to_owned()]));
 }

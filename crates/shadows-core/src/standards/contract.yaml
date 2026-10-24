@@ -1,3 +1,4 @@
+# Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns the bundled base standards and immutable project additions.
 # Project liveness is checked through Projects in the caller's snapshot.
@@ -17,7 +18,7 @@ modules:
   store.rs: immutable additions persistence
 
 dependencies:
-  projects: crates/shadows-core/src/projects/contract.yaml
+  projects: crates/core-projects/contract.yaml
 
 shapes:
   Standards:

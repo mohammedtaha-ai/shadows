@@ -3,7 +3,7 @@
 use std::fmt;
 
 use super::model::{AcceptanceItem, Link, PlanId, PlanState, WorkflowId, WorkflowState};
-use crate::projects::ProjectId;
+use core_projects::ProjectId;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct TaskPreview {

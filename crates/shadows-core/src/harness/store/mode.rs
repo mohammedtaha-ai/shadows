@@ -3,9 +3,9 @@ use super::HarnessStore;
 use crate::CoreError;
 use crate::harness::Harness;
 use crate::operations::Operations;
-use crate::projects::Projects;
 use crate::threads::{ThreadId, Threads};
 use core_db::{CommandContext, Storage, StorageError};
+use core_projects::Projects;
 use shadows_agent::policy;
 use sqlx::SqliteConnection;
 

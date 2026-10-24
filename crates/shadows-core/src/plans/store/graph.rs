@@ -7,8 +7,8 @@ use sqlx::SqliteConnection;
 use super::task::TaskRows;
 use crate::plans::dependency_graph::DependencyGraph;
 use crate::plans::{Plan, PlanContent, PlanId, PlanOp, Problem, TaskParent, WorkflowId};
-use crate::projects::ProjectId;
 use core_db::StorageError;
+use core_projects::ProjectId;
 
 type Owner = (ProjectId, Option<WorkflowId>, Option<String>);
 
@@ -76,9 +76,9 @@ impl GraphRows {
         .fetch_optional(&mut *conn)
         .await?;
         if let Some((project, _, _)) = &row
-            && !crate::projects::Projects::is_live_in(
+            && !core_projects::Projects::is_live_in(
                 conn,
-                &ProjectId::from_stored(project.clone()),
+                &ProjectId::from_recorded(project.clone()),
             )
             .await?
         {
@@ -86,7 +86,7 @@ impl GraphRows {
         }
         Ok(row.map(|(project, version, title)| {
             (
-                ProjectId::from_stored(project),
+                ProjectId::from_recorded(project),
                 version.map(WorkflowId::from_stored),
                 title,
             )

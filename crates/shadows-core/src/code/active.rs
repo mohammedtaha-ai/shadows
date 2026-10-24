@@ -13,7 +13,7 @@ use tokio::task::JoinHandle;
 use super::Code;
 use super::model::CodeConfig;
 use super::watch::Worker;
-use crate::projects::ProjectId;
+use core_projects::ProjectId;
 
 /// The order of use and the workers of the active projects.
 #[derive(Default)]

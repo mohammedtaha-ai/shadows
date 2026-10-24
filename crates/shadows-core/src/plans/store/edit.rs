@@ -17,9 +17,9 @@ use crate::operations::OperationId;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::Ops;
 use crate::plans::ops::PlanOp;
-use crate::projects::ProjectId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
+use core_projects::ProjectId;
 
 impl PlansStore {
     /// The order of work: the grant, then a recorded command (answered
@@ -298,7 +298,7 @@ async fn owner(
     .fetch_optional(&mut *conn)
     .await?
     .ok_or(StorageError::NotFound("workflow"))?;
-    Ok((PlanId::from_stored(plan), ProjectId::from_stored(project)))
+    Ok((PlanId::from_stored(plan), ProjectId::from_recorded(project)))
 }
 
 /// A version may change only while it is a Draft at the revision the writer
