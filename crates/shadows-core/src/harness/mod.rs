@@ -14,6 +14,8 @@ mod live;
 mod mode;
 mod model;
 mod offers;
+mod owners;
+pub(crate) use owners::AylulOwners;
 mod profile_home;
 mod sessions;
 mod settings;
@@ -72,7 +74,7 @@ impl Harness {
         adapter: Arc<shadows_agent::claude::ClaudeAdapter>,
         storage: Arc<Storage>,
         config: SessionsConfig,
-        owners: crate::app::AylulOwners,
+        owners: crate::harness::AylulOwners,
         instructions: crate::Instructions,
         grants: crate::grants::Grants,
         operations: crate::operations::Operations,

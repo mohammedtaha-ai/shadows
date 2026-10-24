@@ -1,3 +1,4 @@
+# Durable operation ids are imported from Operations, never the Turns re-export.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Grant authority calls use Grants methods; refusing writes promote GrantsError through write_txn_as.

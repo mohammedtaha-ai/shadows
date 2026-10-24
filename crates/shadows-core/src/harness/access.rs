@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 
 impl Harness {
     #[cfg(feature = "test-support")]
-    pub(crate) fn aylul_owners(&self) -> crate::app::AylulOwners {
+    pub(crate) fn aylul_owners(&self) -> crate::harness::AylulOwners {
         self.sessions.owners.clone()
     }
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {

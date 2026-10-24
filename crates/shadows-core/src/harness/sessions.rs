@@ -102,7 +102,7 @@ impl OpenSession {
 }
 
 pub(super) struct Sessions {
-    pub(super) owners: crate::app::AylulOwners,
+    pub(super) owners: crate::harness::AylulOwners,
     pub(super) homes: super::profile_home::Homes,
     pub(super) adapter: Arc<ClaudeAdapter>,
     pub(super) storage: Arc<Storage>,
@@ -120,7 +120,7 @@ impl Sessions {
         adapter: Arc<ClaudeAdapter>,
         storage: Arc<Storage>,
         config: SessionsConfig,
-        owners: crate::app::AylulOwners,
+        owners: crate::harness::AylulOwners,
         instructions: crate::Instructions,
         grants: crate::grants::Grants,
     ) -> Arc<Self> {

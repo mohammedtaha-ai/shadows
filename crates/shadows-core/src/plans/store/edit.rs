@@ -14,12 +14,12 @@ use super::task::TaskRows;
 use crate::events::DurableEvent;
 use crate::grants::Grants;
 use crate::grants::Writer;
+use crate::operations::OperationId;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::Ops;
 use crate::plans::ops::PlanOp;
 use crate::projects::ProjectId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
-use crate::turns::OperationId;
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
 
 impl PlansStore {

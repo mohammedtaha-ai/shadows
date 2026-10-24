@@ -21,7 +21,7 @@ use crate::error::CoreError;
 use crate::events::{Events, UiSignal};
 use crate::extensions::Extensions;
 use crate::grants::Grants;
-use crate::harness::{Harness, SessionsConfig};
+use crate::harness::{AylulOwners, Harness, SessionsConfig};
 use crate::instructions::Instructions;
 use crate::operations::Operations;
 use crate::person::PersonSettings;
@@ -184,23 +184,13 @@ pub struct AppCore {
     code: Code,
 }
 
-/// The AYLUL configuration owners an opening reads, built in one place so `start`
-/// and the test-only sessions wire them the same way.
-#[derive(Clone)]
-pub(crate) struct AylulOwners {
-    pub(crate) providers: Arc<Providers>,
-    pub(crate) agents: Arc<Agents>,
-    pub(crate) extensions: Arc<Extensions>,
-    pub(crate) person: PersonSettings,
-}
-
-impl AylulOwners {
-    pub(crate) fn build(
+impl AppCore {
+    fn build_aylul_owners(
         storage: Arc<Storage>,
         secrets: Arc<Secrets>,
         home_root: Option<PathBuf>,
         projects: Projects,
-    ) -> Self {
+    ) -> AylulOwners {
         let providers = Providers::new(storage.clone(), secrets.clone());
         let agents = Agents::new(
             storage.clone(),
@@ -209,7 +199,7 @@ impl AylulOwners {
             projects,
             home_root.clone(),
         );
-        Self {
+        AylulOwners {
             providers,
             agents,
             extensions: Extensions::new(storage.clone(), home_root),
@@ -246,7 +236,7 @@ impl AppCore {
             .secrets
             .clone()
             .unwrap_or_else(|| crate::Secrets::new(storage.clone(), None));
-        let owners = crate::app::AylulOwners::build(
+        let owners = Self::build_aylul_owners(
             storage.clone(),
             secrets,
             config.aylul.as_ref().map(|c| c.home_root.clone()),
@@ -297,7 +287,7 @@ impl AppCore {
         // Every Planner session opens with the `/mcp` of the address actually
         // bound (§13.8), which differs from the configured one on port 0.
         let projects = Projects::new(storage.clone());
-        let owners = AylulOwners::build(
+        let owners = Self::build_aylul_owners(
             storage.clone(),
             secrets.clone(),
             config.aylul.as_ref().map(|c| c.home_root.clone()),

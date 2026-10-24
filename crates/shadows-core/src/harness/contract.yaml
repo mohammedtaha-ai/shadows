@@ -87,6 +87,9 @@ source: crates/shadows-core/src/harness
 
 
 shapes:
+  AylulOwners:
+    source: owners.rs
+    note: Harness declares its providers, agents, extensions and person dependencies; AppCore constructs them.
   InvocationContext:
     source: setup.rs
     note: Turns supplies read results; private setup applies errors only when their context is needed.

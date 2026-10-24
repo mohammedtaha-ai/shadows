@@ -613,7 +613,8 @@ LSP after preparation; a new edge is reported, never hidden by a facade.
 - Done when: core-db tests, Core lib and affected storage tests, stream_frames and resync pass; architecture/codemap/openapi and both clippy modes pass; no lower publisher imports events; serialized signal and stored journal bytes retain their shape and order.
 
 #### A-19c.0b · Let Harness declare its configuration dependencies
-- Status: todo
+- Status: done
+- Evidence: Rust LSP module references confirm Plans no longer imports Turns and Harness declares agents/providers/extensions/person directly. Core lib plus sessions, aylul_session, aylul_profiles, workflow_rules and contracts: 143 passed, one existing live-key probe ignored. Architecture 27, codemap 1 and openapi 7 passed; all-target workspace clippy, fmt, exact line length, LF and api diff pass. No allowlist line changed.
 - Needs: A-19c.1
 - Touch: harness/owners.rs, harness/{mod,access,sessions}.rs and contract.yaml; app.rs and testing/acp.rs; Plans store/{mod,edit,draft,view}.rs imports and contract; docs/codebase/README.md; stages.md; architecture allowlist deletions only.
 - Done when: AylulOwners is declared by Harness, its build remains AppCore composition, Harness imports nothing from app; Plans imports OperationId and InvocationView from their owner; affected harness/session/plan tests and architecture checks pass.

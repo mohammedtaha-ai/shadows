@@ -61,6 +61,7 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/shadows-core/src/harness/owners.rs` | harness configuration dependencies | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/live.rs` | live adapter opening | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/providers/` | AYLUL provider configuration | `crates/shadows-core/src/providers/contract.yaml` |
 | `crates/shadows-core/src/providers/model.rs` | public provider metadata | `crates/shadows-core/src/providers/contract.yaml` |
