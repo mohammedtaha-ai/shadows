@@ -9,9 +9,9 @@ pub(crate) use error::AgentsError;
 pub use model::{Agent, AgentInput, AgentWorkspace};
 
 use crate::projects::Projects;
-use crate::providers::{Provider, ProviderInput, Providers};
 use crate::{CoreError, ProjectId};
 use core_db::{CommandContext, Storage};
+use core_providers::{Provider, ProviderInput, Providers};
 use core_secrets::{EnvEntry, Secrets};
 use sqlx::SqliteConnection;
 use std::path::PathBuf;
@@ -127,7 +127,7 @@ impl Agents {
                 })
             })
             .await?;
-        self.providers.provider(&slug).await
+        self.providers.provider(&slug).await.map_err(Into::into)
     }
 
     /// Removes a provider no live agent uses, with its key, in one write.

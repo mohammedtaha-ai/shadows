@@ -188,7 +188,7 @@ async fn replay_with_other_input_conflicts() {
             .providers()
             .create_provider("p".into(), provider("Other"))
             .await,
-        Err(CoreError::Storage(
+        Err(shadows_core::ProvidersError::Storage(
             shadows_core::StorageError::CommandConflict
         ))
     ));
@@ -252,7 +252,7 @@ async fn refused(value: serde_json::Value) {
     let input = serde_json::from_value(value).unwrap();
     assert!(matches!(
         w.app.providers().create_provider("bad".into(), input).await,
-        Err(CoreError::ProfileInvalid(_))
+        Err(shadows_core::ProvidersError::InvalidProfile(_))
     ));
 }
 

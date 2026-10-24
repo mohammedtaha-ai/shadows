@@ -633,11 +633,11 @@ not a claim that every unextracted error/fixture is already prepared.
 
 The graph is acyclic in this order. No publisher imports Events; Harness does
 not import app; Plans does not import Turns. Usage has no agents dependency;
-Harness includes person. Runtime and Secrets are extracted. Projects awaits the API-comment allowlist ruling; Providers is the next independent move while that ruling is pending.
+Harness includes person. Runtime, Secrets and Providers are extracted. Projects awaits the API-comment allowlist ruling; Usage and Person are the remaining independent moves while that ruling is pending.
 
 #### A-19c.0 · Give each service its own error
 - Status: doing
-- Progress: the Secrets split is complete in A-19c.2. Remaining owner error splits still accompany their moves.
+- Progress: the Secrets and Providers splits are complete in A-19c.2 and A-19c.7. Remaining owner error splits still accompany their moves.
 - Ruling: controller continuation at 9b3735e supersedes the error-vocabulary blocker; no shared error crate. Apply each owner's split in its extraction commit, lowest first. Runtime already needs only StorageError.
 - Touch: each service's error.rs, model and methods; its declared callers and tests; shadows-core/src/error.rs From conversions and public error re-exports; adapter translation conversions and failure-case tests where a service error crosses the application boundary; affected contracts and code-map rows; manifests and Cargo.lock. No route documentation or wire shape change.
 - Done when: no service names CoreError; each owns only its failures plus Storage where applicable and declared callee errors; existing HTTP status/code/message and MCP failure tests pass; api/ is unchanged.
@@ -726,7 +726,12 @@ automation; no browser/native/provider/production acceptance was performed.
 - Done when: `cargo test -p core-code`, `cargo test -p shadows-core --lib` and Core integration binaries `code_index` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.
 
 #### A-19c.7 · Extract core-providers
-- Status: todo
+- Status: done
+- Evidence: owner package 7 passed (five unchanged listing invariants under tests/ and two public-constructor persistence tests); Core lib 29 passed; all Core binaries 302 passed, three existing ignored. Architecture 30, codemap 1, openapi 7, HTTP lib 24 and MCP lib 1 passed. Both workspace clippy modes, fmt, exact line length, LF, unchanged api and production feature isolation pass. No allowlist line changed.
+- Error split: ProvidersError owns provider validation, missing-provider/key, Storage and declared Secrets causes. CoreError performs the application conversion; HTTP translates through that conversion and Harness wraps the owner error transparently. All status/code/message and provider-in-use tests remain green.
+- Infrastructure: reuse existing reqwest, Tokio (the bounded probe timeout), SQLx, serde and supporting packages; add no external package or shared error crate. Public transaction methods use core-db Tx and the store stays private.
+- Small gaps fixed: validated is the same shared rule Agents calls and is public across the crate boundary; four direct provider/probe assertions now match the owner error. Pure listing tests moved physically without removing assertions; AppCore integration fixtures remain in Core.
+- Execution order: independent of the blocked Projects move; only Secrets and core-db are prerequisites.
 - Needs: A-19c.0 error split in this move; A-19c.0a and A-19c.0b; A-19b ; A-19c.2
 - Touch: `crates/core-providers/` (`Cargo.toml`, `src/lib.rs`, `src/model.rs`, `src/store/`, `contract.yaml`, `tests/`); old `crates/shadows-core/src/providers/`; `crates/shadows-core/src/{lib,app,testing/**}.rs`; `Cargo.toml`, `Cargo.lock`, `crates/shadows-core/Cargo.toml`; caller imports in `crates/shadows-core/src/agents/mod.rs`, `crates/shadows-core/src/agents/store.rs`; those callers' owner contracts; moved owner-local tests and their old registrations; `crates/shadows-core/tests/contracts.rs`; `docs/codebase/README.md`; `docs/backend/stages.md`; `crates/shadows/tests/architecture/{scanner,resolution,sql,fixtures,main}.rs`, `table-owners.txt` and allowlists (delete lines only); `crates/shadows/tests/codemap/main.rs`. AppCore integration tests remain in Core.
 - Done when: `cargo test -p core-providers`, `cargo test -p shadows-core --lib` and Core integration binaries `aylul_profiles` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.

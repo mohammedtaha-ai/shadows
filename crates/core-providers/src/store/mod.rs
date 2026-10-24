@@ -1,6 +1,5 @@
 //! Transactional SQL for provider configuration.
 use super::{Provider, ProviderInput, ProviderModel, ProvidersError, SlugBase};
-use crate::CoreError;
 use core_db::{CommandContext, Storage, StorageError};
 use futures_core::future::BoxFuture;
 use sqlx::{Row, SqliteConnection};
@@ -35,9 +34,9 @@ impl ProvidersStore {
     }
 
     /// One write on the shared connection; the closure refuses with any owner's error.
-    pub(super) async fn write<F, T>(&self, f: F) -> Result<T, CoreError>
+    pub(super) async fn write<F, T>(&self, f: F) -> Result<T, ProvidersError>
     where
-        F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, CoreError>>,
+        F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, ProvidersError>>,
     {
         self.storage.write_txn_as(f).await
     }

@@ -1,3 +1,4 @@
+# Providers is imported from core-providers; CoreError preserves adapter failure semantics.
 # Secrets is imported from core-secrets; application error conversion preserves caller responses.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns AYLUL agent identities: an agent's configuration, its permanent slug, its
@@ -21,7 +22,7 @@ modules:
   store.rs: agent SQL
 
 dependencies:
-  providers: crates/shadows-core/src/providers/contract.yaml
+  providers: crates/core-providers/contract.yaml
   secrets: crates/core-secrets/contract.yaml
   projects: crates/shadows-core/src/projects/contract.yaml
 

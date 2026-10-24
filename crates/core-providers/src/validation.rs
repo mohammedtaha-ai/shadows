@@ -1,22 +1,23 @@
 //! Provider input rules: presets, labels, URLs and the model list.
-use super::{ProviderInput, Providers};
-use crate::CoreError;
+use super::{ProviderInput, Providers, ProvidersError};
 
 impl Providers {
     /// The input normalized, or the refusal: a preset supplies its name and URL.
-    pub(crate) fn validated(&self, mut input: ProviderInput) -> Result<ProviderInput, CoreError> {
+    pub fn validated(&self, mut input: ProviderInput) -> Result<ProviderInput, ProvidersError> {
         input.name = input.name.take().map(|v| v.trim().to_owned());
         input.base_url = input.base_url.take().map(|v| v.trim().to_owned());
         if let Some(id) = &input.preset {
             let preset = Self::preset(id)
-                .ok_or_else(|| CoreError::ProfileInvalid("unknown provider preset".into()))?;
+                .ok_or_else(|| ProvidersError::InvalidProfile("unknown provider preset".into()))?;
             if input.name.as_ref().is_some_and(|v| v != &preset.name)
                 || input
                     .base_url
                     .as_ref()
                     .is_some_and(|v| v != &preset.base_url)
             {
-                return Err(CoreError::ProfileInvalid("preset values differ".into()));
+                return Err(ProvidersError::InvalidProfile(
+                    "preset values differ".into(),
+                ));
             }
             input.name = Some(preset.name);
             input.base_url = Some(preset.base_url);
@@ -31,7 +32,9 @@ impl Providers {
             .as_ref()
             .is_some_and(|v| v.chars().count() > 64 || v.chars().any(char::is_control))
         {
-            return Err(CoreError::ProfileInvalid("invalid provider label".into()));
+            return Err(ProvidersError::InvalidProfile(
+                "invalid provider label".into(),
+            ));
         }
         let url = input.base_url.as_deref().unwrap_or("");
         Self::validate_url(url)?;
@@ -51,14 +54,14 @@ impl Providers {
             || input.name.as_ref().is_some_and(|v| v.len() > 256)
             || bad_models
         {
-            return Err(CoreError::ProfileInvalid(
+            return Err(ProvidersError::InvalidProfile(
                 "invalid provider configuration".into(),
             ));
         }
         Ok(input)
     }
 
-    pub(super) fn validate_url(url: &str) -> Result<(), CoreError> {
+    pub(super) fn validate_url(url: &str) -> Result<(), ProvidersError> {
         let (scheme, rest) = url.split_once("://").unwrap_or(("", ""));
         let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
         let host = if authority.starts_with('[') {
@@ -76,7 +79,9 @@ impl Providers {
             || authority.contains(['@', '%', '\\'])
             || url.chars().any(|c| c.is_whitespace() || c.is_control());
         if bad_url {
-            return Err(CoreError::ProfileInvalid("invalid provider URL".into()));
+            return Err(ProvidersError::InvalidProfile(
+                "invalid provider URL".into(),
+            ));
         }
         Ok(())
     }

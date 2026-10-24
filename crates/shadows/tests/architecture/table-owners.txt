@@ -56,3 +56,4 @@ thread_attachment :: threads
 thread_entry :: threads
 workflow :: plans
 # secrets owner source: crates/core-secrets/src/store/
+# providers owner source: crates/core-providers/src/store/

@@ -208,7 +208,7 @@ async fn saved_test_uses_the_stored_key() {
         .unwrap();
     assert!(matches!(
         core.providers().test_saved_provider("provider", None).await,
-        Err(CoreError::AylulKeyMissing(_))
+        Err(shadows_core::ProvidersError::KeyMissing(_))
     ));
     assert!(
         core.providers()
@@ -234,7 +234,7 @@ async fn invalid_probe_input_is_refused() {
                 .providers()
                 .test_provider(serde_json::from_value(v).unwrap())
                 .await,
-            Err(CoreError::ProfileInvalid(_))
+            Err(shadows_core::ProvidersError::InvalidProfile(_))
         ));
     }
 }

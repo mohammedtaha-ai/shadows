@@ -1,8 +1,8 @@
 //! Transactional SQL for agent identities.
 use super::{Agent, AgentInput, Agents, AgentsError};
 use crate::CoreError;
-use crate::providers::{Providers, SlugBase};
 use core_db::{CommandContext, Storage, StorageError};
+use core_providers::{Providers, SlugBase};
 use futures_core::future::BoxFuture;
 use sqlx::{Row, SqliteConnection};
 use std::path::PathBuf;

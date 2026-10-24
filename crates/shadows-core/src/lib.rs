@@ -14,7 +14,6 @@ mod plans;
 mod project_lifecycle;
 mod projects;
 pub use project_lifecycle::ProjectLifecycle;
-mod providers;
 mod standards;
 #[cfg(feature = "test-support")]
 pub mod testing;
@@ -39,6 +38,10 @@ pub use code::{
 pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+pub use core_providers::{
+    ListedModel, PresetRegion, Provider, ProviderInput, ProviderModel, ProviderModelInput,
+    ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
+};
 pub use core_runtime::{RuntimeInstanceId, StopKind};
 pub use core_secrets::{EnvEntry, SecretKey, Secrets, SecretsError};
 pub use design::StructureWritten;
@@ -77,10 +80,6 @@ pub use plans::{
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };
-pub use providers::{
-    ListedModel, PresetRegion, Provider, ProviderInput, ProviderModel, ProviderModelInput,
-    ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
-};
 pub use threads::{
     Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,
     PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
@@ -106,3 +105,5 @@ pub use standards::{
 pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
     Secrets::validate_env_name(name).map_err(Into::into)
 }
+
+pub use core_providers::ProvidersError;

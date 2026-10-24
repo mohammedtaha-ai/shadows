@@ -29,12 +29,12 @@ use crate::plans::Plans;
 use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
 use crate::projects::Projects;
-use crate::providers::Providers;
 use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
 use crate::usage::Usage;
 use core_db::Storage;
+use core_providers::Providers;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
 use core_secrets::{SecretKey, Secrets};
@@ -78,8 +78,8 @@ pub struct CoreParts {
          `crates/core-secrets/contract.yaml` |"]
 #[doc = " | `Providers` | \
          AYLUL provider configuration | \
-         `crates/shadows-core/src/providers` | \
-         `crates/shadows-core/src/providers/contract.yaml` |"]
+         `crates/core-providers/src` | \
+         `crates/core-providers/contract.yaml` |"]
 #[doc = " | `Agents` | \
          permanent AYLUL agent identities | \
          `crates/shadows-core/src/agents` | \

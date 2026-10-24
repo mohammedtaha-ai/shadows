@@ -1,9 +1,8 @@
 //! Bounded outbound provider tests; keys and provider response text never enter diagnostics.
 use super::{
-    Providers,
+    Providers, ProvidersError,
     listing::{Format, Page},
 };
-use crate::CoreError;
 use std::time::Duration;
 
 #[derive(Clone, serde::Deserialize, utoipa::ToSchema)]
@@ -81,15 +80,21 @@ impl Providers {
     pub async fn test_provider(
         &self,
         input: ProviderTest,
-    ) -> Result<ProviderTestOutcome, CoreError> {
+    ) -> Result<ProviderTestOutcome, ProvidersError> {
         let base_url = match (input.preset, input.base_url) {
             (Some(id), None) => {
                 Self::preset(&id)
-                    .ok_or_else(|| CoreError::ProfileInvalid("unknown provider preset".into()))?
+                    .ok_or_else(|| {
+                        ProvidersError::InvalidProfile("unknown provider preset".into())
+                    })?
                     .base_url
             }
             (None, Some(url)) => url.trim().to_owned(),
-            _ => return Err(CoreError::ProfileInvalid("choose one preset or URL".into())),
+            _ => {
+                return Err(ProvidersError::InvalidProfile(
+                    "choose one preset or URL".into(),
+                ));
+            }
         };
         Self::validate_url(&base_url)?;
         validate_key(&input.api_key)?;
@@ -101,7 +106,7 @@ impl Providers {
         &self,
         slug: &str,
         api_key: Option<String>,
-    ) -> Result<ProviderTestOutcome, CoreError> {
+    ) -> Result<ProviderTestOutcome, ProvidersError> {
         let provider = self.provider(slug).await?;
         let api_key = match api_key {
             Some(key) => key,
@@ -109,16 +114,16 @@ impl Providers {
                 .secrets
                 .resolve_provider_key(slug)
                 .await?
-                .ok_or_else(|| CoreError::AylulKeyMissing(slug.into()))?,
+                .ok_or_else(|| ProvidersError::KeyMissing(slug.into()))?,
         };
         validate_key(&api_key)?;
         Ok(ProviderTestOutcome::probe(&provider.base_url, &api_key).await)
     }
 }
 
-fn validate_key(key: &str) -> Result<(), CoreError> {
+fn validate_key(key: &str) -> Result<(), ProvidersError> {
     if key.trim().is_empty() {
-        return Err(CoreError::ProfileInvalid("empty provider key".into()));
+        return Err(ProvidersError::InvalidProfile("empty provider key".into()));
     }
     Ok(())
 }

@@ -159,6 +159,7 @@ impl From<OpenError> for CoreError {
         match e {
             OpenError::Env(e) => e,
             OpenError::Secrets(error) => error.into(),
+            OpenError::Provider(error) => error.into(),
             OpenError::Storage(e) => CoreError::Storage(e),
             OpenError::Start(reason) => CoreError::HarnessStartFailed(reason),
             OpenError::Workspace(reason) => CoreError::ProjectDirectoryUnusable(reason),
@@ -260,6 +261,19 @@ impl From<core_secrets::SecretsError> for CoreError {
             SecretsError::Unreadable(name) => Self::SecretUnreadable(name),
             SecretsError::Unavailable => Self::SecretsUnavailable,
             SecretsError::Storage(error) => Self::Storage(error),
+        }
+    }
+}
+
+impl From<core_providers::ProvidersError> for CoreError {
+    fn from(error: core_providers::ProvidersError) -> Self {
+        use core_providers::ProvidersError;
+        match error {
+            ProvidersError::NotFound(slug) => Self::AylulProviderNotFound(slug),
+            ProvidersError::InvalidProfile(message) => Self::ProfileInvalid(message),
+            ProvidersError::KeyMissing(slug) => Self::AylulKeyMissing(slug),
+            ProvidersError::Secrets(error) => error.into(),
+            ProvidersError::Storage(error) => error.into(),
         }
     }
 }

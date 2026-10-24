@@ -1,10 +1,10 @@
 //! The shape of a generated configuration slug, before its owner checks it is free.
 
 /// A lowercase ASCII base of at most 29 characters that starts with a letter.
-pub(crate) struct SlugBase(String);
+pub struct SlugBase(String);
 
 impl SlugBase {
-    pub(crate) fn new(name: &str, fallback: &str) -> Self {
+    pub fn new(name: &str, fallback: &str) -> Self {
         let mut base = String::new();
         for c in name.to_ascii_lowercase().chars() {
             if c.is_ascii_alphanumeric() {
@@ -25,7 +25,7 @@ impl SlugBase {
     }
 
     /// The base itself at `n` 1, then the base with `-n`, within 32 characters.
-    pub(crate) fn candidate(&self, n: usize) -> String {
+    pub fn candidate(&self, n: usize) -> String {
         if n <= 1 {
             return self.0.clone();
         }

@@ -64,15 +64,16 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/plans/signal.rs` | live plan-show vocabulary | `crates/shadows-core/src/plans/contract.yaml` |
 | `crates/shadows-core/src/harness/owners.rs` | harness configuration dependencies | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/live.rs` | live adapter opening | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/providers/` | AYLUL provider configuration | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/model.rs` | public provider metadata | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/validation.rs` | provider input rules | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/presets.rs` | compiled provider presets | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/probe.rs` | bounded provider listing requests | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/listing.rs` | provider model response parsing | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/slug.rs` | generated configuration slug shape | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/error.rs` | provider refusals | `crates/shadows-core/src/providers/contract.yaml` |
-| `crates/shadows-core/src/providers/store.rs` | provider configuration SQL | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/core-providers/src/lib.rs` | provider configuration boundary | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/` | AYLUL provider configuration | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/model.rs` | public provider metadata | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/validation.rs` | provider input rules | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/presets.rs` | compiled provider presets | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/probe.rs` | bounded provider listing requests | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/listing.rs` | provider model response parsing | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/slug.rs` | generated configuration slug shape | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/error.rs` | provider refusals | `crates/core-providers/contract.yaml` |
+| `crates/core-providers/src/store/` | provider configuration SQL | `crates/core-providers/contract.yaml` |
 | `crates/shadows-core/src/agents/` | permanent AYLUL agent identities | `crates/shadows-core/src/agents/contract.yaml` |
 | `crates/shadows-core/src/agents/model.rs` | public agent metadata | `crates/shadows-core/src/agents/contract.yaml` |
 | `crates/shadows-core/src/agents/home.rs` | agent home seeding | `crates/shadows-core/src/agents/contract.yaml` |

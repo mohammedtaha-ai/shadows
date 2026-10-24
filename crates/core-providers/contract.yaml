@@ -10,10 +10,10 @@
 name: providers
 version: 1
 status: current
-source: crates/shadows-core/src/providers
+source: crates/core-providers/src
 
 modules:
-  mod.rs: provider reads, creation, keys and the in-transaction methods
+  lib.rs: provider reads, creation, keys and the in-transaction methods
   model.rs: public provider metadata
   validation.rs: provider input rules
   presets.rs: compiled provider presets
@@ -21,7 +21,7 @@ modules:
   listing.rs: provider model response parsing
   slug.rs: generated slug shape
   error.rs: provider refusals
-  store.rs: provider SQL
+  store/mod.rs: provider SQL
 
 dependencies:
   secrets: crates/core-secrets/contract.yaml
@@ -34,6 +34,9 @@ shapes:
     storage: Arc<Storage> # Private to providers; shares the existing pool.
   ProvidersError:
     NotFound: String # AylulProviderNotFound for a caller
+    InvalidProfile: String
+    KeyMissing: String
+    Secrets: core_secrets::SecretsError
     Storage: StorageError
   SlugBase:
     note: Lowercase ASCII base of at most 29 characters starting with a letter; candidates add -n within 32
@@ -63,7 +66,7 @@ shapes:
     values: International, China
 
 functions:
-  new: "crate-private: (storage: Arc<Storage>, secrets: Arc<Secrets>) -> Arc<Providers>"
+  new: "public: (storage: Arc<Storage>, secrets: Arc<Secrets>) -> Arc<Providers>"
   providers: List providers in creation order with slug tie break; key_set comes from Secrets::provider_key_set.
   provider: Read provider metadata; key_set comes from Secrets::provider_key_set, never a join on secret_env.
   create_provider: Validate and insert a provider with an immutable generated slug under one replayable command.
@@ -72,14 +75,14 @@ functions:
   provider_presets: List the compiled presets in their fixed order.
   test_provider: Ask the provider for models using the supplied key without storing it.
   test_saved_provider: Test a saved provider with the supplied key, or its stored key; a missing key is AylulKeyMissing.
-  validated: crate-private; the one provider input rule, which Agents::update_provider applies before its write.
+  validated: public; the one provider input rule, which Agents::update_provider applies before its write.
   preset: private; the one preset lookup by id.
   preset_at: private; the preset whose URL is exactly the base URL, which decides its listing.
   preset_listing: private; where a preset lists its models.
   validate_url: private; https, or http on a loopback host, without credentials or controls.
-  models_in: crate-private; a provider's model ids in the caller's write, refusing an unknown provider.
-  update_in: crate-private; replace a known provider in the caller's write.
-  delete_in: crate-private; remove a known provider and its key scope in the caller's write.
+  models_in: public; a provider's model ids in the caller's write, refusing an unknown provider.
+  update_in: public; replace a known provider in the caller's write.
+  delete_in: public; remove a known provider and its key scope in the caller's write.
 
 called_by_other_services:
   validated: Agents::update_provider normalizes the input before its write.
@@ -88,7 +91,10 @@ called_by_other_services:
   delete_in: Agents::delete_provider removes the provider after its in-use check.
   SlugBase: Agents generates agent slugs with the same shape.
 
-shared_in_transaction: {}
+shared_in_transaction:
+  models_in: Provider model ids in the caller snapshot.
+  update_in: Provider configuration in the caller write.
+  delete_in: Provider and key removal in the caller write.
 
 obligations:
   - rule: Probes never store or echo the key or write a command or event.

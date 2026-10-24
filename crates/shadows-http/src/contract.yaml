@@ -39,3 +39,5 @@ agreements:
   - between: [plans::review_agreement, plans::review_agreement_for]
     must: Answer the same review while the grant is live.
     tested_by: agreement_adapter_pairs_preserve_content_and_reach
+
+# Provider service failures translate through CoreError before HTTP mapping.

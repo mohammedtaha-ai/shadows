@@ -61,6 +61,8 @@ pub enum OpenError {
     #[error(transparent)]
     Secrets(#[from] core_secrets::SecretsError),
     #[error(transparent)]
+    Provider(#[from] core_providers::ProvidersError),
+    #[error(transparent)]
     Storage(#[from] StorageError),
     #[error("harness start failed: {0}")]
     Start(String),
