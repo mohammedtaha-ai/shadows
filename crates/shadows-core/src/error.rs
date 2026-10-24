@@ -314,3 +314,11 @@ impl From<core_person::PersonError> for CoreError {
         }
     }
 }
+
+impl From<core_instructions::InstructionsError> for CoreError {
+    fn from(error: core_instructions::InstructionsError) -> Self {
+        match error {
+            core_instructions::InstructionsError::Storage(error) => Self::Storage(error),
+        }
+    }
+}

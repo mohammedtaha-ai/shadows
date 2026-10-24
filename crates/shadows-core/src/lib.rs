@@ -7,7 +7,6 @@ mod events;
 mod extensions;
 mod grants;
 mod harness;
-mod instructions;
 mod operations;
 mod plans;
 mod project_lifecycle;
@@ -35,6 +34,7 @@ pub use code::{
 pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+pub use core_instructions::{Instructions, InstructionsVersion};
 pub use core_person::{Person, PersonInput, PersonSettings, Theme};
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
@@ -67,7 +67,6 @@ pub use harness::{
     AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, LeaseError, OpenError,
     OpenSession, RememberedSettings,
 };
-pub use instructions::{Instructions, InstructionsVersion};
 pub use operations::Operations;
 pub use plans::UiSignal;
 pub use plans::{
@@ -110,3 +109,5 @@ pub use core_projects::ProjectsError;
 pub use core_usage::UsageError;
 
 pub use core_person::PersonError;
+
+pub use core_instructions::InstructionsError;

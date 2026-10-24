@@ -255,7 +255,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/grants/` | grant authorization | `crates/shadows-core/src/grants/mod.rs` |
 | `crates/shadows-core/src/grants/model.rs` | the grant types callers meet | `crates/shadows-core/src/grants/model.rs` |
 | `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
-| `crates/shadows-core/src/instructions/` | a project's numbered Planner instructions | `crates/shadows-core/src/instructions/mod.rs` |
+| `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
 | `crates/shadows-core/src/design/` | a project's design workspace | `crates/shadows-core/src/design/mod.rs` |
 | `crates/shadows-core/src/design/structure.rs` | rendering an approved map as files | `crates/shadows-core/src/design/structure.rs` |
 | `crates/shadows-core/src/design/structure_create.rs` | coordinating a person's structure write | `crates/shadows-core/src/design/structure_create.rs` |
@@ -440,3 +440,8 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-person/src/lib.rs` | person preference boundary | `crates/core-person/contract.yaml` |
 | `crates/core-person/src/error.rs` | person refusals | `crates/core-person/contract.yaml` |
+
+| `crates/core-instructions/src/lib.rs` | numbered instructions boundary | `crates/core-instructions/contract.yaml` |
+| `crates/core-instructions/src/model.rs` | public saved instructions | `crates/core-instructions/contract.yaml` |
+| `crates/core-instructions/src/error.rs` | instructions failures | `crates/core-instructions/contract.yaml` |
+| `crates/core-instructions/src/store/` | private instructions SQL | `crates/core-instructions/contract.yaml` |

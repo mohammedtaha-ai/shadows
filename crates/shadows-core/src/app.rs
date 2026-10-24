@@ -22,7 +22,6 @@ use crate::events::Events;
 use crate::extensions::Extensions;
 use crate::grants::Grants;
 use crate::harness::{AylulOwners, Harness, SessionsConfig};
-use crate::instructions::Instructions;
 use crate::operations::Operations;
 use crate::plans::Plans;
 use crate::plans::UiSignal;
@@ -31,6 +30,7 @@ use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
 use core_db::Storage;
+use core_instructions::Instructions;
 use core_person::PersonSettings;
 use core_projects::Projects;
 use core_providers::Providers;
@@ -138,8 +138,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/threads/contract.yaml` |"]
 #[doc = " | `Instructions` | \
          versioned Planner instructions | \
-         `crates/shadows-core/src/instructions` | \
-         `crates/shadows-core/src/instructions/contract.yaml` |"]
+         `crates/core-instructions/src` | \
+         `crates/core-instructions/contract.yaml` |"]
 #[doc = " | `Events` | \
          thread or project event subscriptions | \
          `crates/shadows-core/src/events` | \
@@ -243,7 +243,7 @@ impl AppCore {
             config.aylul.as_ref().map(|c| c.home_root.clone()),
             crate::testing::projects(storage.clone()),
         );
-        let instructions = crate::Instructions::new(storage.clone());
+        let instructions = core_instructions::Instructions::new(storage.clone());
         let grants = crate::app::AppCore::grants_for_tests(
             storage.clone(),
             config.mcp_url.clone().unwrap_or_default(),

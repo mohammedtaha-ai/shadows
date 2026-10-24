@@ -145,3 +145,9 @@ impl From<shadows_core::PersonError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::InstructionsError> for Failure {
+    fn from(error: shadows_core::InstructionsError) -> Self {
+        CoreError::from(error).into()
+    }
+}

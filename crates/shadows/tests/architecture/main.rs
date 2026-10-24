@@ -211,3 +211,28 @@ fn extracted_person_depends_only_on_the_foundation() {
         );
     }
 }
+
+#[test]
+fn extracted_instructions_depends_only_on_declared_lower_owners() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    let package = lock
+        .split("[[package]]")
+        .find(|entry| {
+            entry
+                .lines()
+                .any(|line| line == r#"name = "core-instructions""#)
+        })
+        .expect("core-instructions is a workspace package");
+    for line in package
+        .lines()
+        .filter(|line| line.trim_start().starts_with('"'))
+    {
+        let name = line.trim().trim_matches(',').trim_matches('"');
+        assert!(
+            !name.starts_with("shadows")
+                && (!name.starts_with("core-") || ["core-db", "core-projects"].contains(&name)),
+            "instructions must depend only on lower owners and infrastructure: {name}"
+        );
+    }
+}

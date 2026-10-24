@@ -127,7 +127,7 @@ impl Sessions {
         storage: Arc<Storage>,
         config: SessionsConfig,
         owners: crate::harness::AylulOwners,
-        instructions: crate::Instructions,
+        instructions: core_instructions::Instructions,
         grants: crate::grants::Grants,
     ) -> Arc<Self> {
         let period = (config.idle_after / 4)

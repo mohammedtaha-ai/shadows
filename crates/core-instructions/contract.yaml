@@ -19,7 +19,7 @@
 name: instructions
 version: 1
 status: current
-source: crates/shadows-core/src/instructions
+source: crates/core-instructions/src
 
 
 shapes:
@@ -38,13 +38,23 @@ shapes:
     created_at: String
 
 
+modules:
+  lib.rs: numbered instructions boundary
+  error.rs: instructions failures
+  model.rs: public saved instructions
+  store/mod.rs: private instructions SQL
+
+dependencies:
+  projects: crates/core-projects/contract.yaml
+
 functions:
   service:
+    new: "(storage: Arc<Storage>) -> Instructions"
     current:
-      signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, InstructionsError>"
       # `None` before the first save, and for an unknown or removed project.
     save:
-      signature: "(&self, command_id: String, project: &ProjectId, body: &str) -> Result<InstructionsVersion, CoreError>"
+      signature: "(&self, command_id: String, project: &ProjectId, body: &str) -> Result<InstructionsVersion, InstructionsError>"
       # "PlannerInstructionsSave", principal User/local, schema 1, params
       # { project, body } → `InstructionsStore::save`. Refusals: NotFound
       # (no such project); CommandConflict.
@@ -65,8 +75,8 @@ functions:
 
 
 enums:
-  CoreError:
-    source: crate::error::CoreError
+  InstructionsError:
+    source: core_instructions::InstructionsError
     values: []
   StorageError:
     source: core_db::StorageError
@@ -88,11 +98,13 @@ obligations:
     tested_by:
       - each_save_is_a_new_numbered_version
       - current_instructions_are_the_highest_number
+      - concurrent_saves_number_versions_inside_the_write
+      - saved_versions_replay_exactly_and_remain_scoped_to_the_project
+      - removal_hides_current_but_keeps_the_original_replay
     note: >
-      Both drive the service (`AppCore::instructions`), so a replay goes
-      through the real "PlannerInstructionsSave" fingerprint. The numbering runs inside the save's write
-      (`BEGIN IMMEDIATE`), which is why MAX+1 cannot race; no test races two
-      saves.
+      AppCore adapter tests and public-constructor owner tests use the real
+      "PlannerInstructionsSave" fingerprint. Numbering runs inside the save's
+      write; the owner test races twelve saves and requires distinct consecutive numbers.
 
   - rule: >
       The saved event carries the number, never the body.

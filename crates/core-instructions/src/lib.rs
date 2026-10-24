@@ -11,9 +11,10 @@ use std::sync::Arc;
 pub use model::InstructionsVersion;
 use store::InstructionsStore;
 
-use crate::error::CoreError;
+mod error;
 use core_db::{CommandContext, Storage};
 use core_projects::ProjectId;
+pub use error::InstructionsError;
 
 /// Instructions: its private store over the shared storage handle.
 #[derive(Clone)]
@@ -22,7 +23,7 @@ pub struct Instructions {
 }
 
 impl Instructions {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
+    pub fn new(storage: Arc<Storage>) -> Self {
         Self {
             store: InstructionsStore::new(storage),
         }
@@ -33,7 +34,7 @@ impl Instructions {
     pub async fn current(
         &self,
         project: &ProjectId,
-    ) -> Result<Option<InstructionsVersion>, CoreError> {
+    ) -> Result<Option<InstructionsVersion>, InstructionsError> {
         Ok(self.store.current(project).await?)
     }
 
@@ -44,7 +45,7 @@ impl Instructions {
         command_id: String,
         project: &ProjectId,
         body: &str,
-    ) -> Result<InstructionsVersion, CoreError> {
+    ) -> Result<InstructionsVersion, InstructionsError> {
         let params = serde_json::json!({ "project": project, "body": body });
         let c = CommandContext::user(command_id, "PlannerInstructionsSave", params);
         Ok(self.store.save(&c, project, body).await?)

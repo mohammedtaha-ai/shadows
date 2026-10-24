@@ -75,7 +75,7 @@ impl Harness {
         storage: Arc<Storage>,
         config: SessionsConfig,
         owners: crate::harness::AylulOwners,
-        instructions: crate::Instructions,
+        instructions: core_instructions::Instructions,
         grants: crate::grants::Grants,
         operations: crate::operations::Operations,
         projects: Projects,
