@@ -500,6 +500,23 @@ native or production acceptance was run.
 
 ### A-19c · Extract services in the verified order
 
+Controller continuation (2026-10-24, `9b3735e`): service-owned error enums replace
+CoreError in each owner, lowest first, in its extraction commit; CoreError stays
+in shadows-core and converts those errors without changing adapter responses.
+Harness owns AylulOwners; AppCore constructs the bundle and its services. Plans
+imports operation and invocation types from operations and harness directly.
+
+The conservative event boundary uses the existing core-db JournalEntry as the
+only durable publication vocabulary: its subject ids are strings, and each
+publisher converts its owned ids without changing payload serialization, UUIDs,
+column values or append order. The typed DurableEvent bridge is removed instead
+of introducing another vocabulary crate. The live plan-show value UiSignal moves
+to Plans, below its publisher Turns and consumer Events; its typed fields and
+Serialize derive stay identical, and shadows-core preserves its public re-export.
+This leaves event subscription with Events and plan-view vocabulary with its
+existing owner, without a shared types crate or a dependency back to publishers.
+
+
 Dispatch verification (2026-10-24, `e89e9c4`): the expanded tasks and current
 runtime/type/test graph are recorded under A-19c in `docs/backend/stages.md`.
 Rust LSP verifies runtime as the only independent extractable service. The
