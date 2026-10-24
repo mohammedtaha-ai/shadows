@@ -1,11 +1,12 @@
-use crate::operations::Operations;
+use crate::{Operations, ReconcileReport};
 use core_db::StorageError;
 use core_runtime::{RuntimeInstanceId, StopKind};
+
 impl Operations {
     pub async fn recover_for_test(
         &self,
         current: &RuntimeInstanceId,
-    ) -> Result<crate::operations::ReconcileReport, StorageError> {
+    ) -> Result<ReconcileReport, StorageError> {
         self.recover(current).await
     }
 

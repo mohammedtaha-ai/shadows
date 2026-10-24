@@ -52,9 +52,9 @@ impl HarnessStore {
         .bind(ts)
         .execute(&mut *conn)
         .await?;
-        let recorded = crate::operations::Operations::get_operation_in(
+        let recorded = core_operations::Operations::get_operation_in(
             conn,
-            &crate::operations::OperationId::from_stored(operation.to_owned()),
+            &core_operations::OperationId::from_recorded(operation.to_owned()),
         )
         .await?;
         if let Some(thread) = recorded.thread_id {

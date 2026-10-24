@@ -8,11 +8,11 @@
 use sqlx::SqliteConnection;
 
 use crate::harness::{Harness, NewInvocation};
-use crate::operations::Operations;
 use crate::plans::Focus;
 use crate::plans::Plans;
 use crate::turns::model::{OperationId, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_operations::Operations;
 use core_runtime::RuntimeInstanceId;
 use core_threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use shadows_agent::TurnSettings;
@@ -79,7 +79,7 @@ fn recorded(outcome: &str) -> Result<StartedTurn, StorageError> {
             .ok_or(StorageError::NotFound("recorded turn"))
     };
     Ok(StartedTurn {
-        operation_id: OperationId::from_stored(text("operation_id")?),
+        operation_id: OperationId::from_recorded(text("operation_id")?),
         entry_id: ThreadEntryId::from_recorded(text("entry_id")?),
         replayed: true,
         focus_task: None,

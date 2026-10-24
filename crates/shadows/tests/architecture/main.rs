@@ -397,3 +397,36 @@ fn extracted_grants_depends_only_on_declared_lower_owners() {
         );
     }
 }
+
+#[test]
+fn extracted_operations_depends_only_on_declared_lower_owners() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    let package = lock
+        .split("[[package]]")
+        .find(|entry| {
+            entry
+                .lines()
+                .any(|line| line == r#"name = "core-operations""#)
+        })
+        .expect("core-operations is a workspace package");
+    for line in package
+        .lines()
+        .filter(|line| line.trim_start().starts_with('"'))
+    {
+        let name = line.trim().trim_matches(',').trim_matches('"');
+        assert!(
+            (!name.starts_with("shadows") || name == "shadows-agent")
+                && (!name.starts_with("core-")
+                    || [
+                        "core-db",
+                        "core-runtime",
+                        "core-threads",
+                        "core-projects",
+                        "core-operations",
+                    ]
+                    .contains(&name)),
+            "operations must depend only on lower owners and infrastructure: {name}"
+        );
+    }
+}

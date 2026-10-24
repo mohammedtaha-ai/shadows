@@ -11,13 +11,13 @@ use super::plan::PlanRows;
 use super::plan_event;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::operations::OperationId;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::Ops;
 use crate::plans::ops::PlanOp;
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
 use core_grants::Grants;
 use core_grants::Writer;
+use core_operations::OperationId;
 use core_projects::ProjectId;
 use core_threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 
@@ -164,8 +164,7 @@ impl PlansStore {
                     } = &approver
                     {
                         core_grants::Grants::check_writer(conn, writer, &project).await?;
-                        crate::operations::Operations::require_running_in(conn, thread, turn)
-                            .await?;
+                        core_operations::Operations::require_running_in(conn, thread, turn).await?;
                     }
                     let request =
                         core_grants::Grants::authorise_in(conn, &approver, &project).await?;

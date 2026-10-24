@@ -2,8 +2,8 @@
 use super::HarnessStore;
 use crate::CoreError;
 use crate::harness::Harness;
-use crate::operations::Operations;
 use core_db::{CommandContext, Storage, StorageError};
+use core_operations::Operations;
 use core_projects::Projects;
 use core_threads::{ThreadId, Threads};
 use shadows_agent::policy;

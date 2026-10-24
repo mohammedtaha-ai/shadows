@@ -89,7 +89,7 @@ pub(crate) mod for_tests {
 pub struct Turns {
     storage: Arc<Storage>,
     store: store::TurnsStore,
-    operations: crate::operations::Operations,
+    operations: core_operations::Operations,
     runtime: Arc<Runtime>,
     sessions: Arc<Harness>,
     handles: Arc<LiveHandles>,
@@ -149,7 +149,7 @@ impl Turns {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         storage: Arc<Storage>,
-        operations: crate::operations::Operations,
+        operations: core_operations::Operations,
         runtime: Arc<Runtime>,
         sessions: Arc<Harness>,
         handles: Arc<LiveHandles>,
@@ -385,7 +385,7 @@ impl Turns {
         // when a live watcher is still finishing after Stop answers.
         let mut conn = self.storage.reader().acquire().await?;
         let Some(op) =
-            crate::operations::Operations::pending_or_running_in(&mut conn, thread).await?
+            core_operations::Operations::pending_or_running_in(&mut conn, thread).await?
         else {
             return Ok(StopOutcome::NotLive);
         };

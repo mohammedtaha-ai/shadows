@@ -6,10 +6,11 @@ name: operations
 # Harness composes the fork transaction; Operations checks only durable eligibility.
 version: 1
 status: current
-source: crates/shadows-core/src/operations
+source: crates/core-operations/src
 modules:
-  mod.rs: durable lifecycle boundary
+  lib.rs: durable lifecycle boundary
   model.rs: durable operation values
+  error.rs: operation failure vocabulary
   fork.rs: fork eligibility transaction
   testing.rs: test-only runtime stop entry
   store/mod.rs: private persistence handle
@@ -45,10 +46,12 @@ dependencies:
   threads: crates/core-threads/contract.yaml
   runtime: crates/core-runtime/contract.yaml
 functions:
+  new: "(storage: Arc<Storage>) -> Operations; AppCore constructs the service"
+  from_recorded: Retained OperationId reconstruction for cross-owner database references.
   service:
     recover_for_test: Test-support entry for explicitly testing recovery against a chosen runtime.
     recover: "(&self, current: &RuntimeInstanceId) -> Result<ReconcileReport, StorageError>"
-    fork_eligible_in: "(conn, source, at) -> Result<bool, CoreError>"
+    fork_eligible_in: "(conn, source, at) -> Result<bool, OperationsError>"
     thread_is_busy: "(&self, thread) -> Result<bool, StorageError>"
     running_for: "(&self, thread) -> Result<Option<OperationId>, StorageError>"
     non_terminal_operations_owned_by: "(&self, runtime) -> Result<Vec<OperationId>, StorageError>"
@@ -85,7 +88,25 @@ not_the_caller's:
   - Query operation rows outside this owner or infer execution stopped from a cancellation request.
   - Log a transition before the caller's transaction commits.
 
+enums:
+  OperationsError:
+    source: core_operations::OperationsError
+    values: [ThreadBusy, Threads, Storage]
+  OperationId:
+    source: core_operations::OperationId
+    values: []
+  ThreadId:
+    source: core_threads::ThreadId
+    values: []
+  RuntimeInstanceId:
+    source: core_runtime::RuntimeInstanceId
+    values: []
+  StorageError:
+    source: core_db::StorageError
+    values: []
+
 shared_in_transaction:
+  fork_eligible_in: Harness checks durable fork eligibility in its command transaction.
   pending_or_running_in: Turns reads durable stop eligibility without invocation metadata.
   has_any_in: "Harness reads whether any retained operation locks the harness in its command transaction."
   cancelled_in: Turns records cancellation after confirmed execution end.
@@ -97,7 +118,6 @@ shared_in_transaction:
   has_open_in: Turns queue and start enforce thread busyness in the write transaction.
   insert_pending_in: Turns commits Pending with the user entry and command record.
   list_operations_for_thread_in: Turns composes the invocation-enriched listing from durable rows.
-  log: Caller logs the transition only after commit.
   read_before: Internal transition snapshot under the write lock.
   record: Internal operation event journaling in the same transaction.
   request_cancellation_in: Turns records the request before checking the live handle.
@@ -108,8 +128,6 @@ shared_in_transaction:
   started_for_thread_in: Turns composes delivered invocation versions in one read snapshot.
   started_in: Turns records Running after registering its live handle.
   started_thread_in: Turns composes usage with durable started-thread facts.
-  recover: AppCore reconciles other runtime owners before accepting work.
-  stop_runtime: Shutdown checks unfinished work and writes the runtime stop atomically.
   with_detail: Internal transition log detail.
 
 # Transaction-local read: has_any_in(conn, thread) answers whether any retained operation locks its harness.

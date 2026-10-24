@@ -5,12 +5,12 @@
 use super::PlansStore;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::operations::OperationId;
 use crate::plans::conversation::{Place, PlanShown};
 use crate::plans::model::WorkflowId;
 use core_db::{CommandContext, JournalEntry, Storage};
 use core_grants::Grants;
 use core_grants::Writer;
+use core_operations::OperationId;
 use core_threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 
 impl PlansStore {

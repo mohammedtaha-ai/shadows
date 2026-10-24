@@ -77,3 +77,5 @@ workflow :: plans
 # threads SQL lives in crates/core-threads/src/store/.
 
 # grants SQL lives in crates/core-grants/src/store/.
+
+# operations SQL lives in crates/core-operations/src/store/.

@@ -1,4 +1,5 @@
 //! Durable operation lifecycle, independent of live turn execution.
+mod error;
 mod fork;
 mod model;
 mod store;
@@ -6,19 +7,23 @@ mod store;
 mod testing;
 use core_db::{Storage, StorageError};
 use core_threads::ThreadId;
-pub(crate) use model::OperationRecord;
-pub use model::{OperationId, ReconcileReport};
+pub use error::OperationsError;
+pub use model::{OperationId, OperationRecord, ReconcileReport};
 use std::sync::Arc;
+pub use store::Transition;
+
 #[derive(Clone)]
 pub struct Operations {
     store: Arc<store::OperationsStore>,
 }
+
 impl Operations {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
+    pub fn new(storage: Arc<Storage>) -> Self {
         Self {
             store: Arc::new(store::OperationsStore { storage }),
         }
     }
+
     pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError> {
         let mut conn = self.store.storage.reader().acquire().await?;
         Self::has_open_in(&mut conn, thread).await

@@ -1,7 +1,7 @@
 //! Atomic harness selection over Threads and Operations owner methods.
 use super::HarnessStore;
-use crate::operations::Operations;
 use core_db::{CommandContext, Storage, StorageError};
+use core_operations::Operations;
 use core_threads::{PlanningThread, ThreadId, Threads, ThreadsError};
 
 impl HarnessStore {

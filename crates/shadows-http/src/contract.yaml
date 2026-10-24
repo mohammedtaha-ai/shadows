@@ -1,3 +1,4 @@
+# OperationsError is translated through CoreError with unchanged responses.
 # GrantsError is translated through CoreError with unchanged responses.
 # ThreadsError is translated through CoreError with unchanged responses.
 # Extension library methods and refusals are imported from core-extensions.

@@ -46,7 +46,7 @@ impl DesignStore {
                         .await?;
                         return Ok(serde_json::from_str(&json)?);
                     }
-                    crate::operations::Operations::require_running_in(conn, thread, turn.as_str())
+                    core_operations::Operations::require_running_in(conn, thread, turn.as_str())
                         .await?;
                     shape::RoadmapShapeRows::require_structure(conn, &p).await?;
                     let revision: i64 = sqlx::query_scalar(

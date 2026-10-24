@@ -1,12 +1,12 @@
 use super::transition::{Before, Transition};
-use crate::operations::{OperationId, Operations};
+use crate::{OperationId, Operations};
 use core_db::{Actor, StorageError};
 use core_runtime::RuntimeInstanceId;
 use core_threads::ThreadId;
 use sqlx::SqliteConnection;
 
 impl Operations {
-    pub(crate) async fn insert_pending_in(
+    pub async fn insert_pending_in(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
         thread_id: &ThreadId,
@@ -40,7 +40,7 @@ impl Operations {
         .await
     }
 
-    pub(crate) async fn started_in(
+    pub async fn started_in(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
         expected_runtime: &RuntimeInstanceId,
@@ -74,7 +74,7 @@ impl Operations {
         .await
     }
 
-    pub(crate) async fn completed_in(
+    pub async fn completed_in(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
         outcome: &str,
@@ -114,7 +114,7 @@ impl Operations {
         .await
     }
 
-    pub(crate) async fn failed_in(
+    pub async fn failed_in(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
         stage: &str,
@@ -157,7 +157,7 @@ impl Operations {
         .map(|t| t.with_detail(format!("{stage}: {reason}")))
     }
 
-    pub(crate) async fn cancelled_in(
+    pub async fn cancelled_in(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
 
@@ -190,7 +190,7 @@ impl Operations {
         .await
     }
 
-    pub(crate) async fn request_cancellation_in(
+    pub async fn request_cancellation_in(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
         requester: Actor,

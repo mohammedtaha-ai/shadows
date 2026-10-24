@@ -103,7 +103,7 @@ impl EventsStore {
         StoredEvent {
             seq: r.0,
             kind: r.1,
-            operation_id: r.2.map(OperationId::from_stored),
+            operation_id: r.2.map(OperationId::from_recorded),
             thread_id: r.3.map(ThreadId::from_recorded),
             payload_json: r.4,
             created_at: r.5,

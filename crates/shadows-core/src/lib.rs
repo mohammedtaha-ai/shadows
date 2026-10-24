@@ -3,7 +3,6 @@ mod design;
 mod error;
 mod events;
 mod harness;
-mod operations;
 mod plans;
 mod project_lifecycle;
 pub use project_lifecycle::ProjectLifecycle;
@@ -33,6 +32,9 @@ pub use core_extensions::{
 };
 pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use core_instructions::{Instructions, InstructionsVersion};
+pub use core_operations::{
+    OperationId, OperationRecord, Operations, OperationsError, ReconcileReport, Transition,
+};
 pub use core_person::{Person, PersonInput, PersonSettings, Theme};
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
@@ -66,7 +68,6 @@ pub use harness::{
     AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, LeaseError, OpenError,
     OpenSession, RememberedSettings,
 };
-pub use operations::Operations;
 pub use plans::UiSignal;
 pub use plans::{
     AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,
@@ -77,8 +78,8 @@ pub use plans::{
     TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use turns::{
-    InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SendTurn,
-    SentNow, StartError, Turns,
+    InvocationView, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
+    StartError, Turns,
 };
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on

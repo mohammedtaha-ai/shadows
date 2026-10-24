@@ -428,3 +428,17 @@ impl From<core_grants::GrantsError> for CoreError {
         }
     }
 }
+
+impl From<core_operations::OperationsError> for CoreError {
+    fn from(error: core_operations::OperationsError) -> Self {
+        use core_operations::OperationsError;
+        match error {
+            OperationsError::ThreadBusy => Self::Refused {
+                code: ErrorCode::ThreadBusy,
+                message: "the thread has a turn running".into(),
+            },
+            OperationsError::Threads(error) => error.into(),
+            OperationsError::Storage(error) => error.into(),
+        }
+    }
+}

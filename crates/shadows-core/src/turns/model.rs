@@ -3,7 +3,7 @@ use core_db::newtype_id;
 use core_runtime::RuntimeInstanceId;
 use core_threads::{ThreadEntryId, ThreadId};
 
-pub use crate::operations::OperationId;
+pub use core_operations::OperationId;
 
 newtype_id! {
     /// A message written while a turn ran, waiting to be sent.

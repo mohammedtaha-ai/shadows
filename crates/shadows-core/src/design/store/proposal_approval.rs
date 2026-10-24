@@ -30,8 +30,7 @@ impl DesignStore {
                     } = &approver
                     {
                         core_grants::Grants::check_writer(conn, writer, &project).await?;
-                        crate::operations::Operations::require_running_in(conn, thread, turn)
-                            .await?;
+                        core_operations::Operations::require_running_in(conn, thread, turn).await?;
                     }
                     let request =
                         core_grants::Grants::authorise_in(conn, &approver, &project).await?;

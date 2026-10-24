@@ -40,7 +40,7 @@ pub use model::{
 #[derive(Clone)]
 pub struct Design {
     store: Arc<store::DesignStore>,
-    operations: crate::operations::Operations,
+    operations: core_operations::Operations,
     structure_lock: Arc<tokio::sync::Mutex<()>>,
 }
 pub use agreement::{
@@ -71,7 +71,7 @@ impl Design {
         ))
     }
 
-    pub(crate) fn new(storage: Arc<Storage>, operations: crate::operations::Operations) -> Self {
+    pub(crate) fn new(storage: Arc<Storage>, operations: core_operations::Operations) -> Self {
         Self {
             store: Arc::new(store::DesignStore { storage }),
             operations,

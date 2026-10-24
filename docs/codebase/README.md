@@ -195,11 +195,11 @@ pattern to follow, not merely an example.
 | `crates/core-threads/src/title.rs` | the text a title taken from a conversation may read | `crates/core-threads/src/title.rs` |
 | `crates/core-threads/src/store/` | private ThreadsStore persistence | `crates/core-threads/src/store/thread.rs` |
 | `crates/core-threads/src/store/remove.rs` | atomic removal of a planning thread | `crates/core-threads/src/store/remove.rs` |
-| `crates/shadows-core/src/operations/` | durable operation lifecycle | `crates/shadows-core/src/operations/contract.yaml` |
-| `crates/shadows-core/src/operations/model.rs` | durable operation values | `crates/shadows-core/src/operations/contract.yaml` |
-| `crates/shadows-core/src/operations/store/` | private operation persistence | `crates/shadows-core/src/operations/contract.yaml` |
-| `crates/shadows-core/src/operations/fork.rs` | transactional fork eligibility | `crates/shadows-core/src/operations/contract.yaml` |
-| `crates/shadows-core/src/operations/testing.rs` | test-only runtime stop entry | `crates/shadows-core/src/operations/contract.yaml` |
+| `crates/core-operations/src/` | durable operation lifecycle | `crates/core-operations/contract.yaml` |
+| `crates/core-operations/src/model.rs` | durable operation values | `crates/core-operations/contract.yaml` |
+| `crates/core-operations/src/store/` | private operation persistence | `crates/core-operations/contract.yaml` |
+| `crates/core-operations/src/fork.rs` | transactional fork eligibility | `crates/core-operations/contract.yaml` |
+| `crates/core-operations/src/testing.rs` | test-only runtime stop entry | `crates/core-operations/contract.yaml` |
 | `crates/shadows-core/src/turns/testing.rs` | test-only lifecycle composition | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
@@ -463,3 +463,6 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-threads/src/lib.rs` | thread command boundary | `crates/core-threads/contract.yaml` |
 
 | `crates/core-grants/src/lib.rs` | grant authority boundary | `crates/core-grants/contract.yaml` |
+
+| `crates/core-operations/src/lib.rs` | durable lifecycle boundary | `crates/core-operations/contract.yaml` |
+| `crates/core-operations/src/error.rs` | operation failure vocabulary | `crates/core-operations/contract.yaml` |

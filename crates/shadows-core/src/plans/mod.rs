@@ -69,7 +69,7 @@ pub(crate) mod for_tests {
 pub struct Plans {
     store: Arc<store::PlansStore>,
     grants: core_grants::Grants,
-    operations: crate::operations::Operations,
+    operations: core_operations::Operations,
     design: crate::design::Design,
 }
 
@@ -136,7 +136,7 @@ impl Plans {
     pub(crate) fn new(
         storage: Arc<Storage>,
         grants: core_grants::Grants,
-        operations: crate::operations::Operations,
+        operations: core_operations::Operations,
         design: crate::design::Design,
     ) -> Self {
         Self {
@@ -327,7 +327,7 @@ impl Plans {
     ) -> Result<
         (
             PlanShown,
-            crate::operations::OperationId,
+            core_operations::OperationId,
             core_threads::ThreadId,
         ),
         CoreError,

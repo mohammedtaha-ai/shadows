@@ -12,7 +12,7 @@ impl super::TurnsStore {
         usage: Option<&TurnUsage>,
         ts: &str,
     ) -> Result<(), StorageError> {
-        let Some(thread_id) = crate::operations::Operations::started_thread_in(conn, op).await?
+        let Some(thread_id) = core_operations::Operations::started_thread_in(conn, op).await?
         else {
             return Ok(());
         };

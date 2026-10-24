@@ -187,3 +187,9 @@ impl From<shadows_core::GrantsError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::OperationsError> for Failure {
+    fn from(error: shadows_core::OperationsError) -> Self {
+        CoreError::from(error).into()
+    }
+}

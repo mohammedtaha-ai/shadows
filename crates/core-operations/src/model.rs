@@ -6,8 +6,15 @@ newtype_id! {
     OperationId
 }
 
+impl OperationId {
+    /// Reconstructs an operation identity retained by another service.
+    pub fn from_recorded(id: String) -> Self {
+        Self::from_stored(id)
+    }
+}
+
 #[derive(Debug, Clone)]
-pub(crate) struct OperationRecord {
+pub struct OperationRecord {
     pub id: OperationId,
     pub kind: String,
     pub status_kind: String,

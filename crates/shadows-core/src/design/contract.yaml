@@ -323,6 +323,7 @@ shared_in_transaction:
 
 dependencies:
   standards: crates/core-standards/contract.yaml
+  operations: crates/core-operations/contract.yaml
 
 called_by_other_services:
   project_stage: "Design exposes its persisted stage view; Turns reads the rendered line through stage_line_in."

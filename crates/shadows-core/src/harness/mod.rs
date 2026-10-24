@@ -53,7 +53,7 @@ use core_threads::ThreadId;
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {
     store: store::HarnessStore,
-    operations: crate::operations::Operations,
+    operations: core_operations::Operations,
     sessions: Arc<Sessions>,
     projects: Projects,
 }
@@ -77,7 +77,7 @@ impl Harness {
         owners: crate::harness::AylulOwners,
         instructions: core_instructions::Instructions,
         grants: core_grants::Grants,
-        operations: crate::operations::Operations,
+        operations: core_operations::Operations,
         projects: Projects,
     ) -> Arc<Self> {
         let sessions = Sessions::with_owners(

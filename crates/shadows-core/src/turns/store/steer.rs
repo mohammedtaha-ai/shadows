@@ -91,7 +91,7 @@ impl super::TurnsStore {
         };
         let v: serde_json::Value = serde_json::from_str(&outcome)?;
         if let Some(op) = v["operation_id"].as_str() {
-            let operation_id = OperationId::from_stored(op.to_owned());
+            let operation_id = OperationId::from_recorded(op.to_owned());
             return Ok(Some(SentNow::Started { operation_id }));
         }
         let id = v["entry_id"]

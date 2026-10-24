@@ -1,6 +1,6 @@
 use sqlx::SqliteConnection;
 
-use crate::operations::{OperationId, OperationRecord, Operations};
+use crate::{OperationId, OperationRecord, Operations};
 use core_runtime::RuntimeInstanceId;
 use core_threads::ThreadId;
 
@@ -23,7 +23,7 @@ type OperationRow = (
 );
 
 impl Operations {
-    pub(crate) async fn get_operation_in(
+    pub async fn get_operation_in(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
     ) -> Result<OperationRecord, StorageError> {
@@ -40,7 +40,7 @@ impl Operations {
         Ok(into_operation(row))
     }
 
-    pub(crate) async fn list_operations_for_thread_in(
+    pub async fn list_operations_for_thread_in(
         conn: &mut SqliteConnection,
         thread_id: &ThreadId,
     ) -> Result<Vec<OperationRecord>, StorageError> {
@@ -96,7 +96,7 @@ fn into_operation(r: OperationRow) -> OperationRecord {
 
 impl Operations {
     /// The newest Pending or Running turn, including the gap before live registration.
-    pub(crate) async fn pending_or_running_in(
+    pub async fn pending_or_running_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<Option<OperationId>, StorageError> {

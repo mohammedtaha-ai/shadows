@@ -1,9 +1,9 @@
 //! The durable shutdown claim over operations and their runtime owner.
-use crate::operations::Operations;
+use crate::Operations;
 use core_db::{Storage, StorageError};
 use core_runtime::{Runtime, RuntimeInstanceId, StopKind};
 impl Operations {
-    pub(crate) async fn stop_runtime(
+    pub async fn stop_runtime(
         &self,
         runtime: &RuntimeInstanceId,
         kind: StopKind,

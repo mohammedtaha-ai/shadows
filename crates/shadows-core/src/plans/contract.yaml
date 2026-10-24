@@ -1,3 +1,4 @@
+# Operations lifecycle and transaction reads are imported from core-operations.
 # Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
 # Index access and project reach use core-code.

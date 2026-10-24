@@ -1,5 +1,5 @@
-use crate::operations::OperationId;
 use core_db::{Storage, StorageError};
+use core_operations::OperationId;
 use core_projects::Projects;
 use core_standards::{EffectiveStandards, Standards};
 use core_threads::ThreadId;
@@ -11,7 +11,7 @@ impl crate::turns::Turns {
         conn: &mut SqliteConnection,
         operation: &OperationId,
     ) -> Result<EffectiveStandards, StorageError> {
-        let operation_row = crate::operations::Operations::get_operation_in(conn, operation)
+        let operation_row = core_operations::Operations::get_operation_in(conn, operation)
             .await
             .map_err(|error| match error {
                 StorageError::NotFound(_) => StorageError::NotFound("invocation"),

@@ -4,9 +4,9 @@ use super::{
     PlanShown, PlanVersions, Plans, WorkflowId,
 };
 use crate::design::PartId;
-use crate::operations::OperationId;
 use core_db::{CommandContext, StorageError};
 use core_grants::Writer;
+use core_operations::OperationId;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 impl Plans {

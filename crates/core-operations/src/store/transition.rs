@@ -1,6 +1,6 @@
 use sqlx::SqliteConnection;
 
-use crate::operations::OperationId;
+use crate::OperationId;
 use core_db::StorageError;
 use core_db::{Actor, JournalEntry};
 use core_threads::ThreadId;
@@ -47,7 +47,7 @@ impl Before {
 }
 
 #[must_use]
-pub(crate) struct Transition {
+pub struct Transition {
     op_id: OperationId,
     thread: Option<ThreadId>,
     event: String,
@@ -62,7 +62,7 @@ impl Transition {
         self
     }
 
-    pub(crate) fn log(&self) {
+    pub fn log(&self) {
         tracing::info!(
             operation_id = %self.op_id,
             thread_id = %self.thread.as_ref().map_or("none", |t| t.as_str()),

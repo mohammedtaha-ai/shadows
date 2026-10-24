@@ -1,7 +1,7 @@
 use crate::harness::Harness;
-use crate::operations::Operations;
 use crate::turns::model::{FailureStage, OperationId};
 use core_db::{Actor, Storage, StorageError};
+use core_operations::Operations;
 use core_runtime::RuntimeInstanceId;
 #[cfg(feature = "test-support")]
 use core_threads::ThreadId;

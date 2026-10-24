@@ -387,3 +387,4 @@ tests:
     checks: >
       A raw stream read up to caught-up, then the graceful shutdown: `serve`
       returns within 5 s.
+# Operation identities retained in events are reconstructed through core-operations.

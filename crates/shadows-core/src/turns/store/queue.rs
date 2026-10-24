@@ -2,10 +2,10 @@
 
 use sqlx::SqliteConnection;
 
-use crate::operations::Operations;
 use crate::plans::{Focus, PlanId};
 use crate::turns::model::{QueuedMessage, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_operations::Operations;
 use core_threads::ThreadId;
 
 pub(super) const SCOPE: &str = "Thread";

@@ -1,9 +1,9 @@
 use super::transition::{Before, Transition};
-use crate::operations::{OperationId, Operations, ReconcileReport};
+use crate::{OperationId, Operations, ReconcileReport};
 use core_db::{Actor, Storage, StorageError};
 use core_runtime::{Runtime, RuntimeInstanceId};
 impl Operations {
-    pub(crate) async fn recover(
+    pub async fn recover(
         &self,
         current: &RuntimeInstanceId,
     ) -> Result<ReconcileReport, StorageError> {

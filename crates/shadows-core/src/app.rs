@@ -18,7 +18,6 @@ use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::Events;
 use crate::harness::{AylulOwners, Harness, SessionsConfig};
-use crate::operations::Operations;
 use crate::plans::Plans;
 use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
@@ -29,6 +28,7 @@ use core_db::Storage;
 use core_extensions::Extensions;
 use core_grants::Grants;
 use core_instructions::Instructions;
+use core_operations::Operations;
 use core_person::PersonSettings;
 use core_projects::Projects;
 use core_providers::Providers;
@@ -114,8 +114,8 @@ pub struct CoreParts {
          `crates/core-grants/contract.yaml` |"]
 #[doc = " | `Operations` | \
          durable operation lifecycle | \
-         `crates/shadows-core/src/operations` | \
-         `crates/shadows-core/src/operations/contract.yaml` |"]
+         `crates/core-operations/src` | \
+         `crates/core-operations/contract.yaml` |"]
 #[doc = " | `Turns` | \
          turn execution lifecycle | \
          `crates/shadows-core/src/turns` | \
@@ -619,7 +619,7 @@ impl AppCore {
     }
     pub async fn runtime_for_tests(
         storage: Arc<Storage>,
-    ) -> Result<(Runtime, crate::operations::ReconcileReport), crate::StorageError> {
+    ) -> Result<(Runtime, core_operations::ReconcileReport), crate::StorageError> {
         let runtime = Runtime::start(storage.clone()).await?;
         let report = Operations::new(storage)
             .recover(runtime.instance_id())

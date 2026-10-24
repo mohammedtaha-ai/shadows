@@ -36,7 +36,7 @@ impl PlannerTurn {
     pub async fn shut_down(
         runtime: Arc<Runtime>,
         storage: Arc<core_db::Storage>,
-        operations: crate::operations::Operations,
+        operations: core_operations::Operations,
         handles: Arc<LiveHandles>,
         sessions: Arc<Harness>,
         confirm_within: Duration,
@@ -78,7 +78,7 @@ impl PlannerTurn {
 async fn terminate_all(
     runtime: &Arc<Runtime>,
     storage: &Arc<core_db::Storage>,
-    operations: &crate::operations::Operations,
+    operations: &core_operations::Operations,
     handles: &Arc<LiveHandles>,
     sessions: &Arc<Harness>,
 ) -> bool {
@@ -129,7 +129,7 @@ async fn terminate_all(
 async fn all_owned_terminal(
     runtime: &Runtime,
     storage: &core_db::Storage,
-    operations: &crate::operations::Operations,
+    operations: &core_operations::Operations,
 ) -> Result<(), StorageError> {
     let mut committed = storage.watch_committed();
     loop {
@@ -151,7 +151,7 @@ async fn all_owned_terminal(
 /// which turns the next startup will record as `Interrupted`.
 async fn log_unconfirmed(
     runtime: &Runtime,
-    operations: &crate::operations::Operations,
+    operations: &core_operations::Operations,
     message: &'static str,
 ) {
     match operations
@@ -171,7 +171,7 @@ async fn log_unconfirmed(
 /// still cannot be covered by it. Anything else is `Escalated`.
 async fn record(
     runtime: &Runtime,
-    operations: &crate::operations::Operations,
+    operations: &core_operations::Operations,
     confirmed: bool,
 ) -> Result<StopKind, StorageError> {
     if confirmed {

@@ -1,9 +1,10 @@
-use crate::operations::Operations;
+use crate::{OperationId, Operations};
 use core_db::StorageError;
 use core_threads::{ThreadId, Threads};
 use sqlx::SqliteConnection;
+
 impl Operations {
-    pub(crate) async fn has_open_in(
+    pub async fn has_open_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<bool, StorageError> {
@@ -19,8 +20,9 @@ impl Operations {
         Ok(found.is_some())
     }
 }
+
 impl Operations {
-    pub(crate) async fn require_running_in(
+    pub async fn require_running_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         operation: &str,
@@ -43,9 +45,9 @@ impl Operations {
 }
 
 impl Operations {
-    pub(crate) async fn require_status_in(
+    pub async fn require_status_in(
         conn: &mut SqliteConnection,
-        op: &crate::operations::OperationId,
+        op: &OperationId,
         expected: &str,
     ) -> Result<(), StorageError> {
         let status: Option<String> =
@@ -61,21 +63,23 @@ impl Operations {
         }
         Ok(())
     }
-    pub(crate) async fn running_for_in(
+
+    pub async fn running_for_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
-    ) -> Result<Option<crate::operations::OperationId>, StorageError> {
+    ) -> Result<Option<OperationId>, StorageError> {
         let id: Option<String> = sqlx::query_scalar(
             "SELECT id FROM operation WHERE thread_id=? AND status_kind='Running' ORDER BY id",
         )
         .bind(thread.as_str())
         .fetch_optional(conn)
         .await?;
-        Ok(id.map(crate::operations::OperationId::from_stored))
+        Ok(id.map(OperationId::from_stored))
     }
-    pub(crate) async fn started_thread_in(
+
+    pub async fn started_thread_in(
         conn: &mut SqliteConnection,
-        op: &crate::operations::OperationId,
+        op: &OperationId,
     ) -> Result<Option<String>, StorageError> {
         Ok(sqlx::query_scalar(
             "SELECT thread_id FROM operation WHERE id=? AND started_at IS NOT NULL",
@@ -85,7 +89,8 @@ impl Operations {
         .await?
         .flatten())
     }
-    pub(crate) async fn started_for_thread_in(
+
+    pub async fn started_for_thread_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<Vec<String>, StorageError> {
@@ -99,9 +104,9 @@ impl Operations {
 }
 
 impl Operations {
-    pub(crate) async fn require_unfinished_in(
+    pub async fn require_unfinished_in(
         conn: &mut SqliteConnection,
-        op: &crate::operations::OperationId,
+        op: &OperationId,
     ) -> Result<(), StorageError> {
         let state: Option<String> =
             sqlx::query_scalar("SELECT status_kind FROM operation WHERE id=?")
@@ -119,7 +124,7 @@ impl Operations {
 }
 
 impl Operations {
-    pub(crate) async fn completed_in_snapshot(
+    pub async fn completed_in_snapshot(
         conn: &mut SqliteConnection,
         op: &str,
     ) -> Result<bool, StorageError> {
@@ -135,7 +140,7 @@ impl Operations {
 impl Operations {
     /// Whether any operation — running or ended — exists on the thread. Its first
     /// one fixes the harness.
-    pub(crate) async fn has_any_in(
+    pub async fn has_any_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<bool, StorageError> {

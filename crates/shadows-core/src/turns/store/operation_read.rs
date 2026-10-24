@@ -1,7 +1,7 @@
 use crate::harness::Harness;
-use crate::operations::Operations;
 use crate::turns::model::{InvocationView, Operation, OperationId};
 use core_db::StorageError;
+use core_operations::Operations;
 use core_threads::ThreadId;
 impl super::TurnsStore {
     pub async fn get_operation(&self, op: &OperationId) -> Result<Operation, StorageError> {
@@ -31,7 +31,7 @@ impl super::TurnsStore {
 }
 
 fn into_operation(
-    r: crate::operations::OperationRecord,
+    r: core_operations::OperationRecord,
     invocation: Option<InvocationView>,
 ) -> Operation {
     Operation {

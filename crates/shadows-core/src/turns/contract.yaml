@@ -1,3 +1,4 @@
+# Operations lifecycle and transactions are imported from core-operations.
 # Grant authority and approval provenance are imported from core-grants.
 # Index access and project reach use core-code.
 # Project standards are imported from core-standards.
@@ -79,7 +80,7 @@ modules:
 
 dependencies:
   harness: crates/shadows-core/src/harness/contract.yaml
-  operations: crates/shadows-core/src/operations/contract.yaml
+  operations: crates/core-operations/contract.yaml
   threads: crates/core-threads/contract.yaml
   grants: crates/core-grants/contract.yaml
   plans: crates/shadows-core/src/plans/contract.yaml
