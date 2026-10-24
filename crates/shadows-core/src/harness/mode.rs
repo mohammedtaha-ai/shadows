@@ -1,8 +1,8 @@
 //! Durable conversation mode commands and idle session application.
 use super::{Harness, LeaseError, refusal};
 use crate::CoreError;
-use crate::threads::{ThreadId, Threads};
 use core_db::{CommandContext, StorageError};
+use core_threads::{ThreadId, Threads};
 use shadows_agent::choices::SessionChoices;
 
 impl Harness {

@@ -103,7 +103,7 @@ impl Grants {
     pub(crate) async fn issue_thread_grant_in(
         conn: &mut sqlx::SqliteConnection,
         project: &ProjectId,
-        thread: &crate::threads::ThreadId,
+        thread: &core_threads::ThreadId,
     ) -> Result<(Grant, model::Token), core_db::StorageError> {
         store::GrantsStore::issue_thread_grant_in(conn, project, thread).await
     }

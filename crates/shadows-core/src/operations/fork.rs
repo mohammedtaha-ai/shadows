@@ -1,7 +1,7 @@
 //! Durable eligibility for a conversation fork.
 use crate::CoreError;
 use crate::Operations;
-use crate::threads::{ThreadEntryId, ThreadId, Threads};
+use core_threads::{ThreadEntryId, ThreadId, Threads};
 use sqlx::SqliteConnection;
 
 impl Operations {

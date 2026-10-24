@@ -62,7 +62,6 @@ pub type Bus =
 use crate::error::CoreError;
 use crate::harness::{Harness, LeaseError};
 use crate::plans::{Focus, PlanId};
-use crate::threads::ThreadId;
 use core_code::Code;
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_instructions::Instructions;
@@ -70,6 +69,7 @@ use core_projects::Projects;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
 use core_standards::Standards;
+use core_threads::ThreadId;
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
 /// `shadows_core::testing` re-exports these, and nothing outside the crate
@@ -108,7 +108,7 @@ pub struct SendTurn {
     /// The idempotency key.
     pub command_id: String,
     pub prompt: String,
-    pub attachments: Vec<crate::threads::AttachmentId>,
+    pub attachments: Vec<core_threads::AttachmentId>,
     pub model: String,
     pub mode: String,
     pub effort: Option<String>,
@@ -223,7 +223,7 @@ impl Turns {
             mode,
             effort,
         };
-        let context = crate::threads::Threads::turn_context_in(
+        let context = core_threads::Threads::turn_context_in(
             &mut *self
                 .storage
                 .reader()
@@ -424,7 +424,7 @@ impl Turns {
     pub(super) async fn images(
         &self,
         thread: &ThreadId,
-        ids: &[crate::threads::AttachmentId],
+        ids: &[core_threads::AttachmentId],
     ) -> Result<Vec<shadows_agent::acp::ImageBlock>, CoreError> {
         Self::images_in_storage(&self.storage, thread, ids).await
     }
@@ -432,7 +432,7 @@ impl Turns {
     pub(super) async fn images_in_storage(
         storage: &Arc<Storage>,
         thread: &ThreadId,
-        ids: &[crate::threads::AttachmentId],
+        ids: &[core_threads::AttachmentId],
     ) -> Result<Vec<shadows_agent::acp::ImageBlock>, CoreError> {
         store::TurnsStore::with_storage(storage.clone())
             .images(thread, ids)

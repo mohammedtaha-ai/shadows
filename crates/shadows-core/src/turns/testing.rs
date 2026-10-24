@@ -1,8 +1,8 @@
-use crate::threads::ThreadId;
 use crate::turns::model::FailureStage;
 use crate::turns::{Operation, OperationId, Turns};
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_runtime::RuntimeInstanceId;
+use core_threads::ThreadId;
 use shadows_agent::events::{TurnObservation, TurnUsage};
 use std::sync::Arc;
 impl Turns {
@@ -56,7 +56,7 @@ impl Turns {
         storage: &Arc<Storage>,
         ctx: &CommandContext,
         thread: &ThreadId,
-    ) -> Result<crate::threads::PlanningThread, StorageError> {
+    ) -> Result<core_threads::PlanningThread, StorageError> {
         super::store::TurnsStore::with_storage(storage.clone())
             .remove_thread(ctx, thread)
             .await

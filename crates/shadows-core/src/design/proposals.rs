@@ -68,7 +68,7 @@ impl Design {
                     code: ErrorCode::InvalidCommand,
                     message: "no turn is running".into(),
                 })?;
-        let harness = crate::threads::Threads::turn_context_in(
+        let harness = core_threads::Threads::turn_context_in(
             &mut *self
                 .store
                 .storage

@@ -1,11 +1,11 @@
 //! One job: the atomic removal of a planning thread.
 
-use crate::threads::{PlanningThread, ThreadId};
+use crate::{PlanningThread, ThreadId};
 use core_db::{Actor, CommandContext, JournalEntry, StorageError};
 
-impl crate::threads::Threads {
+impl crate::Threads {
     /// Marks the live thread removed inside the composing removal transaction.
-    pub(crate) async fn remove_in(
+    pub async fn remove_in(
         conn: &mut sqlx::SqliteConnection,
         thread: &ThreadId,
         ts: &str,
@@ -34,7 +34,7 @@ impl crate::threads::Threads {
     }
 
     /// Journals and records the removal after its grants were revoked.
-    pub(crate) async fn record_removal_in(
+    pub async fn record_removal_in(
         conn: &mut sqlx::SqliteConnection,
         ctx: &CommandContext,
         current: &PlanningThread,
@@ -74,7 +74,7 @@ impl crate::threads::Threads {
 
 impl super::ThreadsStore {
     /// Removed threads remain readable for plan attribution and history.
-    pub(in crate::threads) async fn get_thread(
+    pub(in super::super) async fn get_thread(
         &self,
         thread: &ThreadId,
     ) -> Result<PlanningThread, StorageError> {

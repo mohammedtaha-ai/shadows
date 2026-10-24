@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use serde_json::Value;
 use tokio::sync::{broadcast, mpsc};
 
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 use shadows_agent::choices::Offered;
 use shadows_agent::events::HarnessEvent;
 

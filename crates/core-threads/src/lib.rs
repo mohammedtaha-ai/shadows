@@ -28,11 +28,10 @@ pub use model::{
     ThreadEntryKind, ThreadId, TurnContext, WorkflowRef,
 };
 
-use crate::error::CoreError;
 use core_code::Code;
 use core_db::{CommandContext, Storage};
 use core_projects::{ProjectId, Projects};
-pub(crate) use error::ThreadsError;
+pub use error::ThreadsError;
 use store::ThreadsStore;
 
 /// Thread persistence and the project code activity a listing touches.
@@ -43,7 +42,7 @@ pub struct Threads {
 }
 
 impl Threads {
-    pub(crate) fn new(storage: Arc<Storage>, code: Code, projects: Projects) -> Self {
+    pub fn new(storage: Arc<Storage>, code: Code, projects: Projects) -> Self {
         Self {
             store: ThreadsStore::with_storage(storage),
             code,
@@ -53,7 +52,7 @@ impl Threads {
 
     /// A project's planning threads, oldest first. An unknown project has none.
     /// Opening a project lists its threads, so the project is touched in Code.
-    pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError> {
+    pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, ThreadsError> {
         let threads = self.store.list_threads_for_project(project).await?;
         self.code.touch(project).await;
         Ok(threads)
@@ -68,17 +67,19 @@ impl Threads {
         title: &str,
         harness: Option<&str>,
         profile: Option<&str>,
-    ) -> Result<PlanningThread, CoreError> {
+    ) -> Result<PlanningThread, ThreadsError> {
         let harness = harness.unwrap_or(policy::CLAUDE_CODE);
         Projects::known_harness(harness)?;
         self.projects.harness_fits(project, harness).await?;
         if harness != policy::AYLUL && profile.is_some() {
-            return Err(CoreError::ProfileInvalid(
+            return Err(ThreadsError::InvalidProfile(
                 "Planner threads cannot name an agent".into(),
             ));
         }
         if harness == policy::AYLUL && profile.is_none() {
-            return Err(CoreError::AylulProfileNotFound("agent required".into()));
+            return Err(ThreadsError::Agent(core_agents::AgentsError::NotFound(
+                "agent required".into(),
+            )));
         }
         let mut params = serde_json::json!({
             "project": project, "title": title, "harness": harness,
@@ -93,17 +94,17 @@ impl Threads {
             .await
     }
 
-    pub async fn list_for_profile(&self, slug: &str) -> Result<Vec<PlanningThread>, CoreError> {
+    pub async fn list_for_profile(&self, slug: &str) -> Result<Vec<PlanningThread>, ThreadsError> {
         Ok(self.store.list_threads_for_profile(slug).await?)
     }
 
     /// A thread's entries in ordinal order.
-    pub async fn entries(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError> {
+    pub async fn entries(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, ThreadsError> {
         Ok(self.store.list_thread_entries(thread).await?)
     }
 
     /// One thread, including a removed one, for historical plan links.
-    pub async fn get(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError> {
+    pub async fn get(&self, thread: &ThreadId) -> Result<PlanningThread, ThreadsError> {
         Ok(self.store.get_thread(thread).await?)
     }
     /// Records the session once; a racing first completion cannot replace it.
@@ -111,7 +112,7 @@ impl Threads {
         &self,
         thread: &ThreadId,
         session: &str,
-    ) -> Result<bool, CoreError> {
+    ) -> Result<bool, ThreadsError> {
         Ok(self.store.record_harness_session(thread, session).await?)
     }
 }

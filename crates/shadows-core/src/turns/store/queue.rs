@@ -4,15 +4,15 @@ use sqlx::SqliteConnection;
 
 use crate::operations::Operations;
 use crate::plans::{Focus, PlanId};
-use crate::threads::ThreadId;
 use crate::turns::model::{QueuedMessage, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_threads::ThreadId;
 
 pub(super) const SCOPE: &str = "Thread";
 
 pub struct NewQueued<'a> {
     pub prompt: &'a str,
-    pub attachments: &'a [crate::threads::AttachmentId],
+    pub attachments: &'a [core_threads::AttachmentId],
     pub model: &'a str,
     pub mode: &'a str,
     pub effort: Option<&'a str>,
@@ -48,7 +48,7 @@ type Row = (
 fn message(r: Row) -> Result<QueuedMessage, StorageError> {
     Ok(QueuedMessage {
         id: QueuedMessageId::from_stored(r.0),
-        thread_id: ThreadId::from_stored(r.1),
+        thread_id: ThreadId::from_recorded(r.1),
         position: r.2,
         prompt: r.3,
         attachments: serde_json::from_str(&r.11)?,
@@ -131,9 +131,8 @@ impl super::TurnsStore {
                     {
                         return Ok(QueueAnswer::Waiting(serde_json::from_str(&outcome)?));
                     }
-                    crate::threads::Threads::require_live_in(conn, &thread).await?;
-                    crate::threads::Threads::attachment_refs_in(conn, &thread, &attachments)
-                        .await?;
+                    core_threads::Threads::require_live_in(conn, &thread).await?;
+                    core_threads::Threads::attachment_refs_in(conn, &thread, &attachments).await?;
                     if !Operations::has_open_in(conn, &thread).await? {
                         return Ok(QueueAnswer::Idle);
                     }
@@ -197,7 +196,7 @@ impl super::TurnsStore {
         thread: &ThreadId,
     ) -> Result<Vec<QueuedMessage>, StorageError> {
         let mut conn = self.storage.reader().begin().await?;
-        if !crate::threads::Threads::is_live_in(&mut conn, thread).await? {
+        if !core_threads::Threads::is_live_in(&mut conn, thread).await? {
             return Ok(Vec::new());
         }
         let rows: Vec<Row> = sqlx::query_as(
@@ -217,7 +216,7 @@ impl super::TurnsStore {
         id: &QueuedMessageId,
     ) -> Result<Option<QueuedMessage>, StorageError> {
         let mut conn = self.storage.reader().begin().await?;
-        if !crate::threads::Threads::is_live_in(&mut conn, thread).await? {
+        if !core_threads::Threads::is_live_in(&mut conn, thread).await? {
             return Ok(None);
         }
         let row: Option<Row> = sqlx::query_as(

@@ -45,10 +45,10 @@ pub(crate) use model::NewInvocation;
 use settings::SettingRefused;
 
 use crate::error::CoreError;
-use crate::threads::ThreadId;
 use core_db::{Storage, StorageError};
 use core_extensions::Extensions;
 use core_projects::Projects;
+use core_threads::ThreadId;
 
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {
@@ -102,7 +102,7 @@ impl Harness {
         command_id: String,
         thread: &ThreadId,
         harness: &str,
-    ) -> Result<crate::threads::PlanningThread, CoreError> {
+    ) -> Result<core_threads::PlanningThread, CoreError> {
         Projects::known_harness(harness)?;
         let mut conn = self
             .store
@@ -111,7 +111,7 @@ impl Harness {
             .begin()
             .await
             .map_err(StorageError::from)?;
-        let context = crate::threads::Threads::turn_context_in(&mut conn, thread).await?;
+        let context = core_threads::Threads::turn_context_in(&mut conn, thread).await?;
         drop(conn);
         self.projects
             .harness_fits(&context.project_id, harness)
@@ -178,7 +178,7 @@ impl Harness {
     /// Opens the thread's harness session and answers what it
     /// offers. Idempotent: an open session answers what it holds.
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError> {
-        let context = crate::threads::Threads::turn_context_in(
+        let context = core_threads::Threads::turn_context_in(
             &mut *self
                 .store
                 .storage
@@ -239,7 +239,7 @@ impl Harness {
     /// available, then no operation is open on it, then its session is opened.
     /// Answers the harness kind and the open session.
     async fn open_idle(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError> {
-        let context = crate::threads::Threads::turn_context_in(
+        let context = core_threads::Threads::turn_context_in(
             &mut *self
                 .store
                 .storage
@@ -258,10 +258,7 @@ impl Harness {
         ))
     }
 
-    async fn check_available(
-        &self,
-        context: &crate::threads::TurnContext,
-    ) -> Result<(), CoreError> {
+    async fn check_available(&self, context: &core_threads::TurnContext) -> Result<(), CoreError> {
         self.sessions.check_context(context).await?;
         if !self.sessions.harness_available(&context.harness).await? {
             return Err(CoreError::HarnessUnavailable(context.harness.clone()));
@@ -272,7 +269,7 @@ impl Harness {
     pub(crate) async fn check_idle(
         &self,
         thread: &ThreadId,
-        context: &crate::threads::TurnContext,
+        context: &core_threads::TurnContext,
     ) -> Result<(), CoreError> {
         self.check_available(context).await?;
         if self.operations.thread_is_busy(thread).await? {
@@ -287,7 +284,7 @@ impl Harness {
     /// The context breakdown of the thread's session, read on demand:
     /// the categories, or none with the reason. Nothing is written.
     pub async fn context(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError> {
-        crate::threads::Threads::turn_context_in(
+        core_threads::Threads::turn_context_in(
             &mut *self
                 .store
                 .storage
@@ -337,7 +334,7 @@ impl Harness {
     /// turn's watcher recorded before it published the usage that asks. `None`
     /// when unknown, or when the thread or the limits cannot be read.
     pub(crate) async fn limits_of(&self, thread: &ThreadId) -> Option<AccountLimits> {
-        let context = crate::threads::Threads::turn_context_in(
+        let context = core_threads::Threads::turn_context_in(
             &mut *self.store.storage.reader().begin().await.ok()?,
             thread,
         )
@@ -358,7 +355,7 @@ impl Harness {
         thread: &ThreadId,
         offered: &Offered,
     ) -> Result<SessionChoices, CoreError> {
-        let context = crate::threads::Threads::turn_context_in(
+        let context = core_threads::Threads::turn_context_in(
             &mut *self
                 .store
                 .storage

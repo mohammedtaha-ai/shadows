@@ -10,8 +10,8 @@ use crate::grants::Writer;
 use crate::operations::OperationId;
 use crate::plans::conversation::{Place, PlanShown};
 use crate::plans::model::WorkflowId;
-use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use core_db::{CommandContext, JournalEntry, Storage};
+use core_threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 
 impl PlansStore {
     /// Writes the card — a `PlanView` entry of `turn`, headed by the version

@@ -11,10 +11,10 @@ use crate::harness::{Harness, NewInvocation};
 use crate::operations::Operations;
 use crate::plans::Focus;
 use crate::plans::Plans;
-use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_runtime::RuntimeInstanceId;
+use core_threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use shadows_agent::TurnSettings;
 
 /// A waiting message the turn sends: taken in the turn's own
@@ -34,7 +34,7 @@ pub struct NewTurn<'a> {
     pub thread_id: &'a ThreadId,
     pub runtime: &'a RuntimeInstanceId,
     pub prompt: &'a str,
-    pub attachments: &'a [crate::threads::AttachmentId],
+    pub attachments: &'a [core_threads::AttachmentId],
     pub role: &'a str,
     pub harness_kind: &'a str,
     pub harness_path: &'a str,
@@ -80,7 +80,7 @@ fn recorded(outcome: &str) -> Result<StartedTurn, StorageError> {
     };
     Ok(StartedTurn {
         operation_id: OperationId::from_stored(text("operation_id")?),
-        entry_id: ThreadEntryId::from_stored(text("entry_id")?),
+        entry_id: ThreadEntryId::from_recorded(text("entry_id")?),
         replayed: true,
         focus_task: None,
     })
@@ -152,7 +152,7 @@ impl super::TurnsStore {
                     {
                         return Ok((recorded(&outcome)?, None));
                     }
-                    crate::threads::Threads::require_live_in(conn, &thread).await?;
+                    core_threads::Threads::require_live_in(conn, &thread).await?;
                     Threads::attachment_refs_in(conn, &thread, &attachments).await?;
                     if Operations::has_open_in(conn, &thread).await? {
                         return Err(crate::turns::error::TurnsError::ThreadBusy.into());

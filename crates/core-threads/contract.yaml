@@ -51,12 +51,12 @@ name: threads
 # Turns owns removal composition, grant revocation, stop and session close.
 version: 1
 status: current
-source: crates/shadows-core/src/threads
+source: crates/core-threads/src
 
 modules:
   attachment.rs: image upload validation
   store/attachment.rs: immutable image persistence
-  mod.rs: thread command boundary
+  lib.rs: thread command boundary
   model.rs: public thread values with opaque provenance references
   error.rs: thread refusal mapping
   title.rs: conversation title normalization
@@ -172,22 +172,24 @@ shapes:
 
 
 functions:
+  new: "(storage, code, projects) -> Threads; AppCore constructs the service"
+  from_recorded: Retained identifier reconstruction for cross-owner database references.
   project_removal_reads:
     has_live_project_threads_in: "(conn, project) -> Result<bool, StorageError>"
   service:
     upload_attachment: Validates image content and 5 MiB limit before immutable command persistence.
     attachment: Reads bytes only through a live thread ownership reference.
     record_harness_session:
-      signature: "(&self, thread: &ThreadId, session: &str) -> Result<bool, CoreError>"
+      signature: "(&self, thread: &ThreadId, session: &str) -> Result<bool, ThreadsError>"
     list_for_profile: Read live agent conversations newest first by created_at then id.
     list:
-      signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, ThreadsError>"
       # Oldest first by the `PlanningThreadCreated` event's seq; an unknown
       # project has none.
       # Then `Code::touch` of the project: the web client opening a project
       # lists its threads (§15.6). It never fails the listing.
     create:
-      signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>, profile: Option<&str>) -> Result<PlanningThread, CoreError>"
+      signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>, profile: Option<&str>) -> Result<PlanningThread, ThreadsError>"
       # harness or `claude-code` → `Projects::known_harness` →
       # `Projects::harness_fits` (`aylul` only in the project `ensure_assistant`
       # marked `assistant`, which allows only `aylul`; SettingNotOffered otherwise) → "thread.create",
@@ -195,10 +197,10 @@ functions:
       # → `create_planning_thread`. Refusals: SettingNotOffered; NotFound (no
       # such project); CommandConflict.
     entries:
-      signature: "(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError>"
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, ThreadsError>"
       # In ordinal order.
     get:
-      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
+      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, ThreadsError>"
       # Also reads a removed conversation for its plan history.
   model:
     as_str:
@@ -212,7 +214,7 @@ functions:
     request_entry_in: "(conn, thread: &ThreadId, turn: &str) -> Result<Option<ThreadEntryId>, StorageError>"
     harness_in: "(conn, thread: &ThreadId, project: &ProjectId) -> Result<String, StorageError>"
     create_planning_thread:
-      signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, CoreError>"
+      signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, ThreadsError>"
       # One write: classify (scope Project) → insert_thread → record_command.
     set_harness_in:
       signature: "(conn, thread, project, harness, actor, ts) -> Result<PlanningThread, ThreadsError>"
@@ -302,25 +304,13 @@ functions:
 
 enums:
   ThreadsError:
-    source: crate::threads::error::ThreadsError
-    values: [HarnessLocked, ForkPointNotSupported, Storage]
-  CoreError:
-    source: crate::error::CoreError
-    values: []
+    source: core_threads::ThreadsError
+    values: [HarnessLocked, ForkPointNotSupported, InvalidCommand, InvalidProfile, Projects, Agent, Storage]
   StorageError:
     source: core_db::StorageError
     values: []
-  Operation:
-    source: crate::turns::Operation
-    values: []
-  OperationId:
-    source: crate::turns::OperationId
-    values: []
   Actor:
     source: core_db::Actor
-    values: []
-  Harness:
-    source: crate::harness::Harness
     values: []
 
 

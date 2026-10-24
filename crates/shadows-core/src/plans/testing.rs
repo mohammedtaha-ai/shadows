@@ -6,9 +6,9 @@ use super::{
 use crate::design::PartId;
 use crate::grants::Writer;
 use crate::operations::OperationId;
-use crate::threads::ThreadId;
 use core_db::{CommandContext, StorageError};
 use core_projects::ProjectId;
+use core_threads::ThreadId;
 impl Plans {
     pub async fn link_plan_part_for_test(
         &self,

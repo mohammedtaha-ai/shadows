@@ -187,14 +187,14 @@ pattern to follow, not merely an example.
 | `crates/core-projects/src/store/` | a project's rows | `crates/core-projects/src/store/` |
 | `crates/core-projects/src/harness_policy.rs` | which harness a thread or a project's modes may name | `crates/core-projects/src/harness_policy.rs` |
 | `crates/core-projects/src/browse.rs` | showing a person the directories they can choose from | `crates/core-projects/src/browse.rs` |
-| `crates/shadows-core/src/threads/` | the planning threads, what they recorded included | `crates/shadows-core/src/threads/mod.rs` |
-| `crates/shadows-core/src/threads/error.rs` | stable thread refusals | `crates/shadows-core/src/threads/contract.yaml` |
-| `crates/shadows-core/src/threads/testing.rs` | test-only thread command contexts | `crates/shadows-core/src/threads/contract.yaml` |
-| `crates/shadows-core/src/threads/store/records.rs` | snapshot-local thread facts | `crates/shadows-core/src/threads/contract.yaml` |
-| `crates/shadows-core/src/threads/model.rs` | the planning thread types callers meet | `crates/shadows-core/src/threads/model.rs` |
-| `crates/shadows-core/src/threads/title.rs` | the text a title taken from a conversation may read | `crates/shadows-core/src/threads/title.rs` |
-| `crates/shadows-core/src/threads/store/` | private ThreadsStore persistence | `crates/shadows-core/src/threads/store/thread.rs` |
-| `crates/shadows-core/src/threads/store/remove.rs` | atomic removal of a planning thread | `crates/shadows-core/src/threads/store/remove.rs` |
+| `crates/core-threads/src/` | the planning threads, what they recorded included | `crates/core-threads/src/mod.rs` |
+| `crates/core-threads/src/error.rs` | stable thread refusals | `crates/core-threads/contract.yaml` |
+| `crates/core-threads/src/testing.rs` | test-only thread command contexts | `crates/core-threads/contract.yaml` |
+| `crates/core-threads/src/store/records.rs` | snapshot-local thread facts | `crates/core-threads/contract.yaml` |
+| `crates/core-threads/src/model.rs` | the planning thread types callers meet | `crates/core-threads/src/model.rs` |
+| `crates/core-threads/src/title.rs` | the text a title taken from a conversation may read | `crates/core-threads/src/title.rs` |
+| `crates/core-threads/src/store/` | private ThreadsStore persistence | `crates/core-threads/src/store/thread.rs` |
+| `crates/core-threads/src/store/remove.rs` | atomic removal of a planning thread | `crates/core-threads/src/store/remove.rs` |
 | `crates/shadows-core/src/operations/` | durable operation lifecycle | `crates/shadows-core/src/operations/contract.yaml` |
 | `crates/shadows-core/src/operations/model.rs` | durable operation values | `crates/shadows-core/src/operations/contract.yaml` |
 | `crates/shadows-core/src/operations/store/` | private operation persistence | `crates/shadows-core/src/operations/contract.yaml` |
@@ -406,9 +406,9 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-core/src/turns/remove.rs` | thread removal orchestration | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/turns/error.rs` | turn refusal mapping | `crates/shadows-core/src/turns/contract.yaml` |
 
-| `crates/shadows-core/src/threads/attachment.rs` | bounded image validation through every animation frame | `crates/shadows-core/src/threads/contract.yaml` |
-| `crates/shadows-core/src/threads/store/attachment.rs` | immutable image persistence | `crates/shadows-core/src/threads/contract.yaml` |
-| `crates/shadows-http/src/attachments.rs` | image HTTP translation | `crates/shadows-core/src/threads/contract.yaml` |
+| `crates/core-threads/src/attachment.rs` | bounded image validation through every animation frame | `crates/core-threads/contract.yaml` |
+| `crates/core-threads/src/store/attachment.rs` | immutable image persistence | `crates/core-threads/contract.yaml` |
+| `crates/shadows-http/src/attachments.rs` | image HTTP translation | `crates/core-threads/contract.yaml` |
 
 | `crates/shadows-core/src/turns/store/images.rs` | neutral image read composition | `crates/shadows-core/src/turns/contract.yaml` |
 
@@ -459,3 +459,5 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |
 
 | `crates/core-extensions/src/lib.rs` | extension library boundary | `crates/core-extensions/contract.yaml` |
+
+| `crates/core-threads/src/lib.rs` | thread command boundary | `crates/core-threads/contract.yaml` |

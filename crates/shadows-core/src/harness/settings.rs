@@ -12,7 +12,7 @@ use serde_json::Value;
 use super::store::Remembered;
 use super::{LeaseError, OpenSession, Sessions};
 use crate::CoreError;
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered};
 
 /// Why the session's model or effort was not changed.

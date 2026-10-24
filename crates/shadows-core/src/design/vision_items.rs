@@ -1,6 +1,6 @@
 //! Pure vision item edits with server-assigned identities.
 use super::model::{VisionContent, VisionCounters, VisionField, VisionItem, WorkspaceOp};
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 
 impl VisionField {
     pub const ALL: [Self; 5] = [

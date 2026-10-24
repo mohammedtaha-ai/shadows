@@ -2,9 +2,9 @@
 use super::DesignStore;
 use crate::design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 use crate::grants::Writer;
-use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError, VisionContent, VisionField};
 use core_db::{CommandContext, JournalEntry, Storage};
+use core_threads::{NewThreadEntry, ThreadEntryKind, Threads};
 
 impl DesignStore {
     pub async fn propose_vision_in(
@@ -40,7 +40,7 @@ impl DesignStore {
                         .await?;
                         let json = Threads::card_in(
                             conn,
-                            &crate::threads::ThreadEntryId::from_stored(entry),
+                            &core_threads::ThreadEntryId::from_recorded(entry),
                         )
                         .await?;
                         return Ok(serde_json::from_str(&json)?);

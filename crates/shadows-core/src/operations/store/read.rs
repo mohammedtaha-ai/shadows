@@ -1,8 +1,8 @@
 use sqlx::SqliteConnection;
 
 use crate::operations::{OperationId, OperationRecord, Operations};
-use crate::threads::ThreadId;
 use core_runtime::RuntimeInstanceId;
+use core_threads::ThreadId;
 
 use core_db::StorageError;
 

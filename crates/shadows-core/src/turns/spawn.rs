@@ -9,12 +9,10 @@ use super::{
     prompt::{Prompt, PromptParts},
     turn::{PlannerTurn, TurnWatch},
 };
-use crate::{
-    harness::{Harness, OpenSession},
-    threads::ThreadId,
-};
+use crate::harness::{Harness, OpenSession};
 use core_db::{Actor, StorageError};
 use core_runtime::Runtime;
+use core_threads::ThreadId;
 use shadows_agent::{TurnSettings, events::HarnessEvent};
 use std::sync::{Arc, atomic::AtomicBool};
 use tokio::sync::{broadcast, mpsc};

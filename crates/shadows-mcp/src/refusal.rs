@@ -163,6 +163,12 @@ fn refused(refusal: Refusal) -> CallToolResult {
     ))])
 }
 
+impl From<shadows_core::ThreadsError> for Refusal {
+    fn from(error: shadows_core::ThreadsError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
 #[cfg(test)]
 mod mapping_tests {
     include!(concat!(

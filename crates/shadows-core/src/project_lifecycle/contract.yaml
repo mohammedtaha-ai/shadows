@@ -1,3 +1,4 @@
+# Thread identities and transaction methods are imported from core-threads.
 # Index access and project reach use core-code.
 # Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.

@@ -31,9 +31,9 @@ use super::store::EventsStore;
 use super::{EventCursor, StoredEvent};
 use crate::harness::Harness;
 use crate::plans::UiSignal;
-use crate::threads::ThreadId;
 use crate::turns::OperationId;
 use core_projects::ProjectId;
+use core_threads::ThreadId;
 
 /// How many journal rows one read returns; the replay reads until one is empty.
 const BATCH: i64 = 500;

@@ -3,7 +3,7 @@ use super::assistant::Opening;
 use super::commands::Commands;
 use super::offers::Offers;
 use super::sessions::{OpenError, OpenSession, Sessions};
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::{
     acp::{Connection, SessionStart},
@@ -58,7 +58,7 @@ impl Sessions {
         let mut live = slot.lock().await;
         // Deletion commits before Stop/close. Even a cached adapter cannot
         // make a removed thread available to a new opening in that interval.
-        let context = crate::threads::Threads::turn_context_in(
+        let context = core_threads::Threads::turn_context_in(
             &mut *self
                 .storage
                 .reader()

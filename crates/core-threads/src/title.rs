@@ -17,7 +17,7 @@ impl super::Threads {
 /// title: Claude Code's generator answers "New session" for a conversation too
 /// short to name ("hi"), and that must not replace the first message.
 impl super::Threads {
-    pub(crate) fn harness_title(title: &str) -> Option<String> {
+    pub fn harness_title(title: &str) -> Option<String> {
         one_line(title).filter(|t| !is_placeholder(t))
     }
 }
@@ -39,19 +39,4 @@ fn one_line(text: &str) -> Option<String> {
     }
     let cut: String = collapsed.chars().take(TITLE_MAX_CHARS - 1).collect();
     Some(format!("{}…", cut.trim_end()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::super::Threads;
-
-    #[test]
-    fn a_placeholder_from_the_harness_is_no_title() {
-        assert_eq!(Threads::harness_title("New session"), None);
-        assert_eq!(Threads::harness_title("  new   Session. "), None);
-        assert_eq!(
-            Threads::harness_title("New session handling in Shadows").as_deref(),
-            Some("New session handling in Shadows")
-        );
-    }
 }

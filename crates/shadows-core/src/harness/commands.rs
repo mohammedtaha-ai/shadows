@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::broadcast;
 
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 use shadows_agent::events::{HarnessEvent, SlashCommand};
 
 pub(super) struct Commands {

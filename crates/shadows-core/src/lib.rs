@@ -10,7 +10,6 @@ mod project_lifecycle;
 pub use project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]
 pub mod testing;
-mod threads;
 mod turns;
 pub use grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
@@ -44,6 +43,11 @@ pub use core_providers::{
 };
 pub use core_runtime::{RuntimeInstanceId, StopKind};
 pub use core_secrets::{EnvEntry, SecretKey, Secrets, SecretsError};
+pub use core_threads::{
+    Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,
+    PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
+    WorkflowRef,
+};
 pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 pub use design::StructureWritten;
 pub use design::{
@@ -72,11 +76,6 @@ pub use plans::{
     Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown,
     PlanState, PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent,
     TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
-};
-pub use threads::{
-    Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,
-    PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
-    WorkflowRef,
 };
 pub use turns::{
     InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SendTurn,
@@ -111,3 +110,5 @@ pub use core_instructions::InstructionsError;
 pub use core_standards::StandardsError;
 
 pub use core_code::CodeError;
+
+pub use core_threads::ThreadsError;

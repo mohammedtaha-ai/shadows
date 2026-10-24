@@ -1,9 +1,7 @@
 //! Neutral image reads composed through Threads in one snapshot.
-use crate::{
-    CoreError,
-    threads::{AttachmentId, ThreadId, Threads},
-};
+use crate::CoreError;
 use core_db::StorageError;
+use core_threads::{AttachmentId, ThreadId, Threads};
 use shadows_agent::acp::ImageBlock;
 
 impl super::TurnsStore {

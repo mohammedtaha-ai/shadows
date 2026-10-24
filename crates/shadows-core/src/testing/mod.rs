@@ -141,12 +141,12 @@ pub use crate::grants::Writer;
 pub use crate::grants::{IssuedGrant, Token};
 pub use crate::harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use crate::operations::ReconcileReport;
-pub use crate::threads::{NewThreadEntry, TurnContext};
 pub use crate::turns::Bus;
 pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
 pub use core_projects::ProjectDirectory;
 pub use core_runtime::Runtime;
+pub use core_threads::{NewThreadEntry, TurnContext};
 
 impl AppCore {
     /// The application over parts a test built, so the test keeps its own

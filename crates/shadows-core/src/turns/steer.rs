@@ -13,7 +13,8 @@ use super::{
     prompt::Prompt,
     turn::{PlannerTurn, TurnWatch},
 };
-use crate::{error::CoreError, threads::ThreadEntryId};
+use crate::error::CoreError;
+use core_threads::ThreadEntryId;
 use shadows_agent::acp::Steer;
 
 /// A Send now for the running turn: `Ok(Some(entry))` is the message steered

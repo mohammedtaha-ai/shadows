@@ -20,7 +20,7 @@ use super::commands::Commands;
 use super::live::{Live, LiveMap, Slot};
 use super::offers::Offers;
 use super::setup::Setups;
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 use shadows_agent::{
     acp::Connection, choices::Offered, claude::ClaudeAdapter, events::HarnessEvent,
 };
@@ -169,7 +169,7 @@ impl Sessions {
     /// Closes every live adapter of a deleted agent's threads. A close that fails is
     /// logged and does not undo the deletion.
     pub(crate) async fn close_agent(&self, slug: &str) -> Result<(), crate::CoreError> {
-        for thread in crate::threads::Threads::list_for_profile_in(
+        for thread in core_threads::Threads::list_for_profile_in(
             &mut *self
                 .storage
                 .reader()

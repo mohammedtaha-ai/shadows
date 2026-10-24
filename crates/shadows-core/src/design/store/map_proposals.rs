@@ -3,9 +3,9 @@ use super::DesignStore;
 use super::{map_proposal_shape as shape, map_versions as maps};
 use crate::design::{MapAction, MapProposal, MapPropose, ProposalStatus};
 use crate::grants::Writer;
-use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError};
 use core_db::{CommandContext, JournalEntry, Storage};
+use core_threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use std::collections::BTreeMap;
 
 impl DesignStore {
@@ -42,7 +42,7 @@ impl DesignStore {
                         .await?;
                         let json = Threads::card_in(
                             conn,
-                            &crate::threads::ThreadEntryId::from_stored(entry),
+                            &core_threads::ThreadEntryId::from_recorded(entry),
                         )
                         .await?;
                         return Ok(serde_json::from_str(&json)?);

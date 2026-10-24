@@ -1,7 +1,8 @@
-use crate::{operations::OperationId, threads::ThreadId};
+use crate::operations::OperationId;
 use core_db::{Storage, StorageError};
 use core_projects::Projects;
 use core_standards::{EffectiveStandards, Standards};
+use core_threads::ThreadId;
 use sqlx::SqliteConnection;
 
 impl crate::turns::Turns {
@@ -21,15 +22,13 @@ impl crate::turns::Turns {
             .ok_or(StorageError::NotFound("invocation"))?;
         let (_, pin) =
             crate::harness::Harness::invocation_standards_in(conn, operation.as_str()).await?;
-        let project = crate::threads::Threads::project_in(
-            conn,
-            &crate::threads::ThreadId::from_stored(thread),
-        )
-        .await
-        .map_err(|error| match error {
-            StorageError::NotFound(_) => StorageError::NotFound("invocation"),
-            other => other,
-        })?;
+        let project =
+            core_threads::Threads::project_in(conn, &core_threads::ThreadId::from_recorded(thread))
+                .await
+                .map_err(|error| match error {
+                    StorageError::NotFound(_) => StorageError::NotFound("invocation"),
+                    other => other,
+                })?;
         Projects::require_live_in(conn, &project)
             .await
             .map_err(|error| match error {

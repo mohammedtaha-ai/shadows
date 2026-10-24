@@ -1,9 +1,9 @@
 //! One job: recording a steered message.
 
 use super::queue::SCOPE;
-use crate::threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use crate::turns::model::{OperationId, QueuedMessageId, SentNow};
 use core_db::{Actor, CommandContext, Storage, StorageError};
+use core_threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 
 impl super::TurnsStore {
     /// The steered message as a user entry of the running turn, and
@@ -15,7 +15,7 @@ impl super::TurnsStore {
         op: &OperationId,
         row: &QueuedMessageId,
         prompt: &str,
-        attachments: &[crate::threads::AttachmentId],
+        attachments: &[core_threads::AttachmentId],
     ) -> Result<ThreadEntryId, crate::CoreError> {
         let (ctx, thread, op, row, prompt, ts) = (
             ctx.clone(),
@@ -36,7 +36,7 @@ impl super::TurnsStore {
                         let id = v["entry_id"]
                             .as_str()
                             .ok_or(StorageError::NotFound("entry_id"))?;
-                        return Ok(ThreadEntryId::from_stored(id.to_owned()));
+                        return Ok(ThreadEntryId::from_recorded(id.to_owned()));
                     }
                     Threads::attachment_refs_in(conn, &thread, &attachments).await?;
                     Self::take_queued_in(conn, &thread, &row).await?;
@@ -98,7 +98,7 @@ impl super::TurnsStore {
             .as_str()
             .ok_or(StorageError::NotFound("entry_id"))?;
         Ok(Some(SentNow::Steered {
-            entry_id: ThreadEntryId::from_stored(id.to_owned()),
+            entry_id: ThreadEntryId::from_recorded(id.to_owned()),
         }))
     }
 }

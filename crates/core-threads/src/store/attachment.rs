@@ -1,17 +1,17 @@
 //! Immutable image persistence and thread ownership references.
 use super::ThreadsStore;
-use crate::threads::{Attachment, AttachmentId, AttachmentRef, ThreadId, Threads};
+use crate::{Attachment, AttachmentId, AttachmentRef, ThreadId, Threads};
 use core_db::{CommandContext, Storage, StorageError};
 use sqlx::SqliteConnection;
 
 type AttachmentRow = (String, String, i64, Option<String>, Vec<u8>);
 
 impl ThreadsStore {
-    pub(in crate::threads) async fn read_attachment(
+    pub(in super::super) async fn read_attachment(
         &self,
         thread: &ThreadId,
         id: &AttachmentId,
-    ) -> Result<(Attachment, Vec<u8>), crate::CoreError> {
+    ) -> Result<(Attachment, Vec<u8>), crate::ThreadsError> {
         let mut conn = self
             .storage
             .reader()
@@ -21,7 +21,7 @@ impl ThreadsStore {
         Ok(Threads::attachment_in(&mut conn, thread, id).await?)
     }
 
-    pub(in crate::threads) async fn upload_attachment(
+    pub(in super::super) async fn upload_attachment(
         &self,
         ctx: &CommandContext,
         thread: &ThreadId,
@@ -29,7 +29,7 @@ impl ThreadsStore {
         name: Option<String>,
         digest: Vec<u8>,
         bytes: Vec<u8>,
-    ) -> Result<Attachment, crate::CoreError> {
+    ) -> Result<Attachment, crate::ThreadsError> {
         let (ctx, thread, media_type) = (ctx.clone(), thread.clone(), media_type.to_owned());
         self.storage
             .write_txn_as(move |conn| {
@@ -85,7 +85,7 @@ impl ThreadsStore {
 }
 
 impl Threads {
-    pub(crate) async fn attachment_in(
+    pub async fn attachment_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         id: &AttachmentId,
@@ -113,7 +113,7 @@ impl Threads {
         ))
     }
 
-    pub(crate) async fn attachment_refs_in(
+    pub async fn attachment_refs_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         ids: &[AttachmentId],

@@ -42,7 +42,7 @@ shapes:
     interrupted: Vec<OperationId>
     anomalies: Vec<OperationId>
 dependencies:
-  threads: crates/shadows-core/src/threads/contract.yaml
+  threads: crates/core-threads/contract.yaml
   runtime: crates/core-runtime/contract.yaml
 functions:
   service:

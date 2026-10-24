@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 use tokio::sync::mpsc;
 
-use crate::threads::ThreadId;
 use core_db::Storage;
+use core_threads::ThreadId;
 use shadows_agent::events::HarnessEvent;
 
 /// Hands every event but a title on to `next`. The task ends when the
@@ -24,7 +24,7 @@ impl super::Harness {
         let (tx, mut rx) = mpsc::unbounded_channel::<String>();
         tokio::spawn(async move {
             while let Some(title) = rx.recv().await {
-                let Some(title) = crate::threads::Threads::harness_title(&title) else {
+                let Some(title) = core_threads::Threads::harness_title(&title) else {
                     continue;
                 };
                 let owned_thread = thread.clone();
@@ -32,7 +32,7 @@ impl super::Harness {
                 let result = storage
                     .write_txn(move |conn| {
                         Box::pin(async move {
-                            crate::threads::Threads::title_from_harness_in(
+                            core_threads::Threads::title_from_harness_in(
                                 conn,
                                 &owned_thread,
                                 &title,

@@ -11,11 +11,11 @@ use sha2::{Digest, Sha256};
 use super::Harness;
 use crate::error::CoreError;
 use crate::grants::GrantId;
-use crate::threads::ThreadId;
 use core_db::{Storage, StorageError};
 use core_instructions::{Instructions, InstructionsVersion};
 use core_projects::ProjectId;
 use core_standards::{EffectiveStandards, Standards};
+use core_threads::ThreadId;
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 
@@ -137,14 +137,13 @@ impl Setups {
                     .storage
                     .write_txn(move |conn| {
                         Box::pin(async move {
-                            crate::threads::Threads::require_live_in(conn, &thread)
+                            core_threads::Threads::require_live_in(conn, &thread)
                                 .await
                                 .map_err(|e| match e {
                                     StorageError::NotFound(_) => StorageError::NotFound("thread"),
                                     other => other,
                                 })?;
-                            let project =
-                                crate::threads::Threads::project_in(conn, &thread).await?;
+                            let project = core_threads::Threads::project_in(conn, &thread).await?;
                             crate::grants::Grants::issue_thread_grant_in(conn, &project, &thread)
                                 .await
                         })
@@ -216,7 +215,7 @@ impl Setups {
         thread: &ThreadId,
         invocation: Option<InvocationContext>,
     ) -> Result<Option<String>, CoreError> {
-        let context = crate::threads::Threads::turn_context_in(
+        let context = core_threads::Threads::turn_context_in(
             &mut *self
                 .storage
                 .reader()

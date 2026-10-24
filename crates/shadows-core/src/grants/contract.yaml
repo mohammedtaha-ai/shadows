@@ -1,3 +1,4 @@
+# Thread identities and transaction methods are imported from core-threads.
 # Project identities and registration methods are imported from core-projects.
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.

@@ -3,10 +3,10 @@ use super::error::ProjectLifecycleError;
 use crate::CoreError;
 use crate::grants::Grants;
 use crate::plans::Plans;
-use crate::threads::Threads;
 use core_code::Code;
 use core_db::{Actor, CommandContext, JournalEntry, Storage};
 use core_projects::{Project, ProjectId, Projects};
+use core_threads::Threads;
 use std::sync::Arc;
 
 #[derive(Clone)]

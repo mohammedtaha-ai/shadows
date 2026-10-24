@@ -9,9 +9,9 @@ use super::spawn::OnCompleted;
 use super::steer::SteerRequest;
 use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, start_command};
 use crate::error::CoreError;
-use crate::threads::{ThreadEntryId, ThreadId};
 use crate::turns::model::{Queued, QueuedMessage, QueuedMessageId, SentNow};
 use core_db::CommandContext;
+use core_threads::{ThreadEntryId, ThreadId};
 
 /// The id of the turn a `turn.queue` starts on an idle thread.
 fn idle_start_id(command_id: &str) -> String {
@@ -124,7 +124,7 @@ impl Turns {
         thread: &ThreadId,
         id: &QueuedMessageId,
         command_id: String,
-        attachments: Vec<crate::threads::AttachmentId>,
+        attachments: Vec<core_threads::AttachmentId>,
     ) -> Result<SentNow, CoreError> {
         let mut params = serde_json::json!({ "thread_id": thread, "queued_id": id });
         if !attachments.is_empty() {

@@ -4,22 +4,22 @@
 use sqlx::SqliteConnection;
 
 #[cfg(feature = "test-support")]
-use crate::threads::TurnContext;
-use crate::threads::model::{CreatedTitle, PlanningThread, ThreadId};
+use crate::TurnContext;
+use crate::model::{CreatedTitle, PlanningThread, ThreadId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::ProjectId;
 
 impl super::ThreadsStore {
     /// `harness` is the thread's CLI; the caller checks it is one
     /// Shadows knows.
-    pub(in crate::threads) async fn create_planning_thread(
+    pub(in super::super) async fn create_planning_thread(
         &self,
         ctx: &CommandContext,
         project_id: &ProjectId,
         title: &str,
         harness: &str,
         profile: Option<&str>,
-    ) -> Result<PlanningThread, crate::CoreError> {
+    ) -> Result<PlanningThread, crate::ThreadsError> {
         let (ctx, project_id, title, harness, ts) = (
             ctx.clone(),
             project_id.clone(),
@@ -80,12 +80,12 @@ impl super::ThreadsStore {
     /// `NotFound` when the thread does not exist, so a turn on an unknown
     /// thread is refused before an operation is created for it.
     #[cfg(feature = "test-support")]
-    pub(in crate::threads) async fn turn_context(
+    pub(in super::super) async fn turn_context(
         &self,
         thread_id: &ThreadId,
     ) -> Result<TurnContext, StorageError> {
         let mut conn = self.storage.reader().begin().await?;
-        crate::threads::Threads::turn_context_in(&mut conn, thread_id).await
+        crate::Threads::turn_context_in(&mut conn, thread_id).await
     }
 
     /// Records the harness session this thread's later turns resume. Written
@@ -97,7 +97,7 @@ impl super::ThreadsStore {
     /// Internal write, like `append_thread_entry`: no CommandRecord, and no
     /// journal event — a harness session id is the harness's continuity, not
     /// something a client renders or replays.
-    pub(in crate::threads) async fn record_harness_session(
+    pub(in super::super) async fn record_harness_session(
         &self,
         thread_id: &ThreadId,
         session_id: &str,
@@ -106,18 +106,13 @@ impl super::ThreadsStore {
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    crate::threads::Threads::record_harness_session_in(
-                        conn,
-                        &thread_id,
-                        &session_id,
-                    )
-                    .await
+                    crate::Threads::record_harness_session_in(conn, &thread_id, &session_id).await
                 })
             })
             .await
     }
 
-    pub(in crate::threads) async fn list_threads_for_project(
+    pub(in super::super) async fn list_threads_for_project(
         &self,
         project_id: &ProjectId,
     ) -> Result<Vec<PlanningThread>, StorageError> {
@@ -217,7 +212,7 @@ impl super::ThreadsStore {
 }
 
 impl super::ThreadsStore {
-    pub(in crate::threads::store) async fn load_thread(
+    pub(in crate::store) async fn load_thread(
         conn: &mut SqliteConnection,
         id: &ThreadId,
     ) -> Result<PlanningThread, StorageError> {
@@ -235,17 +230,17 @@ impl super::ThreadsStore {
 }
 
 impl super::ThreadsStore {
-    pub(in crate::threads) async fn list_threads_for_profile(
+    pub(in super::super) async fn list_threads_for_profile(
         &self,
         slug: &str,
     ) -> Result<Vec<PlanningThread>, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
-        crate::threads::Threads::list_for_profile_in(&mut conn, slug).await
+        crate::Threads::list_for_profile_in(&mut conn, slug).await
     }
 }
 
-impl crate::threads::Threads {
-    pub(crate) async fn profile_in(
+impl crate::Threads {
+    pub async fn profile_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<Option<String>, StorageError> {
@@ -258,16 +253,16 @@ impl crate::threads::Threads {
     }
 }
 
-impl crate::threads::Threads {
+impl crate::Threads {
     /// Updates and journals the thread row inside Harness's guarded command write.
-    pub(crate) async fn set_harness_in(
+    pub async fn set_harness_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         project: &ProjectId,
         harness: &str,
         actor: Actor,
         ts: &str,
-    ) -> Result<PlanningThread, crate::threads::ThreadsError> {
+    ) -> Result<PlanningThread, crate::ThreadsError> {
         sqlx::query("UPDATE planning_thread SET harness_kind = ? WHERE id = ?")
             .bind(harness)
             .bind(thread.as_str())
@@ -275,7 +270,7 @@ impl crate::threads::Threads {
             .await
             .map_err(|e| match e.as_database_error() {
                 Some(db) if db.message().contains("harness_locked") => {
-                    crate::threads::ThreadsError::HarnessLocked
+                    crate::ThreadsError::HarnessLocked
                 }
                 _ => e.into(),
             })?;

@@ -1,8 +1,8 @@
 use super::transition::{Before, Transition};
 use crate::operations::{OperationId, Operations};
-use crate::threads::ThreadId;
 use core_db::{Actor, StorageError};
 use core_runtime::RuntimeInstanceId;
+use core_threads::ThreadId;
 use sqlx::SqliteConnection;
 
 impl Operations {

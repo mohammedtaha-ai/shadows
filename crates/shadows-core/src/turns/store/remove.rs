@@ -1,8 +1,8 @@
 //! Durable thread removal composes each owner in one transaction.
 use crate::grants::Grants;
 use crate::harness::Harness;
-use crate::threads::{PlanningThread, ThreadId, Threads};
 use core_db::{Actor, CommandContext, Storage, StorageError};
+use core_threads::{PlanningThread, ThreadId, Threads};
 impl super::TurnsStore {
     pub(in crate::turns) async fn remove_thread(
         &self,

@@ -1,9 +1,9 @@
 use sqlx::SqliteConnection;
 
 use crate::operations::OperationId;
-use crate::threads::ThreadId;
 use core_db::StorageError;
 use core_db::{Actor, JournalEntry};
+use core_threads::ThreadId;
 
 pub(crate) struct Before {
     status: String,
@@ -41,7 +41,7 @@ impl Before {
                 .await?;
         Ok(row.map(|(status, thread)| Before {
             status,
-            thread: thread.map(ThreadId::from_stored),
+            thread: thread.map(ThreadId::from_recorded),
         }))
     }
 }

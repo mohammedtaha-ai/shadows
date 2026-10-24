@@ -508,6 +508,7 @@ are reference material; they do not replace the project's template or code.
   command 129 passed. Moved test comments no longer carry history/spec references.
 
 ### A-19c · Extract services in the verified order
+- Ruling (controller, 2026-10-25): every caller of a moved item, in any crate, is in each move's Touch.
 - Status: doing
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-19c--extract-services-in-the-verified-order
 - Read: A-8c's runtime/type/test graph; owner spec §14.12
@@ -584,7 +585,7 @@ module references and their owning macro declarations establish their provenance
 and blocked the remaining moves. The controller continuation and its verified
 order below supersede those blocked statuses.
 
-Controller check amendment (2026-10-24): each subsequent move runs exact line length, fmt, workspace all-target/test-support clippy, owner tests, architecture/codemap/openapi and affected Core/adapter integration binaries only. No whole Core suite per move or library tests for unchanged crates. Once after the session's last move, run production clippy, production feature isolation, all Core binaries, all shadows/shadows-http/shadows-mcp adapter binaries and the unchanged-api diff. Final-run failures are fixed in separate fix(backend): A-19c commits. Never run workspace-wide tests.
+Controller check amendment (2026-10-24): after each move run exact line length, fmt, workspace all-target/test-support clippy, owner tests, architecture/codemap/openapi and only integration binaries that exercise the moved service or a changed caller. Run production clippy, production feature isolation, the full Core suite, every adapter binary and unchanged-api diff once only after Events, the last A-19c move, is committed. Do not run that full set at session boundaries or every few moves. Never run workspace-wide tests.
 
 Controller continuation: the preparation tasks above supersede the prior blocked
 statuses. After their boundary changes, the service order is runtime (done),
@@ -634,7 +635,7 @@ Harness includes person. Runtime, Secrets and Providers are extracted. The contr
 
 #### A-19c.0 · Give each service its own error
 - Status: doing
-- Progress: Secrets (A-19c.2), Providers (A-19c.7), Projects (A-19c.3), Usage (A-19c.10), Person (A-19c.11), Instructions (A-19c.4), Standards (A-19c.5), Code (A-19c.6) Agents (A-19c.8) and Extensions (A-19c.9) error splits are complete. Remaining splits accompany their moves; Runtime still needs its owned wrapper.
+- Progress: Secrets (A-19c.2), Providers (A-19c.7), Projects (A-19c.3), Usage (A-19c.10), Person (A-19c.11), Instructions (A-19c.4), Standards (A-19c.5), Code (A-19c.6) Agents (A-19c.8) Extensions (A-19c.9) and Threads (A-19c.12) error splits are complete. Remaining splits accompany their moves; Runtime still needs its owned wrapper.
 - Ruling: controller continuation at 9b3735e supersedes the error-vocabulary blocker; no shared error crate. Apply each owner's split in its extraction commit, lowest first. Runtime currently exposes only StorageError; its owned wrapper remains part of A-19c.0 completion.
 - Touch: each service's error.rs, model and methods; its declared callers and tests; shadows-core/src/error.rs From conversions and public error re-exports; adapter translation conversions and failure-case tests where a service error crosses the application boundary; affected contracts and code-map rows; manifests and Cargo.lock. No route documentation or wire shape change.
 - Done when: no service names CoreError; each owns only its failures plus Storage where applicable and declared callee errors; existing HTTP status/code/message and MCP failure tests pass; api/ is unchanged.
@@ -797,7 +798,28 @@ automation; no browser/native/provider/production acceptance was performed.
 - Done when: `cargo test -p core-person`, `cargo test -p shadows-core --lib` and Core integration binaries `aylul_profiles` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.
 
 #### A-19c.12 · Extract core-threads
-- Status: todo
+- Status: done
+- Delivered: core-threads owns thread identities, entries, image validation, private persistence, transaction methods and ThreadsError. Five persistence tests and the title invariant build without AppCore. Session, image, fork and cross-owner integrations stay with Core/adapters. Caller imports and retained-id construction follow the owner, including design/store/proposal_read.rs and plans/signal.rs; no compatibility module alias remains. The controller caller-Touch ruling is recorded in the parent block.
+- Verification: exact CI line length, fmt, all-target/test-support workspace clippy, LF and unchanged API diff pass. Owner 6; architecture 39, codemap 1, OpenAPI 7; Core thread_session, contracts, aylul_profiles, operation_lifecycle and planner_isolation 55 pass (one existing live probe ignored). Adapter thread_contract, thread_routes, thread_title, image_attachments, fork, turn_command, grants, project_remove, design_routes, plan_routes and protocol 95 pass. HTTP and MCP mapping tests each pass 1. Rust LSP identified Threads and callers. The full gate is deferred until Events is committed.
+- Ratchet: 18 comment records relocate from crates/shadows-core/src/threads/model.rs to crates/core-threads/src/model.rs, with identical description, hash and occurrence; no other allowlist changes:
+  - `EntryRef comment [09a9aeddad435241] #1`
+  - `EntryRef comment [3dc465a50ae6530f] #1`
+  - `EntryRef comment [91629a72278251c2] #1`
+  - `PlanningThread comment [3add487643e02c71] #1`
+  - `PlanningThread comment [f109eca28413de36] #1`
+  - `ThreadEntry comment [23e5cd4c24718417] #1`
+  - `ThreadEntry comment [406ce0c21e485342] #1`
+  - `ThreadEntry comment [72333f04ecabdcd4] #1`
+  - `ThreadEntry comment [f3b267eb058d037f] #1`
+  - `ThreadEntryKind comment [3d50b5d0b596878d] #1`
+  - `ThreadEntryKind comment [84af954f65c38790] #1`
+  - `ThreadEntryKind comment [abf8ef01d1b3b054] #1`
+  - `ThreadEntryKind comment [b5d4463d80f0ac83] #1`
+  - `ThreadEntryKind comment [d8e59edfbb6ee968] #1`
+  - `ThreadEntryKind comment [ef7be78f46015be0] #1`
+  - `ThreadEntryKind comment [f3ffc2b669d5e71d] #1`
+  - `ThreadEntryKind comment [feab4355e1b77dc2] #1`
+  - `module comment [6c5d0abc3d1b1d1b] #1`
 - Needs: A-19c.0 error split in this move; A-19c.0a and A-19c.0b; A-19b ; A-19c.3, A-19c.6, A-19c.8
 - Touch: `crates/core-threads/` (`Cargo.toml`, `src/lib.rs`, `src/model.rs`, `src/store/`, `contract.yaml`, `tests/`); old `crates/shadows-core/src/threads/`; `crates/shadows-core/src/{lib,app,testing/**}.rs`; `Cargo.toml`, `Cargo.lock`, `crates/shadows-core/Cargo.toml`; caller imports in `crates/shadows-core/src/design/model.rs`, `crates/shadows-core/src/design/proposals.rs`, `crates/shadows-core/src/design/store/map_proposals.rs`, `crates/shadows-core/src/design/store/proposals.rs`, `crates/shadows-core/src/design/store/roadmap_proposals.rs`, `crates/shadows-core/src/design/vision_items.rs`, `crates/shadows-core/src/events/mod.rs`, `crates/shadows-core/src/events/model.rs`, `crates/shadows-core/src/events/store.rs`, `crates/shadows-core/src/events/subscription.rs`, `crates/shadows-core/src/grants/approval.rs`, `crates/shadows-core/src/grants/approver.rs`, `crates/shadows-core/src/grants/mod.rs`, `crates/shadows-core/src/grants/model.rs`, `crates/shadows-core/src/grants/store.rs`, `crates/shadows-core/src/grants/testing.rs`, `crates/shadows-core/src/grants/writer.rs`, `crates/shadows-core/src/harness/access.rs`, `crates/shadows-core/src/harness/assistant.rs`, `crates/shadows-core/src/harness/commands.rs`, `crates/shadows-core/src/harness/context.rs`, `crates/shadows-core/src/harness/fork.rs`, `crates/shadows-core/src/harness/live.rs`, `crates/shadows-core/src/harness/mod.rs`, `crates/shadows-core/src/harness/mode.rs`, `crates/shadows-core/src/harness/offers.rs`, `crates/shadows-core/src/harness/sessions.rs`, `crates/shadows-core/src/harness/settings.rs`, `crates/shadows-core/src/harness/setup.rs`, `crates/shadows-core/src/harness/store/invocations.rs`, `crates/shadows-core/src/harness/store/mode.rs`, `crates/shadows-core/src/harness/store/thread.rs`, `crates/shadows-core/src/harness/titles.rs`, `crates/shadows-core/src/operations/fork.rs`, `crates/shadows-core/src/operations/mod.rs`, `crates/shadows-core/src/operations/store/checks.rs`, `crates/shadows-core/src/operations/store/lifecycle.rs`, `crates/shadows-core/src/operations/store/read.rs`, `crates/shadows-core/src/operations/store/transition.rs`, `crates/shadows-core/src/plans/conversation.rs`, `crates/shadows-core/src/plans/mod.rs`, `crates/shadows-core/src/plans/model.rs`, `crates/shadows-core/src/plans/scope.rs`, `crates/shadows-core/src/plans/store/edit.rs`, `crates/shadows-core/src/plans/store/read.rs`, `crates/shadows-core/src/plans/store/view.rs`, `crates/shadows-core/src/plans/testing.rs`, `crates/shadows-core/src/project_lifecycle/store.rs`, `crates/shadows-core/src/turns/handles.rs`, `crates/shadows-core/src/turns/mod.rs`, `crates/shadows-core/src/turns/model.rs`, `crates/shadows-core/src/turns/queue.rs`, `crates/shadows-core/src/turns/record.rs`, `crates/shadows-core/src/turns/remove.rs`, `crates/shadows-core/src/turns/spawn.rs`, `crates/shadows-core/src/turns/stage.rs`, `crates/shadows-core/src/turns/steer.rs`, `crates/shadows-core/src/turns/store/images.rs`, `crates/shadows-core/src/turns/store/operation.rs`, `crates/shadows-core/src/turns/store/operation_read.rs`, `crates/shadows-core/src/turns/store/queue.rs`, `crates/shadows-core/src/turns/store/remove.rs`, `crates/shadows-core/src/turns/store/standards.rs`, `crates/shadows-core/src/turns/store/steer.rs`, `crates/shadows-core/src/turns/store/turn.rs`, `crates/shadows-core/src/turns/testing.rs`, `crates/shadows-core/src/turns/turn.rs`; those callers' owner contracts; moved owner-local tests and their old registrations; `crates/shadows-core/tests/contracts.rs`; `docs/codebase/README.md`; `docs/backend/stages.md`; `crates/shadows/tests/architecture/{scanner,resolution,sql,fixtures,main}.rs`, `table-owners.txt` and allowlists (delete lines only, except exact moved-file comment path relocations); `crates/shadows/tests/codemap/main.rs`. AppCore integration tests remain in Core.
 - Done when: `cargo test -p core-threads`, `cargo test -p shadows-core --lib` and Core integration binaries `thread_session` pass; affected callers and architecture/codemap/openapi checks pass; no Cargo cycle, cross-owner SQL, dependency on `shadows-core` or `AppCore`; stores are private; adapter re-exports and schemas stay stable.

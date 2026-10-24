@@ -1,6 +1,7 @@
 //! Opening an assistant on the agent's provider configuration.
 use super::sessions::{OpenError, Sessions};
-use crate::{CoreError, threads::TurnContext};
+use crate::CoreError;
+use core_threads::TurnContext;
 use shadows_agent::{acp::SessionSetup, policy, profile::ClaudeProfile};
 use shadows_process::ProcessSpec;
 use std::path::PathBuf;

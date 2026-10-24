@@ -325,7 +325,7 @@ impl Plans {
         (
             PlanShown,
             crate::operations::OperationId,
-            crate::threads::ThreadId,
+            core_threads::ThreadId,
         ),
         CoreError,
     > {

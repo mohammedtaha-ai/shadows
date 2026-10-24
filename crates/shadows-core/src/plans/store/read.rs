@@ -13,9 +13,9 @@ use crate::plans::model::{
     WrittenBy,
 };
 use crate::plans::rules::Rules;
-use crate::threads::ThreadId;
 use core_db::StorageError;
 use core_projects::ProjectId;
+use core_threads::ThreadId;
 
 impl PlansStore {
     pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, crate::CoreError> {
@@ -319,7 +319,7 @@ impl ReadRows {
         let thread = thread
             .ok_or_else(|| StorageError::Constraint(format!("plan version {id} has no writer")))?;
         let metadata =
-            crate::threads::Threads::get_in(conn, &ThreadId::from_stored(thread.clone())).await?;
+            core_threads::Threads::get_in(conn, &ThreadId::from_recorded(thread.clone())).await?;
         let (thread_title, removed_at) = (metadata.title, metadata.removed_at);
         let invocation: Option<(String, String)> = match operation {
             Some(op) => crate::harness::Harness::invocation_model_in(conn, &op).await?,
@@ -327,7 +327,7 @@ impl ReadRows {
         };
         let (model, harness) = invocation.map_or((None, None), |(m, h)| (Some(m), Some(h)));
         Ok(WrittenBy::Planner {
-            thread_id: ThreadId::from_stored(thread),
+            thread_id: ThreadId::from_recorded(thread),
             thread_title,
             thread_removed: removed_at.is_some(),
             model,

@@ -1,9 +1,9 @@
 //! Test-only owner calls over the fixture database.
 use super::{Grant, GrantId, Grants, GrantsError, IssuedGrant, Token, store};
-use crate::threads::{ThreadId, Threads};
 use core_db::StorageError;
 use core_db::{CommandContext, Storage};
 use core_projects::ProjectId;
+use core_threads::{ThreadId, Threads};
 use std::sync::Arc;
 impl Grants {
     pub async fn issue_project_grant_for_test(

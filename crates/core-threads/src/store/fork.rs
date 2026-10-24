@@ -7,7 +7,7 @@
 
 use sqlx::SqliteConnection;
 
-use crate::threads::model::{PlanningThread, ThreadEntryId, ThreadId};
+use crate::model::{PlanningThread, ThreadEntryId, ThreadId};
 use core_db::{Actor, CommandContext, JournalEntry, StorageError};
 
 /// The session to fork, when `at` is a valid fork point of `source`.
@@ -16,7 +16,7 @@ async fn fork_point(
     source: &ThreadId,
     at: &ThreadEntryId,
     completed: bool,
-) -> Result<(i64, String), crate::threads::ThreadsError> {
+) -> Result<(i64, String), crate::ThreadsError> {
     let entry: Option<(i64, Option<String>)> = sqlx::query_as(
         "SELECT ordinal, operation_id FROM thread_entry WHERE id = ? AND thread_id = ?",
     )
@@ -33,25 +33,25 @@ async fn fork_point(
     .await?;
     match session {
         Some(session) if ordinal == last && completed => Ok((ordinal, session)),
-        _ => Err(crate::threads::ThreadsError::ForkPointNotSupported),
+        _ => Err(crate::ThreadsError::ForkPointNotSupported),
     }
 }
 
-impl crate::threads::Threads {
+impl crate::Threads {
     /// Creates, as one command, a thread in the source's project on its
     /// harness, holding copies of the source's entries up to `at_entry`
     /// under new ids and ordinals, and naming the source, the entry and the
     /// source's harness session. Copied entries keep their `operation_id`
     /// and refs: provenance, read-only. The source is not changed. A replay
     /// answers the fork already made.
-    pub(crate) async fn fork_in(
+    pub async fn fork_in(
         conn: &mut SqliteConnection,
         ctx: &CommandContext,
         source: &ThreadId,
         at: &ThreadEntryId,
         completed: bool,
         ts: &str,
-    ) -> Result<PlanningThread, crate::threads::ThreadsError> {
+    ) -> Result<PlanningThread, crate::ThreadsError> {
         let original = super::ThreadsStore::load_thread(conn, source).await?;
         if original.removed_at.is_some() {
             return Err(StorageError::NotFound("planning_thread").into());
@@ -192,7 +192,7 @@ async fn copy_entries(
         .bind(&attachments)
         .execute(&mut *conn)
         .await?;
-        let references: Vec<crate::threads::AttachmentRef> = serde_json::from_str(&attachments)?;
+        let references: Vec<crate::AttachmentRef> = serde_json::from_str(&attachments)?;
         let mut payload = serde_json::json!({ "ordinal": ordinal, "kind": kind });
         if !references.is_empty() {
             payload["attachments"] = serde_json::to_value(&references)?;

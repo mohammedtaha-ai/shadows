@@ -175,3 +175,9 @@ impl From<shadows_core::ExtensionsError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::ThreadsError> for Failure {
+    fn from(error: shadows_core::ThreadsError) -> Self {
+        CoreError::from(error).into()
+    }
+}

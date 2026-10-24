@@ -383,3 +383,27 @@ impl From<core_extensions::ExtensionsError> for CoreError {
         }
     }
 }
+
+impl From<core_threads::ThreadsError> for CoreError {
+    fn from(error: core_threads::ThreadsError) -> Self {
+        use core_threads::ThreadsError;
+        let code = match error {
+            ThreadsError::HarnessLocked => ErrorCode::HarnessLocked,
+            ThreadsError::ForkPointNotSupported => ErrorCode::ForkPointNotSupported,
+            ThreadsError::InvalidCommand(message) => {
+                return Self::Refused {
+                    code: ErrorCode::InvalidCommand,
+                    message,
+                };
+            }
+            ThreadsError::InvalidProfile(message) => return Self::ProfileInvalid(message),
+            ThreadsError::Projects(error) => return error.into(),
+            ThreadsError::Agent(error) => return error.into(),
+            ThreadsError::Storage(error) => return error.into(),
+        };
+        Self::Refused {
+            code,
+            message: error.to_string(),
+        }
+    }
+}

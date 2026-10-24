@@ -1,7 +1,7 @@
 //! Session operations exposed by the Harness owner.
 use super::{Harness, LeaseError, OpenError, OpenSession};
 use crate::CoreError;
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered, events::HarnessEvent};
 use std::{io, time::Duration};
 use tokio::sync::mpsc;
@@ -145,7 +145,7 @@ impl Harness {
         ctx: &core_db::CommandContext,
         thread: &ThreadId,
         harness: &str,
-    ) -> Result<crate::threads::PlanningThread, CoreError> {
+    ) -> Result<core_threads::PlanningThread, CoreError> {
         Ok(super::store::HarnessStore::with_storage(storage.clone())
             .set_thread_harness(ctx, thread, harness)
             .await?)

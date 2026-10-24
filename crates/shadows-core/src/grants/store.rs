@@ -3,9 +3,9 @@ use sqlx::SqliteConnection;
 
 use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token};
 use super::{Grants, GrantsError, Writer};
-use crate::threads::ThreadId;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::ProjectId;
+use core_threads::ThreadId;
 use std::sync::Arc;
 
 const DRAFT_REF_LIFETIME: time::Duration = time::Duration::HOUR;
@@ -218,7 +218,7 @@ fn into_grant(
         id: GrantId::from_stored(id),
         kind,
         project_id: ProjectId::from_recorded(project),
-        thread_id: thread.map(ThreadId::from_stored),
+        thread_id: thread.map(ThreadId::from_recorded),
         created_at,
         revoked_at,
     })

@@ -33,10 +33,8 @@ use super::{
     spawn::OnCompleted,
     steer::SteerRequest,
 };
-use crate::{
-    harness::{Harness, OpenSession},
-    threads::{NewThreadEntry, ThreadEntryKind, ThreadId},
-};
+use crate::harness::{Harness, OpenSession};
+use core_threads::{NewThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_agent::{
     acp::{AcpError, TurnEnd},
     events::{AccountLimits, HarnessEvent, TurnObservation},
@@ -110,7 +108,7 @@ impl PlannerTurn {
                 .storage
                 .write_txn(move |conn| {
                     Box::pin(async move {
-                        crate::threads::Threads::append_entry_in(
+                        core_threads::Threads::append_entry_in(
                             conn,
                             &thread,
                             NewThreadEntry {
@@ -263,7 +261,7 @@ impl PlannerTurn {
                     .storage
                     .write_txn(move |conn| {
                         Box::pin(async move {
-                            crate::threads::Threads::record_harness_session_in(
+                            core_threads::Threads::record_harness_session_in(
                                 conn, &thread, &session,
                             )
                             .await

@@ -73,3 +73,5 @@ workflow :: plans
 # agents SQL lives in crates/core-agents/src/store/.
 
 # extensions SQL lives in crates/core-extensions/src/store/.
+
+# threads SQL lives in crates/core-threads/src/store/.

@@ -11,8 +11,8 @@ use super::{DraftStart, Plans};
 use crate::error::{CoreError, ErrorCode};
 use crate::grants::Grant;
 use crate::grants::Writer;
-use crate::threads::ThreadId;
 use core_db::{Anchor, CommandContext, StorageError};
+use core_threads::ThreadId;
 
 impl Plans {
     /// The plan version a call reaches: every grant names a version

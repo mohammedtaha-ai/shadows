@@ -13,7 +13,7 @@ impl Threads {
         title: &str,
         harness: &str,
         profile: Option<&str>,
-    ) -> Result<PlanningThread, crate::CoreError> {
+    ) -> Result<PlanningThread, crate::ThreadsError> {
         store::ThreadsStore::with_storage(storage.clone())
             .create_planning_thread(ctx, project_id, title, harness, profile)
             .await

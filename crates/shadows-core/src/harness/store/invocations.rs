@@ -60,7 +60,7 @@ impl HarnessStore {
         if let Some(thread) = recorded.thread_id {
             Self::remember_mode_in(
                 conn,
-                &crate::threads::ThreadId::from_stored(thread),
+                &core_threads::ThreadId::from_recorded(thread),
                 kind,
                 &settings.mode,
             )

@@ -3,7 +3,7 @@
 
 use sqlx::SqliteConnection;
 
-use crate::threads::model::{
+use crate::model::{
     EntryRef, NewThreadEntry, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId,
 };
 use core_db::{Actor, JournalEntry, StorageError};
@@ -12,8 +12,8 @@ use core_db::{Actor, JournalEntry, StorageError};
 /// inserts it, and journals `ThreadEntryAppended`. The turn command
 /// writes its user entry with the operation it creates, so this cannot own a
 /// transaction of its own.
-impl crate::threads::Threads {
-    pub(crate) async fn append_entry_in(
+impl crate::Threads {
+    pub async fn append_entry_in(
         conn: &mut SqliteConnection,
         thread_id: &ThreadId,
         entry: NewThreadEntry<'_>,
@@ -22,11 +22,11 @@ impl crate::threads::Threads {
         Self::append_entry_with_attachments_in(conn, thread_id, entry, &[], ts).await
     }
 
-    pub(crate) async fn append_entry_with_attachments_in(
+    pub async fn append_entry_with_attachments_in(
         conn: &mut SqliteConnection,
         thread_id: &ThreadId,
         entry: NewThreadEntry<'_>,
-        ids: &[crate::threads::AttachmentId],
+        ids: &[crate::AttachmentId],
         ts: &str,
     ) -> Result<ThreadEntry, StorageError> {
         let attachments = Self::attachment_refs_in(conn, thread_id, ids).await?;
@@ -123,7 +123,7 @@ pub(super) type EntryRow = (
 );
 
 impl super::ThreadsStore {
-    pub(in crate::threads::store) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError> {
+    pub(in crate::store) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError> {
         Ok(ThreadEntry {
             attachments: serde_json::from_str(&r.11)?,
             id: ThreadEntryId::from_stored(r.0),
@@ -149,7 +149,7 @@ impl super::ThreadsStore {
     /// The entry's fields arrive as one named struct rather than positional
     /// `&str`s. See `NewThreadEntry` for why.
     #[cfg(feature = "test-support")]
-    pub(in crate::threads) async fn append_thread_entry(
+    pub(in super::super) async fn append_thread_entry(
         &self,
         thread_id: &ThreadId,
         entry: NewThreadEntry<'_>,
@@ -175,13 +175,13 @@ impl super::ThreadsStore {
                         card: card.as_ref(),
                         operation_id: operation_id.as_deref(),
                     };
-                    crate::threads::Threads::append_entry_in(conn, &thread_id, entry, &ts).await
+                    crate::Threads::append_entry_in(conn, &thread_id, entry, &ts).await
                 })
             })
             .await
     }
 
-    pub(in crate::threads) async fn list_thread_entries(
+    pub(in super::super) async fn list_thread_entries(
         &self,
         thread_id: &ThreadId,
     ) -> Result<Vec<ThreadEntry>, StorageError> {

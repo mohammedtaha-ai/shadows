@@ -1,7 +1,7 @@
 use crate::plans::{Focus, PlanId};
-use crate::threads::{ThreadEntryId, ThreadId};
 use core_db::newtype_id;
 use core_runtime::RuntimeInstanceId;
+use core_threads::{ThreadEntryId, ThreadId};
 
 pub use crate::operations::OperationId;
 
@@ -19,7 +19,7 @@ pub struct QueuedMessage {
     pub position: i64,
     pub prompt: String,
     #[serde(default)]
-    pub attachments: Vec<crate::threads::AttachmentId>,
+    pub attachments: Vec<core_threads::AttachmentId>,
     pub model: String,
     pub mode: String,
     pub effort: Option<String>,

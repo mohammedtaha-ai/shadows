@@ -36,7 +36,7 @@ impl Row {
             )
             .await?,
             id: self.id,
-            thread_id: crate::ThreadId::from_stored(self.thread_id),
+            thread_id: crate::ThreadId::from_recorded(self.thread_id),
             action: serde_json::from_value(serde_json::json!(self.action))?,
             field: serde_json::from_value(serde_json::json!(self.field))?,
             item_id: self.item_id,

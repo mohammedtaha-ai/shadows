@@ -1,8 +1,8 @@
 //! Transaction-local approval authority and provenance reads.
 use super::{Grants, GrantsError};
 use crate::grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
-use crate::threads::Threads;
 use crate::{ProjectId, StorageError, ThreadEntryId};
+use core_threads::Threads;
 use sqlx::SqliteConnection;
 
 impl Grants {
@@ -45,10 +45,10 @@ impl Grants {
         };
         let request = if let Some(id) = request {
             let (thread_id, ordinal) =
-                Threads::entry_in(conn, &ThreadEntryId::from_stored(id.clone())).await?;
+                Threads::entry_in(conn, &ThreadEntryId::from_recorded(id.clone())).await?;
             Some(ApprovalRequest {
                 thread_id,
-                entry_id: ThreadEntryId::from_stored(id),
+                entry_id: ThreadEntryId::from_recorded(id),
                 ordinal,
             })
         } else {

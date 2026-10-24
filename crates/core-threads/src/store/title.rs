@@ -8,8 +8,8 @@
 
 use sqlx::SqliteConnection;
 
-use crate::threads::Threads;
-use crate::threads::model::{ThreadEntryId, ThreadId};
+use crate::Threads;
+use crate::model::{ThreadEntryId, ThreadId};
 use core_db::{Actor, JournalEntry, StorageError};
 
 /// Inside the turn's write, after `entry` (its user message) was appended:
@@ -17,8 +17,8 @@ use core_db::{Actor, JournalEntry, StorageError};
 /// title is still the client's. It happens once: the source it writes is no
 /// longer `client`, and a later message is not the first. A fork holds its
 /// source's messages, so no message of a fork is its first.
-impl crate::threads::Threads {
-    pub(crate) async fn title_from_first_message_in(
+impl crate::Threads {
+    pub async fn title_from_first_message_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         entry: &ThreadEntryId,
@@ -54,7 +54,7 @@ impl Threads {
     /// sanitized, unless a person named it. In the caller's write; answers whether
     /// the title changed. An empty title, or the one the thread already has,
     /// writes nothing.
-    pub(crate) async fn title_from_harness_in(
+    pub async fn title_from_harness_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         title: &str,

@@ -23,7 +23,6 @@ use crate::operations::Operations;
 use crate::plans::Plans;
 use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
-use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
 use core_agents::Agents;
 use core_code::{Code, CodeConfig};
@@ -37,6 +36,7 @@ use core_runtime::Runtime;
 use core_runtime::StopKind;
 use core_secrets::{SecretKey, Secrets};
 use core_standards::Standards;
+use core_threads::Threads;
 use core_usage::Usage;
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
@@ -134,8 +134,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/project_lifecycle/contract.yaml` |"]
 #[doc = " | `Threads` | \
          planning thread lifecycle | \
-         `crates/shadows-core/src/threads` | \
-         `crates/shadows-core/src/threads/contract.yaml` |"]
+         `crates/core-threads/src` | \
+         `crates/core-threads/contract.yaml` |"]
 #[doc = " | `Instructions` | \
          versioned Planner instructions | \
          `crates/core-instructions/src` | \

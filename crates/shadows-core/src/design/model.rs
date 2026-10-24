@@ -152,7 +152,7 @@ pub struct VisionContent {
 pub struct VisionItem {
     pub id: String,
     pub text: String,
-    pub approved_from: Option<crate::threads::ThreadId>,
+    pub approved_from: Option<core_threads::ThreadId>,
     pub revision: i64,
 }
 

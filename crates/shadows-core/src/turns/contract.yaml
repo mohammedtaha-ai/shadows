@@ -79,7 +79,7 @@ modules:
 dependencies:
   harness: crates/shadows-core/src/harness/contract.yaml
   operations: crates/shadows-core/src/operations/contract.yaml
-  threads: crates/shadows-core/src/threads/contract.yaml
+  threads: crates/core-threads/contract.yaml
   grants: crates/shadows-core/src/grants/contract.yaml
   plans: crates/shadows-core/src/plans/contract.yaml
   design: crates/shadows-core/src/design/contract.yaml

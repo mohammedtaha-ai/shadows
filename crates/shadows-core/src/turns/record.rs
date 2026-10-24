@@ -9,14 +9,14 @@ use super::store::{Dequeue, NewTurn, StartedTurn};
 use crate::error::CoreError;
 use crate::harness::OpenSession;
 use crate::plans::Focus;
-use crate::threads::{ThreadId, TurnContext};
 use core_db::{CommandContext, StorageError};
+use core_threads::{ThreadId, TurnContext};
 
 /// What the person asked for: the command and what it records.
 pub(super) struct Turn<'a> {
     pub(super) command: &'a CommandContext,
     pub(super) prompt: &'a str,
-    pub(super) attachments: &'a [crate::threads::AttachmentId],
+    pub(super) attachments: &'a [core_threads::AttachmentId],
     pub(super) settings: &'a TurnSettings,
     pub(super) focus: Option<&'a Focus>,
     pub(super) dequeue: Option<Dequeue<'a>>,

@@ -25,10 +25,10 @@ pub use subscription::{Delivery, Subscription};
 
 use crate::error::CoreError;
 use crate::harness::Harness;
-use crate::threads::ThreadId;
 use crate::turns::Turns;
 use core_db::Storage;
 use core_projects::{ProjectId, Projects};
+use core_threads::ThreadId;
 
 /// Events: every subscriber's stream, over the journal and the live sources.
 pub struct Events {

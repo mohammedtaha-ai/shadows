@@ -1,5 +1,5 @@
 use super::{Place, WorkflowId};
-use crate::threads::ThreadId;
+use core_threads::ThreadId;
 
 /// The live-only signal that moves a person's screen.
 ///

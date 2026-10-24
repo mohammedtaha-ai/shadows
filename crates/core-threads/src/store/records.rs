@@ -1,5 +1,5 @@
 //! Thread records accessed inside another owner's transaction or read snapshot.
-use crate::threads::{PlanningThread, ThreadEntryId, ThreadId, Threads, TurnContext};
+use crate::{PlanningThread, ThreadEntryId, ThreadId, Threads, TurnContext};
 use core_db::StorageError;
 use core_projects::{ProjectId, Projects};
 use sqlx::SqliteConnection;
@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 impl Threads {
     /// Historical metadata, including a removed thread.
-    pub(crate) async fn get_in(
+    pub async fn get_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<PlanningThread, StorageError> {
@@ -15,7 +15,7 @@ impl Threads {
     }
 
     /// The project of a retained thread, including a removed one.
-    pub(crate) async fn project_in(
+    pub async fn project_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<ProjectId, StorageError> {
@@ -28,7 +28,7 @@ impl Threads {
         Ok(ProjectId::from_recorded(project))
     }
 
-    pub(crate) async fn is_live_in(
+    pub async fn is_live_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<bool, StorageError> {
@@ -40,7 +40,7 @@ impl Threads {
         Ok(live.is_some())
     }
 
-    pub(crate) async fn require_live_in(
+    pub async fn require_live_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<(), StorageError> {
@@ -52,7 +52,7 @@ impl Threads {
     }
 
     /// Facts for an opening or a turn, read from the caller's snapshot.
-    pub(crate) async fn turn_context_in(
+    pub async fn turn_context_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<TurnContext, StorageError> {
@@ -83,7 +83,7 @@ impl Threads {
         })
     }
 
-    pub(crate) async fn list_for_profile_in(
+    pub async fn list_for_profile_in(
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<Vec<PlanningThread>, StorageError> {
@@ -103,7 +103,7 @@ impl Threads {
     }
 
     /// The immutable card stored with an entry; a missing or null card keeps SQL's error.
-    pub(crate) async fn card_in(
+    pub async fn card_in(
         conn: &mut SqliteConnection,
         entry: &ThreadEntryId,
     ) -> Result<String, StorageError> {
@@ -116,7 +116,7 @@ impl Threads {
     }
 
     /// User entries retain operation provenance, even when copied by a fork.
-    pub(crate) async fn user_operations_in(
+    pub async fn user_operations_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
     ) -> Result<Vec<String>, StorageError> {
@@ -131,7 +131,7 @@ impl Threads {
     }
 
     /// First completed turn wins the durable session id.
-    pub(crate) async fn record_harness_session_in(
+    pub async fn record_harness_session_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         session: &str,
@@ -151,7 +151,7 @@ impl Threads {
 
 impl Threads {
     /// The harness of a retained thread in the requested project.
-    pub(crate) async fn harness_in(
+    pub async fn harness_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         project: &ProjectId,
@@ -165,7 +165,7 @@ impl Threads {
         .await?)
     }
     /// The latest user request recorded for the opaque turn reference.
-    pub(crate) async fn request_entry_in(
+    pub async fn request_entry_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         turn: &str,
@@ -182,7 +182,7 @@ impl Threads {
         Ok(id.map(ThreadEntryId::from_stored))
     }
     /// Immutable entry provenance in the caller's snapshot.
-    pub(crate) async fn entry_in(
+    pub async fn entry_in(
         conn: &mut SqliteConnection,
         id: &ThreadEntryId,
     ) -> Result<(ThreadId, i64), StorageError> {
@@ -196,7 +196,7 @@ impl Threads {
 }
 
 impl Threads {
-    pub(crate) async fn fork_operation_in(
+    pub async fn fork_operation_in(
         conn: &mut SqliteConnection,
         source: &ThreadId,
         at: &ThreadEntryId,
@@ -212,7 +212,7 @@ impl Threads {
 
 impl Threads {
     /// A project's live threads prevent removal, checked in the removal transaction.
-    pub(crate) async fn has_live_project_threads_in(
+    pub async fn has_live_project_threads_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<bool, StorageError> {

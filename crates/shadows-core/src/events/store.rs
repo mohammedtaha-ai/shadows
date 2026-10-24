@@ -2,10 +2,10 @@
 use super::Events;
 use crate::events::EventCursor;
 use crate::plans::Plans;
-use crate::threads::ThreadId;
 use crate::turns::OperationId;
 use core_db::{Storage, StorageError};
 use core_projects::ProjectId;
+use core_threads::ThreadId;
 use std::sync::Arc;
 
 /// One replayed journal row, as a client resuming a thread sees it.
@@ -104,7 +104,7 @@ impl EventsStore {
             seq: r.0,
             kind: r.1,
             operation_id: r.2.map(OperationId::from_stored),
-            thread_id: r.3.map(ThreadId::from_stored),
+            thread_id: r.3.map(ThreadId::from_recorded),
             payload_json: r.4,
             created_at: r.5,
         }

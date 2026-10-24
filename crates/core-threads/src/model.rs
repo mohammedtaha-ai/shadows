@@ -228,3 +228,17 @@ impl From<&str> for TaskRef {
         Self(value.to_owned())
     }
 }
+
+impl ThreadId {
+    /// Reconstructs this owner's identifier from a retained database reference.
+    pub fn from_recorded(id: String) -> Self {
+        Self::from_stored(id)
+    }
+}
+
+impl ThreadEntryId {
+    /// Reconstructs this owner's identifier from a retained database reference.
+    pub fn from_recorded(id: String) -> Self {
+        Self::from_stored(id)
+    }
+}

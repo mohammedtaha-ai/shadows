@@ -1,10 +1,8 @@
 //! Atomic harness selection over Threads and Operations owner methods.
 use super::HarnessStore;
-use crate::{
-    operations::Operations,
-    threads::{PlanningThread, ThreadId, Threads, ThreadsError},
-};
+use crate::operations::Operations;
 use core_db::{CommandContext, Storage, StorageError};
+use core_threads::{PlanningThread, ThreadId, Threads, ThreadsError};
 
 impl HarnessStore {
     pub(in crate::harness) async fn set_thread_harness(

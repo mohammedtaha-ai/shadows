@@ -1,6 +1,5 @@
 //! Image upload validation and public attachment values.
-use super::{ThreadId, Threads};
-use crate::{CoreError, ErrorCode};
+use super::{ThreadId, Threads, ThreadsError};
 use core_db::CommandContext;
 use core_db::newtype_id;
 use image::{AnimationDecoder, ImageDecoder};
@@ -37,11 +36,8 @@ impl Threads {
         claimed_type: &str,
         name: Option<String>,
         bytes: Vec<u8>,
-    ) -> Result<Attachment, CoreError> {
-        let invalid = |message: &str| CoreError::Refused {
-            code: ErrorCode::InvalidCommand,
-            message: message.into(),
-        };
+    ) -> Result<Attachment, ThreadsError> {
+        let invalid = |message: &str| ThreadsError::InvalidCommand(message.into());
         if bytes.len() > MAX_IMAGE_BYTES {
             return Err(invalid("Images must be at most 5 MiB (5242880 bytes)"));
         }
@@ -52,7 +48,7 @@ impl Threads {
         let (media_type, digest, bytes) = tokio::task::spawn_blocking(move || {
             let media_type = checked_type(&claimed_type, &bytes)?;
             let digest = Sha256::digest(&bytes).to_vec();
-            Ok::<_, CoreError>((media_type, digest, bytes))
+            Ok::<_, ThreadsError>((media_type, digest, bytes))
         })
         .await
         .map_err(|_| invalid("Image validation failed"))??;
@@ -74,16 +70,13 @@ impl Threads {
         &self,
         thread: &ThreadId,
         id: &AttachmentId,
-    ) -> Result<(Attachment, Vec<u8>), CoreError> {
+    ) -> Result<(Attachment, Vec<u8>), ThreadsError> {
         self.store.read_attachment(thread, id).await
     }
 }
 
-fn checked_type(claimed_type: &str, bytes: &[u8]) -> Result<&'static str, CoreError> {
-    let invalid = |message: &str| CoreError::Refused {
-        code: ErrorCode::InvalidCommand,
-        message: message.into(),
-    };
+fn checked_type(claimed_type: &str, bytes: &[u8]) -> Result<&'static str, ThreadsError> {
+    let invalid = |message: &str| ThreadsError::InvalidCommand(message.into());
     let format =
         image::guess_format(bytes).map_err(|_| invalid("This file type is not supported"))?;
     let media_type = match format {
@@ -158,7 +151,7 @@ fn checked_type(claimed_type: &str, bytes: &[u8]) -> Result<&'static str, CoreEr
 fn checked_animation(
     mut frames: image::Frames<'_>,
     mut limits: image::Limits,
-) -> Result<(), CoreError> {
+) -> Result<(), ThreadsError> {
     // A valid first frame cannot vouch for the rest of an animation.
     let valid = frames
         .try_fold(false, |_, frame| {
@@ -171,9 +164,15 @@ fn checked_animation(
     if valid {
         Ok(())
     } else {
-        Err(CoreError::Refused {
-            code: ErrorCode::InvalidCommand,
-            message: "This file type is not supported".into(),
-        })
+        Err(ThreadsError::InvalidCommand(
+            "This file type is not supported".into(),
+        ))
+    }
+}
+
+impl AttachmentId {
+    /// Reconstructs this owner's identifier from a retained database reference.
+    pub fn from_recorded(id: String) -> Self {
+        Self::from_stored(id)
     }
 }

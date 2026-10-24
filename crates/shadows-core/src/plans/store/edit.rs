@@ -17,9 +17,9 @@ use crate::operations::OperationId;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::Ops;
 use crate::plans::ops::PlanOp;
-use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::ProjectId;
+use core_threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 
 impl PlansStore {
     /// The order of work: the grant, then a recorded command (answered

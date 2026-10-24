@@ -1,8 +1,8 @@
 //! Approval provenance derived by the core from the authenticated call path.
 use super::Writer;
-use crate::threads::{ThreadEntryId, ThreadId};
 use core_db::Actor;
 use core_db::{Anchor, CommandContext};
+use core_threads::{ThreadEntryId, ThreadId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
