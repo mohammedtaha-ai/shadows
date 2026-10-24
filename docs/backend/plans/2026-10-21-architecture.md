@@ -499,6 +499,18 @@ manual migration probe ignored), and 129 architecture/adapter tests. No browser,
 native or production acceptance was run.
 
 ### A-19c · Extract services in the verified order
+
+Dispatch verification (2026-10-24, `e89e9c4`): the expanded tasks and current
+runtime/type/test graph are recorded under A-19c in `docs/backend/stages.md`.
+Rust LSP verifies runtime as the only independent extractable service. The
+remaining services are blocked by the unextracted CoreError vocabulary, with
+additional DurableEvent/UiSignal cycles and Harness's app::AylulOwners edge.
+Usage no longer depends on agents. Import paths through turns must be resolved
+to the actual operations/harness owners before those moves. A-19c.1 moves
+runtime; A-19c.2 through A-19c.20 explicitly retain their blocking edges.
+This verification supersedes A-8c's acyclicity claim for today's source; it
+does not authorize changing error semantics or introducing another owner.
+
 The controller expands this milestone into one task per service using A-8c's
 resolved graph, including type-only and test dependencies. It is blocked until
 those exact tasks exist. Each move keeps the service API and table schema stable,
