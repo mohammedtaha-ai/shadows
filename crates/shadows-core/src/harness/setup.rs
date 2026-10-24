@@ -11,11 +11,11 @@ use sha2::{Digest, Sha256};
 use super::Harness;
 use crate::error::CoreError;
 use crate::grants::GrantId;
-use crate::standards::{EffectiveStandards, Standards};
 use crate::threads::ThreadId;
 use core_db::{Storage, StorageError};
 use core_instructions::{Instructions, InstructionsVersion};
 use core_projects::ProjectId;
+use core_standards::{EffectiveStandards, Standards};
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 

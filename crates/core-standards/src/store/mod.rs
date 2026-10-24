@@ -102,7 +102,7 @@ impl StandardsStore {
 
 impl Standards {
     /// Reads additions in the caller's existing project snapshot.
-    pub(crate) async fn current_in(
+    pub async fn current_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<Option<StandardsAdditionsVersion>, StorageError> {
@@ -118,7 +118,7 @@ impl Standards {
     }
 
     /// Loads an immutable version belonging to the caller's project.
-    pub(crate) async fn load_version_in(
+    pub async fn load_version_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
         id: &str,
@@ -159,94 +159,4 @@ async fn load_version(
     .await?
     .ok_or(StorageError::NotFound("standards additions"))?;
     into_version(row)
-}
-
-#[cfg(all(test, feature = "test-support"))]
-mod tests {
-    use super::Standards;
-    use core_db::StorageError;
-
-    #[tokio::test]
-    async fn additions_reads_keep_the_snapshot_and_scope_versions_to_the_project() {
-        let db = tempfile::tempdir().unwrap();
-        let dir = tempfile::tempdir().unwrap();
-        let core = crate::testing::app(db.path().join("standards.sqlite3"))
-            .await
-            .unwrap();
-        let project = core
-            .project_lifecycle()
-            .create(
-                "project".into(),
-                "project",
-                "Project",
-                dir.path().to_str().unwrap(),
-            )
-            .await
-            .unwrap();
-        let other = core
-            .project_lifecycle()
-            .create(
-                "other".into(),
-                "other",
-                "Other",
-                dir.path().to_str().unwrap(),
-            )
-            .await
-            .unwrap();
-        let standards = core.standards();
-        let first = standards
-            .save_standards_additions("first".into(), &project.id, Default::default())
-            .await
-            .unwrap();
-        let mut snapshot = standards.store.storage.reader().begin().await.unwrap();
-        assert_eq!(
-            Standards::current_in(&mut snapshot, &project.id)
-                .await
-                .unwrap(),
-            Some(first.clone())
-        );
-        standards
-            .save_standards_additions("second".into(), &project.id, Default::default())
-            .await
-            .unwrap();
-        core.project_lifecycle()
-            .remove("remove".into(), &project.id)
-            .await
-            .unwrap();
-        assert_eq!(
-            Standards::current_in(&mut snapshot, &project.id)
-                .await
-                .unwrap(),
-            Some(first.clone()),
-            "liveness and additions must use the same snapshot"
-        );
-        assert_eq!(
-            Standards::load_version_in(&mut snapshot, &project.id, &first.id)
-                .await
-                .unwrap(),
-            first
-        );
-        assert!(matches!(
-            Standards::load_version_in(&mut snapshot, &other.id, &first.id).await,
-            Err(StorageError::NotFound("standards additions"))
-        ));
-        assert!(matches!(
-            Standards::load_version_in(&mut snapshot, &other.id, "missing").await,
-            Err(StorageError::NotFound("standards additions"))
-        ));
-        snapshot.commit().await.unwrap();
-        assert!(matches!(
-            standards.current(&project.id).await,
-            Err(crate::CoreError::Storage(StorageError::NotFound("project")))
-        ));
-        assert_eq!(
-            standards
-                .save_standards_additions("first".into(), &project.id, Default::default())
-                .await
-                .unwrap(),
-            first,
-            "removal must not change an immutable replay result"
-        );
-        core.code().shut_down().await;
-    }
 }

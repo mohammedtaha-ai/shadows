@@ -11,7 +11,6 @@ mod operations;
 mod plans;
 mod project_lifecycle;
 pub use project_lifecycle::ProjectLifecycle;
-mod standards;
 #[cfg(feature = "test-support")]
 pub mod testing;
 mod threads;
@@ -92,7 +91,7 @@ pub use turns::{
 pub use shadows_agent::choices::SessionChoices;
 pub use shadows_agent::profile::ClaudeProfile;
 
-pub use standards::{
+pub use core_standards::{
     AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
     StandardRule, Standards, StandardsAdditions, StandardsAdditionsVersion,
 };
@@ -111,3 +110,5 @@ pub use core_usage::UsageError;
 pub use core_person::PersonError;
 
 pub use core_instructions::InstructionsError;
+
+pub use core_standards::StandardsError;

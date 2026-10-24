@@ -159,7 +159,7 @@ impl DesignStore {
                     .bind(&p.text)
                     .bind(&p.old_text)
                     .bind(p.expected_item_revision)
-                    .bind(crate::standards::Standards::base().version)
+                    .bind(core_standards::Standards::base().version)
                     .bind(additions)
                     .bind(&ts)
                     .bind(project.as_str())

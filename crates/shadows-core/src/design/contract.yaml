@@ -1,3 +1,4 @@
+# Project standards are imported from core-standards.
 # Project identities and registration methods are imported from core-projects.
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
@@ -319,7 +320,7 @@ shared_in_transaction:
   check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
 
 dependencies:
-  standards: crates/shadows-core/src/standards/contract.yaml
+  standards: crates/core-standards/contract.yaml
 
 called_by_other_services:
   project_stage: "Design exposes its persisted stage view; Turns reads the rendered line through stage_line_in."

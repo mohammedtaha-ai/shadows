@@ -322,3 +322,15 @@ impl From<core_instructions::InstructionsError> for CoreError {
         }
     }
 }
+
+impl From<core_standards::StandardsError> for CoreError {
+    fn from(error: core_standards::StandardsError) -> Self {
+        match error {
+            core_standards::StandardsError::InvalidAdditions(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            core_standards::StandardsError::Storage(error) => Self::Storage(error),
+        }
+    }
+}

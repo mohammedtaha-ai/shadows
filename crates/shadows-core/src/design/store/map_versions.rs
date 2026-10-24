@@ -2,10 +2,10 @@
 #[cfg(feature = "test-support")]
 use super::DesignStore;
 use crate::design::{PartContent, VisionContent, map_rules};
-use crate::standards::{EffectiveStandards, Standards};
 use crate::{ProjectId, StorageError};
 #[cfg(feature = "test-support")]
 use core_db::Storage;
+use core_standards::{EffectiveStandards, Standards};
 use sqlx::{FromRow, SqliteConnection};
 use std::collections::{BTreeMap, BTreeSet};
 

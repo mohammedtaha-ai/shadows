@@ -1,6 +1,6 @@
 //! One job: rendering effective standards for the Planner.
 
-use crate::standards::EffectiveStandards;
+use core_standards::EffectiveStandards;
 
 impl super::Harness {
     pub(super) fn render(s: &EffectiveStandards) -> String {

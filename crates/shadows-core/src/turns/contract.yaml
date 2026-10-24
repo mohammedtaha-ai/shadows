@@ -1,3 +1,4 @@
+# Project standards are imported from core-standards.
 # Planner instructions are read through core-instructions.
 # Usage measurements are recorded through core-usage in the terminal transaction.
 # Project identities and registration methods are imported from core-projects.
@@ -81,7 +82,7 @@ dependencies:
   grants: crates/shadows-core/src/grants/contract.yaml
   plans: crates/shadows-core/src/plans/contract.yaml
   design: crates/shadows-core/src/design/contract.yaml
-  standards: crates/shadows-core/src/standards/contract.yaml
+  standards: crates/core-standards/contract.yaml
   instructions: crates/core-instructions/contract.yaml
   usage: crates/core-usage/contract.yaml
   runtime: crates/core-runtime/contract.yaml

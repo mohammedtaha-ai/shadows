@@ -12,6 +12,7 @@ doctest = false
 workspace = true
 
 [dependencies]
+core-standards = { path = "../core-standards" }
 core-instructions = { path = "../core-instructions" }
 core-person = { path = "../core-person" }
 core-usage = { path = "../core-usage" }

@@ -2,9 +2,9 @@
 
 use super::DesignStore;
 use crate::design::{PartContent, StageView, VisionContent, stage};
-use crate::standards::{EffectiveStandards, Standards};
 use core_db::StorageError;
 use core_projects::ProjectId;
+use core_standards::{EffectiveStandards, Standards};
 
 impl DesignStore {
     pub async fn project_stage(&self, project: &ProjectId) -> Result<StageView, StorageError> {

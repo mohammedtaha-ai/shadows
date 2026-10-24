@@ -101,7 +101,7 @@ impl Turns {
                     settings,
                     prompt_version: Some(crate::harness::Harness::prompt_version()),
                     instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
-                    standards_version: Some(crate::standards::Standards::base().version),
+                    standards_version: Some(core_standards::Standards::base().version),
                     standards_additions_version: additions.as_ref().map(|v| v.id.as_str()),
                     focus,
                     dequeue,

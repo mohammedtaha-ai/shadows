@@ -281,12 +281,12 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/workspace.rs` | a grant's read-only view of its project workspace | `crates/shadows-core/src/design/workspace.rs` |
 | `crates/shadows-core/src/design/outcomes.rs` | outcome service entry points | `crates/shadows-core/src/design/outcomes.rs` |
 | `crates/shadows-core/src/design/ops.rs` | normalization of workspace edits | `crates/shadows-core/src/design/ops.rs` |
-| `crates/shadows-core/src/standards/` | project standards versions | `crates/shadows-core/src/standards/contract.yaml` |
-| `crates/shadows-core/src/standards/model.rs` | public standards values | `crates/shadows-core/src/standards/contract.yaml` |
-| `crates/shadows-core/src/standards/base.rs` | bundled base parsing | `crates/shadows-core/src/standards/contract.yaml` |
-| `crates/shadows-core/src/standards/validation.rs` | project additions validation | `crates/shadows-core/src/standards/contract.yaml` |
+| `crates/core-standards/src/` | project standards versions | `crates/core-standards/contract.yaml` |
+| `crates/core-standards/src/model.rs` | public standards values | `crates/core-standards/contract.yaml` |
+| `crates/core-standards/src/base.rs` | bundled base parsing | `crates/core-standards/contract.yaml` |
+| `crates/core-standards/src/validation.rs` | project additions validation | `crates/core-standards/contract.yaml` |
 | `crates/shadows-core/src/design/stage.rs` | a project's stage from its workspace | `crates/shadows-core/src/design/stage.rs` |
-| `crates/shadows-core/src/standards/store.rs` | immutable additions persistence | `crates/shadows-core/src/standards/contract.yaml` |
+| `crates/core-standards/src/store/` | immutable additions persistence | `crates/core-standards/contract.yaml` |
 | `crates/shadows-core/src/turns/store/standards.rs` | invocation standards selection | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/design/store/stage.rs` | reading a project's stage inputs | `crates/shadows-core/src/design/store/stage.rs` |
 | `crates/shadows-core/src/design/store/outcomes.rs` | snapshot reads of outcomes | `crates/shadows-core/src/design/store/outcomes.rs` |
@@ -445,3 +445,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-instructions/src/model.rs` | public saved instructions | `crates/core-instructions/contract.yaml` |
 | `crates/core-instructions/src/error.rs` | instructions failures | `crates/core-instructions/contract.yaml` |
 | `crates/core-instructions/src/store/` | private instructions SQL | `crates/core-instructions/contract.yaml` |
+
+| `crates/core-standards/src/lib.rs` | project standards boundary | `crates/core-standards/contract.yaml` |
+| `crates/core-standards/src/error.rs` | standards refusals | `crates/core-standards/contract.yaml` |
+| `crates/core-standards/src/standards.yaml` | bundled standards definition | `crates/core-standards/contract.yaml` |

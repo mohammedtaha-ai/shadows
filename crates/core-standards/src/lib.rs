@@ -5,8 +5,10 @@ mod model;
 mod store;
 mod validation;
 
-use crate::{CoreError, ProjectId};
+use core_projects::ProjectId;
+mod error;
 use core_db::{CommandContext, Storage};
+pub use error::StandardsError;
 pub use model::{
     AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
     StandardRule, StandardsAdditions, StandardsAdditionsVersion,
@@ -20,7 +22,7 @@ pub struct Standards {
 }
 
 impl Standards {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
+    pub fn new(storage: Arc<Storage>) -> Self {
         Self {
             store: StandardsStore::new(storage),
         }
@@ -30,11 +32,14 @@ impl Standards {
     pub async fn current(
         &self,
         project: &ProjectId,
-    ) -> Result<Option<StandardsAdditionsVersion>, CoreError> {
+    ) -> Result<Option<StandardsAdditionsVersion>, StandardsError> {
         Ok(self.store.current(project).await?)
     }
 
-    pub async fn standards(&self, project: &ProjectId) -> Result<EffectiveStandards, CoreError> {
+    pub async fn standards(
+        &self,
+        project: &ProjectId,
+    ) -> Result<EffectiveStandards, StandardsError> {
         Ok(EffectiveStandards {
             base: Self::base().clone(),
             additions: self.store.current(project).await?,
@@ -46,17 +51,16 @@ impl Standards {
         command_id: String,
         project: &ProjectId,
         content: StandardsAdditions,
-    ) -> Result<StandardsAdditionsVersion, CoreError> {
+    ) -> Result<StandardsAdditionsVersion, StandardsError> {
         let params = serde_json::json!({"project": project, "content": content});
         let ctx = CommandContext::user(command_id, "StandardsAdditionsSave", params);
         self.store
             .save_standards_additions(&ctx, project, &content)
             .await
             .map_err(|error| match error {
-                crate::StorageError::Constraint(message) => CoreError::Refused {
-                    code: crate::ErrorCode::InvalidCommand,
-                    message,
-                },
+                core_db::StorageError::Constraint(message) => {
+                    StandardsError::InvalidAdditions(message)
+                }
                 other => other.into(),
             })
     }

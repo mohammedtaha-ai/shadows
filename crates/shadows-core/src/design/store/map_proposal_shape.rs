@@ -2,8 +2,8 @@
 use super::map_versions::MapRow;
 use super::map_versions::MapVersionsRows;
 use crate::design::{MapAction, MapPropose, map_rules};
-use crate::standards::{EffectiveStandards, Standards};
 use crate::{PartContent, ProjectId, StorageError, VisionContent};
+use core_standards::{EffectiveStandards, Standards};
 
 impl MapProposalShapeRows {
     pub(super) fn complete(vision: &VisionContent) -> Result<(), crate::CoreError> {

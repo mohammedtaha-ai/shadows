@@ -107,7 +107,9 @@ async fn each_additions_save_is_a_new_version_and_a_replay_saves_nothing() {
         core.standards()
             .save_standards_additions("a1".into(), &project, changed,)
             .await,
-        Err(CoreError::Storage(StorageError::CommandConflict))
+        Err(shadows_core::StandardsError::Storage(
+            StorageError::CommandConflict
+        ))
     ));
     core.project_lifecycle()
         .remove("remove".into(), &project)
@@ -188,7 +190,8 @@ async fn additions_cannot_repeat_a_base_part_or_name_an_unknown_one() {
         let error = core
             .standards()
             .save_standards_additions(format!("bad-{i}"), &project, content)
-            .await;
+            .await
+            .map_err(CoreError::from);
         assert!(
             matches!(
                 &error,

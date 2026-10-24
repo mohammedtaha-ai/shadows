@@ -8,14 +8,16 @@
 name: standards
 version: 1
 status: current
-source: crates/shadows-core/src/standards
+source: crates/core-standards/src
 
 modules:
-  mod.rs: standards command boundary
+  lib.rs: standards command boundary
+  error.rs: standards refusals
   model.rs: public standards values
   base.rs: bundled base parsing
+  standards.yaml: bundled standards definition
   validation.rs: additions validation
-  store.rs: immutable additions persistence
+  store/mod.rs: immutable additions persistence
 
 dependencies:
   projects: crates/core-projects/contract.yaml
@@ -59,17 +61,17 @@ shapes:
 functions:
   service:
     new:
-      signature: "crate-private: (storage: Arc<Storage>) -> Standards"
+      signature: "(storage: Arc<Storage>) -> Standards"
     base:
       signature: "() -> &'static BaseStandards"
     current:
-      signature: "(&self, project: &ProjectId) -> Result<Option<StandardsAdditionsVersion>, CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<Option<StandardsAdditionsVersion>, StandardsError>"
       # A live project without saves has None; unknown/removed projects refuse.
     standards:
-      signature: "(&self, project: &ProjectId) -> Result<EffectiveStandards, CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<EffectiveStandards, StandardsError>"
       # Unknown/removed projects refuse; a live project without saves has null additions.
     save_standards_additions:
-      signature: "(&self, command_id: String, project: &ProjectId, content: StandardsAdditions) -> Result<StandardsAdditionsVersion, CoreError>"
+      signature: "(&self, command_id: String, project: &ProjectId, content: StandardsAdditions) -> Result<StandardsAdditionsVersion, StandardsError>"
       # StandardsAdditionsSave, User/local, schema 1, Project scope; exact typed fingerprint.
       # InvalidCommand for invalid additions; command conflicts preserve their taxonomy.
   validation:
