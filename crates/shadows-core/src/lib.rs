@@ -15,7 +15,6 @@ mod project_lifecycle;
 mod projects;
 pub use project_lifecycle::ProjectLifecycle;
 mod providers;
-mod secrets;
 mod standards;
 #[cfg(feature = "test-support")]
 pub mod testing;
@@ -41,6 +40,7 @@ pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
 pub use core_db::Actor;
 pub use core_db::StorageError;
 pub use core_runtime::{RuntimeInstanceId, StopKind};
+pub use core_secrets::{EnvEntry, SecretKey, Secrets, SecretsError};
 pub use design::StructureWritten;
 pub use design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -81,7 +81,6 @@ pub use providers::{
     ListedModel, PresetRegion, Provider, ProviderInput, ProviderModel, ProviderModelInput,
     ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
 };
-pub use secrets::{EnvEntry, SecretKey, Secrets, validate_env_name};
 pub use threads::{
     Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,
     PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
@@ -102,3 +101,8 @@ pub use standards::{
     AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
     StandardRule, Standards, StandardsAdditions, StandardsAdditionsVersion,
 };
+
+/// Application error translation for the existing validation entry point.
+pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
+    Secrets::validate_env_name(name).map_err(Into::into)
+}

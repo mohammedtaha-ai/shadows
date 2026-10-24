@@ -101,3 +101,23 @@ fn extracted_runtime_depends_only_on_the_foundation() {
         );
     }
 }
+
+#[test]
+fn extracted_secrets_depends_only_on_the_foundation() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    let package = lock
+        .split("[[package]]")
+        .find(|entry| entry.lines().any(|line| line == r#"name = "core-secrets""#))
+        .expect("core-secrets is a workspace package");
+    for line in package
+        .lines()
+        .filter(|line| line.trim_start().starts_with('"'))
+    {
+        let name = line.trim().trim_matches(',').trim_matches('"');
+        assert!(
+            !name.starts_with("shadows") && (!name.starts_with("core-") || name == "core-db"),
+            "secrets must not depend on a service or composition: {name}"
+        );
+    }
+}

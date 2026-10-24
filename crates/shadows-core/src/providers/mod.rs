@@ -15,8 +15,8 @@ pub use probe::{ListedModel, ProviderTest, ProviderTestOutcome, SavedProviderTes
 pub(crate) use slug::SlugBase;
 
 use crate::CoreError;
-use crate::secrets::{EnvEntry, Secrets};
 use core_db::{CommandContext, Storage};
+use core_secrets::{EnvEntry, Secrets};
 use sqlx::SqliteConnection;
 use std::sync::Arc;
 use store::ProvidersStore;

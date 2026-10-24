@@ -30,7 +30,6 @@ use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
 use crate::projects::Projects;
 use crate::providers::Providers;
-use crate::secrets::{SecretKey, Secrets};
 use crate::standards::Standards;
 use crate::threads::Threads;
 use crate::turns::{Bus, LiveHandles, Turns};
@@ -38,6 +37,7 @@ use crate::usage::Usage;
 use core_db::Storage;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
+use core_secrets::{SecretKey, Secrets};
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
@@ -74,8 +74,8 @@ pub struct CoreParts {
 /// |---|---|---|---|
 #[doc = " | `Secrets` | \
          encrypted environment configuration | \
-         `crates/shadows-core/src/secrets` | \
-         `crates/shadows-core/src/secrets/contract.yaml` |"]
+         `crates/core-secrets/src` | \
+         `crates/core-secrets/contract.yaml` |"]
 #[doc = " | `Providers` | \
          AYLUL provider configuration | \
          `crates/shadows-core/src/providers` | \
@@ -643,5 +643,12 @@ impl AppCore {
     pub fn design_for_tests(storage: Arc<Storage>) -> Design {
         let operations = Operations::new(storage.clone());
         Design::new(storage, operations)
+    }
+}
+
+#[cfg(feature = "test-support")]
+impl AppCore {
+    pub fn secrets_for_tests(storage: Arc<Storage>, key: Option<SecretKey>) -> Arc<Secrets> {
+        Secrets::new(storage, key)
     }
 }

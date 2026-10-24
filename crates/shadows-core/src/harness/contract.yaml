@@ -1,3 +1,4 @@
+# Secrets is imported from core-secrets; application error conversion preserves caller responses.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Adapter configuration uses ClaudeAdapter/ClaudeProfile constructors; options use Offered methods.
@@ -177,6 +178,7 @@ shapes:
     # so a turn that outlives its adapter never gives its events to, marks,
     # or terminates the adapter that replaced it.
   OpenError:
+    Secrets: core_secrets::SecretsError
     Env: CoreError
     Storage: StorageError
     # Includes "harness setup timed out" after `setup_wait`.
@@ -965,7 +967,7 @@ tests:
 
 # AYLUL environment resolution belongs to Secrets, not the adapter.
 # Opening decrypts the profile pairs at each spawn; live adapters keep their environment.
-# From<OpenError> preserves Env's AylulKeyMissing/SecretUnreadable/SecretsUnavailable codes.
+# From<OpenError> preserves typed Secrets failures and Env's other opening failures.
 # Evidence: two_agents_share_one_provider_key, settings_json_keeps_other_keys,
 # missing_provider_key_is_named, reserved_variable_row_fails_opening.
 # live.rs owns adapter opening and cache slot types; sessions.rs owns session leases.

@@ -10,9 +10,9 @@ pub use model::{Agent, AgentInput, AgentWorkspace};
 
 use crate::projects::Projects;
 use crate::providers::{Provider, ProviderInput, Providers};
-use crate::secrets::{EnvEntry, Secrets};
 use crate::{CoreError, ProjectId};
 use core_db::{CommandContext, Storage};
+use core_secrets::{EnvEntry, Secrets};
 use sqlx::SqliteConnection;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -158,7 +158,7 @@ impl Agents {
 
     pub async fn list_env(&self, slug: &str) -> Result<Vec<EnvEntry>, CoreError> {
         self.store.require_live(slug).await?;
-        self.secrets.list_env(slug).await
+        self.secrets.list_env(slug).await.map_err(Into::into)
     }
 
     /// Stores one of a live agent's variables, in one write.

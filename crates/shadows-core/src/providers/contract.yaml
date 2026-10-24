@@ -1,3 +1,4 @@
+# Secrets is imported from core-secrets; application error conversion preserves caller responses.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns AYLUL provider configuration: the models a provider offers, its compiled
 # presets, its key (through Secrets) and the bounded outbound provider tests.
@@ -23,7 +24,7 @@ modules:
   store.rs: provider SQL
 
 dependencies:
-  secrets: crates/shadows-core/src/secrets/contract.yaml
+  secrets: crates/core-secrets/contract.yaml
 
 shapes:
   Providers:

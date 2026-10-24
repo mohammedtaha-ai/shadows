@@ -4,7 +4,3 @@ crates/shadows-core/src/projects/browse.rs :: create_subdirectory free public fu
 crates/shadows-core/src/projects/browse.rs :: list free public function [f6540059e86cc4a6] #1
 crates/shadows-core/src/projects/directory.rs :: canonical_dir free public function [9146ff9d846c743f] #1
 crates/shadows-core/src/projects/directory.rs :: utf8 free public function [78070dd15a48c301] #1
-crates/shadows-core/src/secrets/crypto.rs :: open free public function [27fee9a01c0205db] #1
-crates/shadows-core/src/secrets/crypto.rs :: seal free public function [e469694478f83c4a] #1
-crates/shadows-core/src/secrets/mod.rs :: reserved_env_name free public function [096d2b4abc230652] #1
-crates/shadows-core/src/secrets/mod.rs :: validate_env_name free public function [83fa34cecabfcf01] #1

@@ -1,9 +1,7 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
 # A-20: test module glob resolution review.
-crates/shadows-core/src/secrets/crypto_tests.rs :: module name resolution review: glob import [f73519b112f9e629] #1
 # A-20: legacy fixture service constructors.
 crates/shadows-core/src/testing/mod.rs :: projects construct shadows_core::projects::Projects outside composition root [bdaf546891c8340c] #1
-crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
 # A-20: adapter fixtures retain explicit storage, session and live-registry handles.
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::app::CoreParts [eb819e5a3702e515] #1
 crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports core_db::Storage [9c1c6a74e7ff5b3b] #1

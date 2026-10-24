@@ -1,8 +1,8 @@
 //! Encrypted environment persistence through the public service.
 use std::sync::Arc;
 
-use shadows_core::testing::{Storage, resolve_secret_env, secrets};
-use shadows_core::{CoreError, SecretKey, Secrets, StorageError};
+use core_db::{Storage, StorageError};
+use core_secrets::{SecretKey, Secrets, SecretsError};
 
 const VALUE: &str = "synthetic-fixture-value-9154";
 
@@ -15,7 +15,7 @@ struct World {
 async fn world() -> World {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
-    let service = secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
+    let service = Secrets::new(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
     World {
         tmp,
         storage,
@@ -60,7 +60,7 @@ async fn replace_keeps_one_row() {
     set(&w, "a", "API_KEY", VALUE).await;
     set(&w, "b", "API_KEY", "synthetic-replacement").await;
     assert_eq!(w.secrets.list_env("aylul").await.unwrap().len(), 1);
-    let pairs = resolve_secret_env(&w.secrets, "aylul").await.unwrap();
+    let pairs = w.secrets.resolve_env("aylul").await.unwrap();
     assert!(
         pairs[0].1 == "synthetic-replacement",
         "replacement resolves"
@@ -97,7 +97,7 @@ async fn replay_same_value_replays() {
         .await
         .unwrap();
     assert_eq!(first.updated_at, replay.updated_at);
-    let pairs = resolve_secret_env(&w.secrets, "aylul").await.unwrap();
+    let pairs = w.secrets.resolve_env("aylul").await.unwrap();
     assert!(
         pairs[0].1 == "synthetic-replacement",
         "replacement resolves"
@@ -114,7 +114,7 @@ async fn replay_other_value_conflicts() {
         .await;
     assert!(matches!(
         result,
-        Err(CoreError::Storage(StorageError::CommandConflict))
+        Err(SecretsError::Storage(StorageError::CommandConflict))
     ));
 }
 
@@ -126,18 +126,18 @@ async fn moved_row_is_unreadable() {
         .execute(w.storage.reader())
         .await
         .unwrap();
-    assert!(matches!(resolve_secret_env(&w.secrets, "aylul").await,
-        Err(CoreError::SecretUnreadable(name)) if name == "MOVED"));
+    assert!(matches!(w.secrets.resolve_env("aylul").await,
+        Err(SecretsError::Unreadable(name)) if name == "MOVED"));
 }
 
 #[tokio::test]
 async fn other_master_key_lists_but_cannot_resolve() {
     let w = world().await;
     set(&w, "a", "API_KEY", VALUE).await;
-    let other = secrets(w.storage.clone(), Some(SecretKey::from_bytes([8; 32])));
+    let other = Secrets::new(w.storage.clone(), Some(SecretKey::from_bytes([8; 32])));
     assert_eq!(other.list_env("aylul").await.unwrap().len(), 1);
-    assert!(matches!(resolve_secret_env(&other, "aylul").await,
-        Err(CoreError::SecretUnreadable(name)) if name == "API_KEY"));
+    assert!(matches!(other.resolve_env("aylul").await,
+        Err(SecretsError::Unreadable(name)) if name == "API_KEY"));
 }
 
 #[tokio::test]
@@ -154,7 +154,7 @@ async fn lower_case_bad_and_reserved_names_are_refused() {
     ] {
         assert!(matches!(
             w.secrets.set_env("a".into(), "aylul", name, VALUE).await,
-            Err(CoreError::SecretNameInvalid(_) | CoreError::SecretNameReserved(_))
+            Err(SecretsError::NameInvalid(_) | SecretsError::NameReserved(_))
         ));
     }
 }
@@ -167,7 +167,7 @@ async fn empty_nul_and_oversized_values_are_refused() {
             w.secrets
                 .set_env("a".into(), "aylul", "API_KEY", value)
                 .await,
-            Err(CoreError::SecretValueInvalid(_))
+            Err(SecretsError::ValueInvalid(_))
         ));
     }
 }
@@ -175,22 +175,22 @@ async fn empty_nul_and_oversized_values_are_refused() {
 #[tokio::test]
 async fn no_key_refuses_every_method() {
     let w = world().await;
-    let service = secrets(w.storage.clone(), None);
+    let service = Secrets::new(w.storage.clone(), None);
     assert!(matches!(
         service.list_env("p").await,
-        Err(CoreError::SecretsUnavailable)
+        Err(SecretsError::Unavailable)
     ));
     assert!(matches!(
         service.set_env("a".into(), "p", "A", VALUE).await,
-        Err(CoreError::SecretsUnavailable)
+        Err(SecretsError::Unavailable)
     ));
     assert!(matches!(
         service.remove_env("a".into(), "p", "A").await,
-        Err(CoreError::SecretsUnavailable)
+        Err(SecretsError::Unavailable)
     ));
     assert!(matches!(
-        resolve_secret_env(&service, "p").await,
-        Err(CoreError::SecretsUnavailable)
+        service.resolve_env("p").await,
+        Err(SecretsError::Unavailable)
     ));
 }
 
@@ -227,6 +227,6 @@ async fn reserved_name_can_be_removed() {
     );
     assert!(matches!(
         w.secrets.remove_env("r2".into(), "aylul", "bad").await,
-        Err(CoreError::SecretNameInvalid(_))
+        Err(SecretsError::NameInvalid(_))
     ));
 }

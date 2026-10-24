@@ -264,8 +264,10 @@ impl Index {
                         }
                         if source.service
                             && ["new", "start"].contains(&method_name.as_str())
-                            && (source.path.ends_with("/mod.rs")
-                                || source.path.ends_with("/lib.rs"))
+                            && (source.path
+                                == format!("{}{}{}", super::CORE, source.owner, "/mod.rs")
+                                || source.path
+                                    == format!("crates/core-{}/src/lib.rs", source.owner))
                         {
                             index.constructors.insert(ty.clone());
                         }
@@ -496,8 +498,14 @@ impl Index {
     }
 }
 
+fn secret_read(ty: &str, method: &str) -> bool {
+    ty.ends_with("::Secrets") && matches!(method, "resolve_env" | "resolve_provider_key")
+}
+
 fn sensitive(path: &str) -> bool {
-    path.contains("::store::")
+    path.rsplit_once("::")
+        .is_some_and(|(ty, method)| secret_read(ty, method))
+        || path.contains("::store::")
         || path.ends_with("::store")
         || ((path.contains("::db::") || path.ends_with("::db") || path.starts_with("core_db::"))
             && !path.contains("::StorageError"))
@@ -674,7 +682,7 @@ pub(super) fn check(source: &Source, node: Node<'_>, index: &Index, recorder: &m
             && let Some(ty) = function
                 .child_by_field_name("value")
                 .and_then(|value| index.receiver(source, value, 0))
-            && index.sensitive(&ty)
+            && (index.sensitive(&ty) || secret_read(&ty, method))
         {
             recorder.at(
                 "ownership",
@@ -731,7 +739,7 @@ pub(super) fn check(source: &Source, node: Node<'_>, index: &Index, recorder: &m
         if source.adapter
             && path
                 .rsplit_once("::")
-                .is_some_and(|(ty, _)| index.sensitive(ty))
+                .is_some_and(|(ty, method)| index.sensitive(ty) || secret_read(ty, method))
         {
             recorder.at(
                 "ownership",

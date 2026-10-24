@@ -1,15 +1,17 @@
-//! The encrypted profile environment. Only the harness resolves values.
+//! Encrypted environment values for trusted provider probes and harness openings.
 mod crypto;
 #[cfg(test)]
+#[path = "../tests/crypto/invariants.rs"]
 mod crypto_tests;
+mod error;
 mod model;
 mod store;
 
 use std::sync::Arc;
 
-use crate::CoreError;
 use core_db::{CommandContext, Storage};
 use crypto::{Keys, Sealed};
+pub use error::SecretsError;
 pub use model::{EnvEntry, SecretKey};
 
 pub struct Secrets {
@@ -19,7 +21,7 @@ pub struct Secrets {
 
 /// A value sealed for one profile and name. Its fields are private, so the
 /// row it is stored in is the one its associated data names.
-pub(crate) struct SealedEnv {
+pub struct SealedEnv {
     profile: String,
     name: String,
     sealed: Sealed,
@@ -28,19 +30,19 @@ pub(crate) struct SealedEnv {
 
 impl SealedEnv {
     /// The keyed fingerprint of the clear value, for a command record.
-    pub(crate) fn value_mac(&self) -> &str {
+    fn value_mac(&self) -> &str {
         &self.value_mac
     }
 }
 
 /// One sealed value under its user command, ready for a write transaction.
-pub(crate) struct EnvWrite {
+pub struct EnvWrite {
     command: CommandContext,
     value: SealedEnv,
 }
 
 /// One removal under its user command, ready for a write transaction.
-pub(crate) struct EnvRemoval {
+pub struct EnvRemoval {
     command: CommandContext,
     profile: String,
     name: String,
@@ -52,17 +54,19 @@ impl std::fmt::Debug for Secrets {
     }
 }
 
-/// Validate agent variable names before encryption: reserved names are refused.
-pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
-    if reserved_env_name(name) {
-        return Err(CoreError::SecretNameReserved(name.into()));
+impl Secrets {
+    /// Validate agent variable names before encryption: reserved names are refused.
+    pub fn validate_env_name(name: &str) -> Result<(), SecretsError> {
+        if Self::reserved_env_name(name) {
+            return Err(SecretsError::NameReserved(name.into()));
+        }
+        validate_env_format(name)
     }
-    validate_env_format(name)
 }
 
 /// The name's shape alone. Removal uses it, so a row stored before its name
 /// became reserved can still be removed after the opening names it.
-fn validate_env_format(name: &str) -> Result<(), CoreError> {
+fn validate_env_format(name: &str) -> Result<(), SecretsError> {
     let bytes = name.as_bytes();
     let valid = (1..=128).contains(&bytes.len())
         && (bytes[0].is_ascii_uppercase() || bytes[0] == b'_')
@@ -72,35 +76,37 @@ fn validate_env_format(name: &str) -> Result<(), CoreError> {
     if valid {
         Ok(())
     } else {
-        Err(CoreError::SecretNameInvalid(name.into()))
+        Err(SecretsError::NameInvalid(name.into()))
     }
 }
 
-pub(crate) fn reserved_env_name(name: &str) -> bool {
-    matches!(
-        name,
-        "CLAUDE_CONFIG_DIR"
-            | "ANTHROPIC_API_KEY"
-            | "ANTHROPIC_AUTH_TOKEN"
-            | "ANTHROPIC_BASE_URL"
-            | "ANTHROPIC_MODEL"
-            | "ANTHROPIC_DEFAULT_OPUS_MODEL"
-            | "ANTHROPIC_DEFAULT_SONNET_MODEL"
-            | "ANTHROPIC_DEFAULT_HAIKU_MODEL"
-            | "ANTHROPIC_SMALL_FAST_MODEL"
-            | "ANTHROPIC_CUSTOM_MODEL_OPTION"
-            | "CLAUDE_CODE_MAX_CONTEXT_TOKENS"
-            | "CLAUDE_CODE_AUTO_COMPACT_WINDOW"
-    )
+impl Secrets {
+    pub fn reserved_env_name(name: &str) -> bool {
+        matches!(
+            name,
+            "CLAUDE_CONFIG_DIR"
+                | "ANTHROPIC_API_KEY"
+                | "ANTHROPIC_AUTH_TOKEN"
+                | "ANTHROPIC_BASE_URL"
+                | "ANTHROPIC_MODEL"
+                | "ANTHROPIC_DEFAULT_OPUS_MODEL"
+                | "ANTHROPIC_DEFAULT_SONNET_MODEL"
+                | "ANTHROPIC_DEFAULT_HAIKU_MODEL"
+                | "ANTHROPIC_SMALL_FAST_MODEL"
+                | "ANTHROPIC_CUSTOM_MODEL_OPTION"
+                | "CLAUDE_CODE_MAX_CONTEXT_TOKENS"
+                | "CLAUDE_CODE_AUTO_COMPACT_WINDOW"
+        )
+    }
 }
 
 /// A provider key lives in the scope `provider/{slug}` under one fixed name.
 const PROVIDER_SCOPE_PREFIX: &str = "provider/";
 const PROVIDER_KEY_NAME: &str = "PROVIDER_API_KEY";
 
-fn validate_value(name: &str, value: &str) -> Result<(), CoreError> {
+fn validate_value(name: &str, value: &str) -> Result<(), SecretsError> {
     if value.is_empty() || value.len() > 32768 || value.contains('\0') {
-        return Err(CoreError::SecretValueInvalid(name.into()));
+        return Err(SecretsError::ValueInvalid(name.into()));
     }
     Ok(())
 }
@@ -110,7 +116,7 @@ fn aad(profile: &str, name: &str) -> Vec<u8> {
 }
 
 impl Secrets {
-    pub(crate) fn new(storage: Arc<Storage>, key: Option<SecretKey>) -> Arc<Self> {
+    pub fn new(storage: Arc<Storage>, key: Option<SecretKey>) -> Arc<Self> {
         Arc::new(Self {
             store: store::SecretsStore::new(storage),
             keys: key.as_ref().map(Keys::derive),
@@ -118,24 +124,21 @@ impl Secrets {
     }
 
     /// The scope a provider key is stored under.
-    pub(crate) fn provider_scope(provider: &str) -> String {
+    pub fn provider_scope(provider: &str) -> String {
         format!("{PROVIDER_SCOPE_PREFIX}{provider}")
     }
 
     /// Checks the key, the name and the value, then encrypts the value for
     /// `profile`/`name`. Runs before the write transaction, so a refused value
     /// never reaches one and the transaction sees only database failures.
-    pub(crate) fn seal(
-        &self,
-        profile: &str,
-        name: &str,
-        value: &str,
-    ) -> Result<SealedEnv, CoreError> {
+    pub fn seal(&self, profile: &str, name: &str, value: &str) -> Result<SealedEnv, SecretsError> {
         let keys = self.keys()?;
-        validate_env_name(name)?;
+        Self::validate_env_name(name)?;
         validate_value(name, value)?;
-        let sealed = crypto::seal(&keys.aead, &aad(profile, name), value)
-            .map_err(|_| CoreError::SecretsUnavailable)?;
+        let sealed = keys
+            .aead
+            .seal(&aad(profile, name), value)
+            .map_err(|_| SecretsError::Unavailable)?;
         Ok(SealedEnv {
             profile: profile.into(),
             name: name.into(),
@@ -146,13 +149,13 @@ impl Secrets {
 
     /// Seals `value` for `profile`/`name` under its `secret_env.set` command, before
     /// any transaction, so a refused value never reaches one.
-    pub(crate) fn env_write(
+    pub fn env_write(
         &self,
         command_id: String,
         profile: &str,
         name: &str,
         value: &str,
-    ) -> Result<EnvWrite, CoreError> {
+    ) -> Result<EnvWrite, SecretsError> {
         let value = self.seal(profile, name, value)?;
         let command = CommandContext::user(
             command_id,
@@ -165,23 +168,23 @@ impl Secrets {
     }
 
     /// The provider key write: its scope and name are this service's.
-    pub(crate) fn provider_key_write(
+    pub fn provider_key_write(
         &self,
         command_id: String,
         provider: &str,
         value: &str,
-    ) -> Result<EnvWrite, CoreError> {
+    ) -> Result<EnvWrite, SecretsError> {
         let scope = Self::provider_scope(provider);
         self.env_write(command_id, &scope, PROVIDER_KEY_NAME, value)
     }
 
     /// Checks the key and the name's shape, and builds the `secret_env.remove` command.
-    pub(crate) fn env_removal(
+    pub fn env_removal(
         &self,
         command_id: String,
         profile: &str,
         name: &str,
-    ) -> Result<EnvRemoval, CoreError> {
+    ) -> Result<EnvRemoval, SecretsError> {
         self.keys()?;
         validate_env_format(name)?;
         let command = CommandContext::user(
@@ -199,45 +202,46 @@ impl Secrets {
     }
 
     /// The provider key removal.
-    pub(crate) fn provider_key_removal(
+    pub fn provider_key_removal(
         &self,
         command_id: String,
         provider: &str,
-    ) -> Result<EnvRemoval, CoreError> {
+    ) -> Result<EnvRemoval, SecretsError> {
         let scope = Self::provider_scope(provider);
         self.env_removal(command_id, &scope, PROVIDER_KEY_NAME)
     }
 
     /// The recorded entry when `write` replays a command, inside the caller's write.
     /// A replay answers before the caller checks its owner, so removal cannot change it.
-    pub(crate) async fn replayed_write_in(
+    pub async fn replayed_write_in(
         conn: &mut sqlx::SqliteConnection,
         write: &EnvWrite,
-    ) -> Result<Option<EnvEntry>, crate::StorageError> {
+    ) -> Result<Option<EnvEntry>, core_db::StorageError> {
         let scope = format!("{}/{}", write.value.profile, write.value.name);
         store::SecretsStore::replayed_in(conn, &write.command, &scope)
             .await?
             .map(|outcome| {
-                serde_json::from_str(&outcome)
-                    .map_err(|_| crate::StorageError::Unavailable("invalid secret outcome".into()))
+                serde_json::from_str(&outcome).map_err(|_| {
+                    core_db::StorageError::Unavailable("invalid secret outcome".into())
+                })
             })
             .transpose()
     }
 
     /// Stores one sealed value and records its command inside the caller's write. The
     /// caller asked `replayed_write_in` and checked the scope's owner first.
-    pub(crate) async fn put_in(
+    pub async fn put_in(
         conn: &mut sqlx::SqliteConnection,
         write: EnvWrite,
-    ) -> Result<EnvEntry, crate::StorageError> {
+    ) -> Result<EnvEntry, core_db::StorageError> {
         store::SecretsStore::put_in(conn, &write.command, write.value).await
     }
 
     /// Whether `removal` replays a command, inside the caller's write.
-    pub(crate) async fn replayed_removal_in(
+    pub async fn replayed_removal_in(
         conn: &mut sqlx::SqliteConnection,
         removal: &EnvRemoval,
-    ) -> Result<bool, crate::StorageError> {
+    ) -> Result<bool, core_db::StorageError> {
         let scope = format!("{}/{}", removal.profile, removal.name);
         Ok(
             store::SecretsStore::replayed_in(conn, &removal.command, &scope)
@@ -248,10 +252,10 @@ impl Secrets {
 
     /// Removes one value and records its command inside the caller's write. The caller
     /// asked `replayed_removal_in` and checked the scope's owner first.
-    pub(crate) async fn remove_in(
+    pub async fn remove_in(
         conn: &mut sqlx::SqliteConnection,
         removal: EnvRemoval,
-    ) -> Result<(), crate::StorageError> {
+    ) -> Result<(), core_db::StorageError> {
         let EnvRemoval {
             command,
             profile,
@@ -261,19 +265,19 @@ impl Secrets {
     }
 
     /// Removes every value of one scope inside the caller's transaction.
-    pub(crate) async fn remove_scope_in(
+    pub async fn remove_scope_in(
         &self,
         conn: &mut sqlx::SqliteConnection,
         scope: &str,
-    ) -> Result<(), crate::StorageError> {
+    ) -> Result<(), core_db::StorageError> {
         store::SecretsStore::remove_scope_in(conn, scope).await
     }
 
     /// A provider's key in clear, for the harness only. `None` when unset or empty.
-    pub(crate) async fn resolve_provider_key(
+    pub async fn resolve_provider_key(
         &self,
         provider: &str,
-    ) -> Result<Option<String>, CoreError> {
+    ) -> Result<Option<String>, SecretsError> {
         Ok(self
             .resolve_env(&Self::provider_scope(provider))
             .await?
@@ -283,11 +287,11 @@ impl Secrets {
             .filter(|key| !key.is_empty()))
     }
 
-    fn keys(&self) -> Result<&Keys, CoreError> {
-        self.keys.as_ref().ok_or(CoreError::SecretsUnavailable)
+    fn keys(&self) -> Result<&Keys, SecretsError> {
+        self.keys.as_ref().ok_or(SecretsError::Unavailable)
     }
 
-    pub async fn list_env(&self, profile: &str) -> Result<Vec<EnvEntry>, CoreError> {
+    pub async fn list_env(&self, profile: &str) -> Result<Vec<EnvEntry>, SecretsError> {
         self.keys()?;
         Ok(self.store.list(profile).await?)
     }
@@ -300,7 +304,7 @@ impl Secrets {
         profile: &str,
         name: &str,
         value: &str,
-    ) -> Result<EnvEntry, CoreError> {
+    ) -> Result<EnvEntry, SecretsError> {
         let write = self.env_write(command_id, profile, name, value)?;
         Ok(self
             .store
@@ -321,7 +325,7 @@ impl Secrets {
         command_id: String,
         profile: &str,
         name: &str,
-    ) -> Result<(), CoreError> {
+    ) -> Result<(), SecretsError> {
         let removal = self.env_removal(command_id, profile, name)?;
         Ok(self
             .store
@@ -336,7 +340,7 @@ impl Secrets {
             .await?)
     }
 
-    pub async fn provider_key_set(&self, provider: &str) -> Result<bool, CoreError> {
+    pub async fn provider_key_set(&self, provider: &str) -> Result<bool, SecretsError> {
         Ok(self
             .store
             .list(&Self::provider_scope(provider))
@@ -345,21 +349,20 @@ impl Secrets {
             .any(|e| e.name == PROVIDER_KEY_NAME))
     }
 
-    pub(crate) async fn resolve_env(
-        &self,
-        profile: &str,
-    ) -> Result<Vec<(String, String)>, CoreError> {
+    pub async fn resolve_env(&self, profile: &str) -> Result<Vec<(String, String)>, SecretsError> {
         let keys = self.keys()?;
         self.store
             .rows(profile)
             .await?
             .into_iter()
             .map(|(name, sealed)| {
-                if reserved_env_name(&name) {
-                    return Err(CoreError::SecretNameReserved(name));
+                if Self::reserved_env_name(&name) {
+                    return Err(SecretsError::NameReserved(name));
                 }
-                let value = crypto::open(&keys.aead, &aad(profile, &name), &sealed)
-                    .map_err(|_| CoreError::SecretUnreadable(name.clone()))?;
+                let value = keys
+                    .aead
+                    .open(&aad(profile, &name), &sealed)
+                    .map_err(|_| SecretsError::Unreadable(name.clone()))?;
                 Ok((name, value))
             })
             .collect()

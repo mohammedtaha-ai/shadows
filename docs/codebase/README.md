@@ -102,11 +102,12 @@ pattern to follow, not merely an example.
 | `crates/shadows/src/master_key.rs` | Windows master key storage | `crates/shadows/src/master_key.contract.yaml` |
 | `crates/shadows/src/master_key_tests.rs` | master key lifecycle tests with in-memory credentials | `crates/shadows/src/master_key.contract.yaml` |
 | `crates/shadows/src/aylul_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/aylul.rs` |
-| `crates/shadows-core/src/secrets/` | encrypted profile environment operations | `crates/shadows-core/src/secrets/contract.yaml` |
-| `crates/shadows-core/src/secrets/model.rs` | secret environment metadata | `crates/shadows-core/src/secrets/model.rs` |
-| `crates/shadows-core/src/secrets/store.rs` | encrypted environment SQL | `crates/shadows-core/src/secrets/store.rs` |
-| `crates/shadows-core/src/secrets/crypto.rs` | authenticated environment encryption | `crates/shadows-core/src/secrets/crypto.rs` |
-| `crates/shadows-core/src/secrets/crypto_tests.rs` | envelope integrity tests | `crates/shadows-core/src/secrets/crypto_tests.rs` |
+| `crates/core-secrets/src/lib.rs` | encrypted environment operations | `crates/core-secrets/contract.yaml` |
+| `crates/core-secrets/src/error.rs` | secret operation failures | `crates/core-secrets/contract.yaml` |
+| `crates/core-secrets/src/` | encrypted profile environment operations | `crates/core-secrets/contract.yaml` |
+| `crates/core-secrets/src/model.rs` | secret environment metadata | `crates/core-secrets/src/model.rs` |
+| `crates/core-secrets/src/store/` | encrypted environment SQL | `crates/core-secrets/src/store/` |
+| `crates/core-secrets/src/crypto.rs` | authenticated environment encryption | `crates/core-secrets/src/crypto.rs` |
 | `crates/shadows-core/src/grants/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
 | `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/shadows-core/src/design/map_proposals.rs` | map proposal service entry points | `crates/shadows-core/src/design/contract.yaml` |

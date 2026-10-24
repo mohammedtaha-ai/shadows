@@ -158,6 +158,7 @@ impl From<OpenError> for CoreError {
     fn from(e: OpenError) -> Self {
         match e {
             OpenError::Env(e) => e,
+            OpenError::Secrets(error) => error.into(),
             OpenError::Storage(e) => CoreError::Storage(e),
             OpenError::Start(reason) => CoreError::HarnessStartFailed(reason),
             OpenError::Workspace(reason) => CoreError::ProjectDirectoryUnusable(reason),
@@ -245,6 +246,20 @@ impl CoreError {
             DirectoryError::NotADirectory(_) => ErrorCode::PathNotADirectory,
             DirectoryError::AccessDenied(_) => ErrorCode::PathAccessDenied,
             DirectoryError::Unavailable { .. } => ErrorCode::PathUnavailable,
+        }
+    }
+}
+
+impl From<core_secrets::SecretsError> for CoreError {
+    fn from(error: core_secrets::SecretsError) -> Self {
+        use core_secrets::SecretsError;
+        match error {
+            SecretsError::NameReserved(name) => Self::SecretNameReserved(name),
+            SecretsError::NameInvalid(name) => Self::SecretNameInvalid(name),
+            SecretsError::ValueInvalid(name) => Self::SecretValueInvalid(name),
+            SecretsError::Unreadable(name) => Self::SecretUnreadable(name),
+            SecretsError::Unavailable => Self::SecretsUnavailable,
+            SecretsError::Storage(error) => Self::Storage(error),
         }
     }
 }

@@ -13,7 +13,7 @@ use crate::app::{AppCore, CoreParts};
 
 /// Test-only injection, without touching the operating system credential store.
 pub fn secrets(storage: Arc<Storage>, key: Option<crate::SecretKey>) -> Arc<crate::Secrets> {
-    crate::Secrets::new(storage, key)
+    AppCore::secrets_for_tests(storage, key)
 }
 
 /// Test-only inspection of the harness's private resolution boundary.
@@ -21,7 +21,7 @@ pub async fn resolve_secret_env(
     service: &crate::Secrets,
     profile: &str,
 ) -> Result<Vec<(String, String)>, crate::CoreError> {
-    service.resolve_env(profile).await
+    service.resolve_env(profile).await.map_err(Into::into)
 }
 
 /// The projects service over `storage`, for a test that has no `AppCore`.

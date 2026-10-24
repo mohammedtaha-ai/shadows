@@ -82,7 +82,7 @@ async fn reserved_agent_variable_is_refused() {
             w.secrets
                 .set_env(name.into(), "work", name, "synthetic")
                 .await,
-            Err(CoreError::SecretNameReserved(_))
+            Err(shadows_core::SecretsError::NameReserved(_))
         ));
     }
 }

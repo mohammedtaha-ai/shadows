@@ -31,7 +31,7 @@ impl Homes {
                 CoreError::ProfileInvalid("settings.json env must be an object".into())
             })?;
             for name in env.keys() {
-                if crate::secrets::reserved_env_name(name) {
+                if core_secrets::Secrets::reserved_env_name(name) {
                     return Err(CoreError::SecretNameReserved(name.clone()));
                 }
             }

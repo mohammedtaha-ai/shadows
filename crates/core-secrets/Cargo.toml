@@ -1,0 +1,33 @@
+[package]
+name = "core-secrets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+core-db = { path = "../core-db" }
+aes-gcm = "0.10"
+hkdf = "0.12"
+hmac = "0.12"
+rand = "0.8"
+futures-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+utoipa = { workspace = true }
+
+[features]
+test-support = ["core-db/test-support"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }

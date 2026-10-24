@@ -51,44 +51,46 @@ impl Keys {
     }
 }
 
-pub(super) fn seal(key: &AeadKey, aad: &[u8], plain: &str) -> Result<Sealed, CryptoError> {
-    let mut nonce = [0; 12];
-    OsRng.try_fill_bytes(&mut nonce).map_err(|_| CryptoError)?;
-    let cipher = Aes256Gcm::new((&key.0).into());
-    let ciphertext = cipher
-        .encrypt(
-            &Nonce::from(nonce),
-            Payload {
-                msg: plain.as_bytes(),
-                aad,
-            },
-        )
-        .map_err(|_| CryptoError)?;
-    Ok(Sealed {
-        format: 1,
-        nonce: nonce.to_vec(),
-        ciphertext,
-    })
-}
-
-pub(super) fn open(key: &AeadKey, aad: &[u8], sealed: &Sealed) -> Result<String, CryptoError> {
-    if sealed.format != 1 || sealed.nonce.len() != 12 {
-        return Err(CryptoError);
+impl AeadKey {
+    pub(super) fn seal(&self, aad: &[u8], plain: &str) -> Result<Sealed, CryptoError> {
+        let mut nonce = [0; 12];
+        OsRng.try_fill_bytes(&mut nonce).map_err(|_| CryptoError)?;
+        let cipher = Aes256Gcm::new((&self.0).into());
+        let ciphertext = cipher
+            .encrypt(
+                &Nonce::from(nonce),
+                Payload {
+                    msg: plain.as_bytes(),
+                    aad,
+                },
+            )
+            .map_err(|_| CryptoError)?;
+        Ok(Sealed {
+            format: 1,
+            nonce: nonce.to_vec(),
+            ciphertext,
+        })
     }
-    let cipher = Aes256Gcm::new((&key.0).into());
-    let nonce: [u8; 12] = sealed
-        .nonce
-        .as_slice()
-        .try_into()
-        .map_err(|_| CryptoError)?;
-    let bytes = cipher
-        .decrypt(
-            &Nonce::from(nonce),
-            Payload {
-                msg: &sealed.ciphertext,
-                aad,
-            },
-        )
-        .map_err(|_| CryptoError)?;
-    String::from_utf8(bytes).map_err(|_| CryptoError)
+
+    pub(super) fn open(&self, aad: &[u8], sealed: &Sealed) -> Result<String, CryptoError> {
+        if sealed.format != 1 || sealed.nonce.len() != 12 {
+            return Err(CryptoError);
+        }
+        let cipher = Aes256Gcm::new((&self.0).into());
+        let nonce: [u8; 12] = sealed
+            .nonce
+            .as_slice()
+            .try_into()
+            .map_err(|_| CryptoError)?;
+        let bytes = cipher
+            .decrypt(
+                &Nonce::from(nonce),
+                Payload {
+                    msg: &sealed.ciphertext,
+                    aad,
+                },
+            )
+            .map_err(|_| CryptoError)?;
+        String::from_utf8(bytes).map_err(|_| CryptoError)
+    }
 }

@@ -1,5 +1,5 @@
 use super::SecretKey;
-use super::crypto::*;
+use super::crypto::{Keys, Sealed};
 
 fn keys() -> Keys {
     Keys::derive(&SecretKey::from_bytes([7; 32]))
@@ -8,9 +8,9 @@ fn keys() -> Keys {
 #[test]
 fn seal_open_round_trips() {
     let k = keys();
-    let sealed = seal(&k.aead, b"p\0A", "synthetic").unwrap();
+    let sealed = k.aead.seal(b"p\0A", "synthetic").unwrap();
     assert!(
-        open(&k.aead, b"p\0A", &sealed).unwrap() == "synthetic",
+        k.aead.open(b"p\0A", &sealed).unwrap() == "synthetic",
         "value round trips"
     );
 }
@@ -18,16 +18,16 @@ fn seal_open_round_trips() {
 #[test]
 fn open_with_other_aad_fails() {
     let k = keys();
-    let sealed = seal(&k.aead, b"p\0A", "synthetic").unwrap();
-    assert!(open(&k.aead, b"p\0B", &sealed).is_err());
+    let sealed = k.aead.seal(b"p\0A", "synthetic").unwrap();
+    assert!(k.aead.open(b"p\0B", &sealed).is_err());
 }
 
 #[test]
 fn open_with_other_key_fails() {
     let k = keys();
     let other = Keys::derive(&SecretKey::from_bytes([8; 32]));
-    let sealed = seal(&k.aead, b"p\0A", "synthetic").unwrap();
-    assert!(open(&other.aead, b"p\0A", &sealed).is_err());
+    let sealed = k.aead.seal(b"p\0A", "synthetic").unwrap();
+    assert!(other.aead.open(b"p\0A", &sealed).is_err());
 }
 
 #[test]
@@ -37,15 +37,15 @@ fn short_nonce_is_an_error_not_a_panic() {
         nonce: vec![0],
         ciphertext: vec![],
     };
-    assert!(open(&keys().aead, b"p\0A", &sealed).is_err());
+    assert!(keys().aead.open(b"p\0A", &sealed).is_err());
 }
 
 #[test]
 fn unknown_format_is_an_error() {
     let k = keys();
-    let mut sealed = seal(&k.aead, b"p\0A", "synthetic").unwrap();
+    let mut sealed = k.aead.seal(b"p\0A", "synthetic").unwrap();
     sealed.format = 2;
-    assert!(open(&k.aead, b"p\0A", &sealed).is_err());
+    assert!(k.aead.open(b"p\0A", &sealed).is_err());
 }
 
 #[test]

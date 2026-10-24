@@ -720,6 +720,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-secrets"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "core-db",
+ "futures-core",
+ "hkdf 0.12.4",
+ "hmac 0.12.1",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "utoipa",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3375,6 +3395,7 @@ dependencies = [
  "anyhow",
  "core-db",
  "core-runtime",
+ "core-secrets",
  "dunce",
  "escargot",
  "futures-core",

@@ -771,3 +771,78 @@ fn extracted_runtime_keeps_sql_adapter_and_registration_checks() {
     );
     rejected(root, &clean, "ownership");
 }
+
+#[test]
+fn extracted_secrets_keep_sql_store_and_plaintext_boundaries() {
+    let tree = fixture();
+    let root = tree.path();
+    let clean = scanner::scan(root);
+    put(
+        root,
+        "crates/core-secrets/src/lib.rs",
+        "pub struct Secrets { store: store::SecretsStore } mod store; impl Secrets { \
+         pub fn new() -> Self { Self { store: store::SecretsStore::new() } } \
+         pub fn resolve_env(&self, scope: &str) {} \
+         pub fn resolve_provider_key(&self, scope: &str) {} \
+         pub fn list_env(&self, scope: &str) {} }",
+    );
+    put(root, "crates/core-secrets/contract.yaml", "name: secrets\n");
+    put(
+        root,
+        "crates/core-secrets/src/store/mod.rs",
+        "pub(super) struct SecretsStore; impl SecretsStore { pub fn new() -> Self { Self } }",
+    );
+    put(
+        root,
+        "crates/shadows-core/src/app.rs",
+        "/// | Projects | project ownership | crates/shadows-core/src/projects | \
+         crates/shadows-core/src/projects/contract.yaml |\n\
+         /// | Secrets | encrypted environment | crates/core-secrets/src | \
+         crates/core-secrets/contract.yaml |\npub struct AppCore;",
+    );
+    assert!(compare(&scanner::scan(root), &clean).is_empty());
+    put(
+        root,
+        "crates/shadows-core/src/projects/invalid.rs",
+        "fn invalid() { core_secrets::Secrets::new(); }",
+    );
+    rejected(root, &clean, "ownership");
+    put(root, "crates/shadows-core/src/projects/invalid.rs", "");
+    put(
+        root,
+        "crates/core-secrets/src/store/mod.rs",
+        "pub(super) struct SecretsStore; fn leak() { \
+         sqlx::query(\"UPDATE project SET name = 'x'\"); }",
+    );
+    rejected(root, &clean, "ownership");
+    put(
+        root,
+        "crates/core-secrets/src/store/mod.rs",
+        "pub(super) struct SecretsStore; impl SecretsStore { pub fn new() -> Self { Self } }",
+    );
+    put(
+        root,
+        "crates/shadows-http/src/access.rs",
+        "use core_secrets::Secrets; fn metadata(s: &Secrets) { s.list_env(\"scope\"); }",
+    );
+    assert!(compare(&scanner::scan(root), &clean).is_empty());
+    put(
+        root,
+        "crates/shadows-http/src/access.rs",
+        "use core_secrets::Secrets; fn leak(s: &Secrets) { s.resolve_env(\"scope\"); }",
+    );
+    rejected(root, &clean, "ownership");
+    put(
+        root,
+        "crates/shadows-http/src/access.rs",
+        "use core_secrets::Secrets as Hidden; \
+         fn leak(s: &Hidden) { Hidden::resolve_provider_key(s, \"provider\"); }",
+    );
+    rejected(root, &clean, "ownership");
+    put(
+        root,
+        "crates/shadows-http/src/access.rs",
+        "use core_secrets::store::SecretsStore;",
+    );
+    rejected(root, &clean, "ownership");
+}
