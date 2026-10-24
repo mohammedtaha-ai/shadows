@@ -1,7 +1,8 @@
 //! Live grant attribution for agreement proposals.
 use super::{AgreementContent, AgreementId, AgreementVersion, Design};
-use crate::{CoreError, Grant, grants::Writer};
+use crate::{CoreError, Grant};
 use core_db::CommandContext;
+use core_grants::Writer;
 
 #[derive(Clone)]
 pub(crate) struct AgreementOrigin {
@@ -11,7 +12,7 @@ pub(crate) struct AgreementOrigin {
 
 impl AgreementScope {
     pub(super) fn writer(grant: &Grant) -> Result<Writer, CoreError> {
-        Writer::from_grant(grant, Some("thread grant needs its conversation"))
+        Writer::from_grant(grant, Some("thread grant needs its conversation")).map_err(Into::into)
     }
 }
 

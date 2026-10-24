@@ -137,13 +137,13 @@ pub use crate::turns::for_tests::{
 /// crate everywhere else (§14.6).
 pub use crate::app::adapter_version;
 pub use crate::events::EventCursor;
-pub use crate::grants::Writer;
-pub use crate::grants::{IssuedGrant, Token};
 pub use crate::harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use crate::operations::ReconcileReport;
 pub use crate::turns::Bus;
 pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
+pub use core_grants::Writer;
+pub use core_grants::{IssuedGrant, Token};
 pub use core_projects::ProjectDirectory;
 pub use core_runtime::Runtime;
 pub use core_threads::{NewThreadEntry, TurnContext};

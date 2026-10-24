@@ -22,9 +22,9 @@ mod read;
 pub(super) mod task;
 mod view;
 
-use crate::grants::Writer;
 use crate::operations::OperationId;
 use core_db::JournalEntry;
+use core_grants::Writer;
 use core_projects::ProjectId;
 
 /// A plan event records its subject: always its project, with the writer as

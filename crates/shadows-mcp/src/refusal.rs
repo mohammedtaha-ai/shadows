@@ -169,6 +169,12 @@ impl From<shadows_core::ThreadsError> for Refusal {
     }
 }
 
+impl From<shadows_core::GrantsError> for Refusal {
+    fn from(error: shadows_core::GrantsError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
 #[cfg(test)]
 mod mapping_tests {
     include!(concat!(

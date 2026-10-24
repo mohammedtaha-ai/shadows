@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 
 use super::Harness;
 use crate::error::CoreError;
-use crate::grants::GrantId;
 use core_db::{Storage, StorageError};
+use core_grants::GrantId;
 use core_instructions::{Instructions, InstructionsVersion};
 use core_projects::ProjectId;
 use core_standards::{EffectiveStandards, Standards};
@@ -80,7 +80,7 @@ pub(crate) struct ContextFacts {
 pub(crate) struct Setups {
     storage: Arc<Storage>,
     instructions: Instructions,
-    grants: crate::grants::Grants,
+    grants: core_grants::Grants,
     mcp_url: Option<String>,
     held: Mutex<HashMap<ThreadId, Held>>,
 }
@@ -90,7 +90,7 @@ impl Setups {
         storage: Arc<Storage>,
         instructions: Instructions,
         mcp_url: Option<String>,
-        grants: crate::grants::Grants,
+        grants: core_grants::Grants,
     ) -> Self {
         Self {
             storage,
@@ -144,7 +144,7 @@ impl Setups {
                                     other => other,
                                 })?;
                             let project = core_threads::Threads::project_in(conn, &thread).await?;
-                            crate::grants::Grants::issue_thread_grant_in(conn, &project, &thread)
+                            core_grants::Grants::issue_thread_grant_in(conn, &project, &thread)
                                 .await
                         })
                     })

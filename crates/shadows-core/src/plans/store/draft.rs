@@ -13,12 +13,12 @@ use super::plan_event;
 use super::read::ReadRows;
 use super::task::TaskRows;
 use crate::design::PartId;
-use crate::grants::Grants;
-use crate::grants::Writer;
 use crate::operations::OperationId;
 use crate::plans::model::{DraftStarted, PlanContent, PlanId, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
+use core_grants::Grants;
+use core_grants::Writer;
 use core_projects::ProjectId;
 
 impl PlansStore {
@@ -92,7 +92,7 @@ impl PlansStore {
                         && draft_ref.is_none()
                         && !matches!(&latest, Some(plan) if plan.state == WorkflowState::Draft)
                     {
-                        return Err(crate::grants::GrantsError::GrantScope.into());
+                        return Err(core_grants::GrantsError::GrantScope.into());
                     }
                     let by = Writing {
                         writer: &writer,
@@ -210,7 +210,7 @@ async fn plan_in(
     if of == project.as_str() {
         Ok(())
     } else {
-        Err(crate::grants::GrantsError::GrantScope.into())
+        Err(core_grants::GrantsError::GrantScope.into())
     }
 }
 

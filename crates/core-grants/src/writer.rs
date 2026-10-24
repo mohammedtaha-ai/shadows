@@ -1,4 +1,4 @@
-use crate::grants::GrantId;
+use crate::GrantId;
 use core_db::Actor;
 use core_threads::ThreadId;
 /// The authenticated principal recorded for each write.
@@ -45,10 +45,10 @@ impl Writer {
 }
 
 impl Writer {
-    pub(crate) fn from_grant(
+    pub fn from_grant(
         grant: &super::Grant,
         missing_thread_message: Option<&str>,
-    ) -> Result<Self, crate::CoreError> {
+    ) -> Result<Self, crate::GrantsError> {
         Ok(match grant.kind {
             super::GrantKind::Project => Self::External {
                 grant: grant.id.clone(),
@@ -59,11 +59,8 @@ impl Writer {
                     .thread_id
                     .clone()
                     .ok_or_else(|| match missing_thread_message {
-                        Some(message) => crate::CoreError::Refused {
-                            code: crate::ErrorCode::GrantScope,
-                            message: message.into(),
-                        },
-                        None => super::GrantsError::GrantScope.into(),
+                        Some(message) => crate::GrantsError::GrantScopeMessage(message.into()),
+                        None => super::GrantsError::GrantScope,
                     })?,
             },
         })

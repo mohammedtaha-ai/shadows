@@ -1,3 +1,4 @@
+# Grant authority and approval provenance are imported from core-grants.
 # Index access and project reach use core-code.
 # Project standards are imported from core-standards.
 # Planner instructions are read through core-instructions.
@@ -80,7 +81,7 @@ dependencies:
   harness: crates/shadows-core/src/harness/contract.yaml
   operations: crates/shadows-core/src/operations/contract.yaml
   threads: crates/core-threads/contract.yaml
-  grants: crates/shadows-core/src/grants/contract.yaml
+  grants: crates/core-grants/contract.yaml
   plans: crates/shadows-core/src/plans/contract.yaml
   design: crates/shadows-core/src/design/contract.yaml
   standards: crates/core-standards/contract.yaml

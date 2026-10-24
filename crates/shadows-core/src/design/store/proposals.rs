@@ -1,9 +1,9 @@
 //! Recording Planner vision proposals.
 use super::DesignStore;
 use crate::design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
-use crate::grants::Writer;
 use crate::{OperationId, ProjectId, StorageError, VisionContent, VisionField};
 use core_db::{CommandContext, JournalEntry, Storage};
+use core_grants::Writer;
 use core_threads::{NewThreadEntry, ThreadEntryKind, Threads};
 
 impl DesignStore {
@@ -26,9 +26,9 @@ impl DesignStore {
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
                     let Writer::Planner { thread, .. } = &writer else {
-                        return Err(crate::grants::GrantsError::GrantScope.into());
+                        return Err(core_grants::GrantsError::GrantScope.into());
                     };
-                    crate::grants::Grants::check_writer(conn, &writer, &project).await?;
+                    core_grants::Grants::check_writer(conn, &writer, &project).await?;
                     if let Some(id) =
                         CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
                     {

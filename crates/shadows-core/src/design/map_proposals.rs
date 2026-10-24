@@ -43,7 +43,7 @@ pub struct MapPropose {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MapProposal {
     #[serde(default)]
-    pub approved_by: Option<crate::grants::ApprovedBy>,
+    pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: MapAction,
@@ -114,7 +114,7 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.store
-            .approve_map_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
+            .approve_map_proposal_in(&ctx, project, proposal, &core_grants::Approver::Person)
             .await
             .map_err(CoreError::invalid_constraint)
     }

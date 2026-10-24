@@ -1,7 +1,8 @@
 //! Vision proposal values and the person/Planner entry points.
 use super::{Design, DesignChange, VisionField};
-use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId, grants::Writer};
+use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId};
 use core_db::CommandContext;
+use core_grants::Writer;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -25,7 +26,7 @@ pub enum ProposalStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct VisionProposal {
     #[serde(default)]
-    pub approved_by: Option<crate::grants::ApprovedBy>,
+    pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: VisionAction,
@@ -52,7 +53,7 @@ impl Design {
     pub(crate) async fn planner_approver(
         &self,
         grant: &Grant,
-    ) -> Result<crate::grants::Approver, CoreError> {
+    ) -> Result<core_grants::Approver, CoreError> {
         let writer = super::agreement_scope::AgreementScope::writer(grant)?;
         let Writer::Planner { thread, .. } = &writer else {
             return Err(CoreError::Refused {
@@ -80,7 +81,7 @@ impl Design {
         )
         .await?
         .harness;
-        Ok(crate::grants::Approver::Planner {
+        Ok(core_grants::Approver::Planner {
             writer,
             turn: turn.to_string(),
             harness,
@@ -141,7 +142,7 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.store
-            .approve_vision_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
+            .approve_vision_proposal_in(&ctx, project, proposal, &core_grants::Approver::Person)
             .await
             .map_err(CoreError::invalid_constraint)
     }

@@ -2,9 +2,9 @@
 use super::DesignStore;
 use super::{map_proposal_shape as shape, map_versions as maps};
 use crate::design::{MapAction, MapProposal, MapPropose, ProposalStatus};
-use crate::grants::Writer;
 use crate::{OperationId, ProjectId, StorageError};
 use core_db::{CommandContext, JournalEntry, Storage};
+use core_grants::Writer;
 use core_threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use std::collections::BTreeMap;
 
@@ -28,9 +28,9 @@ impl DesignStore {
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
                     let Writer::Planner { thread, .. } = &writer else {
-                        return Err(crate::grants::GrantsError::GrantScope.into());
+                        return Err(core_grants::GrantsError::GrantScope.into());
                     };
-                    crate::grants::Grants::check_writer(conn, &writer, &p).await?;
+                    core_grants::Grants::check_writer(conn, &writer, &p).await?;
                     if let Some(id) =
                         CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
                     {

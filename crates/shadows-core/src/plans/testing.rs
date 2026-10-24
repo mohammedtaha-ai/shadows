@@ -4,9 +4,9 @@ use super::{
     PlanShown, PlanVersions, Plans, WorkflowId,
 };
 use crate::design::PartId;
-use crate::grants::Writer;
 use crate::operations::OperationId;
 use core_db::{CommandContext, StorageError};
+use core_grants::Writer;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 impl Plans {
@@ -66,7 +66,7 @@ impl Plans {
         ctx: &CommandContext,
         workflow: &WorkflowId,
         expected_revision: i64,
-        approver: &crate::grants::Approver,
+        approver: &core_grants::Approver,
     ) -> Result<Approved, crate::CoreError> {
         self.store
             .approve_plan_with(ctx, workflow, expected_revision, approver)

@@ -1,12 +1,14 @@
 //! Transaction-local approval authority and provenance reads.
 use super::{Grants, GrantsError};
-use crate::grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
-use crate::{ProjectId, StorageError, ThreadEntryId};
+use crate::{ApprovalRequest, ApprovedBy, Approver, Writer};
+use core_db::StorageError;
+use core_projects::ProjectId;
+use core_threads::ThreadEntryId;
 use core_threads::Threads;
 use sqlx::SqliteConnection;
 
 impl Grants {
-    pub(crate) async fn authorise_in(
+    pub async fn authorise_in(
         conn: &mut SqliteConnection,
         approver: &Approver,
         project: &ProjectId,
@@ -34,7 +36,7 @@ impl Grants {
         ))
     }
 
-    pub(crate) async fn read_in(
+    pub async fn read_in(
         conn: &mut SqliteConnection,
         principal: Option<String>,
         agent: Option<String>,

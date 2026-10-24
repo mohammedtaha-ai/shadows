@@ -1,5 +1,4 @@
 //! Grant authority failures with stable application codes.
-use crate::{CoreError, ErrorCode};
 use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]
@@ -8,6 +7,8 @@ pub enum GrantsError {
     GrantInvalid,
     #[error("outside what the grant allows")]
     GrantScope,
+    #[error("{0}")]
+    GrantScopeMessage(String),
     #[error(transparent)]
     Storage(#[from] StorageError),
 }
@@ -19,18 +20,5 @@ impl From<sqlx::Error> for GrantsError {
 impl From<serde_json::Error> for GrantsError {
     fn from(error: serde_json::Error) -> Self {
         Self::Storage(error.into())
-    }
-}
-impl From<GrantsError> for CoreError {
-    fn from(error: GrantsError) -> Self {
-        let code = match error {
-            GrantsError::GrantInvalid => ErrorCode::GrantInvalid,
-            GrantsError::GrantScope => ErrorCode::GrantScope,
-            GrantsError::Storage(error) => return error.into(),
-        };
-        Self::Refused {
-            code,
-            message: error.to_string(),
-        }
     }
 }

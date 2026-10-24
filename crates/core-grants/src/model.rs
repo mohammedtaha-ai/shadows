@@ -92,3 +92,10 @@ pub struct IssuedGrant {
     pub grant: Grant,
     pub token: Option<Token>,
 }
+
+impl GrantId {
+    /// Reconstructs this owner's identifier from a retained database reference.
+    pub fn from_recorded(id: String) -> Self {
+        Self::from_stored(id)
+    }
+}

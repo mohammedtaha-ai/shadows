@@ -95,7 +95,7 @@ impl Design {
         ctx: &core_db::CommandContext,
         project: &ProjectId,
         id: &str,
-        approver: &crate::grants::Approver,
+        approver: &core_grants::Approver,
     ) -> Result<DesignChange, CoreError> {
         self.store
             .approve_vision_proposal_in(ctx, project, id, approver)
@@ -104,7 +104,7 @@ impl Design {
     pub async fn propose_vision_for_test(
         &self,
         ctx: &core_db::CommandContext,
-        writer: &crate::grants::Writer,
+        writer: &core_grants::Writer,
         project: &ProjectId,
         turn: &crate::OperationId,
         args: VisionPropose,

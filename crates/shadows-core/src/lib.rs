@@ -2,7 +2,6 @@ mod app;
 mod design;
 mod error;
 mod events;
-mod grants;
 mod harness;
 mod operations;
 mod plans;
@@ -11,7 +10,7 @@ pub use project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]
 pub mod testing;
 mod turns;
-pub use grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
+pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
 // The public surface (spec §14.4, §14.6): the application, its failure, the
 // services, and every type an adapter names or serializes. Storage, the
@@ -32,6 +31,7 @@ pub use core_db::StorageError;
 pub use core_extensions::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
+pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use core_instructions::{Instructions, InstructionsVersion};
 pub use core_person::{Person, PersonInput, PersonSettings, Theme};
 pub use core_projects::{
@@ -62,7 +62,6 @@ pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use error::{CoreError, ErrorCode};
 pub use events::{Delivery, Events, StoredEvent, Subscription};
-pub use grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use harness::{
     AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, LeaseError, OpenError,
     OpenSession, RememberedSettings,

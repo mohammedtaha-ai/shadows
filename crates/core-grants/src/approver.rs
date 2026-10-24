@@ -31,7 +31,7 @@ pub struct ApprovedBy {
 }
 
 impl Approver {
-    pub(crate) fn command(&self, kind: &str, params: serde_json::Value) -> CommandContext {
+    pub fn command(&self, kind: &str, params: serde_json::Value) -> CommandContext {
         let Self::Planner { writer, turn, .. } = self else {
             unreachable!("Planner command construction is core-only")
         };

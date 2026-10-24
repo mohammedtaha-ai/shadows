@@ -1,3 +1,4 @@
+# Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
 # Extension library methods and refusals are imported from core-extensions.
 # AgentsError is translated through CoreError with unchanged responses.

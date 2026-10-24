@@ -25,7 +25,7 @@
 name: grants
 version: 1
 status: current
-source: crates/shadows-core/src/grants
+source: crates/core-grants/src
 
 owns_tables: [mcp_grant, draft_intent]
 
@@ -83,17 +83,23 @@ shapes:
 
 
 modules:
-  mod.rs: grant service boundary
+  lib.rs: grant service boundary
   model.rs: grant values without clear bearer serialization
   writer.rs: authenticated writer values
   approver.rs: approval provenance values
   approval.rs: transaction-local approval authority
   error.rs: grant refusal mapping
-  store.rs: grant persistence
+  store/mod.rs: grant persistence
   tools.rs: grant tool policy
   testing.rs: test-only grant entry points
 
+dependencies:
+  projects: crates/core-projects/contract.yaml
+  threads: crates/core-threads/contract.yaml
+
 functions:
+  new: "(storage, mcp_url) -> Grants; AppCore constructs the service"
+  from_recorded: Retained GrantId reconstruction for cross-owner database references.
   principal_resolution:
     from_grant: "Writer::from_grant(grant, missing_thread_message) resolves authenticated writer identity once; callers keep their malformed-grant wording"
   reads:
@@ -102,37 +108,36 @@ functions:
     read_in:
       signature: "(conn, principal, agent, request) -> Result<Option<ApprovedBy>, StorageError>"
     list:
-      signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, CoreError>"
+      signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, GrantsError>"
       # Project grants only, revoked ones included, newest first by the seq of
       # each one's `McpGrantIssued` event, never by `created_at`.
     authorize:
-      signature: "(&self, token: &str) -> Result<Option<Grant>, CoreError>"
+      signature: "(&self, token: &str) -> Result<Option<Grant>, GrantsError>"
       # Looks up `hash_token(token)` among rows with `revoked_at IS NULL`;
       # `Ok(None)` for an unknown or revoked token.
   writes:
     prepare_draft:
-      signature: "(&self, grant: &GrantId) -> Result<String, CoreError>"
+      signature: "(&self, grant: &GrantId) -> Result<String, GrantsError>"
     authorise_in:
       signature: "(conn, approver: &Approver, project: &ProjectId) -> Result<Option<ThreadEntryId>, GrantsError>"
       # Callers check the running turn between the writer check and this provenance check.
     issue:
-      signature: "(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, CoreError>"
+      signature: "(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, GrantsError>"
       # "McpGrantIssue", params { project }, principal User/local, scope
       # ("Project", project). An unknown or removed project is
       # NotFound("project").
     revoke:
-      signature: "(&self, command_id: String, grant: &GrantId) -> Result<Grant, CoreError>"
+      signature: "(&self, command_id: String, grant: &GrantId) -> Result<Grant, GrantsError>"
       # "McpGrantRevoke", params { grant }, scope ("Grant", grant). A thread
       # grant or an unknown id is NotFound("project grant"). Revoking a
       # revoked grant under a new command leaves it as it was and journals no
       # second McpGrantRevoked.
     revoke_thread_grants:
-      signature: "(&self) -> Result<u64, CoreError>"
+      signature: "(&self) -> Result<u64, GrantsError>"
       # Every live thread grant, ORDER BY id, each with its `McpGrantRevoked`
       # event; answers how many.
   tokens:
-    # `Token`, `IssuedGrant` and `hash_token` leave the crate only under
-    # `test-support`.
+    # Token crosses the Harness opening boundary; IssuedGrant is test-support only.
     generate:
       signature: "() -> Token"
       # On `Token`; `insert_grant` is its one product caller.
@@ -196,17 +201,17 @@ functions:
 
 
 enums:
+  GrantsError:
+    source: core_grants::GrantsError
+    values: [GrantInvalid, GrantScope, GrantScopeMessage, Storage]
   ProjectId:
     source: core_projects::ProjectId
     values: []
   ThreadId:
-    source: crate::threads::ThreadId
+    source: core_threads::ThreadId
     values: []
   Writer:
-    source: crate::grants::Writer
-    values: []
-  CoreError:
-    source: crate::error::CoreError
+    source: core_grants::Writer
     values: []
   StorageError:
     source: core_db::StorageError
@@ -214,6 +219,9 @@ enums:
 
 
 shared_in_transaction:
+  authorise_in: Approval authorization in the caller write.
+  read_in: Approval provenance in the caller snapshot.
+  issue_thread_grant_in: Harness issues the live session grant in its write.
   # Map proposals use the same live Planner writer check as vision proposals.
   # Design calls check_writer for grant-scoped agreement reads and each new
   # proposal write, before replay, using the existing live/project policy.

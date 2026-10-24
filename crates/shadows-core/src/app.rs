@@ -17,7 +17,6 @@ use shadows_process::{ProcessSpec, spawn};
 use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::Events;
-use crate::grants::Grants;
 use crate::harness::{AylulOwners, Harness, SessionsConfig};
 use crate::operations::Operations;
 use crate::plans::Plans;
@@ -28,6 +27,7 @@ use core_agents::Agents;
 use core_code::{Code, CodeConfig};
 use core_db::Storage;
 use core_extensions::Extensions;
+use core_grants::Grants;
 use core_instructions::Instructions;
 use core_person::PersonSettings;
 use core_projects::Projects;
@@ -110,8 +110,8 @@ pub struct CoreParts {
          `crates/shadows-core/src/plans/contract.yaml` |"]
 #[doc = " | `Grants` | \
          grant authorization | \
-         `crates/shadows-core/src/grants` | \
-         `crates/shadows-core/src/grants/contract.yaml` |"]
+         `crates/core-grants/src` | \
+         `crates/core-grants/contract.yaml` |"]
 #[doc = " | `Operations` | \
          durable operation lifecycle | \
          `crates/shadows-core/src/operations` | \

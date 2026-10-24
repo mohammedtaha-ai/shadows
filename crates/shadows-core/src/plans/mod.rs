@@ -50,8 +50,8 @@ pub use rules::Problem;
 use scope::Scope;
 
 use crate::error::{CoreError, ErrorCode};
-use crate::grants::{Grant, GrantKind};
 use core_db::{Anchor, CommandContext, Storage};
+use core_grants::{Grant, GrantKind};
 use core_projects::ProjectId;
 
 /// The pure rules, for `shadows_core::testing` only: its rule tests call them
@@ -68,7 +68,7 @@ pub(crate) mod for_tests {
 #[derive(Clone)]
 pub struct Plans {
     store: Arc<store::PlansStore>,
-    grants: crate::grants::Grants,
+    grants: core_grants::Grants,
     operations: crate::operations::Operations,
     design: crate::design::Design,
 }
@@ -108,7 +108,7 @@ impl Plans {
         expected_revision: i64,
     ) -> Result<Approved, CoreError> {
         let writer = scope::Scope::writer_of(grant)?;
-        let crate::grants::Writer::Planner { .. } = &writer else {
+        let core_grants::Writer::Planner { .. } = &writer else {
             return Err(CoreError::Refused {
                 code: crate::ErrorCode::GrantScope,
                 message: "approval needs a Planner's conversation".into(),
@@ -135,7 +135,7 @@ impl Plans {
 
     pub(crate) fn new(
         storage: Arc<Storage>,
-        grants: crate::grants::Grants,
+        grants: core_grants::Grants,
         operations: crate::operations::Operations,
         design: crate::design::Design,
     ) -> Self {
@@ -261,7 +261,10 @@ impl Plans {
 
     /// `draft_prepare`: a new `draft_ref` for the grant.
     pub async fn prepare_draft(&self, grant: &Grant) -> Result<String, CoreError> {
-        self.grants.prepare_draft(&grant.id).await
+        self.grants
+            .prepare_draft(&grant.id)
+            .await
+            .map_err(Into::into)
     }
 
     /// `draft_start`: the Planner's in its own thread, an external agent's

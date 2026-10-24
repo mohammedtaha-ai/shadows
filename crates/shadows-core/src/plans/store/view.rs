@@ -5,12 +5,12 @@
 use super::PlansStore;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::grants::Grants;
-use crate::grants::Writer;
 use crate::operations::OperationId;
 use crate::plans::conversation::{Place, PlanShown};
 use crate::plans::model::WorkflowId;
 use core_db::{CommandContext, JournalEntry, Storage};
+use core_grants::Grants;
+use core_grants::Writer;
 use core_threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 
 impl PlansStore {
@@ -40,7 +40,7 @@ impl PlansStore {
                     let plan = ReadRows::load_plan(conn, &workflow, None).await?;
                     // The card goes in the Planner's own conversation.
                     let Writer::Planner { thread, .. } = &writer else {
-                        return Err(crate::grants::GrantsError::GrantScope.into());
+                        return Err(core_grants::GrantsError::GrantScope.into());
                     };
                     let thread = thread.clone();
                     Grants::check_writer(conn, &writer, &plan.project_id).await?;

@@ -18,20 +18,20 @@ impl DesignStore {
         ctx: &CommandContext,
         p: &ProjectId,
         id: &str,
-        approver: &crate::grants::Approver,
+        approver: &core_grants::Approver,
         planned: &BTreeSet<String>,
     ) -> Result<DesignChange, crate::CoreError> {
         let (mut ctx, ts) = (ctx.clone(), Storage::now());
-        if let crate::grants::Approver::Planner {
-            writer: writer @ crate::grants::Writer::Planner { thread, .. },
+        if let core_grants::Approver::Planner {
+            writer: writer @ core_grants::Writer::Planner { thread, .. },
             turn,
             ..
         } = &approver
         {
-            crate::grants::Grants::check_writer(conn, writer, p).await?;
+            core_grants::Grants::check_writer(conn, writer, p).await?;
             crate::operations::Operations::require_running_in(conn, thread, turn).await?;
         }
-        let request = crate::grants::Grants::authorise_in(conn, approver, p).await?;
+        let request = core_grants::Grants::authorise_in(conn, approver, p).await?;
         ctx.agent = Some(approver.agent());
         if let Some(result) = CommandContext::classify(conn, &ctx, "Project", p.as_str()).await? {
             let json: String = sqlx::query_scalar(

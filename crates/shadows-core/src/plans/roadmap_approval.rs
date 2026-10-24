@@ -1,9 +1,9 @@
 //! Roadmap approval, which refuses to remove an outcome a plan links to.
 use super::Plans;
 use crate::design::{Design, DesignChange};
-use crate::grants::Approver;
 use crate::{CoreError, Grant, ProjectId};
 use core_db::CommandContext;
+use core_grants::Approver;
 
 impl Plans {
     pub async fn approve_roadmap_proposal(

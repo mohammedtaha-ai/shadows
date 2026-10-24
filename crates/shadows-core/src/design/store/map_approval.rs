@@ -12,24 +12,24 @@ impl DesignStore {
         ctx: &CommandContext,
         p: &ProjectId,
         id: &str,
-        approver: &crate::grants::Approver,
+        approver: &core_grants::Approver,
     ) -> Result<DesignChange, crate::CoreError> {
         let (mut ctx, p, id, ts) = (ctx.clone(), p.clone(), id.to_owned(), Storage::now());
         let approver = approver.clone();
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
-                    if let crate::grants::Approver::Planner {
-                        writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                    if let core_grants::Approver::Planner {
+                        writer: writer @ core_grants::Writer::Planner { thread, .. },
                         turn,
                         ..
                     } = &approver
                     {
-                        crate::grants::Grants::check_writer(conn, writer, &p).await?;
+                        core_grants::Grants::check_writer(conn, writer, &p).await?;
                         crate::operations::Operations::require_running_in(conn, thread, turn)
                             .await?;
                     }
-                    let request = crate::grants::Grants::authorise_in(conn, &approver, &p).await?;
+                    let request = core_grants::Grants::authorise_in(conn, &approver, &p).await?;
                     ctx.agent = Some(approver.agent());
                     if let Some(result) =
                         CommandContext::classify(conn, &ctx, "Project", p.as_str()).await?
@@ -47,7 +47,7 @@ impl DesignStore {
                         super::proposal_read::ProposalReadRows::live_vision(conn, &p).await?;
                     let proposal =
                         super::map_proposal_read::MapProposalReadRows::load(conn, &p, &id).await?;
-                    if matches!(approver, crate::grants::Approver::Planner { .. })
+                    if matches!(approver, core_grants::Approver::Planner { .. })
                         && proposal.action == MapAction::First
                         && !proposal.waivers.is_empty()
                     {

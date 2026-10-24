@@ -7,13 +7,13 @@ use super::PlansStore;
 use sqlx::SqliteConnection;
 
 use super::task::TaskRows;
-use crate::grants::GrantId;
 use crate::plans::model::{
     EditOutcome, LastEdit, Plan, PlanId, PlanListing, PlanState, WorkflowId, WorkflowState,
     WrittenBy,
 };
 use crate::plans::rules::Rules;
 use core_db::StorageError;
+use core_grants::GrantId;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
@@ -45,7 +45,7 @@ impl PlansStore {
             .await
             .map_err(StorageError::from)?;
             if owner.as_deref() != Some(selected.as_str()) {
-                return Err(crate::grants::GrantsError::GrantScope.into());
+                return Err(core_grants::GrantsError::GrantScope.into());
             }
         }
         let mut plan = ReadRows::load_plan(&mut snapshot, workflow, origin).await?;
@@ -268,7 +268,7 @@ impl ReadRows {
                     .bind(id.as_str())
                     .fetch_one(&mut *conn)
                     .await?;
-                crate::grants::Grants::read_in(conn, principal, agent, request).await?
+                core_grants::Grants::read_in(conn, principal, agent, request).await?
             },
             id: id.clone(),
             plan_id: PlanId::from_stored(plan_id),
@@ -313,7 +313,7 @@ impl ReadRows {
     ) -> Result<WrittenBy, StorageError> {
         if let Some(grant) = grant {
             return Ok(WrittenBy::External {
-                grant_id: GrantId::from_stored(grant),
+                grant_id: GrantId::from_recorded(grant),
             });
         }
         let thread = thread

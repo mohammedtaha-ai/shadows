@@ -110,7 +110,7 @@ pattern to follow, not merely an example.
 | `crates/core-secrets/src/model.rs` | secret environment metadata | `crates/core-secrets/src/model.rs` |
 | `crates/core-secrets/src/store/` | encrypted environment SQL | `crates/core-secrets/src/store/` |
 | `crates/core-secrets/src/crypto.rs` | authenticated environment encryption | `crates/core-secrets/src/crypto.rs` |
-| `crates/shadows-core/src/grants/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
+| `crates/core-grants/src/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
 | `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/shadows-core/src/design/map_proposals.rs` | map proposal service entry points | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/store/map_proposals.rs` | recording map proposals | `crates/shadows-core/src/design/contract.yaml` |
@@ -253,9 +253,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/plans/rules.rs` | what makes a plan invalid or unready | `crates/shadows-core/src/plans/rules.rs` |
 | `crates/shadows-core/src/plans/scope.rs` | plan calls made under an MCP grant | `crates/shadows-core/src/plans/scope.rs` |
 | `crates/shadows-core/src/plans/conversation.rs` | the plan in the conversation | `crates/shadows-core/src/plans/conversation.rs` |
-| `crates/shadows-core/src/grants/` | grant authorization | `crates/shadows-core/src/grants/mod.rs` |
-| `crates/shadows-core/src/grants/model.rs` | the grant types callers meet | `crates/shadows-core/src/grants/model.rs` |
-| `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
+| `crates/core-grants/src/` | grant authorization | `crates/core-grants/src/mod.rs` |
+| `crates/core-grants/src/model.rs` | the grant types callers meet | `crates/core-grants/src/model.rs` |
+| `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
 | `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
 | `crates/shadows-core/src/design/` | a project's design workspace | `crates/shadows-core/src/design/mod.rs` |
 | `crates/shadows-core/src/design/structure.rs` | rendering an approved map as files | `crates/shadows-core/src/design/structure.rs` |
@@ -378,11 +378,11 @@ file disagrees with either, they are right and this file is the defect.
 - **Explanations of declarations.** Those live as doc comments on the
   declarations themselves.
 
-| `crates/shadows-core/src/grants/writer.rs` | authenticated writer values | `crates/shadows-core/src/grants/contract.yaml` |
-| `crates/shadows-core/src/grants/approver.rs` | approval provenance values | `crates/shadows-core/src/grants/contract.yaml` |
-| `crates/shadows-core/src/grants/error.rs` | grant refusal mapping | `crates/shadows-core/src/grants/contract.yaml` |
-| `crates/shadows-core/src/grants/tools.rs` | grant tool policy | `crates/shadows-core/src/grants/contract.yaml` |
-| `crates/shadows-core/src/grants/testing.rs` | test-only grant entry points | `crates/shadows-core/src/grants/contract.yaml` |
+| `crates/core-grants/src/writer.rs` | authenticated writer values | `crates/core-grants/contract.yaml` |
+| `crates/core-grants/src/approver.rs` | approval provenance values | `crates/core-grants/contract.yaml` |
+| `crates/core-grants/src/error.rs` | grant refusal mapping | `crates/core-grants/contract.yaml` |
+| `crates/core-grants/src/tools.rs` | grant tool policy | `crates/core-grants/contract.yaml` |
+| `crates/core-grants/src/testing.rs` | test-only grant entry points | `crates/core-grants/contract.yaml` |
 
 | `crates/shadows-core/src/harness/access.rs` | live session owner operations | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/store/invocation.rs` | invocation transaction entry points | `crates/shadows-core/src/harness/contract.yaml` |
@@ -461,3 +461,5 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-extensions/src/lib.rs` | extension library boundary | `crates/core-extensions/contract.yaml` |
 
 | `crates/core-threads/src/lib.rs` | thread command boundary | `crates/core-threads/contract.yaml` |
+
+| `crates/core-grants/src/lib.rs` | grant authority boundary | `crates/core-grants/contract.yaml` |

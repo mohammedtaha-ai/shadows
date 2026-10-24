@@ -130,7 +130,7 @@ impl Sessions {
         config: SessionsConfig,
         owners: crate::harness::AylulOwners,
         instructions: core_instructions::Instructions,
-        grants: crate::grants::Grants,
+        grants: core_grants::Grants,
     ) -> Arc<Self> {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))

@@ -1,7 +1,8 @@
 //! Person adoption of exact agreement versions through the plan edit transaction.
 use super::{EditOutcome, PlanOp, Plans, WorkflowId};
-use crate::{CoreError, ErrorCode, grants::Writer};
+use crate::{CoreError, ErrorCode};
 use core_db::CommandContext;
+use core_grants::Writer;
 
 impl Plans {
     pub async fn edit_bindings(

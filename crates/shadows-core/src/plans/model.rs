@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 
 use super::dependencies::{LinkedTask, TaskParent};
 use super::rules::Problem;
-use crate::grants::GrantId;
 use core_db::newtype_id;
+use core_grants::GrantId;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
@@ -200,7 +200,7 @@ pub struct LastEdit {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Plan {
     #[serde(default)]
-    pub approved_by: Option<crate::grants::ApprovedBy>,
+    pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: WorkflowId,
     pub plan_id: PlanId,
     pub plan_state: PlanState,

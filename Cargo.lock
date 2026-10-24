@@ -768,6 +768,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "core-grants"
+version = "0.1.0"
+dependencies = [
+ "core-code",
+ "core-db",
+ "core-grants",
+ "core-projects",
+ "core-threads",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "shadows-agent",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "core-instructions"
 version = "0.1.0"
 dependencies = [
@@ -3580,6 +3602,7 @@ dependencies = [
  "core-code",
  "core-db",
  "core-extensions",
+ "core-grants",
  "core-instructions",
  "core-person",
  "core-projects",

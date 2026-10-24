@@ -407,3 +407,24 @@ impl From<core_threads::ThreadsError> for CoreError {
         }
     }
 }
+
+impl From<core_grants::GrantsError> for CoreError {
+    fn from(error: core_grants::GrantsError) -> Self {
+        use core_grants::GrantsError;
+        let code = match error {
+            GrantsError::GrantInvalid => ErrorCode::GrantInvalid,
+            GrantsError::GrantScope => ErrorCode::GrantScope,
+            GrantsError::GrantScopeMessage(message) => {
+                return Self::Refused {
+                    code: ErrorCode::GrantScope,
+                    message,
+                };
+            }
+            GrantsError::Storage(error) => return error.into(),
+        };
+        Self::Refused {
+            code,
+            message: error.to_string(),
+        }
+    }
+}

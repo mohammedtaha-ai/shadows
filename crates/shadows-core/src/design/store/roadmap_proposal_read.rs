@@ -43,7 +43,7 @@ async fn view(
     row: Row,
 ) -> Result<RoadmapProposal, StorageError> {
     let mut proposal: RoadmapProposal = serde_json::from_str(&row.payload_json)?;
-    proposal.approved_by = crate::grants::Grants::read_in(
+    proposal.approved_by = core_grants::Grants::read_in(
         conn,
         row.approved_principal,
         row.approved_agent,

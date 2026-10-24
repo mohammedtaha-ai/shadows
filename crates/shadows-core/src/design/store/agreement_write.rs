@@ -7,8 +7,8 @@ use crate::design::agreement_validation::AgreementValidation;
 use crate::design::{
     AgreementContent, AgreementId, AgreementState, AgreementVersion, AgreementWriter,
 };
-use crate::grants::Writer;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_grants::Writer;
 use sqlx::SqliteConnection;
 
 impl DesignStore {
@@ -27,7 +27,7 @@ impl DesignStore {
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
                     if let Some(origin) = &origin {
-                        crate::grants::Grants::check_writer(conn, &origin.writer, &project).await?;
+                        core_grants::Grants::check_writer(conn, &origin.writer, &project).await?;
                     }
                     if let Some(result) = AgreementWriteRows::replay(conn, &ctx, &project).await? {
                         return Ok(result);
@@ -129,7 +129,7 @@ impl DesignStore {
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
                     if let Some(origin) = &origin {
-                        crate::grants::Grants::check_writer(conn, &origin.writer, &project).await?;
+                        core_grants::Grants::check_writer(conn, &origin.writer, &project).await?;
                     }
                     if let Some(result) = AgreementWriteRows::replay(conn, &ctx, &project).await? {
                         return Ok(result);

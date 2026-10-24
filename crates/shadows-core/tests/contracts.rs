@@ -193,6 +193,28 @@ fn crate_visible(vis: &syn::Visibility) -> bool {
     )
 }
 
+fn transaction_method(method: &syn::ImplItemFn) -> bool {
+    matches!(method.vis, syn::Visibility::Public(_))
+        && (method.sig.ident.to_string().ends_with("_in")
+            || method.sig.inputs.iter().any(|argument| {
+                let syn::FnArg::Typed(argument) = argument else {
+                    return false;
+                };
+                let syn::Type::Reference(reference) = &*argument.ty else {
+                    return false;
+                };
+                let syn::Type::Path(path) = &*reference.elem else {
+                    return false;
+                };
+                path.path.segments.last().is_some_and(|segment| {
+                    matches!(
+                        segment.ident.to_string().as_str(),
+                        "SqliteConnection" | "Tx"
+                    )
+                })
+            }))
+}
+
 /// Rule 9: the `pub(crate)` functions of a service's `store` (`store.rs` or `store/`), free
 /// or a method of one of its `impl` blocks, which are exactly the ones another service may
 /// call inside one write (§14.6).
@@ -204,16 +226,28 @@ fn shared(dir: &Path) -> BTreeSet<String> {
     }
     let mut out = BTreeSet::new();
     // Extracted owners expose transaction methods on the service, never its store.
-    if dir.file_name().is_some_and(|name| name == "src") {
-        let file = syn::parse_file(&std::fs::read_to_string(dir.join("lib.rs")).unwrap()).unwrap();
-        for item in file.items {
-            if let syn::Item::Impl(i) = item {
-                for item in i.items {
-                    if let syn::ImplItem::Fn(method) = item
-                        && matches!(method.vis, syn::Visibility::Public(_))
-                        && method.sig.ident.to_string().ends_with("_in")
-                    {
-                        out.insert(method.sig.ident.to_string());
+    if dir.file_name().is_some_and(|name| name == "src")
+        && dir
+            .parent()
+            .and_then(|p| p.file_name())
+            .is_some_and(|n| n != "core-db")
+    {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
+                let Ok(file) = syn::parse_file(&std::fs::read_to_string(&path).unwrap()) else {
+                    continue;
+                };
+                for item in file.items {
+                    if let syn::Item::Impl(i) = item {
+                        for item in i.items {
+                            if let syn::ImplItem::Fn(method) = item
+                                && transaction_method(&method)
+                            {
+                                out.insert(method.sig.ident.to_string());
+                            }
+                        }
                     }
                 }
             }
@@ -233,8 +267,7 @@ fn shared(dir: &Path) -> BTreeSet<String> {
                         if let syn::ImplItem::Fn(m) = it
                             && (crate_visible(&m.vis)
                                 || (dir.file_name().is_some_and(|name| name == "src")
-                                    && matches!(m.vis, syn::Visibility::Public(_))
-                                    && m.sig.ident.to_string().ends_with("_in")))
+                                    && transaction_method(m)))
                         {
                             out.insert(m.sig.ident.to_string());
                         }
@@ -497,4 +530,21 @@ fn extracted_transaction_methods_are_checked_in_private_store_modules() {
     )
     .unwrap();
     assert_eq!(shared(&source), BTreeSet::from(["retained_in".to_owned()]));
+}
+
+#[test]
+fn extracted_transaction_methods_are_checked_without_suffixes() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("src");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::write(
+        source.join("lib.rs"),
+        "impl Grants { pub async fn check_writer(conn: &mut sqlx::SqliteConnection) {} \
+         pub async fn bind_draft_ref(conn: &mut core_db::Tx) {} pub fn tools_for() {} }",
+    )
+    .unwrap();
+    assert_eq!(
+        shared(&source),
+        BTreeSet::from(["bind_draft_ref".to_owned(), "check_writer".to_owned()])
+    );
 }

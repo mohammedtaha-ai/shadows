@@ -1,3 +1,4 @@
+# Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
 # Project standards are imported from core-standards.
 # Project identities and registration methods are imported from core-projects.
@@ -55,7 +56,7 @@ shapes:
     text: Option<String>
     replaces: Option<String>
   VisionProposal:
-    approved_by: "Option<crate::grants::ApprovedBy>; provenance on approved proposals only"
+    approved_by: "Option<core_grants::ApprovedBy>; provenance on approved proposals only"
     id: String
     thread_id: ThreadId
     action: VisionAction

@@ -44,7 +44,7 @@ impl Plans {
             .begin()
             .await
             .map_err(StorageError::from)?;
-        crate::grants::Grants::check_writer(
+        core_grants::Grants::check_writer(
             &mut conn,
             &super::scope::Scope::writer_of(grant)?,
             &grant.project_id,

@@ -9,9 +9,9 @@ use super::model::{DraftStarted, Plan, PlanId, WorkflowId};
 use super::rules::Problem;
 use super::{DraftStart, Plans};
 use crate::error::{CoreError, ErrorCode};
-use crate::grants::Grant;
-use crate::grants::Writer;
 use core_db::{Anchor, CommandContext, StorageError};
+use core_grants::Grant;
+use core_grants::Writer;
 use core_threads::ThreadId;
 
 impl Plans {
@@ -257,7 +257,7 @@ impl Scope {
         grant
             .thread_id
             .as_ref()
-            .ok_or_else(|| crate::grants::GrantsError::GrantScope.into())
+            .ok_or_else(|| core_grants::GrantsError::GrantScope.into())
     }
 }
 
@@ -265,7 +265,7 @@ impl Scope {
 /// its grant.
 impl Scope {
     pub(super) fn writer_of(grant: &Grant) -> Result<Writer, CoreError> {
-        Writer::from_grant(grant, None)
+        Writer::from_grant(grant, None).map_err(Into::into)
     }
 }
 

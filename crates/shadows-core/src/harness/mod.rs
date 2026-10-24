@@ -76,7 +76,7 @@ impl Harness {
         config: SessionsConfig,
         owners: crate::harness::AylulOwners,
         instructions: core_instructions::Instructions,
-        grants: crate::grants::Grants,
+        grants: core_grants::Grants,
         operations: crate::operations::Operations,
         projects: Projects,
     ) -> Arc<Self> {

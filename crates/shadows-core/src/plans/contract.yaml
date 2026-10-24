@@ -1,3 +1,4 @@
+# Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
 # Index access and project reach use core-code.
 # Project identities and registration methods are imported from core-projects.
@@ -112,7 +113,7 @@ shapes:
     # Never serialized or recorded: true when the call replayed a recorded one.
     replayed: bool
   Plan:
-    approved_by: "Option<crate::grants::ApprovedBy>; provenance of the frozen version"
+    approved_by: "Option<core_grants::ApprovedBy>; provenance of the frozen version"
     bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
@@ -432,13 +433,13 @@ functions:
 
 enums:
   Grant:
-    source: crate::grants::Grant
+    source: core_grants::Grant
     values: []
   CoreError:
     source: crate::error::CoreError
     values: []
   Writer:
-    source: crate::grants::Writer
+    source: core_grants::Writer
     values: []
 
 

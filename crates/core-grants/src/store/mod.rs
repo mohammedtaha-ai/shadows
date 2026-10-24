@@ -302,7 +302,7 @@ async fn revoke_in(
         .map(|_| ())
 }
 impl Grants {
-    pub(crate) async fn revoke_project_grants_in(
+    pub async fn revoke_project_grants_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
         actor: Actor,
@@ -320,7 +320,7 @@ impl Grants {
         }
         Ok(())
     }
-    pub(crate) async fn revoke_thread_grants_in(
+    pub async fn revoke_thread_grants_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         actor: Actor,
@@ -345,7 +345,7 @@ fn rfc3339(at: time::OffsetDateTime) -> String {
         .expect("RFC3339 formatting cannot fail")
 }
 impl Grants {
-    pub(crate) async fn check_writer(
+    pub async fn check_writer(
         conn: &mut SqliteConnection,
         writer: &Writer,
         project: &ProjectId,
@@ -379,7 +379,7 @@ impl Grants {
             Err(GrantsError::GrantScope)
         }
     }
-    pub(crate) async fn bind_draft_ref(
+    pub async fn bind_draft_ref(
         conn: &mut SqliteConnection,
         writer: &Writer,
         draft_ref: &str,

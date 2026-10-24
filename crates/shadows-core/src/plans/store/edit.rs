@@ -11,13 +11,13 @@ use super::plan::PlanRows;
 use super::plan_event;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::grants::Grants;
-use crate::grants::Writer;
 use crate::operations::OperationId;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::Ops;
 use crate::plans::ops::PlanOp;
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
+use core_grants::Grants;
+use core_grants::Writer;
 use core_projects::ProjectId;
 use core_threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
 
@@ -139,7 +139,7 @@ impl PlansStore {
             ctx,
             workflow,
             expected_revision,
-            &crate::grants::Approver::Person,
+            &core_grants::Approver::Person,
         )
         .await
     }
@@ -149,7 +149,7 @@ impl PlansStore {
         ctx: &CommandContext,
         workflow: &WorkflowId,
         expected_revision: i64,
-        approver: &crate::grants::Approver,
+        approver: &core_grants::Approver,
     ) -> Result<Approved, crate::CoreError> {
         let (mut ctx, workflow, ts) = (ctx.clone(), workflow.clone(), Storage::now());
         let approver = approver.clone();
@@ -157,18 +157,18 @@ impl PlansStore {
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
                     let (_, project) = owner(conn, &workflow).await?;
-                    if let crate::grants::Approver::Planner {
-                        writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                    if let core_grants::Approver::Planner {
+                        writer: writer @ core_grants::Writer::Planner { thread, .. },
                         turn,
                         ..
                     } = &approver
                     {
-                        crate::grants::Grants::check_writer(conn, writer, &project).await?;
+                        core_grants::Grants::check_writer(conn, writer, &project).await?;
                         crate::operations::Operations::require_running_in(conn, thread, turn)
                             .await?;
                     }
                     let request =
-                        crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
+                        core_grants::Grants::authorise_in(conn, &approver, &project).await?;
                     ctx.agent = Some(approver.agent());
                     if let Some(event) =
                         CommandContext::classify(conn, &ctx, "Workflow", workflow.as_str()).await?
@@ -226,7 +226,7 @@ impl PlansStore {
                     };
                     if let Some(thread) = thread {
                         let body = match &approver {
-                            crate::grants::Approver::Person => {
+                            core_grants::Approver::Person => {
                                 format!("Plan v{} approved", plan.version)
                             }
                             _ => format!(

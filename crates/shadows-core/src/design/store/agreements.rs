@@ -67,11 +67,11 @@ impl AgreementsRows {
 impl DesignStore {
     pub async fn check_agreement_grant(
         &self,
-        writer: &crate::grants::Writer,
+        writer: &core_grants::Writer,
         project: &ProjectId,
     ) -> Result<(), crate::CoreError> {
         let mut tx = self.storage.reader().begin().await?;
-        crate::grants::Grants::check_writer(&mut tx, writer, project).await?;
+        core_grants::Grants::check_writer(&mut tx, writer, project).await?;
         tx.commit().await?;
         Ok(())
     }

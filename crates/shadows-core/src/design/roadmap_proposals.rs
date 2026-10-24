@@ -47,7 +47,7 @@ pub struct RoadmapPropose {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoadmapProposal {
     #[serde(default)]
-    pub approved_by: Option<crate::grants::ApprovedBy>,
+    pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: RoadmapAction,
@@ -99,7 +99,7 @@ impl Design {
         ctx: &CommandContext,
         project: &ProjectId,
         proposal: &str,
-        approver: &crate::grants::Approver,
+        approver: &core_grants::Approver,
         planned: &BTreeSet<String>,
     ) -> Result<DesignChange, CoreError> {
         super::store::DesignStore::approve_roadmap_in(

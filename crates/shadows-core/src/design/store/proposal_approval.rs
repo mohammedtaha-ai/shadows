@@ -11,7 +11,7 @@ impl DesignStore {
         ctx: &CommandContext,
         project: &ProjectId,
         proposal: &str,
-        approver: &crate::grants::Approver,
+        approver: &core_grants::Approver,
     ) -> Result<DesignChange, crate::CoreError> {
         let (mut ctx, project, proposal, ts) = (
             ctx.clone(),
@@ -23,18 +23,18 @@ impl DesignStore {
         self.storage
             .write_txn_as::<_, _, crate::CoreError>(move |conn| {
                 Box::pin(async move {
-                    if let crate::grants::Approver::Planner {
-                        writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                    if let core_grants::Approver::Planner {
+                        writer: writer @ core_grants::Writer::Planner { thread, .. },
                         turn,
                         ..
                     } = &approver
                     {
-                        crate::grants::Grants::check_writer(conn, writer, &project).await?;
+                        core_grants::Grants::check_writer(conn, writer, &project).await?;
                         crate::operations::Operations::require_running_in(conn, thread, turn)
                             .await?;
                     }
                     let request =
-                        crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
+                        core_grants::Grants::authorise_in(conn, &approver, &project).await?;
                     ctx.agent = Some(approver.agent());
                     if let Some(id) =
                         CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
