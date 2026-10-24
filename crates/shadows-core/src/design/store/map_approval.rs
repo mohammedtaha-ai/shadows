@@ -224,11 +224,11 @@ impl DesignStore {
                         .execute(&mut *conn)
                         .await?;
                     let event =
-                        crate::events::DurableEvent::new("ProjectDesignChanged", approver.actor())
-                            .with_project(&p)
+                        core_db::JournalEntry::new("ProjectDesignChanged", approver.actor())
+                            .with_project(p.as_str())
                             .with_payload(serde_json::json!({"project_id":p,"revision":revision,
                     "changed_parts":changed,"changed_outcomes":[],"vision_changed":false}));
-                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
                     CommandContext::record_command(
                         conn,
                         &ctx,

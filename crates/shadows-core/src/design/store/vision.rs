@@ -2,7 +2,6 @@
 
 use super::DesignStore;
 use crate::design::{DesignAnchor, DesignChange, VisionContent, VisionView, WorkspaceOp};
-use crate::events::DurableEvent;
 use crate::projects::ProjectId;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use std::collections::BTreeSet;
@@ -310,15 +309,15 @@ impl crate::design::Design {
         .bind(serde_json::to_string(&change)?)
         .execute(&mut *conn)
         .await?;
-        let event = DurableEvent::new("ProjectDesignChanged", Actor::user(&ctx.principal_id))
-            .with_project(project)
+        let event = JournalEntry::new("ProjectDesignChanged", Actor::user(&ctx.principal_id))
+            .with_project(project.as_str())
             .with_payload(serde_json::json!({
                 "project_id": project, "revision": next,
                 "changed_parts": changed,
                 "changed_outcomes": changed_outcomes,
                 "vision_changed": vision_changed
             }));
-        JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+        JournalEntry::append_event(conn, event.clone(), &ts).await?;
         CommandContext::record_command(
             conn,
             ctx,

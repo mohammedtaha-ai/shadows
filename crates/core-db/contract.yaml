@@ -76,6 +76,13 @@ functions:
       # when shorter). A draft ref carries no fingerprint, so the same ref with
       # different arguments is a CommandConflict.
   journal:
+    new: "JournalEntry::new(kind, actor) constructs a v4 event id with empty scope and payload."
+    with_project: "(self, id: &str) -> Self; the publisher converts its ProjectId."
+    with_thread: "(self, id: &str) -> Self; the publisher converts its ThreadId."
+    with_operation: "(self, id: &str) -> Self; the publisher converts its OperationId."
+    with_payload: "(self, payload: Value) -> Self; serde_json serialization is unchanged."
+    with_causation: "Test-support causation metadata."
+    with_correlation: "Test-support correlation metadata."
     system:
       signature: "Actor::system() -> Actor"
       # kind "System", id "daemon".

@@ -53,7 +53,7 @@ pub use design::{
 pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use error::{CoreError, ErrorCode};
-pub use events::{Delivery, Events, StoredEvent, Subscription, UiSignal};
+pub use events::{Delivery, Events, StoredEvent, Subscription};
 pub use extensions::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, Item,
 };
@@ -65,6 +65,7 @@ pub use harness::{
 pub use instructions::{Instructions, InstructionsVersion};
 pub use operations::Operations;
 pub use person::{Person, PersonInput, PersonSettings, Theme};
+pub use plans::UiSignal;
 pub use plans::{
     AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,
     AgreementReview, Approved, BindingParticipant, DesignOp, DraftStart, DraftStarted, EditOutcome,

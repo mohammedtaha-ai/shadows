@@ -36,6 +36,7 @@ dependencies:
   harness: ../harness/contract.yaml
   projects: ../projects/contract.yaml
   turns: ../turns/contract.yaml
+  signal: ../plans/contract.yaml
 
 
 shapes:
@@ -92,26 +93,7 @@ shapes:
   EventCursor:
     # The last `seq` a reader has; reading after it answers what is newer.
     "0": i64
-  DurableEvent:
-    # What a writer appends; its builders are typed, so an event cannot be
-    # scoped to the wrong entity.
-    event_id: String
-    kind: String
-    project_id: Option<ProjectId>
-    thread_id: Option<ThreadId>
-    operation_id: Option<OperationId>
-    actor: Actor
-    causation: Option<Causation>
-    correlation_id: Option<String>
-    payload_json: String
-  UiSignal:
-    # Live only: never stored, never replayed.
-    thread_id: ThreadId
-    target_tab: Option<String>
-    workflow_id: WorkflowId
-    version: i64
-    task_number: Option<u32>
-    place: Place
+
 
 
 functions:
@@ -155,31 +137,6 @@ functions:
       private: true
       # Usage → Usage with `Harness::limits_of`; Chunk → Delta; TurnEnd →
       # TurnEnd; anything else (Entry, ToolCall, Options, …) → None.
-  builders:
-    # What every writer in the crate uses to build the event it appends
-    # through `db::append_event`; appending is not this service's.
-    new:
-      signature: "(kind: impl Into<String>, actor: Actor) -> DurableEvent"
-      # A fresh v4 `event_id`, no scope, payload "{}".
-    with_project:
-      signature: "(self, id: &ProjectId) -> Self"
-      # Typed ids, so an event cannot be scoped to the wrong entity.
-    with_thread:
-      signature: "(self, id: &ThreadId) -> Self"
-    with_operation:
-      signature: "(self, id: &OperationId) -> Self"
-    with_payload:
-      signature: "(self, v: Value) -> Self"
-    with_causation:
-      signature: "(self, kind, reference) -> Self"
-      # test-support only.
-    with_correlation:
-      signature: "(self, id) -> Self"
-      # test-support only.
-    journal_entry:
-      signature: "DurableEvent::journal_entry(&self) -> core_db::JournalEntry"
-      # What `JournalEntry::append_event` takes: every field carried over, the typed
-      # subject ids as their strings, so the journal names no service type.
   testing:
     read_events_after_for_test:
       signature: "(storage: Arc<Storage>, cursor, thread, limit) -> Result<Vec<StoredEvent>, StorageError>"
@@ -251,7 +208,7 @@ obligations:
   - rule: >
       ProjectDesignChanged is delivered in the project event tail with its
       revision and changed identifiers, never design content. Design constructs
-      it with the DurableEvent builders inside its own transaction.
+      it with core-db JournalEntry inside its own transaction.
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
   - rule: >
       A project subscription sends its own journaled plan/design/reach notifications,

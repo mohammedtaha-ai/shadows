@@ -3,7 +3,6 @@ use sqlx::SqliteConnection;
 
 use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token};
 use super::{Grants, GrantsError, Writer};
-use crate::events::DurableEvent;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
@@ -269,12 +268,12 @@ async fn insert_grant(
     .execute(&mut *conn)
     .await?;
     let payload = serde_json::json!({ "grant_id": id, "kind": kind.as_str() });
-    let event = DurableEvent::new("McpGrantIssued", actor).with_project(project);
+    let event = JournalEntry::new("McpGrantIssued", actor).with_project(project.as_str());
     let event = match thread {
-        Some(thread) => event.with_thread(thread),
+        Some(thread) => event.with_thread(thread.as_str()),
         None => event,
     };
-    JournalEntry::append_event(conn, event.with_payload(payload).journal_entry(), ts).await?;
+    JournalEntry::append_event(conn, event.with_payload(payload).clone(), ts).await?;
     Ok((load_grant(conn, &id).await?, token))
 }
 async fn revoke_in(
@@ -293,12 +292,12 @@ async fn revoke_in(
         return Ok(());
     }
     let payload = serde_json::json!({ "grant_id": grant.id });
-    let event = DurableEvent::new("McpGrantRevoked", actor).with_project(&grant.project_id);
+    let event = JournalEntry::new("McpGrantRevoked", actor).with_project(grant.project_id.as_str());
     let event = match &grant.thread_id {
-        Some(thread) => event.with_thread(thread),
+        Some(thread) => event.with_thread(thread.as_str()),
         None => event,
     };
-    JournalEntry::append_event(conn, event.with_payload(payload).journal_entry(), ts)
+    JournalEntry::append_event(conn, event.with_payload(payload).clone(), ts)
         .await
         .map(|_| ())
 }

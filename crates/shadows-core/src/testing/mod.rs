@@ -136,7 +136,7 @@ pub use crate::turns::for_tests::{
 /// session tests open directly and `CoreParts` is built from. Private to the
 /// crate everywhere else (§14.6).
 pub use crate::app::adapter_version;
-pub use crate::events::{DurableEvent, EventCursor};
+pub use crate::events::EventCursor;
 pub use crate::grants::Writer;
 pub use crate::grants::{IssuedGrant, Token};
 pub use crate::harness::{Harness, LeaseError, OpenSession, SessionsConfig};
@@ -144,6 +144,7 @@ pub use crate::operations::ReconcileReport;
 pub use crate::projects::ProjectDirectory;
 pub use crate::threads::{NewThreadEntry, TurnContext};
 pub use crate::turns::Bus;
+pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
 pub use core_runtime::Runtime;
 

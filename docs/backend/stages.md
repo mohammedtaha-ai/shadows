@@ -516,7 +516,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: each move passes affected public-API/caller tests and architecture checks; no cycles, cross-owner SQL or service-to-AppCore dependency; integration tests still run through AppCore
 
 
-#### Current graph verification (2026-10-24, base `e89e9c4`)
+#### Baseline graph inspection (2026-10-24, base `e89e9c4`; superseded by the controller continuation)
 
 Rust LSP module references, service-struct references, `CoreError`,
 `DurableEvent`, `UiSignal` and `AylulOwners` references rechecked the ledger.
@@ -580,11 +580,9 @@ Existing recovery and operation lifecycle integration tests stay in Core.
 Macro-generated IDs are not addressable by Serena find_referencing_symbols;
 module references and their owning macro declarations establish their provenance.
 
-**Verified executable order: runtime only.** The remaining graph is cyclic;
-there is no topological order for it today. Blocked task numbers below preserve
-A-8c's dependency order after the independent runtime move, rather than claiming
-an executable ordering for cyclic nodes. Needs lists only earlier moves; each
-Blocker records an additional unsatisfied edge. A blocked move blocks its users.
+**Baseline result at e89e9c4: runtime only.** That inspection found cycles
+and blocked the remaining moves. The controller continuation and its verified
+order below supersede those blocked statuses.
 
 Each move runs the dispatch's line-length, fmt, all-target clippy, owner tests,
 Core lib tests, architecture/codemap/openapi tests and its named integration
@@ -599,6 +597,44 @@ project-lifecycle, events. Error splits accompany the corresponding moves rather
 than requiring an all-service prerequisite commit. Recheck this order with Rust
 LSP after preparation; a new edge is reported, never hidden by a facade.
 
+#### Verified continuation order after A-19c.0a and A-19c.0b
+
+Direct Rust LSP references (test-support enabled) rechecked all service module
+edges, the relocated signal and the Harness bundle. The graph below includes
+runtime and type-only owner edges; core-db and infrastructure are implicit.
+CoreError references remain in unextracted services and are removed by their
+own A-19c.0 error split in the corresponding extraction commit. Owner-local
+fixtures must also shed Core testing dependencies during those moves; application
+fixtures remain Core integration tests. This is the extraction dependency graph,
+not a claim that every unextracted error/fixture is already prepared.
+
+| Move | Service | Earlier owner dependencies |
+|---|---|---|
+| A-19c.1 | runtime | none |
+| A-19c.2 | secrets | none |
+| A-19c.3 | projects | none |
+| A-19c.4 | instructions | projects |
+| A-19c.5 | standards | projects |
+| A-19c.6 | code | projects |
+| A-19c.7 | providers | secrets |
+| A-19c.8 | agents | projects, providers, secrets |
+| A-19c.9 | extensions | agents |
+| A-19c.10 | usage | none |
+| A-19c.11 | person | none |
+| A-19c.12 | threads | agents, code, projects |
+| A-19c.13 | grants | projects, threads |
+| A-19c.14 | operations | runtime, threads |
+| A-19c.15 | harness | agents, extensions, grants, instructions, operations, person, projects, providers, secrets, standards, threads |
+| A-19c.16 | design | grants, harness, operations, projects, standards, threads |
+| A-19c.17 | plans | code, design, grants, harness, operations, projects, threads |
+| A-19c.18 | turns | code, design, grants, harness, instructions, operations, plans, projects, runtime, standards, threads, usage |
+| A-19c.19 | project-lifecycle | code, grants, plans, projects, threads |
+| A-19c.20 | events | harness, operations, plans, projects, threads, turns |
+
+The graph is acyclic in this order. No publisher imports Events; Harness does
+not import app; Plans does not import Turns. Usage has no agents dependency;
+Harness includes person. Runtime is already extracted; Secrets is next.
+
 #### A-19c.0 · Give each service its own error
 - Status: doing
 - Ruling: controller continuation at 9b3735e supersedes the error-vocabulary blocker; no shared error crate. Apply each owner's split in its extraction commit, lowest first. Runtime already needs only StorageError.
@@ -606,7 +642,9 @@ LSP after preparation; a new edge is reported, never hidden by a facade.
 - Done when: no service names CoreError; each owns only its failures plus Storage where applicable and declared callee errors; existing HTTP status/code/message and MCP failure tests pass; api/ is unchanged.
 
 #### A-19c.0a · Remove the event-vocabulary cycles
-- Status: todo
+- Status: done
+- Evidence: core-db 23 passed; all Core binaries 324 passed, three existing ignored; architecture 27, codemap 1, openapi 7, resync 8 and stream_frames 1 passed. Both workspace clippy modes, fmt, exact CI line length, LF and unchanged api checks pass; production feature grep has no matches. UUID moved from dev-only to production infrastructure in core-db, with no new external package. No allowlist line changed.
+- Small gap fixed: the Design agreement pointed at events::with_project; it now names db::with_project. Contract lookup resolves extracted owners with exact-case directory matching and an adversarial case regression. A new snapshot pins every plan-show place spelling, field order and nulls.
 - Needs: A-19c.1
 - Ruling: use core-db JournalEntry directly for durable publication; each service converts its ids to strings. Move the unchanged UiSignal value to Plans. The owner plan records the decision.
 - Touch: crates/core-db/src/journal.rs and its contract; the old events/model.rs vocabulary and events re-exports; Plans model/conversation and contract; every existing DurableEvent/UiSignal publisher, reader and test-support conversion in Core; their contracts; Core public re-exports; docs/codebase/README.md; stages.md; architecture checks and existing allowlist deletions only. No publisher payload, row or append-order changes.
@@ -645,7 +683,7 @@ crate boundary. The store remains private. Runtime's instance_id is private
 with a borrowing accessor; all LSP field callers were mechanically updated.
 Product adapter source, schema and system event semantics are unchanged.
 
-A-19c remains blocked: all remaining moves require the error-vocabulary
+At 9b3735e, A-19c remained blocked: all remaining moves required the error-vocabulary
 preparation, and the additional cyclic edges above remain. No independent
 service remains to extract. Existing CLAUDE.md crate-table wording that SQLite
 lives only in shadows-core is outside this task's Touch. These checks are local

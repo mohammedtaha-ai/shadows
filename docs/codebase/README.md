@@ -61,6 +61,7 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/shadows-core/src/plans/signal.rs` | live plan-show vocabulary | `crates/shadows-core/src/plans/contract.yaml` |
 | `crates/shadows-core/src/harness/owners.rs` | harness configuration dependencies | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/harness/live.rs` | live adapter opening | `crates/shadows-core/src/harness/contract.yaml` |
 | `crates/shadows-core/src/providers/` | AYLUL provider configuration | `crates/shadows-core/src/providers/contract.yaml` |
@@ -168,7 +169,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows-core/src/error.rs` |
 | `crates/core-db/src/command.rs` | external-command identity for idempotency | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/derive.rs` | command ids Shadows derives when a caller names none | `crates/core-db/contract.yaml` |
-| `crates/core-db/src/journal.rs` | appending to the durable journal | `crates/core-db/contract.yaml` |
+| `crates/core-db/src/journal.rs` | durable journal publication | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/id.rs` | the UUID id newtype pattern | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/superpowers/specs/2026-09-21-persistence-api-and-migrations-design.md` |
 | `crates/core-db/src/lib.rs` | shared SQLite lifetime | `crates/core-db/contract.yaml` |
@@ -304,7 +305,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/code/active.rs` | which projects are active, in order of use | `crates/shadows-core/src/code/active.rs` |
 | `crates/shadows-core/src/code/links.rs` | the commands over links or the active limit | `crates/shadows-core/src/code/links.rs` |
 | `crates/shadows-core/src/events/` | what clients watch live | `crates/shadows-core/src/events/mod.rs` |
-| `crates/shadows-core/src/events/model.rs` | the event shapes the product records or signals | `crates/shadows-core/src/events/model.rs` |
+| `crates/shadows-core/src/events/model.rs` | journal replay cursor | `crates/shadows-core/src/events/model.rs` |
 | `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |
 | `crates/shadows-agent/src/lib.rs` | the ACP client for a harness adapter | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/` | private ACP protocol implementation | `crates/shadows-agent/src/acp.rs` |

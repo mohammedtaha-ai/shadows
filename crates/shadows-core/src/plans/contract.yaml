@@ -1,3 +1,4 @@
+# Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Durable operation ids are imported from Operations, never the Turns re-export.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
@@ -29,6 +30,9 @@ source: crates/shadows-core/src/plans
 
 
 shapes:
+  UiSignal:
+    source: signal.rs
+    note: Live plan-show value consumed by Turns and Events; exact serialized fields and order are preserved.
   PartView:
     revision: DesignRevision
     part: Part

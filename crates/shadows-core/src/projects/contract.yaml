@@ -1,3 +1,4 @@
+# Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns the projects and the folders a person picks them from (spec §4.1,
 # §4.2, §11.1, §12.5, §14.4): listing and creating a project, the modes it

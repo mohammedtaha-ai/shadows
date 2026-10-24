@@ -22,11 +22,11 @@ time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
+uuid = { workspace = true }
 
 [features]
 test-support = []
 
 [dev-dependencies]
 tempfile = { workspace = true }
-uuid = { workspace = true }
 core-db = { path = ".", features = ["test-support"] }

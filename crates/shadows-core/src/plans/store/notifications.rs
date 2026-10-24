@@ -4,7 +4,6 @@ use std::collections::BTreeSet;
 
 use sqlx::SqliteConnection;
 
-use crate::events::DurableEvent;
 use crate::plans::{Link, PlanId, TaskParent};
 use crate::projects::ProjectId;
 use core_db::{Actor, JournalEntry, StorageError};
@@ -115,10 +114,10 @@ async fn publish(
 ) -> Result<(), StorageError> {
     affected.remove(project.as_str());
     for target in affected {
-        let event = DurableEvent::new("PlanDependenciesChanged", actor.clone())
-            .with_project(&ProjectId::from_stored(target))
+        let event = JournalEntry::new("PlanDependenciesChanged", actor.clone())
+            .with_project(ProjectId::from_stored(target).as_str())
             .with_payload(payload.clone());
-        JournalEntry::append_event(conn, event.journal_entry(), ts).await?;
+        JournalEntry::append_event(conn, event.clone(), ts).await?;
     }
     Ok(())
 }

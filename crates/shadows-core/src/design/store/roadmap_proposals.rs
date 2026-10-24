@@ -131,14 +131,14 @@ impl DesignStore {
                     .bind(p.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    let event = crate::events::DurableEvent::new("RoadmapProposed", writer.actor())
-                        .with_project(&p)
-                        .with_thread(thread)
-                        .with_operation(&turn)
+                    let event = core_db::JournalEntry::new("RoadmapProposed", writer.actor())
+                        .with_project(p.as_str())
+                        .with_thread(thread.as_str())
+                        .with_operation(turn.as_str())
                         .with_payload(
                             serde_json::json!({"project_id":p,"proposal_id":proposal.id}),
                         );
-                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
                     CommandContext::record_command(
                         conn,
                         &ctx,

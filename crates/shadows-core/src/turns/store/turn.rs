@@ -7,7 +7,6 @@
 
 use sqlx::SqliteConnection;
 
-use crate::events::DurableEvent;
 use crate::harness::{Harness, NewInvocation};
 use crate::operations::Operations;
 use crate::plans::Focus;
@@ -240,10 +239,10 @@ impl super::TurnsStore {
                             "queued_id": id.as_str(), "how": "turn", "operation_id": op.as_str(),
                         });
                         let sent =
-                            DurableEvent::new("QueuedMessageSent", Actor::user(&ctx.principal_id))
-                                .with_thread(&thread)
+                            JournalEntry::new("QueuedMessageSent", Actor::user(&ctx.principal_id))
+                                .with_thread(thread.as_str())
                                 .with_payload(payload);
-                        JournalEntry::append_event(conn, sent.journal_entry(), &ts).await?;
+                        JournalEntry::append_event(conn, sent.clone(), &ts).await?;
                         if let Some(also) = also {
                             let answer = outcome.to_string();
                             let (scope, id) = (SCOPE, thread.as_str());

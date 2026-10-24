@@ -7,7 +7,6 @@ use crate::design::agreement_validation::AgreementValidation;
 use crate::design::{
     AgreementContent, AgreementId, AgreementState, AgreementVersion, AgreementWriter,
 };
-use crate::events::DurableEvent;
 use crate::grants::Writer;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use sqlx::SqliteConnection;
@@ -289,27 +288,27 @@ impl AgreementWriteRows {
             .execute(&mut *conn)
             .await?;
         if changed {
-            let mut event = DurableEvent::new(
+            let mut event = JournalEntry::new(
                 "AgreementChanged",
                 Actor {
                     kind: ctx.principal_kind.clone(),
                     id: ctx.principal_id.clone(),
                 },
             )
-            .with_project(project)
+            .with_project(project.as_str())
             .with_payload(serde_json::json!({
                 "agreement_id": result.agreement_id, "version": result.version,
                 "revision": result.revision, "state": result.state
             }));
             if let Some(origin) = origin {
                 if let Writer::Planner { thread, .. } = &origin.writer {
-                    event = event.with_thread(thread);
+                    event = event.with_thread(thread.as_str());
                 }
                 if let Some(operation) = &origin.operation {
-                    event = event.with_operation(operation);
+                    event = event.with_operation(operation.as_str());
                 }
             }
-            JournalEntry::append_event(conn, event.journal_entry(), ts).await?;
+            JournalEntry::append_event(conn, event.clone(), ts).await?;
         }
         CommandContext::record_command(
             conn,

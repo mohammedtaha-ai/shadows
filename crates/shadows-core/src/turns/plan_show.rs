@@ -1,6 +1,6 @@
 //! Plan cards composed with the sending turn's live tab.
 use super::Turns;
-use crate::events::UiSignal;
+use crate::plans::UiSignal;
 use crate::plans::{PlanShow, PlanShown};
 use crate::{CoreError, Grant};
 

@@ -85,12 +85,12 @@ impl PlansStore {
                         entry_id: entry.id,
                         replayed: false,
                     };
-                    let event = crate::events::DurableEvent::new("PlanShown", writer.actor())
-                        .with_project(&plan.project_id)
-                        .with_thread(&thread)
-                        .with_operation(&turn)
+                    let event = core_db::JournalEntry::new("PlanShown", writer.actor())
+                        .with_project(plan.project_id.as_str())
+                        .with_thread(thread.as_str())
+                        .with_operation(turn.as_str())
                         .with_payload(serde_json::to_value(&shown)?);
-                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
                     CommandContext::record_command(
                         conn,
                         &ctx,

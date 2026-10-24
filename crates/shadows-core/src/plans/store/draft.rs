@@ -303,7 +303,7 @@ async fn insert_version(
     TaskRows::write_content(conn, &id, &[], content, ts).await?;
     let event = plan_event("WorkflowDraftStarted", by.writer, by.project, by.operation)
         .with_payload(serde_json::json!({ "workflow_id": id, "version": v.number }));
-    JournalEntry::append_event(conn, event.journal_entry(), ts).await?;
+    JournalEntry::append_event(conn, event.clone(), ts).await?;
     super::notifications::NotificationsRows::notify_plan(
         conn,
         by.project,

@@ -1,7 +1,6 @@
 //! Atomic project-link commands with plan dependency notifications.
 use super::PlansStore;
 use crate::code::{Code, ProjectLink};
-use crate::events::DurableEvent;
 use crate::projects::{ProjectId, Projects};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 impl PlansStore {
@@ -33,10 +32,10 @@ impl PlansStore {
                     let made = Code::put_link_in(conn, &project, &linked, &ts).await?;
                     if made {
                         let event =
-                            DurableEvent::new("ProjectLinked", Actor::user(&ctx.principal_id))
-                                .with_project(&project)
+                            JournalEntry::new("ProjectLinked", Actor::user(&ctx.principal_id))
+                                .with_project(project.as_str())
                                 .with_payload(serde_json::json!({ "linked": linked }));
-                        JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                        JournalEntry::append_event(conn, event.clone(), &ts).await?;
                         crate::plans::Plans::notify_project_dependencies_in(
                             conn,
                             &project,
@@ -82,10 +81,10 @@ impl PlansStore {
                         return Ok(false);
                     }
                     let event =
-                        DurableEvent::new("ProjectUnlinked", Actor::user(&ctx.principal_id))
-                            .with_project(&project)
+                        JournalEntry::new("ProjectUnlinked", Actor::user(&ctx.principal_id))
+                            .with_project(project.as_str())
                             .with_payload(serde_json::json!({ "linked": linked }));
-                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
                     crate::plans::Plans::notify_project_dependencies_in(
                         conn,
                         &project,

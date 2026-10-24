@@ -99,7 +99,7 @@ pub struct Turns {
     standards: Standards,
     projects: Projects,
     plans: crate::plans::Plans,
-    ui: tokio::sync::broadcast::Sender<crate::events::UiSignal>,
+    ui: tokio::sync::broadcast::Sender<crate::plans::UiSignal>,
 }
 
 /// A person's turn, as the route received it.
@@ -159,7 +159,7 @@ impl Turns {
         standards: Standards,
         projects: Projects,
         plans: crate::plans::Plans,
-        ui: tokio::sync::broadcast::Sender<crate::events::UiSignal>,
+        ui: tokio::sync::broadcast::Sender<crate::plans::UiSignal>,
     ) -> Self {
         Self {
             store: store::TurnsStore::with_storage(storage.clone()),

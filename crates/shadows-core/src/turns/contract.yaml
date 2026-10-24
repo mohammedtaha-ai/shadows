@@ -1,3 +1,4 @@
+# Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # invocation_context supplies read results to Harness without introducing an upward dependency.
 # Offered::refusal validates settings; ClaudeAdapter accessors supply immutable invocation metadata.

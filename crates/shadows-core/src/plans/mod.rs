@@ -27,6 +27,8 @@ mod model;
 mod ops;
 mod rules;
 mod scope;
+mod signal;
+pub use signal::UiSignal;
 mod store;
 
 use std::sync::Arc;

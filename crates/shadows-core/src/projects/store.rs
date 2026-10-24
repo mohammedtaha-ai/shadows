@@ -8,7 +8,6 @@ use sqlx::SqliteConnection;
 use super::Projects;
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
-use crate::events::DurableEvent;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use shadows_agent::policy;
 
@@ -63,12 +62,12 @@ impl ProjectsStore {
 
                     JournalEntry::append_event(
                         conn,
-                        DurableEvent::new("ProjectCreated", Actor::user(&ctx.principal_id))
-                            .with_project(&id)
+                        JournalEntry::new("ProjectCreated", Actor::user(&ctx.principal_id))
+                            .with_project(id.as_str())
                             .with_payload(serde_json::json!({
                                 "slug": slug, "name": name, "directory": directory,
                             }))
-                            .journal_entry(),
+                            .clone(),
                         &ts,
                     )
                     .await?;
@@ -230,10 +229,10 @@ impl ProjectsStore {
                     replace_modes(conn, &id, &modes).await?;
                     JournalEntry::append_event(
                         conn,
-                        DurableEvent::new("ProjectModesChanged", Actor::user(&ctx.principal_id))
-                            .with_project(&id)
+                        JournalEntry::new("ProjectModesChanged", Actor::user(&ctx.principal_id))
+                            .with_project(id.as_str())
                             .with_payload(serde_json::json!({ "allowed_modes": modes }))
-                            .journal_entry(),
+                            .clone(),
                         &ts,
                     )
                     .await?;

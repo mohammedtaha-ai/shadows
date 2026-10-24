@@ -1,3 +1,4 @@
+# Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Grant authority calls use Grants methods; refusing writes promote GrantsError through write_txn_as.
@@ -284,7 +285,7 @@ functions:
       # in the requested parent; next names last returned item only if more exist.
 
 agreements:
-  - between: [plans::edit_design, events::with_project]
+  - between: [plans::edit_design, db::with_project]
     rule: >
       ProjectDesignChanged is appended inside the edit's transaction and carries
       only project_id, workspace revision, changed part/outcome IDs

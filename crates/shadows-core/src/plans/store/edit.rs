@@ -11,7 +11,6 @@ use super::plan::PlanRows;
 use super::plan_event;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::events::DurableEvent;
 use crate::grants::Grants;
 use crate::grants::Writer;
 use crate::operations::OperationId;
@@ -99,7 +98,7 @@ impl PlansStore {
                     };
                     let event = plan_event("WorkflowEdited", &writer, &project, operation.as_ref())
                         .with_payload(serde_json::to_value(&outcome)?);
-                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
                     super::notifications::NotificationsRows::notify_plan(
                         conn,
                         &project,
@@ -253,12 +252,12 @@ impl PlansStore {
                         frozen_at: ts.clone(),
                     };
                     let mut event =
-                        DurableEvent::new("WorkflowFrozen", actor).with_project(&project);
+                        JournalEntry::new("WorkflowFrozen", actor).with_project(project.as_str());
                     if let Some(thread) = thread {
-                        event = event.with_thread(thread);
+                        event = event.with_thread(thread.as_str());
                     }
                     let event = event.with_payload(serde_json::to_value(&approved)?);
-                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
                     super::notifications::NotificationsRows::notify_plan(
                         conn,
                         &project,

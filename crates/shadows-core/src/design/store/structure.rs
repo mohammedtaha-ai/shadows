@@ -2,7 +2,6 @@
 use super::DesignStore;
 use crate::ProjectId;
 use crate::design::{PartContent, StructureWritten, map_rules};
-use crate::events::DurableEvent;
 use core_db::{Actor, CommandContext, JournalEntry, Storage};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -202,12 +201,11 @@ impl DesignStore {
                 .bind(serde_json::to_string(&result)?)
                 .execute(&mut *conn)
                 .await?;
-                    let event = DurableEvent::new("ProjectStructureWritten", Actor::user("local"))
-                        .with_project(&p)
+                    let event = JournalEntry::new("ProjectStructureWritten", Actor::user("local"))
+                        .with_project(p.as_str())
                         .with_payload(serde_json::json!({"project_id":p,
                     "map_version":result.map_version,"paths":result.paths}));
-                    JournalEntry::append_event(conn, event.journal_entry(), &result.completed_at)
-                        .await?;
+                    JournalEntry::append_event(conn, event.clone(), &result.completed_at).await?;
                     CommandContext::record_command(
                         conn,
                         &ctx,

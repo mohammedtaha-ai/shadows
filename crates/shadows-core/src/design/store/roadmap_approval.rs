@@ -90,15 +90,15 @@ impl DesignStore {
             .bind(serde_json::to_string(&change)?)
             .execute(&mut *conn)
             .await?;
-        let approved = crate::events::DurableEvent::new("RoadmapApproved", approver.actor())
-            .with_project(p)
+        let approved = core_db::JournalEntry::new("RoadmapApproved", approver.actor())
+            .with_project(p.as_str())
             .with_payload(serde_json::json!({"project_id":p,"proposal_id":id}));
-        JournalEntry::append_event(conn, approved.journal_entry(), &ts).await?;
-        let event = crate::events::DurableEvent::new("ProjectDesignChanged", approver.actor())
-            .with_project(p)
+        JournalEntry::append_event(conn, approved.clone(), &ts).await?;
+        let event = core_db::JournalEntry::new("ProjectDesignChanged", approver.actor())
+            .with_project(p.as_str())
             .with_payload(serde_json::json!({"project_id":p,"revision":revision,
             "changed_parts":[],"changed_outcomes":changed,"vision_changed":false}));
-        JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+        JournalEntry::append_event(conn, event.clone(), &ts).await?;
         CommandContext::record_command(
             conn,
             &ctx,

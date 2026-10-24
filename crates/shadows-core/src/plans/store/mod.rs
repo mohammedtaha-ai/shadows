@@ -22,10 +22,10 @@ mod read;
 pub(super) mod task;
 mod view;
 
-use crate::events::DurableEvent;
 use crate::grants::Writer;
 use crate::operations::OperationId;
 use crate::projects::ProjectId;
+use core_db::JournalEntry;
 
 /// A plan event records its subject: always its project, with the writer as
 /// the actor; the thread, and the turn when there is one, only for a Planner.
@@ -34,11 +34,13 @@ fn plan_event(
     writer: &Writer,
     project: &ProjectId,
     operation: Option<&OperationId>,
-) -> DurableEvent {
-    let event = DurableEvent::new(kind, writer.actor()).with_project(project);
+) -> JournalEntry {
+    let event = JournalEntry::new(kind, writer.actor()).with_project(project.as_str());
     match (writer, operation) {
-        (Writer::Planner { thread, .. }, Some(op)) => event.with_thread(thread).with_operation(op),
-        (Writer::Planner { thread, .. }, None) => event.with_thread(thread),
+        (Writer::Planner { thread, .. }, Some(op)) => event
+            .with_thread(thread.as_str())
+            .with_operation(op.as_str()),
+        (Writer::Planner { thread, .. }, None) => event.with_thread(thread.as_str()),
         _ => event,
     }
 }

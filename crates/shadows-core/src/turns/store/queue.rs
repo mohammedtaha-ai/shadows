@@ -2,7 +2,6 @@
 
 use sqlx::SqliteConnection;
 
-use crate::events::DurableEvent;
 use crate::operations::Operations;
 use crate::plans::{Focus, PlanId};
 use crate::threads::ThreadId;
@@ -72,10 +71,10 @@ impl super::TurnsStore {
         payload: serde_json::Value,
         ts: &str,
     ) -> Result<(), StorageError> {
-        let event = DurableEvent::new(kind, actor)
-            .with_thread(thread)
+        let event = JournalEntry::new(kind, actor)
+            .with_thread(thread.as_str())
             .with_payload(payload);
-        JournalEntry::append_event(conn, event.journal_entry(), ts)
+        JournalEntry::append_event(conn, event.clone(), ts)
             .await
             .map(|_| ())
     }

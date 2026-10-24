@@ -88,3 +88,49 @@ impl JournalEntry {
         Self::append_event(conn, event, now).await
     }
 }
+
+impl JournalEntry {
+    pub fn new(kind: impl Into<String>, actor: Actor) -> Self {
+        Self {
+            event_id: uuid::Uuid::new_v4().to_string(),
+            kind: kind.into(),
+            project_id: None,
+            thread_id: None,
+            operation_id: None,
+            actor,
+            causation: None,
+            correlation_id: None,
+            payload_json: "{}".into(),
+        }
+    }
+    /// The publishing service converts its own subject id at this boundary.
+    pub fn with_project(mut self, id: &str) -> Self {
+        self.project_id = Some(id.to_owned());
+        self
+    }
+    pub fn with_thread(mut self, id: &str) -> Self {
+        self.thread_id = Some(id.to_owned());
+        self
+    }
+    pub fn with_operation(mut self, id: &str) -> Self {
+        self.operation_id = Some(id.to_owned());
+        self
+    }
+    #[cfg(feature = "test-support")]
+    pub fn with_causation(mut self, kind: impl Into<String>, reference: impl Into<String>) -> Self {
+        self.causation = Some(Causation {
+            kind: kind.into(),
+            reference: reference.into(),
+        });
+        self
+    }
+    #[cfg(feature = "test-support")]
+    pub fn with_correlation(mut self, id: impl Into<String>) -> Self {
+        self.correlation_id = Some(id.into());
+        self
+    }
+    pub fn with_payload(mut self, v: serde_json::Value) -> Self {
+        self.payload_json = v.to_string();
+        self
+    }
+}

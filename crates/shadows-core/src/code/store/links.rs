@@ -5,7 +5,6 @@ use sqlx::SqliteConnection;
 use super::CodeStore;
 use crate::code::Code;
 use crate::code::model::ProjectLink;
-use crate::events::DurableEvent;
 use crate::projects::{ProjectId, Projects};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 
@@ -72,9 +71,9 @@ impl CodeStore {
                         .execute(&mut *conn)
                         .await?;
                     let event =
-                        DurableEvent::new("CodeActiveLimitSet", Actor::user(&ctx.principal_id))
+                        JournalEntry::new("CodeActiveLimitSet", Actor::user(&ctx.principal_id))
                             .with_payload(serde_json::json!({ "active_limit": limit }));
-                    JournalEntry::append_event(conn, event.journal_entry(), &ts).await?;
+                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
                     let set = limit.to_string();
                     CommandContext::record_command(
                         conn,

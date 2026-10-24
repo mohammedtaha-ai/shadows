@@ -4,7 +4,6 @@ use super::PlansStore;
 use sqlx::SqliteConnection;
 
 use super::read::ReadRows;
-use crate::events::DurableEvent;
 use crate::plans::model::{PlanId, PlanState, PlanVersions, VersionLine, WorkflowId};
 use crate::projects::ProjectId;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
@@ -68,10 +67,10 @@ impl PlansStore {
                         let actor = Actor::user(&ctx.principal_id);
                         JournalEntry::append_event(
                             conn,
-                            DurableEvent::new("PlanArchived", actor)
-                                .with_project(&current.project_id)
+                            JournalEntry::new("PlanArchived", actor)
+                                .with_project(current.project_id.as_str())
                                 .with_payload(serde_json::json!({ "plan": plan_id }))
-                                .journal_entry(),
+                                .clone(),
                             &ts,
                         )
                         .await?;
@@ -129,10 +128,10 @@ impl PlansStore {
                         let actor = Actor::user(&ctx.principal_id);
                         JournalEntry::append_event(
                             conn,
-                            DurableEvent::new("PlanUnarchived", actor)
-                                .with_project(&current.project_id)
+                            JournalEntry::new("PlanUnarchived", actor)
+                                .with_project(current.project_id.as_str())
                                 .with_payload(serde_json::json!({ "plan": plan_id }))
-                                .journal_entry(),
+                                .clone(),
                             &ts,
                         )
                         .await?;

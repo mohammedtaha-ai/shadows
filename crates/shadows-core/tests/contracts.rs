@@ -120,12 +120,44 @@ fn agreement_exists(src: &Path, declared: &BTreeSet<String>, path: &str) -> bool
         return declared.contains(path);
     };
     // Compare directory entries exactly so Windows rejects paths Linux cannot resolve.
-    std::fs::read_dir(src).unwrap().any(|entry| {
+    let local = std::fs::read_dir(src).unwrap().any(|entry| {
         let entry = entry.unwrap();
         entry.file_name() == service
             && entry.path().is_dir()
             && symbols(&entry.path()).0.contains(symbol)
+    });
+    if local {
+        return true;
+    }
+    let Some(crates) = src.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let Ok(entries) = std::fs::read_dir(crates) else {
+        return false;
+    };
+    entries.filter_map(Result::ok).any(|entry| {
+        entry.file_name() == format!("core-{service}").as_str()
+            && entry.path().join("src").is_dir()
+            && symbols(&entry.path().join("src")).0.contains(symbol)
     })
+}
+
+#[test]
+fn agreement_paths_find_extracted_owners_with_exact_case() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("crates/shadows-core/src");
+    let foundation = root.path().join("crates/core-db/src");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::create_dir_all(&foundation).unwrap();
+    std::fs::write(
+        foundation.join("lib.rs"),
+        "pub struct JournalEntry; impl JournalEntry { pub fn with_project(&self) {} }",
+    )
+    .unwrap();
+    let declared = BTreeSet::new();
+    assert!(agreement_exists(&source, &declared, "db::with_project"));
+    assert!(!agreement_exists(&source, &declared, "Db::with_project"));
+    assert!(!agreement_exists(&source, &declared, "db::missing_method"));
 }
 
 #[test]

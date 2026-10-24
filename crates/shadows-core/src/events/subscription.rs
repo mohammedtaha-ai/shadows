@@ -28,8 +28,9 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, watch};
 
 use super::store::EventsStore;
-use super::{EventCursor, StoredEvent, UiSignal};
+use super::{EventCursor, StoredEvent};
 use crate::harness::Harness;
+use crate::plans::UiSignal;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
