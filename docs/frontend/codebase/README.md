@@ -33,6 +33,51 @@ What the code keeps true. Each one was checked by reading the code that enforces
   shared pieces at the root of `web/src/app/` (`error-line.tsx`, `copy-button.tsx`,
   `daemon-status.tsx`, `mode-policy.ts`) are imported by the feature folders that need them.
 
+## Architecture modules
+
+The architecture test reads this table as its only ownership/dependency graph.
+Paths are relative to `web/src`. `/**` covers a subtree; `/*` covers direct
+children. Exact selectors take precedence over folder selectors so named test
+infrastructure retains its owner. Each source has exactly one most-specific
+owner. Entries are public import surfaces, including type imports and reexports.
+Missing entries are exact baseline items until their migration task creates them.
+`-` in Contract identifies a current module without a colocated contract; this
+check does not invent contracts for those modules. Existing contracts must parse
+as YAML and identify their mapped source folder.
+
+| Owner | Sources | Entry | Contract | Allowed dependencies |
+|---|---|---|---|---|
+| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, new-project, project-settings, settings, sidebar, workflows` |
+| `api` | `api/**` | `api/*` | `api/contract.yaml` | `-` |
+| `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
+| `desktop` | `desktop/**` | `desktop/index.ts` | `desktop/contract.yaml` | `api` |
+| `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `-` | `api, ui` |
+| `agents` | `app/agents/**` | `app/agents/index.ts` | `app/agents/contract.yaml` | `api, ui, shared, desktop` |
+| `agreements` | `app/agreements/**` | `app/agreements/index.ts` | `app/agreements/contract.yaml` | `api, ui, shared` |
+| `conversation` | `app/conversation/**` | `app/conversation/index.ts` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui` |
+| `design` | `app/design/**` | `app/design/index.ts` | `app/design/contract.yaml` | `api, ui, shared, workflows` |
+| `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
+| `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
+| `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts` | `app/project-settings/contract.yaml` | `api, ui, shared` |
+| `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui` |
+| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, settings, workflows` |
+| `workflows` | `app/workflows/**` | `app/workflows/index.ts` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
+| `test-support` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
+
+Named exemption **test fixture imports**: a `*.test.ts` / `*.test.tsx` source
+may import `test-support` entries for fixtures. Test support may import its own
+fixtures. This exempts only that edge from public-entry/dependency checks; tests
+retain all other rules. Production runtime reachability from `main.tsx` to any
+test or named test-support source always fails.
+
+`architecture.baseline.txt` holds sorted, exact `rule :: importer :: target`
+records with occurrence ordinals. New, stale, duplicate or unsorted entries fail.
+Adding an identical violation fails too. Remove entries with their violations;
+a pure rename relocates entries one-for-one and does not reduce the debt count.
+The scanner never updates the baseline. In-memory fixtures exercise the same
+TypeScript parser, configured module resolver, symbol checker and comparator.
+
 ## Contracts
 
 Each folder below carries a `contract.yaml` next to its code, written to the template
@@ -254,3 +299,5 @@ it is that folder's `contract.yaml`.
 | `web/src/test/contract-fixtures.ts` | Sample daemon values typed against `schema.d.ts` | `web/src/test/fake-daemon.ts` |
 | `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon | `web/src/test/contract-fixtures.ts` |
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
+| `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
+| `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |

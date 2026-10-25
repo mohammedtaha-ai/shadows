@@ -15,7 +15,7 @@ and OS acceptance.
 ## Tasks
 
 ### F-26 · W-1: a shrinking architecture ratchet for `web/src`
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions and #enforcing-check
   (rules 1 to 7) and #w-1--establish-the-frontend-architecture-ratchet
 - Read: the plan's sections 2, 3, 5 and 6; `web/src/codemap.test.ts`;
