@@ -70,7 +70,9 @@ and OS acceptance.
   to that domain's queries; `contract.yaml`); every product file the `query_key` and
   `cache_write` baseline entries name (agreements, agents, conversation including
   `use-session.ts`, `use-commands.ts` and composer callers, design, project-settings, sidebar,
-  workflows, stream, desktop) and their tests and `contract.yaml`;
+  workflows, stream, desktop) and their tests and `contract.yaml`; every other product file that
+  writes a mutation answer through `writeSaved` directly (`app/settings/general-preferences.tsx`,
+  `app/settings/you-card.tsx`) and `app/settings/contract.yaml`;
   `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md`; this task's `Status:`
 - Needs: F-26
 - Done when: no product file outside `web/src/api/` builds a query key or writes the cache: every
