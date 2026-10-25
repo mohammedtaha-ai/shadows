@@ -1451,3 +1451,5 @@ image_attachments:
     - "Send now preserves queued images and retries %s with the correct command"
     - "an upload command conflict needs an explicit retry with a fresh command"
     - "the draft keeps staged images when its opened session refuses images"
+
+session_cache_owner: "api/sessions.ts owns session/command identities, frame updates, resets and saved mutation answers; feature hooks project presentation state"

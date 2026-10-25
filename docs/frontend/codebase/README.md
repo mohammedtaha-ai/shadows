@@ -310,3 +310,5 @@ it is that folder's `contract.yaml`.
 | `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |
 
 | `web/src/api/agreements.ts` | Agreement query identities with saved answers | `web/src/api/contract.yaml` |
+
+| `web/src/api/sessions.ts` | Harness session cache lifecycle | `web/src/api/contract.yaml` |

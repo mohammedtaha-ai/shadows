@@ -20,7 +20,7 @@ import {
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
 import { queuedQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { saveSessionAnswer } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
 import type { SlashCommand } from '@/stream/frames'
 import {noteCompanionSend,useCompanionSendProblem} from '@/desktop/companion-send'
@@ -36,7 +36,7 @@ import { slashMatches } from './slash-filter'
 import { SlashMenu } from './slash-menu'
 import { afterOptions, effortsKnown, initialSettings, sendable, withModel } from './turn-settings'
 import type { Turn } from './turn-state'
-import { type SessionView, sessionKey } from './use-session'
+import { type SessionView } from './use-session'
 
 /** Where Send goes: the open thread's next turn, or a draft's first message,
  * whose `draft` makes the thread first and answers the turn's operation. */
@@ -241,7 +241,7 @@ export function Composer({
       changeMode(threadId, commandId, mode),
     onSuccess: async (answer, { threadId }) => {
       modeAttempt.current = null
-      await writeSaved(queryClient, sessionKey(threadId), answer)
+      await saveSessionAnswer(queryClient, threadId, answer)
     },
     onError: (error) => {
       if (error instanceof ApiError && error.problem.kind === 'daemon') modeAttempt.current = null
@@ -266,7 +266,7 @@ export function Composer({
     // A draft has no session to change: Send opens it.
     mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeModel(threadId, id),
     onSuccess: async (answer, { threadId, id }) => {
-      await writeSaved(queryClient, sessionKey(threadId), answer)
+      await saveSessionAnswer(queryClient, threadId, answer)
       // Asked again it would be answered the same: say so rather than ask.
       if (answer.current.model !== id) refuse(`The session kept ${answer.current.model}`, answer)
       // The answer is the effort the move ended at (the remembered one);
@@ -290,7 +290,7 @@ export function Composer({
   const switchEffort = useMutation({
     mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeEffort(threadId, id),
     onSuccess: async (answer, { threadId, id }) => {
-      await writeSaved(queryClient, sessionKey(threadId), answer)
+      await saveSessionAnswer(queryClient, threadId, answer)
       if (answer.current.effort !== id) keepEffort(answer)
     },
     onError: () => keepEffort(),

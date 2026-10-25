@@ -625,3 +625,10 @@ person_cache:
   owner: person.ts
   keys: "personKeys.record preserves ['person']"
   savePersonAnswer: "writeSaved cancels the exact person read before storing the server's whole-record answer; savePerson request fields are unchanged"
+
+session_cache:
+  owner: sessions.ts
+  keys: "sessionKeys choices and commands preserve ['threads', threadId, 'session'/'commands']"
+  reads: "sessionQuery opens once with no retry or focus refetch; commandsQuery is disabled and never stale"
+  frames: "replaceChoices ignores intermediate opening frames; replaceCommands stores the supplied stream list; reopenSession clears commands then resets the session"
+  saveSessionAnswer: "writeSaved cancels the exact in-flight session read before storing model, effort or mode mutation answers"
