@@ -147,3 +147,28 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   fixtures; the architecture test's Core-HTTP rule allows only that module and fails on a
   `reqwest` call elsewhere (proved by a fixture); no baseline count goes up; the crate's tests,
   the architecture test, clippy, fmt and `npm test` pass
+
+### N-14 · D-7: companion workflows live behind one owner
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-7--move-companion-workflows-behind-one-service
+  and #decision-d-0
+- Read: the plan's section 2 ("Cross-owner internal access", "Every registered Tauri command")
+  and section 4 (`lib.rs`, `commands/desktop.rs`, `commands/companion.rs`);
+  `apps/desktop/src-tauri/src/presence/contract.yaml`; `src/commands/contract.yaml`;
+  `src/app.rs`; `tests/architecture/README.md`
+- Touch: `src/presence/` (`mod.rs` and a new private module per workflow if one earns it,
+  `watcher.rs`, their tests, `contract.yaml`); `src/commands/{desktop,companion}.rs` and
+  `src/commands/contract.yaml`; `src/app.rs`, `src/lib.rs`, `src/contract.yaml`;
+  `src/navigation.rs` only for the method the open-main workflow calls;
+  `tests/architecture/` (baseline); `docs/aylul/codebase/README.md`; this task's `Status:`
+- Needs: N-13
+- Done when: selecting an agent and showing the companion (`select_companion_agent`),
+  retargeting with readiness (`target_companion_thread`), publication admission (today in the
+  `lib.rs` callback) and opening the main window from the companion
+  (`open_main_from_companion`) are each one method on the Companion owner (`Presence` today);
+  those commands translate their arguments, call that one method and shape the answer;
+  `lib.rs` and `app.rs` wire and decide nothing; the two `desktop.watcher()` implementation
+  accesses in `commands/desktop.rs` are gone; event names, payloads, ordering, tickets,
+  generations and foreground restoration are unchanged and their existing tests pass; the
+  `owner_edge`, `private_access` and `managed_state` counts go down and no count goes up; the
+  crate's tests, the architecture test, clippy, fmt and `npm test` pass
