@@ -177,7 +177,7 @@ const CLIENT_GONE: &str = "client gone";
 
 /// OpenAPI cannot type the frames of an event stream, so the document
 /// describes them here, next to the code that sends them.
-const STREAM_DESCRIPTION: &str = "Server-sent events for one thread (spec §2.10): \
+const STREAM_DESCRIPTION: &str = "Server-sent events for one thread: \
 the durable journal after `after`, then `caught-up`, then live. Each frame's \
 `event:` names its kind and its `data:` is JSON unless stated.\n\n\
 - `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. \
@@ -187,7 +187,7 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n\
 - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
 - `subagent` — `{op, card}`: a running turn's subagent card, whole, after each \
-change (§22.3): `{id, title, agent_type, model, status, prompt, steps, report, \
+change: `{id, title, agent_type, model, status, prompt, steps, report, \
 duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when \
 it ends. Transient.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
@@ -199,7 +199,7 @@ context use and the account's limits as the harness last reported them; each is 
 `{name, description, hint}`; sent after `caught-up` when there is one, and on every \
 change. Transient.\n\
 - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: \
-the Planner showed a plan (§13.9). Its card arrives first, as the `durable` \
+the Planner showed a plan. Its card arrives first, as the `durable` \
 `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the \
 page for `side` or `page`. Transient: never replayed.\n\
 - `lagged` — empty: this client fell behind and transient frames were dropped; \

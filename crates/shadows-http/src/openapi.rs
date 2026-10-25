@@ -16,7 +16,7 @@ use utoipa::OpenApi;
         description = "The local daemon's HTTP API. Every client is on another \
                        origin; only origins passed with `--allow-origin` may call \
                        it. There is no authentication: the daemon binds to \
-                       loopback (spec §1, OPEN block on remote access). Errors \
+                       loopback. Errors \
                        answered by the API carry `ErrorBody`, whose `code` is \
                        stable; a request axum rejects before a handler runs \
                        (malformed JSON, a missing parameter) is answered in \

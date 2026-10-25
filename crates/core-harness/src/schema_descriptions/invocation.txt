@@ -1,2 +1,2 @@
-What a turn asked for and what the harness reported (spec §8.2, §12.8).
+What a turn asked for and what the harness reported.
 Anything not reported is `None`, never estimated.

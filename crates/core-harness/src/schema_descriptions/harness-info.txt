@@ -1,2 +1,2 @@
-A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
+A CLI a conversation can run on. `kind` is `claude-code` or
 `codex`.

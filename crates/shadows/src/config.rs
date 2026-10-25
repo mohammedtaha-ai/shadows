@@ -41,7 +41,7 @@ pub fn data_dir(db_path: &Path) -> PathBuf {
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ConfigError {
     #[error(
-        "the harness path must be absolute, got `{0}`. Spec §1.4: a harness \
+        "the harness path must be absolute, got `{0}`. A harness \
          executable is resolved from explicit configuration, never from PATH. A \
          bare program name is a PATH lookup by another spelling, and a relative \
          path resolves against whatever directory the daemon happens to be in."

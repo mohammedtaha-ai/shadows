@@ -1047,13 +1047,14 @@ automation; no browser/native/provider/production acceptance was performed.
 - Done when: each workspace's applicable gate passes from its own root and affected native consumers compile; Core retains its OpenAPI gate
 
 ### A-23 · No `§` and no history in code
-- Status: blocked
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-23--no--and-no-history-in-code
 - Read: A-0's list (c)
 - Touch: every remaining file on that list
 - Done when: A-0's list (c) is empty
-- Verified: list (c) has no exceptions; architecture 49/49, codemap 1/1, OpenAPI 7/7; both Clippy modes, formatting and CI line width pass.
-- Blocker: nine OpenAPI `§` references remain in four Rust description-literal references and four included schema-description text files (five references). The controller must authorize those documentation-only exceptions to the comments-only scope. Generated route-comment changes also affect `summary` text.
+- Verified: list (c) has no exceptions; architecture 49/49, codemap 1/1, OpenAPI 7/7 and harness configuration 3/3; both Clippy modes, formatting and CI line width pass. CLI error display retains its explanation without a spec pointer. OpenAPI has zero `§` characters, with only description/summary text changed and no structural differences.
+- Controller ruling: API-only description/summary literals, included `core-harness/src/schema_descriptions/*.txt` text and the configuration error sentence are in scope; generated description/summary changes are accepted, with no structural API changes.
+- Accepted remainder: 20 `§` characters in test assertions and detector fixtures only: `core-db/tests/storage_contract/schema.rs` (lines 15, 21, 91-97; 14), `shadows-core/tests/contracts.rs` (540; 1), `shadows/tests/planner_turn.rs` (250; 1), `shadows/tests/plan_grants.rs` (186; 1), `shadows/tests/architecture/fixtures.rs` (272, 279; 2) and `shadows/tests/architecture/scanner.rs` (352; 1), all under `crates/`. These files remain unchanged in this follow-up.
 
 ### B-10 · A conversation keeps its mode
 - Status: done
