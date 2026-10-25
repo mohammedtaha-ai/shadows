@@ -454,6 +454,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-standards/src/standards.yaml` | bundled standards definition | `crates/core-standards/contract.yaml` |
 
 | `crates/core-code/src/lib.rs` | code indexing boundary | `crates/core-code/contract.yaml` |
+| `crates/core-code/tests/recheck/` | question refresh race regression | `crates/core-code/tests/recheck/invariants.rs` |
 | `crates/core-code/src/error.rs` | index refusals | `crates/core-code/contract.yaml` |
 | `crates/core-code/src/testing.rs` | gated index inspection | `crates/core-code/contract.yaml` |
 
