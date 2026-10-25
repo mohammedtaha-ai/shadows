@@ -1,4 +1,5 @@
 mod app;
+pub use core_runtime::RuntimeError;
 mod error;
 pub use core_project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]

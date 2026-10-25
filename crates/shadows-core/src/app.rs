@@ -620,7 +620,11 @@ impl AppCore {
     pub async fn runtime_for_tests(
         storage: Arc<Storage>,
     ) -> Result<(Runtime, core_operations::ReconcileReport), crate::StorageError> {
-        let runtime = Runtime::start(storage.clone()).await?;
+        let runtime = Runtime::start(storage.clone())
+            .await
+            .map_err(|error| match error {
+                core_runtime::RuntimeError::Storage(error) => error,
+            })?;
         let report = Operations::new(storage)
             .recover(runtime.instance_id())
             .await?;

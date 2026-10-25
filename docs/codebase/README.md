@@ -488,3 +488,5 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-turns/src/spawn.rs` | live registration | `crates/core-turns/contract.yaml` |
 
 | `crates/core-events/src/error.rs` | event subscription failures | `crates/core-events/contract.yaml` |
+
+| `crates/core-runtime/src/error.rs` | runtime startup failures | `crates/core-runtime/contract.yaml` |

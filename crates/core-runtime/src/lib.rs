@@ -2,8 +2,10 @@
 
 use core_db::{Storage, StorageError};
 use std::sync::Arc;
+mod error;
 mod model;
 mod store;
+pub use error::RuntimeError;
 pub use model::{RuntimeInstanceId, StopKind};
 pub struct Runtime {
     instance_id: RuntimeInstanceId,
@@ -15,7 +17,7 @@ impl Runtime {
         &self.instance_id
     }
 
-    pub async fn start(storage: Arc<Storage>) -> Result<Self, StorageError> {
+    pub async fn start(storage: Arc<Storage>) -> Result<Self, RuntimeError> {
         let instance_id = store::RuntimeStore { storage: &storage }
             .register_runtime_instance(env!("CARGO_PKG_VERSION"))
             .await?;

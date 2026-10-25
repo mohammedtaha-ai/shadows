@@ -634,11 +634,13 @@ not import app; Plans does not import Turns. Usage has no agents dependency;
 Harness includes person. Runtime, Secrets and Providers are extracted. The controller has unblocked Projects comment-path relocation. The continuation order is Projects, Usage, Person, Instructions, Standards, Code, Agents, Extensions, Threads, Grants, Operations, Harness, Design, Plans, Turns, ProjectLifecycle, Events; the verified dependency edges do not change.
 
 #### A-19c.0 · Give each service its own error
-- Status: doing
-- Progress: Secrets (A-19c.2), Providers (A-19c.7), Projects (A-19c.3), Usage (A-19c.10), Person (A-19c.11), Instructions (A-19c.4), Standards (A-19c.5), Code (A-19c.6) Agents (A-19c.8) Extensions (A-19c.9) and Threads (A-19c.12) error splits are complete. Remaining splits accompany their moves; Runtime still needs its owned wrapper.
-- Ruling: controller continuation at 9b3735e supersedes the error-vocabulary blocker; no shared error crate. Apply each owner's split in its extraction commit, lowest first. Runtime currently exposes only StorageError; its owned wrapper remains part of A-19c.0 completion.
+- Status: done
+- Progress: All service error splits are complete. Runtime startup now returns RuntimeError::Storage; Core owns its conversion and re-export. Runtime transaction-local methods and the legacy fixture retain core-db StorageError for shared writes. All other owner errors were split in their extraction commits.
+- Verification: Runtime lifecycle 4 pass, including refused registration with no identity/event commit. Core app_fixture 1, contracts 6, operation_listing 1 and invocation_standards 1 pass. Architecture 48, codemap 1 and HTTP/MCP error mappings 1 each pass. Both workspace clippy modes, fmt, exact line length, LF and unchanged API diff pass. Rust LSP found six Runtime::start references. Workspace thiserror is reused as infrastructure for the owned error derive; no new external package.
+- Ruling: controller continuation at 9b3735e supersedes the error-vocabulary blocker; no shared error crate. Each owner split belongs to its extraction; Runtime startup ownership closes this tracking task.
 - Touch: each service's error.rs, model and methods; its declared callers and tests; shadows-core/src/error.rs From conversions and public error re-exports; adapter translation conversions and failure-case tests where a service error crosses the application boundary; affected contracts and code-map rows; manifests and Cargo.lock. No route documentation or wire shape change.
 - Done when: no service names CoreError; each owns only its failures plus Storage where applicable and declared callee errors; existing HTTP status/code/message and MCP failure tests pass; api/ is unchanged.
+
 
 #### A-19c.0a · Remove the event-vocabulary cycles
 - Status: done

@@ -6,6 +6,7 @@ version: 1
 status: current
 source: crates/core-runtime/src
 modules:
+  error.rs: runtime startup failures
   lib.rs: process identity registration
   model.rs: runtime identity values
   store/mod.rs: private runtime row persistence
@@ -16,13 +17,16 @@ shapes:
   RuntimeStore:
     storage: "&Storage"
 enums:
+  RuntimeError:
+    source: core_runtime::RuntimeError
+    values: [Storage]
   StopKind:
     values: [Graceful, Escalated]
 functions:
   service:
     instance_id: "Borrow the runtime identity without exposing mutable state."
     from_recorded: "Reconstruct a persisted runtime id without changing its text."
-    start: "(storage: Arc<Storage>) -> Result<Self, StorageError>; registers the package version"
+    start: "(storage: Arc<Storage>) -> Result<Self, RuntimeError>; registers the package version"
   transaction_writes:
     stop_in: Updates the unstopped runtime row and appends RuntimeStopped; caller checks owned work.
   transaction_reads:
@@ -34,6 +38,8 @@ functions:
     storage_for_test: Legacy fixture handle, compiled only with test-support.
     register_runtime_instance_for_test: Registers the fixture's explicit version through RuntimeStore.
 obligations:
+  - rule: A refused startup retains its storage cause without committing an identity or journal event.
+    tested_by: startup_failure_keeps_its_storage_cause_without_committing_identity_or_events
   - rule: Register and stop journal events share the row transaction.
     tested_by: [registration_persists_identity_and_journal_together, stop_and_journal_roll_back_together]
   - rule: A stopped runtime cannot accept a Pending operation.

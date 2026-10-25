@@ -1,7 +1,45 @@
 use std::sync::Arc;
 
 use core_db::{Storage, StorageError};
-use core_runtime::{Runtime, RuntimeInstanceId, StopKind};
+use core_runtime::{Runtime, RuntimeError, RuntimeInstanceId, StopKind};
+
+#[tokio::test]
+async fn startup_failure_keeps_its_storage_cause_without_committing_identity_or_events() {
+    let directory = tempfile::tempdir().unwrap();
+    let storage = Arc::new(
+        Storage::open(&directory.path().join("refused.sqlite"))
+            .await
+            .unwrap(),
+    );
+    storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "CREATE TRIGGER refuse_runtime BEFORE INSERT ON runtime_instance \
+                     BEGIN SELECT RAISE(ABORT, 'runtime registration refused'); END",
+                )
+                .execute(conn)
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+    let error = match Runtime::start(storage.clone()).await {
+        Ok(_) => panic!("a refused registration must fail startup"),
+        Err(error) => error,
+    };
+    let RuntimeError::Storage(cause) = error;
+    assert!(cause.to_string().contains("runtime registration refused"));
+    let rows: (i64, i64) = sqlx::query_as(
+        "SELECT (SELECT COUNT(*) FROM runtime_instance), (SELECT COUNT(*) FROM durable_event)",
+    )
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(rows, (0, 0));
+    assert_eq!(*storage.watch_committed().borrow(), 0);
+}
 
 async fn fixture() -> (tempfile::TempDir, Arc<Storage>, Runtime) {
     let directory = tempfile::tempdir().unwrap();

@@ -1,4 +1,12 @@
 use core_db::StorageError;
+
+impl From<core_runtime::RuntimeError> for CoreError {
+    fn from(error: core_runtime::RuntimeError) -> Self {
+        match error {
+            core_runtime::RuntimeError::Storage(error) => error.into(),
+        }
+    }
+}
 use core_harness::OpenError;
 use core_projects::DirectoryError;
 use core_turns::StartError;
