@@ -636,3 +636,8 @@ session_cache:
 profile_cache:
   owner: aylul-profiles.ts
   keys: "profileKeys owns unchanged provider presets, providers, agents, agent thread and environment arrays"
+
+workflow_cache:
+  owner: workflows.ts
+  keys: "workflowKeys preserves workflows, map, list with archived object, versions and plan identities; queries.ts re-exports queries"
+  savePlanAnswer: "writeSaved cancels the exact plan read before caching a binding edit's authoritative plan answer"

@@ -8,9 +8,6 @@ import {
   getInstructions,
   getStandards,
   getStage,
-  getPlan,
-  getPlanMap,
-  getPlanVersions,
   getThread,
   listCodeLinks,
   listGrants,
@@ -18,7 +15,6 @@ import {
   listEntries,
   listHarnesses,
   listOperations,
-  listPlans,
   listProjects,
   listQueued,
   listThreads,
@@ -94,39 +90,6 @@ export function operationsQuery(threadId: string) {
   return queryOptions({
     queryKey: threadOperationsKey(threadId),
     queryFn: () => listOperations(threadId),
-  })
-}
-
-/** Every plan query, lists and versions alike: a thread's `Workflow*` event
- * or an approval invalidates this prefix, since a new draft also changes its
- * predecessor's `next`. */
-export const workflowsKey = ['workflows'] as const
-
-export function planMapQuery(projectId: string) {
-  return queryOptions({ queryKey: [...workflowsKey, 'map', projectId], queryFn: () => getPlanMap(projectId) })
-}
-
-/** A project's plans, each plan's latest version (§16.2), or archived ones too. */
-export function plansQuery(projectId: string, archived = false) {
-  return queryOptions({
-    queryKey: [...workflowsKey, 'list', projectId, { archived }],
-    queryFn: () => listPlans(projectId, archived),
-  })
-}
-
-/** One plan with every version, oldest first (§16.10). */
-export function planVersionsQuery(planId: string) {
-  return queryOptions({
-    queryKey: [...workflowsKey, 'versions', planId],
-    queryFn: () => getPlanVersions(planId),
-  })
-}
-
-/** One plan version, as the Workflows page and the conversation's cards show it. */
-export function planQuery(workflowId: string) {
-  return queryOptions({
-    queryKey: [...workflowsKey, 'plan', workflowId],
-    queryFn: () => getPlan(workflowId),
   })
 }
 
@@ -225,3 +188,5 @@ export function dirsQuery(path: string | null) {
     retry: false,
   })
 }
+
+export { workflowsKey, planMapQuery, plansQuery, planVersionsQuery, planQuery } from './workflows'

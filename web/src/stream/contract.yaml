@@ -637,3 +637,5 @@ tests:
       place 'window' throws FrameError.
 
 agreement_refresh: "AgreementChanged and caught-up invalidate api/agreements agreementKeys shared with feature reads"
+
+workflow_refresh_identity: "api/workflows.workflowKeys owns the plan prefix used by project journal refresh"

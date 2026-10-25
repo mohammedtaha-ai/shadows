@@ -262,3 +262,5 @@ tests:
       expected_revision 0 and that purpose.
 
 cache_owner: "api/agreements.ts owns query identities and saved answers; the editor does not write the cache"
+
+binding_plan_cache: "api/workflows.ts owns saved plans and workflow refresh identities"

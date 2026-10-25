@@ -8,7 +8,7 @@ import { ErrorLine } from '../error-line'
 import { operations as documentOperations } from './agreement-document'
 import { agreementKeys, agreementsQuery, agreementQuery } from '@/api/agreements'
 import { partQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { workflowKeys, savePlanAnswer } from '@/api/workflows'
 export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
   const client = useQueryClient()
   const [id, setId] = useState('')
@@ -25,8 +25,8 @@ export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
     return getPlan(plan.id)
   }, onSuccess: async p => {
     pending.current = null
-    await writeSaved(client, ['workflows', 'plan', plan.id], p)
-    void client.invalidateQueries({ queryKey: ['workflows'] })
+    await savePlanAnswer(client, p)
+    void client.invalidateQueries({ queryKey: workflowKeys.all() })
     void client.invalidateQueries({ queryKey: agreementKeys.versions(plan.project_id) })
     void client.invalidateQueries({ queryKey: ['projects', plan.project_id, 'design'] })
   } })
@@ -74,7 +74,7 @@ export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
     {save.isError && <><ErrorLine error={save.error} /><Button variant="outline" size="sm"
       onClick={() => save.mutate(pending.current?.ops ?? [])}>Retry same command</Button>
       <Button variant="outline" size="sm" onClick={() => {
-        pending.current = null; save.reset(); void client.invalidateQueries({ queryKey: ['workflows'] })
+        pending.current = null; save.reset(); void client.invalidateQueries({ queryKey: workflowKeys.all() })
       }}>Reload current binding</Button></>}
   </section>
 }

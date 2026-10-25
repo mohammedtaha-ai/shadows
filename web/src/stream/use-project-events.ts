@@ -1,3 +1,4 @@
+import { workflowKeys } from '@/api/workflows'
 import { agreementKeys } from '@/api/agreements'
 // One job: refetching a project's plan views from its journal notifications (§16.8).
 
@@ -41,7 +42,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
     const invalidateProject = () => {
       void queryClient.invalidateQueries({ queryKey: planMapQuery(projectId).queryKey })
       void queryClient.invalidateQueries({ queryKey: plansQuery(projectId).queryKey.slice(0, 3) })
-      void queryClient.invalidateQueries({ queryKey: ['workflows', 'plan'], predicate: query => {
+      void queryClient.invalidateQueries({ queryKey: workflowKeys.plans(), predicate: query => {
         const data = query.state.data
         return typeof data === 'object' && data !== null && 'project_id' in data && data.project_id === projectId
       } })
