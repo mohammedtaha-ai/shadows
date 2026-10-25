@@ -615,3 +615,8 @@ agreement_cache:
   keys: "agreementKeys preserves list, version prefix and exact version arrays including undefined"
   queries: "agreementsQuery and agreementQuery share their keys with stream refresh"
   saveAgreementAnswer: "Cancels the exact in-flight version read with writeSaved before caching a mutation answer"
+
+extension_cache:
+  owner: extensions.ts
+  keys: "extensionKeys preserves library, all-agent prefix and per-agent arrays"
+  saveAgentExtensionAnswer: "writeSaved cancels the agent's exact read before merging the saved plugin or skill; other items and agents are preserved"

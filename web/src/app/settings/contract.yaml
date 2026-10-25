@@ -221,3 +221,5 @@ tests:
   - name: "follows a value changed elsewhere while the field is untouched"
     checks: >
       After another tab's 7 is refetched, the untouched field shows 7 and Save is disabled.
+
+extension_refresh_owner: "Library changes invalidate extensionKeys from api/extensions.ts"

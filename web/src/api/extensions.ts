@@ -1,4 +1,5 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
+import { writeSaved } from './saved-answer'
 import { client } from './client'
 import { unwrap, unwrapEmpty } from './error'
 import type { components } from './schema'
@@ -10,7 +11,13 @@ export type ExtensionLibrary = components['schemas']['ExtensionLibrary']
 export type AgentExtensions = components['schemas']['AgentExtensions']
 export type ExtensionImport = components['schemas']['Import']
 
-export const extensionsQuery = queryOptions({ queryKey: ['aylul-extensions'], retry: false,
+export const extensionKeys = {
+  library: () => ['aylul-extensions'],
+  agents: () => ['aylul-agent-extensions'],
+  agent: (slug: string) => ['aylul-agent-extensions', slug],
+}
+
+export const extensionsQuery = queryOptions({ queryKey: extensionKeys.library(), retry: false,
   queryFn: () => unwrap(client.GET('/api/aylul/extensions')),
 })
 export function addExtension(commandId: string, kind: ExtensionKind, path: string): Promise<Item> {
@@ -20,7 +27,7 @@ export function removeExtension(commandId: string, kind: ExtensionKind, id: stri
   return unwrapEmpty(client.DELETE('/api/aylul/extensions/{kind}/{id}', { params: { path: { kind, id }, query: { command_id: commandId } } }))
 }
 export function agentExtensionsQuery(slug: string) {
-  return queryOptions({ queryKey: ['aylul-agent-extensions', slug], retry: false,
+  return queryOptions({ queryKey: extensionKeys.agent(slug), retry: false,
     queryFn: () => unwrap(client.GET('/api/aylul/agents/{slug}/extensions', { params: { path: { slug } } })),
   })
 }
@@ -28,4 +35,10 @@ export function setAgentExtension(slug: string, kind: ExtensionKind, id: string,
   return unwrap(client.PUT('/api/aylul/agents/{slug}/extensions/{kind}/{id}', {
     params: { path: { slug, kind, id } }, body: { command_id: commandId, enabled },
   }))
+}
+
+export function saveAgentExtensionAnswer(client: QueryClient, slug: string, kind: ExtensionKind, saved: AgentItem) {
+  const field = kind === 'plugin' ? 'plugins' : 'skills'
+  return writeSaved<AgentExtensions>(client, extensionKeys.agent(slug), current => current
+    ? { ...current, [field]: current[field].map(value => value.id === saved.id ? saved : value) } : current)
 }

@@ -140,3 +140,5 @@ tests:
     checks: Replace sends the new value for that name; Remove sends one DELETE.
 
 provider_models: Provider models carry id and per-model context_window; the agent selector uses each model id.
+
+extension_cache_owner: "api/extensions.ts owns saved switch merges and cancels stale reads before writing"

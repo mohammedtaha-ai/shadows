@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { extensionsQuery, removeExtension, type ExtensionKind, type Item } from '@/api/extensions'
+import { extensionsQuery, extensionKeys, removeExtension, type ExtensionKind, type Item } from '@/api/extensions'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
@@ -19,7 +19,7 @@ export function ExtensionList({ kind, items }: { kind: ExtensionKind; items: Ite
     },
     onSuccess: async (_, input) => {
       attempts.current.delete(`${input.kind}:${input.id}`)
-      await Promise.all([client.invalidateQueries({ queryKey: extensionsQuery.queryKey }), client.invalidateQueries({ queryKey: ['aylul-agent-extensions'] })])
+      await Promise.all([client.invalidateQueries({ queryKey: extensionsQuery.queryKey }), client.invalidateQueries({ queryKey: extensionKeys.agents() })])
       setConfirming(null)
     },
     onSettled: () => { locked.current = false },
