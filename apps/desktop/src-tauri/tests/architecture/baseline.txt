@@ -1,0 +1,209 @@
+command_inventory :: build.rs :: missing companion_input
+command_inventory :: build.rs :: missing companion_send
+construction :: auth/policy_tests.rs :: auth::service::AuthService #1
+construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #1
+construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #2
+construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #3
+construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #4
+construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #5
+construction :: navigation.rs :: navigation::Navigation::default #1
+construction :: presence/binding_tests.rs :: navigation::Navigation::default #1
+construction :: presence/binding_tests.rs :: presence::Presence::new #1
+construction :: presence/binding_tests.rs :: presence::Presence::new #2
+construction :: presence/binding_tests.rs :: presence::Presence::new #3
+construction :: presence/send_fixture.rs :: presence::Presence::new #1
+construction :: sidecar/mod.rs :: sidecar::Sidecar::start #1
+construction :: sidecar/mod.rs :: sidecar::Sidecar::start #2
+construction :: sidecar/mod.rs :: sidecar::SidecarState #1
+construction :: sidecar/mod.rs :: sidecar::SidecarState #2
+construction :: sidecar/mod.rs :: sidecar::SidecarState #3
+construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #1
+construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #2
+construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #3
+construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #4
+coverage :: main.rs :: missing composition map
+managed_state :: commands/companion.rs :: state:: < std::sync::Arc < crate::navigation::Navigation > > #1
+managed_state :: commands/companion.rs :: state:: < std::sync::Arc < crate::presence::Presence > > #1
+managed_state :: commands/companion.rs :: state:: < std::sync::Arc < crate::presence::Presence > > #2
+managed_state :: commands/desktop.rs :: tauri::State #1
+managed_state :: commands/desktop.rs :: tauri::State #10
+managed_state :: commands/desktop.rs :: tauri::State #11
+managed_state :: commands/desktop.rs :: tauri::State #12
+managed_state :: commands/desktop.rs :: tauri::State #13
+managed_state :: commands/desktop.rs :: tauri::State #2
+managed_state :: commands/desktop.rs :: tauri::State #3
+managed_state :: commands/desktop.rs :: tauri::State #4
+managed_state :: commands/desktop.rs :: tauri::State #5
+managed_state :: commands/desktop.rs :: tauri::State #6
+managed_state :: commands/desktop.rs :: tauri::State #7
+managed_state :: commands/desktop.rs :: tauri::State #8
+managed_state :: commands/desktop.rs :: tauri::State #9
+managed_state :: commands/mod.rs :: tauri::State #1
+managed_state :: commands/mod.rs :: tauri::State #2
+managed_state :: commands/mod.rs :: tauri::State #3
+managed_state :: commands/preferences.rs :: tauri::State #1
+managed_state :: commands/preferences.rs :: tauri::State #2
+managed_state :: windows/companion/input.rs :: state:: < Store > #1
+managed_state :: windows/companion/input.rs :: state:: < Store > #2
+managed_state :: windows/companion/input.rs :: state:: < Store > #3
+managed_state :: windows/companion/input.rs :: state:: < std::sync::Arc < crate::presence::Presence > > #1
+managed_state :: windows/companion/mod.rs :: state:: < Store > #1
+managed_state :: windows/companion/mod.rs :: state:: < Store > #2
+managed_state :: windows/companion/mod.rs :: state:: < Store > #3
+managed_state :: windows/companion/mod.rs :: state:: < Store > #4
+managed_state :: windows/companion/mod.rs :: state:: < Store > #5
+managed_state :: windows/companion/mod.rs :: state:: < Store > #6
+managed_state :: windows/companion/mod.rs :: state:: < Store > #7
+managed_state :: windows/companion/mod.rs :: state:: < crate::app_paths::AppPaths > #1
+managed_state :: windows/companion/mod.rs :: state:: < crate::app_paths::AppPaths > #2
+managed_state :: windows/main_policy.rs :: state:: < AppPaths > #1
+managed_state :: windows/main_policy.rs :: state:: < AppPaths > #2
+managed_state :: windows/main_policy.rs :: state:: < Arc < Connection > > #1
+managed_state :: windows/mod.rs :: state:: < preferences::Store > #1
+owner_cycle :: windows/companion/mod.rs :: CompanionWindow -> MainWindow (cycle edge)
+owner_cycle :: windows/mod.rs :: MainWindow -> CompanionWindow (cycle edge)
+owner_edge :: commands/companion.rs :: navigation::Navigation #1
+owner_edge :: commands/companion.rs :: presence::Presence #1
+owner_edge :: commands/companion.rs :: presence::Presence #2
+owner_edge :: commands/companion.rs :: presence::send::Sent #1
+owner_edge :: commands/companion.rs :: presence::send::Submission #1
+owner_edge :: commands/companion.rs :: windows::companion #1
+owner_edge :: commands/companion.rs :: windows::companion::drag #1
+owner_edge :: commands/companion.rs :: windows::companion::failed #1
+owner_edge :: commands/companion.rs :: windows::companion::input::set_input #1
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #1
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #2
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #3
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #4
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #5
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #6
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #7
+owner_edge :: commands/companion.rs :: windows::companion::on_ui #8
+owner_edge :: commands/companion.rs :: windows::companion::ready #1
+owner_edge :: commands/companion.rs :: windows::companion::set_paused #1
+owner_edge :: commands/companion.rs :: windows::companion::set_visible #1
+owner_edge :: commands/companion.rs :: windows::companion::snapshot #1
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #1
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #2
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #3
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #4
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #5
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #6
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #7
+owner_edge :: commands/companion.rs :: windows::open_main #1
+owner_edge :: commands/desktop.rs :: core_connection::Connection #1
+owner_edge :: commands/desktop.rs :: core_connection::Connection #2
+owner_edge :: commands/desktop.rs :: core_connection::Connection #3
+owner_edge :: commands/desktop.rs :: core_connection::Connection #4
+owner_edge :: commands/desktop.rs :: core_connection::Connection #5
+owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #1
+owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #2
+owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #3
+owner_edge :: commands/desktop.rs :: core_connection::config::LaunchConfig #1
+owner_edge :: commands/desktop.rs :: core_connection::config::LaunchConfig #2
+owner_edge :: commands/desktop.rs :: core_connection::config::LaunchConfig #3
+owner_edge :: commands/desktop.rs :: navigation::Navigation #1
+owner_edge :: commands/desktop.rs :: navigation::Navigation #2
+owner_edge :: commands/desktop.rs :: navigation::PendingNavigation #1
+owner_edge :: commands/desktop.rs :: presence::Presence #1
+owner_edge :: commands/desktop.rs :: presence::Presence #2
+owner_edge :: commands/desktop.rs :: presence::Presence #3
+owner_edge :: commands/desktop.rs :: presence::Presence #4
+owner_edge :: commands/desktop.rs :: presence::Presence #5
+owner_edge :: commands/desktop.rs :: presence::RefreshAppearanceReply #1
+owner_edge :: commands/desktop.rs :: presence::watcher::PresenceWatcher #1
+owner_edge :: commands/desktop.rs :: presence::watcher::PresenceWatcher #2
+owner_edge :: commands/desktop.rs :: windows::companion::on_ui #1
+owner_edge :: commands/desktop.rs :: windows::companion::show_for_selection #1
+owner_edge :: commands/desktop.rs :: windows::companion::visibility_token #1
+owner_edge :: commands/mod.rs :: auth::AuthController #1
+owner_edge :: commands/mod.rs :: auth::AuthController #2
+owner_edge :: commands/mod.rs :: auth::service::View #1
+owner_edge :: commands/mod.rs :: sidecar::SidecarState #1
+owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #1
+owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #2
+owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #3
+owner_edge :: commands/preferences.rs :: windows::preferences::PluginLoginItem #1
+owner_edge :: commands/preferences.rs :: windows::preferences::PluginLoginItem #2
+owner_edge :: commands/preferences.rs :: windows::preferences::PluginLoginItem #3
+owner_edge :: commands/preferences.rs :: windows::preferences::Store #1
+owner_edge :: commands/preferences.rs :: windows::preferences::Store #2
+owner_edge :: commands/preferences.rs :: windows::preferences::Store #3
+owner_edge :: windows/companion/input.rs :: presence::Presence #1
+owner_edge :: windows/companion/mod.rs :: app_paths::AppPaths #1
+owner_edge :: windows/companion/mod.rs :: app_paths::AppPaths #2
+owner_edge :: windows/companion/mod.rs :: presence::CompanionAppearance #1
+owner_edge :: windows/companion/mod.rs :: presence::projection::PresenceProjection #1
+owner_edge :: windows/companion/mod.rs :: windows::main_policy::reject_html_fallback #1
+owner_edge :: windows/companion/state.rs :: presence::CompanionAppearance #1
+owner_edge :: windows/companion/state.rs :: presence::CompanionAppearance #2
+owner_edge :: windows/companion/state.rs :: presence::CompanionAppearance #3
+owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjection #1
+owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjection #2
+owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjection #3
+owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjection::unbound #1
+owner_edge :: windows/main_policy.rs :: app_paths::AppPaths #1
+owner_edge :: windows/main_policy.rs :: app_paths::AppPaths #2
+owner_edge :: windows/main_policy.rs :: app_paths::AppPaths #3
+owner_edge :: windows/main_policy.rs :: core_connection::Connection #1
+owner_edge :: windows/main_policy.rs :: core_connection::Connection #2
+owner_edge :: windows/mod.rs :: windows::companion::attach_toggle #1
+owner_edge :: windows/mod.rs :: windows::companion::set_visible #1
+owner_edge :: windows/mod.rs :: windows::companion::setup_companion #1
+owner_edge :: windows/mod.rs :: windows::companion::snapshot #1
+private_access :: commands/companion.rs :: presence::send::Sent #1
+private_access :: commands/companion.rs :: presence::send::Submission #1
+private_access :: commands/companion.rs :: windows::companion::input::set_input #1
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #1
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #2
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #3
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #4
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #5
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #6
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #7
+private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #1
+private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #2
+private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #3
+private_access :: commands/desktop.rs :: presence::watcher::PresenceWatcher #1
+private_access :: commands/desktop.rs :: presence::watcher::PresenceWatcher #2
+private_access :: commands/mod.rs :: auth::service::View #1
+private_access :: commands/preferences.rs :: windows::preferences::Store #1
+private_access :: commands/preferences.rs :: windows::preferences::Store #2
+private_access :: commands/preferences.rs :: windows::preferences::Store #3
+private_access :: lib.rs :: commands::companion::companion_failed #1
+private_access :: lib.rs :: commands::companion::companion_input #1
+private_access :: lib.rs :: commands::companion::companion_ready #1
+private_access :: lib.rs :: commands::companion::companion_send #1
+private_access :: lib.rs :: commands::companion::companion_state #1
+private_access :: lib.rs :: commands::companion::drag_companion #1
+private_access :: lib.rs :: commands::companion::open_main_from_companion #1
+private_access :: lib.rs :: commands::companion::set_companion_paused #1
+private_access :: lib.rs :: commands::companion::set_companion_visible #1
+private_access :: lib.rs :: commands::desktop::ack_navigation #1
+private_access :: lib.rs :: commands::desktop::companion_binding #1
+private_access :: lib.rs :: commands::desktop::desktop_connection #1
+private_access :: lib.rs :: commands::desktop::desktop_connection_config #1
+private_access :: lib.rs :: commands::desktop::navigation_snapshot #1
+private_access :: lib.rs :: commands::desktop::open_external #1
+private_access :: lib.rs :: commands::desktop::refresh_companion_appearance #1
+private_access :: lib.rs :: commands::desktop::retry_desktop_connection #1
+private_access :: lib.rs :: commands::desktop::save_desktop_connection #1
+private_access :: lib.rs :: commands::desktop::select_companion_agent #1
+private_access :: lib.rs :: commands::desktop::set_companion_previews #1
+private_access :: lib.rs :: commands::desktop::target_companion_thread #1
+private_access :: lib.rs :: commands::preferences::desktop_preferences #1
+private_access :: lib.rs :: commands::preferences::set_desktop_preferences #1
+private_access :: lib.rs :: presence::watcher::PresenceWatcher #1
+private_access :: lib.rs :: presence::watcher::PresenceWatcher::new #1
+private_access :: lib.rs :: windows::companion::input::refresh #1
+private_access :: presence/preferences.rs :: core_connection::config::read_json #1
+private_access :: presence/preferences.rs :: core_connection::config::read_json #2
+private_access :: presence/preferences.rs :: core_connection::config::write_json #1
+private_access :: presence/preferences.rs :: core_connection::config::write_json #2
+private_access :: windows/companion/mod.rs :: presence::projection::PresenceProjection #1
+private_access :: windows/companion/mod.rs :: windows::main_policy::reject_html_fallback #1
+private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection #1
+private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection #2
+private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection #3
+private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection::unbound #1
+private_access :: windows/mod.rs :: windows::preferences::Store #1

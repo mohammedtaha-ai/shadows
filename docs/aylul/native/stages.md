@@ -18,14 +18,14 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
 ## Tasks
 
 ### N-8 · D-1: a shrinking architecture ratchet for the native crate
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#decision-d-0 and
   #ratchet-design (items 1 to 4, 6 and 7; sidecar and TypeScript checks wait for D-8 and D-10)
 - Read: the plan's sections 2, 3 and 6; `crates/shadows/tests/architecture/` for the
   pattern Core uses; `apps/desktop/src-tauri/src/*/contract.yaml`;
   `docs/aylul/codebase/README.md`
 - Touch: `apps/desktop/src-tauri/tests/architecture/` (new: the test, its baseline, its
-  fixtures); `apps/desktop/src-tauri/Cargo.toml` (`syn` and similar as dev-dependencies
+  fixtures); `apps/desktop/src-tauri/Cargo.toml` and its `Cargo.lock` (`syn` and similar as dev-dependencies
   only); `docs/aylul/codebase/README.md` (its row); this task's `Status:`
 - Needs: none
 - Done when: `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test architecture`
