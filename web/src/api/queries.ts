@@ -1,13 +1,4 @@
-// One job: the TanStack Query identity of each piece of daemon state.
-
-import { queryOptions } from '@tanstack/react-query'
-import {
-  listHarnesses,
-} from './client'
-
-/** The CLIs a conversation can run on (spec §12.10). Their limits move, so a
- * screen that shows them refetches on focus like any other query. */
-export const harnessesQuery = queryOptions({ queryKey: ['harnesses'], queryFn: listHarnesses })
+// The API query entry points; each domain owns its query identities and cache writes.
 
 export { workflowsKey, planMapQuery, plansQuery, planVersionsQuery, planQuery } from './workflows'
 
@@ -20,3 +11,5 @@ export { projectsQuery, instructionsQuery, grantsQuery } from './projects'
 export { codeStatusQuery, codeLinksQuery, codeSettingsQuery } from './code'
 
 export { dirsQuery } from './directories'
+
+export { harnessesQuery } from './harnesses'

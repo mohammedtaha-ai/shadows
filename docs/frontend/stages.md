@@ -73,7 +73,7 @@ and OS acceptance.
 - Done when: Enter in "Add a model by id" adds it and does not submit; saving with a typed, unadded id says so; `npm test -- provider` passes
 
 ### F-17 · W-4: query identities and cache writes belong to `api/`
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-4--establish-api-owned-query-identities-and-safe-cache-writes
   and #decisions (1)
 - Read: the plan's section 3 ("Current owners", "Highest-priority ownership problems" 2 and 3);

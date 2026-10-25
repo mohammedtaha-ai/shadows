@@ -132,12 +132,21 @@ it is that folder's `contract.yaml`.
 | `web/src/desktop/native.ts` | Desktop invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.tsx` | Native startup gate | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.test.tsx` | Readiness ordering fixtures | `web/src/desktop/contract.yaml` |
-| `web/src/api/aylul-profiles.ts` | HTTP calls for AYLUL configuration: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
+| `web/src/api/aylul-profiles.ts` | Provider profile query ownership | `web/src/api/contract.yaml` |
 | `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | Project design query cache ownership | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
-| `web/src/api/queries.ts` | TanStack Query keys for each piece of daemon state | `web/src/api/client.ts` |
+| `web/src/api/queries.ts` | Domain query entry points | `web/src/api/contract.yaml` |
+| `web/src/api/agreements.ts` | Agreement query identities with saved answers | `web/src/api/contract.yaml` |
+| `web/src/api/code.ts` | Code index query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/directories.ts` | Directory query identities | `web/src/api/contract.yaml` |
+| `web/src/api/harnesses.ts` | Harness query identity | `web/src/api/contract.yaml` |
+| `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
+| `web/src/api/projects.ts` | Project settings query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/sessions.ts` | Harness session cache lifecycle | `web/src/api/contract.yaml` |
+| `web/src/api/threads.ts` | Thread query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/workflows.ts` | Workflow query cache ownership | `web/src/api/contract.yaml` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
@@ -251,9 +260,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/person-theme.tsx` | Person theme synchronization | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/desktop-preferences.tsx` | Native preference controls | `web/src/app/settings/contract.yaml` |
 | `web/src/desktop/preferences.ts` | Desktop preference invocation wrappers | `web/src/desktop/contract.yaml` |
-| `web/src/api/person.ts` | Person HTTP operations | `web/src/api/contract.yaml` |
-| `web/src/api/usage.ts` | Usage report HTTP queries | `web/src/api/contract.yaml` |
-| `web/src/api/extensions.ts` | Extension library HTTP operations | `web/src/api/contract.yaml` |
+| `web/src/api/person.ts` | Person query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/usage.ts` | Usage report query identities | `web/src/api/contract.yaml` |
+| `web/src/api/extensions.ts` | Extension query cache ownership | `web/src/api/contract.yaml` |
 | `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
@@ -308,19 +317,3 @@ it is that folder's `contract.yaml`.
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
 | `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
 | `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |
-
-| `web/src/api/agreements.ts` | Agreement query identities with saved answers | `web/src/api/contract.yaml` |
-
-| `web/src/api/sessions.ts` | Harness session cache lifecycle | `web/src/api/contract.yaml` |
-
-| `web/src/api/workflows.ts` | Workflow query cache ownership | `web/src/api/contract.yaml` |
-
-| `web/src/api/threads.ts` | Thread query cache ownership | `web/src/api/contract.yaml` |
-
-| `web/src/api/projects.ts` | Project settings query cache ownership | `web/src/api/contract.yaml` |
-
-| `web/src/api/code.ts` | Code index query cache ownership | `web/src/api/contract.yaml` |
-
-| `web/src/api/directories.ts` | Directory query identities | `web/src/api/contract.yaml` |
-
-| `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |

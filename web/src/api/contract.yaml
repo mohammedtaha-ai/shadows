@@ -16,8 +16,9 @@
 # key a form reuses, and only it does. `changeModel` and `changeEffort` carry no
 # command id by design: they write nothing durable.
 #
-# Trap: the keys in `queries.ts` are prefixes that `src/stream/` invalidates by
-# shape. Renaming a key here silently stops that invalidation.
+# Trap: domain key factories supply prefixes that `src/stream/` invalidates by
+# shape. Changing their values silently stops that invalidation. queries.ts
+# re-exports domain queries for existing callers.
 
 name: web-api
 version: 1
@@ -676,3 +677,7 @@ native_activity_cache:
 usage_cache:
   owner: usage.ts
   keys: "usageKeys owns the unchanged ['aylul-usage'] prefix and ['aylul-usage', from, to] report array; intervals and retry behavior are unchanged"
+
+harness_cache:
+  owner: harnesses.ts
+  keys: "harnessKeys.list preserves ['harnesses']; harnessesQuery retains normal focus refetching and is re-exported by queries.ts"

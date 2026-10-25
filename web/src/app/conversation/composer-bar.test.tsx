@@ -166,7 +166,9 @@ describe('the composer bar', () => {
     await until(() => app.button('Auto')?.disabled === false)
     const { router } = await import('@/router')
     await act(() => router.navigate({ to: '/projects/$projectId/settings', params: { projectId: 'p1' } }))
-    await until(() => app.container.querySelector('textarea') === null)
+    // Project settings has its own instructions textarea.
+    await until(() => app.path() === '/projects/p1/settings' &&
+      app.container.querySelector('textarea[aria-label="Message"]') === null)
     await act(() => router.navigate({ to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't1' } }))
     await until(() => app.button('Auto') !== undefined)
     const previousClient = app.queryClient
