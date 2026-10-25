@@ -126,7 +126,8 @@ shapes:
     # last_edit, frozen_at, created_at, and the four below.
     written_by: WrittenBy
     # NULL for v1 and for every version before migration 0012; a reader tells
-    # them apart by the version number.
+    # them apart by the version number. The "Reason not recorded" display
+    # fallback applies only from v2 on.
     change_reason: Option<String>
     # Empty for a Frozen version; `approval_problems` of the content for a Draft.
     blockers: Vec<Problem>

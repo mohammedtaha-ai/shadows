@@ -207,7 +207,7 @@ pub struct Plan {
     /// Who wrote this version.
     pub written_by: WrittenBy,
     /// Why this version was started: `None` for v1 or when no reason is recorded.
-    /// A missing reason is displayed as "Reason not recorded".
+    /// From v2 on, a missing reason is displayed as "Reason not recorded".
     pub change_reason: Option<String>,
     pub version: i64,
     pub revision: i64,

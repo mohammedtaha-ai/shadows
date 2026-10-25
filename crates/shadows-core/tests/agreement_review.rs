@@ -147,7 +147,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
     let mut content = v2.content;
     content.behavior = "Changed behavior".into();
     // A request built on v1 at revision 0 must not land on v2, which is
-    // also at revision 0: it names its version, and v1 is Frozen.
+    // also at revision 0: it names its version, and v1 is Agreed.
     let stale = core
         .design()
         .edit_agreement(

@@ -3236,7 +3236,7 @@
             "type": "array"
           },
           "change_reason": {
-            "description": "Why this version was started: `None` for v1 or when no reason is recorded.\nA missing reason is displayed as \"Reason not recorded\".",
+            "description": "Why this version was started: `None` for v1 or when no reason is recorded.\nFrom v2 on, a missing reason is displayed as \"Reason not recorded\".",
             "type": [
               "string",
               "null"
