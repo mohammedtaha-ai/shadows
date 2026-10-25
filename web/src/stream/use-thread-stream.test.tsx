@@ -1,3 +1,4 @@
+import { threadKeys } from '@/api/threads'
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, act } from 'react'
@@ -157,7 +158,7 @@ describe('useThreadStream', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const lists = () =>
       invalidate.mock.calls.filter(([filters]) => filters?.predicate !== undefined).length
-    queryClient.setQueryData(['projects', 'p1', 'threads'], [])
+    queryClient.setQueryData(threadKeys.list('p1'), [])
     queryClient.setQueryData(['projects', 'p1'], {})
     show('t1')
 
@@ -169,7 +170,7 @@ describe('useThreadStream', () => {
     expect(lists()).toBe(1)
     act(() => current().durable(2, 'ThreadRetitled', null, { title: 'B', source: 'harness' }))
     expect(lists()).toBe(2)
-    expect(queryClient.getQueryState(['projects', 'p1', 'threads'])?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(threadKeys.list('p1'))?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(['projects', 'p1'])?.isInvalidated).toBe(false)
   })
 })

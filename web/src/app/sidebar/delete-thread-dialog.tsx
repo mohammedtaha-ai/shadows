@@ -6,8 +6,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { useLayoutEffect, useRef } from 'react'
 import { type PlanningThread, removeThread } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { threadQuery, threadsQuery, workflowsKey } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { threadsQuery, workflowsKey } from '@/api/queries'
+import { saveRemovedThreadAnswer } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -35,9 +35,7 @@ export function DeleteThreadDialog({ thread, open, onOpenChange, isCurrent }: {
         if (thread.profile != null) await navigate({ to: '/aylul/agents/$slug/new', params: { slug: thread.profile } })
         else await navigate({ to: '/projects/$projectId/new', params: { projectId: thread.project_id } })
       }
-      await writeSaved(queryClient, threadQuery(thread.id).queryKey, removed)
-      await writeSaved<PlanningThread[]>(queryClient, threadsQuery(thread.project_id).queryKey,
-        (threads) => threads?.filter((t) => t.id !== thread.id))
+      await saveRemovedThreadAnswer(queryClient, removed)
       void queryClient.invalidateQueries({ queryKey: threadsQuery(thread.project_id).queryKey })
       if (thread.profile != null) void queryClient.invalidateQueries({ queryKey: profileKeys.threads(thread.profile) })
       void queryClient.invalidateQueries({ queryKey: workflowsKey })

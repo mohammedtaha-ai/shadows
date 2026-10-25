@@ -1455,3 +1455,5 @@ image_attachments:
 session_cache_owner: "api/sessions.ts owns session/command identities, frame updates, resets and saved mutation answers; feature hooks project presentation state"
 
 design_cache_identity: "Proposal approval refresh uses api/design.designKeys"
+
+thread_cache_owner: "Harness mutation answers update thread lists through api/threads.ts"

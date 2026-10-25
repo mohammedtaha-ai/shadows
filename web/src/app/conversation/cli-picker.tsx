@@ -5,10 +5,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Lock } from 'lucide-react'
 import { useRef } from 'react'
-import { type PlanningThread, setThreadHarness } from '@/api/client'
+import { setThreadHarness } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { harnessesQuery, threadsQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { harnessesQuery } from '@/api/queries'
+import { saveThreadHarnessAnswer } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -50,9 +50,7 @@ export function CliPicker({
       setThreadHarness(threadId, commandId, kind),
     onSuccess: async (thread) => {
       pending.current = null
-      await writeSaved<PlanningThread[]>(queryClient, threadsQuery(projectId).queryKey, (threads) =>
-        threads?.map((t) => (t.id === thread.id ? thread : t)),
-      )
+      await saveThreadHarnessAnswer(queryClient, projectId, thread)
       reopenSession(queryClient, threadId)
     },
   })

@@ -647,3 +647,8 @@ design_cache:
   keys: "designKeys owns design prefixes, details, proposals, hierarchy pages and structure-preview; arrays preserve null pagination and existing values"
   queries: "Design queries are defined beside designKeys and re-exported by queries.ts; designPageQuery appends the existing cursor to the supplied branch key"
   saveStandardsAnswer: "writeSaved cancels the exact standards read, retains a newer cached additions version and uses the saved snapshot only when the cache is absent"
+
+thread_cache:
+  owner: threads.ts
+  keys: "threadKeys preserves project thread lists, detail, entries, queue and operations arrays; queries.ts re-exports reads"
+  saved_answers: "saveThreadHarnessAnswer replaces the matching list item; saveRemovedThreadAnswer writes detail then filters the live list; both use writeSaved for exact read cancellation"

@@ -298,3 +298,5 @@ tests:
     file: web/src/app/agents/aylul.test.tsx
 
 agent_refresh_owner: "Conversation removal uses api/aylul-profiles profileKeys for agent thread refresh"
+
+removed_thread_cache_owner: "api/threads.ts owns removed-thread detail and live-list cache writes"

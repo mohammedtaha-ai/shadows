@@ -5,16 +5,11 @@ import {
   getCodeSettings,
   getCodeStatus,
   getInstructions,
-  getThread,
   listCodeLinks,
   listGrants,
   listDirs,
-  listEntries,
   listHarnesses,
-  listOperations,
   listProjects,
-  listQueued,
-  listThreads,
 } from './client'
 
 /** The project list, which the app shell also reads as "is the daemon there".
@@ -36,59 +31,6 @@ export const projectsQuery = queryOptions({
 /** The CLIs a conversation can run on (spec §12.10). Their limits move, so a
  * screen that shows them refetches on focus like any other query. */
 export const harnessesQuery = queryOptions({ queryKey: ['harnesses'], queryFn: listHarnesses })
-
-/** A project's planning threads, oldest first. A thread's own stream
- * refreshes the list on its `ThreadRetitled`, but the harness titles a thread
- * after its turn has ended, often once the person has left it, so the list is
- * also polled every 10 s while shown (spec §12.10). */
-export function threadsQuery(projectId: string) {
-  return queryOptions({
-    queryKey: ['projects', projectId, 'threads'],
-    queryFn: () => listThreads(projectId),
-    refetchInterval: 10_000,
-  })
-}
-
-/** Historical conversation links still read a thread omitted from the live list. */
-export function threadQuery(threadId: string) {
-  return queryOptions({
-    queryKey: ['threads', threadId, 'detail'],
-    queryFn: () => getThread(threadId),
-  })
-}
-
-/** A thread's entries (`GET /api/threads/{id}/entries`). A durable
- * `ThreadEntryAppended` carries only `{ordinal, kind}`, so the stream hook
- * invalidates this key and the entries are fetched again (ruling 51). */
-export function threadEntriesKey(threadId: string) {
-  return ['threads', threadId, 'entries'] as const
-}
-
-export function entriesQuery(threadId: string) {
-  return queryOptions({ queryKey: threadEntriesKey(threadId), queryFn: () => listEntries(threadId) })
-}
-
-/** A thread's waiting messages (spec §20); the stream's queue events invalidate it. */
-export function queuedQuery(threadId: string) {
-  return queryOptions({
-    queryKey: ['threads', threadId, 'queue'] as const,
-    queryFn: () => listQueued(threadId),
-  })
-}
-
-/** A thread's operations, newest first: on opening a thread, whether a turn is
- * running and which. The stream's durable operation events carry it on from
- * there; the stream hook invalidates this key at each `caught-up`. */
-export function threadOperationsKey(threadId: string) {
-  return ['threads', threadId, 'operations'] as const
-}
-
-export function operationsQuery(threadId: string) {
-  return queryOptions({
-    queryKey: threadOperationsKey(threadId),
-    queryFn: () => listOperations(threadId),
-  })
-}
 
 /** A project's current Planner instructions (spec §13.8). */
 export function instructionsQuery(projectId: string) {
@@ -146,3 +88,5 @@ export function dirsQuery(path: string | null) {
 export { workflowsKey, planMapQuery, plansQuery, planVersionsQuery, planQuery } from './workflows'
 
 export { standardsQuery, stageQuery, visionQuery, visionProposalsQuery, mapProposalsQuery, roadmapProposalsQuery, partQuery, outcomeQuery, outcomesQuery, partsQuery } from './design'
+
+export { threadsQuery, threadQuery, threadEntriesKey, entriesQuery, queuedQuery, threadOperationsKey, operationsQuery } from './threads'
