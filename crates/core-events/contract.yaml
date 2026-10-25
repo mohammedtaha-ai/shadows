@@ -169,6 +169,9 @@ functions:
 
 
 enums:
+  EventsError:
+    source: core_events::EventsError
+    values: [Projects, Storage]
   Storage:
     source: core_db::Storage
     values: []

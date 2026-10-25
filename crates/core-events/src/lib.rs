@@ -66,7 +66,7 @@ impl Events {
         cursor: EventCursor,
         project: &ProjectId,
         limit: i64,
-    ) -> Result<Vec<StoredEvent>, crate::StorageError> {
+    ) -> Result<Vec<StoredEvent>, core_db::StorageError> {
         self.store
             .read_project_events_after(cursor, project, limit)
             .await
@@ -116,5 +116,3 @@ impl Events {
         ))
     }
 }
-
-use core_db::StorageError;
