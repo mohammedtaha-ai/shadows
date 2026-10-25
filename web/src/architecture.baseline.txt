@@ -203,7 +203,6 @@ query_key :: app/settings/desktop-preferences.test.tsx :: setQueryData #1
 query_key :: app/settings/settings-dialog.test.tsx :: getQueryData #1
 query_key :: app/settings/settings-dialog.test.tsx :: queryKey #1
 query_key :: app/settings/usage.test.tsx :: queryKey #1
-query_key :: app/settings/you-card.test.tsx :: queryKey #1
 query_key :: app/sidebar/delete-thread-dialog.tsx :: queryKey #1
 query_key :: stream/use-project-events.test.tsx :: getQueryState #1
 query_key :: stream/use-project-events.test.tsx :: queryKey #1

@@ -620,3 +620,8 @@ extension_cache:
   owner: extensions.ts
   keys: "extensionKeys preserves library, all-agent prefix and per-agent arrays"
   saveAgentExtensionAnswer: "writeSaved cancels the agent's exact read before merging the saved plugin or skill; other items and agents are preserved"
+
+person_cache:
+  owner: person.ts
+  keys: "personKeys.record preserves ['person']"
+  savePersonAnswer: "writeSaved cancels the exact person read before storing the server's whole-record answer; savePerson request fields are unchanged"

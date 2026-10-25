@@ -52,7 +52,7 @@ components:
     note: Active projects stays independent of Core language/theme and desktop-only machine preferences.
   GeneralPreferences:
     signature: "() => JSX.Element"
-    note: Uses personQuery/savePerson and writeSaved; latest cached names survive preference-only writes.
+    note: Uses personQuery/savePerson and savePersonAnswer; latest cached names survive preference-only writes.
   PersonTheme:
     signature: "() => null"
     note: Mounted once in Shell after readiness; root dark class/data-theme follow saved preference or system, with complete effect cleanup.
@@ -223,3 +223,5 @@ tests:
       After another tab's 7 is refetched, the untouched field shows 7 and Save is disabled.
 
 extension_refresh_owner: "Library changes invalidate extensionKeys from api/extensions.ts"
+
+person_cache_owner: "Both person forms pass saved whole records through api/person.savePersonAnswer; request fields remain unchanged"

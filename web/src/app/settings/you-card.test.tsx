@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { personKeys } from '@/api/person'
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers } from '@/test/fake-daemon'
@@ -92,7 +93,7 @@ it('a read sent before the save cannot bring the old name back', async () => {
       return Response.json({ ...input, updated_at: null })
     },
   })
-  void act(() => a.queryClient.invalidateQueries({ queryKey: ['person'] }))
+  void act(() => a.queryClient.invalidateQueries({ queryKey: personKeys.record() }))
   await until(() => release !== null)
   typeInto(input('What AYLUL calls you'), 'Mo')
   act(() => a.button('Save')!.click())

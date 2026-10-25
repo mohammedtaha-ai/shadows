@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
-import { personQuery, savePerson, type Person, type PersonInput } from '@/api/person'
-import { writeSaved } from '@/api/saved-answer'
+import { personQuery, savePerson, savePersonAnswer, type Person, type PersonInput } from '@/api/person'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
@@ -21,7 +20,7 @@ export function GeneralPreferences() {
       return savePerson(attempt.current.commandId, input)
     },
     onSuccess: async answer => {
-      await writeSaved(client, personQuery.queryKey, answer)
+      await savePersonAnswer(client, answer)
       attempt.current = null; setEdited({})
     },
     onSettled: () => { locked.current = false },
