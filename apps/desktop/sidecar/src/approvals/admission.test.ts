@@ -4,12 +4,15 @@ import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, existsSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Approvals } from './approvals.ts';
+import { ApprovalsStore } from './store.ts';
+import { openDatabase } from '../store/store.ts';
 import { expectBefore, planAllowRule, settingsFor, writePlan } from '../agents/settings-file.ts';
 
 function setup() {
   const home = mkdtempSync(join(tmpdir(), 'aylul-admission-'));
   const now = () => new Date('2026-10-13T19:00:00.000Z');
-  const approvals = new Approvals({ now, newId: () => 'id1', record: () => {}, requestHoldMs: 500, refusalHoldMs: 500,
+  const store = new ApprovalsStore(openDatabase(':memory:'));
+  const approvals = new Approvals({ now, newId: () => 'id1', store, requestHoldMs: 500, refusalHoldMs: 500,
     writeRule: (project, rule, seen) => ({ ruleId: 'r',
       backupPath: writePlan(expectBefore(planAllowRule(settingsFor(project), rule), seen), join(home, 'b'), now()) }) });
   return { home, approvals };

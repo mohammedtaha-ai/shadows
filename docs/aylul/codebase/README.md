@@ -62,6 +62,6 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/sidecar/src/store/` | One SQLite connection with the fixed aylul.db schema; no domain persistence API | Colocated `contract.yaml` |
 | `apps/desktop/sidecar/src/architecture.test.ts` | Parser-backed sidecar ownership and RPC inventory ratchet | Sidecar composition contract; exact baseline and adversarial JSON fixtures; TypeScript 7 AST over text inputs |
 | `apps/desktop/sidecar/src/persistence.test.ts` | Fixed-schema row and RPC projection pins | Sidecar composition contract |
-| `apps/desktop/sidecar/src/` | createActivityApp composition in main.ts plus service-only stdio adapters | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/` | Sidecar composition (createActivityApp in app.ts), its process entry (main.ts) and service-only stdio adapters | Colocated `contract.yaml` |
 
 No backend source is imported by the client.

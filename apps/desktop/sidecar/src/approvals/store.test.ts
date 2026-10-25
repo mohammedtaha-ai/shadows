@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDatabase } from '../store/store.ts';
 import { ApprovalsStore } from './store.ts';
-import type { Pending } from '../approvals/approvals.ts';
+import type { Pending } from './approvals.ts';
 
 const item: Pending = { id: 'i1', kind: 'request', sessionId: 's1', project: 'C:\\p', tool: 'Bash', target: 'npm test',
   reason: null, proposedRule: null, at: '2026-10-13T19:00:00.000Z', held: false };

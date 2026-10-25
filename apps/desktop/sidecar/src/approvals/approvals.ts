@@ -22,12 +22,10 @@ export type ApprovalsDeps = {
   newId: () => string;
   /** Writes the rule if the file still matches the fingerprint `seen` the person previewed. */
   writeRule: (project: string, rule: string, seen: string) => { ruleId: string; backupPath: string };
+  store: ApprovalsStore;
   requestHoldMs: number;
   refusalHoldMs: number;
-} & ({ store: ApprovalsStore; record?: never } | {
-  store?: never;
-  record: (item: Pending, outcome: Outcome) => void;
-});
+};
 
 type Item = Pending & { reply?: (reply: HookReply) => void };
 
@@ -45,12 +43,12 @@ export class Approvals {
   constructor(deps: ApprovalsDeps) { this.#d = deps; }
 
   #record(item: Pending, outcome: Outcome): void {
-    if (this.#d.store) this.#d.store.recordDecision(item, outcome, this.#d.now().toISOString());
-    else this.#d.record(item, outcome);
+    this.#d.store.recordDecision(item, outcome, this.#d.now().toISOString());
   }
 
+  /** A step after a terminal answer shows the person allowed it there. */
   observeStep(sessionId: string, tool: string, target: string): void {
-    this.#d.store?.markTerminalAllowed(sessionId, tool, target);
+    this.#d.store.markTerminalAllowed(sessionId, tool, target);
   }
 
   pending(): Pending[] {

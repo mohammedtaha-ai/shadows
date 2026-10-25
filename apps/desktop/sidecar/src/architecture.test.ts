@@ -75,8 +75,10 @@ function inspect(path: string, tree: ts.SourceFile): Violation[] {
       }
     }
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      // Only a const keeps its text; a reassignable binding is dynamic SQL.
+      const constant = ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) !== 0;
       const value = literal(node.initializer, constants);
-      if (value !== undefined) constants.set(node.name.text, value);
+      if (value !== undefined && constant) constants.set(node.name.text, value);
       if (aliases.has(node.initializer.getText(tree)) || constructors.has(member(node.initializer) ?? '')) aliases.add(node.name.text);
       if (connections.has(node.initializer.getText(tree)) || member(node.initializer) === 'DatabaseSync') connections.add(node.name.text);
     }
@@ -84,16 +86,24 @@ function inspect(path: string, tree: ts.SourceFile): Violation[] {
   const domain = path.split('/')[0];
   const tables: Record<string, string[]> = { sessions: ['sessions', 'steps'], approvals: ['decisions'], agents: ['rules', 'grant_uses'] };
   const isStore = path === `${domain}/store.ts` && domain in tables;
-  const composition = path === 'main.ts';
+  const composition = path === 'app.ts';
+  const foreign = Object.entries(tables).filter(([owner]) => owner !== domain).flatMap(([, names]) => names);
   walk(tree, (node, parent) => {
     let imported: string | undefined;
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) imported = literal(node.moduleSpecifier, constants);
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) imported = literal(node.arguments[0], constants);
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      imported = literal(node.arguments[0], constants);
+      if (imported === undefined) add('dynamic-import', node);
+    }
     if (imported && /\/store(?:\.ts)?$/.test(imported) && !composition) {
       const owner = posix.normalize(posix.join(posix.dirname(path), imported)).split('/')[0];
-      if (owner !== domain || !['sessions', 'approvals', 'agents'].includes(domain)) add('store-access', node);
+      // A re-export would hand the private store to whoever imports the re-exporting module.
+      if (owner !== domain || !(domain in tables) || ts.isExportDeclaration(node)) add('store-access', node);
     }
-    if (imported === 'node:sqlite' && !isStore && path !== 'store/store.ts') add('connection', node);
+    const sqliteText = ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : undefined;
+    if (sqliteText === 'node:sqlite' && !isStore && path !== 'store/store.ts') add('connection', node);
+    const bound = ts.isBindingElement(node) ? node.propertyName ?? node.name : undefined;
+    if (bound && ['prepare', 'exec'].includes(bound.getText(tree))) add('sql-indirection', node);
     if (ts.isNewExpression(node)) {
       const name = node.expression.getText(tree);
       const prop = member(node.expression);
@@ -113,18 +123,24 @@ function inspect(path: string, tree: ts.SourceFile): Violation[] {
       if (path === 'store/store.ts' && (member(node.expression) !== 'exec' || /\b(?:SELECT|INSERT|UPDATE|DELETE)\b/i.test(sql))) add('sql-location', node);
       if (isStore) {
         const names = [...sql.matchAll(/\b(?:FROM|JOIN|INTO|UPDATE|TABLE(?:\s+IF\s+NOT\s+EXISTS)?)\s+["'`\[]?([a-z_]+)/gi)].map(m => m[1].toLowerCase());
-        if (names.filter(name => name !== 'set').some(name => !tables[domain].includes(name))) add('sql-owner', node);
+        // The word scan also catches a table named after a comma or inside an expression.
+        if (names.filter(name => name !== 'set').some(name => !tables[domain].includes(name)) ||
+            foreign.some(name => new RegExp(`\\b${name}\\b`, 'i').test(sql))) add('sql-owner', node);
       }
     }
   });
   return violations;
 }
 function handlerMethods(tree: ts.SourceFile): string[] {
+  // Only the object makeHandlers returns is the method table; a handler's own return value is not.
   const names: string[] = [];
   walk(tree, node => {
-    if (ts.isReturnStatement(node) && node.expression && ts.isObjectLiteralExpression(node.expression)) {
-      for (const property of node.expression.properties) {
+    if (!ts.isFunctionDeclaration(node) || node.name?.text !== 'makeHandlers' || !node.body) return;
+    for (const statement of node.body.statements) {
+      if (!ts.isReturnStatement(statement) || !statement.expression || !ts.isObjectLiteralExpression(statement.expression)) continue;
+      for (const property of statement.expression.properties) {
         if ('name' in property && property.name && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) names.push(property.name.text);
+        else names.push(`unreadable:${property.getText(tree)}`);
       }
     }
   });
@@ -142,6 +158,7 @@ function wrapperMethods(tree: ts.SourceFile): string[] {
 }
 function parity(methods: string[], native: string[], wrappers: string[]) {
   const out: string[] = [];
+  for (const method of new Set(native)) if (native.indexOf(method) !== native.lastIndexOf(method)) out.push(`rpc-native-duplicate:${method}`);
   for (const [label, inventory] of [['native', native], ['wrapper', wrappers]] as const) {
     for (const method of methods) if (!inventory.includes(method)) out.push(`rpc-${label}-missing:${method}`);
     for (const method of inventory) if (!methods.includes(method)) out.push(`rpc-${label}-extra:${method}`);
@@ -177,11 +194,17 @@ test('sidecar ownership and RPC parity match the exact shrinking baseline', () =
 test('adversarial TypeScript fixtures reject aliases, namespaces, store access and foreign SQL', () => {
   const fixtures = JSON.parse(read(join(root, 'architecture.fixtures.json'))) as Array<{ path: string; source: string; rule: string | null }>;
   parse(Object.fromEntries(fixtures.map((f, i) => [`fixture${i}.ts`, f.source])), trees => {
-    fixtures.forEach((fixture, i) => {
+    const missed = fixtures.flatMap((fixture, i) => {
       const violations = inspect(fixture.path, trees.get(`fixture${i}.ts`)!);
-      if (fixture.rule) assert.ok(violations.some(v => v.rule === fixture.rule), `Must catch ${fixture.rule}: ${fixture.source}`);
-      else assert.deepEqual(violations, [], 'Comments and unrelated strings are not executable violations');
+      // A null rule is a comment or unrelated string, which is no executable violation.
+      const caught = fixture.rule ? violations.some(v => v.rule === fixture.rule) : violations.length === 0;
+      return caught ? [] : [`${fixture.rule ?? 'none'} at ${fixture.path}: ${fixture.source}`];
     });
+    assert.deepEqual(missed, [], 'Every fixture must be judged as declared');
   });
   assert.deepEqual(parity(['state'], ['other'], []), ['rpc-native-extra:other', 'rpc-native-missing:state', 'rpc-wrapper-missing:state']);
+  assert.deepEqual(parity(['state'], ['state', 'state'], ['state']), ['rpc-native-duplicate:state']);
+  parse({ 'handlers.ts': "export function makeHandlers() { return { state: () => { return { ok: 1 }; }, ...extra }; }" }, trees => {
+    assert.deepEqual(handlerMethods(trees.get('handlers.ts')!), ['state', 'unreadable:...extra']);
+  });
 });

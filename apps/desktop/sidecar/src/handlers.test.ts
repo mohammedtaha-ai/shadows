@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { serveRpc } from './rpc.ts';
 import { makeHandlers } from './handlers.ts';
-import { createActivityApp } from './main.ts';
+import { createActivityApp } from './app.ts';
 import { settingsFor } from './agents/settings-file.ts';
 
 function setup(withExe = true) {

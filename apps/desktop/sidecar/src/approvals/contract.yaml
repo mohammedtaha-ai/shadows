@@ -6,6 +6,7 @@ responsibility: Own admission of the person's answers to permission requests and
 private_persistence:
   store.ts: Only decisions; append outcomes by seq, mark the latest matching answered_in_terminal once.
 public_api:
+  Approvals: Composition injects its private ApprovalsStore, which is the only place every outcome is recorded.
   observeStep: Mark the latest matching terminal answer allowed through the private approval store.
   request: Hold until answer, hang-up (answered in terminal) or requestHoldMs (timed out); reply allow, deny or {}.
   refusal: Propose a rule; hold up to refusalHoldMs; stays listed after the hold.

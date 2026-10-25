@@ -3,17 +3,20 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Approvals, type Outcome, type Pending } from './approvals.ts';
+import { Approvals } from './approvals.ts';
+import { ApprovalsStore } from './store.ts';
+import { openDatabase } from '../store/store.ts';
 
 function setup(hold = { request: 200, refusal: 200 }) {
   let n = 0;
-  const records: Array<[string, Outcome]> = [];
+  const store = new ApprovalsStore(openDatabase(':memory:'));
+  const records = () => store.decisions().map(d => [d.itemId, d.outcome]);
   const written: Array<[string, string]> = [];
   const approvals = new Approvals({
     now: () => new Date('2026-10-13T19:00:00.000Z'),
     newId: () => `id${++n}`,
     writeRule: (project, rule, _seen) => { written.push([project, rule]); return { ruleId: 'r1', backupPath: 'b1' }; },
-    record: (item: Pending, outcome) => { records.push([item.id, outcome]); },
+    store,
     requestHoldMs: hold.request,
     refusalHoldMs: hold.refusal,
   });
@@ -32,7 +35,7 @@ test('allow from AYLUL answers the hook with allow', async () => {
   assert.equal(item.target, 'npm test');
   approvals.answer(item.id, 'allow');
   assert.deepEqual(await reply, { output: { hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: 'allow' } } } });
-  assert.deepEqual(records, [['id1', 'allowed']]);
+  assert.deepEqual(records(),[['id1', 'allowed']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
@@ -64,14 +67,14 @@ test('an answer in the terminal ends the request without a decision', async () =
   const reply = approvals.request(request, hook.signal);
   hook.abort();
   assert.deepEqual(await reply, {});
-  assert.deepEqual(records, [['id1', 'answered_in_terminal']]);
+  assert.deepEqual(records(),[['id1', 'answered_in_terminal']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
 test('an unanswered request times out with no decision', async () => {
   const { approvals, records } = setup({ request: 30, refusal: 200 });
   assert.deepEqual(await approvals.request(request, open().signal), {});
-  assert.deepEqual(records, [['id1', 'timed_out']]);
+  assert.deepEqual(records(),[['id1', 'timed_out']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
@@ -113,7 +116,7 @@ test('approving the rule within the hold writes it, then asks Claude to retry', 
   assert.deepEqual(result, { backupPath: 'b1' });
   assert.deepEqual(written, [[root, 'Bash(npm run deploy)']]);
   assert.deepEqual(await reply, { output: { hookSpecificOutput: { hookEventName: 'PermissionDenied', retry: true } } });
-  assert.deepEqual(records, [['id1', 'rule_written']]);
+  assert.deepEqual(records(),[['id1', 'rule_written']]);
 });
 
 test('a late approval still writes the rule', async () => {
@@ -124,7 +127,7 @@ test('a late approval still writes the rule', async () => {
   assert.equal(item.held, false);
   approvals.approvePreview(item.id, 'Bash(npm run deploy)', approvals.previewRule(item.id, 'Bash(npm run deploy)').before);
   assert.deepEqual(written, [[root, 'Bash(npm run deploy)']]);
-  assert.deepEqual(records, [['id1', 'listed'], ['id1', 'rule_written']]);
+  assert.deepEqual(records(),[['id1', 'listed'], ['id1', 'rule_written']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
@@ -164,6 +167,6 @@ test('a dismissed refusal leaves the list and answers a held hook with no decisi
   const reply = approvals.refusal(refusal, open().signal);
   approvals.dismiss(approvals.pending()[0].id);
   assert.deepEqual(await reply, {});
-  assert.deepEqual(records, [['id1', 'dismissed']]);
+  assert.deepEqual(records(),[['id1', 'dismissed']]);
   assert.deepEqual(approvals.pending(), []);
 });
