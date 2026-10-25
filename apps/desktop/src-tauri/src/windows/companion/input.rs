@@ -1,5 +1,5 @@
 // Native focus and bounds for the explicit compact editor.
-use super::{model, placement, publish, snapshot, state::CompanionState, Store};
+use super::{model, placement, publish, snapshot, state::CompanionState};
 use tauri::Manager;
 
 #[derive(Default)]
@@ -43,7 +43,11 @@ pub(super) fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
         })
         .collect();
     let origin = if initial {
-        *app.state::<Store>().origin.lock().unwrap()
+        *app.state::<std::sync::Arc<crate::app::DesktopApp>>()
+            .companion()
+            .origin
+            .lock()
+            .unwrap()
     } else {
         w.outer_position().ok().map(|p| (p.x, p.y))
     };
@@ -58,12 +62,17 @@ pub(super) fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
             w.set_position(tauri::PhysicalPosition::new(x, y))
                 .map_err(|_| "companion_position_failed")?;
         }
-        *app.state::<Store>().origin.lock().unwrap() = Some((x, y));
+        *app.state::<std::sync::Arc<crate::app::DesktopApp>>()
+            .companion()
+            .origin
+            .lock()
+            .unwrap() = Some((x, y));
     }
     Ok(())
 }
 pub fn refresh(app: &tauri::AppHandle) -> Result<CompanionState, String> {
-    let owner = app.state::<std::sync::Arc<crate::presence::Presence>>();
+    let desktop = app.state::<std::sync::Arc<crate::app::DesktopApp>>();
+    let owner = desktop.presence();
     let (scope, context) = owner.context();
     let agent = owner.view().agent;
     if owner.context() != (scope.clone(), context.clone()) {
@@ -76,7 +85,8 @@ pub fn refresh(app: &tauri::AppHandle) -> Result<CompanionState, String> {
     Ok(publish(app))
 }
 pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, String> {
-    let store = app.state::<Store>();
+    let desktop = app.state::<std::sync::Arc<crate::app::DesktopApp>>();
+    let store = desktop.companion();
     let current = snapshot(app);
     if current.composer.open == open {
         return Ok(current);

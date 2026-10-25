@@ -58,7 +58,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   and the crate's tests pass
 
 ### N-10 · D-3: one `DesktopApp` is the native composition root
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-3--introduce-the-single-native-composition-root
   and #decision-d-0
 - Read: the plan's sections 3 ("Shared and persisted state") and 6 ("One native top object");

@@ -50,8 +50,12 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     w.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
-            match preferences::close_action(h.state::<preferences::Store>().close_to_tray(), false)
-            {
+            match preferences::close_action(
+                h.state::<std::sync::Arc<crate::app::DesktopApp>>()
+                    .preferences()
+                    .close_to_tray(),
+                false,
+            ) {
                 preferences::CloseAction::Hide => {
                     let _ = h.hide();
                 }

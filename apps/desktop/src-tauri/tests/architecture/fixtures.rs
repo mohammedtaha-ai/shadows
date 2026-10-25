@@ -6,6 +6,52 @@ fn scan(file: &str, source: &str) -> Findings {
     scanner::scan(&BTreeMap::from([(file.into(), source.into())]))
 }
 
+#[test]
+fn desktop_composition_names_its_values_without_exempting_nested_owners() {
+    let source = "struct DesktopApp { store: crate::windows::companion::Store }
+        fn start(app: tauri::AppHandle) {
+            crate::windows::companion::Store::default();
+            app.state::<DesktopApp>();
+        }";
+    assert!(scan("app.rs", source).is_empty());
+    catches("windows/mod.rs", source, "construction");
+    catches("windows/mod.rs", source, "managed_state");
+    catches("windows/mod.rs", source, "private_access");
+    catches(
+        "app.rs",
+        "mod presence { fn f(app: tauri::AppHandle) { app.state::<u8>(); } }",
+        "managed_state",
+    );
+    catches(
+        "app.rs",
+        "mod presence { fn f() { crate::windows::companion::Store::default(); } }",
+        "construction",
+    );
+    catches(
+        "app.rs",
+        "fn f() { crate::presence::watcher::PresenceWatcher::new(); }",
+        "private_access",
+    );
+}
+
+#[test]
+fn window_root_lookups_still_require_exact_managed_state_exceptions() {
+    for file in ["windows/mod.rs", "windows/companion/mod.rs"] {
+        let findings = scan(
+            file,
+            "fn f(app: tauri::AppHandle) {
+                app.state::<std::sync::Arc<crate::app::DesktopApp>>();
+            }",
+        );
+        assert_eq!(findings.len(), 1, "{file}: {findings:#?}");
+        assert!(findings
+            .iter()
+            .next()
+            .unwrap()
+            .starts_with("managed_state :: "));
+    }
+}
+
 fn catches(file: &str, source: &str, rule: &str) {
     let findings = scan(file, source);
     assert!(

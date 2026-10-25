@@ -18,7 +18,8 @@ pub struct Store {
 }
 fn model<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut Model) -> T) -> T {
     f(&mut app
-        .state::<Store>()
+        .state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .companion()
         .model
         .lock()
         .expect("companion state poisoned"))
@@ -31,7 +32,13 @@ fn publish(app: &tauri::AppHandle) -> CompanionState {
     for label in ["main", "companion"] {
         let _ = app.emit_to(label, "companion-state", &state);
     }
-    let toggle = app.state::<Store>().toggle.lock().unwrap().clone();
+    let toggle = app
+        .state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .companion()
+        .toggle
+        .lock()
+        .unwrap()
+        .clone();
     if let Some(item) = toggle {
         let _ = item.set_text(if state.visible {
             "Hide AYLUL"
@@ -42,7 +49,11 @@ fn publish(app: &tauri::AppHandle) -> CompanionState {
     state
 }
 pub fn attach_toggle(app: &tauri::AppHandle, item: tauri::menu::MenuItem<tauri::Wry>) {
-    *app.state::<Store>().toggle.lock().unwrap() = Some(item);
+    *app.state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .companion()
+        .toggle
+        .lock()
+        .unwrap() = Some(item);
     publish(app);
 }
 fn page_started(app: &tauri::AppHandle) {
@@ -69,7 +80,11 @@ pub fn setup_companion(app: &tauri::AppHandle) -> Result<(), String> {
                 m.finish(false, None);
             });
             publish(app);
-            *app.state::<Store>().rebuilding.lock().unwrap() = true;
+            *app.state::<std::sync::Arc<crate::app::DesktopApp>>()
+                .companion()
+                .rebuilding
+                .lock()
+                .unwrap() = true;
             old.destroy().map_err(|_| "companion_unavailable")?;
             return Ok(());
         }
@@ -114,13 +129,15 @@ pub fn setup_companion(app: &tauri::AppHandle) -> Result<(), String> {
             }
         });
         if let Some(directory) = app
-            .state::<crate::app_paths::AppPaths>()
+            .state::<std::sync::Arc<crate::app::DesktopApp>>()
+            .paths()
             .webview("companion")
         {
             builder = builder.data_directory(directory);
         }
         if let Some(args) = app
-            .state::<crate::app_paths::AppPaths>()
+            .state::<std::sync::Arc<crate::app::DesktopApp>>()
+            .paths()
             .browser_args("companion")
         {
             builder = builder.additional_browser_args(&args);
@@ -129,8 +146,14 @@ pub fn setup_companion(app: &tauri::AppHandle) -> Result<(), String> {
         let owner = app.clone();
         w.on_window_event(move |event| match event {
             tauri::WindowEvent::Destroyed => {
-                let rebuild =
-                    std::mem::take(&mut *owner.state::<Store>().rebuilding.lock().unwrap());
+                let rebuild = std::mem::take(
+                    &mut *owner
+                        .state::<std::sync::Arc<crate::app::DesktopApp>>()
+                        .companion()
+                        .rebuilding
+                        .lock()
+                        .unwrap(),
+                );
                 if rebuild {
                     // Destroy removes the label after event dispatch. Queue from another
                     // thread so reconstruction runs after that removal, never inline here.
@@ -184,7 +207,8 @@ fn apply_visibility(app: &tauri::AppHandle) -> Result<CompanionState, String> {
     result.map(|_| state)
 }
 pub fn set_visible(app: &tauri::AppHandle, visible: bool) -> Result<CompanionState, String> {
-    app.state::<Store>()
+    app.state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .companion()
         .visibility_intent
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     if !visible {
@@ -244,7 +268,8 @@ pub async fn on_ui<T: Send + 'static>(
 }
 
 pub fn visibility_token(app: &tauri::AppHandle) -> u64 {
-    app.state::<Store>()
+    app.state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .companion()
         .visibility_intent
         .load(std::sync::atomic::Ordering::SeqCst)
 }

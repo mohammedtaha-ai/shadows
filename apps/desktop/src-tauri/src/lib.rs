@@ -1,3 +1,4 @@
+mod app;
 mod app_paths;
 mod assistant;
 pub mod auth;
@@ -57,93 +58,9 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            use tauri::Emitter;
             use tauri::Manager;
-            let paths = app_paths::AppPaths::resolve(app)?;
-            app.manage(windows::preferences::Store::new(paths.root().to_path_buf()));
-            app.manage(auth::AuthController::new(paths.auth()));
-            app.manage(windows::companion::Store::default());
-            let connection = core_connection::Connection::new(paths.root().to_path_buf());
-            let presence = presence::Presence::new(paths.root().to_path_buf(), connection.clone());
-            let publisher = app.handle().clone();
-            let watcher =
-                presence::watcher::PresenceWatcher::new(std::sync::Arc::new(move |mut update| {
-                    let app = publisher.clone();
-                    let _ = publisher.run_on_main_thread(move || {
-                        if !update.is_current() {
-                            return;
-                        }
-                        if let Some(owner) = app.try_state::<std::sync::Arc<presence::Presence>>() {
-                            if !update.matches_binding(&owner.view()) {
-                                return;
-                            }
-                        }
-                        if let Some(scope) = update.scope.as_ref() {
-                            let Some(owner) = app.try_state::<std::sync::Arc<presence::Presence>>()
-                            else {
-                                return;
-                            };
-                            let binding = owner.view();
-                            let Some(ready) = owner.connection.ready() else {
-                                return;
-                            };
-                            if binding.generation != scope.generation
-                                || binding.configuration_id.as_deref()
-                                    != Some(scope.configuration_id.as_str())
-                                || ready.runtime_id != scope.runtime_id
-                            {
-                                return;
-                            }
-                        }
-                        if update.republish_only {
-                            windows::companion::republish(&app);
-                        } else {
-                            windows::companion::present(
-                                &app,
-                                update.projection.clone(),
-                                update.appearance.clone(),
-                            );
-                        }
-                        update.acknowledge();
-                    });
-                }));
-            app.manage(watcher.clone());
-            let binding_watcher = watcher.clone();
-            let binding_connection = std::sync::Arc::downgrade(&connection);
-            let emitter = app.handle().clone();
-            presence.set_notifier(std::sync::Arc::new(move |view| {
-                binding_watcher.sync(
-                    view.clone(),
-                    binding_connection
-                        .upgrade()
-                        .and_then(|connection| connection.ready()),
-                );
-                let _ = emitter.emit_to("main", "companion-binding", view);
-                let owner = emitter.clone();
-                let _ = emitter.run_on_main_thread(move || {
-                    let _ = windows::companion::input::refresh(&owner);
-                });
-            }));
-            app.manage(presence.clone());
-            app.manage(std::sync::Arc::new(navigation::Navigation::default()));
-            let binding = std::sync::Arc::downgrade(&presence);
-            let owner = app.handle().clone();
-            connection.set_notifier(std::sync::Arc::new(move |view| {
-                if let Some(presence) = binding.upgrade() {
-                    presence.configuration_changed(view.configuration_id.clone());
-                    watcher.sync(presence.view(), presence.connection.ready());
-                }
-                let _ = owner.emit_to("main", "desktop-connection", view);
-            }));
-            app.manage(connection.clone());
-            let acceptance = paths.acceptance;
-            app.manage(paths);
-            tauri::async_runtime::spawn_blocking(move || connection.retry());
-            app.manage(std::sync::Arc::new(if acceptance {
-                sidecar::SidecarState(None)
-            } else {
-                sidecar::start_default()
-            }));
+            let desktop = app::DesktopApp::start(app)?;
+            app.manage(desktop);
             windows::setup(app)
         })
         .build(tauri::generate_context!())
@@ -151,13 +68,8 @@ pub fn run() {
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 use tauri::Manager;
-                if let Some(watcher) =
-                    app.try_state::<std::sync::Arc<presence::watcher::PresenceWatcher>>()
-                {
-                    watcher.stop();
-                }
-                if let Some(sidecar) = app.try_state::<std::sync::Arc<sidecar::SidecarState>>() {
-                    sidecar.stop();
+                if let Some(desktop) = app.try_state::<std::sync::Arc<app::DesktopApp>>() {
+                    desktop.stop();
                 }
             }
         });

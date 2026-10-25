@@ -1,12 +1,14 @@
-use crate::{app_paths::AppPaths, core_connection::Connection};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 use tauri::{
     utils::config::{Csp, CspDirectiveSources},
     Manager, WebviewUrl, WebviewWindowBuilder,
 };
 
 pub fn build(app: &tauri::App) -> Result<tauri::WebviewWindow, tauri::Error> {
-    let connection = app.state::<Arc<Connection>>().inner().clone();
+    let connection = app
+        .state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .connection()
+        .clone();
     let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("AYLUL")
         .inner_size(1200., 800.)
@@ -39,10 +41,18 @@ pub fn build(app: &tauri::App) -> Result<tauri::WebviewWindow, tauri::Error> {
                 }
             }
         });
-    if let Some(directory) = app.state::<AppPaths>().webview("main") {
+    if let Some(directory) = app
+        .state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .paths()
+        .webview("main")
+    {
         builder = builder.data_directory(directory);
     }
-    if let Some(args) = app.state::<AppPaths>().browser_args("main") {
+    if let Some(args) = app
+        .state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .paths()
+        .browser_args("main")
+    {
         builder = builder.additional_browser_args(&args);
     }
     builder.build()

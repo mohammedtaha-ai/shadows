@@ -1,0 +1,16 @@
+name: native-desktop-composition
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/app.rs
+responsibility: Assemble the nine native lifetime owners behind one managed DesktopApp.
+public_api:
+  DesktopApp::start: Build existing owners and wire their notifiers inside Tauri setup; return one Arc for managed registration before window setup.
+  DesktopApp::preferences/auth/companion/watcher/presence/navigation/connection/paths/sidecar: Typed borrows of private owned values; preserve the existing owner types.
+  DesktopApp::login_item: Construct the OS adapter at the preference worker's existing call site.
+  DesktopApp::stop: Stop the presence watcher before stopping the sidecar on application exit.
+obligations:
+  - rule: Only Arc<DesktopApp> is registered as managed application state; owner lookup uses its accessors.
+    tested_by: [desktop_registers_one_private_composition_root, native_architecture_ratchet]
+gaps:
+  - at: native lifecycle
+    gap: Automated behavior tests cover owner policies; physical Windows startup, tray and shutdown acceptance is separate.

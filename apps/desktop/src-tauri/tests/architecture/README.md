@@ -16,6 +16,12 @@ Parent-relative paths are normalized. Missing explicit path targets and multiple
 mounts of one source fail rather than selecting an owner implicitly. Unknown
 inline owners fail coverage too.
 The `OWNERS` table maps the D-0 owners to current modules; `EDGES` is the D-0 graph.
+`app.rs` is composition, alongside the lifecycle adapters in `lib.rs`. Window
+references to the root are allowed during N-10, but every lookup still needs an
+exact `managed_state` exception until D-5/D-7 remove it. Only the top-level
+composition module may name its stored lifetime types without private-access
+exceptions; nested owner modules retain all checks. Implementation-submodule
+workflow references remain ratcheted even in composition.
 Account includes its private assistant and native-login primitives. Preferences
 is distinct from MainWindow even while it lives under `windows/`.
 
@@ -24,7 +30,7 @@ The checks hold:
 - Owner dependencies, including imports, aliases, qualified paths, type aliases
   and named reexports. Cycles are reported by participating file and owner edge.
 - Managed-state method/UFCS lookups (including UFCS function values) and Tauri
-  `State` injection outside the root composition module in `lib.rs`.
+  `State` injection outside the root composition modules in `lib.rs` and `app.rs`.
 - Construction of the explicitly inventoried lifetime owners and OS login-item
   adapter outside that composition module,
   including `new`, `start`, `resolve`, `default`, tuple calls and struct literals.
@@ -64,9 +70,8 @@ fail. Tests never rewrite the baseline. Remove an entry with its violation; a
 pure move may relocate it one-for-one. Review changes per file/owner rather than
 approving a regenerated inventory. Tests have no blanket exemption.
 
-The command baseline deliberately holds the two build omissions:
-`companion_input` and `companion_send`. It does not repair command registration
-or generated permissions.
+The command inventory has no baseline exceptions. All 27 registered commands
+have build metadata and generated permissions.
 
 `fixtures.rs` supplies in-memory sources to the same scanner/comparator:
 forbidden/allowed edges, cycles, import aliases, qualified paths, reexports,
@@ -80,6 +85,11 @@ reexport cannot make an implementation submodule a public owner entry.
 The review fixtures also cover shadowing of absolute paths, private import
 aliases in reexports, inline declarations, Tauri globs, statement/DSL macros,
 handler aliases, inventory separation, path escape/multiple mounts, OS adapter
-construction, move relocation and deterministic output. Only root composition
+construction, move relocation and deterministic output. Only top-level composition in `lib.rs` and `app.rs`
 has construction/state exemptions; neither inline nor file-backed tests do.
 The inventory's test-only filtering does not exempt tests from ownership rules.
+
+`desktop_registers_one_private_composition_root` checks that the native sources
+register one managed value, start `DesktopApp` once and retain nine private fields.
+The N-10 fixtures prove that window root lookups still count as managed-state
+violations and that nested owners cannot inherit composition exemptions.

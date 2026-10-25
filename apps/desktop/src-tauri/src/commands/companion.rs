@@ -53,14 +53,11 @@ pub async fn companion_state(window: tauri::WebviewWindow) -> Result<CompanionSt
 #[tauri::command]
 pub async fn companion_send(
     window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
     submission: crate::presence::send::Submission,
 ) -> Result<crate::presence::send::Sent, String> {
     guard(&window, "companion_send")?;
-    let owner = window
-        .app_handle()
-        .state::<std::sync::Arc<crate::presence::Presence>>()
-        .inner()
-        .clone();
+    let owner = desktop.presence().clone();
     tauri::async_runtime::spawn_blocking(move || owner.send(submission).map_err(str::to_owned))
         .await
         .map_err(|_| "companion_send_failed".to_string())?
@@ -114,20 +111,20 @@ pub async fn drag_companion(window: tauri::WebviewWindow) -> Result<(), String> 
     companion::on_ui(window.app_handle().clone(), companion::drag).await
 }
 #[tauri::command]
-pub async fn open_main_from_companion(window: tauri::WebviewWindow) -> Result<(), String> {
+pub async fn open_main_from_companion(
+    window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+) -> Result<(), String> {
     guard(&window, "open_main_from_companion")?;
-    let presence = window
-        .app_handle()
-        .state::<std::sync::Arc<crate::presence::Presence>>()
-        .inner()
-        .clone();
+    let presence = desktop.presence().clone();
     let destination = tauri::async_runtime::spawn_blocking(move || presence.destination())
         .await
         .map_err(|_| "main_open_failed")?;
     companion::on_ui(window.app_handle().clone(), move |app| {
         use tauri::Emitter;
         let pending = app
-            .state::<std::sync::Arc<crate::navigation::Navigation>>()
+            .state::<std::sync::Arc<crate::app::DesktopApp>>()
+            .navigation()
             .request(destination);
         let _ = app.emit_to("main", "main-navigation", pending);
         crate::windows::open_main(app).map_err(|_| "main_open_failed".into())

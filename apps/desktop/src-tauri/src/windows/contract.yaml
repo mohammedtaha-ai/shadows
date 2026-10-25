@@ -20,6 +20,8 @@ external_types:
   - tauri::WebviewWindow
   - tauri::Monitor
 obligations:
+  - rule: Main construction and close callbacks resolve paths, connection and preference policy only through DesktopApp accessors.
+    tested_by: native_architecture_ratchet
   - rule: Fresh native preferences preserve close-to-tray; reads never enable an OS login item and return its actual state.
     tested_by: [desktop_preferences_fresh_install_preserves_close_to_tray, desktop_preferences_reports_external_login_change]
   - rule: Partial updates preserve omitted values across restart and concurrent setters; wire names are camelCase.

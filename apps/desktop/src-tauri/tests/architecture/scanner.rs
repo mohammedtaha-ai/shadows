@@ -22,10 +22,15 @@ const OWNERS: &[(&str, &str)] = &[
     ("sidecar", "Activity"),
     ("app_paths", "AppPaths"),
     ("commands", "commands"),
-    ("", "composition (lib.rs)"),
+    ("app", "composition"),
+    ("", "composition"),
 ];
 
 const EDGES: &[(&str, &str)] = &[
+    ("commands", "composition"),
+    // Window lookups remain ratcheted as managed_state until their owner moves.
+    ("MainWindow", "composition"),
+    ("CompanionWindow", "composition"),
     ("Companion", "CoreConnection"),
     ("Companion", "CompanionWindow"),
     ("Companion", "Navigation"),
@@ -314,7 +319,8 @@ struct Checker<'a> {
 
 impl Checker<'_> {
     fn composition(&self) -> bool {
-        self.file == "lib.rs" && self.module.is_empty()
+        (self.file == "lib.rs" && self.module.is_empty())
+            || (self.file == "app.rs" && self.module == "app")
     }
     fn record(&mut self, rule: &str, target: &str) {
         let occurrence = self
@@ -333,6 +339,10 @@ impl Checker<'_> {
         self.private_access(&surface);
     }
     fn private_access(&mut self, target: &str) {
+        // Composition must name the lifetime values it holds and exposes.
+        if self.file == "app.rs" && self.module == "app" && SERVICES.contains(&target) {
+            return;
+        }
         if owner(target).is_none() || owner(target) == owner(&self.module) {
             return;
         }
@@ -360,13 +370,11 @@ impl Checker<'_> {
         let from = owner(&self.module);
         if let Some(to) = owner(target) {
             if from != Some(to) {
-                if let Some(from) = from.filter(|f| *f != "composition (lib.rs)") {
+                if let Some(from) = from.filter(|f| *f != "composition") {
                     self.edges
                         .insert((from.into(), to.into(), self.file.into()));
                 }
-                if from != Some("composition (lib.rs)")
-                    && !from.is_some_and(|f| EDGES.contains(&(f, to)))
-                {
+                if from != Some("composition") && !from.is_some_and(|f| EDGES.contains(&(f, to))) {
                     self.record("owner_edge", target);
                 }
             }

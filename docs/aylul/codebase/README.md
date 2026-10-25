@@ -38,7 +38,8 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/native-presentation.ts` | Absolute-expiry native reply presentation | Companion contract |
 | `apps/desktop/src/features/companion/` | Compact desktop character/gestures plus reusable presence, procedural Canvas renderer and explicit drawing permission | Colocated `contract.yaml`; excludes separately owned studio |
 | `apps/desktop/src/features/companion/studio/` | Development-only scenes, controlled simulations and PNG export | Colocated `contract.yaml`; excluded from parent scope |
-| `apps/desktop/src-tauri/src/lib.rs` | Compose native companion and sidecar lifetime | Composition only; behavior owned below |
+| `apps/desktop/src-tauri/src/lib.rs` | Register native lifetime adapters | Composition contract |
+| `apps/desktop/src-tauri/src/app.rs` | Assemble the nine native owners | `src-tauri/src/contract.yaml` |
 | `apps/desktop/src-tauri/src/windows/` | Main/tray lifecycle and physical placement | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit editor focus with physical bounds | Companion window contract |
 | `apps/desktop/src-tauri/src/windows/companion/` | Independent native companion lifecycle, explicit render permission, no-activation show and complete-rectangle fitting | Colocated `contract.yaml`; excluded from parent scope |
