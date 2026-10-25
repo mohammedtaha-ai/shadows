@@ -509,13 +509,53 @@ are reference material; they do not replace the project's template or code.
 
 ### A-19c · Extract services in the verified order
 - Ruling (controller, 2026-10-25): every caller of a moved item, in any crate, is in each move's Touch.
-- Status: doing
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-19c--extract-services-in-the-verified-order
 - Read: A-8c's runtime/type/test graph; owner spec §14.12
 - Touch: controller expands this milestone into exact per-service tasks, including manifests, lockfile, re-exports, app wiring, callers, contracts, maps and tests
 - Needs: A-19b; a concrete task per move in verified topological order
 - Done when: each move passes affected public-API/caller tests and architecture checks; no cycles, cross-owner SQL or service-to-AppCore dependency; integration tests still run through AppCore
 
+
+#### Final branch acceptance (2026-10-25)
+
+All service moves A-19c.1 through A-19c.20 and the A-19c.0 error tracking task are done.
+The full final set ran once after Events commit `d94e6c78`. Its sole check failure was
+production clippy's test-only Events import, fixed in `84ef0295`. Closing inspection
+also found Runtime's explicitly pending startup wrapper in A-19c.0; `5a95a6ce`
+completed that item. Only affected checks were rerun for those repairs.
+
+| Final check | Result |
+|---|---|
+| `cargo clippy --workspace -- -D warnings` | Pass after Events import repair; pass again after Runtime error ownership |
+| `cargo tree -e features,no-dev --workspace` with `grep test-support` | No matches; rechecked after Runtime manifest change |
+| `cargo test -p shadows-core` | 235 passed, 0 failed, 3 ignored across 36 test binaries |
+| `cargo test -p shadows --tests` | 396 passed, 0 failed, 0 ignored across all 59 test binaries |
+| `cargo test -p shadows-http --tests` | 24 passed, 0 failed across its one test binary |
+| `cargo test -p shadows-mcp --tests` | 1 passed, 0 failed across its one test binary |
+| `git diff --exit-code api/` | Empty diff |
+
+The final set therefore passed 656 tests with three existing ignored tests:
+`live_agent_extension_isolation`, `live_keys_list_models` and
+`migrate_prepared_dev_copy_only`. They require live-provider authorization or a
+prepared migration copy and were not enabled.
+
+Focused repair verification: Events contracts 6; Runtime lifecycle 4, Core
+app_fixture 1, contracts 6, operation_listing 1 and invocation_standards 1;
+architecture 48, codemap 1 and HTTP/MCP error mappings 1 each pass. Both workspace
+clippy modes, fmt, the exact CI line-length command, LF and whitespace checks pass.
+The full test set was not repeated after the repairs. Rust LSP definitions and
+references supplied the owner/caller navigation, including all six Runtime::start
+references. No service depends on shadows-core or AppCore.
+
+Completion commits for this continuation: Design `8684edfd`, Plans `b652ff0c`,
+Turns `f30d806b`, ProjectLifecycle `99f939e5`, Events `d94e6c78`; repairs
+`84ef0295` and `5a95a6ce`. Plans relocated 15 comment records and Turns relocated
+7, with exact hashes/counts preserved. Turns removed 7 ownership exceptions from
+the HTTP fixture after replacing its direct state construction with AppCore::start.
+Those exact records are listed with their sub-tasks below. No allowlist entries
+were added; Events and the final repairs changed none. No branch publication,
+manual browser acceptance, native acceptance or live-provider acceptance was run.
 
 #### Baseline graph inspection (2026-10-24, base `e89e9c4`; superseded by the controller continuation)
 
