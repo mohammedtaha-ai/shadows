@@ -1,4 +1,3 @@
-import { designKeys } from '@/api/design'
 // One job: the vision as five lists of items (§23.3), edited one item at a time.
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -7,6 +6,7 @@ import { type Attempt, attemptFor } from '@/api/command-id'
 import { editDesign, type DesignEdit, type VisionContent, type VisionItem, type VisionView } from '@/api/design'
 import { ApiError } from '@/api/error'
 import { threadsQuery, visionProposalsQuery, visionQuery } from '@/api/queries'
+import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { VISION_FIELDS, fieldLabel } from './vision-fields'

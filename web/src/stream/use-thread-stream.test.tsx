@@ -1,11 +1,11 @@
-import { projectKeys } from '@/api/projects'
-import { threadKeys } from '@/api/threads'
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
+import { projectKeys } from '@/api/projects'
+import { threadKeys } from '@/api/threads'
 import { FakeSource } from './fake-event-source'
 import { useThreadStream } from './use-thread-stream'
 

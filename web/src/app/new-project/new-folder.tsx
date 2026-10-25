@@ -1,4 +1,3 @@
-import { directoryKeys } from '@/api/directories'
 // One job: "New folder here" — asking for a name and creating that folder in
 // the directory the browser shows.
 
@@ -6,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FolderPlus } from 'lucide-react'
 import { useState } from 'react'
 import { createDir } from '@/api/client'
+import { directoryKeys } from '@/api/directories'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'

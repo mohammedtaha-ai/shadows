@@ -5,7 +5,7 @@
 // the session's answer; Send carries the chosen settings and a command id
 // that a retry of the same send reuses.
 
-import { sessionKey } from '@/api/sessions'
+import { sessionKeys } from '@/api/sessions'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { choice, completedOperation, fakeChoices, userEntry, runningOperation, projectFixture, threadFixture } from '@/test/contract-fixtures'
@@ -233,7 +233,7 @@ describe('the composer bar', () => {
       }) }),
     })
     await until(ready(app))
-    const key = sessionKey('t1')
+    const key = sessionKeys.choices('t1')
     let refetch!: Promise<void>
     act(() => { refetch = app.queryClient.refetchQueries({ queryKey: key, exact: true }) })
     await until(() => reads === 2)
@@ -266,7 +266,7 @@ describe('the composer bar', () => {
     await until(() => app.button('Mode')?.disabled === false)
     expect(app.button('Mode')?.textContent).toContain('Accept edits')
     act(() => release())
-    await until(() => app.queryClient.getQueryData<{ current: { mode: string } }>(sessionKey('t1'))?.current.mode === 'auto')
+    await until(() => app.queryClient.getQueryData<{ current: { mode: string } }>(sessionKeys.choices('t1'))?.current.mode === 'auto')
     expect(app.button('Mode')?.textContent).toContain('Accept edits')
     await act(() => router.navigate({ to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't1' } }))
     await until(() => app.button('Auto')?.disabled === false)

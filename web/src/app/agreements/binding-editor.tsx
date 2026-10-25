@@ -1,4 +1,3 @@
-import { designKeys } from '@/api/design'
 // A task adopts an exact Agreed contract; retry retains its command until the read succeeds.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -10,6 +9,7 @@ import { operations as documentOperations } from './agreement-document'
 import { agreementKeys, agreementsQuery, agreementQuery } from '@/api/agreements'
 import { partQuery } from '@/api/queries'
 import { workflowKeys, savePlanAnswer } from '@/api/workflows'
+import { designKeys } from '@/api/design'
 export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
   const client = useQueryClient()
   const [id, setId] = useState('')

@@ -1,5 +1,5 @@
-import { designPageQuery } from '@/api/design'
 // Accumulate hierarchy pages only while their workspace revisions agree.
+import { designPageQuery } from '@/api/design'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 interface Page<T> { revision: number; items: T[]; next?: string | null }

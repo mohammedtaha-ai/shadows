@@ -397,21 +397,9 @@ pure:
     # Runs after Streamdown's plugins. Gives each block its own direction.
 
 queries_and_mutations:
-  sessionKey:
-    signature: "(threadId: string) => readonly ['threads', string, 'session']"
-  replaceChoices:
-    signature: "(queryClient: QueryClient, threadId: string, choices: SessionChoices) => void"
-    # Ignored while the opening is in flight, so the open's own answer decides.
-  reopenSession:
-    signature: "(queryClient: QueryClient, threadId: string) => void"
-    # Clears the commands, then resets the session query so it is opened again.
-  commandsKey:
-    signature: "(threadId: string) => readonly ['threads', string, 'commands']"
-  replaceCommands:
-    signature: "(qc: QueryClient, threadId: string, list: readonly SlashCommand[]) => void"
-  clearCommands:
-    signature: "(qc: QueryClient, threadId: string) => void"
-    # Empties the list on a harness switch: the old harness's list is not the new one's.
+  # The session and command keys and cache updates (sessionKeys, replaceChoices,
+  # reopenSession, replaceCommands, clearCommands) are api/sessions.ts's; the
+  # conversation imports them from there (api/contract.yaml session_cache).
   carrySend:
     signature: "(threadId: string, send: CarriedSend) => void"
     # Module-level map: a draft that failed after its thread existed hands its text here.
@@ -1061,7 +1049,7 @@ open_questions:
       in this folder retitles it. Inspect the daemon's thread-start route.
 
   - >
-      Does the app's QueryClient garbage-collect `commandsKey` entries? `useCommands` has no fetch,
+      Does the app's QueryClient garbage-collect `sessionKeys.commands` entries? `useCommands` has no fetch,
       so
       a thread's `/` list with no mounted observer is collected after the default gcTime and comes
       back empty until the stream resends it. Inspect the QueryClient defaults (api/queries or the

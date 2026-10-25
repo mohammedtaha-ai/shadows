@@ -1,4 +1,3 @@
-import { profileKeys } from '@/api/aylul-profiles'
 // One job: confirming a conversation's removal as an idempotent command (§16.8).
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,6 +7,7 @@ import { type PlanningThread, removeThread } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { threadsQuery, workflowsKey } from '@/api/queries'
 import { saveRemovedThreadAnswer } from '@/api/threads'
+import { profileKeys } from '@/api/aylul-profiles'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,

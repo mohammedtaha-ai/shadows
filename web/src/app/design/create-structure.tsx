@@ -1,10 +1,10 @@
-import { designKeys } from '@/api/design'
 // The person's structure confirmation, write and retained result.
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createStructure, getParts, type StructureWritten } from '@/api/design'
 import { ApiError } from '@/api/error'
 import { projectsQuery, stageQuery } from '@/api/queries'
+import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
 
 async function fileCount(projectId: string): Promise<number> {

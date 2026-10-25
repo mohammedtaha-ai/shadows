@@ -1,9 +1,9 @@
-import { designKeys } from '@/api/design'
 // @vitest-environment happy-dom
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers as baseAnswers } from '@/test/fake-daemon'
 import type { DesignEdit, PartView } from '@/api/design'
+import { designKeys } from '@/api/design'
 import { type TestApp, startApp, typeInto, until } from '../test-app'
 
 let app: TestApp | null = null

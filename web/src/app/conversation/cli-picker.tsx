@@ -8,6 +8,7 @@ import { useRef } from 'react'
 import { setThreadHarness } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery } from '@/api/queries'
+import { reopenSession } from '@/api/sessions'
 import { saveThreadHarnessAnswer } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,7 +20,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ErrorLine } from '../error-line'
-import { reopenSession } from './use-session'
 
 /** The harness kind of AYLUL's brain, offered in the assistant project only. */
 export const AYLUL_HARNESS = 'aylul'

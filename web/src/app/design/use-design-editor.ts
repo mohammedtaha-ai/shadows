@@ -1,10 +1,10 @@
-import { designKeys } from '@/api/design'
 // The save/reload lifecycle shared by part and outcome editors.
 import { type UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { editDesign, type DesignEdit } from '@/api/design'
 import { ApiError } from '@/api/error'
+import { designKeys } from '@/api/design'
 
 type ViewBasis = { revision: number; plans: string[] }
 type DesignOp = DesignEdit['ops'][number]

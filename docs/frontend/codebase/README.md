@@ -132,10 +132,10 @@ it is that folder's `contract.yaml`.
 | `web/src/desktop/native.ts` | Desktop invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.tsx` | Native startup gate | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.test.tsx` | Readiness ordering fixtures | `web/src/desktop/contract.yaml` |
-| `web/src/api/aylul-profiles.ts` | Provider profile query ownership | `web/src/api/contract.yaml` |
+| `web/src/api/aylul-profiles.ts` | AYLUL configuration server state: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
 | `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
-| `web/src/api/design.ts` | Project design query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/design.ts` | Project design workspace server state | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | Domain query entry points | `web/src/api/contract.yaml` |
 | `web/src/api/agreements.ts` | Agreement query identities with saved answers | `web/src/api/contract.yaml` |
@@ -260,9 +260,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/person-theme.tsx` | Person theme synchronization | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/desktop-preferences.tsx` | Native preference controls | `web/src/app/settings/contract.yaml` |
 | `web/src/desktop/preferences.ts` | Desktop preference invocation wrappers | `web/src/desktop/contract.yaml` |
-| `web/src/api/person.ts` | Person query cache ownership | `web/src/api/contract.yaml` |
-| `web/src/api/usage.ts` | Usage report query identities | `web/src/api/contract.yaml` |
-| `web/src/api/extensions.ts` | Extension query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/person.ts` | Person server state | `web/src/api/contract.yaml` |
+| `web/src/api/usage.ts` | Usage report server state | `web/src/api/contract.yaml` |
+| `web/src/api/extensions.ts` | Extension library server state | `web/src/api/contract.yaml` |
 | `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |

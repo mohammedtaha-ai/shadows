@@ -1,3 +1,4 @@
+// A thread's harness session in the cache: its choices and its slash commands.
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { openSession, type SessionChoices } from './client'
 import { writeSaved } from './saved-answer'
@@ -6,9 +7,9 @@ export const sessionKeys = {
   choices: (threadId: string) => ['threads', threadId, 'session'] as const,
   commands: (threadId: string) => ['threads', threadId, 'commands'] as const,
 }
-export const sessionKey = sessionKeys.choices
-export const commandsKey = sessionKeys.commands
 const NONE: readonly never[] = []
+// Never on a timer or on focus: an open session answers what it holds, and the
+// stream says when that changes. A failure shows a Retry at once, never silent retries.
 export function sessionQuery(threadId: string) {
   return queryOptions({ queryKey: sessionKeys.choices(threadId), queryFn: () => openSession(threadId),
     staleTime: Infinity, refetchOnWindowFocus: false, retry: false })
@@ -21,6 +22,7 @@ export function commandsQuery<T>(threadId: string) {
 export function replaceCommands<T>(client: QueryClient, threadId: string, list: readonly T[]) {
   client.setQueryData(sessionKeys.commands(threadId), list)
 }
+// A changed harness: the old harness's list is not the new one's.
 export function clearCommands(client: QueryClient, threadId: string) {
   client.setQueryData(sessionKeys.commands(threadId), NONE)
 }
@@ -30,6 +32,7 @@ export function replaceChoices(client: QueryClient, threadId: string, choices: S
   if (state?.data === undefined || state.fetchStatus === 'fetching') return
   client.setQueryData(sessionKeys.choices(threadId), choices)
 }
+// A changed harness: forget the old session's choices and open the new one's.
 export function reopenSession(client: QueryClient, threadId: string) {
   clearCommands(client, threadId)
   void client.resetQueries({ queryKey: sessionKeys.choices(threadId) })

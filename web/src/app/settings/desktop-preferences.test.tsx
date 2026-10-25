@@ -1,10 +1,10 @@
-import { codeKeys } from '@/api/code'
 // @vitest-environment happy-dom
 import { act, StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { personQuery } from '@/api/person'
+import { codeKeys } from '@/api/code'
 import { GeneralSection } from './sections/general'
 import { DesktopPreferencesControls } from './desktop-preferences'
 import { until, typeInto } from '../test-app'

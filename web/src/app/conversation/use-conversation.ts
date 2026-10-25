@@ -4,6 +4,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useReducer, useState } from 'react'
 import { entriesQuery, operationsQuery, queuedQuery } from '@/api/queries'
+import { replaceChoices, replaceCommands } from '@/api/sessions'
 import type { Limits, PlanShowFrame, UsageFrame } from '@/stream/frames'
 import { tabId } from '@/stream/tab-id'
 import { useThreadStream } from '@/stream/use-thread-stream'
@@ -11,8 +12,7 @@ import { isPlanEvent, refetchPlans } from '../workflows/plan-frames'
 import { initialReply, replyReducer, shownReply } from './reply'
 import { initialTurnState, latestTurn, runningTurn, turnReducer } from './turn-state'
 import { type ContextFigures, latestContext } from './usage'
-import { replaceCommands, useCommands } from './use-commands'
-import { replaceChoices } from './use-session'
+import { useCommands } from './use-commands'
 
 /** The durable events that change a thread's waiting messages (§20). */
 const QUEUE_EVENTS = new Set([

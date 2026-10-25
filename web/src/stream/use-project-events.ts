@@ -1,12 +1,12 @@
-import { designKeys } from '@/api/design'
-import { workflowKeys } from '@/api/workflows'
-import { agreementKeys } from '@/api/agreements'
 // One job: refetching a project's plan views from its journal notifications (§16.8).
 
 import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { projectEventsUrl } from '@/api/client'
 import { planMapQuery, planQuery, planVersionsQuery, plansQuery, projectsQuery } from '@/api/queries'
+import { designKeys } from '@/api/design'
+import { workflowKeys } from '@/api/workflows'
+import { agreementKeys } from '@/api/agreements'
 import { ThreadStream } from './thread-stream'
 
 const PLAN_EVENTS = new Set([

@@ -1,5 +1,5 @@
-import { designKeys } from '@/api/design'
 // @vitest-environment happy-dom
+import { designKeys } from '@/api/design'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'

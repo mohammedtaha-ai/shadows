@@ -1,4 +1,3 @@
-import { designKeys } from '@/api/design'
 // Immutable roadmap proposal content with live person-approval state.
 import {useMutation,useQuery,useQueryClient} from '@tanstack/react-query'
 import {useRef} from 'react'
@@ -6,6 +5,7 @@ import type {ThreadEntry} from '@/api/client'
 import {type Attempt,attemptFor} from '@/api/command-id'
 import {approveRoadmapProposal,type OutcomeContent,type RoadmapProposal} from '@/api/design'
 import {outcomeQuery,partQuery,roadmapProposalsQuery} from '@/api/queries'
+import { designKeys } from '@/api/design'
 import {Button} from '@/components/ui/button'
 import {ErrorLine} from '../error-line'
 import {ApprovedBy} from './approved-by'
