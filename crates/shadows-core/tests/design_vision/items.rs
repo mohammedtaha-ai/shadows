@@ -20,6 +20,7 @@ async fn every_vision_change_is_a_stored_version() {
             vec![add(VisionField::Purpose, "Sell books")],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.plans()
         .edit_design(
@@ -32,6 +33,7 @@ async fn every_vision_change_is_a_stored_version() {
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let storage = Storage::open(&tmp.path().join("standards.sqlite3"))
         .await
@@ -66,6 +68,7 @@ async fn a_removed_id_is_never_reused() {
             ],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.plans()
         .edit_design(
@@ -75,10 +78,12 @@ async fn a_removed_id_is_never_reused() {
             vec![DesignOp::VisionItemRemove { id: "G2".into() }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.plans()
         .edit_design("b".into(), &p, 2, vec![add(VisionField::Goals, "three")])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let v = core.design().vision(&p).await.unwrap();
     assert_eq!(
@@ -101,6 +106,7 @@ async fn a_removed_id_is_never_reused() {
             ],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         core.design().vision(&p).await.unwrap().content.goals[2].id,
@@ -126,7 +132,8 @@ async fn item_ops_refuse_an_unknown_id_and_empty_text() {
         assert!(matches!(
             core.plans()
                 .edit_design(n.to_string(), &p, 0, vec![op])
-                .await,
+                .await
+                .map_err(shadows_core::CoreError::from),
             Err(CoreError::Refused {
                 code: ErrorCode::InvalidCommand,
                 ..

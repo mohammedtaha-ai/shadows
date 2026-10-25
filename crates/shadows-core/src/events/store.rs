@@ -1,9 +1,9 @@
 //! Private journal replay persistence.
 use super::Events;
 use crate::events::EventCursor;
-use crate::plans::Plans;
 use crate::turns::OperationId;
 use core_db::{Storage, StorageError};
+use core_plans::Plans;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 use std::sync::Arc;

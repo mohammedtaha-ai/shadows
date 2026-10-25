@@ -900,6 +900,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-plans"
+version = "0.1.0"
+dependencies = [
+ "core-code",
+ "core-db",
+ "core-design",
+ "core-grants",
+ "core-harness",
+ "core-operations",
+ "core-plans",
+ "core-projects",
+ "core-threads",
+ "json-patch",
+ "petgraph",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "core-projects"
 version = "0.1.0"
 dependencies = [
@@ -3687,6 +3715,7 @@ dependencies = [
  "core-instructions",
  "core-operations",
  "core-person",
+ "core-plans",
  "core-projects",
  "core-providers",
  "core-runtime",

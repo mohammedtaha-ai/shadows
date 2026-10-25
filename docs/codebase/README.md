@@ -61,7 +61,7 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
-| `crates/shadows-core/src/plans/signal.rs` | live plan-show vocabulary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/core-plans/src/signal.rs` | live plan-show vocabulary | `crates/core-plans/contract.yaml` |
 | `crates/core-harness/src/owners.rs` | harness configuration dependencies | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/live.rs` | live adapter opening | `crates/core-harness/contract.yaml` |
 | `crates/core-providers/src/lib.rs` | provider configuration boundary | `crates/core-providers/contract.yaml` |
@@ -228,31 +228,31 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/commands.rs` | the latest `/` list each open session sent | `crates/core-harness/src/commands.rs` |
 | `crates/core-harness/src/context.rs` | reading a session's context breakdown on demand | `crates/core-harness/src/context.rs` |
 | `crates/core-harness/src/titles.rs` | handing the titles a harness sends to its thread | `crates/core-harness/src/titles.rs` |
-| `crates/shadows-core/src/plans/` | project plans under the rules of §16 | `crates/shadows-core/src/plans/mod.rs` |
-| `crates/shadows-core/src/plans/model.rs` | the plan types callers meet | `crates/shadows-core/src/plans/model.rs` |
-| `crates/shadows-core/src/plans/dependencies.rs` | task dependency value shapes | `crates/shadows-core/src/plans/dependencies.rs` |
-| `crates/shadows-core/src/plans/bindings.rs` | exact agreement binding value shapes | `crates/shadows-core/src/plans/bindings.rs` |
-| `crates/shadows-core/src/plans/binding_edit.rs` | person adoption entry point | `crates/shadows-core/src/plans/binding_edit.rs` |
-| `crates/shadows-core/src/plans/map.rs` | project plan map value shapes | `crates/shadows-core/src/plans/map.rs` |
-| `crates/shadows-core/src/plans/dependency_graph.rs` | start/complete dependency ordering | `crates/shadows-core/src/plans/dependency_graph.rs` |
-| `crates/shadows-core/src/plans/store/` | plans' SQLite queries | `crates/shadows-core/src/plans/store/edit.rs` |
-| `crates/shadows-core/src/plans/store/edit.rs` | changing a plan version | `crates/shadows-core/src/plans/store/edit.rs` |
-| `crates/shadows-core/src/plans/store/draft.rs` | starting a plan version | `crates/shadows-core/src/plans/store/draft.rs` |
-| `crates/shadows-core/src/plans/store/plan.rs` | a plan's state lifecycle with its versions | `crates/shadows-core/src/plans/store/plan.rs` |
-| `crates/shadows-core/src/plans/store/read.rs` | reading plan versions | `crates/shadows-core/src/plans/store/read.rs` |
-| `crates/shadows-core/src/plans/store/task.rs` | a plan version's task graph rows | `crates/shadows-core/src/plans/store/task.rs` |
-| `crates/shadows-core/src/plans/store/dependencies.rs` | persisted cross-plan links | `crates/shadows-core/src/plans/store/dependencies.rs` |
-| `crates/shadows-core/src/plans/store/bindings.rs` | persisted agreement adoption | `crates/shadows-core/src/plans/store/bindings.rs` |
-| `crates/shadows-core/src/plans/store/binding_participants.rs` | captured adoption participant reads | `crates/shadows-core/src/plans/store/binding_participants.rs` |
-| `crates/shadows-core/src/plans/store/graph.rs` | reachable latest-version dependency checks | `crates/shadows-core/src/plans/store/graph.rs` |
-| `crates/shadows-core/src/plans/store/linked.rs` | captured dependency preview reads | `crates/shadows-core/src/plans/store/linked.rs` |
-| `crates/shadows-core/src/plans/store/map.rs` | captured latest-plan map reads | `crates/shadows-core/src/plans/store/map.rs` |
-| `crates/shadows-core/src/plans/store/notifications.rs` | transactional dependency invalidations | `crates/shadows-core/src/plans/store/notifications.rs` |
-| `crates/shadows-core/src/plans/store/view.rs` | showing a plan version in its conversation | `crates/shadows-core/src/plans/store/view.rs` |
-| `crates/shadows-core/src/plans/ops.rs` | applying one batch of plan edits | `crates/shadows-core/src/plans/ops.rs` |
-| `crates/shadows-core/src/plans/rules.rs` | what makes a plan invalid or unready | `crates/shadows-core/src/plans/rules.rs` |
-| `crates/shadows-core/src/plans/scope.rs` | plan calls made under an MCP grant | `crates/shadows-core/src/plans/scope.rs` |
-| `crates/shadows-core/src/plans/conversation.rs` | the plan in the conversation | `crates/shadows-core/src/plans/conversation.rs` |
+| `crates/core-plans/src/` | project plans under the rules of §16 | `crates/core-plans/src/lib.rs` |
+| `crates/core-plans/src/model.rs` | the plan types callers meet | `crates/core-plans/src/model.rs` |
+| `crates/core-plans/src/dependencies.rs` | task dependency value shapes | `crates/core-plans/src/dependencies.rs` |
+| `crates/core-plans/src/bindings.rs` | exact agreement binding value shapes | `crates/core-plans/src/bindings.rs` |
+| `crates/core-plans/src/binding_edit.rs` | person adoption entry point | `crates/core-plans/src/binding_edit.rs` |
+| `crates/core-plans/src/map.rs` | project plan map value shapes | `crates/core-plans/src/map.rs` |
+| `crates/core-plans/src/dependency_graph.rs` | start/complete dependency ordering | `crates/core-plans/src/dependency_graph.rs` |
+| `crates/core-plans/src/store/` | plans' SQLite queries | `crates/core-plans/src/store/edit.rs` |
+| `crates/core-plans/src/store/edit.rs` | changing a plan version | `crates/core-plans/src/store/edit.rs` |
+| `crates/core-plans/src/store/draft.rs` | starting a plan version | `crates/core-plans/src/store/draft.rs` |
+| `crates/core-plans/src/store/plan.rs` | a plan's state lifecycle with its versions | `crates/core-plans/src/store/plan.rs` |
+| `crates/core-plans/src/store/read.rs` | reading plan versions | `crates/core-plans/src/store/read.rs` |
+| `crates/core-plans/src/store/task.rs` | a plan version's task graph rows | `crates/core-plans/src/store/task.rs` |
+| `crates/core-plans/src/store/dependencies.rs` | persisted cross-plan links | `crates/core-plans/src/store/dependencies.rs` |
+| `crates/core-plans/src/store/bindings.rs` | persisted agreement adoption | `crates/core-plans/src/store/bindings.rs` |
+| `crates/core-plans/src/store/binding_participants.rs` | captured adoption participant reads | `crates/core-plans/src/store/binding_participants.rs` |
+| `crates/core-plans/src/store/graph.rs` | reachable latest-version dependency checks | `crates/core-plans/src/store/graph.rs` |
+| `crates/core-plans/src/store/linked.rs` | captured dependency preview reads | `crates/core-plans/src/store/linked.rs` |
+| `crates/core-plans/src/store/map.rs` | captured latest-plan map reads | `crates/core-plans/src/store/map.rs` |
+| `crates/core-plans/src/store/notifications.rs` | transactional dependency invalidations | `crates/core-plans/src/store/notifications.rs` |
+| `crates/core-plans/src/store/view.rs` | showing a plan version in its conversation | `crates/core-plans/src/store/view.rs` |
+| `crates/core-plans/src/ops.rs` | applying one batch of plan edits | `crates/core-plans/src/ops.rs` |
+| `crates/core-plans/src/rules.rs` | what makes a plan invalid or unready | `crates/core-plans/src/rules.rs` |
+| `crates/core-plans/src/scope.rs` | plan calls made under an MCP grant | `crates/core-plans/src/scope.rs` |
+| `crates/core-plans/src/conversation.rs` | the plan in the conversation | `crates/core-plans/src/conversation.rs` |
 | `crates/core-grants/src/` | grant authorization | `crates/core-grants/src/mod.rs` |
 | `crates/core-grants/src/model.rs` | the grant types callers meet | `crates/core-grants/src/model.rs` |
 | `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
@@ -273,9 +273,9 @@ pattern to follow, not merely an example.
 | `crates/core-design/src/agreement_validation.rs` | offline agreement content validation | `crates/core-design/src/agreement_validation.rs` |
 | `crates/core-design/src/agreements.rs` | shared agreement service entry points | `crates/core-design/src/agreements.rs` |
 | `crates/core-design/src/agreement_scope.rs` | grant attribution for agreement calls | `crates/core-design/src/agreement_scope.rs` |
-| `crates/shadows-core/src/plans/agreement_review.rs` | agreement review value shapes | `crates/shadows-core/src/plans/agreement_review.rs` |
+| `crates/core-plans/src/agreement_review.rs` | agreement review value shapes | `crates/core-plans/src/agreement_review.rs` |
 | `crates/core-design/src/store/agreement_binding.rs` | exact-version adoption checks | `crates/core-design/src/store/agreement_binding.rs` |
-| `crates/shadows-core/src/plans/store/agreement_review.rs` | captured impact review | `crates/shadows-core/src/plans/store/agreement_review.rs` |
+| `crates/core-plans/src/store/agreement_review.rs` | captured impact review | `crates/core-plans/src/store/agreement_review.rs` |
 | `crates/core-design/src/store/agreements.rs` | captured agreement version reads | `crates/core-design/src/store/agreements.rs` |
 | `crates/core-design/src/store/agreement_write.rs` | transactional agreement Draft mutations | `crates/core-design/src/store/agreement_write.rs` |
 | `crates/core-design/src/parts.rs` | part service entry points | `crates/core-design/src/parts.rs` |
@@ -390,17 +390,17 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-design/src/error.rs` | error boundary | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/proposal_context.rs` | proposal context boundary | `crates/core-design/contract.yaml` |
-| `crates/shadows-core/src/plans/agreements.rs` | agreements boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/design_edit.rs` | design edit boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/design_ops.rs` | design ops boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/design_views.rs` | design views boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/error.rs` | error boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/project_links.rs` | project links boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/roadmap_approval.rs` | roadmap approval over plan-linked outcomes | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/store/design_links.rs` | design links boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/store/design_parts.rs` | design parts boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/store/project_links.rs` | project links boundary | `crates/shadows-core/src/plans/contract.yaml` |
-| `crates/shadows-core/src/plans/testing.rs` | testing boundary | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/core-plans/src/agreements.rs` | agreements boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/design_edit.rs` | design edit boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/design_ops.rs` | design ops boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/design_views.rs` | design views boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/error.rs` | error boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/project_links.rs` | project links boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/roadmap_approval.rs` | roadmap approval over plan-linked outcomes | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/design_links.rs` | design links boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/design_parts.rs` | design parts boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/project_links.rs` | project links boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/testing.rs` | testing boundary | `crates/core-plans/contract.yaml` |
 | `crates/shadows-core/src/turns/plan_show.rs` | plan show boundary | `crates/shadows-core/src/turns/contract.yaml` |
 
 | `crates/shadows-core/src/turns/remove.rs` | thread removal orchestration | `crates/shadows-core/src/turns/contract.yaml` |
@@ -416,7 +416,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-core/src/project_lifecycle/error.rs` | project removal refusal | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
 | `crates/shadows-core/src/project_lifecycle/store.rs` | atomic project removal composition | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
 
-| `crates/shadows-core/src/plans/store/event_projection.rs` | identifier-only plan event projection | `crates/shadows-core/src/plans/contract.yaml` |
+| `crates/core-plans/src/store/event_projection.rs` | identifier-only plan event projection | `crates/core-plans/contract.yaml` |
 | `crates/shadows-core/src/events/store.rs` | private journal replay persistence | `crates/shadows-core/src/events/contract.yaml` |
 | `crates/shadows-http/src/aylul_agents.rs` | agent HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_person.rs` | person settings HTTP translation | `crates/shadows-http/src/contract.yaml` |

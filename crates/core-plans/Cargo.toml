@@ -1,0 +1,41 @@
+[package]
+name = "core-plans"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+core-db = { path = "../core-db" }
+core-code = { path = "../core-code" }
+core-design = { path = "../core-design" }
+core-grants = { path = "../core-grants" }
+core-operations = { path = "../core-operations" }
+core-projects = { path = "../core-projects" }
+core-threads = { path = "../core-threads" }
+core-harness = { path = "../core-harness" }
+json-patch = { workspace = true }
+petgraph = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+
+[features]
+test-support = ["core-db/test-support", "core-threads/test-support"]
+
+[dev-dependencies]
+core-plans = { path = ".", features = ["test-support"] }
+tempfile = { workspace = true }

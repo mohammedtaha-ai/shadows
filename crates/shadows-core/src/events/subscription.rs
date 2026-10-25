@@ -29,9 +29,9 @@ use tokio::sync::{broadcast, watch};
 
 use super::store::EventsStore;
 use super::{EventCursor, StoredEvent};
-use crate::plans::UiSignal;
 use crate::turns::OperationId;
 use core_harness::Harness;
+use core_plans::UiSignal;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 

@@ -14,7 +14,7 @@ modules:
 dependencies:
   projects: ../projects/contract.yaml
   threads: ../threads/contract.yaml
-  plans: ../plans/contract.yaml
+  plans: crates/core-plans/contract.yaml
   code: ../code/contract.yaml
   grants: ../grants/contract.yaml
 shapes:

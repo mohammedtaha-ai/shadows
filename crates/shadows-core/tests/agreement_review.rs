@@ -65,6 +65,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let first=core.design().start_agreement("start".into(),&project,None,Some(AgreementContent {
         capability:"Login".into(),purpose:"Login".into(),behavior:"Credentials".into(),
@@ -78,6 +79,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .plans()
         .review_agreement(&project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(review.compatibility, "Needs review");
     assert_eq!(review.parties.len(), 1);
@@ -96,6 +98,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(matches!(
         core.plans()
@@ -106,13 +109,15 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
                 0,
                 review.review_id
             )
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::RevisionConflict { .. }))
     ));
     let fresh = core
         .plans()
         .review_agreement(&project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let agreed = core
         .plans()
@@ -124,6 +129,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             fresh.review_id.clone(),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(agreed.state, AgreementState::Agreed);
     let v2 = core
@@ -180,6 +186,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             fresh.review_id,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(replay.version, 1);
     assert_eq!(

@@ -36,6 +36,7 @@ async fn two_starts_make_one_draft() {
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .get_plan_for_test(&v1)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .plan_id
     );
@@ -65,6 +66,7 @@ async fn a_new_version_needs_its_reason() {
     let plan_id = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .plan_id;
     let plans = app.core.plans();
@@ -84,7 +86,7 @@ async fn a_new_version_needs_its_reason() {
         }
     };
     for blank in [None, Some("  ")] {
-        match start(blank).await {
+        match start(blank).await.map_err(CoreError::from) {
             Err(CoreError::Refused {
                 code: ErrorCode::InvalidCommand,
                 message,
@@ -138,6 +140,7 @@ async fn first_start(app: &App, writer: &Writer) -> DraftStarted {
             std::slice::from_ref(app.part.as_ref().unwrap()),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
 }
 
@@ -152,6 +155,7 @@ async fn a_retried_first_start_answers_its_v1() {
     shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .approve_plan_for_test(&ctx("approve", "PlanApprove"), &v1.workflow_id, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(first_start(&app, &writer).await, v1);
     let versions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workflow WHERE plan_id = ?")
@@ -191,6 +195,7 @@ async fn approving_an_external_version_writes_no_entry() {
             std::slice::from_ref(app.part.as_ref().unwrap()),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let v1 = started.workflow_id;
     shadows_core::AppCore::plans_for_tests(app.storage.clone())
@@ -203,10 +208,12 @@ async fn approving_an_external_version_writes_no_entry() {
             &[add(1)],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let approved = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .approve_plan_for_test(&ctx("approve-ext", "PlanApprove"), &v1, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         (approved.workflow_id.clone(), approved.version),
@@ -216,6 +223,7 @@ async fn approving_an_external_version_writes_no_entry() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(plan.state, WorkflowState::Frozen);
     assert_eq!(plan.written_by, WrittenBy::External { grant_id: grant });

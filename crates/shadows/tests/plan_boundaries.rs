@@ -23,6 +23,7 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
         .plans()
         .archive("archive".into(), &v1.plan_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     // These calls represent writes already scoped before the archive committed.
     let edited = shadows_core::AppCore::plans_for_tests(app.storage.clone())
@@ -34,7 +35,8 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
             1,
             &[add(2)],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     let started = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .start_draft_for_test(
             &writer_ctx(&writer, "late-start", "DraftStart", json!({})),
@@ -48,12 +50,14 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
             None,
             &[],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     let approved = app
         .core
         .plans()
         .approve("late-approve".into(), &v1.workflow_id, 1)
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         edited
             .as_ref()
@@ -79,6 +83,7 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
     let after = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         (after.revision, after.state, after.tasks.len()),
@@ -94,6 +99,7 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let other = shadows_core::Threads::create_planning_thread_for_test(
         &app.storage,

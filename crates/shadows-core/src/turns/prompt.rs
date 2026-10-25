@@ -6,7 +6,7 @@
 //! `/` goes alone when it has no images, and the changes it skipped are handed back to be withheld
 //! until a normal turn can carry them.
 
-use crate::plans::{Focus, PlanListing};
+use core_plans::{Focus, PlanListing};
 use shadows_agent::acp::{ImageBlock, PromptBlock};
 
 /// What the harness and the turn's request supply; none of it is ordered yet.

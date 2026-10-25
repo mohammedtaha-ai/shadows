@@ -16,8 +16,6 @@ use shadows_process::{ProcessSpec, spawn};
 
 use crate::error::CoreError;
 use crate::events::Events;
-use crate::plans::Plans;
-use crate::plans::UiSignal;
 use crate::project_lifecycle::ProjectLifecycle;
 use crate::turns::{Bus, LiveHandles, Turns};
 use core_agents::Agents;
@@ -30,6 +28,8 @@ use core_harness::{AylulOwners, Harness, SessionsConfig};
 use core_instructions::Instructions;
 use core_operations::Operations;
 use core_person::PersonSettings;
+use core_plans::Plans;
+use core_plans::UiSignal;
 use core_projects::Projects;
 use core_providers::Providers;
 use core_runtime::Runtime;
@@ -106,8 +106,8 @@ pub struct CoreParts {
          `crates/core-design/contract.yaml` |"]
 #[doc = " | `Plans` | \
          plan version lifecycle | \
-         `crates/shadows-core/src/plans` | \
-         `crates/shadows-core/src/plans/contract.yaml` |"]
+         `crates/core-plans/src` | \
+         `crates/core-plans/contract.yaml` |"]
 #[doc = " | `Grants` | \
          grant authorization | \
          `crates/core-grants/src` | \

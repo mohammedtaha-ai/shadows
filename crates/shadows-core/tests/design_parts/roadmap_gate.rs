@@ -22,7 +22,12 @@ async fn setup() -> (tempfile::TempDir, Arc<AppCore>, ProjectId, Grant, Storage)
 }
 
 async fn start(core: &AppCore, grant: &Grant, parts: Vec<PartId>) -> DraftStart {
-    let draft_ref = core.plans().prepare_draft(grant).await.unwrap();
+    let draft_ref = core
+        .plans()
+        .prepare_draft(grant)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     DraftStart {
         title: Some("Plan".into()),
         goal: Some("Goal".into()),
@@ -71,12 +76,19 @@ async fn a_plan_cannot_start_before_the_roadmap() {
     let (_tmp, core, p, grant, _storage) = setup().await;
     let args = start(&core, &grant, vec![]).await;
     blocked(
-        core.plans().start_draft(&grant, args).await,
+        core.plans()
+            .start_draft(&grant, args)
+            .await
+            .map_err(shadows_core::CoreError::from),
         "no roadmap approved",
     );
     core.design().seed_roadmap_for_tests(&p).await.unwrap();
     let args = start(&core, &grant, vec![]).await;
-    core.plans().start_draft(&grant, args).await.unwrap();
+    core.plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
 }
 
 #[tokio::test]
@@ -84,18 +96,25 @@ async fn edit_and_approve_wait_for_the_roadmap() {
     let (_tmp, core, p, grant, storage) = setup().await;
     let part = core.design().seed_roadmap_for_tests(&p).await.unwrap();
     let args = start(&core, &grant, vec![part]).await;
-    let started = core.plans().start_draft(&grant, args).await.unwrap();
+    let started = core
+        .plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     unapprove_roadmap(&storage, &p).await;
     blocked(
         core.plans()
             .edit(&grant, edit_args(&started.workflow_id, 0, "edit-1"))
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         "no roadmap approved",
     );
     blocked(
         core.plans()
             .approve("approve-0".into(), &started.workflow_id, 0)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         "no roadmap approved",
     );
     let unbind = PlanOp::BindingRemove {
@@ -106,13 +125,15 @@ async fn edit_and_approve_wait_for_the_roadmap() {
     blocked(
         core.plans()
             .edit_bindings("bind-0".into(), &started.workflow_id, 0, vec![unbind])
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         "no roadmap approved",
     );
     core.design().seed_roadmap_for_tests(&p).await.unwrap();
     core.plans()
         .edit(&grant, edit_args(&started.workflow_id, 0, "edit-2"))
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
 }
 
@@ -121,28 +142,47 @@ async fn a_plan_with_no_part_cannot_be_approved() {
     let (_tmp, core, p, grant, _storage) = setup().await;
     let part = core.design().seed_roadmap_for_tests(&p).await.unwrap();
     let args = start(&core, &grant, vec![]).await;
-    let bare = core.plans().start_draft(&grant, args).await.unwrap();
+    let bare = core
+        .plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     core.plans()
         .edit(&grant, edit_args(&bare.workflow_id, 0, "bare-edit"))
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     blocked(
         core.plans()
             .approve("bare-approve".into(), &bare.workflow_id, 1)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         "plan has no part",
     );
     let args = start(&core, &grant, vec![part.clone()]).await;
-    let tied = core.plans().start_draft(&grant, args).await.unwrap();
+    let tied = core
+        .plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     core.plans()
         .edit(&grant, edit_args(&tied.workflow_id, 0, "tied-edit"))
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.plans()
         .approve("tied-approve".into(), &tied.workflow_id, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    let view = core.plans().design_part(&p, &part).await.unwrap();
+    let view = core
+        .plans()
+        .design_part(&p, &part)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(view.plans, vec![tied.plan_id]);
 }
 
@@ -151,9 +191,21 @@ async fn a_start_with_an_unknown_part_links_nothing() {
     let (_tmp, core, p, grant, _storage) = setup().await;
     core.design().seed_roadmap_for_tests(&p).await.unwrap();
     let args = start(&core, &grant, vec![PartId::generate()]).await;
-    let refused = core.plans().start_draft(&grant, args).await;
+    let refused = core
+        .plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(refused.is_err(), "{refused:?}");
-    assert!(core.plans().map(&p).await.unwrap().plans.is_empty());
+    assert!(
+        core.plans()
+            .map(&p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .plans
+            .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -172,13 +224,15 @@ async fn hand_outcome_edits_wait_for_the_first_roadmap() {
     blocked(
         core.plans()
             .edit_design("early".into(), &p, 0, vec![create()])
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         "the first roadmap comes from the Planner",
     );
     core.design().seed_roadmap_for_tests(&p).await.unwrap();
     core.plans()
         .edit_design("late".into(), &p, 0, vec![create()])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
 }
 
@@ -188,7 +242,12 @@ async fn a_recorded_start_still_answers_before_the_roadmap() {
     core.design().seed_roadmap_for_tests(&p).await.unwrap();
     let args = start(&core, &grant, vec![]).await;
     let draft_ref = args.draft_ref.clone();
-    let first = core.plans().start_draft(&grant, args).await.unwrap();
+    let first = core
+        .plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     unapprove_roadmap(&storage, &p).await;
     let again = DraftStart {
         title: Some("Plan".into()),
@@ -199,7 +258,11 @@ async fn a_recorded_start_still_answers_before_the_roadmap() {
         parts: vec![],
     };
     assert_eq!(
-        core.plans().start_draft(&grant, again).await.unwrap(),
+        core.plans()
+            .start_draft(&grant, again)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap(),
         first
     );
 }

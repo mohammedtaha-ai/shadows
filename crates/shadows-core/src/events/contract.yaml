@@ -35,11 +35,11 @@ modules:
   store.rs: private journal replay persistence
   subscription.rs: replay handoff delivery
 dependencies:
-  plans: ../plans/contract.yaml
+  plans: crates/core-plans/contract.yaml
   harness: crates/core-harness/contract.yaml
   projects: ../projects/contract.yaml
   turns: ../turns/contract.yaml
-  signal: ../plans/contract.yaml
+  signal: crates/core-plans/contract.yaml
 
 
 shapes:

@@ -7,9 +7,9 @@ use shadows_agent::choices::Offered;
 use super::Turns;
 use super::store::{Dequeue, NewTurn, StartedTurn};
 use crate::error::CoreError;
-use crate::plans::Focus;
 use core_db::{CommandContext, StorageError};
 use core_harness::OpenSession;
+use core_plans::Focus;
 use core_threads::{ThreadId, TurnContext};
 
 /// What the person asked for: the command and what it records.

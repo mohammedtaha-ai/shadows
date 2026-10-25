@@ -60,11 +60,11 @@ pub(crate) use turn::StopOutcome;
 pub type Bus =
     tokio::sync::broadcast::Sender<(ThreadId, OperationId, shadows_agent::events::HarnessEvent)>;
 use crate::error::CoreError;
-use crate::plans::{Focus, PlanId};
 use core_code::Code;
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_harness::{Harness, LeaseError};
 use core_instructions::Instructions;
+use core_plans::{Focus, PlanId};
 use core_projects::Projects;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
@@ -98,8 +98,8 @@ pub struct Turns {
     instructions: Instructions,
     standards: Standards,
     projects: Projects,
-    plans: crate::plans::Plans,
-    ui: tokio::sync::broadcast::Sender<crate::plans::UiSignal>,
+    plans: core_plans::Plans,
+    ui: tokio::sync::broadcast::Sender<core_plans::UiSignal>,
 }
 
 /// A person's turn, as the route received it.
@@ -158,8 +158,8 @@ impl Turns {
         instructions: Instructions,
         standards: Standards,
         projects: Projects,
-        plans: crate::plans::Plans,
-        ui: tokio::sync::broadcast::Sender<crate::plans::UiSignal>,
+        plans: core_plans::Plans,
+        ui: tokio::sync::broadcast::Sender<core_plans::UiSignal>,
     ) -> Self {
         Self {
             store: store::TurnsStore::with_storage(storage.clone()),

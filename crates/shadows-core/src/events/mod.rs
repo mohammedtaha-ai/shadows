@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use tokio::sync::broadcast;
 
-use crate::plans::UiSignal;
+use core_plans::UiSignal;
 pub use model::EventCursor;
 pub use store::StoredEvent;
 pub use subscription::{Delivery, Subscription};

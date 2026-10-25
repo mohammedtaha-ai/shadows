@@ -72,6 +72,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         core.plans()
             .edit_design("first".into(), &project, 0, first.clone())
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         1
@@ -91,11 +92,13 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         core.plans()
             .edit_design("first".into(), &project, 0, first)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         1
@@ -111,7 +114,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                     text: "changed".into()
                 }]
             )
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::CommandConflict))
     ));
     let other = core
@@ -136,7 +140,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
     let loser = if a.is_err() { a } else { b };
     assert!(matches!(
-        loser,
+        loser.map_err(CoreError::from),
         Err(CoreError::Storage(StorageError::RevisionConflict {
             current: 1,
             ..
@@ -162,6 +166,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     assert_eq!(
@@ -216,6 +221,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     assert_eq!(core.design().vision(&other).await.unwrap(), before_view);
@@ -249,6 +255,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         core.plans()
             .edit_design("batch".into(), &other, 1, batch)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         2

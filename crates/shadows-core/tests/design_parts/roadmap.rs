@@ -129,6 +129,7 @@ impl Fixture {
             .plans()
             .approve_roadmap_proposal(format!("approve-{}", card.id), &self.p, &card.id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap();
         card
     }
@@ -200,12 +201,14 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
         .plans()
         .approve_roadmap_proposal("approve".into(), &f.p, &card.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let replay = f
         .core
         .plans()
         .approve_roadmap_proposal("approve".into(), &f.p, &card.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(change, replay);
     assert_eq!(
@@ -233,6 +236,7 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
         .plans()
         .design_outcome(&f.p, &roots[0].id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(view.parts.len(), 2);
     let children = f
@@ -275,6 +279,7 @@ async fn the_planner_approves_at_the_persons_request() {
         .plans()
         .approve_roadmap_proposal_as_planner(&f.grant, &card.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let by = f.proposals().await[0].approved_by.clone().unwrap();
     assert!(by.agent.starts_with("planner:"), "{}", by.agent);
@@ -321,7 +326,8 @@ async fn a_newer_first_or_a_replaces_supersedes_the_pending_card() {
         f.core
             .plans()
             .approve_roadmap_proposal("old".into(), &f.p, &a.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         ErrorCode::InvalidCommand,
         "superseded",
     );
@@ -354,6 +360,7 @@ async fn a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not() {
         .plans()
         .edit_design("vision".into(), &f.p, revision, vec![vision])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(!f.proposals().await[0].outdated);
     let part = f
@@ -361,6 +368,7 @@ async fn a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not() {
         .plans()
         .design_part(&f.p, &f.parts[0])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .part;
     let mut content = part.content.clone();
@@ -381,13 +389,15 @@ async fn a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not() {
         .plans()
         .edit_design("part".into(), &f.p, revision, vec![put])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(f.proposals().await[0].outdated);
     refused(
         f.core
             .plans()
             .approve_roadmap_proposal("stale".into(), &f.p, &card.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         ErrorCode::StageBlocked,
         "proposal outdated; propose again",
     );

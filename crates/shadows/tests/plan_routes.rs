@@ -275,6 +275,7 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
             },
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap_err();
     match err {
         shadows_core::CoreError::Refused { code, message } => {
@@ -337,6 +338,7 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
             },
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(outcome.revision, 1);
 

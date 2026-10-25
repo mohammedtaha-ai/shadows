@@ -7,12 +7,12 @@
 
 use sqlx::SqliteConnection;
 
-use crate::plans::Focus;
-use crate::plans::Plans;
 use crate::turns::model::{OperationId, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_harness::{Harness, NewInvocation};
 use core_operations::Operations;
+use core_plans::Focus;
+use core_plans::Plans;
 use core_runtime::RuntimeInstanceId;
 use core_threads::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 use shadows_agent::TurnSettings;
@@ -96,7 +96,7 @@ async fn focused(
     let project = Threads::project_in(conn, thread).await?;
     let in_project = Plans::workflow_in_project_in(conn, &focus.workflow_id, &project).await?;
     if !in_project {
-        return Err(crate::plans::PlansError::TaskNotInPlan(
+        return Err(core_plans::PlansError::TaskNotInPlan(
             "the chosen plan is not in this conversation's project".into(),
         )
         .into());
@@ -104,7 +104,7 @@ async fn focused(
     Plans::task_of(conn, &focus.workflow_id, &focus.task_id)
         .await?
         .ok_or_else(|| {
-            crate::plans::PlansError::TaskNotInPlan("the chosen task is not in that plan".into())
+            core_plans::PlansError::TaskNotInPlan("the chosen task is not in that plan".into())
                 .into()
         })
 }

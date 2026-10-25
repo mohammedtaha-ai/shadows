@@ -108,6 +108,7 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
         .plans()
         .review_agreement_for(&grant, &person.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(review, serde_json::to_value(scoped).unwrap());
 
@@ -141,12 +142,19 @@ async fn plan_adapter_pairs_keep_their_authorization_boundaries() {
         .unwrap()
         .grant;
     let id = WorkflowId::from_literal("00000000-0000-0000-0000-000000000001");
-    let person = w.core.plans().get(&id).await.unwrap_err();
+    let person = w
+        .core
+        .plans()
+        .get(&id)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap_err();
     let agent = w
         .core
         .plans()
         .get_for(&grant, Some(&id), None)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap_err();
     assert_eq!(person.code(), ErrorCode::InvalidCommand);
     assert_eq!(person.to_string(), "not found: workflow");
@@ -160,6 +168,7 @@ async fn plan_adapter_pairs_keep_their_authorization_boundaries() {
         .plans()
         .approve_as_planner(&grant, &id, 0)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap_err();
     assert_eq!(refused.code(), ErrorCode::GrantScope);
     assert_eq!(

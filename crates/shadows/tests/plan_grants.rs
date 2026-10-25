@@ -44,6 +44,7 @@ async fn external_start(
             &[],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
 }
 
 fn ref_command(r: &str) -> String {
@@ -94,6 +95,7 @@ async fn a_draft_ref_binds_in_both_paths() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .plan_id;
     let r2 = insert_draft_ref(&app, &grant, &in_an_hour()).await;
@@ -171,6 +173,7 @@ async fn a_draft_ref_binds_in_both_paths() {
     let plans = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .list_plans_for_test(&app.project, true)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(plans.len(), 2, "the refused starts created no plan");
     let threads =
@@ -219,7 +222,8 @@ async fn an_edit_by_a_revoked_grant_writes_nothing() {
             0,
             &[add(1)],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         matches!(
             refused,
@@ -265,7 +269,8 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
             0,
             &[add(1)],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         matches!(
             refused,
@@ -292,6 +297,7 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
             &[add(1)],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(done.revision, 1);
     let edited = events(&app, &app.thread).await;
@@ -347,6 +353,7 @@ async fn an_external_start_from_scratch_creates_a_plan_and_no_thread() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&started.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         (plan.title.as_str(), plan.goal.as_str()),
@@ -399,6 +406,7 @@ async fn external_draft_starts_require_a_draft_ref() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&frozen)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .plan_id;
     let in_plan = external_start(
@@ -424,6 +432,7 @@ async fn external_draft_starts_require_a_draft_ref() {
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .thread_plan_for_test(&app.thread)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap(),
         Some(frozen)
     );
@@ -431,6 +440,7 @@ async fn external_draft_starts_require_a_draft_ref() {
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .list_plans_for_test(&app.project, true)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .len(),
         1

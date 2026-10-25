@@ -54,7 +54,8 @@ async fn folders_nest_only_under_their_parent() {
                 &["BACKEND/src"],
             )],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(result.is_err());
     assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
 }
@@ -72,6 +73,7 @@ async fn a_folder_with_dot_dot_or_absolute_is_refused() {
                     vec![mapped(&PartId::generate(), None, "x", &[path])]
                 )
                 .await
+                .map_err(shadows_core::CoreError::from)
                 .is_err()
         );
     }
@@ -81,6 +83,7 @@ async fn a_folder_with_dot_dot_or_absolute_is_refused() {
         core.plans()
             .design_part(&p, &id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .part
             .content
@@ -115,6 +118,7 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         .plans()
         .design_part(&p, &backend)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .part
         .content;
@@ -136,7 +140,8 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         assert!(matches!(
             core.plans()
                 .edit_design(format!("drop-{n}"), &p, 1, vec![op])
-                .await,
+                .await
+                .map_err(shadows_core::CoreError::from),
             Err(CoreError::Refused {
                 code: shadows_core::ErrorCode::StageBlocked,
                 ..
@@ -184,6 +189,7 @@ async fn removed_links_and_metadata_edits_preserve_drift() {
         .plans()
         .design_part(&p, &id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .part
         .content;
@@ -255,6 +261,7 @@ async fn initial_files_cannot_escape_part_ownership() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
 }
@@ -297,7 +304,8 @@ async fn initial_files_cannot_also_be_directories() {
         let result = core
             .plans()
             .edit_design(format!("collision-{n}"), &p, 0, ops)
-            .await;
+            .await
+            .map_err(shadows_core::CoreError::from);
         assert!(
             result.is_err(),
             "file/directory collision was accepted: {folder}"
@@ -323,7 +331,8 @@ async fn a_hand_part_create_before_the_first_map_is_stage_blocked() {
     let result = core
         .plans()
         .edit_design("blocked".into(), &p, 0, vec![create(&id, None, "core")])
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(matches!(
         result,
         Err(CoreError::Refused {

@@ -78,6 +78,7 @@ async fn edit(core: &AppCore, p: &ProjectId, rev: i64, ops: Vec<DesignOp>) {
         core.plans()
             .edit_design(format!("edit-{p}-{rev}"), p, rev, ops)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         rev + 1
@@ -132,12 +133,14 @@ async fn part_moves_keep_identity_and_reject_cycles() {
                     },
                 ],
             )
-            .await;
+            .await
+            .map_err(shadows_core::CoreError::from);
         assert!(result.is_err());
         assert_eq!(
             core.plans()
                 .design_part(&p, &b)
                 .await
+                .map_err(shadows_core::CoreError::from)
                 .unwrap()
                 .part
                 .content
@@ -159,7 +162,7 @@ async fn part_moves_keep_identity_and_reject_cycles() {
     assert_eq!(usize::from(x.is_ok()) + usize::from(y.is_ok()), 1);
     let failed = if x.is_err() { x } else { y };
     assert!(matches!(
-        failed,
+        failed.map_err(CoreError::from),
         Err(CoreError::Storage(StorageError::RevisionConflict {
             current: 2,
             ..
@@ -175,7 +178,12 @@ async fn part_moves_keep_identity_and_reject_cycles() {
         }],
     )
     .await;
-    let v = core.plans().design_part(&p, &c).await.unwrap();
+    let v = core
+        .plans()
+        .design_part(&p, &c)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(
         v.ancestors.iter().map(|p| p.id.clone()).collect::<Vec<_>>(),
         vec![b.clone()]
@@ -183,7 +191,13 @@ async fn part_moves_keep_identity_and_reject_cycles() {
     assert_eq!(v.ancestors[0].content.title, "جديد");
     assert_eq!(v.part.id, c);
     assert_eq!(v.ancestors[0].content.design, " تصميم\n");
-    assert!(core.plans().design_part(&q, &b).await.is_err());
+    assert!(
+        core.plans()
+            .design_part(&q, &b)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .is_err()
+    );
     // A failed batch journals nothing; successes have one event each.
     let conn = sqlx::SqlitePool::connect_with(
         sqlx::sqlite::SqliteConnectOptions::new().filename(tmp.path().join("test.sqlite3")),
@@ -226,7 +240,12 @@ async fn part_order_is_stable_across_restart() {
     .await;
     let seeded = core.design().seed_roadmap_for_tests(&p).await.unwrap();
     let grant = core.grants().issue("grant".into(), &p).await.unwrap().grant;
-    let draft_ref = core.plans().prepare_draft(&grant).await.unwrap();
+    let draft_ref = core
+        .plans()
+        .prepare_draft(&grant)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     let start = core
         .plans()
         .start_draft(
@@ -241,6 +260,7 @@ async fn part_order_is_stable_across_restart() {
             },
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.plans()
         .edit(
@@ -265,19 +285,23 @@ async fn part_order_is_stable_across_restart() {
             },
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.plans()
         .approve("approve".into(), &start.workflow_id, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.plans()
         .archive("archive".into(), &start.plan_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let frozen = core
         .plans()
         .get(&start.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .content();
     let link = DesignOp::PlanLinkPut {
@@ -300,7 +324,12 @@ async fn part_order_is_stable_across_restart() {
     )
     .await;
     assert_eq!(
-        core.plans().design_part(&p, &a).await.unwrap().plans,
+        core.plans()
+            .design_part(&p, &a)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .plans,
         vec![start.plan_id.clone()]
     );
     assert_eq!(
@@ -330,6 +359,7 @@ async fn part_order_is_stable_across_restart() {
             core.plans()
                 .edit_design(uuid::Uuid::new_v4().to_string(), &p, 2, vec![bad])
                 .await
+                .map_err(shadows_core::CoreError::from)
                 .is_err()
         );
     }
@@ -351,12 +381,14 @@ async fn part_order_is_stable_across_restart() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     assert_eq!(
         core.plans()
             .get(&start.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .content(),
         frozen
@@ -371,7 +403,13 @@ async fn part_order_is_stable_across_restart() {
         vec![c, b.clone(), a.clone()]
     );
     assert_eq!(
-        reopened.plans().design_part(&p, &a).await.unwrap().plans,
+        reopened
+            .plans()
+            .design_part(&p, &a)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .plans,
         vec![start.plan_id.clone()]
     );
     edit(
@@ -391,7 +429,12 @@ async fn part_order_is_stable_across_restart() {
         ],
     )
     .await;
-    let moved = reopened.plans().design_part(&p, &a).await.unwrap();
+    let moved = reopened
+        .plans()
+        .design_part(&p, &a)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(moved.plans, vec![start.plan_id.clone()]);
     assert_eq!(moved.ancestors[0].id, b);
     edit(
@@ -409,6 +452,7 @@ async fn part_order_is_stable_across_restart() {
             .plans()
             .design_part(&p, &a)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .plans
             .is_empty()
@@ -418,6 +462,7 @@ async fn part_order_is_stable_across_restart() {
             .plans()
             .get(&start.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .content(),
         frozen
@@ -440,6 +485,7 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
     core.plans()
         .edit_design("many".into(), &p, 0, ops.clone())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let first = core.design().parts(&p, None, None).await.unwrap();
     assert_eq!(first.items.len(), 50);
@@ -466,6 +512,7 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
         core.plans()
             .edit_design("many".into(), &p, 0, ops)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         1
@@ -475,7 +522,13 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
         .await
         .unwrap();
     assert!(core.design().parts(&p, None, None).await.is_err());
-    assert!(core.plans().design_part(&p, &ids[0]).await.is_err());
+    assert!(
+        core.plans()
+            .design_part(&p, &ids[0])
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .is_err()
+    );
     assert!(
         core.plans()
             .edit_design(
@@ -485,6 +538,7 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
                 vec![create(&PartId::generate(), None, "no")]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     // Replay remains valid after project removal; no new write occurs.
@@ -500,6 +554,7 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         2

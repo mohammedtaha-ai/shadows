@@ -33,6 +33,7 @@ async fn a_new_draft_is_version_one_at_revision_zero() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&started.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(
         matches!(
@@ -62,6 +63,7 @@ async fn a_new_draft_is_version_one_at_revision_zero() {
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .thread_plan_for_test(&app.thread)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap(),
         Some(started.workflow_id.clone())
     );
@@ -93,11 +95,13 @@ async fn start_draft_answers_the_existing_draft_unchanged() {
             &[],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(again, first);
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&first.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!((plan.title.as_str(), plan.revision), ("Login", 1));
     assert_eq!(
@@ -123,6 +127,7 @@ async fn an_edit_moves_the_revision_once_and_records_one_event() {
             &ops,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!((outcome.version, outcome.revision), (1, 1));
     assert_eq!(outcome.changed_tasks, vec![1, 2]);
@@ -136,6 +141,7 @@ async fn an_edit_moves_the_revision_once_and_records_one_event() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(plan.revision, 1);
     assert_eq!(
@@ -172,6 +178,7 @@ async fn an_edit_on_a_stale_revision_is_refused_with_the_current_one_and_a_summa
             &[add(1)],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
 
     let stale = [add(2)];
@@ -185,6 +192,7 @@ async fn an_edit_on_a_stale_revision_is_refused_with_the_current_one_and_a_summa
             &stale,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap_err();
     match refused {
         shadows_core::CoreError::Storage(StorageError::RevisionConflict { current, summary }) => {
@@ -204,12 +212,14 @@ async fn a_replayed_edit_returns_its_own_outcome_after_a_later_edit() {
     let a = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .edit_plan_for_test(&a_ctx, &Writer::Person, None, &v1, 0, &[add(1)])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(edit(&app, &v1, 1, &[add(2)]).await, 2);
 
     let replayed = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .edit_plan_for_test(&a_ctx, &Writer::Person, None, &v1, 0, &[add(1)])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(replayed, a);
     assert_eq!(replayed.revision, 1);
@@ -253,6 +263,7 @@ async fn the_same_explicit_command_id_with_different_ops_is_a_command_conflict()
             &[add(1)],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let conflict = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .edit_plan_for_test(
@@ -263,7 +274,8 @@ async fn the_same_explicit_command_id_with_different_ops_is_a_command_conflict()
             0,
             &[add(2)],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         matches!(
             conflict,
@@ -289,7 +301,8 @@ async fn an_invalid_edit_writes_nothing() {
             0,
             &ops,
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     match refused {
         Err(shadows_core::CoreError::ValidationFailed { problems, .. }) => {
             assert!(!problems.is_empty())
@@ -301,6 +314,7 @@ async fn an_invalid_edit_writes_nothing() {
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .get_plan_for_test(&v1)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .tasks
             .is_empty()
@@ -325,7 +339,8 @@ async fn a_frozen_version_refuses_edits() {
             1,
             &[add(3)],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         matches!(
             refused,
@@ -346,6 +361,7 @@ async fn approval_freezes_and_writes_a_plan_approved_entry() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(plan.state, WorkflowState::Frozen);
     assert!(plan.frozen_at.is_some());
@@ -374,6 +390,7 @@ async fn a_replayed_approval_answers_its_own_outcome_after_v2_exists() {
     let first = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .approve_plan_for_test(&approve, &v1, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!((first.version, first.revision), (1, 1));
 
@@ -381,12 +398,14 @@ async fn a_replayed_approval_answers_its_own_outcome_after_v2_exists() {
     let replayed = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .approve_plan_for_test(&approve, &v1, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(replayed, first);
     assert_eq!(
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .get_plan_for_test(&v1)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .next,
         Some(v2)
@@ -403,12 +422,14 @@ async fn approval_with_blockers_is_refused_with_the_list() {
     let v1 = draft(&app).await.workflow_id;
     let refused = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .approve_plan_for_test(&ctx("approve-1", "PlanApprove"), &v1, 0)
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     match refused {
         Err(shadows_core::CoreError::ValidationFailed { problems, .. }) => {
             let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
                 .get_plan_for_test(&v1)
                 .await
+                .map_err(shadows_core::CoreError::from)
                 .unwrap();
             let blockers: Vec<String> = plan.blockers.iter().map(|p| p.message.clone()).collect();
             assert_eq!(problems, blockers);
@@ -425,6 +446,7 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
     let before = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
 
     let v2 = draft_on(&app, &app.thread, "start-v2").await;
@@ -432,6 +454,7 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
     let copy = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v2.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         (copy.state, copy.revision, copy.previous.as_ref()),
@@ -452,6 +475,7 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .get_plan_for_test(&v1)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap(),
         {
             let mut b = before.clone();
@@ -463,12 +487,14 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .thread_plan_for_test(&app.thread)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap(),
         Some(v2.workflow_id.clone())
     );
     let listed = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .list_plans_for_test(&app.project, false)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(
@@ -511,6 +537,7 @@ async fn reads_and_writes_are_stored_in_scope_json() {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(plan.tasks[0].content, task(1, "مهمة"));
 }
@@ -537,6 +564,7 @@ async fn completes_after_links_keep_their_waiting_items() {
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .get_plan_for_test(&v1)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .links,
         vec![link]

@@ -2,10 +2,10 @@
 
 use sqlx::SqliteConnection;
 
-use crate::plans::{Focus, PlanId};
 use crate::turns::model::{QueuedMessage, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_operations::Operations;
+use core_plans::{Focus, PlanId};
 use core_threads::ThreadId;
 
 pub(super) const SCOPE: &str = "Thread";
@@ -56,7 +56,7 @@ fn message(r: Row) -> Result<QueuedMessage, StorageError> {
         mode: r.5,
         effort: r.6,
         focus: r.7.map(|f| serde_json::from_str(&f)).transpose()?,
-        plan: r.8.map(PlanId::from_stored),
+        plan: r.8.map(PlanId::from_recorded),
         last_error: r.9,
         created_at: r.10,
     })

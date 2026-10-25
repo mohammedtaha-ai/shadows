@@ -181,18 +181,6 @@ impl From<serde_json::Error> for CoreError {
 }
 
 impl CoreError {
-    pub(crate) fn invalid_constraint(error: impl Into<Self>) -> Self {
-        match error.into() {
-            Self::Storage(StorageError::Constraint(message)) => Self::Refused {
-                code: ErrorCode::InvalidCommand,
-                message,
-            },
-            other => other,
-        }
-    }
-}
-
-impl CoreError {
     /// Classifies a failure independently of its transport envelope.
     pub fn code(&self) -> ErrorCode {
         let e = self;
@@ -502,6 +490,43 @@ impl From<core_design::DesignError> for CoreError {
             DesignError::ReasonMissing => Self::ReasonMissing,
             DesignError::Grants(error) => error.into(),
             DesignError::Storage(error) => error.into(),
+        }
+    }
+}
+
+impl From<core_plans::PlansError> for CoreError {
+    fn from(error: core_plans::PlansError) -> Self {
+        use core_plans::PlansError;
+        let message = error.to_string();
+        match error {
+            PlansError::PlanInvalid(problems) => Self::ValidationFailed {
+                message,
+                problems: problems.into_iter().map(|p| p.message).collect(),
+            },
+            PlansError::ReasonMissing => Self::ReasonMissing,
+            PlansError::NotLatestVersion(_) => Self::Unavailable(message),
+            PlansError::WorkflowFrozen => Self::Refused {
+                code: ErrorCode::WorkflowFrozenImmutable,
+                message,
+            },
+            PlansError::GrantScope(message) => Self::Refused {
+                code: ErrorCode::GrantScope,
+                message,
+            },
+            PlansError::GrantInvalid => Self::Refused {
+                code: ErrorCode::GrantInvalid,
+                message,
+            },
+            PlansError::Design(error) => error.into(),
+            PlansError::Projects(error) => error.into(),
+            PlansError::Storage(error) => error.into(),
+            PlansError::PlanLinkInvalid(_)
+            | PlansError::TaskNotInPlan(_)
+            | PlansError::PlanArchived(_)
+            | PlansError::InvalidCommand(_) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
         }
     }
 }

@@ -85,7 +85,7 @@ dependencies:
   operations: crates/core-operations/contract.yaml
   threads: crates/core-threads/contract.yaml
   grants: crates/core-grants/contract.yaml
-  plans: crates/shadows-core/src/plans/contract.yaml
+  plans: crates/core-plans/contract.yaml
   design: crates/core-design/contract.yaml
   standards: crates/core-standards/contract.yaml
   instructions: crates/core-instructions/contract.yaml

@@ -55,7 +55,8 @@ async fn a_deleted_conversation_is_gone_but_readable() {
                     1,
                     &[plan::add(2)],
                 )
-                .await;
+                .await
+                .map_err(shadows_core::CoreError::from);
             let (refused, body) = http_start(
                 &app,
                 app.thread.as_str(),
@@ -100,6 +101,7 @@ async fn a_deleted_conversation_is_gone_but_readable() {
         shadows_core::AppCore::plans_for_tests(app.storage.clone())
             .get_plan_for_test(&draft.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         1

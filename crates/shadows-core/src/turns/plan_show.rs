@@ -1,8 +1,8 @@
 //! Plan cards composed with the sending turn's live tab.
 use super::Turns;
-use crate::plans::UiSignal;
-use crate::plans::{PlanShow, PlanShown};
 use crate::{CoreError, Grant};
+use core_plans::UiSignal;
+use core_plans::{PlanShow, PlanShown};
 
 impl Turns {
     pub async fn show_plan(&self, grant: &Grant, args: PlanShow) -> Result<PlanShown, CoreError> {

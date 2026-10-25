@@ -247,6 +247,7 @@ async fn start(
             &[],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
 }
 
 #[tokio::test]

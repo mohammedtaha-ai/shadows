@@ -1,5 +1,5 @@
-use crate::plans::{Focus, PlanId};
 use core_db::newtype_id;
+use core_plans::{Focus, PlanId};
 use core_runtime::RuntimeInstanceId;
 use core_threads::{ThreadEntryId, ThreadId};
 

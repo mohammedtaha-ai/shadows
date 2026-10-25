@@ -193,6 +193,12 @@ impl From<shadows_core::DesignError> for Refusal {
     }
 }
 
+impl From<shadows_core::PlansError> for Refusal {
+    fn from(error: shadows_core::PlansError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
 #[cfg(test)]
 mod mapping_tests {
     include!(concat!(

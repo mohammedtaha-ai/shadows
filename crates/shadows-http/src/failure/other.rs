@@ -205,3 +205,9 @@ impl From<shadows_core::DesignError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::PlansError> for Failure {
+    fn from(error: shadows_core::PlansError) -> Self {
+        CoreError::from(error).into()
+    }
+}
