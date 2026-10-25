@@ -79,3 +79,26 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   managed-state entry until D-5 and D-7 remove it, relocated one-for-one); no behaviour change;
   the `construction` and `managed_state` baseline counts go down and no other count goes up;
   the crate's tests, the architecture test, clippy and fmt pass
+
+### N-11 · D-4: desktop preferences have a private owner
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-4--give-desktop-preferences-a-private-owner
+  and #decision-d-0
+- Read: `apps/desktop/src-tauri/src/windows/contract.yaml`; `src/windows/preferences.rs` and
+  `preferences_tests.rs`; `src/commands/preferences.rs`; `src/app.rs`;
+  `tests/architecture/README.md`
+- Touch: `src/desktop_preferences/` (new owner: `mod.rs`, its private store and OS login-item
+  adapter, its `contract.yaml`, its tests moved from `windows/preferences_tests.rs`);
+  `src/windows/preferences.rs` and `preferences_tests.rs` (removed or reduced to what `windows`
+  still owns); `src/windows/mod.rs` (main close handler); `src/windows/contract.yaml`;
+  `src/commands/preferences.rs` and `src/commands/contract.yaml`; `src/app.rs`, `src/lib.rs`,
+  `src/contract.yaml`; `tests/architecture/` (owner table: `DesktopPreferences` becomes its own
+  owner; baseline); `docs/aylul/codebase/README.md`; this task's `Status:`
+- Needs: N-10
+- Done when: `DesktopPreferences` is one of `DesktopApp`'s owners with private fields; commands
+  call its methods and cannot reach its store or build `PluginLoginItem`; the main close handler
+  asks it for the close policy; `desktop-preferences-v1.json`, its format and the login-item
+  behaviour are unchanged; partial-update, rollback, corrupt-file and close-policy regressions
+  still pass from their new place; baseline entries for the commands → preferences store and
+  the adapter construction are gone and no count goes up; the crate's tests, the architecture
+  test, clippy, fmt and `npm test` pass
