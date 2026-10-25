@@ -1,30 +1,16 @@
 //! HTTP translation for AYLUL's write-only environment values.
 use axum::Json;
-use axum::extract::{FromRequest, Path, Query, Request, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use shadows_core::EnvEntry;
 
 use super::failure::ErrorBody;
-use super::{AppState, Failure};
+use super::{AppState, Failure, transport::EnvJson};
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct SetEnv {
     command_id: String,
     value: String,
-}
-
-// Never expose serde's rejection: it may include the submitted value.
-pub(super) struct EnvJson<T>(pub(super) T);
-
-impl<S: Send + Sync, T: serde::de::DeserializeOwned + Send> FromRequest<S> for EnvJson<T> {
-    type Rejection = Failure;
-
-    async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
-        Json::<T>::from_request(request, state)
-            .await
-            .map(|Json(body)| Self(body))
-            .map_err(|_| Failure::invalid_env_json())
-    }
 }
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -45,7 +31,7 @@ pub(super) async fn list(
     State(s): State<AppState>,
     Path(slug): Path<String>,
 ) -> Result<Json<Vec<EnvEntry>>, Failure> {
-    Ok(Json(s.core.secrets().list_agent_env(&slug).await?))
+    Ok(Json(s.core.agents().list_env(&slug).await?))
 }
 
 #[utoipa::path(put, path = "/api/aylul/agents/{slug}/env/{name}", tag = "aylul",
@@ -66,8 +52,8 @@ pub(super) async fn set(
 ) -> Result<Json<EnvEntry>, Failure> {
     Ok(Json(
         s.core
-            .secrets()
-            .set_agent_env(body.command_id, &slug, &name, &body.value)
+            .agents()
+            .set_env(body.command_id, &slug, &name, &body.value)
             .await?,
     ))
 }
@@ -88,8 +74,8 @@ pub(super) async fn remove(
     Query(query): Query<RemoveEnv>,
 ) -> Result<StatusCode, Failure> {
     s.core
-        .secrets()
-        .remove_agent_env(query.command_id, &slug, &name)
+        .agents()
+        .remove_env(query.command_id, &slug, &name)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }

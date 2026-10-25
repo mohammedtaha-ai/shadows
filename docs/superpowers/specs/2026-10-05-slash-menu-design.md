@@ -16,7 +16,9 @@ of the composer: the commands and skills the harness offers, filtered as they
 type, each with its description. It copies Claude Code's desktop app. It shows
 **only what the harness sends**. Shadows adds no commands of its own here:
 model and effort already have their pickers (§12.11), and Shadows' own skills
-and their management are future work (vision §13).
+and their management are future work (vision §13). The composer's `+` menu has a
+**Slash commands** item (§12.11, 2026-10-22) that opens this same menu with this same
+list; it adds no source of commands.
 
 ## 21.1 What the adapter gives
 

@@ -6,7 +6,7 @@
 //! `ignore-cancel` (never), `exit` (code 3), `ask-permission` (reject),
 //! `usage` (two context updates), `refuse` (max_tokens), `title <text>` (names
 //! the session `<text>` in a `session_info_update` after answering), and
-//! `mcp <tool> <json>` (calls the session's MCP server, §13.8). `report` also
+//! `mcp <tool> <json>` (calls the session's MCP server). `report` also
 //! shows what the session opened with, the client capabilities' `_meta` that
 //! `initialize` carried, and the prompt's blocks. Models:
 //! `fake-large` (efforts, `auto`), `fake-small` (efforts, no `auto`),
@@ -114,7 +114,7 @@ pub(crate) async fn answer(
                 .setup
                 .bearer
                 .as_deref()
-                .map(shadows_core::testing::hash_token);
+                .map(shadows_core::testing::Token::hash_token);
             let text = json!({
                 "cwd": s.cwd,
                 "session": id,
@@ -170,7 +170,7 @@ pub(crate) async fn answer(
             chunk(cx, id, "m1", "waiting")?;
             let text = crate::steer::wait(s).await;
             // No pause: the reply may stream before Shadows has the answer,
-            // as the real adapter's can (§20.4).
+            // as the real adapter's can.
             chunk(cx, id, "m2", &format!("steered: {text}"))?;
         }
         "wait-for-release" => {

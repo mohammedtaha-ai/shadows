@@ -1,4 +1,4 @@
-//! Removing a project (spec §4.2, §15.4): refused while it holds a planning
+//! Removing a project: refused while it holds a planning
 //! thread; otherwise it is listed nowhere again, its index, its links both
 //! ways and its MCP grants go, and every later request about it is NotFound.
 
@@ -23,25 +23,27 @@ async fn index_file(app: &App, project: &ProjectId, dir: &std::path::Path, name:
 /// A project with no thread, whose folder holds `pub fn <slug>_fn`, indexed.
 async fn indexed_project(app: &App, slug: &str) -> (ProjectId, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
-    let project = app
-        .storage
-        .create_project(
-            &ctx(&fresh_command(), "project.create"),
-            slug,
-            slug,
-            &ProjectDirectory::resolve(dir.path()).unwrap(),
-            &policy::default_modes(),
-        )
-        .await
-        .unwrap()
-        .id;
+    let project = shadows_core::testing::create_project(
+        &app.storage,
+        &ctx(&fresh_command(), "project.create"),
+        slug,
+        slug,
+        &ProjectDirectory::resolve(dir.path()).unwrap(),
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap()
+    .id;
     index_file(app, &project, dir.path(), &format!("{slug}_fn")).await;
     (project, dir)
 }
 
 async fn link(app: &App, project: &ProjectId, linked: &ProjectId) {
-    let code = app.core.code();
-    code.link(fresh_command(), project, linked).await.unwrap();
+    let plans = app.core.plans();
+    plans
+        .link_projects(fresh_command(), project, linked)
+        .await
+        .unwrap();
 }
 
 async fn remove(app: &App, project: &ProjectId, command_id: &str) -> (u16, Value) {
@@ -78,7 +80,11 @@ async fn a_project_with_a_thread_is_not_removed() {
     let app = test_app().await;
     // The app's project holds the fixture's thread.
     let demo = app.project.clone();
-    let dir = app.storage.get_project(&demo).await.unwrap().directory;
+    let dir = shadows_core::testing::projects(app.storage.clone())
+        .get(&demo)
+        .await
+        .unwrap()
+        .directory;
     index_file(&app, &demo, std::path::Path::new(&dir.unwrap()), "demo_fn").await;
     let (other, _dir) = indexed_project(&app, "other").await;
     link(&app, &demo, &other).await;

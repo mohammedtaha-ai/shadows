@@ -1,4 +1,4 @@
-//! Spec §2.10: durable replay, then a no-gap handoff to live, then
+//! Durable replay, then a no-gap handoff to live, then
 //! de-duplication by durable sequence.
 //!
 //! The first two tests own the replay half — what a cursor means and what
@@ -12,29 +12,27 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::extract::{Query, State};
-use axum::response::IntoResponse;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
 use shadows_core::OperationId;
 use shadows_core::Project;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::EventCursor;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::NewThreadEntry;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{PlanningThread, ThreadEntryKind, ThreadId};
 use shadows_http::AppState;
-use shadows_http::sse::{SubscribeQuery, subscribe};
 use tokio_stream::StreamExt;
+use tower::ServiceExt;
 
 use shadows_core::testing::acp;
 
 /// A project and a planning thread, which between them have already written
 /// two durable events: `ProjectCreated` (no thread) and `PlanningThreadCreated`.
-async fn seed(storage: &Storage) -> (Project, PlanningThread) {
+async fn seed(storage: &std::sync::Arc<Storage>) -> (Project, PlanningThread) {
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
         agent: None,
@@ -43,29 +41,35 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
     let dir = shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
-    let project = storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &dir,
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        storage,
+        &ctx,
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     (project, thread)
 }
 
@@ -80,27 +84,32 @@ fn user_message(body: &str) -> NewThreadEntry<'_> {
     }
 }
 
-/// Spec §2.10. Reading after a cursor returns exactly the events the client has
+/// Reading after a cursor returns exactly the events the client has
 /// not seen, in sequence order, with no gap and no repeat.
 #[tokio::test]
 async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
 
-    let mid = storage.current_cursor().await.unwrap();
-
-    for body in ["one", "two", "three"] {
-        storage
-            .append_thread_entry(&thread.id, user_message(body))
-            .await
-            .unwrap();
-    }
-
-    let tail = storage
-        .read_events_after(mid, &thread.id, 100)
+    let mid = shadows_core::Events::current_cursor_for_test(&storage)
         .await
         .unwrap();
+
+    for body in ["one", "two", "three"] {
+        shadows_core::Threads::append_thread_entry_for_test(
+            &storage,
+            &thread.id,
+            user_message(body),
+        )
+        .await
+        .unwrap();
+    }
+
+    let tail =
+        shadows_core::Events::read_events_after_for_test(storage.clone(), mid, &thread.id, 100)
+            .await
+            .unwrap();
     assert_eq!(tail.len(), 3, "exactly the events after the cursor");
     let seqs: Vec<i64> = tail.iter().map(|e| e.seq).collect();
     let mut sorted = seqs.clone();
@@ -109,20 +118,24 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
     assert!(tail.iter().all(|e| e.kind == "ThreadEntryAppended"));
 
     // Re-reading from the same cursor is idempotent.
-    let again = storage
-        .read_events_after(mid, &thread.id, 100)
-        .await
-        .unwrap();
+    let again =
+        shadows_core::Events::read_events_after_for_test(storage.clone(), mid, &thread.id, 100)
+            .await
+            .unwrap();
     assert_eq!(seqs, again.iter().map(|e| e.seq).collect::<Vec<_>>());
 
     // Reading after the last delivered seq returns nothing.
     let after_all = EventCursor(*seqs.last().unwrap());
     assert!(
-        storage
-            .read_events_after(after_all, &thread.id, 100)
-            .await
-            .unwrap()
-            .is_empty()
+        shadows_core::Events::read_events_after_for_test(
+            storage.clone(),
+            after_all,
+            &thread.id,
+            100
+        )
+        .await
+        .unwrap()
+        .is_empty()
     );
 }
 
@@ -130,23 +143,26 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
 #[tokio::test]
 async fn a_zero_cursor_replays_the_whole_thread() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
-    storage
-        .append_thread_entry(&thread.id, user_message("hi"))
+    shadows_core::Threads::append_thread_entry_for_test(&storage, &thread.id, user_message("hi"))
         .await
         .unwrap();
 
-    let all = storage
-        .read_events_after(EventCursor(0), &thread.id, 100)
-        .await
-        .unwrap();
+    let all = shadows_core::Events::read_events_after_for_test(
+        storage.clone(),
+        EventCursor(0),
+        &thread.id,
+        100,
+    )
+    .await
+    .unwrap();
     assert_eq!(all.len(), 2, "thread creation and the entry");
     assert_eq!(all[0].kind, "PlanningThreadCreated");
     assert_eq!(all[1].kind, "ThreadEntryAppended");
 }
 
-/// Spec §2.10's second clause, and the only one that can observe a gap.
+/// The handoff from replay to live delivery must leave no gap.
 ///
 /// The subscription is taken while the handler is still running, before a
 /// single durable row is read. This test publishes a live item in the window
@@ -161,10 +177,13 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
     for body in ["one", "two"] {
-        storage
-            .append_thread_entry(&thread.id, user_message(body))
-            .await
-            .unwrap();
+        shadows_core::Threads::append_thread_entry_for_test(
+            &storage,
+            &thread.id,
+            user_message(body),
+        )
+        .await
+        .unwrap();
     }
     let live = Live::start(storage).await;
     let mut stream = live.open(&thread.id).await;
@@ -194,7 +213,7 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
     );
 }
 
-/// Spec §2.4's live publication after commit, seen from the stream: a durable
+/// Live publication after commit, seen from the stream: a durable
 /// event committed after the handoff reaches a connected client, with its
 /// `seq`, without reconnecting.
 #[tokio::test]
@@ -206,17 +225,23 @@ async fn a_durable_event_committed_after_the_handoff_arrives_live() {
     let mut stream = live.open(&thread.id).await;
     stream.read_until("event: caught-up").await;
 
-    storage
-        .append_thread_entry(&thread.id, user_message("after the handoff"))
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("after the handoff"),
+    )
+    .await
+    .unwrap();
+    let seq = shadows_core::Events::current_cursor_for_test(&storage)
         .await
-        .unwrap();
-    let seq = storage.current_cursor().await.unwrap().0;
+        .unwrap()
+        .0;
 
     let text = stream.read_until(&format!("\"seq\":{seq}")).await;
     assert_eq!(durable_seqs(&text).last(), Some(&seq), "{text}");
 }
 
-/// Spec §2.10's no-gap handoff for durable events. The entry is committed
+/// The handoff for durable events leaves no gap. The entry is committed
 /// after both live subscriptions exist and before the replay task has run, so
 /// it is reachable from both the replay and the live phase's re-read. It must
 /// arrive exactly once: not lost between them, and not repeated by both.
@@ -228,21 +253,33 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     let live = Live::start(storage.clone()).await;
     let mut stream = live.open(&thread.id).await;
 
-    storage
-        .append_thread_entry(&thread.id, user_message("during the replay"))
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("during the replay"),
+    )
+    .await
+    .unwrap();
+    let seq = shadows_core::Events::current_cursor_for_test(&storage)
         .await
-        .unwrap();
-    let seq = storage.current_cursor().await.unwrap().0;
+        .unwrap()
+        .0;
 
     // A marker committed after the handoff: once it is read, the replay, the
     // handoff and the live re-read triggered by the first commit have all had
     // their turn, so any repeat would already be on the stream.
     stream.read_until("event: caught-up").await;
-    storage
-        .append_thread_entry(&thread.id, user_message("marker"))
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("marker"),
+    )
+    .await
+    .unwrap();
+    let marker = shadows_core::Events::current_cursor_for_test(&storage)
         .await
-        .unwrap();
-    let marker = storage.current_cursor().await.unwrap().0;
+        .unwrap()
+        .0;
     let text = stream.read_until(&format!("\"seq\":{marker}")).await;
 
     let seqs = durable_seqs(&text);
@@ -256,7 +293,7 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     assert_eq!(seqs, deduped, "no durable event is repeated: {text}");
 }
 
-/// Spec §2.10, §14.8: a client that reconnects with the last `seq` it applied
+/// A client that reconnects with the last `seq` it applied
 /// resumes exactly there. It is sent every durable event after that `seq`,
 /// in order, and none it already had; `caught-up` then names the last.
 #[tokio::test]
@@ -264,10 +301,13 @@ async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
-    storage
-        .append_thread_entry(&thread.id, user_message("before"))
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &storage,
+        &thread.id,
+        user_message("before"),
+    )
+    .await
+    .unwrap();
     let live = Live::start(storage.clone()).await;
 
     let mut first = live.open(&thread.id).await;
@@ -276,18 +316,25 @@ async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
     drop(first);
 
     for body in ["while away", "and again"] {
-        storage
-            .append_thread_entry(&thread.id, user_message(body))
-            .await
-            .unwrap();
-    }
-    let missed: Vec<i64> = storage
-        .read_events_after(EventCursor(stopped_at), &thread.id, 100)
+        shadows_core::Threads::append_thread_entry_for_test(
+            &storage,
+            &thread.id,
+            user_message(body),
+        )
         .await
-        .unwrap()
-        .iter()
-        .map(|e| e.seq)
-        .collect();
+        .unwrap();
+    }
+    let missed: Vec<i64> = shadows_core::Events::read_events_after_for_test(
+        storage.clone(),
+        EventCursor(stopped_at),
+        &thread.id,
+        100,
+    )
+    .await
+    .unwrap()
+    .iter()
+    .map(|e| e.seq)
+    .collect();
     assert_eq!(missed.len(), 2, "two events happened while away");
 
     let mut again = live.open_after(&thread.id, stopped_at).await;
@@ -313,10 +360,16 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (project, thread_a) = seed(&storage).await;
-    let thread_b = storage
-        .create_planning_thread(&thread_ctx("c3"), &project.id, "B", "claude-code", None)
-        .await
-        .unwrap();
+    let thread_b = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &thread_ctx("c3"),
+        &project.id,
+        "B",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     let live = Live::start(storage).await;
     let mut stream = live.open(&thread_a.id).await;
     stream.read_until("event: caught-up").await;
@@ -333,7 +386,7 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     );
 }
 
-/// Spec §6.18 scope semantics, seen from the client: an operation's
+/// Event scope, seen from the client: an operation's
 /// transitions reach its thread's stream as `durable` events — the start in the
 /// replay, the terminal transition live.
 #[tokio::test]
@@ -342,12 +395,13 @@ async fn operation_transitions_reach_their_threads_stream() {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
     let live = Live::start(storage.clone()).await;
-    let runtime = &live.runtime.instance_id;
-    let op = storage
-        .create_pending_operation(&thread.id, runtime)
+    let runtime = live.runtime.instance_id();
+    let op = shadows_core::Turns::create_pending_operation_for_test(&storage, &thread.id, runtime)
         .await
         .unwrap();
-    storage.mark_operation_started(&op, runtime).await.unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(&storage, &op, runtime)
+        .await
+        .unwrap();
 
     let mut stream = live.open(&thread.id).await;
     let replayed = stream.read_until("event: caught-up").await;
@@ -356,10 +410,14 @@ async fn operation_transitions_reach_their_threads_stream() {
         "the start replays on the thread's stream: {replayed}"
     );
 
-    storage
-        .mark_operation_completed(&op, serde_json::json!({}), &Default::default())
-        .await
-        .unwrap();
+    shadows_core::Turns::mark_operation_completed_for_test(
+        &storage,
+        &op,
+        serde_json::json!({}),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     let text = stream.read_until("OperationCompleted").await;
     assert_eq!(
         durable_kinds(&text).last().map(String::as_str),
@@ -392,12 +450,15 @@ struct Live {
 
 impl Live {
     async fn start(storage: Arc<Storage>) -> Self {
-        let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+        let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap();
         let runtime = Arc::new(runtime);
         let (bus, _) = tokio::sync::broadcast::channel(64);
         let (stopping, shutdown) = tokio::sync::watch::channel(false);
         let state = AppState {
             core: AppCore::assemble(CoreParts {
+                operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
                 secrets: shadows_core::testing::secrets(storage.clone(), None),
                 sessions: acp::fake_sessions(storage.clone()),
                 storage,
@@ -427,15 +488,18 @@ impl Live {
     /// Subscribes as a client that has already applied every event up to
     /// `after`, as one reconnecting does.
     async fn open_after(&self, thread_id: &ThreadId, after: i64) -> Stream {
-        let response = subscribe(
-            State(self.state.clone()),
-            Query(SubscribeQuery {
-                thread_id: thread_id.clone(),
-                after,
-            }),
-        )
-        .await
-        .into_response();
+        let response = shadows_http::router(self.state.clone(), axum::Router::new())
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!(
+                        "/api/subscribe?thread_id={thread_id}&after={after}"
+                    ))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
         Stream {
             body: response.into_body().into_data_stream(),
             text: String::new(),
@@ -483,7 +547,7 @@ fn thread_ctx(command_id: &str) -> CommandContext {
         command_id: command_id.into(),
         command_kind: "thread.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
     }
 }
 

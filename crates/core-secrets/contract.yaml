@@ -1,0 +1,89 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Owns encrypted profile environment values. No adapter or agent can read a value.
+# It stores by scope and checks nothing upward: the owner of a scope (Agents for an
+# agent, Providers for a provider key) checks its own row inside the write it runs
+# and stores through put_in or remove_in.
+name: secrets
+version: 1
+status: current
+source: crates/core-secrets/src
+shapes:
+  SecretsError: Own validation, decryption and storage failures; contains no application error type.
+  Secrets:
+    store: private SecretsStore over the shared storage handle
+    keys: Option<Keys>
+  SecretKey:
+    bytes: private 32-byte master key; Debug is redacted
+  EnvEntry:
+    name: String
+    updated_at: String
+  SealedEnv:
+    fields: private profile, name, envelope and value fingerprint; stored only under the profile/name its AAD names
+    value_mac: The keyed fingerprint the command record carries, never the value
+  EnvWrite:
+    fields: private secret_env.set command and its SealedEnv
+  EnvRemoval:
+    fields: private secret_env.remove command, profile and name
+functions:
+  provider_key_set: Read key presence without decrypting it.
+  reserved_env_name: Identify routing names that agents cannot override.
+  seal: public; check the key, the name and the value, then encrypt it into a SealedEnv before any transaction; set_env uses it too. Returns SecretsError.
+  env_write: public; seal a value and build its secret_env.set command before any transaction.
+  provider_key_write: public; env_write under the provider key scope and name.
+  env_removal: public; check the key and the name shape and build the secret_env.remove command.
+  provider_key_removal: public; env_removal under the provider key scope and name.
+  replayed_write_in: public; the recorded entry when the write replays, inside the caller's write, before the caller's owner check.
+  put_in: public; upsert one sealed value and record its command in the caller's write; Agents::set_env and Providers::set_key call it after their owner check.
+  replayed_removal_in: public; whether the removal replays, inside the caller's write.
+  remove_in: public; delete one value and record its command in the caller's write.
+  remove_scope_in: public; delete one scope in the caller transaction; returns StorageError.
+  provider_scope: public; the one place that names the provider key scope `provider/{slug}`; the key name is a private constant.
+  resolve_provider_key: Decrypted provider key for trusted provider probes and harness openings; None when unset or empty.
+  new: Build a shared service over injected storage and an optional master key.
+  list_env: Return metadata ordered by name, never values.
+  set_env: Validate and encrypt a value of any scope, atomically classify/write/record one user command; checks no owner.
+  remove_env: Atomically classify/delete/record one user command of any scope, replay without deleting again; checks no owner.
+  resolve_env: Decrypt all profile pairs for a new harness opening; public for trusted harness openings and owner tests.
+  validate_env_name: Shared uppercase name validation including reserved names; removal checks the shape only.
+obligations:
+  - rule: Values never enter metadata, command records or diagnostic output.
+    tested_by: [list_names_in_order_without_values, value_absent_from_db_wal_shm_and_command_record]
+  - rule: AEAD binds each row to profile/name; malformed envelopes return an error.
+    tested_by: [moved_row_is_unreadable, short_nonce_is_an_error_not_a_panic, unknown_format_is_an_error]
+  - rule: HMAC fingerprints conflict on a changed value while exact replays keep the original result.
+    tested_by: [replay_same_value_replays, replay_other_value_conflicts, hkdf_keys_differ]
+  - rule: An unavailable key refuses every operation; another key still lists names.
+    tested_by: [no_key_refuses_every_method, other_master_key_lists_but_cannot_resolve]
+  - rule: A reserved name is refused at set but can be removed, so a row the opening names can go.
+    tested_by: [lower_case_bad_and_reserved_names_are_refused, reserved_name_can_be_removed]
+agreements:
+  - between: [set_env, provider_key_write]
+    must: Validate names and values through the same rules before storing ciphertext; both go through env_write and put_in.
+    holds: true
+    tested_by: [lower_case_bad_and_reserved_names_are_refused, provider_key_is_write_only]
+not_the_caller's:
+  - Do not duplicate validation or encryption in adapters.
+  - Adapters never resolve plaintext; the architecture ratchet checks both instance and associated calls.
+tests:
+  - name: seal_open_round_trips
+    checks: A sealed synthetic value resolves without printing it.
+  - name: open_with_other_aad_fails
+    checks: Another associated-data name fails authentication.
+  - name: open_with_other_key_fails
+    checks: Another master key fails authentication.
+  - name: replace_keeps_one_row
+    checks: Replacement resolves to the newest synthetic value.
+  - name: remove_drops_the_row
+    checks: Removal and replay leave no row.
+  - name: empty_nul_and_oversized_values_are_refused
+    checks: Invalid values are refused before storage.
+
+# These transaction methods are on Secrets in src/lib.rs, not exposed store functions.
+# Agents and Providers call put_in and remove_in; remove_scope_in is used by
+# Agents::delete_in and Providers::delete_in.
+shared_in_transaction:
+  replayed_write_in: Replay the sealed write before checking the caller owner.
+  replayed_removal_in: Replay the removal before checking the caller owner.
+  put_in: Persist a sealed write in the caller transaction.
+  remove_in: Persist a removal in the caller transaction.
+  remove_scope_in: Remove one scope in the caller transaction.

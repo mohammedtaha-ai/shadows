@@ -1,4 +1,4 @@
-//! The Planner's session opens with Shadows (spec §13.7–§13.8): Shadows' MCP
+//! The Planner's session opens with Shadows: Shadows' MCP
 //! server behind a grant per adapter, Shadows' instructions with the
 //! project's appended to Claude Code's prompt, and Shadows' tools
 //! pre-approved. What changes after a session was created reaches it once,
@@ -8,8 +8,8 @@
 use std::time::Duration;
 
 use serde_json::{Value, json};
+use shadows_core::testing::SessionsConfig;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{SessionsConfig, prompt_version};
 use shadows_core::{PlanId, ThreadId, WorkflowId, WrittenBy};
 
 use shadows_core::testing::acp;
@@ -117,7 +117,9 @@ async fn save_instructions(app: &App, command: &str, body: &str) {
 }
 
 async fn project_dir(app: &App) -> std::path::PathBuf {
-    let context = app.storage.turn_context(&app.thread).await.unwrap();
+    let context = shadows_core::Threads::turn_context_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
     context.project_directory.expect("a project directory")
 }
 
@@ -159,7 +161,10 @@ async fn a_turn_edits_the_plan_through_mcp() {
     let edited: Value = serde_json::from_str(&edited).expect(&edited);
     assert_eq!(edited["revision"], 1);
 
-    let plan = l.app.storage.get_plan(&workflow).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&workflow)
+        .await
+        .unwrap();
     assert_eq!(plan.title, "Login");
     let numbers: Vec<u32> = plan.tasks.iter().map(|t| t.content.number).collect();
     assert_eq!(numbers, [1]);
@@ -175,7 +180,7 @@ async fn a_turn_edits_the_plan_through_mcp() {
     );
 }
 
-/// §16.4: conversation B carries on a plan conversation A wrote, with its
+/// Conversation B carries on a plan conversation A wrote, with its
 /// reason; the versions name their own conversations.
 #[tokio::test]
 async fn a_second_conversation_carries_the_plan_on() {
@@ -199,19 +204,17 @@ async fn a_second_conversation_carries_the_plan_on() {
         .await
         .unwrap();
 
-    let thread_b = l
-        .app
-        .storage
-        .create_planning_thread(
-            &app::ctx("thread-b", "thread.create"),
-            &l.app.project,
-            "B",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let thread_b = shadows_core::Threads::create_planning_thread_for_test(
+        &l.app.storage,
+        &app::ctx("thread-b", "thread.create"),
+        &l.app.project,
+        "B",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let listing = reply_on(&l.app, &thread_b, "mcp workflow_list {}").await;
     let listing: Value = serde_json::from_str(&listing).expect(&listing);
     assert_eq!(listing.as_array().unwrap().len(), 1, "{listing}");
@@ -236,19 +239,25 @@ async fn a_second_conversation_carries_the_plan_on() {
     .await;
     let next: Value = serde_json::from_str(&next).expect(&next);
     let v2 = WorkflowId::from_literal(next["workflow_id"].as_str().unwrap());
-    let plan_b = l.app.storage.get_plan(&v2).await.unwrap();
+    let plan_b = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v2)
+        .await
+        .unwrap();
     assert!(matches!(
         &plan_b.written_by,
         WrittenBy::Planner { thread_id, model: Some(_), .. } if thread_id == &thread_b
     ));
-    let plan_a = l.app.storage.get_plan(&v1).await.unwrap();
+    let plan_a = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap();
     assert!(matches!(
         &plan_a.written_by,
         WrittenBy::Planner { thread_id, .. } if thread_id == &l.app.thread
     ));
 }
 
-/// An old habit, leaving workflow_id out, is told what to do.
+/// A call missing workflow_id is told which plan identity to supply.
 #[tokio::test]
 async fn a_planner_without_a_workflow_id_is_told_to_list() {
     let l = listening_app().await;
@@ -359,10 +368,13 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
         json!({ "command_id": "p1", "slug": "demo", "name": "Demo", "directory": dir }),
     )
     .await;
-    // Plan work needs an approved roadmap (§23.6): seeded beside the daemon.
+    // Plan work needs an approved roadmap: seeded beside the daemon.
     let seeded = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let id = shadows_core::ProjectId::from_literal(project["id"].as_str().unwrap());
-    seeded.seed_roadmap_for_tests(&id).await.unwrap();
+    shadows_core::AppCore::design_for_tests(std::sync::Arc::new(seeded))
+        .seed_roadmap_for_tests(&id)
+        .await
+        .unwrap();
     let path = format!("/api/projects/{}/threads", project["id"].as_str().unwrap());
     let thread = post(&path, json!({ "command_id": "t1", "title": "T" })).await;
     let turns = format!("/api/threads/{}/turns", thread["id"].as_str().unwrap());
@@ -443,7 +455,9 @@ async fn changed_instructions_reach_the_next_turn_once_as_a_context_block() {
     let l = listening_app().await;
     let running = start_settled(&l.app, "wait-for-release").await;
     for _ in 0..200 {
-        let op = l.app.storage.get_operation(&running).await.unwrap();
+        let op = shadows_core::Turns::get_operation_for_test(&l.app.storage, &running)
+            .await
+            .unwrap();
         if op.status_kind == "Running" {
             break;
         }
@@ -480,7 +494,7 @@ async fn changed_instructions_reach_the_next_turn_once_as_a_context_block() {
 async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
     let l = listening_app().await;
     report(&l.app).await;
-    // What a Milestone 1 turn recorded: no versions, and a session created
+    // A turn record without versions, with a session created
     // without Shadows' instructions.
     sqlx::query(
         "UPDATE agent_invocation SET prompt_version = NULL,
@@ -552,7 +566,10 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
     let created = reply(&l.app, r#"mcp draft_start {"title":"Login","goal":"g"}"#).await;
     let created: Value = serde_json::from_str(&created).expect(&created);
     let workflow = WorkflowId::from_literal(created["workflow_id"].as_str().unwrap());
-    let plan = l.app.storage.get_plan(&workflow).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(l.app.storage.clone())
+        .get_plan_for_test(&workflow)
+        .await
+        .unwrap();
     let last = app::entries(&l.app).await.last().unwrap().id.to_string();
     let path = format!("/api/threads/{}/fork", l.app.thread);
     let (status, fork) = post(
@@ -601,8 +618,9 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
     save_instructions(&l.app, "i1", "Plan small.").await;
     let current = l
         .app
-        .storage
-        .current_planner_instructions(&l.app.project)
+        .core
+        .instructions()
+        .current(&l.app.project)
         .await
         .unwrap()
         .unwrap();
@@ -616,17 +634,59 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
     .unwrap();
     assert_eq!(
         recorded,
-        (Some(prompt_version().to_string()), Some(current.id))
+        (
+            Some(shadows_core::testing::Harness::prompt_version().to_string()),
+            Some(current.id)
+        )
     );
-    assert_eq!(prompt_version().len(), 16);
-    let versions = l
-        .app
-        .storage
-        .latest_invocation_versions(&l.app.thread)
-        .await
-        .unwrap()
-        .unwrap();
+    assert_eq!(shadows_core::testing::Harness::prompt_version().len(), 16);
+    let versions =
+        shadows_core::Turns::latest_invocation_versions_for_test(&l.app.storage, &l.app.thread)
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!((versions.prompt, versions.instructions), recorded);
     assert_eq!(versions.standards, Some(1));
     assert_eq!(versions.additions, None);
+}
+
+#[tokio::test]
+async fn context_skipped_by_a_command_reaches_the_next_turn() {
+    let l = listening_app().await;
+    report(&l.app).await;
+    let body = "Name every task in Arabic.";
+    save_instructions(&l.app, "i1", body).await;
+
+    // The command goes alone, so the change it would have carried waits.
+    let done = start_and_finish(&l.app, "/context", default_settings()).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+
+    let next = report(&l.app).await;
+    let sent = blocks(&next);
+    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert!(sent[1].starts_with(CHANGED), "{}", sent[1]);
+    assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
+    assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
+}
+
+#[tokio::test]
+async fn changes_skipped_by_two_commands_reach_the_next_turn_once_and_current() {
+    let l = listening_app().await;
+    report(&l.app).await;
+    save_instructions(&l.app, "i1", "Name every task in Arabic.").await;
+    let done = start_and_finish(&l.app, "/context", default_settings()).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let body = "Name every task in French.";
+    save_instructions(&l.app, "i2", body).await;
+    let done = start_and_finish(&l.app, " /context", default_settings()).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+
+    let next = report(&l.app).await;
+    let sent = blocks(&next);
+    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert!(sent[1].starts_with(CHANGED), "{}", sent[1]);
+    assert_eq!(sent[1].matches(CHANGED).count(), 1, "{}", sent[1]);
+    assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
+    assert!(!sent[1].contains("Arabic"), "the stale text: {}", sent[1]);
+    assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
 }

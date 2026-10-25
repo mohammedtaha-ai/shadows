@@ -1,0 +1,153 @@
+# Project identities and registration methods are imported from core-projects.
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Owns a project's Planner instructions (spec §13.8, §13.10, §14.4): saving
+# the next version and reading the current one.
+#
+# Each save is a new row numbered one past the project's highest, inside the
+# save's own write; nothing is overwritten, and the current instructions are
+# the highest number, so no pointer can name another project's row. The
+# `PlannerInstructionsSaved` event carries the number, never the body: the
+# journal a client replays holds no instructions text.
+#
+# Trap: saving tells no running Planner anything. A turn records the version
+# it ran under (`instructions_version` on its invocation, Turns), and the
+# session is told what changed before its next turn (Harness' `Setups`),
+# never mid-turn. Both hold an `Instructions` handle and call `current`.
+# Trap: `id` is `#[serde(skip)]`: a client sees `number`, `body` and
+# `created_at` only.
+
+name: instructions
+version: 1
+status: current
+source: crates/core-instructions/src
+
+
+shapes:
+  Instructions:
+    # Cloneable: Turns and Harness (`Setups`) are handed one by `AppCore::start`.
+    store: InstructionsStore
+  InstructionsStore:
+    # Private to the service; holds the shared storage handle.
+    storage: Arc<Storage>
+  InstructionsVersion:
+    # What an `agent_invocation` records; never serialized.
+    id: String
+    # 1, 2, 3 … within the project.
+    number: i64
+    body: String
+    created_at: String
+
+
+modules:
+  lib.rs: numbered instructions boundary
+  error.rs: instructions failures
+  model.rs: public saved instructions
+  store/mod.rs: private instructions SQL
+
+dependencies:
+  projects: crates/core-projects/contract.yaml
+
+functions:
+  service:
+    new: "(storage: Arc<Storage>) -> Instructions"
+    current:
+      signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, InstructionsError>"
+      # `None` before the first save, and for an unknown or removed project.
+    save:
+      signature: "(&self, command_id: String, project: &ProjectId, body: &str) -> Result<InstructionsVersion, InstructionsError>"
+      # "PlannerInstructionsSave", principal User/local, schema 1, params
+      # { project, body } → `InstructionsStore::save`. Refusals: NotFound
+      # (no such project); CommandConflict.
+  store:
+    save:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, body: &str) -> Result<InstructionsVersion, StorageError>"
+      # One write: classify (scope Project; a replay answers the version it
+      # saved) → `Projects::require_live_in` → MAX(number)+1 → the row →
+      # `PlannerInstructionsSaved` { number } → record_command.
+    current:
+      signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>"
+      # Reached by Turns and Harness through `Instructions::current`. None for a
+      # removed project, as for an unknown one (§4.2): `require_live_in`'s
+      # NotFound on the same reader connection, then the highest version.
+    load_version:
+      signature: "(conn, id: &str) -> Result<InstructionsVersion, StorageError>"
+      private: true
+
+
+enums:
+  InstructionsError:
+    source: core_instructions::InstructionsError
+    values: []
+  StorageError:
+    source: core_db::StorageError
+    values: []
+  ProjectId:
+    source: core_projects::ProjectId
+    values: []
+
+
+called_by_other_services:
+  current: "Turns (turns/record.rs) and Harness (harness/setup.rs Setups::for_opening, context_before_turn), through the `Instructions` handle `AppCore::start` gives them: the version a turn records, and the instructions a session opens with or is told changed (§13.8)"
+
+
+obligations:
+  - rule: >
+      Each save is a new version numbered one past the project's highest,
+      per project from 1; the current one is the highest. A replay answers
+      the version it saved and saves nothing.
+    tested_by:
+      - each_save_is_a_new_numbered_version
+      - current_instructions_are_the_highest_number
+      - concurrent_saves_number_versions_inside_the_write
+      - saved_versions_replay_exactly_and_remain_scoped_to_the_project
+      - removal_hides_current_but_keeps_the_original_replay
+    note: >
+      AppCore adapter tests and public-constructor owner tests use the real
+      "PlannerInstructionsSave" fingerprint. Numbering runs inside the save's
+      write; the owner test races twelve saves and requires distinct consecutive numbers.
+
+  - rule: >
+      The saved event carries the number, never the body.
+    tested_by: the_saved_event_does_not_carry_the_body
+
+  - rule: >
+      Over HTTP: null before the first save; a save answers number, body and
+      created_at only; another body under the same id is 409
+      COMMAND_CONFLICT; an unknown project is 404.
+    tested_by: the_routes_read_and_save_a_version
+
+  - rule: >
+      Replay identity. "PlannerInstructionsSave" params { project, body },
+      principal User/local, schema version 1.
+    tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+    note: It reads the command log; it passes on 33ec030.
+
+
+not_the_caller's:
+  - >
+      Number a version or read the highest yourself; `save` numbers inside
+      its write, and `current` answers the highest.
+  - >
+      Build the "PlannerInstructionsSave" fingerprint; `save` does, from the
+      same parameters as before the move.
+
+
+tests:
+  - name: each_save_is_a_new_numbered_version
+    checks: >
+      Two saves are 1 and 2 with their bodies; the first's replay equals it
+      and two rows exist.
+  - name: current_instructions_are_the_highest_number
+    checks: >
+      None before a save; after three, 3 "three"; another project has none,
+      then its first save is 1.
+  - name: the_saved_event_does_not_carry_the_body
+    checks: >
+      The one saved event's payload is { number: 1 } and no payload holds the
+      body.
+  - name: the_routes_read_and_save_a_version
+    checks: >
+      GET null, PUT answers three fields, GET equals it, another body under
+      the id is 409 COMMAND_CONFLICT, an unknown project is 404.
+  - name: project_thread_and_instructions_command_fingerprints_do_not_move
+    checks: The command log's PlannerInstructionsSave row equals the pinned literal's fingerprint.

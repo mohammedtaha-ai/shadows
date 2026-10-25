@@ -1,0 +1,456 @@
+# Durable journal publication converts owned ids directly to core-db JournalEntry.
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Owns the projects and the folders a person picks them from (spec §4.1,
+# §4.2, §11.1, §12.5, §14.4): listing and creating a project, the modes it
+# allows per harness, and showing or making the directories a project may own.
+#
+# `create`'s order is the rule: the directory is resolved
+# (`ProjectDirectory::resolve`: absolute, canonical through `dunce`, UTF-8, a
+# directory now) BEFORE the fingerprint is taken, so two spellings of one
+# folder are one request and a bad path is refused before any write. The
+# fingerprint is over the canonical text, never the text the caller sent.
+#
+# `set_modes` normalizes before the fingerprint too: every harness must be
+# known (`Projects::known_harness`, the one rule Threads also calls), every
+# mode in `policy::allowed_modes` of its harness, and each list is
+# deduplicated and sorted. A harness not named keeps its modes.
+#
+# Trap: a `ProjectDirectory` proves the check ran when it was built, not
+# later: a directory deleted after `create` is caught when a turn opens its
+# session (Harness), not here.
+# Cross-owner creation indexing and removal belong to ProjectLifecycle.
+#
+# Trap: `list_dirs` and `create_dir` touch the disk only; they record no
+# command and no event, and a directory made here belongs to no project until
+# a `create` names it.
+
+name: projects
+version: 1
+status: current
+source: crates/core-projects/src
+modules:
+  lib.rs: project registration boundary
+  model.rs: public project values
+  error.rs: project refusals
+  directory.rs: project directory validation
+  browse.rs: directory selection
+  harness_policy.rs: allowed project harnesses
+  store/mod.rs: private project persistence
+
+
+shapes:
+  Projects:
+    # Private: the service's SQL (`ProjectsStore`), over the shared storage.
+    store: ProjectsStore
+  Project:
+    id: ProjectId
+    slug: String
+    name: String
+    # Canonical, as `ProjectDirectory` resolved it; `None` only for a project
+    # created before projects owned one (migration 0003).
+    directory: Option<String>
+    created_at: String
+    # Every known harness is present (`empty_modes` fills the gaps); each list
+    # is a set read in `mode_id` order, and an empty list allows no turn.
+    allowed_modes: BTreeMap<String, Vec<String>>
+    # True only for the project `ensure_assistant` created (migration 0027).
+    assistant: bool
+  ProjectDirectory:
+    # Built only by `resolve`, so a value is proof the check ran.
+    "0": String
+  DirectoryError:
+    NotAbsolute: String
+    NotUtf8: unit
+    NotFound: String
+    NotADirectory: String
+    AccessDenied: String
+    InvalidName: "{ name: String, why: &'static str }"
+    AlreadyExists: String
+    # Also what a panicked or cancelled blocking task becomes, with an empty path.
+    Unavailable: "{ path: String, source: io::Error }"
+  DirectoryListing:
+    # `None` for the roots.
+    path: Option<String>
+    # `None` at a root, and for the roots themselves.
+    parent: Option<String>
+    # Directories only, sorted by lowercased name then exact name.
+    entries: Vec<DirectoryEntry>
+  DirectoryEntry:
+    name: String
+    path: String
+    # A leading dot, or Windows' hidden or system attribute; flagged, not filtered.
+    hidden: bool
+
+
+functions:
+  identities:
+    from_recorded: "(value: String) -> ProjectId; preserves recorded identity text"
+  construction:
+    new: "(storage: Arc<Storage>) -> Projects"
+    create_for_test: "test-support command context fixture"
+    set_modes_for_test: "test-support command context fixture"
+  removal_records:
+    retained_in: "(conn, id) -> Result<Project, StorageError>"
+    mark_removed_in: "(conn, id, ts) -> Result<(), StorageError>"
+  boundary_reads:
+    retained_metadata_in: "(conn, id) -> Result<Option<(name, directory, removed)>, StorageError>; retained metadata for previews"
+    is_live_in: "(conn, id) -> Result<bool, StorageError>; delegates to require_live_in"
+  service:
+    list:
+      signature: "(&self) -> Result<Vec<Project>, ProjectsError>"
+      # Oldest first by the `ProjectCreated` event's seq.
+    get:
+      signature: "(&self, id: &ProjectId) -> Result<Project, ProjectsError>"
+      # NotFound for a removed project. Read by Code (`status`, a scan),
+      # Events (`subscribe_project` refuses unknown or removed projects),
+      # `allowed_modes` and `harness_fits`.
+    by_slug:
+      signature: "(&self, slug: &str) -> Result<Option<Project>, ProjectsError>"
+      # Public to declared service callers. The live project holding `slug`, assistant or not;
+      # `None` when none does. The one slug lookup: `ensure_assistant` and
+      # Agents (`assistant_project`, which keeps it only when `assistant`).
+    allowed_modes:
+      signature: "(&self, project: &ProjectId, harness: &str) -> Result<Vec<String>, ProjectsError>"
+      # Public to declared service callers. The modes the live project allows for `harness`;
+      # empty when it names none. NotFound for a removed project. The one
+      # rule for both readers: Turns (a turn's mode check, ModeNotAllowed
+      # unless it contains the mode) and Harness (`choices`, what a client
+      # is offered).
+    by_recent_activity:
+      signature: "(&self) -> Result<Vec<Project>, ProjectsError>"
+      # Live projects, most recently used first, from the journal alone: the
+      # newest `OperationCreated` seq among the project's threads, else its
+      # `ProjectCreated` seq, else 0; ties by id. An operation event carries
+      # its thread but not its project, so a thread's project is the one on
+      # its `PlanningThreadCreated` event (written by create and by fork);
+      # no `operation` or `planning_thread` row is read. Projects with no
+      # directory are included; the caller filters. Code's start order
+      # calls it.
+    ensure_assistant:
+      signature: "(&self, slug: &str, name: &str, directory: &Path) -> Result<Project, ProjectsError>"
+      # AYLUL's project. A live project already holding `slug` (`by_slug`) is returned
+      # as is (never claimed unless it is already `assistant`); else created
+      # as "project.create" with a fixed command id over the resolved
+      # directory, then marked by the store's `mark_assistant`. Idempotent.
+      # A removed assistant project (its slug stays taken) is restored by
+      # `restore_assistant` instead of created again.
+    create:
+      signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, ProjectsError>"
+      # resolve (DirectoryError â†’ ProjectsError::Directory) â†’ "project.create",
+      # principal User/local, schema 1, params { slug, name, directory:
+      # canonical } â†’ the store's `create` with `policy::default_modes()`.
+      # Refusals: Directory; CommandConflict; Constraint (the slug in use).
+    set_modes:
+      signature: "(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, ProjectsError>"
+      # `Self::known_harness` (SettingNotOffered "harness") â†’ each mode in policy
+      # (SettingNotOffered "mode", the first offending one) â†’ dedup, sort â†’
+      # "project.modes", params { project, allowed_modes: normalized } â†’
+      # the store's `set_modes`. Refusals also: NotFound (no such project);
+      # CommandConflict.
+    list_dirs:
+      signature: "(&self, path: Option<String>) -> Result<DirectoryListing, ProjectsError>"
+      # An empty `path` is the same as none: the roots. On a blocking thread.
+    create_dir:
+      signature: "(&self, parent: String, name: String) -> Result<DirectoryEntry, ProjectsError>"
+      # `check_name`, then the parent resolved, then `create_dir`; an
+      # existing one is AlreadyExists, never reused. On a blocking thread.
+  directory:
+    resolve:
+      signature: "(raw: &Path) -> Result<ProjectDirectory, DirectoryError>"
+    canonical_dir:
+      signature: "(raw: &Path) -> Result<PathBuf, DirectoryError>"
+    from_io:
+      signature: "(path: &Path, error: io::Error) -> DirectoryError"
+      # NotFound, PermissionDenied, NotADirectory, AlreadyExists kept as
+      # their own variants; anything else Unavailable.
+  browse:
+    list:
+      signature: "(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError>"
+      private: true
+      # An unreadable or non-UTF-8 entry is skipped, never a failure.
+    create_subdirectory:
+      signature: "(parent: &Path, name: &str) -> Result<DirectoryEntry, DirectoryError>"
+      private: true
+    check_name:
+      signature: "(name: &str) -> Result<(), DirectoryError>"
+      private: true
+      # Empty, `.`, `..`, a separator, Windows' reserved characters or
+      # control characters, a trailing dot or space, a device name.
+    blocking:
+      signature: "(work) -> Result<T, DirectoryError>"
+      private: true
+  harness_policy:
+    known_harness:
+      signature: "(harness: &str) -> Result<(), ProjectsError>"
+      # An associated function: SettingNotOffered { "harness", id, None }
+      # unless `policy::is_known`. Called by `set_modes` and by Threads
+      # (create, set_harness).
+    harness_fits:
+      signature: "(&self, project: &ProjectId, harness: &str) -> Result<(), ProjectsError>"
+      # AYLUL's harness lives only in the project marked `assistant`, and that
+      # project runs nothing else; otherwise SettingNotOffered { "harness", id,
+      # Some(reason) }. A project that is unknown or removed is not judged:
+      # the write that follows answers it. Called by Threads (create,
+      # set_harness).
+  store:
+    create:
+      signature: "(&self, ctx: &CommandContext, slug, name, directory: &ProjectDirectory, default_modes) -> Result<Project, StorageError>"
+      # One write: classify (scope Global) â†’ the row, its modes,
+      # `ProjectCreated` { slug, name, directory }, record_command.
+    list:
+      signature: "(&self) -> Result<Vec<Project>, StorageError>"
+      # Removed projects left out.
+    by_recent_activity:
+      signature: "(&self) -> Result<Vec<Project>, StorageError>"
+      # Removed projects left out; the order is `Projects::by_recent_activity`.
+    get:
+      signature: "(&self, id: &ProjectId) -> Result<Project, StorageError>"
+      # NotFound for a removed project.
+    set_modes:
+      signature: "(&self, ctx, project_id, modes) -> Result<Project, StorageError>"
+      # One write: classify (scope Project) â†’ the project must exist, not
+      # removed (`require_live_in`) â†’ replace the named harnesses' rows â†’
+      # `ProjectModesChanged` â†’ record_command. A replay answers the project
+      # as it now stands.
+    get_in:
+      signature: "(conn: &mut SqliteConnection, id: &ProjectId) -> Result<Project, StorageError>"
+      # Associated read in the caller's snapshot: require_live_in then load_project.
+    by_slug_in:
+      signature: "(conn: &mut SqliteConnection, slug: &str) -> Result<Option<Project>, StorageError>"
+      # Associated slug lookup in the caller's snapshot; get_in owns liveness. by_slug delegates here.
+    slug_in:
+      signature: "(conn: &mut SqliteConnection, id: &ProjectId) -> Result<String, StorageError>"
+      # Associated slug lookup, including retained removed rows for link replays.
+    require_live_in:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>"
+      # An associated function in the caller's transaction or connection:
+      # NotFound("project") unless the row exists with `removed_at` NULL.
+      # The one liveness check: `get` and
+      # `set_modes` use it, and Instructions' save and current call
+      # it instead of reading `project`.
+    load_project:
+      signature: "(conn, id: &ProjectId) -> Result<Project, StorageError>"
+      private: true
+      # The row, removed or not: what a replay answers.
+
+
+enums:
+  ProjectsError:
+    source: core_projects::ProjectsError
+    values: []
+  StorageError:
+    source: core_db::StorageError
+    values: []
+  CommandContext:
+    source: core_db::CommandContext
+    values: []
+
+
+shared_in_transaction:
+  retained_in: ProjectLifecycle reads retained metadata for removal replay.
+  mark_removed_in: ProjectLifecycle soft-removes the project in its transaction.
+  retained_metadata_in: Retained name, directory and removed flag for plan previews.
+  is_live_in: Boolean liveness through require_live_in in the caller snapshot.
+  get_in: "Code::code_scope: live project metadata in its read snapshot"
+  by_slug_in: "Code::selected_project_in: live slug resolution in the dependency snapshot"
+  slug_in: "Code link reads and replays: retained slugs in the caller's snapshot"
+  require_live_in: "Instructions and Code: the one liveness check in the caller's transaction or snapshot"
+
+called_by_other_services:
+  require_live_in: "Instructions (save/current) and Code (link writes, file writes, reach): liveness in the caller's transaction or snapshot"
+  get: "Code (status, scan) and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (Â§16.8)"
+  by_slug: "Agents (assistant_project): the live project `aylul`, kept only when marked assistant"
+  allowed_modes: "Turns (turns/record.rs, the mode check) and Harness (harness/mod.rs choices): the modes a project allows for a harness"
+  by_recent_activity: "Code::code_order: startup order, filtered to projects with a directory"
+  known_harness: "Threads (create, set_harness): the one rule for a known harness"
+  harness_fits: "Threads (create, set_harness): the rule that AYLUL runs only in the AYLUL project"
+
+
+obligations:
+  - rule: >
+      Replay. A project create with the same command id and request answers
+      the first project and creates nothing; another request under the id is
+      CommandConflict and creates nothing.
+    tested_by:
+      - project_create_replays_after_the_move
+      - project_routes_create_list_replay_and_conflict
+      - replaying_an_identical_command_returns_the_stored_outcome
+      - the_same_command_id_with_a_different_request_is_a_conflict
+    note: >
+      The last two drive the store's `create` (through `testing::create_project`) and count the rows
+      and events a replay and a conflict leave.
+
+  - rule: >
+      The directory is resolved before the fingerprint: two spellings of one
+      folder (here, with and without a trailing separator) replay one
+      command.
+    tested_by: project_create_replays_after_the_move
+    note: >
+      Fingerprinting the raw text fails it with 409 COMMAND_CONFLICT (tried
+      on 33ec030).
+
+  - rule: >
+      Replay identity. "project.create" params { slug, name, directory } with
+      the canonical directory, and "project.modes" params { project,
+      allowed_modes } with each list deduplicated and sorted; principal
+      User/local, schema version 1.
+    tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+    note: >
+      It reads the command log and compares each column with `fingerprint`
+      of those literals; it passes on 33ec030 and fails there with the sort
+      removed.
+
+  - rule: >
+      A bad directory is refused before any write, each with its own code:
+      relative PATH_INVALID, missing PATH_NOT_FOUND, a file
+      PATH_NOT_A_DIRECTORY; no project is created.
+    tested_by: an_unusable_directory_is_refused_with_a_stable_code
+
+  - rule: >
+      Modes are checked against Shadows' policy: an unknown harness, or a
+      mode outside its harness's policy, is 422 SETTING_NOT_OFFERED and
+      nothing is written. A replay of a mode change answers the project as
+      it stands; another body under the id conflicts.
+    tested_by:
+      - an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+      - a_project_s_modes_can_be_replaced_and_a_replay_changes_nothing
+    note: >
+      The first checks the mode refusal's code only; no test sends an unknown
+      harness to `set_modes` (it sends one to thread create and change).
+
+  - rule: >
+      Projects are listed in creation order, by the durable sequence of their
+      `ProjectCreated` event, never by `created_at` text.
+    tested_by: projects_are_listed_in_creation_order_whatever_their_timestamp_text
+
+  - rule: >
+      Recent activity is read from the journal alone: a project whose thread
+      started the newest operation is first; with no operation, the newest
+      project is. A thread with no operation moves nothing; a removed
+      thread's operation still counts; a fork counts for its source's
+      project, since fork journals `PlanningThreadCreated` with it. Both
+      subqueries are index searches (`idx_event_thread`,
+      `idx_event_project`), so no journal-wide scan per project.
+    tested_by: projects_are_ordered_by_the_newest_operation_in_the_journal
+
+  - rule: >
+      A listing holds only subdirectories, sorted without case, hidden ones
+      flagged, with the canonical path and parent; no path lists the roots,
+      whose parent is null.
+    tested_by:
+      - a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones
+      - with_no_path_the_listing_is_the_roots
+    note: No test sends an empty `path`, which `list_dirs` treats as none.
+
+  - rule: >
+      A listing that cannot be made, or a directory that cannot be created,
+      is refused with its own code: PATH_INVALID, PATH_NOT_FOUND,
+      PATH_NOT_A_DIRECTORY, PATH_ALREADY_EXISTS; an invalid name creates
+      nothing.
+    tested_by:
+      - a_listing_that_cannot_be_made_is_refused_with_a_stable_code
+      - creating_a_directory_returns_it_and_a_second_time_is_a_conflict
+      - a_name_that_is_not_one_valid_component_is_refused
+
+
+agreements:
+  - between: [set_modes, threads::create]
+    must: judge whether a harness is known identically
+    holds: true
+    why: >
+      Both call `Projects::known_harness` (`projects/harness_policy.rs`), the
+      one rule, which answers SettingNotOffered { "harness", id, None }.
+    tested_by: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    note: >
+      The test proves Threads' side (create and change) with "gemini"; no
+      test sends an unknown harness to `set_modes`.
+
+
+not_the_caller's:
+  - >
+      Resolve or canonicalize the directory, or build the "project.create"
+      fingerprint; `create` does, in the order that makes two spellings one
+      request.
+  - >
+      Check modes against policy, dedup or sort them; `set_modes` does, and
+      the fingerprint is over what it normalized.
+  - >
+      Move the disk work onto a blocking thread; `list_dirs` and `create_dir`
+      do.
+
+
+tests:
+  - name: ensure_assistant_recreates_a_removed_assistant_project
+    checks: >
+      tests/project_assistant.rs: after the assistant project is removed, the
+      next ensure_assistant succeeds by restoring it.
+  - name: ensure_assistant_is_idempotent
+    checks: >
+      tests/project_assistant.rs: two calls give one `assistant` project over
+      the home; an ordinary project is not marked.
+  - name: project_create_replays_after_the_move
+    checks: >
+      One body twice (the second with a trailing separator) answers one id
+      and two projects are listed; another name under the id is 409
+      COMMAND_CONFLICT.
+  - name: project_thread_and_instructions_command_fingerprints_do_not_move
+    checks: >
+      Six commands over HTTP leave command records whose principal, id, kind,
+      schema version and fingerprint equal those of the pinned literals.
+  - name: project_routes_create_list_replay_and_conflict
+    checks: A replay answers the first id, another name conflicts, one project is listed.
+  - name: replaying_an_identical_command_returns_the_stored_outcome
+    checks: At the store, a replay answers the same id; one project, one event.
+  - name: the_same_command_id_with_a_different_request_is_a_conflict
+    checks: At the store, another request is CommandConflict; one project.
+  - name: an_unusable_directory_is_refused_with_a_stable_code
+    checks: >
+      Relative, missing and a file answer PATH_INVALID, PATH_NOT_FOUND,
+      PATH_NOT_A_DIRECTORY; the list stays empty.
+  - name: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    checks: >
+      "gemini" on thread change and create, and bypassPermissions on a
+      project's modes, are 422 SETTING_NOT_OFFERED.
+  - name: a_project_s_modes_can_be_replaced_and_a_replay_changes_nothing
+    checks: >
+      The modes become ["acceptEdits"], the replay answers the same project,
+      and another list under the id is 409 COMMAND_CONFLICT.
+  - name: a_project_with_a_thread_is_not_removed
+    checks: >
+      The fixture's project (one thread), indexed and linked, is 409
+      PROJECT_HAS_THREADS; still listed; its file and link counts unchanged.
+  - name: a_project_without_threads_is_removed_with_its_index_links_and_grants
+    checks: >
+      A project linking and linked both ways, with a live grant and a worker,
+      is removed (200, its id); the list is demo and other; its files, tags
+      and links are 0; other's file stays; the token no longer authorizes;
+      it is not active.
+  - name: a_replayed_remove_answers_the_same_project_and_changes_nothing
+    checks: >
+      The replay answers the same body and its events do not grow; a modes
+      change under the same id is 409 COMMAND_CONFLICT.
+  - name: a_removed_project_is_not_found
+    checks: >
+      Its saved instructions read null and its grant list []; thread create
+      and `definitions` on it are 404 INVALID_COMMAND.
+  - name: projects_are_listed_in_creation_order_whatever_their_timestamp_text
+    checks: Two projects whose created_at text sorts backwards list in creation order.
+  - name: projects_are_ordered_by_the_newest_operation_in_the_journal
+    checks: >
+      Two projects list newest first, still after an idle thread on the
+      older one; after a pending operation on the older one's thread it is
+      first, and stays first once that thread is removed.
+  - name: a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones
+    checks: >
+      Four directories and a file list as .hidden, alpha, beta, Zeta with
+      canonical paths and parent; only .hidden is hidden.
+  - name: with_no_path_the_listing_is_the_roots
+    checks: No path answers null path and parent and includes the temp dir's root, whose parent is null.
+  - name: a_listing_that_cannot_be_made_is_refused_with_a_stable_code
+    checks: Relative, missing and a file are PATH_INVALID, PATH_NOT_FOUND, PATH_NOT_A_DIRECTORY.
+  - name: creating_a_directory_returns_it_and_a_second_time_is_a_conflict
+    checks: >
+      201 with the canonical path and the directory exists; again is 409
+      PATH_ALREADY_EXISTS; a missing parent is 404 PATH_NOT_FOUND.
+  - name: a_name_that_is_not_one_valid_component_is_refused
+    checks: Seventeen bad names are 400 PATH_INVALID and the parent stays empty.

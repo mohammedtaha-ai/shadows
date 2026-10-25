@@ -10,14 +10,14 @@ pub struct Config {
     pub node_path: PathBuf,
     /// Entry point for the pinned ACP adapter package.
     pub adapter_path: PathBuf,
-    /// Spec §1.4: resolved from configuration, never from `PATH`. This machine
+    /// Resolved from configuration, never from `PATH`. This machine
     /// carries more than one `claude-code` installation at different versions.
     /// Built through [`harness_path`], which is what enforces that.
     pub harness_path: PathBuf,
     /// Set in debug mode: the file this run's log lines also go to, which
-    /// `serve` prints after its address. Spec §8.7.
+    /// `serve` prints after its address.
     pub debug_log: Option<PathBuf>,
-    /// Spec §1: the browser origins allowed to call this daemon cross-origin,
+    /// The browser origins allowed to call this daemon cross-origin,
     /// each built through [`allowed_origin`]. Every client is on another
     /// origin — the daemon serves no page of its own.
     pub allowed_origins: Vec<String>,
@@ -41,7 +41,7 @@ pub fn data_dir(db_path: &Path) -> PathBuf {
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ConfigError {
     #[error(
-        "the harness path must be absolute, got `{0}`. Spec §1.4: a harness \
+        "the harness path must be absolute, got `{0}`. A harness \
          executable is resolved from explicit configuration, never from PATH. A \
          bare program name is a PATH lookup by another spelling, and a relative \
          path resolves against whatever directory the daemon happens to be in."
@@ -80,7 +80,7 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError> {
 
 /// The only way a `harness_path` should be obtained from user input.
 ///
-/// Spec §1.4 is not a defensive habit: the measured stream contract belongs to
+/// The measured stream contract belongs to
 /// one installation at one version, this machine carries several, and an
 /// auto-update can change the contract underneath a running install. An
 /// Operation records the path and version it ran, so a path that means

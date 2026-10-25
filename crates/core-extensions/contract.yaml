@@ -1,0 +1,78 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Owns the shared AYLUL extension library (plugins and skills copied into owned,
+# immutable library folders) and each agent's enabled switch over it.
+# An agent's liveness is proved through Agents::require_live_in inside the same
+# read or write. Library mutations hold one lock that the harness also holds while
+# it projects the library into a home.
+name: extensions
+version: 1
+status: current
+source: crates/core-extensions/src
+
+modules:
+  lib.rs: library commands and the projection guard
+  model.rs: public extension metadata
+  files.rs: bounded library file copies
+  error.rs: library refusals
+  store/: extension configuration SQL
+
+dependencies:
+  agents: crates/core-agents/contract.yaml
+
+shapes:
+  Extensions:
+    store: private ExtensionsStore over the shared storage handle
+    lock: Library mutation guard shared with harness projection
+    home_root: Optional isolated home root holding the library
+  ExtensionsStore:
+    storage: Arc<Storage> # Private to extensions; shares the existing pool.
+  ExtensionsError:
+    NotFound: ExtensionNotFound for a caller
+    NameConflict: ExtensionNameConflict for a caller
+    Invalid: String # ProfileInvalid for a caller
+    NotConfigured: AYLUL configuration is absent
+    Agent: AgentsError
+    Storage: StorageError
+  ExtensionKind:
+    values: Plugin, Skill
+  Item:
+    note: Immutable library metadata without source paths
+  AgentItem:
+    note: Item with one agent's enabled switch
+  ExtensionLibrary:
+    note: Shared library without enabled flags
+  AgentExtensions:
+    note: Whole library with per-agent switches
+
+functions:
+  new: "public: (storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Extensions>"
+  extensions: List the shared extension library ordered by name and id.
+  add_extension: Import a bounded immutable local copy under one replayable command.
+  delete_extension: Remove the item and every enablement in one transaction, then retire its files.
+  agent_extensions: List the whole library with one live agent's switches.
+  set_agent_extension: Atomically validate and set one live agent's switch.
+  extension_guard: public; the library mutation guard the harness holds while projecting.
+  remove_agent_in: public; remove every switch of an agent in the caller's write.
+  copy_tree: public; copy one library item's bounded regular files into a managed snapshot.
+  publish: private; copy a bounded source into the library and answer its metadata and digest.
+  retire: private; remove a deleted item's owned folder; failure leaves an inert copy.
+
+called_by_other_services:
+  extension_guard: Harness serializes library snapshot projection against library mutations.
+  copy_tree: Harness copies bounded regular library files into a managed snapshot.
+  remove_agent_in: Harness::delete_agent, in the same write as Agents::delete_in.
+
+shared_in_transaction:
+  remove_agent_in: Agent enablements removed in the caller write.
+
+obligations:
+  - rule: Imports copy owned data with UUID ids and return no source path.
+    tested_by: [extension_import_copies_and_redacts_source]
+  - rule: Inputs are bounded and contained; intrinsic kind/name duplicates conflict.
+    tested_by: [extension_input_is_contained]
+  - rule: Replay classifies before source IO and returns the original outcome even after deletion.
+    tested_by: [extension_commands_replay_and_conflict]
+  - rule: Agent views contain the whole library with independent switches; deleted agents refuse writes.
+    tested_by: [extension_enablement_is_per_agent]
+  - rule: Item or agent deletion removes its enablement atomically.
+    tested_by: [extension_deletions_remove_enablement_atomically]

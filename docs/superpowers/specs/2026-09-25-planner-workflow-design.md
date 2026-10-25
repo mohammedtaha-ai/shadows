@@ -740,3 +740,46 @@ inside its transaction.
 
 `thread_entry.kind` gains the values `PlanView` and `PlanApproved` (§13.9), and
 §4 types the column's values from here on.
+
+## 13.16 The architecture comes first
+
+Decided with Mohammed on 2026-10-24. Shadows exists so that the structure of a
+project is decided in planning, before anyone builds it. A plan that leaves the
+structure to the builders invites the shortcut "keep it simple now, split it
+later", and splitting later costs far more than splitting first: Shadows' own
+Core grew as one crate and needed a long extraction (the architecture plan,
+docs/backend/plans/2026-10-21-architecture.md) to reach the boundaries it
+should have started with.
+
+The rule:
+
+1. **A project's first plan states its architecture**: its services and the
+   one job each owns, the data each service owns (its tables and its private
+   store), the contracts between services and to the outside (API routes,
+   tool calls, events), and its domain types with their owning service.
+2. **Shadows refuses a plan without one.** "A simple structure first, split
+   when it grows" is not an architecture; approval is refused while services,
+   their data ownership or their contracts are missing. A project's size does
+   not waive this: a small project has few services, not none.
+3. **Every task sits inside the architecture.** A task names the service it
+   changes, and its `writes` stay within that service's paths and data. A task
+   that would cross a boundary is two tasks, or a change to the architecture
+   made in the plan first.
+4. **Builders follow the plan, they do not redesign it.** A builder that finds
+   the architecture wrong or incomplete stops and reports to the Planner; it
+   does not merge services, share a store, or reach another service's data
+   because it is easier.
+5. **The boundaries are held by checks, not by instructions alone**: what the
+   plan states is checked against what the builders produce, as Core's
+   architecture ratchet checks Core.
+
+> **OPEN — how the architecture is stored and checked.** Undecided: where a
+> plan holds its architecture (a new part of the plan version, beside its
+> tasks, or its own versioned entity), its exact fields, which of them §13.4's
+> approval check requires, and how a builder's change is checked against it
+> (declared paths, crate or module boundaries, data ownership). Changing a
+> project's architecture after approval goes through a new plan version
+> (§13.2). Closes when the architecture plan's extraction (A-19c) is done and
+> this is designed with Mohammed. Until then the rule is a decision only:
+> neither the Planner's instructions (§13.8) nor §13.4's approval check
+> carries it yet.

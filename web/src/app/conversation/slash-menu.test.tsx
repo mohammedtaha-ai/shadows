@@ -7,7 +7,7 @@ import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { runningOperation } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
 
 const COMMANDS = [
   { name: 'compact', description: 'Clear history', hint: null },
@@ -66,6 +66,55 @@ it('opens on / and filters as the person types', async () => {
   expect(names()).toEqual(['superpowers:brainstorming'])
   typeInto(box, 'hi /br')
   expect(menu()).toBeNull()
+})
+
+it('Slash commands from Add opens the same list and returns focus to Message', async () => {
+  const { a, box } = await open()
+  typeInto(box, '/')
+  const typedNames = names()
+  press(box, 'Escape')
+  await choose(a, 'Add', 'Slash commands')
+  await until(() => document.activeElement === box)
+  expect(names()).toEqual(typedNames)
+  press(box, 'ArrowDown')
+  press(box, 'Enter')
+  expect(box.value).toBe('/superpowers:brainstorming ')
+  expect(a.text()).toContain('[topic]')
+  expect(menu()).toBeNull()
+  expect(sentOrQueued(a)).toEqual([])
+})
+
+it('Escape after opening Slash commands preserves the message and allows reopening', async () => {
+  const { a, box } = await open()
+  typeInto(box, 'Keep my draft')
+  await choose(a, 'Add', 'Slash commands')
+  await until(() => document.activeElement === box)
+  expect(names()).toEqual(COMMANDS.map(command => command.name))
+  expect(box.value).toBe('Keep my draft')
+  press(box, 'Escape')
+  expect(menu()).toBeNull()
+  expect(box.value).toBe('Keep my draft')
+  await choose(a, 'Add', 'Slash commands')
+  await until(() => document.activeElement === box)
+  press(box, 'ArrowUp')
+  press(box, 'Tab')
+  expect(box.value).toBe('/superpowers:brainstorming ')
+  expect(sentOrQueued(a)).toEqual([])
+})
+
+it('Slash commands from Add uses the latest harness list and adds no commands', async () => {
+  const { a, box } = await open()
+  await deliver(a, [COMMANDS[0]])
+  await choose(a, 'Add', 'Slash commands')
+  await until(() => document.activeElement === box)
+  expect(names()).toEqual(['compact'])
+  press(box, 'Escape')
+  await deliver(a, [])
+  await choose(a, 'Add', 'Slash commands')
+  await until(() => document.activeElement === box)
+  expect(menu()).toBeNull()
+  expect(box.value).toBe('')
+  expect(menuItem('Slash commands')).toBeUndefined()
 })
 
 it('Enter picks without sending, writes /name and shows the hint', async () => {

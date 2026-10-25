@@ -3,13 +3,16 @@ use super::*;
 #[path = "map_proposals.rs"]
 mod proposals;
 
-async fn setup() -> (tempfile::TempDir, Storage, Arc<AppCore>, ProjectId) {
+async fn setup() -> (tempfile::TempDir, Arc<Storage>, Arc<AppCore>, ProjectId) {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("map.sqlite3");
     let core = core_at(&path).await;
     let p = project(&core, "map-tests", tmp.path()).await;
-    let storage = Storage::open(&path).await.unwrap();
-    storage.seed_map_for_tests(&p).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_map_for_tests(&p)
+        .await
+        .unwrap();
     (tmp, storage, core, p)
 }
 
@@ -39,8 +42,8 @@ async fn folders_nest_only_under_their_parent() {
     )
     .await;
     let result = core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "overlap".into(),
             &p,
             1,
@@ -51,7 +54,8 @@ async fn folders_nest_only_under_their_parent() {
                 &["BACKEND/src"],
             )],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(result.is_err());
     assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
 }
@@ -61,23 +65,25 @@ async fn a_folder_with_dot_dot_or_absolute_is_refused() {
     let (_tmp, _storage, core, p) = setup().await;
     for path in ["../x", "/x", "C:/x", "a//b", "a/./b", "a/x."] {
         assert!(
-            core.design()
-                .edit(
+            core.plans()
+                .edit_design(
                     format!("bad-{path}"),
                     &p,
                     0,
                     vec![mapped(&PartId::generate(), None, "x", &[path])]
                 )
                 .await
+                .map_err(shadows_core::CoreError::from)
                 .is_err()
         );
     }
     let id = PartId::generate();
     edit(&core, &p, 0, vec![mapped(&id, None, "x", &["./a/b/"])]).await;
     assert_eq!(
-        core.design()
-            .part(&p, &id)
+        core.plans()
+            .design_part(&p, &id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .part
             .content
@@ -108,7 +114,14 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         ],
     )
     .await;
-    let mut c = core.design().part(&p, &backend).await.unwrap().part.content;
+    let mut c = core
+        .plans()
+        .design_part(&p, &backend)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .part
+        .content;
     c.kind = None;
     for (n, op) in [
         DesignOp::PartPut {
@@ -125,10 +138,14 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
     .enumerate()
     {
         assert!(matches!(
-            core.design()
-                .edit(format!("drop-{n}"), &p, 1, vec![op])
-                .await,
-            Err(CoreError::Storage(StorageError::StageBlocked(_)))
+            core.plans()
+                .edit_design(format!("drop-{n}"), &p, 1, vec![op])
+                .await
+                .map_err(shadows_core::CoreError::from),
+            Err(CoreError::Refused {
+                code: shadows_core::ErrorCode::StageBlocked,
+                ..
+            })
         ));
     }
     assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
@@ -168,7 +185,14 @@ async fn removed_links_and_metadata_edits_preserve_drift() {
         }],
     )
     .await;
-    let mut c = core.design().part(&p, &id).await.unwrap().part.content;
+    let mut c = core
+        .plans()
+        .design_part(&p, &id)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .part
+        .content;
     c.title = "renamed".into();
     edit(
         &core,
@@ -224,8 +248,8 @@ async fn initial_files_cannot_escape_part_ownership() {
         content: String::new(),
     }];
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "file".into(),
                 &p,
                 0,
@@ -237,6 +261,7 @@ async fn initial_files_cannot_escape_part_ownership() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
 }
@@ -277,9 +302,10 @@ async fn initial_files_cannot_also_be_directories() {
             ));
         }
         let result = core
-            .design()
-            .edit(format!("collision-{n}"), &p, 0, ops)
-            .await;
+            .plans()
+            .edit_design(format!("collision-{n}"), &p, 0, ops)
+            .await
+            .map_err(shadows_core::CoreError::from);
         assert!(
             result.is_err(),
             "file/directory collision was accepted: {folder}"
@@ -303,18 +329,27 @@ async fn a_hand_part_create_before_the_first_map_is_stage_blocked() {
     let p = project(&core, "map-gate", tmp.path()).await;
     let id = PartId::generate();
     let result = core
-        .design()
-        .edit("blocked".into(), &p, 0, vec![create(&id, None, "core")])
-        .await;
+        .plans()
+        .edit_design("blocked".into(), &p, 0, vec![create(&id, None, "core")])
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(matches!(
         result,
-        Err(CoreError::Storage(StorageError::StageBlocked(_)))
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::StageBlocked,
+            ..
+        })
     ));
     assert_eq!(core.design().vision(&p).await.unwrap().revision, 0);
-    let storage = Storage::open(&tmp.path().join("map.sqlite3"))
+    let storage = Arc::new(
+        Storage::open(&tmp.path().join("map.sqlite3"))
+            .await
+            .unwrap(),
+    );
+    shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_map_for_tests(&p)
         .await
         .unwrap();
-    storage.seed_map_for_tests(&p).await.unwrap();
     edit(&core, &p, 0, vec![create(&id, None, "core")]).await;
     let versions: i64 = sqlx::query_scalar("SELECT count(*) FROM design_map_version")
         .fetch_one(storage.reader())

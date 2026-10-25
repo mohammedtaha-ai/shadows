@@ -6,8 +6,14 @@ pub(super) async fn core_and_project(tmp: &tempfile::TempDir) -> (Arc<AppCore>, 
             .await
             .unwrap(),
     );
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,
@@ -18,7 +24,7 @@ pub(super) async fn core_and_project(tmp: &tempfile::TempDir) -> (Arc<AppCore>, 
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "standards",
@@ -43,15 +49,15 @@ fn rule(id: &str, parts: &[&str]) -> StandardRule {
 async fn standards_without_additions_are_the_base() {
     let tmp = tempfile::tempdir().unwrap();
     let (core, project) = core_and_project(&tmp).await;
-    let standards = core.design().standards(&project).await.unwrap();
-    assert_eq!(&standards.base, shadows_core::base_standards());
+    let standards = core.standards().standards(&project).await.unwrap();
+    assert_eq!(&standards.base, shadows_core::Standards::base());
     assert_eq!(standards.additions, None);
     assert_eq!(
         standards.mandatory_parts(),
         ["backend", "database", "api", "frontend"]
     );
     let unknown = ProjectId::generate();
-    assert!(core.design().standards(&unknown).await.is_err());
+    assert!(core.standards().standards(&unknown).await.is_err());
     assert!(core.design().stage(&unknown).await.is_err());
 }
 
@@ -67,7 +73,7 @@ async fn each_additions_save_is_a_new_version_and_a_replay_saves_nothing() {
         }],
     };
     let first = core
-        .design()
+        .standards()
         .save_standards_additions("a1".into(), &project, content.clone())
         .await
         .unwrap();
@@ -75,17 +81,21 @@ async fn each_additions_save_is_a_new_version_and_a_replay_saves_nothing() {
     assert!(!first.id.is_empty());
     assert!(serde_json::to_value(&first).unwrap().get("id").is_none());
     let second = core
-        .design()
+        .standards()
         .save_standards_additions("a2".into(), &project, Default::default())
         .await
         .unwrap();
     assert_eq!(second.number, 2);
     assert_eq!(
-        core.design().standards(&project).await.unwrap().additions,
+        core.standards()
+            .standards(&project)
+            .await
+            .unwrap()
+            .additions,
         Some(second)
     );
     assert_eq!(
-        core.design()
+        core.standards()
             .save_standards_additions("a1".into(), &project, content.clone(),)
             .await
             .unwrap(),
@@ -94,26 +104,28 @@ async fn each_additions_save_is_a_new_version_and_a_replay_saves_nothing() {
     let mut changed = content.clone();
     changed.parts[0].owns = "Other.".into();
     assert!(matches!(
-        core.design()
+        core.standards()
             .save_standards_additions("a1".into(), &project, changed,)
             .await,
-        Err(CoreError::Storage(StorageError::CommandConflict))
+        Err(shadows_core::StandardsError::Storage(
+            StorageError::CommandConflict
+        ))
     ));
-    core.projects()
+    core.project_lifecycle()
         .remove("remove".into(), &project)
         .await
         .unwrap();
-    assert!(core.design().standards(&project).await.is_err());
+    assert!(core.standards().standards(&project).await.is_err());
     assert!(core.design().stage(&project).await.is_err());
     assert_eq!(
-        core.design()
+        core.standards()
             .save_standards_additions("a1".into(), &project, content,)
             .await
             .unwrap(),
         first
     );
     assert!(
-        core.design()
+        core.standards()
             .save_standards_additions("removed".into(), &project, Default::default(),)
             .await
             .is_err()
@@ -176,9 +188,10 @@ async fn additions_cannot_repeat_a_base_part_or_name_an_unknown_one() {
     ];
     for (i, content) in refused.into_iter().enumerate() {
         let error = core
-            .design()
+            .standards()
             .save_standards_additions(format!("bad-{i}"), &project, content)
-            .await;
+            .await
+            .map_err(CoreError::from);
         assert!(
             matches!(
                 &error,
@@ -191,7 +204,11 @@ async fn additions_cannot_repeat_a_base_part_or_name_an_unknown_one() {
         );
     }
     assert_eq!(
-        core.design().standards(&project).await.unwrap().additions,
+        core.standards()
+            .standards(&project)
+            .await
+            .unwrap()
+            .additions,
         None
     );
 }
@@ -204,9 +221,9 @@ async fn standards_saves_are_atomic_and_survive_restart() {
         .await
         .unwrap();
     let (a, b) = tokio::join!(
-        core.design()
+        core.standards()
             .save_standards_additions("a".into(), &project, Default::default()),
-        core.design()
+        core.standards()
             .save_standards_additions("b".into(), &project, Default::default()),
     );
     let mut numbers = [a.unwrap().number, b.unwrap().number];
@@ -221,13 +238,13 @@ async fn standards_saves_are_atomic_and_survive_restart() {
     .await
     .unwrap();
     assert!(
-        core.design()
+        core.standards()
             .save_standards_additions("rollback".into(), &project, Default::default(),)
             .await
             .is_err()
     );
     assert_eq!(
-        core.design()
+        core.standards()
             .standards(&project)
             .await
             .unwrap()
@@ -241,19 +258,21 @@ async fn standards_saves_are_atomic_and_survive_restart() {
         .await
         .unwrap();
     assert_eq!(
-        core.design()
+        core.standards()
             .save_standards_additions("rollback".into(), &project, Default::default(),)
             .await
             .unwrap()
             .number,
         3
     );
-    let reopened = Storage::open(&tmp.path().join("standards.sqlite3"))
-        .await
-        .unwrap();
+    let reopened = Arc::new(
+        Storage::open(&tmp.path().join("standards.sqlite3"))
+            .await
+            .unwrap(),
+    );
     assert_eq!(
-        reopened
-            .current_standards_additions(&project)
+        AppCore::standards_for_tests(reopened.clone())
+            .current(&project)
             .await
             .unwrap()
             .unwrap()

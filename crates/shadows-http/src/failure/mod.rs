@@ -1,10 +1,9 @@
 //! One job: how a failure becomes a status code.
 //!
-//! Transport mapping lives here and nowhere else. Spec §3.3: `Blocked` and
-//! `Rejected` are domain outcomes, not HTTP failures, and would be returned as
-//! 200 with the outcome — they are not reachable in Milestone 0.
+//! Transport mapping lives here and nowhere else. `Blocked` and `Rejected`
+//! are domain outcomes carried by successful responses, not HTTP failures.
 //!
-//! Spec §3.2: what reaches a client is public-safe. A storage failure's own
+//! What reaches a client is public-safe. A storage failure's own
 //! text names tables, columns, and driver internals, so a client is told what
 //! happened in words written here, and the cause goes to the log only.
 
@@ -17,18 +16,21 @@ use shadows_core::StartError;
 mod other;
 mod storage;
 
+#[cfg(test)]
+mod mapping_tests;
+
 /// A failed request: its status and the body it answers with.
 pub struct Failure {
     status: StatusCode,
     code: ErrorCode,
     message: String,
-    /// The internal cause, logged with a 5xx and never sent (spec §3.2).
+    /// The internal cause, logged with a 5xx and never sent.
     cause: Option<String>,
     detail: Detail,
 }
 
 /// What some refusals carry besides their message, for a client to act on
-/// without reading it (spec §13.10).
+/// without reading it.
 #[derive(Default)]
 struct Detail {
     current_revision: Option<i64>,
@@ -36,7 +38,7 @@ struct Detail {
 }
 
 /// The body of every error this API answers: the stable code a client
-/// matches on (spec §3.4), and a human message nobody should match on. A
+/// matches on, and a human message nobody should match on. A
 /// request axum rejects before a handler runs (malformed JSON, a missing query
 /// parameter) gets one too, through
 /// [`rejections_as_error_bodies`].
@@ -66,7 +68,7 @@ impl Failure {
 
     /// The thread's project has no usable directory. A 4xx whose message is
     /// the reason, because the user can act on it: the text is ours, about a
-    /// directory the user chose (§3.2).
+    /// directory the user chose.
     pub(super) fn project_directory_unusable(reason: String) -> Self {
         Failure {
             status: StatusCode::CONFLICT,
@@ -85,7 +87,7 @@ impl Failure {
             detail: Detail::default(),
         }
     }
-    /// Spec §12.4: the thread's harness is listed but cannot run here yet.
+    /// The thread's harness is listed but cannot run here yet.
     pub(super) fn harness_unavailable(harness: &str) -> Self {
         Failure {
             status: StatusCode::UNPROCESSABLE_ENTITY,
@@ -96,9 +98,9 @@ impl Failure {
         }
     }
 
-    /// Spec §12.7: `what` (model, effort, mode or harness) is not among the
+    /// `what` (model, effort, mode or harness) is not among the
     /// choices on offer. `detail`, when given, is the harness's own refusal,
-    /// which names a setting the user chose (§12.4: reported in its words).
+    /// which reports a setting the user chose in the harness's own words.
     pub(super) fn setting_not_offered(what: &str, id: &str, detail: Option<&str>) -> Self {
         let message = match detail {
             Some(detail) => format!("{what} {id} was refused by the harness: {detail}"),
@@ -113,7 +115,7 @@ impl Failure {
         }
     }
 
-    /// Spec §12.5: the project does not allow `mode`.
+    /// The project does not allow `mode`.
     pub(super) fn mode_not_allowed(mode: &str) -> Self {
         Failure {
             status: StatusCode::FORBIDDEN,
@@ -124,7 +126,7 @@ impl Failure {
         }
     }
 
-    /// Spec §8.5: a stopping daemon takes no new work. 503, because the
+    /// A stopping daemon takes no new work. 503, because the
     /// refusal is about this daemon's state, not the request — the same
     /// request succeeds against the next one.
     pub(super) fn runtime_stopping() -> Self {
@@ -137,11 +139,34 @@ impl Failure {
         }
     }
 
-    /// A refusal whose code and text a service wrote. 422: the request was
-    /// understood and refused. No HTTP route produces one in Milestone 2.5.
+    /// A refusal whose code and text a service wrote. A fixed thread harness
+    /// conflicts with the thread's state; other refusals are invalid requests.
     pub(super) fn refused(code: ErrorCode, message: String) -> Self {
+        if matches!(code, ErrorCode::GrantInvalid | ErrorCode::GrantScope)
+            && matches!(
+                message.as_str(),
+                "the grant is unknown or revoked" | "outside what the grant allows"
+            )
+        {
+            tracing::error!(%message, "http.grant_refusal_on_route");
+            return Failure {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                code: ErrorCode::StorageUnavailable,
+                message: "the daemon refused its own request".into(),
+                cause: Some(message),
+                detail: Detail::default(),
+            };
+        }
         Failure {
-            status: StatusCode::UNPROCESSABLE_ENTITY,
+            status: match code {
+                ErrorCode::QueuedMessageGone => StatusCode::NOT_FOUND,
+                ErrorCode::ThreadBusy
+                | ErrorCode::HarnessLocked
+                | ErrorCode::ProjectHasThreads
+                | ErrorCode::StageBlocked
+                | ErrorCode::WorkflowFrozenImmutable => StatusCode::CONFLICT,
+                _ => StatusCode::UNPROCESSABLE_ENTITY,
+            },
             code,
             message,
             cause: None,
@@ -149,9 +174,8 @@ impl Failure {
         }
     }
 
-    /// Spec §1: a browser sent this on behalf of a page that is not one of
-    /// this daemon's clients (`guard.rs`). 403: the request is refused for
-    /// who sent it, whatever it asks.
+    /// The desktop runtime identity extension is absent. The identity route
+    /// returns 404 because this daemon has no desktop runtime identity configured.
     pub(super) fn runtime_not_configured() -> Self {
         Failure {
             status: StatusCode::NOT_FOUND,
@@ -172,7 +196,7 @@ impl Failure {
         }
     }
 
-    /// Spec §8.4 case 6: the tree could not be terminated. The daemon failed
+    /// The tree could not be terminated. The daemon failed
     /// to do what Stop asks, so this is a 5xx, and the operation was not
     /// recorded `Cancelled` — it is still running as far as anyone can tell.
     pub(super) fn termination_failed() -> Self {

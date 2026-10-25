@@ -5,8 +5,7 @@
 //! allowed to call this daemon. Today that is a loopback bind, the CORS origin
 //! list, and `guard.rs` refusing requests other pages make a browser send, and
 //! nothing else: there is no authentication. That is sound
-//! only while every client is on this machine; spec §1's OPEN block on remote
-//! access names the trigger that ends it.
+//! only while every client is on this machine; remote access needs authentication.
 //!
 //! What the disk says is `Projects`' business (`core.projects()`), which
 //! reads it on a blocking thread; these handlers only carry it over HTTP.
@@ -29,8 +28,7 @@ pub(super) struct DirsQuery {
 
 /// A directory's immediate subdirectories, or the roots to start from.
 ///
-/// Exposes the machine's directory names to any client the CORS list admits;
-/// see spec §1's OPEN block on remote access.
+/// Exposes the machine's directory names to any client the CORS list admits.
 #[utoipa::path(
     get,
     path = "/api/fs/dirs",

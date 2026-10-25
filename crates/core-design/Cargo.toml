@@ -1,0 +1,40 @@
+[package]
+name = "core-design"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+schemars = { workspace = true }
+core-db = { path = "../core-db" }
+core-projects = { path = "../core-projects" }
+core-standards = { path = "../core-standards" }
+core-threads = { path = "../core-threads" }
+core-grants = { path = "../core-grants" }
+core-operations = { path = "../core-operations" }
+core-harness = { path = "../core-harness" }
+jsonschema = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+yaml-rust2 = { workspace = true }
+
+[features]
+test-support = ["core-db/test-support", "core-threads/test-support"]
+
+[dev-dependencies]
+core-design = { path = ".", features = ["test-support"] }
+tempfile = { workspace = true }

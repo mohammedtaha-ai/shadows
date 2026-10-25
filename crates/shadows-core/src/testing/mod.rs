@@ -1,8 +1,8 @@
 //! What tests in every crate share, and nothing more: the internals a test
 //! drives below the services, the fake adapter and the paths that belong to
 //! this crate. Compiled only with `test-support`, which a crate enables only in
-//! its `[dev-dependencies]` (spec §14.6): a normal build that names
-//! `shadows_core::testing` does not compile.
+//! its `[dev-dependencies]`: a normal build that names
+//! `crate::testing` does not compile.
 //!
 //! `acp` builds sessions over the fake adapter, and `turn` starts a Planner
 //! turn without HTTP; both were fixture copies in two test crates.
@@ -13,7 +13,7 @@ use crate::app::{AppCore, CoreParts};
 
 /// Test-only injection, without touching the operating system credential store.
 pub fn secrets(storage: Arc<Storage>, key: Option<crate::SecretKey>) -> Arc<crate::Secrets> {
-    crate::Secrets::new(storage, key)
+    AppCore::secrets_for_tests(storage, key)
 }
 
 /// Test-only inspection of the harness's private resolution boundary.
@@ -21,32 +21,74 @@ pub async fn resolve_secret_env(
     service: &crate::Secrets,
     profile: &str,
 ) -> Result<Vec<(String, String)>, crate::CoreError> {
-    service.resolve_env(profile).await
+    service.resolve_env(profile).await.map_err(Into::into)
 }
 
-pub fn profiles(
-    storage: Arc<Storage>,
-    _secrets: Arc<crate::Secrets>,
-    home_root: std::path::PathBuf,
-) -> Arc<crate::Profiles> {
-    crate::Profiles::new(storage, Some(home_root), std::sync::Weak::new())
+/// The projects service over `storage`, for a test that has no `AppCore`.
+pub fn projects(storage: Arc<Storage>) -> crate::Projects {
+    AppCore::projects_for_tests(storage)
+}
+
+/// A project written with the command context the test built.
+pub async fn create_project(
+    storage: &Arc<Storage>,
+    ctx: &CommandContext,
+    slug: &str,
+    name: &str,
+    directory: &ProjectDirectory,
+    default_modes: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Result<crate::Project, crate::StorageError> {
+    projects(storage.clone())
+        .create_for_test(ctx, slug, name, directory, default_modes)
+        .await
+}
+
+/// A project's allowed modes replaced with the command context the test built.
+pub async fn set_project_modes(
+    storage: &Arc<Storage>,
+    ctx: &CommandContext,
+    project: &crate::ProjectId,
+    modes: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Result<crate::Project, crate::StorageError> {
+    projects(storage.clone())
+        .set_modes_for_test(ctx, project, modes)
+        .await
+}
+
+/// The restricted fixture: `AppCore` over a database at `db_path`, built by
+/// `AppCore::start` with no secret key, no AYLUL and executables that do not
+/// exist (their versions are recorded as unknown). A test reaches services
+/// through the accessors only.
+pub async fn app(db_path: std::path::PathBuf) -> anyhow::Result<Arc<AppCore>> {
+    let missing = db_path.with_file_name("absent");
+    AppCore::start(
+        &crate::app::StartConfig {
+            secret_key: None,
+            db_path,
+            node_path: missing.clone(),
+            adapter_path: missing.clone(),
+            harness_path: missing,
+            aylul: None,
+        },
+        "http://127.0.0.1:0/mcp".into(),
+    )
+    .await
 }
 
 pub mod acp;
 pub mod queue;
 pub mod turn;
-pub use crate::db::write_observer::{DatabaseWrites, database_writes};
+pub use core_db::DatabaseWrites;
 
 /// The `fake-acp` binary, built once per test process. `CARGO_BIN_EXE_*`
 /// only names binaries of the test's own package, and `fake-acp` is its own
-/// package, so it is located through `escargot` (spec §14.3).
+/// package, so it is located through `escargot`.
 pub fn fake_acp_path() -> std::path::PathBuf {
     static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
     PATH.get_or_init(|| built("fake-acp", "fake-acp")).clone()
 }
 
-/// `shadows-process`'s `tree_probe`, which the daemon tests run as a stand-in
-/// executable (moved here from Task 1's `fixtures/probe.rs`).
+/// `shadows-process`'s `tree_probe`, which daemon tests run as a stand-in executable.
 pub fn tree_probe_path() -> std::path::PathBuf {
     static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
     PATH.get_or_init(|| built("shadows-process", "tree_probe"))
@@ -68,68 +110,42 @@ fn built(package: &str, bin: &str) -> std::path::PathBuf {
 }
 
 /// The Planner's instructions, as `harness/setup` compiles them in.
-pub const PROMPT: &str = include_str!("../harness/prompt.txt");
+pub use core_harness::TEST_PROMPT as PROMPT;
 
-/// This crate's migrations directory.
+/// The foundation's embedded migrations directory.
 pub fn migrations_dir() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations")
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../core-db/migrations")
 }
 
 /// Plans' pure rules, which `tests/workflow_rules.rs` calls directly. They
 /// are private to `plans` everywhere else: a caller changes a plan through
 /// `Plans` only.
-pub use crate::plans::for_tests::{Applied, apply, approval_problems, edit_problems};
+pub use core_plans::for_tests::{Applied, Ops, Rules};
 
 /// The turn machinery below `Turns`, which the turn, shutdown and recovery
 /// tests drive directly. Private to `turns` everywhere else: a caller starts
 /// or stops a turn through `Turns` only.
-pub use crate::turns::LiveHandles;
-pub use crate::turns::for_tests::{
+pub use core_turns::LiveHandles;
+pub use core_turns::for_tests::{
     Dequeue, FailureStage, InvocationVersions, NewTurn, PlannerTurn, PlannerTurnRequest,
-    StartedTurn, StopOutcome, shut_down,
+    StartedTurn, StopOutcome,
 };
 
 /// Storage, the runtime and the sessions, which the storage, recovery and
 /// session tests open directly and `CoreParts` is built from. Private to the
-/// crate everywhere else (§14.6).
-pub use crate::app::{Bus, adapter_version};
-pub use crate::command::derive::{Anchor, derived_id};
-pub use crate::command::{CommandContext, Writer, fingerprint};
-pub use crate::db::{Storage, append_event_for_test};
-pub use crate::events::{Causation, DurableEvent, EventCursor};
-pub use crate::grants::{IssuedGrant, Token, hash_token};
-pub use crate::harness::{LeaseError, OpenSession, Sessions, SessionsConfig, prompt_version};
-pub use crate::projects::ProjectDirectory;
-pub use crate::runtime::{ReconcileReport, Runtime};
-pub use crate::threads::{NewThreadEntry, TurnContext};
-
-impl crate::code::Code {
-    /// `scan`, now, on the test's task: the index a test asks about is the
-    /// one its files were just written into.
-    pub async fn scan_for_test(
-        &self,
-        project: &crate::projects::ProjectId,
-    ) -> Result<(), crate::error::CoreError> {
-        self.scan(project).await
-    }
-
-    /// That project's worker drops every `Files` job until shutdown; its
-    /// watcher and its periodic scan keep running, so a change the scan
-    /// finds proves the scan, not the watcher.
-    pub async fn pause_watcher_for_test(&self, project: &crate::projects::ProjectId) {
-        self.pause_watcher(project).await
-    }
-
-    /// The active projects, most recent first.
-    pub async fn active_for_test(&self) -> Vec<crate::projects::ProjectId> {
-        self.active_projects().await
-    }
-
-    /// `shut_down`: every worker stops after the file it is on.
-    pub async fn shut_down_for_test(&self) {
-        self.shut_down().await
-    }
-}
+/// crate everywhere else.
+pub use crate::app::adapter_version;
+pub use core_db::JournalEntry as DurableEvent;
+pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
+pub use core_events::EventCursor;
+pub use core_grants::Writer;
+pub use core_grants::{IssuedGrant, Token};
+pub use core_harness::{Harness, LeaseError, OpenSession, SessionsConfig};
+pub use core_operations::ReconcileReport;
+pub use core_projects::ProjectDirectory;
+pub use core_runtime::Runtime;
+pub use core_threads::{NewThreadEntry, TurnContext};
+pub use core_turns::Bus;
 
 impl AppCore {
     /// The application over parts a test built, so the test keeps its own

@@ -1,0 +1,346 @@
+//! The write transaction: atomic, serialized, recovering.
+
+use std::str::FromStr;
+use std::time::Duration;
+
+use super::fixtures::Event;
+use core_db::Actor;
+use core_db::Storage;
+use sqlx::Connection;
+
+#[tokio::test]
+async fn owner_error_rolls_back_and_the_next_write_succeeds() {
+    #[derive(Debug)]
+    enum OwnerError {
+        Storage(core_db::StorageError),
+        Refused,
+    }
+    impl From<core_db::StorageError> for OwnerError {
+        fn from(error: core_db::StorageError) -> Self {
+            Self::Storage(error)
+        }
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let committed = storage.watch_committed();
+    let outcome = storage
+        .write_txn_as(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO project (id,slug,name,directory,created_at)
+                     VALUES ('p-owner','owner','Owner','/d','2026-10-22T00:00:00Z')",
+                )
+                .execute(&mut *conn)
+                .await
+                .map_err(core_db::StorageError::from)?;
+                core_db::JournalEntry::append_event_for_test(
+                    conn,
+                    &Event::new("ProjectCreated", Actor::system()).with_project("p-owner"),
+                    "2026-10-22T00:00:00Z",
+                )
+                .await?;
+                Err::<(), _>(OwnerError::Refused)
+            })
+        })
+        .await;
+    assert!(matches!(outcome, Err(OwnerError::Refused)));
+    for table in ["project", "durable_event"] {
+        let count: i64 =
+            sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
+                .fetch_one(storage.reader())
+                .await
+                .unwrap();
+        assert_eq!(count, 0, "owner refusal must roll back {table}");
+    }
+    assert!(
+        !committed.has_changed().unwrap(),
+        "rollback must not publish"
+    );
+    let outcome: Result<(), OwnerError> = storage
+        .write_txn_as(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO project (id,slug,name,directory,created_at)
+                     VALUES ('p-next','next','Next','/d','2026-10-22T00:00:00Z')",
+                )
+                .execute(conn)
+                .await
+                .map_err(core_db::StorageError::from)?;
+                Ok(())
+            })
+        })
+        .await;
+    if let Err(OwnerError::Storage(error)) = &outcome {
+        panic!("the next write must succeed: {error}");
+    }
+    assert!(outcome.is_ok(), "the next write must succeed");
+}
+
+/// State and event commit together or not
+/// at all. A live publication failure must never roll back committed truth, and
+/// a rolled-back transaction must leave no event behind.
+#[tokio::test]
+async fn state_and_event_commit_atomically_or_not_at_all() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    // A transaction that fails after appending its event leaves nothing behind.
+    let outcome = storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-1")
+                .bind("demo")
+                .bind("Demo")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
+                core_db::JournalEntry::append_event_for_test(
+                    conn,
+                    &Event::new("ProjectCreated", Actor::system())
+                        .with_project("p-1")
+                        .with_payload(serde_json::json!({})),
+                    "2026-09-21T00:00:00Z",
+                )
+                .await?;
+                Err::<(), _>(core_db::StorageError::NotFound("forced"))
+            })
+        })
+        .await;
+    assert!(outcome.is_err());
+
+    let projects: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    let events: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        (projects, events),
+        (0, 0),
+        "rollback must leave neither behind"
+    );
+}
+
+/// The measured writer policy, encoded as a regression test. Concurrent
+/// read-then-write transactions must all succeed. If someone later replaces the
+/// serialized write connection with a pool, this test is what fails.
+#[tokio::test]
+async fn concurrent_read_then_write_transactions_all_succeed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+
+    let mut handles = Vec::new();
+    for w in 0..16 {
+        let storage = storage.clone();
+        handles.push(tokio::spawn(async move {
+            for i in 0..25 {
+                let id = format!("p-{w}-{i}");
+                storage
+                    .write_txn(|conn| {
+                        let id = id.clone();
+                        Box::pin(async move {
+                            // Read first, then write: this is the shape that
+                            // forces a lock upgrade under deferred BEGIN.
+                            let _: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+                                .fetch_one(&mut *conn)
+                                .await?;
+                            sqlx::query(
+                                "INSERT INTO project (id, slug, name, directory, created_at) \
+                                 VALUES (?,?,?,'/d',?)",
+                            )
+                            .bind(&id)
+                            .bind(&id)
+                            .bind("x")
+                            .bind("2026-09-21T00:00:00Z")
+                            .execute(&mut *conn)
+                            .await?;
+                            Ok(())
+                        })
+                    })
+                    .await
+                    .expect("no write transaction may fail under the serialized policy");
+            }
+        }));
+    }
+    for h in handles {
+        h.await.unwrap();
+    }
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 400);
+}
+
+/// A panic must release the serialized writer and roll back its partial insert.
+#[tokio::test]
+async fn write_txn_recovers_after_a_panicking_transaction() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+
+    let storage2 = storage.clone();
+    let handle = tokio::spawn(async move {
+        let _: Result<(), core_db::StorageError> = storage2
+            .write_txn(|conn| {
+                Box::pin(async move {
+                    sqlx::query(
+                        "INSERT INTO project (id, slug, name, directory, created_at) \
+                         VALUES (?,?,?,'/d',?)",
+                    )
+                    .bind("p-panic")
+                    .bind("panic")
+                    .bind("x")
+                    .bind("2026-09-21T00:00:00Z")
+                    .execute(&mut *conn)
+                    .await?;
+                    panic!("simulated failure mid-transaction")
+                })
+            })
+            .await;
+    });
+    assert!(handle.await.is_err(), "the spawned task must have panicked");
+
+    // The write connection must recover: an ordinary write_txn afterwards
+    // still succeeds and commits, proving the mutex was released and the
+    // connection is not stuck inside the panicking call's open transaction.
+    storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-after")
+                .bind("after")
+                .bind("x")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+        .expect("write_txn must recover after a prior panic left a transaction open");
+
+    let panic_row: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project WHERE id = 'p-panic'")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        panic_row, 0,
+        "the panicking transaction's insert must have been rolled back"
+    );
+
+    let after_row: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project WHERE id = 'p-after'")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(after_row, 1, "the recovery write_txn must have committed");
+}
+
+/// Reading then writing must wait for the external writer before pinning a
+/// snapshot. A deferred BEGIN pins a stale snapshot and fails the lock upgrade;
+/// busy_timeout cannot rescue SQLITE_BUSY_SNAPSHOT.
+#[tokio::test]
+async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db_path = tmp.path().join("s.sqlite3");
+    let storage = std::sync::Arc::new(Storage::open(&db_path).await.unwrap());
+
+    // A second, independent connection to the same file — standing in for a
+    // second daemon or CLI client, not anything write_txn owns.
+    let url = format!("sqlite://{}", db_path.to_string_lossy().replace('\\', "/"));
+    let opts = sqlx::sqlite::SqliteConnectOptions::from_str(&url)
+        .unwrap()
+        .busy_timeout(Duration::from_millis(5000));
+    let mut external = sqlx::SqliteConnection::connect_with(&opts).await.unwrap();
+
+    use sqlx::Executor;
+    external.execute("BEGIN IMMEDIATE").await.unwrap();
+    external
+        .execute(
+            "INSERT INTO project (id, slug, name, directory, created_at) \
+             VALUES ('p-ext','ext','x','/d','2026-09-21T00:00:00Z')",
+        )
+        .await
+        .unwrap();
+
+    // Release the external writer's lock shortly after write_txn starts
+    // waiting for it.
+    let release = tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        external.execute("COMMIT").await.unwrap();
+    });
+
+    storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                // Read the table the external writer touched — establishing
+                // a snapshot — before writing to it.
+                let _: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+                    .fetch_one(&mut *conn)
+                    .await?;
+                // Force the external writer's commit (at 200ms) to land
+                // between this read and the write below. Under BEGIN
+                // IMMEDIATE this sleep happens after the lock is already
+                // ours, so it changes nothing; under a deferred BEGIN it is
+                // what guarantees the snapshot goes stale before the write
+                // is attempted.
+                tokio::time::sleep(Duration::from_millis(300)).await;
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-after-external")
+                .bind("after")
+                .bind("x")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+        .expect("write_txn must wait out busy_timeout and then succeed against an external writer");
+
+    release.await.unwrap();
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        count, 2,
+        "both the external writer's insert and ours must be present"
+    );
+}
+
+#[tokio::test]
+async fn write_txn_recovers_after_begin_times_out() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("busy.sqlite3");
+    let storage = Storage::open(&path).await.unwrap();
+    let mut external = sqlx::SqliteConnection::connect_with(
+        &sqlx::sqlite::SqliteConnectOptions::new().filename(&path),
+    )
+    .await
+    .unwrap();
+    let transaction = external.begin_with("BEGIN IMMEDIATE").await.unwrap();
+    let result = storage.write_txn(|_| Box::pin(async { Ok(()) })).await;
+    assert!(
+        result.is_err(),
+        "BEGIN must time out against the external writer"
+    );
+    transaction.rollback().await.unwrap();
+    storage
+        .write_txn(|_| Box::pin(async { Ok(()) }))
+        .await
+        .expect("a failed BEGIN must not poison subsequent writes");
+}

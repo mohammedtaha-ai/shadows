@@ -1,6 +1,6 @@
 //! One job: tracing subscriber setup.
 //!
-//! Spec §8.7. Durable transition logs are emitted only after their transaction
+//! Durable transition logs are emitted only after their transaction
 //! commits; that discipline lives at the call sites, not here. What lives here
 //! is where lines go and at which level: stderr always, and in debug mode a
 //! plain-text file as well, so a person can read back what a run did after it
@@ -36,14 +36,14 @@ impl DebugLog {
 ///
 /// `debug_data_dir` is debug mode (`shadows serve --debug`): the default
 /// filter becomes `shadows=debug` plus the adapter's stderr lines
-/// (`harness.stderr`, §12.2), and lines also go to a new file under
+/// (`harness.stderr`), and lines also go to a new file under
 /// `<data dir>/logs/`, one per daemon start, named for the UTC start time and
 /// the process id. Without it: `shadows=info`, stderr only. `verbose` raises
 /// the stderr level without writing a file. `RUST_LOG`, when set, overrides
 /// the level in every mode, except ACP request logs, which are capped at INFO
 /// because their DEBUG fields can contain a live MCP bearer.
 ///
-/// Diagnostics go to stderr, never stdout. Spec §1.0 gives stdout one job —
+/// Diagnostics go to stderr, never stdout. Stdout has one job —
 /// printing the local address `shadows serve` binds (and, in debug mode, the
 /// log file's path after it) — and startup recovery logs before that print.
 pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Option<DebugLog>> {

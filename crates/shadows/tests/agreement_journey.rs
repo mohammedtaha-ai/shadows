@@ -15,15 +15,18 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
     let temp = tempfile::tempdir().unwrap();
     let a = app::test_app_at(temp.path()).await;
     let provider = PartId::generate();
-    a.storage.seed_map_for_tests(&a.project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(a.storage.clone())
+        .seed_map_for_tests(&a.project)
+        .await
+        .unwrap();
     let consumer = PartId::generate();
     let parts = vec![
         (provider.clone(), "Backend"),
         (consumer.clone(), "Frontend"),
     ];
     a.core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "parts".into(),
             &a.project,
             0,
@@ -47,6 +50,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
                 .collect(),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let op = "c0000000-0000-4000-8000-000000000001";
     let content = AgreementContent {
@@ -76,12 +80,13 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .unwrap();
     let review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     a.core
-        .design()
+        .plans()
         .agree_agreement(
             "agree-v1".into(),
             &a.project,
@@ -90,19 +95,19 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             review.review_id,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    let front_thread = a
-        .storage
-        .create_planning_thread(
-            &app::ctx("front", "thread.create"),
-            &a.project,
-            "Frontend",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let front_thread = shadows_core::Threads::create_planning_thread_for_test(
+        &a.storage,
+        &app::ctx("front", "thread.create"),
+        &a.project,
+        "Frontend",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let backend = plan::draft(&a).await;
     let frontend = plan::draft_on(&a, &front_thread, "frontend").await;
     let binding = |part, role, version| AgreementBinding {
@@ -133,6 +138,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .plans()
             .approve(format!("approve-{workflow}"), workflow, 1)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap();
     }
     let old_front = a
@@ -140,6 +146,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .plans()
         .get(&frontend.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .content();
     let old_back = a
@@ -147,6 +154,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .plans()
         .get(&backend.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .content();
     let second = a
@@ -177,9 +185,10 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .unwrap();
     let review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         review
@@ -201,6 +210,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .plans()
             .get(&continued.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .bindings[0]
             .version,
@@ -208,7 +218,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
     );
     assert!(matches!(
         a.core
-            .design()
+            .plans()
             .agree_agreement(
                 "stale".into(),
                 &a.project,
@@ -216,14 +226,16 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
                 1,
                 review.review_id
             )
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::RevisionConflict { .. }))
     ));
     let review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         review
@@ -234,7 +246,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         1
     );
     a.core
-        .design()
+        .plans()
         .agree_agreement(
             "agree-v2".into(),
             &a.project,
@@ -243,12 +255,14 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             review.review_id,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         a.core
             .plans()
             .get(&continued.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .bindings[0]
             .version,
@@ -265,12 +279,14 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         a.core
             .plans()
             .get(&continued.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .bindings[0]
             .version,
@@ -281,6 +297,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .plans()
             .get(&frontend.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .content(),
         old_front
@@ -290,6 +307,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .plans()
             .get(&backend.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .content(),
         old_back
@@ -322,9 +340,10 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
         .unwrap();
     let third_review = a
         .core
-        .design()
+        .plans()
         .review_agreement(&a.project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(
         third_review
@@ -357,6 +376,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .plans()
             .get(&continued.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .bindings[0]
             .version,
@@ -368,6 +388,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .plans()
             .get(&backend.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .bindings[0]
             .version,

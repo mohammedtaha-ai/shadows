@@ -16,8 +16,8 @@ use serde_json::{Value, json};
 use shadows_core::GrantId;
 use shadows_core::ProjectId;
 use shadows_core::ThreadId;
-use shadows_core::testing::{Anchor, derived_id};
-use shadows_core::testing::{CommandContext, Writer, fingerprint};
+use shadows_core::testing::Anchor;
+use shadows_core::testing::{CommandContext, Writer};
 use shadows_core::{
     AcceptanceItem, DraftStarted, Link, LinkKind, PlanId, PlanOp, TaskContent, WorkflowId,
 };
@@ -39,11 +39,11 @@ pub fn writer_ctx(
         command_id: command_id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &params),
+        request_fingerprint: CommandContext::fingerprint(kind, &params),
     }
 }
 
-/// A `plan_edit` as a caller that names no command id builds it (§13.5): the
+/// A `plan_edit` as a caller that names no command id builds it: the
 /// id derived from the expected revision and the request's fingerprint.
 pub fn edit_ctx(
     writer: &Writer,
@@ -52,13 +52,13 @@ pub fn edit_ctx(
     ops: &[PlanOp],
 ) -> CommandContext {
     let params = json!({ "workflow": workflow, "expected_revision": expected, "ops": ops });
-    let fp = fingerprint("PlanEdit", &params);
+    let fp = CommandContext::fingerprint("PlanEdit", &params);
     let (principal_kind, principal_id) = writer.principal();
     CommandContext {
         agent: None,
         principal_kind: principal_kind.into(),
         principal_id,
-        command_id: derived_id(Anchor::Revision(expected), &fp),
+        command_id: Anchor::derived_id(Anchor::Revision(expected), &fp),
         command_kind: "PlanEdit".into(),
         command_schema_ver: 1,
         request_fingerprint: fp,
@@ -119,11 +119,18 @@ pub async fn issue_grant(
     thread: Option<&ThreadId>,
 ) -> (GrantId, String) {
     let (grant, token) = match (kind, thread) {
-        ("thread", Some(thread)) => app.storage.issue_thread_grant(thread).await.unwrap(),
+        ("thread", Some(thread)) => {
+            shadows_core::Grants::issue_thread_grant_for_test(&app.storage, thread)
+                .await
+                .unwrap()
+        }
         ("project", None) => {
             let command = format!("grant-{}", uuid::Uuid::new_v4());
             let c = writer_ctx(&Writer::Person, &command, "McpGrantIssue", json!({}));
-            let issued = app.storage.issue_project_grant(&c, project).await.unwrap();
+            let issued =
+                shadows_core::Grants::issue_project_grant_for_test(&app.storage, &c, project)
+                    .await
+                    .unwrap();
             (
                 issued.grant,
                 issued.token.expect("a new grant shows its token"),
@@ -200,7 +207,7 @@ pub async fn events(app: &App, thread: &ThreadId) -> Vec<(String, String, String
 }
 
 /// The payloads of every `kind` event of `project`, in order: a plan event
-/// names a thread only when a Planner wrote it (§16.3).
+/// names a thread only when a Planner wrote it.
 pub async fn project_events_of(app: &App, project: &ProjectId, kind: &str) -> Vec<Value> {
     let rows: Vec<String> = sqlx::query_scalar(
         "SELECT payload_json FROM durable_event WHERE project_id = ? AND kind = ? ORDER BY seq",
@@ -229,7 +236,7 @@ pub async fn draft(app: &App) -> DraftStarted {
     draft_on(app, &app.thread, "start-1").await
 }
 
-/// `thread`'s Planner, under a new thread grant: since §16.3 a version is
+/// `thread`'s Planner, under a new thread grant: a version is
 /// written by a Planner's thread or an external agent's grant, never by a
 /// person.
 pub async fn planner(app: &App, thread: &ThreadId) -> Writer {
@@ -251,21 +258,32 @@ pub async fn project_of(app: &App, thread: &ThreadId) -> ProjectId {
 
 /// The plan `thread` wrote, if any.
 pub async fn plan_of(app: &App, thread: &ThreadId) -> Option<PlanId> {
-    let latest = app.storage.thread_plan(thread).await.unwrap()?;
-    Some(app.storage.get_plan(&latest).await.unwrap().plan_id)
+    let latest = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .thread_plan_for_test(thread)
+        .await
+        .unwrap()?;
+    Some(
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .get_plan_for_test(&latest)
+            .await
+            .unwrap()
+            .plan_id,
+    )
 }
 
 /// The thread's Planner starts a draft outside a turn: v1 when the thread has
-/// no plan, else that plan's Draft or its next version, with a reason
-/// (§16.3).
+/// no plan, else that plan's Draft or its next version, with a reason.
 pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStarted {
     let writer = planner(app, thread).await;
     let plan = plan_of(app, thread).await;
     let project = project_of(app, thread).await;
     // The thread may sit in another project: its roadmap is seeded as the app's is.
-    let part = app.storage.seed_roadmap_for_tests(&project).await.unwrap();
-    app.storage
-        .start_draft(
+    let part = shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_roadmap_for_tests(&project)
+        .await
+        .unwrap();
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(&writer, command, "DraftStart", json!({ "t": thread })),
             &writer,
             &project,
@@ -282,23 +300,25 @@ pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStart
 }
 
 /// Ties the plan of `workflow` to its project's seeded part, as the person
-/// does on the Project map page: a plan tied to no part is not approved (§23.6).
+/// does on the Project map page: a plan tied to no part is not approved.
 pub async fn tie_to_part(app: &App, workflow: &WorkflowId) {
-    let plan = app.storage.get_plan(workflow).await.unwrap();
-    let part = app
-        .storage
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(workflow)
+        .await
+        .unwrap();
+    let part = shadows_core::AppCore::design_for_tests(app.storage.clone())
         .seed_roadmap_for_tests(&plan.project_id)
         .await
         .unwrap();
-    app.storage
-        .link_plan_part_for_tests(&plan.project_id, &plan.plan_id, &part)
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .link_plan_part_for_test(&plan.project_id, &plan.plan_id, &part)
         .await
         .unwrap();
 }
 
 pub async fn edit(app: &App, workflow: &WorkflowId, expected: i64, ops: &[PlanOp]) -> i64 {
-    app.storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&Writer::Person, workflow, expected, ops),
             &Writer::Person,
             None,
@@ -315,13 +335,17 @@ pub async fn edit(app: &App, workflow: &WorkflowId, expected: i64, ops: &[PlanOp
 pub async fn approved_v1(app: &App) -> WorkflowId {
     let v1 = draft(app).await.workflow_id;
     edit(app, &v1, 0, &[add(1), add(2), needs(2, 1)]).await;
-    app.storage
-        .approve_plan(&ctx("approve-1", "PlanApprove"), &v1, 1)
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&ctx("approve-1", "PlanApprove"), &v1, 1)
         .await
         .unwrap();
     v1
 }
 
 pub async fn revision(app: &App, workflow: &WorkflowId) -> i64 {
-    app.storage.get_plan(workflow).await.unwrap().revision
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(workflow)
+        .await
+        .unwrap()
+        .revision
 }

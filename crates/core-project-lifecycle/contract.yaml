@@ -1,0 +1,51 @@
+# Grant authority and approval provenance are imported from core-grants.
+# Thread identities and transaction methods are imported from core-threads.
+# Index access and project reach use core-code.
+# Project identities and registration methods are imported from core-projects.
+# Database infrastructure: core-db; domain rules and private stores remain here.
+name: project_lifecycle
+version: 1
+status: current
+source: crates/core-project-lifecycle/src
+modules:
+  lib.rs: cross-owner project lifecycle
+  error.rs: project removal refusal
+  store.rs: atomic project removal composition
+dependencies:
+  projects: crates/core-projects/contract.yaml
+  threads: crates/core-threads/contract.yaml
+  plans: crates/core-plans/contract.yaml
+  code: crates/core-code/contract.yaml
+  grants: crates/core-grants/contract.yaml
+shapes:
+  ProjectLifecycle:
+    store: ProjectLifecycleStore
+    projects: Projects
+    code: Code
+functions:
+  new: Constructs project lifecycle with its shared foundation, Projects and Code.
+  service:
+    create:
+      signature: "(&self, command_id, slug, name, directory) -> Result<Project, ProjectLifecycleError>"
+      rule: Projects resolves and registers the directory, then Code is touched, including replay.
+    remove:
+      signature: "(&self, command_id, project) -> Result<Project, ProjectLifecycleError>"
+      rule: >
+        One write classifies project.remove, requires a live project with no live threads,
+        soft-removes it through Projects, invalidates plan dependencies, deletes code index
+        and links, revokes grants, journals ProjectRemoved and records the command.
+        A replay returns retained project metadata without another write.
+        After commit a detached task forgets its Code worker, even if the client disconnects.
+obligations:
+  - rule: Creation and replay each activate the project's code index.
+    tested_by: creation_and_replay_activate_the_project_index
+  - rule: A project holding a live planning thread is refused with PROJECT_HAS_THREADS.
+    tested_by: a_project_with_a_thread_is_not_removed
+  - rule: Removal atomically removes the index, links and grants, then stops the worker.
+    tested_by: a_project_without_threads_is_removed_with_its_index_links_and_grants
+  - rule: A remove replay returns the same project without appending events.
+    tested_by: a_replayed_remove_answers_the_same_project_and_changes_nothing
+  - rule: Removed projects are hidden from live reads.
+    tested_by: a_removed_project_is_not_found
+  - rule: Creation keeps canonical directory fingerprinting, replay and conflict semantics.
+    tested_by: project_create_replays_after_the_move

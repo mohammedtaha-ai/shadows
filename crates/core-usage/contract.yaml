@@ -1,0 +1,58 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Owns measured AYLUL usage: the one row each finished invocation records, and
+# reports over a period. It owns the one pricing rule (only Anthropic's finite,
+# non-negative USD cost is trusted), applied when a row is recorded and again when a
+# report reads historical rows; the store holds no pricing.
+# Reports group immutable snapshots, never a join on mutable provider rows.
+name: usage
+version: 1
+status: current
+source: crates/core-usage/src
+
+modules:
+  lib.rs: period validation, recording and the pricing rule
+  error.rs: usage refusals
+  model.rs: usage report shapes
+  report.rs: historical usage aggregation
+  store/mod.rs: usage SQL
+
+dependencies: {}
+
+shapes:
+  Usage:
+    store: private UsageStore over the shared storage handle
+  UsageStore:
+    storage: Arc<Storage> # Private to usage; shares the existing pool.
+  UsageRecord:
+    cost: The reported amount and currency, before the pricing rule
+  UsageRow:
+    note: One stored measurement as a report reads it
+  Totals:
+    cost: Null once any included row lacks a trusted cost
+  UsageReport:
+    note: Provider and model groups from immutable snapshots
+  ProviderUsage:
+    cost: Null unless every included row has trusted cost
+  ModelUsage:
+    note: Grouped by provider slug and model
+
+functions:
+  new: "(storage: Arc<Storage>) -> Usage"
+  usage: Validate a half-open RFC3339 period and aggregate historical measurements.
+  record_in: public owner boundary; record one finished invocation's counters in the caller's write, keeping only a trusted cost.
+  trusted_cost: private; the one pricing rule.
+  aggregate: private; keep rows exactly inside the period and group them with stable ordering.
+
+called_by_other_services:
+  record_in: Turns records a terminal AYLUL operation's usage in the write that ends it.
+
+shared_in_transaction:
+  record_in: Turns records terminal counters in the same transaction as operation completion.
+
+obligations:
+  - rule: Input totals include cache reads and writes once; context counters are never summed.
+    tested_by: [usage_counts_cache_once]
+  - rule: Periods are exact half-open UTC intervals with stable group ordering and historical metadata.
+    tested_by: [usage_periods_group_and_sort, usage_snapshot_survives_provider_changes]
+  - rule: Only Anthropic trusted per-turn costs are reported; partial groups have null cost.
+    tested_by: [usage_costs_require_trusted_turn_delta]

@@ -1,11 +1,10 @@
-//! Spec §20: writing while a turn runs — the queue and Send now.
+//! Writing while a turn runs — the queue and Send now.
 
 #[path = "fixtures/app.rs"]
 mod app;
 
 use app::{call, ctx, default_settings, fresh_command, post, test_app};
 use serde_json::{Value, json};
-use shadows_core::StorageError;
 use shadows_core::testing::acp;
 use shadows_core::testing::queue::{QueueAnswer, new_queued};
 use shadows_core::testing::turn::{new_turn, turn_command};
@@ -15,39 +14,61 @@ async fn waiting_messages_keep_their_order_and_a_removed_one_is_gone() {
     let app = test_app().await;
     // A queue needs a busy thread: hold one turn open at the store.
     let settings = app::settings();
-    app.storage
-        .start_turn(
-            &turn_command("t0", &app.thread, "hang", &settings),
-            new_turn(&app.thread, &app.runtime, "hang", &settings),
-        )
-        .await
-        .unwrap();
-    let first = match app
-        .storage
-        .queue_message(&ctx("q1", "turn.queue"), &app.thread, new_queued("one"))
-        .await
-        .unwrap()
+    shadows_core::Turns::start_turn_for_test(
+        &app.storage,
+        &turn_command("t0", &app.thread, "hang", &settings),
+        new_turn(&app.thread, &app.runtime, "hang", &settings),
+    )
+    .await
+    .unwrap();
+    let first = match shadows_core::Turns::queue_message_for_test(
+        &app.storage,
+        &ctx("q1", "turn.queue"),
+        &app.thread,
+        new_queued("one"),
+    )
+    .await
+    .unwrap()
     {
         QueueAnswer::Waiting(m) => m,
         QueueAnswer::Idle => panic!("a busy thread queues"),
     };
-    app.storage
-        .queue_message(&ctx("q2", "turn.queue"), &app.thread, new_queued("two"))
+    shadows_core::Turns::queue_message_for_test(
+        &app.storage,
+        &ctx("q2", "turn.queue"),
+        &app.thread,
+        new_queued("two"),
+    )
+    .await
+    .unwrap();
+    let listed = shadows_core::Turns::queued_messages_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
-    let listed = app.storage.queued_messages(&app.thread).await.unwrap();
     let prompts: Vec<&str> = listed.iter().map(|m| m.prompt.as_str()).collect();
     assert_eq!(prompts, ["one", "two"]);
 
-    app.storage
-        .unqueue_message(&ctx("u1", "turn.unqueue"), &app.thread, &first.id)
-        .await
-        .unwrap();
-    let again = app
-        .storage
-        .unqueue_message(&ctx("u2", "turn.unqueue"), &app.thread, &first.id)
-        .await;
-    assert!(matches!(again, Err(StorageError::QueuedMessageGone)));
+    shadows_core::Turns::unqueue_message_for_test(
+        &app.storage,
+        &ctx("u1", "turn.unqueue"),
+        &app.thread,
+        &first.id,
+    )
+    .await
+    .unwrap();
+    let again = shadows_core::Turns::unqueue_message_for_test(
+        &app.storage,
+        &ctx("u2", "turn.unqueue"),
+        &app.thread,
+        &first.id,
+    )
+    .await;
+    assert!(matches!(
+        again.map_err(shadows_core::CoreError::from),
+        Err(shadows_core::CoreError::Refused {
+            code: shadows_core::ErrorCode::QueuedMessageGone,
+            ..
+        })
+    ));
 }
 
 fn queue_body(prompt: &str) -> Value {
@@ -59,7 +80,9 @@ fn queue_body(prompt: &str) -> Value {
 
 /// Lets the `wait-for-release` turn finish: fake-acp looks for this file.
 async fn release(app: &app::App) {
-    let context = app.storage.turn_context(&app.thread).await.unwrap();
+    let context = shadows_core::Threads::turn_context_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
     let dir = context.project_directory.expect("a project directory");
     std::fs::write(dir.join("release"), "").unwrap();
 }
@@ -118,11 +141,10 @@ async fn a_busy_thread_queues_and_remove_answers_gone_the_second_time() {
 
 async fn until_ops(app: &app::App, n: usize) -> Vec<shadows_core::Operation> {
     for _ in 0..500 {
-        let ops = app
-            .storage
-            .list_operations_for_thread(&app.thread)
-            .await
-            .unwrap();
+        let ops =
+            shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
+                .await
+                .unwrap();
         if ops.len() >= n && ops.iter().all(|o| o.finished_at.is_some()) {
             return ops;
         }
@@ -242,9 +264,7 @@ async fn stop_leaves_the_queue_and_starts_nothing() {
 
     let ops = until_ops(&app, 1).await;
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    let after = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let after = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(after.len(), 1, "{ops:?}");

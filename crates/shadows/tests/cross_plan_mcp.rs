@@ -1,4 +1,4 @@
-//! Cross-project plan reads use the grant's one-way project links (§16.10).
+//! Cross-project plan reads use the grant's one-way project links.
 
 use serde_json::json;
 use shadows_core::testing::acp;
@@ -53,8 +53,8 @@ async fn a_linked_project_can_be_read_but_never_written_by_the_source_grant() {
     );
     l.app
         .core
-        .code()
-        .link("link-target".into(), &l.app.project, &target)
+        .plans()
+        .link_projects("link-target".into(), &l.app.project, &target)
         .await
         .unwrap();
     let listed = ok(&client, "workflow_list", json!({ "project": "other" })).await;
@@ -77,8 +77,8 @@ async fn a_linked_project_can_be_read_but_never_written_by_the_source_grant() {
     assert_eq!(plan::revision(&l.app, &theirs).await, 0);
     l.app
         .core
-        .code()
-        .unlink("unlink-target".into(), &l.app.project, &target)
+        .plans()
+        .unlink_projects("unlink-target".into(), &l.app.project, &target)
         .await
         .unwrap();
     assert!(

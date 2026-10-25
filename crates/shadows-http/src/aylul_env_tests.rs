@@ -3,8 +3,8 @@ use std::sync::Arc;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows_core::testing::{LiveHandles, Runtime, Sessions, Storage, acp, secrets};
-use shadows_core::{AppCore, AylulConfig, CoreParts, SecretKey};
+
+use shadows_core::{AppCore, AylulConfig, SecretKey, StartConfig};
 use tower::ServiceExt;
 
 use crate::AppState;
@@ -17,38 +17,22 @@ pub(crate) struct World {
 
 pub(crate) async fn world(configured: bool, key: bool) -> World {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
-    let secrets = secrets(storage.clone(), key.then(|| SecretKey::from_bytes([7; 32])));
-    // Every request here must finish before a spawn; an inert adapter makes that explicit.
-    let adapter = Arc::new(shadows_agent::claude::ClaudeAdapter {
-        node: tmp.path().join("absent-node"),
-        adapter: tmp.path().join("absent-adapter.js"),
-        agent: tmp.path().join("absent-agent"),
-        adapter_version: String::new(),
-        agent_version: String::new(),
-    });
-    let sessions = Sessions::new(
-        adapter,
-        storage.clone(),
-        shadows_core::testing::SessionsConfig {
-            secrets: Some(secrets.clone()),
+    let core = AppCore::start(
+        &StartConfig {
+            secret_key: key.then(|| SecretKey::from_bytes([7; 32])),
+            db_path: tmp.path().join("test.db"),
+            node_path: tmp.path().join("absent-node"),
+            adapter_path: tmp.path().join("absent-adapter.js"),
+            harness_path: tmp.path().join("absent-agent"),
             aylul: configured.then(|| AylulConfig {
                 home_root: tmp.path().to_owned(),
                 project_slug: "aylul".into(),
             }),
-            ..acp::test_config()
         },
-    );
-    let core = AppCore::assemble(CoreParts {
-        secrets,
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
-        storage,
-        sessions,
-        handles: Arc::new(LiveHandles::default()),
-        bus: tokio::sync::broadcast::channel(16).0,
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: acp::MCP_URL.into(),
-    });
+        shadows_core::testing::acp::MCP_URL.into(),
+    )
+    .await
+    .unwrap();
     if configured {
         core.projects()
             .ensure_assistant("aylul", "AYLUL", tmp.path())
@@ -231,7 +215,7 @@ async fn agent_world(configured: bool, key: bool) -> World {
     let w = world(configured, key).await;
     if configured {
         w.core
-            .profiles()
+            .providers()
             .create_provider(
                 "seed-provider".into(),
                 shadows_core::ProviderInput {
@@ -251,7 +235,7 @@ async fn agent_world(configured: bool, key: bool) -> World {
             .await
             .unwrap();
         w.core
-            .profiles()
+            .agents()
             .create_agent(
                 "seed-agent".into(),
                 shadows_core::AgentInput {

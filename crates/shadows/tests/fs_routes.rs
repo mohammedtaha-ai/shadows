@@ -1,4 +1,4 @@
-//! The disk routes a client uses to choose a project directory (spec §1),
+//! The disk routes a client uses to choose a project directory,
 //! driven through the real router against temporary directories: what a
 //! listing contains and in what order, where browsing starts, what creating a
 //! directory refuses, and that every refusal is a 4xx with a stable code.
@@ -12,7 +12,6 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
@@ -22,11 +21,14 @@ use shadows_core::testing::acp;
 
 async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
     let storage = Arc::new(Storage::open(&tmp.join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
             storage,
@@ -258,7 +260,7 @@ async fn a_name_that_is_not_one_valid_component_is_refused() {
 }
 
 /// Axum refuses a malformed request before any handler runs, and answers it in
-/// plain text of its own. A client matches on codes (spec §3.4), so those
+/// plain text of its own. A client matches on codes, so those
 /// refusals carry the same `ErrorBody` as every other error.
 #[tokio::test]
 async fn a_request_refused_before_its_handler_still_answers_an_error_body() {

@@ -1,0 +1,36 @@
+[package]
+name = "core-threads"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+core-db = { path = "../core-db" }
+core-agents = { path = "../core-agents" }
+core-projects = { path = "../core-projects" }
+core-code = { path = "../core-code" }
+shadows-agent = { path = "../shadows-agent" }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+
+[features]
+test-support = ["core-db/test-support"]
+
+[dev-dependencies]
+core-projects = { path = "../core-projects", features = ["test-support"] }
+core-threads = { path = ".", features = ["test-support"] }
+tempfile = { workspace = true }

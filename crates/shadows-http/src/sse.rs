@@ -1,4 +1,4 @@
-//! One job: the durable-replay-then-live stream (spec §2.10), framed as SSE.
+//! One job: the durable-replay-then-live stream, framed as SSE.
 //!
 //! `Events` (`shadows-core`) owns what is delivered and in what order; this
 //! file owns the framing: each `Delivery` becomes today's frame, with its
@@ -18,13 +18,13 @@ use shadows_core::{Delivery, ProjectId, StoredEvent, Subscription, ThreadId};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
-pub struct ProjectSubscribeQuery {
+pub(super) struct ProjectSubscribeQuery {
     /// Resume after the last durable sequence delivered; 0 replays all project plan/design events.
     #[serde(default)]
     pub after: i64,
 }
 
-/// A project's plan/design notifications (§16.8, §18.11), replayed then live on the same
+/// A project's plan/design notifications, replayed then live on the same
 /// journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
 /// operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
 /// Archive notifications name the plan's latest version to refetch.
@@ -38,7 +38,7 @@ pub struct ProjectSubscribeQuery {
         (status = 404, description = "Unknown or removed project", body = ErrorBody),
     )
 )]
-pub async fn subscribe_project(
+pub(super) async fn subscribe_project(
     State(state): State<AppState>,
     Path(project): Path<ProjectId>,
     Query(q): Query<ProjectSubscribeQuery>,
@@ -63,7 +63,7 @@ pub async fn subscribe_project(
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
-pub struct SubscribeQuery {
+pub(super) struct SubscribeQuery {
     /// The thread to watch.
     pub thread_id: ThreadId,
     /// The last durable sequence this client has already applied; 0 replays
@@ -72,12 +72,12 @@ pub struct SubscribeQuery {
     pub after: i64,
 }
 
-/// Spec §2.10: durable replay, then a no-gap handoff to live, then
+/// Durable replay, then a no-gap handoff to live, then
 /// de-duplication by durable sequence.
 ///
 /// Two live sources, both taken BEFORE a single journal row is read:
 ///
-/// - the storage's committed-sequence signal (spec §2.4: raised after each
+/// - the storage's committed-sequence signal (raised after each
 ///   commit that appended to the journal). A commit that lands while the
 ///   replay is being read shows up as a pending change, so it cannot fall into
 ///   the gap between the replay's last read and the live phase.
@@ -102,7 +102,7 @@ pub struct SubscribeQuery {
         description = STREAM_DESCRIPTION,
     ))
 )]
-pub async fn subscribe(
+pub(super) async fn subscribe(
     State(state): State<AppState>,
     Query(q): Query<SubscribeQuery>,
 ) -> Sse<ReceiverStream<Result<Event, Infallible>>> {
@@ -177,7 +177,7 @@ const CLIENT_GONE: &str = "client gone";
 
 /// OpenAPI cannot type the frames of an event stream, so the document
 /// describes them here, next to the code that sends them.
-const STREAM_DESCRIPTION: &str = "Server-sent events for one thread (spec §2.10): \
+const STREAM_DESCRIPTION: &str = "Server-sent events for one thread: \
 the durable journal after `after`, then `caught-up`, then live. Each frame's \
 `event:` names its kind and its `data:` is JSON unless stated.\n\n\
 - `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. \
@@ -187,7 +187,7 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n\
 - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
 - `subagent` — `{op, card}`: a running turn's subagent card, whole, after each \
-change (§22.3): `{id, title, agent_type, model, status, prompt, steps, report, \
+change: `{id, title, agent_type, model, status, prompt, steps, report, \
 duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when \
 it ends. Transient.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
@@ -199,7 +199,7 @@ context use and the account's limits as the harness last reported them; each is 
 `{name, description, hint}`; sent after `caught-up` when there is one, and on every \
 change. Transient.\n\
 - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: \
-the Planner showed a plan (§13.9). Its card arrives first, as the `durable` \
+the Planner showed a plan. Its card arrives first, as the `durable` \
 `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the \
 page for `side` or `page`. Transient: never replayed.\n\
 - `lagged` — empty: this client fell behind and transient frames were dropped; \
@@ -253,7 +253,7 @@ fn frame(delivery: Delivery) -> Event {
                 .to_string(),
         ),
         // A usage report as it arrives, with the harness's latest limits,
-        // which the watcher recorded before publishing it (§12.8). A `size`
+        // which the watcher recorded before publishing it. A `size`
         // of 0 is no window.
         Delivery::Usage {
             thread,
@@ -269,11 +269,11 @@ fn frame(delivery: Delivery) -> Event {
             })
             .to_string(),
         ),
-        // The thread's new offer as a client sees it (§12.4).
+        // The thread's new offer as a client sees it.
         Delivery::Options { thread, choices } => Event::default()
             .event("options")
             .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
-        // The harness's `/` list (§21.3).
+        // The harness's `/` list.
         Delivery::Commands { thread, commands } => Event::default()
             .event("commands")
             .data(serde_json::json!({ "thread_id": thread, "commands": commands }).to_string()),

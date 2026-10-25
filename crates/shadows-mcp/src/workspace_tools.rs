@@ -1,4 +1,4 @@
-//! Workspace reads and Planner proposal translation (§23.5).
+//! Workspace reads and Planner proposal translation.
 use super::{
     refusal::{Refusal, answer},
     server::Shadows,
@@ -87,7 +87,7 @@ impl Shadows {
     ) -> CallToolResult {
         answer(
             self.core
-                .design()
+                .plans()
                 .approve_roadmap_proposal_as_planner(&grant, &args.proposal_id)
                 .await
                 .map_err(Refusal::from),

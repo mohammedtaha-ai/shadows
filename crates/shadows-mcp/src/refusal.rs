@@ -1,4 +1,4 @@
-//! One job: what a tool call answers (spec §13.6, the second error layer).
+//! One job: what a tool call answers at the tool-result error layer.
 //!
 //! Once a tool has started, it answers a result, never a JSON-RPC error: its
 //! JSON as text (the code tools' own lines, as they are), or `isError` with
@@ -9,7 +9,6 @@
 use rmcp::model::{CallToolResult, ContentBlock};
 
 use shadows_core::CoreError;
-use shadows_core::DirectoryError;
 use shadows_core::ErrorCode;
 use shadows_core::StartError;
 use shadows_core::StorageError;
@@ -27,57 +26,43 @@ impl Refusal {
         }
     }
 
-    /// A plan, thread or ref outside what the grant reaches (§13.6).
+    /// A plan, thread or ref outside what the grant reaches.
     pub(super) fn scope(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::GrantScope, message)
     }
 }
 
 impl From<StorageError> for Refusal {
-    fn from(e: StorageError) -> Self {
+    fn from(error: StorageError) -> Self {
+        CoreError::Storage(error).into()
+    }
+}
+
+impl From<shadows_core::CodeError> for Refusal {
+    fn from(error: shadows_core::CodeError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl Refusal {
+    fn storage(e: StorageError, code: ErrorCode) -> Self {
         match e {
-            StorageError::StageBlocked(message) => Self::new(ErrorCode::StageBlocked, message),
             StorageError::RevisionConflict { current, summary } => Self::new(
-                ErrorCode::RevisionConflict,
+                code,
                 format!(
                     "the plan changed; current revision is {current}: {summary}. \
                      Read it with workflow_get, then rebuild your edit."
                 ),
             ),
-            StorageError::WorkflowFrozen => Self::new(
-                ErrorCode::WorkflowFrozenImmutable,
-                "this plan version is approved and never changes again. \
-                 Start a new version with draft_start.",
-            ),
-            StorageError::PlanInvalid(problems) => Self::new(
-                ErrorCode::WorkflowValidationFailed,
-                problems
-                    .into_iter()
-                    .map(|p| p.message)
-                    .collect::<Vec<_>>()
-                    .join("; "),
-            ),
-            StorageError::GrantInvalid => Self::new(
-                ErrorCode::GrantInvalid,
-                "this grant was revoked while the call ran; nothing was changed",
-            ),
-            StorageError::GrantScope => Self::scope(
-                "outside what this grant allows: plan writes stay in its own project; \
-                 workflow_list and workflow_get can read an explicitly linked project; \
-                 draft_ref starts a plan only within the hour after draft_prepare",
-            ),
             StorageError::CommandConflict => Self::new(
-                ErrorCode::CommandConflict,
+                code,
                 "this command id, or this draft_ref, already did something different; \
                  for a new plan call draft_prepare again",
             ),
-            StorageError::TaskNotInPlan(message) => Self::new(ErrorCode::InvalidCommand, message),
             // A rule the request broke, not a broken database: say which, so an
             // agent fixes the request instead of asking for a restart.
             StorageError::Constraint(message) => Self::new(ErrorCode::InvalidCommand, message),
-            StorageError::NotFound(what) => {
-                Self::new(ErrorCode::InvalidCommand, format!("no such {what}"))
-            }
+            StorageError::NotFound(what) => Self::new(code, format!("no such {what}")),
             other => {
                 tracing::error!(error = %other, "mcp.storage_failed");
                 Self::new(
@@ -91,61 +76,59 @@ impl From<StorageError> for Refusal {
 
 impl From<CoreError> for Refusal {
     /// A storage failure keeps the text written above; a service's own refusal
-    /// keeps its code and text; anything else, which no tool meets in this
-    /// milestone, answers its code and its own words.
+    /// keeps its code and text; other failures answer their code and words.
     fn from(e: CoreError) -> Self {
+        let code = e.code();
         match e {
-            CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => e.into(),
+            CoreError::Refused {
+                code: ErrorCode::WorkflowFrozenImmutable,
+                ..
+            } => Self::new(
+                ErrorCode::WorkflowFrozenImmutable,
+                "this plan version is approved and never changes again. \
+                 Start a new version with draft_start.",
+            ),
+            CoreError::ValidationFailed { problems, .. } => {
+                Self::new(ErrorCode::WorkflowValidationFailed, problems.join("; "))
+            }
+            other @ (CoreError::ReasonMissing | CoreError::Unavailable(_)) => {
+                tracing::error!(error = %other, "mcp.storage_failed");
+                Self::new(
+                    ErrorCode::StorageUnavailable,
+                    "the daemon could not read or write its database",
+                )
+            }
+            CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => {
+                Self::storage(e, code)
+            }
+            CoreError::Refused {
+                code: ErrorCode::GrantInvalid,
+                message,
+            } if message == "the grant is unknown or revoked" => Self::new(
+                ErrorCode::GrantInvalid,
+                "this grant was revoked while the call ran; nothing was changed",
+            ),
+            CoreError::Refused {
+                code: ErrorCode::GrantScope,
+                message,
+            } if message == "outside what the grant allows" => Self::scope(
+                "outside what this grant allows: plan writes stay in its own project; \
+                    workflow_list and workflow_get can read an explicitly linked project; \
+                    draft_ref starts a plan only within the hour after draft_prepare",
+            ),
+            other @ CoreError::Refused {
+                code: ErrorCode::ThreadBusy | ErrorCode::QueuedMessageGone,
+                ..
+            } => {
+                tracing::error!(error = %other, "mcp.storage_failed");
+                Self::new(
+                    ErrorCode::StorageUnavailable,
+                    "the daemon could not read or write its database",
+                )
+            }
             CoreError::Refused { code, message } => Self::new(code, message),
-            other => Self::new(code_of(&other), other.to_string()),
+            other => Self::new(code, other.to_string()),
         }
-    }
-}
-
-/// The code HTTP answers the same failure with.
-fn code_of(e: &CoreError) -> ErrorCode {
-    match e {
-        CoreError::ExtensionNotFound => ErrorCode::ExtensionNotFound,
-        CoreError::ExtensionNameConflict => ErrorCode::ExtensionNameConflict,
-        CoreError::AylulProfileNotFound(_) => ErrorCode::AylulProfileNotFound,
-        CoreError::AylulProviderNotFound(_) => ErrorCode::AylulProviderNotFound,
-        CoreError::ProviderInUse(_) => ErrorCode::ProviderInUse,
-        CoreError::ProfileInvalid(_) => ErrorCode::ProfileInvalid,
-        CoreError::SecretNameReserved(_) => ErrorCode::SecretNameReserved,
-        CoreError::SecretNameInvalid(_) => ErrorCode::SecretNameInvalid,
-        CoreError::SecretValueInvalid(_) => ErrorCode::SecretValueInvalid,
-        CoreError::SecretUnreadable(_) => ErrorCode::SecretUnreadable,
-        CoreError::SecretsUnavailable => ErrorCode::SecretsUnavailable,
-        CoreError::AylulKeyMissing(_) => ErrorCode::AylulKeyMissing,
-        CoreError::AylulNotConfigured => ErrorCode::AylulNotConfigured,
-        CoreError::Storage(_) | CoreError::Start(StartError::Storage(_)) => {
-            ErrorCode::StorageUnavailable
-        }
-        CoreError::Refused { code, .. } => *code,
-        CoreError::Start(StartError::RuntimeStopping) | CoreError::RuntimeStopping => {
-            ErrorCode::RuntimeStopping
-        }
-        CoreError::Directory(d) => directory_code(d),
-        CoreError::ProjectDirectoryUnusable(_) => ErrorCode::PathNotFound,
-        CoreError::HarnessStartFailed(_) => ErrorCode::HarnessStartFailed,
-        CoreError::HarnessUnavailable(_) => ErrorCode::HarnessUnavailable,
-        CoreError::SettingNotOffered { .. } => ErrorCode::SettingNotOffered,
-        CoreError::ModeNotAllowed(_) => ErrorCode::ModeNotAllowed,
-        CoreError::TerminationFailed => ErrorCode::ProcessTerminationFailed,
-    }
-}
-
-/// The code HTTP answers the same directory failure with.
-fn directory_code(e: &DirectoryError) -> ErrorCode {
-    match e {
-        DirectoryError::NotAbsolute(_)
-        | DirectoryError::NotUtf8
-        | DirectoryError::InvalidName { .. } => ErrorCode::PathInvalid,
-        DirectoryError::AlreadyExists(_) => ErrorCode::PathAlreadyExists,
-        DirectoryError::NotFound(_) => ErrorCode::PathNotFound,
-        DirectoryError::NotADirectory(_) => ErrorCode::PathNotADirectory,
-        DirectoryError::AccessDenied(_) => ErrorCode::PathAccessDenied,
-        DirectoryError::Unavailable { .. } => ErrorCode::PathUnavailable,
     }
 }
 
@@ -177,4 +160,87 @@ fn refused(refusal: Refusal) -> CallToolResult {
         "{code}: {}",
         refusal.message
     ))])
+}
+
+impl From<shadows_core::ThreadsError> for Refusal {
+    fn from(error: shadows_core::ThreadsError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::GrantsError> for Refusal {
+    fn from(error: shadows_core::GrantsError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::OperationsError> for Refusal {
+    fn from(error: shadows_core::OperationsError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::HarnessError> for Refusal {
+    fn from(error: shadows_core::HarnessError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::DesignError> for Refusal {
+    fn from(error: shadows_core::DesignError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::PlansError> for Refusal {
+    fn from(error: shadows_core::PlansError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::TurnsError> for Refusal {
+    fn from(error: shadows_core::TurnsError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::ProjectLifecycleError> for Refusal {
+    fn from(error: shadows_core::ProjectLifecycleError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+impl From<shadows_core::EventsError> for Refusal {
+    fn from(error: shadows_core::EventsError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
+#[cfg(test)]
+mod mapping_tests {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../shadows-http/src/failure/cases.rs"
+    ));
+
+    #[test]
+    fn every_core_error_keeps_its_mcp_mapping() {
+        assert_eq!(Case::all().len(), 59);
+        for case in Case::all() {
+            let name = format!("{:?}", case.error);
+            assert_eq!(case.error.code(), case.code, "{name}");
+            let refusal = super::Refusal::from(case.error);
+            assert_eq!(refusal.code, case.mcp_code, "{name}");
+            assert_eq!(refusal.message, case.mcp, "{name}");
+            let code = serde_json::to_value(case.mcp_code).unwrap();
+            let result = serde_json::to_value(super::refused(refusal)).unwrap();
+            assert_eq!(result["isError"], true, "{name}");
+            assert_eq!(
+                result["content"][0]["text"],
+                format!("{}: {}", code.as_str().unwrap(), case.mcp),
+                "{name}"
+            );
+            let _ = (case.code, case.status, case.http_code, case.http);
+        }
+    }
 }

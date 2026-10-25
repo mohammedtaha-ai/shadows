@@ -1,88 +1,119 @@
 mod app;
-mod code;
-mod command;
-mod db;
-mod design;
+pub use core_runtime::RuntimeError;
 mod error;
-mod events;
-mod grants;
-mod harness;
-mod id;
-mod instructions;
-mod plans;
-mod profiles;
-mod projects;
-mod runtime;
-mod secrets;
+pub use core_project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]
 pub mod testing;
-mod threads;
-mod turns;
-pub use command::{ApprovalRequest, ApprovedBy, Approver, Writer};
+pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
-// The public surface (spec §14.4, §14.6): the application, its failure, the
+// The public surface: the application, its failure, the
 // services, and every type an adapter names or serializes. Storage, the
 // sessions, the live-turn registry and the runtime are private to the crate;
 // tests reach what they need through `testing`, under `test-support`.
 #[cfg(feature = "test-support")]
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
-pub use code::{
+pub use core_code::{
     Answer, Asker, Code, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus,
     Skipped,
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
-pub use db::StorageError;
-pub use design::StructureWritten;
-pub use design::{
-    AdditionalPart, AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact,
-    AgreementParty, AgreementPartyReview, AgreementReview, AgreementRole, AgreementState,
-    AgreementVersion, AgreementWriter, BaseStandards, ContractHead, ContractTemplate, Design,
-    DesignAnchor, DesignChange, DesignOp, DesignRevision, EffectiveStandards, InitialFile,
-    MandatoryPart, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent, OutcomeId,
-    OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, PartWaiver,
-    ProposedPart, ProposedWaiver, Stage, StageView, StandardRule, StandardsAdditions,
-    StandardsAdditionsVersion, VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
-    base_standards,
+pub use core_agents::{Agent, AgentInput, AgentWorkspace, Agents, AgentsError};
+pub use core_db::Actor;
+pub use core_db::StorageError;
+pub use core_design::StructureWritten;
+pub use core_design::{
+    AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
+    AgreementVersion, AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange,
+    DesignRevision, InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent,
+    OutcomeId, OutcomePage, Part, PartContent, PartId, PartPage, PartWaiver, ProposedPart,
+    ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
+    WorkspaceView,
 };
-pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
-pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
-pub use error::{CoreError, ErrorCode};
-pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
-pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
-pub use harness::{
-    AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, OpenError,
-    RememberedSettings,
+pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
+pub use core_design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
+pub use core_events::{Delivery, Events, StoredEvent, Subscription};
+pub use core_extensions::{
+    AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
-pub use instructions::{Instructions, InstructionsVersion};
-pub use plans::{
-    AcceptanceItem, AgreementBinding, Approved, BindingParticipant, DraftStart, DraftStarted,
-    EditOutcome, Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, Place, Plan,
-    PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown, PlanState,
-    PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent, TaskPreview,
-    VersionLine, WorkflowId, WorkflowState, WrittenBy,
+pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
+pub use core_harness::{
+    AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessError, HarnessInfo,
+    LeaseError, OpenError, OpenSession, RememberedSettings,
 };
-pub use profiles::{
-    Agent, AgentExtensions, AgentInput, AgentItem, AgentWorkspace, ExtensionKind, ExtensionLibrary,
-    Item, ListedModel, ModelUsage, Person, PersonInput, PresetRegion, Profiles, Provider,
-    ProviderInput, ProviderModel, ProviderModelInput, ProviderPreset, ProviderTest,
-    ProviderTestOutcome, ProviderUsage, SavedProviderTest, TestRefusal, Theme, UsageReport,
+pub use core_instructions::{Instructions, InstructionsVersion};
+pub use core_operations::{
+    OperationId, OperationRecord, Operations, OperationsError, ReconcileReport, Transition,
 };
-pub use projects::{
+pub use core_person::{Person, PersonInput, PersonSettings, Theme};
+pub use core_plans::UiSignal;
+pub use core_plans::{
+    AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,
+    AgreementReview, Approved, BindingParticipant, DesignOp, DraftStart, DraftStarted, EditOutcome,
+    Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, OutcomeView, PartView, Place,
+    Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown,
+    PlanState, PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent,
+    TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
+};
+pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };
-pub use runtime::{RuntimeInstanceId, StopKind};
-pub use secrets::{EnvEntry, SecretKey, Secrets, validate_env_name};
-pub use threads::{
-    EntryRef, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
+pub use core_providers::{
+    ListedModel, PresetRegion, Provider, ProviderInput, ProviderModel, ProviderModelInput,
+    ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
 };
-pub use turns::{
-    InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SendTurn,
-    SentNow, StartError, Turns,
+pub use core_runtime::{RuntimeInstanceId, StopKind};
+pub use core_secrets::{EnvEntry, SecretKey, Secrets, SecretsError};
+pub use core_threads::{
+    Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,
+    PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
+    WorkflowRef,
 };
+pub use core_turns::{
+    InvocationView, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
+    StartError, Turns,
+};
+pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
+pub use error::{CoreError, ErrorCode};
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on
-// `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
+// `shadows-agent`; adapters serialize the same schema name.
 pub use shadows_agent::choices::SessionChoices;
 pub use shadows_agent::profile::ClaudeProfile;
+
+pub use core_standards::{
+    AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
+    StandardRule, Standards, StandardsAdditions, StandardsAdditionsVersion,
+};
+
+/// Application error translation for the existing validation entry point.
+pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
+    Secrets::validate_env_name(name).map_err(Into::into)
+}
+
+pub use core_providers::ProvidersError;
+
+pub use core_projects::ProjectsError;
+
+pub use core_usage::UsageError;
+
+pub use core_person::PersonError;
+
+pub use core_instructions::InstructionsError;
+
+pub use core_standards::StandardsError;
+
+pub use core_code::CodeError;
+
+pub use core_threads::ThreadsError;
+
+pub use core_design::DesignError;
+
+pub use core_plans::PlansError;
+
+pub use core_turns::TurnsError;
+
+pub use core_project_lifecycle::ProjectLifecycleError;
+
+pub use core_events::EventsError;

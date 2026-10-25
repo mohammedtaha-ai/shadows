@@ -1,7 +1,7 @@
-//! The choices a thread's session offers (spec §12.4): read from the harness,
+//! The choices a thread's session offers: read from the harness,
 //! filtered by Shadows' policy and the project's modes, started at the
 //! remembered model and effort when the harness still offers them; and the
-//! harness list (§12.10).
+//! harness list.
 
 use serde_json::{Value, json};
 use shadows_agent::policy;
@@ -45,10 +45,14 @@ async fn opening_a_session_answers_the_harness_choices_after_the_policy() {
 async fn a_mode_the_project_does_not_allow_is_listed_disabled_with_the_reason() {
     let app = test_app().await;
     let only = [("claude-code".to_string(), vec!["acceptEdits".to_string()])].into();
-    app.storage
-        .set_project_modes(&ctx("m1", "project.modes"), &app.project, &only)
-        .await
-        .unwrap();
+    shadows_core::testing::set_project_modes(
+        &app.storage,
+        &ctx("m1", "project.modes"),
+        &app.project,
+        &only,
+    )
+    .await
+    .unwrap();
     let (_, c) = post(&app, &session_path(&app), json!({})).await;
     let auto = &c["modes"][1];
     assert_eq!(
@@ -64,7 +68,8 @@ async fn a_mode_the_project_does_not_allow_is_listed_disabled_with_the_reason() 
 #[tokio::test]
 async fn a_remembered_model_the_account_cannot_use_is_dropped() {
     let app = test_app().await;
-    app.storage
+    app.core
+        .harness()
         .remember_for_test("claude-code", "fake-locked", None)
         .await;
     let (s, c) = post(&app, &session_path(&app), json!({})).await;
@@ -94,7 +99,8 @@ async fn harnesses_lists_claude_runnable_and_codex_not() {
 #[tokio::test]
 async fn a_new_session_starts_at_the_remembered_model_and_effort() {
     let app = test_app().await;
-    app.storage
+    app.core
+        .harness()
         .remember_for_test("claude-code", "fake-small", Some("low"))
         .await;
     let (_, c) = post(&app, &session_path(&app), json!({})).await;
@@ -121,7 +127,8 @@ async fn a_new_session_starts_at_the_remembered_model_and_effort() {
 #[tokio::test]
 async fn a_remembered_model_the_harness_no_longer_offers_is_dropped() {
     let app = test_app().await;
-    app.storage
+    app.core
+        .harness()
         .remember_for_test("claude-code", "retired-model", Some("high"))
         .await;
     let (s, c) = post(&app, &session_path(&app), json!({})).await;
@@ -132,17 +139,16 @@ async fn a_remembered_model_the_harness_no_longer_offers_is_dropped() {
 #[tokio::test]
 async fn a_codex_thread_cannot_open_a_session() {
     let app = test_app().await;
-    let t = app
-        .storage
-        .create_planning_thread(
-            &ctx("c9", "thread.create"),
-            &app.project,
-            "x",
-            policy::CODEX,
-            None,
-        )
-        .await
-        .unwrap();
+    let t = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("c9", "thread.create"),
+        &app.project,
+        "x",
+        policy::CODEX,
+        None,
+    )
+    .await
+    .unwrap();
     let (s, b) = post(&app, &format!("/api/threads/{}/session", t.id), json!({})).await;
     assert_eq!((s, b["code"].as_str()), (422, Some("HARNESS_UNAVAILABLE")));
     assert_eq!(app.sessions.live_count().await, 0, "nothing was started");
@@ -172,7 +178,7 @@ async fn put_model(app: &app::App, model: &str) -> (u16, Value) {
     .await
 }
 
-/// §12.7: a picked model is set at once, so the efforts answered are its own
+/// A picked model is set at once, so the efforts answered are its own
 /// before any turn; the session need not be open, and nothing is remembered.
 #[tokio::test]
 async fn picking_a_model_answers_that_models_efforts() {

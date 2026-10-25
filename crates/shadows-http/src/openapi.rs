@@ -1,6 +1,6 @@
 //! One job: the OpenAPI document that describes this protocol.
 //!
-//! Spec §1: the protocol is described, not copied. The paths and schemas come
+//! The protocol is described, not copied. The paths and schemas come
 //! from the route table (`utoipa-axum`) and the annotated handlers and types;
 //! this file adds only what belongs to the document as a whole, and renders it
 //! in the one form that is served, checked in at `api/openapi.json`, and kept
@@ -16,7 +16,7 @@ use utoipa::OpenApi;
         description = "The local daemon's HTTP API. Every client is on another \
                        origin; only origins passed with `--allow-origin` may call \
                        it. There is no authentication: the daemon binds to \
-                       loopback (spec §1, OPEN block on remote access). Errors \
+                       loopback. Errors \
                        answered by the API carry `ErrorBody`, whose `code` is \
                        stable; a request axum rejects before a handler runs \
                        (malformed JSON, a missing parameter) is answered in \

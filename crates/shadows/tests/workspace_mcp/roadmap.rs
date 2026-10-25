@@ -1,4 +1,4 @@
-//! §23.5–§23.6 through the real transports: the Planner proposes and approves
+//! Through the real transports: the Planner proposes and approves
 //! a roadmap over MCP, the person approves one over HTTP, and no plan tool
 //! works before a roadmap is approved.
 use super::*;
@@ -13,7 +13,7 @@ async fn structured(
 ) -> (ProjectId, ThreadId, OperationId) {
     let core = &l.app.core;
     let p = core
-        .projects()
+        .project_lifecycle()
         .create(
             "roadmap".into(),
             "roadmap",
@@ -39,8 +39,8 @@ async fn structured(
             },
         })
         .collect();
-    core.design()
-        .edit("parts".into(), &p, 0, ops)
+    core.plans()
+        .edit_design("parts".into(), &p, 0, ops)
         .await
         .unwrap();
     let thread = core
@@ -148,7 +148,7 @@ async fn roadmap_proposal_routes_list_and_approve() {
     let c = planner_client(&l, &thread).await;
     let parts = part_ids(&l, &p).await;
     let card = ok(&c, "roadmap_propose", first(&parts, "Login")).await;
-    // Without a running turn the Planner cannot approve, as for the map (§24.2).
+    // Without a running turn the Planner cannot approve, as for the map.
     l.app.core.turns().stop(&op).await.unwrap();
     for _ in 0..200 {
         if l.app.handles.running_for(&thread).await.is_none() {
@@ -180,7 +180,8 @@ async fn roadmap_proposal_routes_list_and_approve() {
     assert_eq!(cards[0]["approved_by"]["agent"], "human");
     let events = l
         .app
-        .storage
+        .core
+        .events()
         .read_project_events_after(EventCursor(0), &p, 100)
         .await
         .unwrap();

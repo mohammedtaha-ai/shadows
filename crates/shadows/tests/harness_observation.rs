@@ -1,4 +1,4 @@
-//! What the harness reports about a turn (spec §12.8): the answering model and
+//! What the harness reports about a turn: the answering model and
 //! the context, written into the turn's invocation when it completes; the
 //! account limits, kept per harness; a `usage` frame as each report arrives;
 //! and the context breakdown, read on demand without leaving a trace.
@@ -34,7 +34,8 @@ async fn a_completed_turn_records_what_the_harness_reported() {
         "the last report, not the 200k guess"
     );
     let limits = app
-        .storage
+        .core
+        .harness()
         .latest_limits("claude-code")
         .await
         .unwrap()
@@ -157,9 +158,9 @@ fn parse_reads_the_category_table_only() {
               ### MCP Tools\n\
               | Tool | Server | Tokens |\n\
               | x | y | 400 |\n";
-    let c = shadows_agent::breakdown::parse(md).unwrap();
+    let c = shadows_agent::breakdown::Category::parse(md).unwrap();
     assert_eq!(c.len(), 2);
     assert_eq!((c[1].name.as_str(), c[1].tokens), ("Free space", 923_900));
     assert!((c[0].percent - 0.4).abs() < 1e-9);
-    assert!(shadows_agent::breakdown::parse("no table").is_none());
+    assert!(shadows_agent::breakdown::Category::parse("no table").is_none());
 }

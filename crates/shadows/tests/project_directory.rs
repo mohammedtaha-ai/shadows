@@ -1,4 +1,4 @@
-//! A project owns a directory (spec §4.2, §6.3, §8.3): it is checked at the
+//! A project owns a directory: it is checked at the
 //! HTTP boundary, stored canonical, and it is where every turn on the
 //! project's threads runs. A project from before projects owned one fails its
 //! turns at Prepare instead of running in the daemon's working directory.
@@ -13,7 +13,6 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
@@ -23,11 +22,14 @@ use tower::ServiceExt;
 use shadows_core::testing::acp;
 
 async fn app(storage: Arc<Storage>) -> (Router, tokio::sync::watch::Sender<bool>) {
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
             storage,
@@ -75,10 +77,12 @@ async fn create_project(app: &Router, command_id: &str, directory: &str) -> (Sta
     .await
 }
 
-async fn wait_for_terminal(storage: &Storage, op: &str) -> Operation {
+async fn wait_for_terminal(storage: &Arc<Storage>, op: &str) -> Operation {
     let op = OperationId::from_literal(op);
     for _ in 0..200 {
-        let loaded = storage.get_operation(&op).await.unwrap();
+        let loaded = shadows_core::Turns::get_operation_for_test(storage, &op)
+            .await
+            .unwrap();
         if loaded.finished_at.is_some() {
             return loaded;
         }
@@ -151,7 +155,7 @@ async fn a_turn_runs_in_its_projects_directory() {
     assert_eq!(reported["cwd"], canonical.as_str(), "{reported}");
 }
 
-/// Spec §3.4: a path the daemon cannot use is refused with a 4xx and a code
+/// A path the daemon cannot use is refused with a 4xx and a code
 /// a client can match on — never a 500 — and nothing is created.
 #[tokio::test]
 async fn an_unusable_directory_is_refused_with_a_stable_code() {
@@ -272,7 +276,7 @@ async fn a_project_from_before_directories_has_its_turns_refused() {
         })),
     )
     .await;
-    // Spec §12.7: the session is opened before any write, and a directory
+    // The session is opened before any write, and a directory
     // that cannot be run in is a failure to open it — nothing durable.
     assert_eq!(status, StatusCode::CONFLICT, "{started}");
     assert_eq!(started["code"], "PATH_NOT_FOUND", "{started}");

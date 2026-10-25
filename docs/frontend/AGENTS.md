@@ -28,6 +28,12 @@ backend has changed the document for an accepted request.
 
 ## Where things are
 
+0. **The same strict rule as Core's `AppCore`, in the client:** the server
+   is reached only through `web/src/api/` (one client, one hook per operation),
+   and the rules belong to Core. Never call `fetch`, build a URL or copy a Core
+   rule (validation, defaults, a status machine) in a component: show Core's
+   answer. If `web/src/api/` has no hook for what you need, stop and report.
+   Breaking this is refused in review.
 1. [`docs/frontend/codebase/README.md`](./codebase/README.md): what each file
    in `web/src` owns. Read it before opening code.
 2. `web/src/<folder>/contract.yaml`: what must stay true of that folder. Read it

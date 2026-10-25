@@ -1,4 +1,4 @@
-//! Migration 0005's storage shapes and Shadows' mode policy (spec §12.4-§12.7):
+//! Migration 0005's storage shapes and Shadows' mode policy:
 //! a thread's harness locks at its first operation, below the application too;
 //! a project starts with the policy's modes; an entry names its turn.
 
@@ -8,12 +8,11 @@ use std::sync::Arc;
 use shadows_agent::policy;
 use shadows_core::Actor;
 use shadows_core::Project;
-use shadows_core::StorageError;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::NewThreadEntry;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{ThreadEntryKind, ThreadId};
 
 struct Fixture {
@@ -31,35 +30,37 @@ fn ctx(id: &str, kind: &str) -> CommandContext {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &serde_json::json!({ "id": id })),
+        request_fingerprint: CommandContext::fingerprint(kind, &serde_json::json!({ "id": id })),
     }
 }
 
 async fn fixture() -> (Fixture, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let dir = ProjectDirectory::resolve(tmp.path()).unwrap();
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &dir,
-            &policy::default_modes(),
-        )
-        .await
-        .unwrap();
-    let thread = storage
-        .create_planning_thread(
-            &ctx("c2", "thread.create"),
-            &project.id,
-            "T",
-            policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &dir,
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx("c2", "thread.create"),
+        &project.id,
+        "T",
+        policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(thread.harness, "claude-code");
     assert!(thread.forked_from_thread.is_none());
     let fx = Fixture {
@@ -88,40 +89,65 @@ fn claude_policy_is_accept_edits_and_auto_and_codex_has_none() {
 #[tokio::test]
 async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_operation() {
     let (fx, thread) = fixture().await;
-    let t = fx
-        .storage
-        .set_thread_harness(&ctx("h1", "thread.harness"), &thread, "codex")
-        .await
-        .unwrap();
+    let t = shadows_core::testing::Harness::set_thread_harness_for_test(
+        &fx.storage,
+        &ctx("h1", "thread.harness"),
+        &thread,
+        "codex",
+    )
+    .await
+    .unwrap();
     assert_eq!(t.harness, "codex");
-    fx.storage
-        .set_thread_harness(&ctx("h2", "thread.harness"), &thread, "claude-code")
-        .await
-        .unwrap();
-    fx.storage
-        .create_pending_operation(&thread, &fx.runtime.instance_id)
-        .await
-        .unwrap();
-    let locked = fx
-        .storage
-        .set_thread_harness(&ctx("h3", "thread.harness"), &thread, "codex")
-        .await;
-    assert!(matches!(locked, Err(StorageError::HarnessLocked)));
-    let replay = fx
-        .storage
-        .set_thread_harness(&ctx("h2", "thread.harness"), &thread, "claude-code")
-        .await
-        .unwrap();
+    shadows_core::testing::Harness::set_thread_harness_for_test(
+        &fx.storage,
+        &ctx("h2", "thread.harness"),
+        &thread,
+        "claude-code",
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &fx.storage,
+        &thread,
+        fx.runtime.instance_id(),
+    )
+    .await
+    .unwrap();
+    let locked = shadows_core::testing::Harness::set_thread_harness_for_test(
+        &fx.storage,
+        &ctx("h3", "thread.harness"),
+        &thread,
+        "codex",
+    )
+    .await;
+    assert!(matches!(
+        locked.map_err(shadows_core::CoreError::from),
+        Err(shadows_core::CoreError::Refused {
+            code: shadows_core::ErrorCode::HarnessLocked,
+            ..
+        })
+    ));
+    let replay = shadows_core::testing::Harness::set_thread_harness_for_test(
+        &fx.storage,
+        &ctx("h2", "thread.harness"),
+        &thread,
+        "claude-code",
+    )
+    .await
+    .unwrap();
     assert_eq!(replay.harness, "claude-code");
 }
 
 #[tokio::test]
 async fn the_lock_holds_below_the_application() {
     let (fx, thread) = fixture().await;
-    fx.storage
-        .create_pending_operation(&thread, &fx.runtime.instance_id)
-        .await
-        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &fx.storage,
+        &thread,
+        fx.runtime.instance_id(),
+    )
+    .await
+    .unwrap();
     let raw = sqlx::query("UPDATE planning_thread SET harness_kind = 'codex' WHERE id = ?")
         .bind(thread.as_str())
         .execute(fx.storage.reader())
@@ -136,13 +162,19 @@ async fn a_project_is_created_with_the_policy_modes_and_they_can_be_replaced() {
     assert_eq!(p.allowed_modes["claude-code"], vec!["acceptEdits", "auto"]);
     let only: BTreeMap<_, _> =
         [("claude-code".to_string(), vec!["acceptEdits".to_string()])].into();
-    let p2 = fx
-        .storage
-        .set_project_modes(&ctx("m1", "project.modes"), &p.id, &only)
+    let p2 = shadows_core::testing::set_project_modes(
+        &fx.storage,
+        &ctx("m1", "project.modes"),
+        &p.id,
+        &only,
+    )
+    .await
+    .unwrap();
+    assert_eq!(p2.allowed_modes["claude-code"], vec!["acceptEdits"]);
+    let listed = shadows_core::testing::projects(fx.storage.clone())
+        .list()
         .await
         .unwrap();
-    assert_eq!(p2.allowed_modes["claude-code"], vec!["acceptEdits"]);
-    let listed = fx.storage.list_projects().await.unwrap();
     assert_eq!(listed[0].allowed_modes["claude-code"], vec!["acceptEdits"]);
     assert_eq!(
         listed[0].allowed_modes["codex"],
@@ -154,44 +186,46 @@ async fn a_project_is_created_with_the_policy_modes_and_they_can_be_replaced() {
 #[tokio::test]
 async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
     let (fx, thread) = fixture().await;
-    let op = fx
-        .storage
-        .create_pending_operation(&thread, &fx.runtime.instance_id)
-        .await
-        .unwrap();
-    let e = fx
-        .storage
-        .append_thread_entry(
-            &thread,
-            NewThreadEntry {
-                kind: ThreadEntryKind::AgentMessage,
-                author: Actor::system(),
-                body: "x",
-                refs: &[],
-                card: None,
-                operation_id: Some(&op),
-            },
-        )
-        .await
-        .unwrap();
-    assert_eq!(e.operation_id.as_ref(), Some(&op));
-    let e2 = fx
-        .storage
-        .append_thread_entry(
-            &thread,
-            NewThreadEntry {
-                kind: ThreadEntryKind::UserMessage,
-                author: Actor::user("local"),
-                body: "y",
-                refs: &[],
-                card: None,
-                operation_id: None,
-            },
-        )
-        .await
-        .unwrap();
+    let op = shadows_core::Turns::create_pending_operation_for_test(
+        &fx.storage,
+        &thread,
+        fx.runtime.instance_id(),
+    )
+    .await
+    .unwrap();
+    let e = shadows_core::Threads::append_thread_entry_for_test(
+        &fx.storage,
+        &thread,
+        NewThreadEntry {
+            kind: ThreadEntryKind::AgentMessage,
+            author: Actor::system(),
+            body: "x",
+            refs: &[],
+            card: None,
+            operation_id: Some(op.as_str()),
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(e.operation_id.as_deref(), Some(op.as_str()));
+    let e2 = shadows_core::Threads::append_thread_entry_for_test(
+        &fx.storage,
+        &thread,
+        NewThreadEntry {
+            kind: ThreadEntryKind::UserMessage,
+            author: Actor::user("local"),
+            body: "y",
+            refs: &[],
+            card: None,
+            operation_id: None,
+        },
+    )
+    .await
+    .unwrap();
     assert!(e2.operation_id.is_none());
-    let read = fx.storage.list_thread_entries(&thread).await.unwrap();
-    assert_eq!(read[0].operation_id.as_ref(), Some(&op));
+    let read = shadows_core::Threads::list_thread_entries_for_test(&fx.storage, &thread)
+        .await
+        .unwrap();
+    assert_eq!(read[0].operation_id.as_deref(), Some(op.as_str()));
     assert!(read[1].operation_id.is_none());
 }

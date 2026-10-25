@@ -44,7 +44,7 @@ fn input(url: String) -> ProviderTest {
 async fn outcome(status: u16, body: &str) -> ProviderTestOutcome {
     let w = world().await;
     let (url, handle) = peer(status, body.into(), "").await;
-    let result = w.profiles.test_provider(input(url)).await.unwrap();
+    let result = w.app.providers().test_provider(input(url)).await.unwrap();
     handle.await.unwrap();
     result
 }
@@ -52,19 +52,19 @@ async fn outcome(status: u16, body: &str) -> ProviderTestOutcome {
 #[tokio::test]
 async fn tested_key_is_not_stored_or_echoed() {
     let w = world().await;
-    let mut writes = testing::database_writes(&w.storage).await.unwrap();
+    let mut writes = testing::DatabaseWrites::observe(&w.storage).await.unwrap();
     let before = writes.version().await.unwrap();
     let (url, handle) = peer(400, "test-key-not-real".into(), "").await;
     let request = input(url);
     assert!(!format!("{request:?}").contains("test-key-not-real"));
-    let result = w.profiles.test_provider(request).await.unwrap();
+    let result = w.app.providers().test_provider(request).await.unwrap();
     handle.await.unwrap();
     assert!(
         !serde_json::to_string(&result)
             .unwrap()
             .contains("test-key-not-real")
     );
-    assert!(w.profiles.providers().await.unwrap().is_empty());
+    assert!(w.app.providers().providers().await.unwrap().is_empty());
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM secret_env")
         .fetch_one(w.storage.reader())
         .await
@@ -90,7 +90,7 @@ async fn probe_timeout_is_unreachable() {
         std::future::pending::<()>().await;
     });
     let start = std::time::Instant::now();
-    let r = w.profiles.test_provider(input(url)).await.unwrap();
+    let r = w.app.providers().test_provider(input(url)).await.unwrap();
     server.abort();
     assert_eq!(serde_json::to_value(r.reason).unwrap(), "unreachable");
     assert!(start.elapsed() < std::time::Duration::from_secs(15));
@@ -112,7 +112,7 @@ async fn unreachable_host_reads_unreachable() {
     let url = format!("http://{}", listener.local_addr().unwrap());
     drop(listener);
     let w = world().await;
-    let r = w.profiles.test_provider(input(url)).await.unwrap();
+    let r = w.app.providers().test_provider(input(url)).await.unwrap();
     assert_eq!(serde_json::to_value(r.reason).unwrap(), "unreachable");
     assert_eq!(r.status, None);
     assert_eq!(
@@ -139,7 +139,7 @@ async fn redirect_is_not_followed() {
         target.local_addr().unwrap()
     );
     let (url, handle) = peer(302, String::new(), &location).await;
-    let r = w.profiles.test_provider(input(url)).await.unwrap();
+    let r = w.app.providers().test_provider(input(url)).await.unwrap();
     handle.await.unwrap();
     assert_eq!(serde_json::to_value(r.reason).unwrap(), "unexpected");
     assert!(
@@ -179,15 +179,20 @@ async fn saved_test_uses_the_stored_key() {
     let (url, handle) = peer(200, r#"{"data":[{"id":"m"}]}"#.into(), "").await;
     let mut p = provider("Provider");
     p.base_url = Some(url);
-    w.profiles.create_provider("p".into(), p).await.unwrap();
-    w.secrets
-        .set_provider_key("k".into(), "provider", "test-key-not-real")
+    w.app
+        .providers()
+        .create_provider("p".into(), p)
         .await
         .unwrap();
-    let mut writes = testing::database_writes(&w.storage).await.unwrap();
+    w.app
+        .providers()
+        .set_key("k".into(), "provider", "test-key-not-real")
+        .await
+        .unwrap();
+    let mut writes = testing::DatabaseWrites::observe(&w.storage).await.unwrap();
     let before = writes.version().await.unwrap();
     let r = core
-        .harness()
+        .providers()
         .test_saved_provider("provider", None)
         .await
         .unwrap();
@@ -196,16 +201,17 @@ async fn saved_test_uses_the_stored_key() {
     let request = handle.await.unwrap().to_lowercase();
     assert!(request.contains("authorization: bearer test-key-not-real"));
     assert!(request.contains("x-api-key: test-key-not-real"));
-    w.secrets
-        .remove_provider_key("r".into(), "provider")
+    w.app
+        .providers()
+        .remove_key("r".into(), "provider")
         .await
         .unwrap();
     assert!(matches!(
-        core.harness().test_saved_provider("provider", None).await,
-        Err(CoreError::AylulKeyMissing(_))
+        core.providers().test_saved_provider("provider", None).await,
+        Err(shadows_core::ProvidersError::KeyMissing(_))
     ));
     assert!(
-        core.harness()
+        core.providers()
             .test_saved_provider("absent", None)
             .await
             .is_err()
@@ -224,10 +230,11 @@ async fn invalid_probe_input_is_refused() {
         serde_json::json!({"preset":"minimax","api_key":""}),
     ] {
         assert!(matches!(
-            w.profiles
+            w.app
+                .providers()
                 .test_provider(serde_json::from_value(v).unwrap())
                 .await,
-            Err(CoreError::ProfileInvalid(_))
+            Err(shadows_core::ProvidersError::InvalidProfile(_))
         ));
     }
 }
@@ -241,7 +248,8 @@ async fn live_keys_list_models() {
             continue;
         };
         let r = w
-            .profiles
+            .app
+            .providers()
             .test_provider(ProviderTest {
                 preset: Some(preset.into()),
                 base_url: None,
@@ -284,7 +292,7 @@ async fn anthropic_pagination_stops_at_five_pages() {
             socket.write_all(response.as_bytes()).await.unwrap();
         }
     });
-    let r = w.profiles.test_provider(input(url)).await.unwrap();
+    let r = w.app.providers().test_provider(input(url)).await.unwrap();
     assert!(r.ok);
     assert_eq!(r.models.len(), 5);
     server.await.unwrap();
@@ -305,7 +313,7 @@ async fn oversized_body_without_content_length_is_unexpected() {
             .unwrap();
         let _ = socket.write_all(&vec![b'x'; 8 * 1024 * 1024 + 1]).await;
     });
-    let r = w.profiles.test_provider(input(url)).await.unwrap();
+    let r = w.app.providers().test_provider(input(url)).await.unwrap();
     assert_eq!(serde_json::to_value(r.reason).unwrap(), "unexpected");
     server.await.unwrap();
 }

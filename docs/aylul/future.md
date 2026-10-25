@@ -13,9 +13,6 @@ written beyond the vision). A feature leaves this list when it is delivered.
 
 | Feature | What it gives Mohammed | Status | Why |
 |---|---|---|---|
-| Settings dialog: what is left | Usage per provider and model, plugins and skills per agent, General | planned | [settings spec](../frontend/specs/2026-10-20-settings-dialog-design.md) |
-| Character colour on the companion | The character wears its agent's colour, repainted at once on save | planned | [settings spec](../frontend/specs/2026-10-20-settings-dialog-design.md), [native request](./shared/requests/2026-10-21-settings-dialog-native.md) |
-| Start with Windows, hide to tray | Desktop switches in General | planned | [native request](./shared/requests/2026-10-21-settings-dialog-native.md) |
 | Work profile | Watches the agents through hooks, explains their work, alerts | next | [current direction](./vision.md#current-direction-2026-10-19) |
 | Personal profile | Email, YouTube and personal preferences | idea | [current direction](./vision.md#current-direction-2026-10-19) |
 | Voice | Speech in and out, separate from the reasoning model, falls back to text | idea | [vision §14](./vision.md#14-voice-must-be-decoupled-from-reasoning) |

@@ -1,4 +1,4 @@
-//! The `/` menu's list (spec §21): the harness's `available_commands_update`
+//! The `/` menu's list: the harness's `available_commands_update`
 //! reaches the thread stream as a transient `commands` frame, live and again
 //! after `caught-up` for a stream opened later.
 

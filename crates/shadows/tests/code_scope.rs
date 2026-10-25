@@ -1,4 +1,4 @@
-//! What a code question may read (spec §15.5–§15.7): the asker's project and
+//! What a code question may read: the asker's project and
 //! the projects it links to, one way, over MCP and over HTTP alike.
 
 use std::time::Duration;
@@ -34,19 +34,17 @@ async fn other_project_with_folder(
     let path = dir.path().join(file);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, text).unwrap();
-    let project = l
-        .app
-        .storage
-        .create_project(
-            &ctx(&fresh_command(), "project.create"),
-            slug,
-            slug,
-            &ProjectDirectory::resolve(dir.path()).unwrap(),
-            &policy::default_modes(),
-        )
-        .await
-        .unwrap()
-        .id;
+    let project = shadows_core::testing::create_project(
+        &l.app.storage,
+        &ctx(&fresh_command(), "project.create"),
+        slug,
+        slug,
+        &ProjectDirectory::resolve(dir.path()).unwrap(),
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap()
+    .id;
     (project, dir)
 }
 

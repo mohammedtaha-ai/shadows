@@ -5,7 +5,7 @@ use super::*;
 async fn opening_projects_only_enabled_extensions() {
     let w = world().await;
     w.core
-        .profiles()
+        .agents()
         .create_agent("b".into(), agent("Other"))
         .await
         .unwrap();
@@ -16,12 +16,12 @@ async fn opening_projects_only_enabled_extensions() {
         let src = source(&w, kind, name);
         let item = w
             .core
-            .profiles()
+            .extensions()
             .add_extension(name.into(), kind, &src)
             .await
             .unwrap();
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(format!("enable-{name}"), "aylul", kind, &item.id, true)
             .await
             .unwrap();
@@ -49,19 +49,19 @@ async fn opening_removes_disabled_cached_extensions() {
     let src = source(&w, ExtensionKind::Plugin, "cached-plugin");
     let item = w
         .core
-        .profiles()
+        .extensions()
         .add_extension("import".into(), ExtensionKind::Plugin, &src)
         .await
         .unwrap();
     w.core
-        .profiles()
+        .extensions()
         .set_agent_extension("on".into(), "aylul", ExtensionKind::Plugin, &item.id, true)
         .await
         .unwrap();
     w.core.harness().open_session(&w.thread).await.unwrap();
     w.sessions.terminate(&w.thread).await.unwrap();
     w.core
-        .profiles()
+        .extensions()
         .set_agent_extension(
             "off".into(),
             "aylul",
@@ -108,12 +108,12 @@ async fn extension_projection_is_atomic() {
     let src = source(&w, ExtensionKind::Skill, "collision");
     let i = w
         .core
-        .profiles()
+        .extensions()
         .add_extension("i".into(), ExtensionKind::Skill, &src)
         .await
         .unwrap();
     w.core
-        .profiles()
+        .extensions()
         .set_agent_extension("on".into(), "aylul", ExtensionKind::Skill, &i.id, true)
         .await
         .unwrap();
@@ -137,16 +137,16 @@ async fn parallel_projection_preserves_settings() {
     let source = source(&w, ExtensionKind::Skill, "parallel-skill");
     let item = w
         .core
-        .profiles()
+        .extensions()
         .add_extension("add".into(), ExtensionKind::Skill, &source)
         .await
         .unwrap();
     w.core
-        .profiles()
+        .extensions()
         .set_agent_extension("on".into(), "aylul", ExtensionKind::Skill, &item.id, true)
         .await
         .unwrap();
-    let project = w.core.profiles().assistant_project().await.unwrap();
+    let project = w.core.agents().assistant_project().await.unwrap();
     let second = w
         .core
         .threads()
@@ -168,7 +168,7 @@ async fn parallel_projection_preserves_settings() {
     let (a, b, toggled) = tokio::join!(
         w.core.harness().open_session(&w.thread),
         w.core.harness().open_session(&second),
-        w.core.profiles().set_agent_extension(
+        w.core.extensions().set_agent_extension(
             "off".into(),
             "aylul",
             ExtensionKind::Skill,

@@ -1,4 +1,4 @@
-//! A thread remembers its harness session (spec §12.2, §12.3): the first
+//! A thread remembers its harness session: the first
 //! turn's session is recorded once that turn ends, a thread whose adapter was
 //! closed resumes it at its next opening, and another thread has its own.
 //! `fake_acp`'s `report` prompt answers with the session it runs in and how
@@ -11,11 +11,11 @@ use serde_json::Value;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
 use shadows_core::OperationId;
+use shadows_core::testing::CommandContext;
+use shadows_core::testing::Harness;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::{ThreadEntryKind, ThreadId};
 
@@ -26,14 +26,16 @@ struct Fixture {
     _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
 }
 
 async fn fixture() -> (Fixture, ThreadId, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let ctx = |id: &str, kind: &str| CommandContext {
         agent: None,
         principal_kind: "User".into(),
@@ -41,31 +43,31 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &serde_json::json!({ "id": id })),
+        request_fingerprint: CommandContext::fingerprint(kind, &serde_json::json!({ "id": id })),
     };
     let dir = ProjectDirectory::resolve(tmp.path()).unwrap();
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &dir,
-            &shadows_agent::policy::default_modes(),
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
+    let mut threads = Vec::new();
+    for id in ["c2", "c3"] {
+        let thread = shadows_core::Threads::create_planning_thread_for_test(
+            &storage,
+            &ctx(id, "thread.create"),
+            &project.id,
+            id,
+            "claude-code",
+            None,
         )
         .await
         .unwrap();
-    let mut threads = Vec::new();
-    for id in ["c2", "c3"] {
-        let thread = storage
-            .create_planning_thread(
-                &ctx(id, "thread.create"),
-                &project.id,
-                id,
-                "claude-code",
-                None,
-            )
-            .await
-            .unwrap();
         threads.push(thread.id);
     }
     let sessions = acp::fake_sessions(storage.clone());
@@ -96,7 +98,10 @@ impl Fixture {
 
     async fn wait_for_terminal(&self, op: &OperationId) -> String {
         for _ in 0..200 {
-            let status = self.runtime.storage.get_operation(op).await.unwrap();
+            let status =
+                shadows_core::Turns::get_operation_for_test(&self.runtime.storage_for_test(), op)
+                    .await
+                    .unwrap();
             if status.finished_at.is_some() {
                 return status.status_kind;
             }
@@ -110,12 +115,12 @@ impl Fixture {
     async fn session_of_a_turn(&self, thread: &ThreadId) -> (String, String) {
         let op = self.start(thread, "report").await;
         assert_eq!(self.wait_for_terminal(&op).await, "Completed");
-        let entries = self
-            .runtime
-            .storage
-            .list_thread_entries(thread)
-            .await
-            .unwrap();
+        let entries = shadows_core::Threads::list_thread_entries_for_test(
+            &self.runtime.storage_for_test(),
+            thread,
+        )
+        .await
+        .unwrap();
         let reply = entries
             .iter()
             .rev()
@@ -129,9 +134,7 @@ impl Fixture {
     }
 
     async fn recorded(&self, thread: &ThreadId) -> Option<String> {
-        self.runtime
-            .storage
-            .turn_context(thread)
+        shadows_core::Threads::turn_context_for_test(&self.runtime.storage_for_test(), thread)
             .await
             .unwrap()
             .harness_session_id
@@ -164,7 +167,7 @@ async fn a_closed_adapter_resumes_the_session_the_first_turn_started() {
 }
 
 /// A first turn whose adapter had to be terminated never ended, so its
-/// session is not recorded (§12.3): the next turn opens a new one rather than
+/// session is not recorded: the next turn opens a new one rather than
 /// resuming an id the harness may never have stored.
 #[tokio::test]
 async fn a_first_turn_stopped_by_termination_records_no_session() {
@@ -172,7 +175,7 @@ async fn a_first_turn_stopped_by_termination_records_no_session() {
 
     let hung = f.start(&thread, "ignore-cancel").await;
     let outcome = PlannerTurn::stop(
-        f.runtime.clone(),
+        f.runtime.storage_for_test(),
         f.handles.clone(),
         f.sessions.clone(),
         &hung,

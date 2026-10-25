@@ -12,17 +12,18 @@ fn add(field: VisionField, text: &str) -> DesignOp {
 async fn every_vision_change_is_a_stored_version() {
     let tmp = tempfile::tempdir().unwrap();
     let (core, p) = standards::core_and_project(&tmp).await;
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "a".into(),
             &p,
             0,
             vec![add(VisionField::Purpose, "Sell books")],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "b".into(),
             &p,
             1,
@@ -32,6 +33,7 @@ async fn every_vision_change_is_a_stored_version() {
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let storage = Storage::open(&tmp.path().join("standards.sqlite3"))
         .await
@@ -55,8 +57,8 @@ async fn every_vision_change_is_a_stored_version() {
 async fn a_removed_id_is_never_reused() {
     let tmp = tempfile::tempdir().unwrap();
     let (core, p) = standards::core_and_project(&tmp).await;
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "a".into(),
             &p,
             0,
@@ -66,19 +68,22 @@ async fn a_removed_id_is_never_reused() {
             ],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "r".into(),
             &p,
             1,
             vec![DesignOp::VisionItemRemove { id: "G2".into() }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    core.design()
-        .edit("b".into(), &p, 2, vec![add(VisionField::Goals, "three")])
+    core.plans()
+        .edit_design("b".into(), &p, 2, vec![add(VisionField::Goals, "three")])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let v = core.design().vision(&p).await.unwrap();
     assert_eq!(
@@ -89,8 +94,8 @@ async fn a_removed_id_is_never_reused() {
             .collect::<Vec<_>>(),
         ["G1", "G3"]
     );
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "batch".into(),
             &p,
             3,
@@ -101,6 +106,7 @@ async fn a_removed_id_is_never_reused() {
             ],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         core.design().vision(&p).await.unwrap().content.goals[2].id,
@@ -124,7 +130,10 @@ async fn item_ops_refuse_an_unknown_id_and_empty_text() {
     .enumerate()
     {
         assert!(matches!(
-            core.design().edit(n.to_string(), &p, 0, vec![op]).await,
+            core.plans()
+                .edit_design(n.to_string(), &p, 0, vec![op])
+                .await
+                .map_err(shadows_core::CoreError::from),
             Err(CoreError::Refused {
                 code: ErrorCode::InvalidCommand,
                 ..

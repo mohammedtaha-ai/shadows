@@ -1,4 +1,4 @@
-//! Spec §8.4 case 7: a client disconnecting never cancels or strands work.
+//! A client disconnecting never cancels or strands work.
 //!
 //! Hyper drops a handler's future when its connection closes. Here each
 //! request's future is dropped after its first poll through the real router,
@@ -14,7 +14,6 @@ use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_core::ThreadId;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
@@ -29,12 +28,15 @@ use shadows_core::testing::acp;
 async fn a_client_that_disconnects_mid_request_strands_nothing() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let handles = Arc::new(LiveHandles::default());
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage: storage.clone(),
             runtime: Arc::new(runtime),
@@ -85,7 +87,9 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
     );
 
     let op = wait_for(|| async {
-        let ops = storage.list_operations_for_thread(&thread).await.unwrap();
+        let ops = shadows_core::Turns::list_operations_for_thread_for_test(&storage, &thread)
+            .await
+            .unwrap();
         ops.into_iter()
             .find(|op| op.status_kind == "Running")
             .map(|op| op.id)
@@ -103,7 +107,9 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
     );
 
     let status = wait_for(|| async {
-        let op = storage.get_operation(&op).await.unwrap();
+        let op = shadows_core::Turns::get_operation_for_test(&storage, &op)
+            .await
+            .unwrap();
         op.finished_at.is_some().then_some(op.status_kind)
     })
     .await

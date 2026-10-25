@@ -1,4 +1,4 @@
-//! The OpenAPI document (spec §1: the protocol is described, not copied).
+//! The OpenAPI document the protocol is described, not copied.
 //!
 //! **The decision this file owns.** Clients generate their types from
 //! `api/openapi.json`, so that file is the protocol as a client sees it. It is
@@ -22,7 +22,6 @@ use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use shadows::cli::router;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::{AppState, openapi_document};
@@ -176,6 +175,7 @@ fn the_document_names_every_route() {
             "GET /api/runtime",
             "GET /api/subscribe",
             "GET /api/threads/{id}",
+            "GET /api/threads/{id}/attachments/{attachment_id}",
             "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
@@ -202,6 +202,7 @@ fn the_document_names_every_route() {
             "POST /api/projects/{id}/structure",
             "POST /api/projects/{id}/threads",
             "POST /api/projects/{id}/vision-proposals/{proposal_id}/approve",
+            "POST /api/threads/{id}/attachments",
             "POST /api/threads/{id}/fork",
             "POST /api/threads/{id}/queue",
             "POST /api/threads/{id}/queue/{qid}/send-now",
@@ -221,6 +222,7 @@ fn the_document_names_every_route() {
             "PUT /api/projects/{id}/planner-instructions",
             "PUT /api/projects/{id}/standards/additions",
             "PUT /api/threads/{id}/session/effort",
+            "PUT /api/threads/{id}/session/mode",
             "PUT /api/threads/{id}/session/model",
         ]
     );
@@ -287,11 +289,14 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
 async fn the_document_is_served_and_every_path_it_names_is_routed() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
             storage,

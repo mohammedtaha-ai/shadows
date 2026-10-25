@@ -12,6 +12,28 @@ doctest = false
 workspace = true
 
 [dependencies]
+core-events = { path = "../core-events" }
+core-project-lifecycle = { path = "../core-project-lifecycle" }
+core-turns = { path = "../core-turns" }
+core-plans = { path = "../core-plans" }
+core-design = { path = "../core-design" }
+core-harness = { path = "../core-harness" }
+core-operations = { path = "../core-operations" }
+core-grants = { path = "../core-grants" }
+core-threads = { path = "../core-threads" }
+core-extensions = { path = "../core-extensions" }
+core-agents = { path = "../core-agents" }
+core-code = { path = "../core-code" }
+core-standards = { path = "../core-standards" }
+core-instructions = { path = "../core-instructions" }
+core-person = { path = "../core-person" }
+core-usage = { path = "../core-usage" }
+core-projects = { path = "../core-projects" }
+core-db = { path = "../core-db" }
+core-runtime = { path = "../core-runtime" }
+core-secrets = { path = "../core-secrets" }
+core-providers = { path = "../core-providers" }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 reqwest = { workspace = true, features = ["rustls"] }
 aes-gcm = "0.10"
 hkdf = "0.12"
@@ -51,7 +73,7 @@ yaml-rust2 = { workspace = true }
 # and `shadows-process`'s `force_termination_failure`. Enabled for
 # `cargo test` only via the self dev-dependency below, and by `shadows`' and
 # `fake-acp`'s own `test-support`; never a default feature.
-test-support = ["dep:escargot", "shadows-process/test-support"]
+test-support = ["core-events/test-support", "core-project-lifecycle/test-support", "core-turns/test-support", "core-plans/test-support", "core-design/test-support", "core-harness/test-support", "core-operations/test-support", "core-grants/test-support", "core-threads/test-support", "dep:escargot", "shadows-process/test-support", "core-db/test-support", "core-runtime/test-support", "core-secrets/test-support", "core-providers/test-support", "core-projects/test-support", "core-code/test-support"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

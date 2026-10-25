@@ -1,0 +1,93 @@
+# SQLite table :: service owner
+agent_invocation :: harness
+attachment :: threads
+agreement :: design
+agreement_operation_identity :: design
+agreement_version :: design
+aylul_agent :: agents
+aylul_agent_extension :: extensions
+aylul_extension :: extensions
+aylul_person :: person
+aylul_provider :: providers
+aylul_usage :: usage
+code_file :: code
+code_setting :: code
+code_tag :: code
+command_record :: db
+design_command_result :: design
+design_map_proposal :: design
+design_map_version :: design
+design_outcome :: design
+design_outcome_part :: design
+design_outcome_plan :: plans
+design_part :: design
+design_part_plan :: plans
+design_part_waiver :: design
+design_roadmap_proposal :: design
+design_structure_write :: design
+design_vision_proposal :: design
+design_vision_version :: design
+design_workspace :: design
+draft_intent :: grants
+durable_event :: db
+harness_limit :: harness
+harness_model_effort :: harness
+harness_preference :: harness
+harness_thread_mode :: harness
+mcp_grant :: grants
+operation :: operations
+plan :: plans
+planner_instructions_version :: instructions
+planning_thread :: threads
+project :: projects
+project_link :: code
+project_mode :: projects
+queued_message :: turns
+runtime_instance :: runtime
+# runtime owner source: crates/core-runtime/src/store/
+secret_env :: secrets
+secret_env_import :: secrets
+standards_additions_version :: standards
+task :: plans
+task_agreement_binding :: plans
+task_parent :: plans
+task_plan_parent :: plans
+thread_attachment :: threads
+thread_entry :: threads
+workflow :: plans
+# secrets owner source: crates/core-secrets/src/store/
+# providers owner source: crates/core-providers/src/store/
+
+# projects SQL lives in crates/core-projects/src/store/.
+
+# usage SQL lives in crates/core-usage/src/store/.
+
+# person SQL lives in crates/core-person/src/store/.
+
+# instructions SQL lives in crates/core-instructions/src/store/.
+
+# standards SQL lives in crates/core-standards/src/store/.
+
+# code SQL lives in crates/core-code/src/store/.
+
+# agents SQL lives in crates/core-agents/src/store/.
+
+# extensions SQL lives in crates/core-extensions/src/store/.
+
+# threads SQL lives in crates/core-threads/src/store/.
+
+# grants SQL lives in crates/core-grants/src/store/.
+
+# operations SQL lives in crates/core-operations/src/store/.
+
+# harness SQL lives in crates/core-harness/src/store/.
+
+# design SQL lives in crates/core-design/src/store/.
+
+# plans SQL lives in crates/core-plans/src/store/.
+
+# turns SQL lives in crates/core-turns/src/store/.
+
+# project_lifecycle SQL lives in crates/core-project-lifecycle/src/store.rs.
+
+# events SQL lives in crates/core-events/src/store.rs.

@@ -111,7 +111,7 @@ pub(super) async fn review(
     State(s): State<AppState>,
     Path((project, id)): Path<(ProjectId, AgreementId)>,
 ) -> Result<Json<AgreementReview>, Failure> {
-    Ok(Json(s.core.design().review_agreement(&project, &id).await?))
+    Ok(Json(s.core.plans().review_agreement(&project, &id).await?))
 }
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct Agree {
@@ -131,7 +131,7 @@ pub(super) async fn agree(
 ) -> Result<Json<AgreementVersion>, Failure> {
     Ok(Json(
         s.core
-            .design()
+            .plans()
             .agree_agreement(
                 body.command_id,
                 &project,

@@ -1,4 +1,4 @@
-use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
+use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{AgreementContent, AgreementState, AppCore, CoreError, CoreParts, StorageError};
 use std::sync::Arc;
 
@@ -7,9 +7,15 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
+        runtime: Arc::new(
+            shadows_core::AppCore::runtime_for_tests(storage.clone())
+                .await
+                .unwrap()
+                .0,
+        ),
         sessions: acp::fake_sessions(storage.clone()),
         handles: Arc::new(LiveHandles::default()),
         bus: tokio::sync::broadcast::channel(32).0,
@@ -17,7 +23,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "agreements",
@@ -39,6 +45,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
         .design()
         .start_agreement("start".into(), &project, None, Some(content.clone()), None)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(first.version, 1);
     assert_eq!(first.revision, 0);
@@ -57,12 +64,14 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             changed.clone(),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(edited.revision, 1);
     let replay = core
         .design()
         .start_agreement("start".into(), &project, None, Some(content), None)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(replay.agreement_id, first.agreement_id);
     assert_eq!(replay.revision, 0);
@@ -77,6 +86,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             None,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(existing.revision, 1);
     assert!(matches!(
@@ -89,7 +99,8 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 0,
                 changed.clone()
             )
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::RevisionConflict { .. }))
     ));
     assert!(matches!(
@@ -102,14 +113,24 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 0,
                 first.content
             )
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::CommandConflict))
     ));
-    assert_eq!(core.design().agreements(&project).await.unwrap().len(), 1);
+    assert_eq!(
+        core.design()
+            .agreements(&project)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .len(),
+        1
+    );
     let exact = core
         .design()
         .agreement(&project, &first.agreement_id, Some(1))
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(exact.content.purpose, "Changed");
     let reader =
@@ -147,6 +168,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 None
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     let start_a = core.design().start_agreement(
@@ -182,6 +204,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             with_operation.clone(),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.design()
         .edit_agreement(
@@ -193,6 +216,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             v2.content,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(
         core.design()
@@ -205,6 +229,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 with_operation
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     reader.close().await;
@@ -218,6 +243,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
         .design()
         .agreement(&project, &first.agreement_id, Some(1))
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .content;
     let proposed = core
@@ -230,6 +256,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             None,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.grants()
         .revoke("revoke-grant".into(), &grant.id)
@@ -245,6 +272,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 None
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     assert!(
@@ -258,12 +286,14 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 agent_content
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     assert_eq!(
         core.design()
             .agreement(&project, &proposed.agreement_id, None)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         0

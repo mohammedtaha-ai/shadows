@@ -1,5 +1,5 @@
 use serde_json::json;
-use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
+use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{
     AgreementContent, AgreementParty, AgreementRole, AgreementState, AppCore, CoreError, CoreParts,
     DesignOp, PartContent, PartId, StorageError,
@@ -11,9 +11,15 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("review.db")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
+        runtime: Arc::new(
+            shadows_core::AppCore::runtime_for_tests(storage.clone())
+                .await
+                .unwrap()
+                .0,
+        ),
         sessions: acp::fake_sessions(storage.clone()),
         handles: Arc::new(LiveHandles::default()),
         bus: tokio::sync::broadcast::channel(32).0,
@@ -21,7 +27,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "review",
@@ -32,7 +38,10 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .unwrap()
         .id;
     let part = PartId::generate();
-    storage.seed_map_for_tests(&project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_map_for_tests(&project)
+        .await
+        .unwrap();
     let part_content = PartContent {
         serves: vec![],
         folders: vec![],
@@ -43,8 +52,8 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         design: "".into(),
         kind: None,
     };
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "part".into(),
             &project,
             0,
@@ -56,6 +65,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let first=core.design().start_agreement("start".into(),&project,None,Some(AgreementContent {
         capability:"Login".into(),purpose:"Login".into(),behavior:"Credentials".into(),
@@ -64,17 +74,18 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         }],openapi:json!({"openapi":"3.1.0","info":{"title":"API","version":"1"},
             "paths":{"/login":{"post":{"x-shadows-operation-id":
                 "c0000000-0000-4000-8000-000000000001","responses":{"200":{"description":"OK"}}}}}})
-    }),None).await.unwrap();
+    }),None).await.map_err(shadows_core::CoreError::from).unwrap();
     let review = core
-        .design()
+        .plans()
         .review_agreement(&project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(review.compatibility, "Needs review");
     assert_eq!(review.parties.len(), 1);
     assert!(review.participants.is_empty());
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "rename".into(),
             &project,
             1,
@@ -87,9 +98,10 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(matches!(
-        core.design()
+        core.plans()
             .agree_agreement(
                 "stale".into(),
                 &project,
@@ -97,16 +109,18 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
                 0,
                 review.review_id
             )
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::RevisionConflict { .. }))
     ));
     let fresh = core
-        .design()
+        .plans()
         .review_agreement(&project, &first.agreement_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let agreed = core
-        .design()
+        .plans()
         .agree_agreement(
             "agree".into(),
             &project,
@@ -115,6 +129,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             fresh.review_id.clone(),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(agreed.state, AgreementState::Agreed);
     let v2 = core
@@ -127,11 +142,12 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             Some("New behavior".into()),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let mut content = v2.content;
     content.behavior = "Changed behavior".into();
     // A request built on v1 at revision 0 must not land on v2, which is
-    // also at revision 0: it names its version, and v1 is no longer the Draft.
+    // also at revision 0: it names its version, and v1 is Agreed.
     let stale = core
         .design()
         .edit_agreement(
@@ -142,7 +158,8 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             0,
             content.clone(),
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         matches!(&stale, Err(CoreError::Refused { message, .. }) if message.contains("read v2")),
         "{stale:?}"
@@ -157,9 +174,10 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             content,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let replay = core
-        .design()
+        .plans()
         .agree_agreement(
             "agree".into(),
             &project,
@@ -168,12 +186,14 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             fresh.review_id,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(replay.version, 1);
     assert_eq!(
         core.design()
             .agreement(&project, &first.agreement_id, Some(1))
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .content
             .behavior,

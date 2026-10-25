@@ -3,17 +3,14 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
 use shadows_core::{
     OpenError, ThreadId,
-    testing::{
-        CommandContext, OpenSession, ProjectDirectory, Sessions, SessionsConfig, Storage,
-        fingerprint,
-    },
+    testing::{CommandContext, Harness, OpenSession, ProjectDirectory, SessionsConfig, Storage},
 };
 
 struct Fixture {
     _tmp: tempfile::TempDir,
     project_dir: PathBuf,
     storage: Arc<Storage>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     thread: ThreadId,
 }
 
@@ -30,37 +27,43 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
-    let project = storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &ProjectDirectory::resolve(&project_dir).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx,
+        "demo",
+        "Demo",
+        &ProjectDirectory::resolve(&project_dir).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap()
-        .id;
-    let adapter = Arc::new(ClaudeAdapter {
-        node: shadows_core::testing::fake_acp_path(),
-        adapter: PathBuf::from("unused"),
-        agent: PathBuf::from("unused"),
-        adapter_version: "fake".into(),
-        agent_version: "fake".into(),
-    });
-    let sessions = Sessions::new(adapter, storage.clone(), config);
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
+    let adapter = Arc::new(ClaudeAdapter::new(
+        shadows_core::testing::fake_acp_path(),
+        PathBuf::from("unused"),
+        PathBuf::from("unused"),
+        "fake".into(),
+        "fake".into(),
+    ));
+    let sessions = shadows_core::AppCore::harness_for_tests(adapter, storage.clone(), config);
     Fixture {
         _tmp: tmp,
         project_dir,
@@ -103,8 +106,7 @@ async fn opening_twice_reuses_one_adapter_and_starts_in_accept_edits() {
 #[tokio::test]
 async fn a_thread_with_a_recorded_session_resumes_it() {
     let fx = fixture(SessionsConfig::default()).await;
-    fx.storage
-        .record_harness_session(&fx.thread, "fake-77")
+    shadows_core::Threads::record_harness_session_for_test(&fx.storage, &fx.thread, "fake-77")
         .await
         .unwrap();
     let s = fx.sessions.open(&fx.thread).await.unwrap();
@@ -123,12 +125,14 @@ async fn a_removed_thread_cannot_reuse_its_still_open_adapter() {
         command_id: "remove".into(),
         command_kind: "thread.remove".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(
+        request_fingerprint: CommandContext::fingerprint(
             "thread.remove",
             &serde_json::json!({ "thread_id": fx.thread }),
         ),
     };
-    fx.storage.remove_thread(&ctx, &fx.thread).await.unwrap();
+    shadows_core::Turns::remove_thread_for_test(&fx.storage, &ctx, &fx.thread)
+        .await
+        .unwrap();
     // Between the removal commit and Stop/close, the cached adapter still exists.
     let refused = fx.sessions.open(&fx.thread).await;
     fx.sessions.close_all().await.unwrap();
@@ -147,8 +151,7 @@ async fn an_idle_connection_is_closed_and_the_next_opening_resumes() {
         ..Default::default()
     })
     .await;
-    fx.storage
-        .record_harness_session(&fx.thread, "fake-5")
+    shadows_core::Threads::record_harness_session_for_test(&fx.storage, &fx.thread, "fake-5")
         .await
         .unwrap();
     fx.sessions.open(&fx.thread).await.unwrap();
@@ -169,8 +172,7 @@ async fn idle_close_before_first_turn_discards_the_unrecorded_session() {
     let first = fx.sessions.open(&fx.thread).await.unwrap();
     assert_eq!(first.how, "new");
     assert!(
-        fx.storage
-            .turn_context(&fx.thread)
+        shadows_core::Threads::turn_context_for_test(&fx.storage, &fx.thread)
             .await
             .unwrap()
             .harness_session_id
@@ -234,8 +236,7 @@ async fn a_harness_slower_than_setup_wait_fails_and_leaves_no_adapter() {
         ..Default::default()
     })
     .await;
-    fx.storage
-        .record_harness_session(&fx.thread, "slow-1")
+    shadows_core::Threads::record_harness_session_for_test(&fx.storage, &fx.thread, "slow-1")
         .await
         .unwrap();
     assert!(matches!(
@@ -250,8 +251,7 @@ async fn the_default_setup_wait_outlasts_a_slow_harness() {
     // Claude Code took 2.6–5.7 s to open a session on Windows; 5 s failed it.
     assert!(SessionsConfig::default().setup_wait >= Duration::from_secs(15));
     let fx = fixture(SessionsConfig::default()).await;
-    fx.storage
-        .record_harness_session(&fx.thread, "slow-2")
+    shadows_core::Threads::record_harness_session_for_test(&fx.storage, &fx.thread, "slow-2")
         .await
         .unwrap();
     let s = fx.sessions.open(&fx.thread).await.unwrap();
@@ -260,9 +260,7 @@ async fn the_default_setup_wait_outlasts_a_slow_harness() {
 }
 
 async fn second_thread(fx: &Fixture) -> ThreadId {
-    let project = fx
-        .storage
-        .turn_context(&fx.thread)
+    let project = shadows_core::Threads::turn_context_for_test(&fx.storage, &fx.thread)
         .await
         .unwrap()
         .project_id;
@@ -274,16 +272,22 @@ async fn second_thread(fx: &Fixture) -> ThreadId {
         command_id: "c3".into(),
         command_kind: "thread.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
     };
-    fx.storage
-        .create_planning_thread(&ctx, &project, "U", "claude-code", None)
-        .await
-        .unwrap()
-        .id
+    shadows_core::Threads::create_planning_thread_for_test(
+        &fx.storage,
+        &ctx,
+        &project,
+        "U",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id
 }
 
-/// §16.6: an adapter slow to open holds only its own thread. Stop on
+/// An adapter slow to open holds only its own thread. Stop on
 /// another thread does not wait for it.
 #[tokio::test]
 async fn one_thread_opening_does_not_hold_another() {
@@ -291,8 +295,7 @@ async fn one_thread_opening_does_not_hold_another() {
     let other = second_thread(&fx).await;
     fx.sessions.open(&other).await.unwrap();
     // fake-acp sleeps 1.5 s resuming a session whose id starts with `slow-`.
-    fx.storage
-        .record_harness_session(&fx.thread, "slow-3")
+    shadows_core::Threads::record_harness_session_for_test(&fx.storage, &fx.thread, "slow-3")
         .await
         .unwrap();
     let sessions = fx.sessions.clone();

@@ -1,5 +1,5 @@
 //! One job: the `rmcp` handler — which tools a request's grant may see and
-//! call (spec §13.6's table).
+//! call.
 //!
 //! The grant reaches a request through the extensions `rmcp` hands a handler:
 //! `RequestContext::extensions` holds the request's `http::request::Parts`,
@@ -22,50 +22,6 @@ use rmcp::{ErrorData, RoleServer, ServerHandler};
 use shadows_core::AppCore;
 use shadows_core::{Grant, GrantKind};
 
-/// The internal Planner's tools: plans belong to the project now. Only it
-/// shows a plan; an external agent cannot move a person's screen.
-const THREAD_TOOLS: [&str; 19] = [
-    "vision_approve",
-    "map_approve",
-    "roadmap_approve",
-    "plan_approve",
-    "map_propose",
-    "roadmap_propose",
-    "agreement_list",
-    "agreement_get",
-    "agreement_start",
-    "agreement_edit",
-    "agreement_review",
-    "workflow_list",
-    "workflow_get",
-    "task_get",
-    "draft_start",
-    "plan_edit",
-    "plan_show",
-    "vision_propose",
-    "workspace_get",
-];
-
-/// An external agent's tools, within its project: the plan tools, and the
-/// code tools over the project and the projects it links to (§15.7).
-const PROJECT_TOOLS: [&str; 15] = [
-    "agreement_list",
-    "agreement_get",
-    "agreement_start",
-    "agreement_edit",
-    "agreement_review",
-    "workflow_list",
-    "workflow_get",
-    "task_get",
-    "draft_prepare",
-    "draft_start",
-    "plan_edit",
-    "where_is",
-    "who_uses",
-    "outline",
-    "workspace_get",
-];
-
 /// Every tool once, and each grant kind's share of them, built once per
 /// daemon: a stateless server makes a handler for every request.
 #[derive(Clone)]
@@ -79,7 +35,9 @@ struct Routers {
 
 impl Tools {
     pub(super) fn new() -> Self {
-        let every = Shadows::tool_router()
+        let every = Shadows::plan_tool_router()
+            + Shadows::code_tool_router()
+            + Shadows::turn_tool_router()
             + Shadows::agreement_tool_router()
             + Shadows::workspace_tool_router();
         let only = |names: &[&str]| {
@@ -91,7 +49,10 @@ impl Tools {
             }
             router
         };
-        let (thread, project) = (only(&THREAD_TOOLS), only(&PROJECT_TOOLS));
+        let (thread, project) = (
+            only(shadows_core::Grants::tools_for(GrantKind::Thread)),
+            only(shadows_core::Grants::tools_for(GrantKind::Project)),
+        );
         Self(Arc::new(Routers {
             every,
             thread,

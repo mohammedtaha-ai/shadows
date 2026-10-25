@@ -1,16 +1,16 @@
 //! Shared apparatus: starting a Planner turn without HTTP, the way the turn
-//! route does (spec §12.7) — the operation is committed by
+//! route does — the operation is committed by
 //! `Storage::start_turn`, then `PlannerTurn::start` runs it.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::command::{CommandContext, fingerprint};
-use crate::harness::Sessions;
-use crate::runtime::Runtime;
-use crate::threads::ThreadId;
-use crate::turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
-use crate::turns::{LiveHandles, OperationId, StartError};
+use core_db::CommandContext;
+use core_harness::Harness;
+use core_runtime::Runtime;
+use core_threads::ThreadId;
+use core_turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
+use core_turns::{LiveHandles, OperationId, StartError};
 use shadows_agent::TurnSettings;
 use shadows_agent::events::HarnessEvent;
 
@@ -36,7 +36,7 @@ pub fn turn_command(id: &str, thread: &ThreadId, prompt: &str, s: &TurnSettings)
         command_id: id.into(),
         command_kind: "turn.start".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("turn.start", &params),
+        request_fingerprint: CommandContext::fingerprint("turn.start", &params),
     }
 }
 
@@ -49,8 +49,9 @@ pub fn new_turn<'a>(
     NewTurn {
         aylul_usage: None,
         thread_id: thread,
-        runtime: &runtime.instance_id,
+        runtime: runtime.instance_id(),
         prompt,
+        attachments: &[],
         role: "Planner",
         harness_kind: "claude-code",
         harness_path: "fake-adapter/dist/index.js",
@@ -58,9 +59,9 @@ pub fn new_turn<'a>(
         agent_path: "fake_acp",
         agent_version: "fake-claude-1",
         settings,
-        prompt_version: Some(crate::harness::prompt_version()),
+        prompt_version: Some(core_harness::Harness::prompt_version()),
         instructions_version: None,
-        standards_version: Some(crate::design::base_standards().version),
+        standards_version: Some(core_standards::Standards::base().version),
         standards_additions_version: None,
         focus: None,
         dequeue: None,
@@ -72,32 +73,35 @@ pub fn new_turn<'a>(
 pub async fn start_direct(
     runtime: &Arc<Runtime>,
     handles: &Arc<LiveHandles>,
-    sessions: &Arc<Sessions>,
+    sessions: &Arc<Harness>,
     bus: &tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     thread: &ThreadId,
     prompt: &str,
-) -> Result<OperationId, StartError> {
+) -> Result<OperationId, crate::CoreError> {
     let opened = sessions.open(thread).await.unwrap();
     let events = sessions.lease_events(thread, &opened).await.unwrap();
     let settings = default_turn_settings();
     let id = format!("direct-{}", NEXT.fetch_add(1, Ordering::SeqCst));
     let command = turn_command(&id, thread, prompt, &settings);
-    let started = match runtime
-        .storage
-        .start_turn(&command, new_turn(thread, runtime, prompt, &settings))
-        .await
+    let started = match crate::Turns::start_turn_for_test(
+        &runtime.storage_for_test(),
+        &command,
+        new_turn(thread, runtime, prompt, &settings),
+    )
+    .await
     {
         Ok(started) => started,
         Err(e) => {
             sessions.give_back_events(thread, &opened, events).await;
             if handles.is_closed().await {
-                return Err(StartError::RuntimeStopping);
+                return Err(StartError::RuntimeStopping.into());
             }
             return Err(e.into());
         }
     };
     PlannerTurn::start(
         runtime.clone(),
+        runtime.storage_for_test(),
         handles.clone(),
         sessions.clone(),
         opened,
@@ -106,6 +110,7 @@ pub async fn start_direct(
             harness: "claude-code".into(),
             operation_id: started.operation_id,
             prompt: prompt.into(),
+            images: Vec::new(),
             settings,
             focus: None,
             continue_plan: None,
@@ -116,4 +121,5 @@ pub async fn start_direct(
         bus.clone(),
     )
     .await
+    .map_err(Into::into)
 }

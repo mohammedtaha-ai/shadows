@@ -1,9 +1,9 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::{Value, json};
-use shadows_core::testing::{self, LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::testing::{self, Harness, LiveHandles, SessionsConfig, Storage, acp};
 use shadows_core::{
-    AgentInput, AppCore, AylulConfig, CoreError, CoreParts, OperationId, ProviderInput, SecretKey,
-    SendTurn, ThreadId,
+    AgentInput, AppCore, AylulConfig, CoreParts, OperationId, ProviderInput, SecretKey, SendTurn,
+    ThreadId, UsageError,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,7 +12,7 @@ struct World {
     _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     core: Arc<AppCore>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     thread: ThreadId,
 }
 
@@ -22,8 +22,13 @@ async fn world() -> World {
     std::fs::create_dir_all(&root).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
-    let sessions = Sessions::new(
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
+    let sessions = shadows_core::AppCore::harness_for_tests(
         acp::fake_adapter(),
         storage.clone(),
         SessionsConfig {
@@ -36,6 +41,7 @@ async fn world() -> World {
         },
     );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime,
@@ -49,7 +55,7 @@ async fn world() -> World {
         .ensure_assistant("aylul", "AYLUL", &root)
         .await
         .unwrap();
-    core.profiles()
+    core.providers()
         .create_provider(
             "provider".into(),
             ProviderInput {
@@ -68,15 +74,15 @@ async fn world() -> World {
         )
         .await
         .unwrap();
-    core.secrets()
-        .set_provider_key("key".into(), "test-2", "synthetic-stored-one")
+    core.providers()
+        .set_key("key".into(), "test-2", "synthetic-stored-one")
         .await
         .unwrap();
-    core.profiles()
+    core.agents()
         .create_agent("agent".into(), agent("AYLUL"))
         .await
         .unwrap();
-    let project = core.profiles().assistant_project().await.unwrap();
+    let project = core.agents().assistant_project().await.unwrap();
     let thread = core
         .threads()
         .create(
@@ -109,6 +115,7 @@ fn agent(name: &str) -> AgentInput {
 
 fn request(model: &str, effort: &str) -> SendTurn {
     SendTurn {
+        attachments: Vec::new(),
         command_id: uuid::Uuid::new_v4().to_string(),
         prompt: "report".into(),
         model: model.into(),
@@ -126,7 +133,9 @@ async fn send(w: &World, prompt: &str) -> OperationId {
     let op = w.core.turns().send(w.thread.clone(), input).await.unwrap();
     tokio::time::timeout(Duration::from_secs(20), async {
         loop {
-            let row = w.storage.get_operation(&op).await.unwrap();
+            let row = shadows_core::Turns::get_operation_for_test(&w.storage, &op)
+                .await
+                .unwrap();
             if row.finished_at.is_some() {
                 break;
             }
@@ -141,7 +150,7 @@ async fn send(w: &World, prompt: &str) -> OperationId {
 async fn report(w: &World) -> serde_json::Value {
     serde_json::to_value(
         w.core
-            .profiles()
+            .usage()
             .usage("2000-01-01T00:00:00Z", "2100-01-01T00:00:00Z")
             .await
             .unwrap(),
@@ -196,7 +205,10 @@ async fn usage_ends_atomically_once() {
     .unwrap();
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert_eq!(
-        w.storage.get_operation(&op).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&w.storage, &op)
+            .await
+            .unwrap()
+            .status_kind,
         "Running"
     );
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM aylul_usage")
@@ -217,13 +229,11 @@ async fn usage_ends_atomically_once() {
         .await
         .unwrap();
     let seen = shadows_agent::events::TurnObservation::default();
-    w.storage
-        .mark_operation_completed(&op, json!({}), &seen)
+    shadows_core::Turns::mark_operation_completed_for_test(&w.storage, &op, json!({}), &seen)
         .await
         .unwrap();
     assert!(
-        w.storage
-            .mark_operation_completed(&op, json!({}), &seen)
+        shadows_core::Turns::mark_operation_completed_for_test(&w.storage, &op, json!({}), &seen)
             .await
             .is_err()
     );
@@ -242,18 +252,18 @@ async fn usage_snapshot_survives_provider_changes() {
         "base_url":"https://other.test","models":[{"id":"fake-large"},{"id":"fake-small"}]}))
     .unwrap();
     w.core
-        .profiles()
+        .agents()
         .update_provider("rename".into(), "test-2", p)
         .await
         .unwrap();
     send(&w, "turn-usage").await;
     w.core
-        .profiles()
+        .harness()
         .delete_agent("delete-agent".into(), "aylul")
         .await
         .unwrap();
     w.core
-        .profiles()
+        .agents()
         .delete_provider("delete-provider".into(), "test-2")
         .await
         .unwrap();
@@ -278,19 +288,31 @@ async fn usage_refusal_cancel_and_missing_are_honest() {
             .await
             .unwrap();
     assert_eq!(missing, 1);
-    let runtime = Runtime::start(w.storage.clone()).await.unwrap().0;
-    let pending = w
-        .storage
-        .create_pending_operation(&w.thread, &runtime.instance_id)
+    let runtime = shadows_core::AppCore::runtime_for_tests(w.storage.clone())
+        .await
+        .unwrap()
+        .0;
+    let pending = shadows_core::Turns::create_pending_operation_for_test(
+        &w.storage,
+        &w.thread,
+        runtime.instance_id(),
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_cancelled_for_test(&w.storage, &pending)
         .await
         .unwrap();
-    w.storage.mark_operation_cancelled(&pending).await.unwrap();
     assert_eq!(report(&w).await["by_provider"][0]["requests"], 3);
     let mut input = request("fake-large", "high");
     input.prompt = "ignore-cancel".into();
     let forced = w.core.turns().send(w.thread.clone(), input).await.unwrap();
     tokio::time::timeout(Duration::from_secs(10), async {
-        while w.storage.get_operation(&forced).await.unwrap().status_kind != "Running" {
+        while shadows_core::Turns::get_operation_for_test(&w.storage, &forced)
+            .await
+            .unwrap()
+            .status_kind
+            != "Running"
+        {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
     })
@@ -298,7 +320,10 @@ async fn usage_refusal_cancel_and_missing_are_honest() {
     .unwrap();
     w.core.turns().stop(&forced).await.unwrap();
     assert_eq!(
-        w.storage.get_operation(&forced).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&w.storage, &forced)
+            .await
+            .unwrap()
+            .status_kind,
         "Cancelled"
     );
     let unknown: Option<i64> =
@@ -318,7 +343,7 @@ async fn usage_costs_require_trusted_turn_delta() {
         "models":[{"id":"fake-large"},{"id":"fake-small"}]}))
     .unwrap();
     w.core
-        .profiles()
+        .agents()
         .update_provider("anthropic".into(), "test-2", p)
         .await
         .unwrap();
@@ -372,7 +397,7 @@ async fn usage_periods_group_and_sort() {
     }
     let r = serde_json::to_value(
         w.core
-            .profiles()
+            .usage()
             .usage("2026-10-21T03:00:00+03:00", "2026-10-21T01:00:00Z")
             .await
             .unwrap(),
@@ -389,8 +414,8 @@ async fn usage_periods_group_and_sort() {
         ("2026-10-21T00:00:00Z", "2026-10-20T00:00:00Z"),
     ] {
         assert!(matches!(
-            w.core.profiles().usage(from, to).await,
-            Err(CoreError::ProfileInvalid(_))
+            w.core.usage().usage(from, to).await,
+            Err(UsageError::InvalidPeriod)
         ));
     }
 }

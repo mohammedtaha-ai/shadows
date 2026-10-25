@@ -1,5 +1,5 @@
-//! A conversation's harness and a project's allowed modes over HTTP (spec
-//! §12.5, §12.6, §12.10): chosen at creation, changeable until the first turn,
+//! A conversation's harness and a project's allowed modes over HTTP: chosen at creation, changeable
+//! until the first turn,
 //! refused outside the policy, and kept across a restart with the remembered
 //! settings and limits.
 
@@ -46,9 +46,8 @@ async fn a_deleted_conversation_is_gone_but_readable() {
             })
             .await
             .expect("the delete must commit before Stop finishes");
-            let attempted = app
-                .storage
-                .edit_plan(
+            let attempted = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+                .edit_plan_for_test(
                     &plan::edit_ctx(&writer, &draft.workflow_id, 1, &[plan::add(2)]),
                     &writer,
                     None,
@@ -56,7 +55,8 @@ async fn a_deleted_conversation_is_gone_but_readable() {
                     1,
                     &[plan::add(2)],
                 )
-                .await;
+                .await
+                .map_err(shadows_core::CoreError::from);
             let (refused, body) = http_start(
                 &app,
                 app.thread.as_str(),
@@ -71,7 +71,10 @@ async fn a_deleted_conversation_is_gone_but_readable() {
     assert_eq!(status, 200, "{removed}");
     assert!(removed["removed_at"].is_string());
     assert_eq!(
-        app.storage.get_operation(&op).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&app.storage, &op)
+            .await
+            .unwrap()
+            .status_kind,
         "Cancelled"
     );
     assert_eq!(app.sessions.live_count().await, 0);
@@ -89,18 +92,22 @@ async fn a_deleted_conversation_is_gone_but_readable() {
 
     assert!(matches!(
         attempted,
-        Err(shadows_core::StorageError::GrantInvalid)
+        Err(shadows_core::CoreError::Refused {
+            code: shadows_core::ErrorCode::GrantInvalid,
+            ..
+        })
     ));
     assert_eq!(
-        app.storage
-            .get_plan(&draft.workflow_id)
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .get_plan_for_test(&draft.workflow_id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         1
     );
     assert!(matches!(
-        app.storage.issue_thread_grant(&app.thread).await,
+        shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread).await,
         Err(shadows_core::StorageError::NotFound(_))
     ));
     let plans: Vec<Value> =
@@ -324,6 +331,6 @@ async fn a_browser_may_send_patch_from_an_allowed_origin() {
         .map(|v| v.to_str().unwrap().to_string())
         .unwrap_or_default();
     assert!(methods.contains("PATCH"), "{methods}");
-    // Picking a model sends a PUT (§12.7); the allowed list is one list.
+    // Picking a model sends a PUT; the allowed list is one list.
     assert!(methods.contains("PUT"), "{methods}");
 }

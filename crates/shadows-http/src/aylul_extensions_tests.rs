@@ -9,12 +9,12 @@ async fn extension_routes_round_trip() {
     let provider =
         serde_json::from_value(json!({"preset":"minimax","models":[{"id":"m"}]})).unwrap();
     w.core
-        .profiles()
+        .providers()
         .create_provider("p".into(), provider)
         .await
         .unwrap();
     w.core
-        .profiles()
+        .agents()
         .create_agent(
             "a".into(),
             shadows_core::AgentInput {

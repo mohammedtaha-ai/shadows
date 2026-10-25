@@ -15,8 +15,10 @@ async fn settings_env_base_url_fails_opening() {
         &w,
         json!({"env":{"ANTHROPIC_BASE_URL":"https://untrusted.example"}}),
     );
-    assert!(matches!(w.core.harness().open_session(&w.thread).await,
-        Err(CoreError::SecretNameReserved(name)) if name=="ANTHROPIC_BASE_URL"));
+    assert!(
+        matches!(w.core.harness().open_session(&w.thread).await.map_err(CoreError::from),
+        Err(CoreError::SecretNameReserved(name)) if name=="ANTHROPIC_BASE_URL")
+    );
     assert_eq!(w.sessions.live_count().await, 0);
 }
 
@@ -25,6 +27,7 @@ async fn model_overrides_fails_opening() {
     let w = world().await;
     settings(&w, json!({"modelOverrides":{}}));
     let error = w.core.harness().open_session(&w.thread).await.unwrap_err();
+    let error = CoreError::from(error);
     assert!(matches!(error, CoreError::ProfileInvalid(_)));
     assert!(error.to_string().contains("modelOverrides"));
     assert_eq!(w.sessions.live_count().await, 0);
@@ -65,7 +68,7 @@ async fn settings_json_keeps_other_keys() {
 async fn concurrent_openings_keep_settings_valid() {
     let w = world().await;
     settings(&w, json!({"permissions":{"allow":["Read"]}}));
-    let project = w.core.profiles().assistant_project().await.unwrap();
+    let project = w.core.agents().assistant_project().await.unwrap();
     let other = w
         .core
         .threads()

@@ -1,4 +1,4 @@
-//! §23.5 roadmap proposals: structure first, one card, approval opens the plans stage.
+//! Roadmap proposals: structure first, one card, approval opens the plans stage.
 use super::*;
 use shadows_core::{
     ErrorCode, Grant, OutcomeContent, OutcomeId, ProposalStatus, ProposedOutcome, RoadmapAction,
@@ -22,6 +22,7 @@ impl Fixture {
             core.design()
                 .create_structure("write".into(), &p)
                 .await
+                .map_err(shadows_core::CoreError::from)
                 .unwrap();
         }
         let thread = core
@@ -33,6 +34,7 @@ impl Fixture {
             .send(
                 thread.id.clone(),
                 SendTurn {
+                    attachments: Vec::new(),
                     command_id: "turn".into(),
                     prompt: "hang".into(),
                     model: "fake-large".into(),
@@ -45,11 +47,14 @@ impl Fixture {
             )
             .await
             .unwrap();
-        let (grant, _) = storage.issue_thread_grant(&thread.id).await.unwrap();
+        let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&storage, &thread.id)
+            .await
+            .unwrap();
         let parts = core
             .design()
             .parts(&p, None, None)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .items
             .into_iter()
@@ -104,7 +109,12 @@ impl Fixture {
     }
 
     pub(super) async fn proposals(&self) -> Vec<shadows_core::RoadmapProposal> {
-        self.core.design().roadmap_proposals(&self.p).await.unwrap()
+        self.core
+            .design()
+            .roadmap_proposals(&self.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
     }
 
     pub(super) async fn approve_first(&self) -> shadows_core::RoadmapProposal {
@@ -113,11 +123,13 @@ impl Fixture {
             .design()
             .propose_roadmap(&self.grant, self.first())
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap();
         self.core
-            .design()
+            .plans()
             .approve_roadmap_proposal(format!("approve-{}", card.id), &self.p, &card.id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap();
         card
     }
@@ -133,11 +145,6 @@ pub(super) fn refused<T: std::fmt::Debug>(
             assert_eq!(c, code, "{message}");
             assert!(message.contains(text), "{message}");
         }
-        CoreError::Storage(StorageError::StageBlocked(message))
-            if code == ErrorCode::StageBlocked =>
-        {
-            assert!(message.contains(text), "{message}");
-        }
         other => panic!("expected {code:?} {text}: {other:?}"),
     }
 }
@@ -146,7 +153,11 @@ pub(super) fn refused<T: std::fmt::Debug>(
 async fn a_roadmap_waits_for_the_structure() {
     let f = Fixture::new(false).await;
     refused(
-        f.core.design().propose_roadmap(&f.grant, f.first()).await,
+        f.core
+            .design()
+            .propose_roadmap(&f.grant, f.first())
+            .await
+            .map_err(shadows_core::CoreError::from),
         ErrorCode::StageBlocked,
         "press Create structure first",
     );
@@ -158,7 +169,13 @@ async fn a_roadmap_waits_for_the_structure() {
 async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
     let f = Fixture::new(true).await;
     assert_eq!(
-        f.core.design().stage(&f.p).await.unwrap().stage,
+        f.core
+            .design()
+            .stage(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .stage,
         Stage::Roadmap
     );
     let card = f
@@ -166,6 +183,7 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
         .design()
         .propose_roadmap(&f.grant, f.first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(card.outcomes[0].content.title, "login");
     assert!(
@@ -173,25 +191,34 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
             .design()
             .outcomes(&f.p, None, None)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .items
             .is_empty()
     );
     let change = f
         .core
-        .design()
+        .plans()
         .approve_roadmap_proposal("approve".into(), &f.p, &card.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let replay = f
         .core
-        .design()
+        .plans()
         .approve_roadmap_proposal("approve".into(), &f.p, &card.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(change, replay);
     assert_eq!(
-        f.core.design().stage(&f.p).await.unwrap().stage,
+        f.core
+            .design()
+            .stage(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .stage,
         Stage::Plans
     );
     let roots = f
@@ -199,17 +226,25 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
         .design()
         .outcomes(&f.p, None, None)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
         .items;
     assert_eq!(roots.len(), 1);
     assert_eq!(roots[0].content.title, "login");
-    let view = f.core.design().outcome(&f.p, &roots[0].id).await.unwrap();
+    let view = f
+        .core
+        .plans()
+        .design_outcome(&f.p, &roots[0].id)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(view.parts.len(), 2);
     let children = f
         .core
         .design()
         .outcomes(&f.p, Some(&roots[0].id), None)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(children.items[0].content.title, "sso");
     let approved = &f.proposals().await[0];
@@ -219,7 +254,11 @@ async fn the_button_approves_a_first_roadmap_and_opens_the_plans_stage() {
     let mut again = f.first();
     again.outcomes.truncate(1);
     refused(
-        f.core.design().propose_roadmap(&f.grant, again).await,
+        f.core
+            .design()
+            .propose_roadmap(&f.grant, again)
+            .await
+            .map_err(shadows_core::CoreError::from),
         ErrorCode::InvalidCommand,
         "a roadmap is approved",
     );
@@ -234,11 +273,13 @@ async fn the_planner_approves_at_the_persons_request() {
         .design()
         .propose_roadmap(&f.grant, f.first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     f.core
-        .design()
+        .plans()
         .approve_roadmap_proposal_as_planner(&f.grant, &card.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let by = f.proposals().await[0].approved_by.clone().unwrap();
     assert!(by.agent.starts_with("planner:"), "{}", by.agent);
@@ -254,6 +295,7 @@ async fn a_newer_first_or_a_replaces_supersedes_the_pending_card() {
         .design()
         .propose_roadmap(&f.grant, f.first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let mut again = f.first();
     again.outcomes.truncate(1);
@@ -263,6 +305,7 @@ async fn a_newer_first_or_a_replaces_supersedes_the_pending_card() {
         .design()
         .propose_roadmap(&f.grant, again)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let cards = f.proposals().await;
     assert_eq!(cards[0].id, a.id);
@@ -276,13 +319,15 @@ async fn a_newer_first_or_a_replaces_supersedes_the_pending_card() {
         .design()
         .propose_roadmap(&f.grant, replacing)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(f.proposals().await[1].status, ProposalStatus::Superseded);
     refused(
         f.core
-            .design()
+            .plans()
             .approve_roadmap_proposal("old".into(), &f.p, &a.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         ErrorCode::InvalidCommand,
         "superseded",
     );
@@ -297,37 +342,62 @@ async fn a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not() {
         .design()
         .propose_roadmap(&f.grant, f.first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    let revision = f.core.design().vision(&f.p).await.unwrap().revision;
+    let revision = f
+        .core
+        .design()
+        .vision(&f.p)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .revision;
     let vision = DesignOp::VisionItemAdd {
         field: shadows_core::VisionField::Goals,
         text: "Another goal".into(),
     };
     f.core
-        .design()
-        .edit("vision".into(), &f.p, revision, vec![vision])
+        .plans()
+        .edit_design("vision".into(), &f.p, revision, vec![vision])
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(!f.proposals().await[0].outdated);
-    let part = f.core.design().part(&f.p, &f.parts[0]).await.unwrap().part;
+    let part = f
+        .core
+        .plans()
+        .design_part(&f.p, &f.parts[0])
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .part;
     let mut content = part.content.clone();
     content.design = "edited by hand".into();
     let put = DesignOp::PartPut {
         id: part.id.clone(),
         content,
     };
-    let revision = f.core.design().vision(&f.p).await.unwrap().revision;
-    f.core
+    let revision = f
+        .core
         .design()
-        .edit("part".into(), &f.p, revision, vec![put])
+        .vision(&f.p)
         .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .revision;
+    f.core
+        .plans()
+        .edit_design("part".into(), &f.p, revision, vec![put])
+        .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(f.proposals().await[0].outdated);
     refused(
         f.core
-            .design()
+            .plans()
             .approve_roadmap_proposal("stale".into(), &f.p, &card.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         ErrorCode::StageBlocked,
         "proposal outdated; propose again",
     );
@@ -336,6 +406,7 @@ async fn a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not() {
             .design()
             .outcomes(&f.p, None, None)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .items
             .is_empty()
@@ -368,12 +439,15 @@ async fn a_malformed_roadmap_is_refused_whole() {
     missing.outcomes.truncate(1);
     cases.push((missing, "no roadmap yet"));
     for (args, text) in cases {
-        let result = f.core.design().propose_roadmap(&f.grant, args).await;
+        let result = f
+            .core
+            .design()
+            .propose_roadmap(&f.grant, args)
+            .await
+            .map_err(shadows_core::CoreError::from);
         match result.unwrap_err() {
             CoreError::Refused { message, .. } => assert!(message.contains(text), "{message}"),
-            CoreError::Storage(StorageError::StageBlocked(message)) => {
-                assert!(message.contains(text), "{message}");
-            }
+
             other => panic!("{text}: {other:?}"),
         }
     }

@@ -32,11 +32,19 @@ async fn remembered_model_is_per_agent() {
     reply(&w, &w.thread, "fake-small", "low").await;
     reply(&w, &other, "fake-large", "max").await;
     assert_eq!(
-        w.storage.remembered_settings("claude-code").await.unwrap(),
+        w.core
+            .harness()
+            .remembered_settings("claude-code")
+            .await
+            .unwrap(),
         None
     );
     assert_eq!(
-        w.storage.remembered_settings("aylul:aylul").await.unwrap(),
+        w.core
+            .harness()
+            .remembered_settings("aylul:aylul")
+            .await
+            .unwrap(),
         Some(("fake-small".into(), Some("low".into())))
     );
     w.sessions.terminate(&w.thread).await.unwrap();

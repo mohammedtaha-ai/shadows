@@ -1,4 +1,4 @@
-//! The HTTP surface, driven through the real router (spec §3.3, §1.0).
+//! The HTTP surface, driven through the real router.
 //!
 //! `tests/resync.rs` owns what the stream guarantees and `tests/stream_frames.rs`
 //! what its frames carry; this file owns that each
@@ -17,9 +17,8 @@ use shadows::cli::router;
 use shadows_core::OperationId;
 use shadows_core::RuntimeInstanceId;
 use shadows_core::ThreadId;
+use shadows_core::testing::Harness;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
@@ -34,20 +33,23 @@ struct Fixture {
     app: Router,
     stopping: tokio::sync::watch::Sender<bool>,
     runtime: RuntimeInstanceId,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
 }
 
 async fn fixture() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
-    let runtime_id = runtime.instance_id.clone();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
+    let runtime_id = runtime.instance_id().clone();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let handles = Arc::new(LiveHandles::default());
     let sessions = acp::fake_sessions(storage.clone());
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage: storage.clone(),
             runtime: Arc::new(runtime),
@@ -101,7 +103,7 @@ async fn create_project(app: &Router, command_id: &str, name: &str) -> (StatusCo
     .await
 }
 
-/// Spec §1: the daemon does not serve or embed a client. There is no page at
+/// The daemon does not serve or embed a client. There is no page at
 /// `/` to fall back on; a client is served from its own origin.
 #[tokio::test]
 async fn the_daemon_serves_no_page() {
@@ -115,7 +117,7 @@ async fn the_daemon_serves_no_page() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
-/// Spec §3.2: the command id is the idempotency key. A replay with the same
+/// The command id is the idempotency key. A replay with the same
 /// body returns the first result; the same id with a different body is a
 /// `CommandConflict`, which the transport maps to 409.
 #[tokio::test]
@@ -188,7 +190,7 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
     let mut seen = String::new();
     read_until(&mut stream, &mut seen, |s| s.contains("event: caught-up")).await;
 
-    // Spec §3.3: a long-running command answers 202 and an operation id.
+    // A long-running command answers 202 and an operation id.
     let (status, started) = call(
         &f.app,
         "POST",
@@ -208,11 +210,12 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
     // The turn ends on its own; wait for the operation row to say so.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
     loop {
-        let op = f
-            .storage
-            .get_operation(&OperationId::from_literal(op_id))
-            .await
-            .unwrap();
+        let op = shadows_core::Turns::get_operation_for_test(
+            &f.storage,
+            &OperationId::from_literal(op_id),
+        )
+        .await
+        .unwrap();
         if op.finished_at.is_some() {
             assert_eq!(op.status_kind, "Completed", "{op:?}");
             break;
@@ -305,30 +308,29 @@ async fn a_threads_operations_are_listed_newest_first_with_their_status() {
     }
     let (thread, other) = (&threads[0], &threads[1]);
 
-    let first = f
-        .storage
-        .create_pending_operation(thread, &f.runtime)
+    let first =
+        shadows_core::Turns::create_pending_operation_for_test(&f.storage, thread, &f.runtime)
+            .await
+            .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(&f.storage, &first, &f.runtime)
         .await
         .unwrap();
-    f.storage
-        .mark_operation_started(&first, &f.runtime)
+    shadows_core::Turns::mark_operation_completed_for_test(
+        &f.storage,
+        &first,
+        json!({}),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(&f.storage, other, &f.runtime)
         .await
         .unwrap();
-    f.storage
-        .mark_operation_completed(&first, json!({}), &Default::default())
-        .await
-        .unwrap();
-    f.storage
-        .create_pending_operation(other, &f.runtime)
-        .await
-        .unwrap();
-    let second = f
-        .storage
-        .create_pending_operation(thread, &f.runtime)
-        .await
-        .unwrap();
-    f.storage
-        .mark_operation_started(&second, &f.runtime)
+    let second =
+        shadows_core::Turns::create_pending_operation_for_test(&f.storage, thread, &f.runtime)
+            .await
+            .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(&f.storage, &second, &f.runtime)
         .await
         .unwrap();
 
@@ -373,7 +375,7 @@ async fn stopping_an_unknown_operation_is_not_found() {
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
 }
 
-/// Spec §8.4 case 6 over HTTP. A Stop whose tree could not be terminated is a
+/// Over HTTP, a Stop whose tree could not be terminated is a
 /// failure of the daemon, and says so: 500 `PROCESS_TERMINATION_FAILED`, with
 /// the operation left non-terminal — not a 200 carrying a `Running` row that a
 /// client would read as "Stopping" forever.
@@ -404,7 +406,12 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");
     let op = OperationId::from_literal(started["operation_id"].as_str().unwrap());
     for _ in 0..200 {
-        if f.storage.get_operation(&op).await.unwrap().status_kind == "Running" {
+        if shadows_core::Turns::get_operation_for_test(&f.storage, &op)
+            .await
+            .unwrap()
+            .status_kind
+            == "Running"
+        {
             break;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -423,12 +430,15 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
     assert_eq!(body["code"], "PROCESS_TERMINATION_FAILED", "{body}");
     assert_eq!(
-        f.storage.get_operation(&op).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&f.storage, &op)
+            .await
+            .unwrap()
+            .status_kind,
         "Running"
     );
 }
 
-/// Spec §8.5 says shutdown has no drain mode. A graceful HTTP shutdown still
+/// Shutdown has no drain mode. A graceful HTTP shutdown still
 /// waits for every open response, and a live stream never finishes on its
 /// own — so a daemon with one browser tab open would never exit. The stream
 /// must end when the daemon says it is stopping.
@@ -475,7 +485,7 @@ async fn an_open_live_stream_does_not_hold_up_shutdown() {
         .unwrap();
 }
 
-/// Spec §3.2: a refusal the schema makes is a 409 the client can act on, and
+/// A refusal the schema makes is a 409 the client can act on, and
 /// what reaches the client is written for it — not the driver's text, which
 /// names tables and columns. A thread asked for under a project that does not
 /// exist is missing, not in conflict.

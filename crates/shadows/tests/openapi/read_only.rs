@@ -29,7 +29,7 @@ async fn no_get_route_changes_state() {
         .await
         .unwrap();
     a.core
-        .profiles()
+        .providers()
         .create_provider(
             "provider".into(),
             shadows_core::ProviderInput {
@@ -49,7 +49,7 @@ async fn no_get_route_changes_state() {
         .await
         .unwrap();
     a.core
-        .profiles()
+        .agents()
         .create_agent(
             "agent".into(),
             shadows_core::AgentInput {
@@ -61,7 +61,10 @@ async fn no_get_route_changes_state() {
         )
         .await
         .unwrap();
-    a.storage.seed_map_for_tests(&a.project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(a.storage.clone())
+        .seed_map_for_tests(&a.project)
+        .await
+        .unwrap();
     let part = PartId::generate();
     let outcome = OutcomeId::generate();
     let mut ops: Vec<_> = [
@@ -98,8 +101,8 @@ async fn no_get_route_changes_state() {
         },
     });
     a.core
-        .design()
-        .edit("seed-design".into(), &a.project, 0, ops)
+        .plans()
+        .edit_design("seed-design".into(), &a.project, 0, ops)
         .await
         .unwrap();
     let workflow = plan::approved_v1(&a).await;
@@ -121,7 +124,9 @@ async fn no_get_route_changes_state() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
-    let (grant, _) = a.storage.issue_thread_grant(&a.thread).await.unwrap();
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&a.storage, &a.thread)
+        .await
+        .unwrap();
     a.core
         .design()
         .propose_vision(
@@ -144,7 +149,20 @@ async fn no_get_route_changes_state() {
         .await
         .unwrap();
     a.core.turns().stop(&op).await.unwrap();
-    let mut observer = shadows_core::testing::database_writes(&a.storage)
+    let image_bytes = include_bytes!("../fixtures/red.png");
+    let attachment = a
+        .core
+        .threads()
+        .upload_attachment(
+            "attachment".into(),
+            &a.thread,
+            "image/png",
+            None,
+            image_bytes.to_vec(),
+        )
+        .await
+        .unwrap();
+    let mut observer = shadows_core::testing::DatabaseWrites::observe(&a.storage)
         .await
         .unwrap();
     let (status, body) = app::call(&a, "GET", "/api/runtime", None).await;
@@ -188,6 +206,7 @@ async fn no_get_route_changes_state() {
                 "id" if template.starts_with("/api/plans/") => version.plan_id.to_string(),
                 "slug" if template.starts_with("/api/aylul/agents/") => "aylul".into(),
                 "agreement" => agreement["agreement_id"].as_str().unwrap().to_string(),
+                "attachment_id" => attachment.id.to_string(),
                 "part" => part.to_string(),
                 "outcome" => outcome.to_string(),
                 _ => panic!("unseeded path parameter {name} in {template}"),
@@ -202,6 +221,21 @@ async fn no_get_route_changes_state() {
             path.push_str("?path=");
         }
         let before = observer.version().await.unwrap();
+        if template.ends_with("/attachments/{attachment_id}") {
+            let response = a
+                .router
+                .clone()
+                .oneshot(Request::get(&path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert_eq!(bytes.as_ref(), image_bytes);
+            assert_eq!(before, observer.version().await.unwrap());
+            continue;
+        }
         let (status, body) = app::call(&a, "GET", &path, None).await;
         assert!((200..300).contains(&status), "{path}: {status} {body}");
         assert_eq!(

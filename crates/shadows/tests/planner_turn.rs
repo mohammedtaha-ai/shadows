@@ -1,5 +1,5 @@
 //! Full-stack tests for a Planner turn over the thread's ACP connection and
-//! its cancellation interlock (spec §2.3, §8.4, §12.3). `fake_acp` (a
+//! its cancellation interlock. `fake_acp` (a
 //! test-support binary) stands in for Node and the pinned adapter, so these
 //! tests run with nothing installed; its prompts script what the agent does.
 
@@ -14,9 +14,9 @@ use shadows::cli::router;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::Actor;
+use shadows_core::testing::CommandContext;
+use shadows_core::testing::Harness;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
@@ -32,7 +32,7 @@ struct App {
     _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     bus: Bus,
     router: Router,
     thread: ThreadId,
@@ -52,7 +52,9 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("s.sqlite3");
     let storage = Arc::new(shadows_core::testing::Storage::open(&db).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let runtime = Arc::new(runtime);
 
     let params = json!({ "slug": "demo" });
@@ -63,36 +65,44 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
-    let project = storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx,
+        "demo",
+        "Demo",
+        &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap()
-        .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
 
-    let sessions = Sessions::new(adapter, storage.clone(), acp::test_config());
+    let sessions =
+        shadows_core::AppCore::harness_for_tests(adapter, storage.clone(), acp::test_config());
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let router = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage,
             runtime: runtime.clone(),
@@ -154,7 +164,10 @@ async fn start_prompt(app: &App, prompt: &str) -> OperationId {
 
 async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
     for _ in 0..200 {
-        let loaded = app.runtime.storage.get_operation(op).await.unwrap();
+        let loaded =
+            shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), op)
+                .await
+                .unwrap();
         if loaded.finished_at.is_some() {
             return loaded;
         }
@@ -165,10 +178,7 @@ async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
 
 async fn wait_running(app: &App, op: &OperationId) {
     for _ in 0..200 {
-        if app
-            .runtime
-            .storage
-            .get_operation(op)
+        if shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), op)
             .await
             .unwrap()
             .status_kind
@@ -182,16 +192,17 @@ async fn wait_running(app: &App, op: &OperationId) {
 }
 
 async fn entries(app: &App) -> Vec<ThreadEntry> {
-    app.runtime
-        .storage
-        .list_thread_entries(&app.thread)
-        .await
-        .unwrap()
+    shadows_core::Threads::list_thread_entries_for_test(
+        &app.runtime.storage_for_test(),
+        &app.thread,
+    )
+    .await
+    .unwrap()
 }
 
 async fn stop(app: &App, op: &OperationId) -> StopOutcome {
     PlannerTurn::stop(
-        app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         op,
@@ -248,14 +259,12 @@ async fn a_turn_streams_and_stores_one_entry_per_message() {
 async fn the_first_turn_records_the_session_and_the_next_resumes_it() {
     let app = test_app().await;
     wait_terminal(&app, &start_prompt(&app, "hi").await).await;
-    let session = app
-        .runtime
-        .storage
-        .turn_context(&app.thread)
-        .await
-        .unwrap()
-        .harness_session_id
-        .unwrap();
+    let session =
+        shadows_core::Threads::turn_context_for_test(&app.runtime.storage_for_test(), &app.thread)
+            .await
+            .unwrap()
+            .harness_session_id
+            .unwrap();
     app.sessions.terminate(&app.thread).await.unwrap();
     let op = start_prompt(&app, "report").await;
     wait_terminal(&app, &op).await;
@@ -354,42 +363,47 @@ async fn a_turn_whose_adapter_cannot_start_writes_nothing() {
         (502, Some("HARNESS_START_FAILED"))
     );
     assert!(entries(&app).await.is_empty());
-    let operations = app
-        .runtime
-        .storage
-        .list_operations_for_thread(&app.thread)
-        .await
-        .unwrap();
+    let operations = shadows_core::Turns::list_operations_for_thread_for_test(
+        &app.runtime.storage_for_test(),
+        &app.thread,
+    )
+    .await
+    .unwrap();
     assert!(operations.is_empty(), "{operations:?}");
 }
 
-/// Spec §8.4 case 6. `stop` on an operation this runtime holds no live
+/// `stop` on an operation this runtime holds no live
 /// registration for can only record the request — it must not invent a
 /// confirmation it does not have, and the operation is left non-terminal.
 #[tokio::test]
 async fn stop_without_a_live_turn_records_the_request_and_stays_non_terminal() {
     let app = test_app().await;
-    let op = app
-        .runtime
-        .storage
-        .create_pending_operation(&app.thread, &app.runtime.instance_id)
-        .await
-        .unwrap();
-    app.runtime
-        .storage
-        .mark_operation_started(&op, &app.runtime.instance_id)
-        .await
-        .unwrap();
+    let op = shadows_core::Turns::create_pending_operation_for_test(
+        &app.runtime.storage_for_test(),
+        &app.thread,
+        app.runtime.instance_id(),
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(
+        &app.runtime.storage_for_test(),
+        &op,
+        app.runtime.instance_id(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(stop(&app, &op).await, StopOutcome::NotLive);
 
-    let loaded = app.runtime.storage.get_operation(&op).await.unwrap();
+    let loaded = shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), &op)
+        .await
+        .unwrap();
     assert_eq!(loaded.status_kind, "Running");
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
 }
 
-/// Spec §8.4 case 6 with a live turn whose adapter cannot be terminated. Stop
+/// With a live turn whose adapter cannot be terminated, Stop
 /// must not take an outcome it cannot confirm: the registration stays, so the
 /// still-running tree can be reached again, and nothing terminal is written.
 #[tokio::test]
@@ -404,7 +418,9 @@ async fn unconfirmed_termination_keeps_the_registration_and_leaves_the_operation
 
     assert_eq!(stop(&app, &op).await, StopOutcome::TerminationFailed);
 
-    let loaded = app.runtime.storage.get_operation(&op).await.unwrap();
+    let loaded = shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), &op)
+        .await
+        .unwrap();
     assert_eq!(loaded.status_kind, "Running");
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());

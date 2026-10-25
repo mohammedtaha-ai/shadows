@@ -1,4 +1,4 @@
-//! A project's plan notifications through the real HTTP stream (§16.8).
+//! A project's plan notifications through the real HTTP stream.
 
 use std::time::Duration;
 
@@ -43,8 +43,8 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
     let (foreign, thread) = app::other_project(&app).await;
     let source = plan::draft_on(&app, &thread, "foreign-draft").await;
     app.core
-        .code()
-        .link("foreign-link".into(), &foreign, &app.project)
+        .plans()
+        .link_projects("foreign-link".into(), &foreign, &app.project)
         .await
         .unwrap();
     let cursor: i64 = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
@@ -99,15 +99,15 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
         "replay must not publish a duplicate dependency notification"
     );
     app.core
-        .code()
-        .unlink("unlink".into(), &foreign, &app.project)
+        .plans()
+        .unlink_projects("unlink".into(), &foreign, &app.project)
         .await
         .unwrap();
     let (_, unlinked) = next_frame(&mut body, &mut pending).await;
     assert_eq!(unlinked["kind"], "PlanDependenciesChanged");
     app.core
-        .code()
-        .link("restore-link".into(), &foreign, &app.project)
+        .plans()
+        .link_projects("restore-link".into(), &foreign, &app.project)
         .await
         .unwrap();
     assert_eq!(
@@ -115,12 +115,12 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
         "PlanDependenciesChanged"
     );
     app.core
-        .threads()
-        .remove("remove-foreign-thread".into(), &thread)
+        .turns()
+        .remove_thread("remove-foreign-thread".into(), &thread)
         .await
         .unwrap();
     app.core
-        .projects()
+        .project_lifecycle()
         .remove("remove-foreign-project".into(), &foreign)
         .await
         .unwrap();
@@ -131,7 +131,10 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
 #[tokio::test]
 async fn design_stream_replays_resumes_and_keeps_projects_separate() {
     let app = app::test_app().await;
-    app.storage.seed_map_for_tests(&app.project).await.unwrap();
+    shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_map_for_tests(&app.project)
+        .await
+        .unwrap();
     let (foreign, _) = app::other_project(&app).await;
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let path = format!("/api/projects/{}/events", app.project);
@@ -234,8 +237,8 @@ async fn a_project_stream_sends_another_conversations_plan_edit() {
     plan::edit(&app, &foreign.workflow_id, 0, &[plan::add(1)]).await;
     let writer = plan::planner(&app, &app.thread).await;
     let ops = [plan::add(1)];
-    app.storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &plan::edit_ctx(&writer, &draft.workflow_id, 0, &ops),
             &writer,
             None,
@@ -321,12 +324,12 @@ async fn a_project_stream_sends_another_conversations_plan_edit() {
         404
     );
     app.core
-        .threads()
-        .remove("remove-other".into(), &other_thread)
+        .turns()
+        .remove_thread("remove-other".into(), &other_thread)
         .await
         .unwrap();
     app.core
-        .projects()
+        .project_lifecycle()
         .remove("remove-project".into(), &other_project)
         .await
         .unwrap();

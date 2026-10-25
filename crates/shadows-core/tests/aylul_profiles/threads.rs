@@ -5,12 +5,13 @@ use super::*;
 async fn aylul_harness_only_in_the_aylul_project() {
     let w = seeded().await;
     let core = core(&w).await;
-    w.profiles
+    w.app
+        .agents()
         .create_agent("agent".into(), agent("Work"))
         .await
         .unwrap();
     let normal = core
-        .projects()
+        .project_lifecycle()
         .create(
             "normal".into(),
             "normal",
@@ -45,38 +46,7 @@ async fn aylul_harness_only_in_the_aylul_project() {
 }
 
 pub(super) async fn core(w: &World) -> Arc<shadows_core::AppCore> {
-    use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig};
-    let (runtime, _) = Runtime::start(w.storage.clone()).await.unwrap();
-    let root = w._tmp.path().join("home");
-    std::fs::create_dir_all(&root).unwrap();
-    let sessions = Sessions::new(
-        Arc::new(shadows_agent::claude::ClaudeAdapter {
-            node: std::env::current_exe().unwrap(),
-            adapter: "unused.js".into(),
-            agent: std::env::current_exe().unwrap(),
-            adapter_version: "fixture".into(),
-            agent_version: "fixture".into(),
-        }),
-        w.storage.clone(),
-        SessionsConfig {
-            secrets: Some(w.secrets.clone()),
-            aylul: Some(shadows_core::AylulConfig {
-                project_slug: "aylul".into(),
-                home_root: root.clone(),
-            }),
-            ..Default::default()
-        },
-    );
-    shadows_core::AppCore::assemble(shadows_core::CoreParts {
-        storage: w.storage.clone(),
-        secrets: w.secrets.clone(),
-        runtime: Arc::new(runtime),
-        sessions,
-        handles: Arc::new(LiveHandles::default()),
-        bus: tokio::sync::broadcast::channel(16).0,
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: "".into(),
-    })
+    w.app.clone()
 }
 
 #[tokio::test]
@@ -94,7 +64,8 @@ async fn aylul_thread_requires_a_live_agent() {
             .await
             .is_err()
     );
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
@@ -105,15 +76,17 @@ async fn aylul_thread_requires_a_live_agent() {
         .unwrap();
     assert_eq!(t.profile.as_deref(), Some("work"));
     assert_eq!(
-        w.storage
-            .turn_context(&t.id)
+        shadows_core::Threads::turn_context_for_test(&w.storage, &t.id)
             .await
             .unwrap()
             .profile
             .as_deref(),
         Some("work")
     );
-    w.profiles.delete_agent("d".into(), "work").await.unwrap();
+    core.harness()
+        .delete_agent("d".into(), "work")
+        .await
+        .unwrap();
     assert!(
         core.threads()
             .create("t2".into(), &p.id, "Chat", Some("aylul"), Some("work"))
@@ -127,7 +100,7 @@ async fn planner_thread_refuses_an_agent() {
     let w = seeded().await;
     let core = core(&w).await;
     let p = core
-        .projects()
+        .project_lifecycle()
         .create(
             "p2".into(),
             "project",
@@ -154,7 +127,8 @@ async fn threads_list_by_profile_only() {
         .await
         .unwrap();
     for name in ["Work", "Personal"] {
-        w.profiles
+        w.app
+            .agents()
             .create_agent(name.into(), agent(name))
             .await
             .unwrap();
@@ -234,10 +208,12 @@ async fn legacy_aylul_threads_map_to_aylul() {
     .unwrap();
     pool.close().await;
     let storage = testing::Storage::open(&db).await.unwrap();
-    let t = storage
-        .get_thread(&shadows_core::ThreadId::from_literal("t"))
-        .await
-        .unwrap();
+    let t = shadows_core::Threads::get_thread_for_test(
+        &storage,
+        &shadows_core::ThreadId::from_literal("t"),
+    )
+    .await
+    .unwrap();
     assert_eq!(t.profile.as_deref(), Some("aylul"));
 }
 
@@ -250,7 +226,8 @@ async fn fork_keeps_profile() {
         .ensure_assistant("aylul", "AYLUL", &w._tmp.path().join("home"))
         .await
         .unwrap();
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
@@ -268,34 +245,31 @@ async fn fork_keeps_profile() {
     .execute(w.storage.reader())
     .await
     .unwrap();
-    let entry = w
-        .storage
-        .append_thread_entry(
-            &t.id,
-            testing::NewThreadEntry {
-                kind: shadows_core::ThreadEntryKind::AgentMessage,
-                author: shadows_core::Actor::system(),
-                body: "Completed",
-                refs: &[],
-                card: None,
-                operation_id: Some(&shadows_core::OperationId::from_literal("op")),
-            },
-        )
-        .await
-        .unwrap();
-    w.storage
-        .record_harness_session(&t.id, "synthetic-session")
+    let entry = shadows_core::Threads::append_thread_entry_for_test(
+        &w.storage,
+        &t.id,
+        testing::NewThreadEntry {
+            kind: shadows_core::ThreadEntryKind::AgentMessage,
+            author: shadows_core::Actor::system(),
+            body: "Completed",
+            refs: &[],
+            card: None,
+            operation_id: Some(shadows_core::OperationId::from_literal("op").as_str()),
+        },
+    )
+    .await
+    .unwrap();
+    shadows_core::Threads::record_harness_session_for_test(&w.storage, &t.id, "synthetic-session")
         .await
         .unwrap();
     let fork = core
-        .threads()
-        .fork("fork".into(), &t.id, &entry.id)
+        .harness()
+        .fork_thread("fork".into(), &t.id, &entry.id)
         .await
         .unwrap();
     assert_eq!(fork.profile.as_deref(), Some("work"));
     assert_eq!(
-        w.storage
-            .turn_context(&fork.id)
+        shadows_core::Threads::turn_context_for_test(&w.storage, &fork.id)
             .await
             .unwrap()
             .profile

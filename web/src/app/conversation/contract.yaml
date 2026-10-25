@@ -85,6 +85,7 @@ shapes:
     entryId: string
   CarriedSend:
     # A draft's first message whose turn failed once its thread existed.
+    images: "PendingImage[] | undefined; files, upload commands, answers and errors"
     text: string
     # The failed turn's command, as `attemptFor` would have made it.
     attempt: Attempt
@@ -100,7 +101,7 @@ shapes:
       message: string }"
   SendTo:
     # Where Send goes: an open thread's next turn, or a draft that makes the thread first.
-    values: "{ threadId: string } | { draft: (commandId, text, settings) => Promise<string>;
+    values: "{ threadId: string } | { draft: (commandId, text, settings, images, changed) => Promise<string>;
       planId?: string; selectableModels?: boolean }"
     # selectableModels: an agent draft, whose Model menu works before a session exists.
   Shown:
@@ -115,7 +116,7 @@ shapes:
 
 enums:
   SessionChoices:
-    source: "web/src/api/client.ts (SessionChoices: current, modes, models, efforts)"
+    source: "web/src/api/client.ts (SessionChoices: current, modes, models, efforts, capabilities)"
     values: []
   TurnSettings:
     source: "web/src/api/client.ts (TurnSettings: mode, model, effort)"
@@ -133,7 +134,7 @@ enums:
     source: web/src/api/client.ts
     values: []
   ThreadEntry:
-    source: "web/src/api/client.ts (fields incl. kind, ordinal, body, card, refs, operation_id)"
+    source: "web/src/api/client.ts (fields incl. kind, ordinal, body, card, refs, operation_id, attachments)"
     values: []
   Operation:
     source: "web/src/api/client.ts (fields incl. status_kind, cancel_requested_at, invocation)"
@@ -189,7 +190,7 @@ components:
   Composer:
     signature: "(props: { to: SendTo; carried?: CarriedSend | null; harness: string; harnessLabel:
       string; session: SessionView; running: Turn | null; directory: string | null | undefined;
-      known: boolean; commands?: readonly SlashCommand[]; ring?: ReactNode; onStarted: (operationId:
+      known: boolean; commands?: readonly SlashCommand[]; agentProfile?: string; ring?: ReactNode; onStarted: (operationId:
       string) => void; pointed: PointedTask | null; onPointed: (done: PointedTask) => void }) =>
       JSX.Element"
     # Send, queue (while a turn runs) and Stop. Send waits for `known` and for the
@@ -200,8 +201,10 @@ components:
       sessionless?: boolean; selectableModels?: boolean; directory: string | null | undefined;
       note: string | null; ring?:
       ReactNode; opened?: 'model' | 'effort' | null; onOpened?: (opened: 'model' | 'effort' | null)
-      => void }) => JSX.Element"
-    # The row under the box: Mode, folder, Model, Effort and the ring. Every menu is
+      => void; onSlashCommands: () => void; onPlugins?: () => void;
+      onPhotos: () => void; imageReason: string | null;
+      messageBox: RefObject<HTMLTextAreaElement | null> }) => JSX.Element"
+    # The row under the box: Add, Mode, folder, Model, Effort and the ring. Every setting menu is
     # built from the session's choices. The effort menu is disabled until the session
     # holds the chosen model.
   Setting:
@@ -414,11 +417,11 @@ queries_and_mutations:
     # Module-level map: a draft that failed after its thread existed hands its text here.
   useFirstSend:
     signature: "(projectId: string, harness: string, planId?: string, profile?: string) =>
-      (commandId: string, text: string, chosen: TurnSettings) => Promise<string>"
+      (commandId: string, text: string, chosen: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>"
     private: true
     # Creates the thread (with `profile` under an agent), opens its session, applies the
-    # model chosen in the draft when it differs and takes that answer's effort, seeds the
-    # session cache with the chosen mode, starts the turn, and only then navigates.
+    # model chosen in the draft when it differs and takes that answer's effort,
+    # uploads the staged images, starts the turn, and only then navigates. The thread page reads Core's choices.
     # On a later failure it carries the send to the thread page and rethrows.
 
 
@@ -572,6 +575,8 @@ obligations:
 
   - rule: >
       The slash menu opens on a text that is only a slash and a word, and lists the matches.
+      Add > Slash commands opens that same menu with the whole current harness list, leaving
+      the message unchanged until a command is picked. A text change resumes filtering.
       Arrows move, Tab and Enter pick, Escape dismisses it until the text changes, and a click
       picks. A newline in the text closes it. A pick writes "/name " and shows its hint.
       Enter while a turn runs picks and does not queue.
@@ -588,6 +593,21 @@ obligations:
       - "an empty list opens nothing"
       - "with no match the menu closes and Enter sends"
       - "picking model from the menu opens the model picker"
+      - "Slash commands from Add opens the same list and returns focus to Message"
+      - "Escape after opening Slash commands preserves the message and allows reopening"
+      - "Slash commands from Add uses the latest harness list and adds no commands"
+
+  - rule: >
+      Add opens a Base UI dropdown. Add photos follows capabilities.image and shows Core's
+      image_reason when disabled; folders and connectors are absent. Plugins is present only for the conversation's live AYLUL
+      agent and opens that agent's settings, including Plugins & Skills. Dismissing Add or
+      closing settings returns focus to Message after the dialog unmounts, so its exit
+      animation cannot restore focus to the sidebar afterward. Disabled Add items remain
+      keyboard focusable so their reason can be read.
+    tested_by:
+      - "Add shows Core image refusal and omits project Plugins, folders and connectors"
+      - "Add opens with Enter, arrows reach Slash commands and Escape returns to Message"
+      - "Plugins opens this conversations AYLUL agent settings and closing with %s returns to Message"
 
   - rule: >
       A session that is still opening shows a word, not a spinner. A failed opening shows the
@@ -638,10 +658,28 @@ obligations:
       The draft's model is "Set on send" and is disabled until the session opens.
 
   - rule: >
-      The mode chosen in a draft stays once its thread opens: the session cache the draft
-      seeds carries the mode its first turn ran with, not the one the session opened at, so
-      the thread page shows it and its next turn sends it.
+      The mode chosen in a draft stays once its thread opens: the thread page opens the
+      session and shows Core's remembered current.mode, which its next turn sends.
     tested_by: "the mode chosen in the draft stays on the thread page and runs the second turn"
+
+  - rule: >
+      A saved conversation writes each picked mode immediately, with a fresh command id.
+      A lost answer keeps that attempt's id for a retry of the same choice; success or
+      a daemon refusal ends the attempt, including COMMAND_CONFLICT.
+      Its menu and turns use Core's current.mode, including after navigation or a fresh
+      QueryClient remount. A pending write disables settings and Send; a refusal or lost
+      connection keeps the last Core mode and displays the usual error. A draft keeps
+      its policy default and sends its chosen mode with its first turn.
+    tested_by:
+      - "choosing Auto saves at once and shows only Core’s answer"
+      - "Auto survives navigating away and back and a fresh QueryClient remount"
+      - "a mode refusal %s keeps Core’s mode and shows its message"
+      - "a lost mode answer keeps Core’s mode and retries with the same command id"
+      - "a mode save cancels an older session read before caching Core’s answer"
+      - "switching conversations isolates their modes and a late save answer"
+      - "every mode choice uses a fresh command and options frames remain authoritative"
+      - "a draft starts at the policy default without a session mode write"
+      - "the first message creates the thread, then sends, then opens the thread"
 
   - rule: >
       A draft whose turn fails after its thread exists carries the text, command and error to
@@ -658,12 +696,9 @@ obligations:
     tested_by: "keeps the person where they went"
 
   - rule: >
-      A draft's opened session is the same cache entry the thread page reads, so the thread
-      page does not open the session again.
-    tested_by: none
-    note: >
-      Holds by code reading: `useFirstSend` sets `sessionKey(thread.id)` and `useSession` has
-      `staleTime: Infinity`. No test counts session opens after the navigation.
+      The thread page opens its session after a draft sends, so it reads Core's mode
+      after the first turn rather than caching a mode supplied by the web.
+    tested_by: "the mode chosen in the draft stays on the thread page and runs the second turn"
 
   - rule: >
       A removed conversation shows its history read-only: no session is opened and there is
@@ -891,9 +926,10 @@ obligations:
   - rule: >
       A waiting-message retry (Send now, Remove) carries one command id per request, so the daemon
       can recognize the same request.
-    tested_by: none
+    tested_by: "Send now preserves queued images and retries %s with the correct command"
     note: >
-      Violated: see the gap at WaitingMessages. Recorded here so the rule is visible to a reviewer.
+      Send now keeps its key per queued message until accepted, except a command conflict
+      makes the next explicit retry a new command. Remove still has the gap below.
 
 
 # ── agreements ───────────────────────────────────────────────────────────────
@@ -913,20 +949,19 @@ agreements:
       draft's command and is not a new turn
     holds: true
     why: >
-      The draft's catch builds its attempt from the same text, settings and plan; the thread
+      The draft's catch builds its attempt from the same text, settings, plan and stable image keys; the thread
       page's composer takes it as `carried.attempt`.
     tested_by: "carries the selected plan and command into a failed first-send retry"
 
-  - between: [useFirstSend (writeSaved sessionKey), useSession]
+  - between: [useFirstSend, useSession]
     must: >
-      share one session cache entry, so the thread page does not open the session again
+      read authoritative session choices after the draft navigates to its thread
     holds: true
     why: >
-      The draft writes the opened choices under the thread's session key, and useSession holds
-      them with staleTime Infinity.
-    tested_by: none
-    note: >
-      Holds by code reading. No test counts POST /session after the navigation.
+      useFirstSend opens the session directly without seeding the query cache. The thread
+      page's useSession opens it again and reads Core's current choices, including the mode
+      remembered by the first turn and its image capabilities.
+    tested_by: "the mode chosen in the draft stays on the thread page and runs the second turn"
 
   - between: [turnReducer, reply shownReply]
     must: >
@@ -952,9 +987,6 @@ not_the_caller's:
   - >
       Decide whether a reply is shown from the entries list alone. Pass the entries' ordinals and
       fetch time to `shownReply` along with the reply state.
-  - >
-      Open a thread's session after a draft has sent. The draft seeds its cache entry; a second POST
-      would open the harness again.
   - >
       Treat `useCommands` as a fetch. It has no query function; only the stream fills it.
 
@@ -998,9 +1030,8 @@ gaps:
 
   - at: WaitingMessages
     gap: >
-      Send now and Remove each take a new crypto.randomUUID() per press. A retry after a lost
-      response carries a new command id, so the daemon cannot recognize it as the same request. Send
-      in Composer reuses its command id through attemptFor; this does not.
+      Remove takes a new crypto.randomUUID() per press. A retry after a lost response carries
+      a new command id, so the daemon cannot recognize it as the same request.
 
   - at: ContextRing
     gap: >
@@ -1392,3 +1423,32 @@ tests:
     checks: With no live agent, the conversation shows its history and "Deleted agent".
 
 provider_models: Agent drafts project provider model objects into picker choices by id.
+
+
+image_attachments:
+  owner: "Composer; PendingImage in carried-send.ts carries file identity, upload command, answer, error and in-flight promise"
+  uploadImages: "carried-send.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
+  intake: "Paste intercepts only image clipboard files in clipboard order; other paste keeps browser behavior. Paste, drop, Add photos and Ctrl+U share addImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
+  validation: "Core alone accepts content, media type and size. No frontend type list or size limit. Session capabilities disable intake with image_reason. Draft capability is provisional until the first opened session answers."
+  previews: "Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
+  sending: "Send awaits uploads; empty text with images is valid; send/queue carries ordered ids. Text and images survive failure. Only accepted sends clear text and images. Text and files cannot change during a pending send or queue request."
+  replay: "Stable local image keys participate in the turn attempt; upload command ids survive retries and draft handoff. A command conflict requires a fresh id on the next explicit retry."
+  tests:
+    - "%s uploads immediately with a removable thumbnail"
+    - "ordinary text paste keeps the browser paste behavior"
+    - "non-image clipboard files keep browser paste behavior and mixed paste uploads only images in order"
+    - "switching conversations revokes local previews and ignores the old upload answer"
+    - "Send waits for uploads and sends image-only ids in selection order"
+    - "a failed upload keeps text and images with Core reason and retries the same upload command"
+    - "a refused send keeps text and images and replays the same ordered command"
+    - "Core capability disables image paste, drop and Ctrl+U with its reason"
+    - "removing an uploading image prevents its late answer from being sent"
+    - "draft first-send images survive %s"
+    - "the transcript renders ordered message images from the thread byte route"
+    - "queue preserves ordered image ids and Send now uses the saved queued images"
+    - "command conflict retains the message and makes the next explicit send a new command"
+    - "a refused queue keeps text and images and its unchanged retry command"
+    - "a queue waiting for an upload keeps the full message locked until Core refuses it"
+    - "Send now preserves queued images and retries %s with the correct command"
+    - "an upload command conflict needs an explicit retry with a fresh command"
+    - "the draft keeps staged images when its opened session refuses images"

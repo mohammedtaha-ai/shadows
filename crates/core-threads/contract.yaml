@@ -1,0 +1,627 @@
+# Index access and project reach use core-code.
+# Project identities and registration methods are imported from core-projects.
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Harness::set_thread_harness owns the close after its guarded command commits.
+# set_harness_in(conn, thread, project, harness, actor, ts) updates and journals its own row.
+# Harness owns the operation/fork guard; Threads owns the row update and trigger error mapping.
+# Owns the planning threads and what they recorded (spec §4.2, §6.5, §12.6,
+# §12.9, §14.4): creating a thread, the harness it runs on, forking it, and
+# reading its entries. Operations owns fork eligibility; Turns composes operation listings.
+# Its store also owns the thread row's
+# session id, its title after creation, and a thread's entries, which other
+# services write.
+#
+# The harness rule: a thread runs on a harness Shadows knows
+# (`Projects::known_harness`, the one rule `Projects::set_modes` also calls),
+# `claude-code` when
+# none is named. It changes only while the thread has no operation and is not
+# a fork (Harness::set_thread_harness checks both inside its write, and the
+# `planning_thread_harness_locked` trigger refuses it again below). When a
+# change moves the harness, `Harness::set_thread_harness` closes the thread session through
+# `Harness::close_session`; a failure to close is logged
+# (`thread.harness_change_close_failed`) and the change still answers.
+#
+# The fork rule (§12.9): the fork point is judged from durable rows inside
+# the fork's own write: the entry is the source's last, it names an
+# operation, that operation is Completed, and the source has a harness
+# session; and the source has no operation not yet ended
+# (`Operations::has_open_in`). The fork copies entries up to that point
+# under new ids and ordinals, keeps their `operation_id` and refs, and names
+# the source's session, which its first opening forks.
+#
+# The title rule (§4.2): a thread's `title_source` says who wrote its
+# title — `client` (the name given at create), `plan` (a draft from scratch
+# made the thread for its plan, §13.6), `first_message`, `harness`, or
+# `person` (no rename writes it yet). A source replaces only the ones below
+# it, in the UPDATE's own WHERE: the first message replaces `client` once,
+# inside the turn's write, only when it is the thread's first UserMessage; a
+# harness title replaces `client`, `first_message` or `harness`, only when it
+# differs, in its own write. Neither replaces `plan` or `person`. Each
+# change journals `ThreadRetitled` { title, source } in the same write;
+# neither records a CommandId. A fork keeps its source's `title_source`.
+# The source is not in `PlanningThread`: no client needs it yet.
+#
+# Trap: an entry's ordinal is allocated inside the appending write by
+# `UPDATE … RETURNING`, never MAX+1, so a failed append consumes none.
+# Trap: a replay of `set_harness` answers the thread as it stands and closes
+# nothing, even once the harness is locked: the close is decided by comparing
+# the harness before and after, not by the request.
+
+name: threads
+# Turns owns removal composition, grant revocation, stop and session close.
+version: 1
+status: current
+source: crates/core-threads/src
+
+modules:
+  attachment.rs: image upload validation
+  store/attachment.rs: immutable image persistence
+  lib.rs: thread command boundary
+  model.rs: public thread values with opaque provenance references
+  error.rs: thread refusal mapping
+  title.rs: conversation title normalization
+  testing.rs: test-only thread entry points
+  store/mod.rs: private ThreadsStore handle
+  store/thread.rs: planning thread records
+  store/entry.rs: ordinal entry persistence
+  store/fork.rs: completed-entry forks
+  store/remove.rs: atomic thread removal
+  store/title.rs: title replacement persistence
+  store/records.rs: transaction-local thread reads
+
+dependencies:
+  projects: crates/core-projects/contract.yaml
+  code: crates/core-code/contract.yaml
+  agents: crates/core-agents/contract.yaml
+
+# OperationRef, WorkflowRef and TaskRef are opaque provenance strings, interpreted by their owners.
+# Their schema aliases preserve OperationId, WorkflowId and TaskId on the wire.
+# Other services use associated Threads::*_in methods in their existing snapshot.
+# All journal writes use foundation JournalEntry values, with string subject ids.
+# HarnessLocked and ForkPointNotSupported map beside ThreadsError to CoreError::Refused;
+# HTTP keeps 409 HARNESS_LOCKED and 422 FORK_POINT_NOT_SUPPORTED with the same messages.
+
+
+shapes:
+  OperationRef: Opaque operation provenance with the existing OperationId wire schema.
+  WorkflowRef: Opaque workflow provenance with the existing WorkflowId wire schema.
+  TaskRef: Opaque task provenance with the existing TaskId wire schema.
+  Attachment:
+    id: AttachmentId
+    media_type: String
+    byte_len: u64
+    name: Option<String>
+  AttachmentRef:
+    id: AttachmentId
+    media_type: String
+    name: Option<String>
+  Threads:
+    store: ThreadsStore
+    projects: Projects
+    # A clone of the core's `Code`: `list` touches the project (§15.6).
+    code: Code
+  ThreadsStore:
+    storage: Arc<Storage> # Private to threads; uses the existing shared handle.
+  PlanningThread:
+    profile: Option<String>
+    id: ThreadId
+    project_id: ProjectId
+    title: String
+    # "Open"; nothing else writes another status yet.
+    status: String
+    created_at: String
+    removed_at: Option<String>
+    harness: String
+    # Set on a fork only; a fork's title is the source's with " (fork)",
+    # and its `title_source` the source's.
+    forked_from_thread: Option<ThreadId>
+  TurnContext:
+    profile: Option<String>
+    # What a turn inherits from durable state, never from its caller.
+    project_directory: Option<PathBuf>
+    harness_session_id: Option<String>
+    harness: String
+    project_id: ProjectId
+    # A fork's source session until the fork records one of its own.
+    fork_session_id: Option<String>
+  ThreadEntry:
+    attachments: Vec<AttachmentRef>
+    id: ThreadEntryId
+    thread_id: ThreadId
+    # Orders entries within one thread; not an identity.
+    ordinal: i64
+    kind: ThreadEntryKind
+    author: Actor
+    body: String
+    refs: Vec<EntryRef>
+    card: Option<serde_json::Value>
+    created_at: String
+    # A fork's copied entries keep the source's: provenance only.
+    operation_id: Option<String>
+  NewThreadEntry:
+    kind: ThreadEntryKind
+    author: Actor
+    body: "&str"
+    refs: "&[EntryRef]"
+    card: Option<&serde_json::Value>
+    operation_id: Option<&str>
+  ThreadEntryKind:
+    # Each stored as its name, which is also the wire name.
+    UserMessage: unit
+    AgentMessage: unit
+    ToolCall: unit # The tool title is recorded in body.
+    Subagent: unit # Structured subagent card.
+    PermissionRefused: unit
+    PlanView: unit
+    PlanApproved: unit
+    VisionProposal: unit # Immutable proposed content; live status belongs to Design.
+    MapProposal: unit # Immutable map snapshot; current status belongs to Design.
+    RoadmapProposal: unit # Immutable roadmap snapshot; current status belongs to Design.
+  CreatedTitle:
+    # Private: who named a thread at create, its first `title_source`.
+    # `Client` (create_thread) is replaced by the first message and the
+    # harness. A row stored as `plan`, from an external draft from scratch
+    # before §16.3, is replaced by neither; no code creates one now.
+    Client: unit
+  EntryRef:
+    Operation: OperationRef
+    Decision: String
+    Research: String
+    Workflow: WorkflowRef
+    Task: TaskRef
+
+
+functions:
+  new: "(storage, code, projects) -> Threads; AppCore constructs the service"
+  from_recorded: Retained identifier reconstruction for cross-owner database references.
+  project_removal_reads:
+    has_live_project_threads_in: "(conn, project) -> Result<bool, StorageError>"
+  service:
+    upload_attachment: Validates image content and 5 MiB limit before immutable command persistence.
+    attachment: Reads bytes only through a live thread ownership reference.
+    record_harness_session:
+      signature: "(&self, thread: &ThreadId, session: &str) -> Result<bool, ThreadsError>"
+    list_for_profile: Read live agent conversations newest first by created_at then id.
+    list:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, ThreadsError>"
+      # Oldest first by the `PlanningThreadCreated` event's seq; an unknown
+      # project has none.
+      # Then `Code::touch` of the project: the web client opening a project
+      # lists its threads (§15.6). It never fails the listing.
+    create:
+      signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>, profile: Option<&str>) -> Result<PlanningThread, ThreadsError>"
+      # harness or `claude-code` → `Projects::known_harness` →
+      # `Projects::harness_fits` (`aylul` only in the project `ensure_assistant`
+      # marked `assistant`, which allows only `aylul`; SettingNotOffered otherwise) → "thread.create",
+      # principal User/local, schema 1, params { project, title, harness }
+      # → `create_planning_thread`. Refusals: SettingNotOffered; NotFound (no
+      # such project); CommandConflict.
+    entries:
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, ThreadsError>"
+      # In ordinal order.
+    get:
+      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, ThreadsError>"
+      # Also reads a removed conversation for its plan history.
+  model:
+    as_str:
+      signature: "(self) -> &'static str"
+      # On `ThreadEntryKind`: the stored text, which is also the wire name.
+    parse:
+      signature: "(s: &str) -> Option<ThreadEntryKind>"
+      # The inverse of `as_str`; `None` for text no variant names.
+  store:
+    entry_in: "(conn, id: &ThreadEntryId) -> Result<(ThreadId, i64), StorageError>"
+    request_entry_in: "(conn, thread: &ThreadId, turn: &str) -> Result<Option<ThreadEntryId>, StorageError>"
+    harness_in: "(conn, thread: &ThreadId, project: &ProjectId) -> Result<String, StorageError>"
+    create_planning_thread:
+      signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, ThreadsError>"
+      # One write: classify (scope Project) → insert_thread → record_command.
+    set_harness_in:
+      signature: "(conn, thread, project, harness, actor, ts) -> Result<PlanningThread, ThreadsError>"
+      # Updates and journals the thread row; maps the trigger refusal to HarnessLocked.
+    turn_context:
+      signature: "(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>"
+      # Test-support wrapper for fixtures; delegates to turn_context_in.
+    record_harness_session:
+      signature: "(&self, thread_id, session_id) -> Result<bool, StorageError>"
+      # Written once through record_harness_session_in: only while NULL; no command or event.
+    list_threads_for_project:
+      signature: "(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>"
+      # Removed threads are omitted.
+    remove_in:
+      signature: "(conn, thread, ts) -> Result<PlanningThread, StorageError>"
+      # Checks thread/project liveness, marks removed_at and returns the retained row.
+    record_removal_in:
+      signature: "(conn, ctx, current, ts) -> Result<(), StorageError>"
+      # Journals ThreadRemoved and records the command after Turns revokes the grants.
+    get_thread:
+      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
+    append_thread_entry:
+      signature: "(&self, thread_id, entry: NewThreadEntry) -> Result<ThreadEntry, StorageError>"
+      # Test-only write around `append_entry_in`; no command.
+    list_thread_entries:
+      signature: "(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>"
+    fork_in:
+      signature: "(conn, ctx, source, at, completed, ts) -> Result<PlanningThread, ThreadsError>"
+      note: Caller Harness owns replay; Operations owns operation eligibility; this method writes the fork and copied entries without committing.
+    fork_point:
+      signature: "(conn, source, at, completed) -> Result<(i64, String), ThreadsError>"
+      private: true
+    copy_entries:
+      signature: "(conn, source, fork, upto, ts) -> Result<i64, StorageError>"
+      private: true
+    insert_thread:
+      signature: "(conn, project_id, title, named_by: CreatedTitle, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
+      private: true
+      # NotFound for a project that does not exist, not the foreign key's
+      # constraint failure; journals `PlanningThreadCreated` { title, harness }.
+    load_thread:
+      signature: "(conn, id: &ThreadId) -> Result<PlanningThread, StorageError>"
+      # pub(super): create, set_harness and fork, all in this store.
+    append_entry_in:
+      signature: "(conn, thread_id, entry: NewThreadEntry, ts) -> Result<ThreadEntry, StorageError>"
+      # Allocates the ordinal by UPDATE … RETURNING, inserts, journals
+      # `ThreadEntryAppended` { ordinal, kind }.
+    title_from_first_message_in:
+      signature: "(conn, thread, entry: &ThreadEntryId, message: &str, actor: Actor, ts) -> Result<(), StorageError>"
+      # `Threads::title_from_first_message`; nothing for a blank message. One UPDATE
+      # WHERE title_source = 'client' and no other UserMessage than `entry`
+      # → `ThreadRetitled` { title, source: "first_message" } by `actor`.
+    title_from_harness_in:
+      signature: "(conn: &mut SqliteConnection, thread: &ThreadId, title: &str, ts: &str) -> Result<bool, StorageError>"
+      # `Threads::harness_title`; `false` for an empty title or a placeholder ("New session" and the like). In the caller's write: one
+      # UPDATE WHERE title <> it AND title_source IN (client, first_message,
+      # harness) → `ThreadRetitled` { title, source: "harness" } by System.
+      # Answers whether the title changed.
+    retitled:
+      signature: "(conn, project, thread, title, source, actor, ts) -> Result<(), StorageError>"
+      private: true
+  title:
+    title_from_first_message:
+      signature: "(message: &str) -> Option<String>"
+      # The first non-blank line, through `one_line`.
+    harness_title:
+      signature: "(title: &str) -> Option<String>"
+      # `one_line`, then a placeholder is dropped (`is_placeholder`).
+    is_placeholder:
+      signature: "(title: &str) -> bool"
+      private: true
+    one_line:
+      signature: "(text: &str) -> Option<String>"
+      private: true
+      # Whitespace collapsed; over `TITLE_MAX_CHARS` (60) cut to 59 and "…";
+      # `None` when empty.
+  transaction_reads:
+    get_in: "(conn, thread) -> Result<PlanningThread, StorageError>; retained historical metadata"
+    project_in: "(conn, thread) -> Result<ProjectId, StorageError>; retained project id"
+    is_live_in: "(conn, thread) -> Result<bool, StorageError>"
+    require_live_in: "(conn, thread) -> Result<(), StorageError>; NotFound(planning_thread)"
+    turn_context_in: "(conn, thread) -> Result<TurnContext, StorageError>; same snapshot as Projects::get_in"
+    list_for_profile_in: "(conn, slug) -> Result<Vec<PlanningThread>, StorageError>; live threads newest first"
+    card_in: "(conn, entry) -> Result<String, StorageError>; immutable proposal replay payload"
+    user_operations_in: "(conn, thread) -> Result<Vec<String>, StorageError>; UserMessage operation ids by descending ordinal"
+    record_harness_session_in: "(conn, thread, session) -> Result<bool, StorageError>; first write wins"
+
+enums:
+  ThreadsError:
+    source: core_threads::ThreadsError
+    values: [HarnessLocked, ForkPointNotSupported, InvalidCommand, InvalidProfile, Projects, Agent, Storage]
+  StorageError:
+    source: core_db::StorageError
+    values: []
+  Actor:
+    source: core_db::Actor
+    values: []
+
+
+shared_in_transaction:
+  has_live_project_threads_in: ProjectLifecycle checks live children before removal.
+  attachment_in: Turns reads a thread-owned image in its prompt snapshot.
+  attachment_refs_in: Turns validates ordered ids in turn, queue and steering transactions.
+  append_entry_with_attachments_in: Turns stores neutral image summaries inside its message transaction.
+  remove_in: Turns composes the row write with grant revocation and permission removal.
+  record_removal_in: Turns journals removal after grant events in that same transaction.
+  set_harness_in: "Harness calls the guarded thread-row update in its command transaction."
+  fork_in: Harness checks replay and asks Operations for eligibility before this thread mutation.
+  entry_in: "Grants reads retained approval entry identity and ordinal in the caller snapshot."
+  request_entry_in: "Grants reads the latest user request for an opaque turn ref inside approval writes."
+  harness_in: "Grants reads a retained thread's harness in its project during approval authorization."
+  get_in: Plans reads retained thread metadata for historical attribution.
+  project_in: Turns and Grants read the thread's owning project in their transaction.
+  fork_operation_in: Operations reads the source-scoped entry operation before checking completion.
+  is_live_in: Operations checks thread liveness with the exact running operation.
+  require_live_in: Grants and Turns refuse removed or missing threads before writes.
+  turn_context_in: Harness, Turns, Design and Plans read thread facts in one snapshot.
+  list_for_profile_in: Harness finds a deleted agent's live thread adapters.
+  card_in: Design reads an immutable entry card during proposal command replay.
+  user_operations_in: Turns reads user-entry operation ids in descending ordinal order.
+  record_harness_session_in: Turns records the first completed session without replacing it.
+  title_from_harness_in: Harness writes generated titles in dispatch order in its own transaction.
+  profile_in: Turns reads the immutable profile to remember agent-scoped settings.
+  append_entry_in: "Design's vision proposal write (design/store/proposals.rs propose_vision_in), Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
+  title_from_first_message_in: "Turns' start (turns/store/turn.rs start_turn): the thread is titled after its first message in the write that appends that message, so a refused or replayed start titles nothing"
+
+
+called_by_other_services:
+  harness_title: Harness skips empty or placeholder titles before opening a write transaction.
+  list_for_profile_in: Harness closes live adapters after an agent is deleted.
+  turn_context_in: "Harness (mod.rs, live.rs, setup.rs), Turns::send_with, Design::planner_approver and Plans::approve_as_planner read thread facts before session or turn work; NotFound for an unknown or removed thread"
+  append_entry_in: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
+  record_harness_session_in: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"
+  title_from_harness_in: "Harness (harness/titles.rs keep_titles): the title a session's harness sends (§12.3), written in the order it sent them, outside any turn: the adapter sends it after the turn has answered"
+
+
+obligations:
+  - rule: >
+      A thread's harness is one Shadows knows, `claude-code` when none is
+      named; an unknown one is 422 SETTING_NOT_OFFERED on create and on
+      change, and nothing is written.
+    tested_by:
+      - a_thread_created_without_a_harness_runs_on_claude_code
+      - an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+
+  - rule: >
+      The harness changes only before the thread's first operation, and
+      never on a fork: HarnessLocked (409), checked in the write and again by
+      the trigger. A replay answers the thread as it stands, even once
+      locked.
+    tested_by:
+      - a_thread_can_be_created_on_a_harness_and_changed_until_its_first_turn
+      - a_fork_is_locked_to_its_sources_harness_from_birth
+
+  - rule: >
+      A harness change that moves the harness closes the thread's session
+      (its adapter ends).
+    tested_by: changing_the_harness_closes_the_threads_adapter
+    note: >
+      It opens a session, changes claude-code to codex, and sees no session
+      live. No test covers a replay or an unchanged harness closing nothing,
+      nor a close that fails (logged, the change still answered).
+
+  - rule: >
+      Replay identity. "thread.create" params { project, title, harness }
+      with the default named, "thread.harness" params { thread_id, harness },
+      "thread.fork" params { thread_id, at_entry_id }; principal User/local,
+      schema version 1.
+    tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+    note: >
+      It reads the command log; it passes on 33ec030 and fails there when the
+      fork's `at_entry_id` key is renamed.
+
+  - rule: >
+      A fork is taken only from the source's last entry written by a
+      Completed turn; an earlier entry, or a last turn that was stopped, is
+      FORK_POINT_NOT_SUPPORTED; an entry not the source's is 404
+      INVALID_COMMAND; a source with a turn running is THREAD_BUSY. A replay
+      answers the fork already made.
+    tested_by:
+      - only_the_last_completed_entry_is_a_fork_point
+      - a_stopped_last_turn_is_not_a_fork_point
+      - an_entry_of_another_thread_is_not_found
+      - fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_fork
+    note: >
+      `an_entry_of_another_thread_is_not_found` sends an id no entry has, not
+      another thread's entry; `fork_point` reads the entry `WHERE id = ? AND
+      thread_id = ?`, so both are NotFound, but no test sends a real entry of
+      another thread.
+
+  - rule: >
+      A fork copies the source's entries under new ids with the same kinds,
+      bodies and ordinals and the source's `operation_id`, has no operation
+      of its own, leaves the source unchanged, and its first opening forks
+      the source's session.
+    tested_by:
+      - fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone
+      - the_forks_first_opening_forks_the_source_session
+
+  - rule: >
+      Entry ordinals are allocated inside the appending write: concurrent
+      appends give a contiguous, duplicate-free run, and a failed append
+      consumes none. Entries are read in ordinal order.
+    tested_by:
+      - concurrent_entry_appends_allocate_contiguous_unique_ordinals
+      - a_failed_entry_insert_rolls_back_its_allocated_ordinal
+      - entries_are_read_in_ordinal_order
+    note: >
+      `entries_are_read_in_ordinal_order` appends in ordinal order, so it
+      cannot tell `ORDER BY ordinal` from insertion order; the order is
+      held by the query's explicit key, not by a test that would fail
+      without it.
+
+  - rule: >
+      Threads are listed in creation order, by the durable sequence of their
+      `PlanningThreadCreated` event, never by `created_at` text.
+    tested_by: threads_are_listed_in_creation_order_whatever_their_timestamp_text
+
+  - rule: >
+      A thread's operations are listed newest first, each as it stands, and
+      only that thread's.
+    tested_by: a_threads_operations_are_listed_newest_first_with_their_status
+
+
+  - rule: >
+      The first message titles a thread whose title is still the client's,
+      once: its first non-blank line, whitespace collapsed, cut to 60
+      characters with "…", source `first_message`, one `ThreadRetitled`. A
+      later message changes nothing.
+    tested_by: the_first_message_titles_the_thread_once
+
+  - rule: >
+      A harness title replaces a `client`, `first_message` or `harness` title,
+      sanitized as the first message is; one equal to the current title
+      writes nothing and journals nothing.
+    tested_by: the_harness_title_replaces_the_first_message_sanitized_and_once
+    note: >
+      Driven through fake-acp's `title <text>`, sent after the turn answered
+      as the real adapter does. The repeat is judged before the third title
+      lands, since one task writes an adapter's titles in order.
+
+  - rule: >
+      A `person` title is replaced by neither rule.
+    tested_by: a_title_a_person_gave_is_never_replaced
+    note: >
+      The row is set by a raw UPDATE, since no rename exists. Removing the
+      harness UPDATE's `title_source IN (…)` guard fails it (break-to-prove,
+      2026-10-01).
+
+  - rule: >
+      A thread stored as `plan` keeps its title: neither rule replaces it.
+      An external draft from scratch made such threads until §16.3 (it now
+      makes none), and migration 0010 marked the earlier ones `plan` too: a
+      v1 with the thread's timestamp and title.
+    tested_by: a_plan_thread_keeps_its_plan_title
+    note: The backfill in migration 0010 has no test of its own.
+
+  - rule: >
+      A thread whose messages predate its `client` source (every thread
+      migration 0010 found with messages) is never titled by a later
+      message: the first-message UPDATE requires no other UserMessage.
+    tested_by: a_thread_that_had_messages_before_migration_0010_keeps_its_title
+
+  - rule: >
+      A tool line is a `ToolCall` entry whose body is the tool's title and
+      which has no card; a subagent is a `Subagent` entry whose body is its
+      card's title and whose `card` is the card (§23.8). Migration 0020 moved
+      the earlier `[tool: …]` and `[subagent: …]` bodies into these kinds and
+      left a subagent body with invalid JSON as it was. A fork copies `card`.
+    tested_by:
+      - migration_0020_moves_tool_and_subagent_bodies_into_their_kinds
+      - a_fork_keeps_a_subagent_entry_and_its_card
+
+
+agreements:
+  - between: [create, harness::set_thread_harness]
+    must: judge whether a harness is known identically
+    holds: true
+    why: Both call `Projects::known_harness` first, before any read or write.
+    tested_by: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    note: The test sends "gemini" to both; `projects::set_modes` shares the rule.
+
+
+not_the_caller's:
+  - >
+      Check the harness is known, default it, or build a thread command's
+      fingerprint; `create`, `set_harness` and `fork` do, from the same
+      parameters as before the move.
+  - >
+      Close the thread's session after a harness change, or reach `Sessions`
+      for it; Harness::set_thread_harness owns that effect.
+  - >
+      Judge operation eligibility for a fork; `Operations::fork_eligible_in` does inside Harness's
+      write.
+
+
+tests:
+  - name: aylul_harness_only_in_the_aylul_project
+    checks: >
+      tests/aylul_session.rs: by create or set_harness, aylul in an ordinary
+      project (even one holding the configured slug) and claude-code in the
+      assistant project are refused; a default thread in an ordinary project
+      is created.
+  - name: migration_0020_moves_tool_and_subagent_bodies_into_their_kinds
+    checks: >
+      On a database at 0019, a `[tool: X]` row reads back `ToolCall` / `X`, a
+      `[subagent: {…}]` row `Subagent` with its title as body and its JSON as
+      `card_json`, a broken subagent body and plain text unchanged.
+  - name: a_fork_keeps_a_subagent_entry_and_its_card
+    checks: A `Subagent` entry before the fork point is in the fork with its card.
+  - name: a_thread_created_without_a_harness_runs_on_claude_code
+    checks: A create with no harness answers harness "claude-code".
+  - name: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    checks: >
+      "gemini" on thread change and create, and a mode outside the policy on
+      the project, are 422 SETTING_NOT_OFFERED.
+  - name: a_thread_can_be_created_on_a_harness_and_changed_until_its_first_turn
+    checks: >
+      codex → claude-code is 200; after a completed turn a new change is 409
+      HARNESS_LOCKED and the first change's replay is 200.
+  - name: a_fork_is_locked_to_its_sources_harness_from_birth
+    checks: >
+      A change on a fork is 409 HARNESS_LOCKED over HTTP and at the store,
+      and a raw UPDATE is refused by the trigger.
+  - name: changing_the_harness_closes_the_threads_adapter
+    checks: One session live, the harness changed to codex, none live.
+  - name: project_thread_and_instructions_command_fingerprints_do_not_move
+    checks: >
+      The command log's thread.create, thread.harness and thread.fork rows
+      equal the pinned literals' fingerprints.
+  - name: only_the_last_completed_entry_is_a_fork_point
+    checks: Forking at the first entry is 422 FORK_POINT_NOT_SUPPORTED.
+  - name: a_stopped_last_turn_is_not_a_fork_point
+    checks: After a Cancelled turn, forking at the last entry is 422 FORK_POINT_NOT_SUPPORTED.
+  - name: an_entry_of_another_thread_is_not_found
+    checks: An unknown entry id is 404 INVALID_COMMAND.
+  - name: fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_fork
+    checks: The same command twice answers one fork; a new one while `hang` runs is 409 THREAD_BUSY.
+  - name: fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone
+    checks: >
+      Copies have new ids, the same kinds, bodies, ordinals and last
+      operation_id; the source is unchanged; the fork has no operations;
+      two threads are listed.
+  - name: the_forks_first_opening_forks_the_source_session
+    checks: >
+      The fork's first turn reports "fork" of the source's session, records
+      it, and the source still runs.
+  - name: concurrent_entry_appends_allocate_contiguous_unique_ordinals
+    checks: 8 × 25 concurrent appends give ordinals 1..=200 and next ordinal 201.
+  - name: a_failed_entry_insert_rolls_back_its_allocated_ordinal
+    checks: An append refused by a trigger leaves the next append at ordinal 1.
+  - name: entries_are_read_in_ordinal_order
+    checks: Entries read back in ordinal order.
+  - name: threads_are_listed_in_creation_order_whatever_their_timestamp_text
+    checks: Two threads whose created_at text sorts backwards list in creation order.
+  - name: a_threads_operations_are_listed_newest_first_with_their_status
+    checks: >
+      Over HTTP, the thread's two operations list Running then Completed;
+      the other thread's is absent.
+  - name: the_first_message_titles_the_thread_once
+    checks: >
+      A long first line after a blank one gives a 60-character title ending
+      "…", source first_message; a second message leaves it, one event.
+  - name: the_harness_title_replaces_the_first_message_sanitized_and_once
+    checks: >
+      "title   A plan for\n\t the   migration  " gives "A plan for the
+      migration", source harness; the same title again journals nothing; a
+      third title lands; three ThreadRetitled events in all.
+  - name: a_title_a_person_gave_is_never_replaced
+    checks: >
+      A `person` row keeps "Mine" through a first message and a direct
+      harness title, and journals no ThreadRetitled.
+  - name: a_plan_thread_keeps_its_plan_title
+    checks: >
+      A thread set to "Search", `plan`, as an external draft from scratch
+      left one before §16.3; a first message and a direct harness title
+      leave "Search".
+  - name: a_thread_that_had_messages_before_migration_0010_keeps_its_title
+    checks: >
+      After a first message the row is set back to "T", `client`; a second
+      message leaves "T", `client`.
+
+# AYLUL creation requires a live profile inside the write transaction.
+# Planner creation refuses any profile. A fork copies its profile.
+
+attachments:
+  owner: Threads
+  tables: [attachment, thread_attachment]
+  maximum_bytes: 5242880
+  content_types: [image/png, image/jpeg, image/gif, image/webp]
+  decoding: >
+    Decode on the blocking pool with 8192 pixel sides and a 64 MiB allocation budget.
+    Validate every GIF, APNG and animated WebP frame, dropping each decoded frame before the next.
+    WebP animation reserves its concurrent canvas, frame, output and conversion buffers up front.
+    Total decoded animation bytes also share the 64 MiB budget to bound decompression work.
+  metadata: Command ids are at most 256 bytes; display filenames at most 255 bytes.
+  lifecycle: Forks share immutable records; removal deletes references and unreferenced bytes.
+  transaction_methods:
+    attachment_in: Read an image belonging to the live thread inside the caller snapshot.
+    attachment_refs_in: Validate every ordered id before any message mutation.
+    append_entry_with_attachments_in: Persist neutral image summaries on the user entry.
+  tested_by:
+    - upload_validates_content_type_size_and_replay
+    - fork_keeps_references_and_removal_reclaims_unreferenced_bytes
+    - a_truncated_later_gif_frame_is_refused_before_writes
+    - a_truncated_later_png_frame_is_refused_before_writes
+    - a_damaged_later_webp_frame_is_refused_before_writes
+    - oversized_decoded_images_are_refused_before_writes
+    - an_animation_with_excessive_total_decoded_bytes_is_refused
+    - the_upload_body_limit_stops_an_unbounded_stream

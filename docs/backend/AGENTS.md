@@ -22,8 +22,14 @@ not this side merely because they also run background code.
 
 ## Where things are
 
-1. [`docs/codebase/README.md`](../codebase/README.md): what each module owns.
-   Read it before opening code.
+0. **`crates/shadows-core/src/app.rs` first, always.** `AppCore` names every
+   service, its one job and its contract. Go to the service that owns your
+   change and work only there. Reach nothing (a store, live sessions, running
+   turns) except through `AppCore` and its owner. If no service owns it, stop
+   and report. This is the strict rule in the root `AGENTS.md`; breaking it is
+   refused in review.
+1. [`docs/codebase/README.md`](../codebase/README.md): what each crate outside
+   Core owns.
 2. `crates/shadows-core/src/<service>/contract.yaml`: what must stay true of
    that service. Read it before changing the service.
 3. `docs/backend/specs/`: decisions for new backend work.

@@ -1,0 +1,30 @@
+[package]
+name = "core-providers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+core-db = { path = "../core-db" }
+core-secrets = { path = "../core-secrets" }
+futures-core = { workspace = true }
+reqwest = { workspace = true, features = ["rustls"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+utoipa = { workspace = true }
+
+[features]
+test-support = ["core-db/test-support", "core-secrets/test-support"]
+
+[dev-dependencies]
+tempfile = { workspace = true }

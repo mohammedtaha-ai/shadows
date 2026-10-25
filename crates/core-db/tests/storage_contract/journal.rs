@@ -1,0 +1,103 @@
+//! The journal's append: provenance, and the committed signal.
+
+use super::fixtures::Event;
+use core_db::Actor;
+use core_db::Storage;
+
+/// `causation` and `correlation_id` must round-trip
+/// through `append_event` — a future edit to the INSERT column list that
+/// silently drops one of the three provenance columns must fail this test.
+#[tokio::test]
+async fn event_provenance_round_trips_through_append_event() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-1")
+                .bind("demo")
+                .bind("Demo")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
+                core_db::JournalEntry::append_event_for_test(
+                    conn,
+                    &Event::new("ProjectCreated", Actor::system())
+                        .with_project("p-1")
+                        .with_payload(serde_json::json!({}))
+                        .with_causation("Command", "cmd-1")
+                        .with_correlation("corr-1"),
+                    "2026-09-21T00:00:00Z",
+                )
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+
+    let causation_kind: Option<String> =
+        sqlx::query_scalar("SELECT causation_kind FROM durable_event WHERE project_id = 'p-1'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    let causation_ref: Option<String> =
+        sqlx::query_scalar("SELECT causation_ref FROM durable_event WHERE project_id = 'p-1'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    let correlation_id: Option<String> =
+        sqlx::query_scalar("SELECT correlation_id FROM durable_event WHERE project_id = 'p-1'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+
+    assert_eq!(causation_kind.as_deref(), Some("Command"));
+    assert_eq!(causation_ref.as_deref(), Some("cmd-1"));
+    assert_eq!(correlation_id.as_deref(), Some("corr-1"));
+}
+
+/// Live publication happens after commit. The committed-sequence
+/// signal must not move for a transaction that rolled back — its event never
+/// existed — and must move, to the committed `seq`, once one commits.
+#[tokio::test]
+async fn the_committed_signal_moves_on_commit_and_never_on_rollback() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let mut committed = storage.watch_committed();
+
+    for commit in [false, true] {
+        let outcome = storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let seq = core_db::JournalEntry::append_event_for_test(
+                        conn,
+                        &Event::new("Probe", Actor::system()).with_payload(serde_json::json!({})),
+                        "2026-09-21T00:00:00Z",
+                    )
+                    .await?;
+                    if commit {
+                        Ok(seq)
+                    } else {
+                        Err(core_db::StorageError::NotFound("forced"))
+                    }
+                })
+            })
+            .await;
+        match outcome {
+            Err(_) => assert!(
+                !committed.has_changed().unwrap(),
+                "a rolled-back append must not be signalled"
+            ),
+            Ok(seq) => {
+                assert!(committed.has_changed().unwrap(), "a commit is signalled");
+                assert_eq!(*committed.borrow_and_update(), seq);
+            }
+        }
+    }
+}

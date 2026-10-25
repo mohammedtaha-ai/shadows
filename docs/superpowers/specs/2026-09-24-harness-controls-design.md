@@ -268,8 +268,29 @@ current value stands; so a model never used starts at the effort the adapter
 reports for it: `medium` in a new session, and inside a session the effort it
 last had, which the adapter carries over to a model that offers it (same
 evidence file, §3). `GET /api/harnesses` answers the remembered model and that
-model's remembered effort. The mode is not remembered: every new conversation
-starts at the policy's default.
+model's remembered effort.
+
+**The mode is remembered per conversation** (amended 2026-10-22, Mohammed: picking Auto
+and then reloading or leaving the conversation must not bring Accept edits back). A
+mode is a permission decision for one conversation, so it is not carried across
+conversations like the model and effort above:
+
+- A new conversation, the draft included, starts at the policy's default (§12.4); a fork
+  starts at its source conversation's remembered mode.
+- Picking a mode is a command of its own on the conversation's harness
+  (`PUT /api/threads/{id}/session/mode` with a `CommandId` and the mode id). Core checks
+  the mode against the harness's policy and the project's allowed modes (§12.5) before it
+  writes, records it for that conversation, and sets it on the open session when no turn
+  is running; during a running turn it is recorded and set before the next turn. It
+  answers the session's choices, so the client shows Core's value, not its own guess.
+- A turn start that carries a mode records it in its own transaction, as it does for the
+  model and effort.
+- When a conversation's session opens or reopens, its remembered mode is set after the
+  model and effort. A remembered mode the policy no longer has, or the project no longer
+  allows, is dropped and the policy's default stands; the client is told which mode the
+  session holds.
+- The record belongs to `Harness` (the conversation's harness, §12.6), one row per
+  conversation, removed with the conversation.
 
 **The harness list** itself — which CLIs exist, which run — is Shadows': Claude
 Code (available when its three paths are configured), Codex (not yet).
@@ -452,6 +473,30 @@ turn is trusted: the adapter first reports its guess of the window (200k) and
 corrects it after the turn's result (1M, measured). A report with no usable
 `size` is not shown as a percentage.
 
+**What `used` is, and why it stays the figure** (context-meter probe,
+`docs/evidence/2026-10-21-context-meter-probe.md`). `used` is the token total
+of the turn's last model call: its input, its cache reads and writes, and its
+output. The provider counts it with the current model's tokenizer. In the
+recorded turns it rose on one model (15407, then 16572), then was 21248 after
+the switch, with no cache reads. The run does not isolate why it rose. It can fall when the next
+model counts the same conversation as fewer tokens, or when a provider leaves
+out its cache fields. Mohammed asked (2026-10-21) for the conversation's size
+instead, as Claude's own Context panel shows it. This probe does not establish
+`/context` as a reliable source for it. Its Messages row was absent, 417, absent and 1 over three
+OpenRouter turns. Its other rows change with the process, and its total is the
+forced 200000-token window by construction, not a measured model limit. See
+the dated correction in the evidence for the inspected commits and limits of
+these conclusions. Shadows estimates nothing (above), so the ring keeps
+`used` and names it as the last request's size.
+
+**No live turn figure in the probe.** On T1-T3 the adapter sent `used=0` near
+the first chunk, the final figure after the last chunk, then a cost-bearing
+copy. Nothing arrived while
+the reply streams (380 chunks over 2.4 s, no report between). A running token
+count under a streaming reply ("3s · 507 tokens") was not measured on this path.
+This establishes no live relay behavior. The
+ring and the turn show the figures only once the turn has ended.
+
 **Account limits.** The adapter forwards Claude's rate-limit report in
 `_meta["_claude/rateLimit"]` on a `usage_update`: five-hour and seven-day
 utilisation, each with its reset time. The limits are account-wide, so the
@@ -486,12 +531,21 @@ second level says why it has nothing, and the summary still shows. The
 `/context` exchange is not a Planner turn: it writes no Operation and no entry,
 and its chunks never reach the conversation.
 
-> **OPEN — does `/context` enter the conversation Claude remembers?** The probe
-> did not establish whether the exchange is written into the session transcript
-> that `session/resume` replays to the model. **Trigger that closes this:** the
-> Phase B run (§12.13). Read the session transcript after a `/context` and
-> resume; if the exchange is there, the breakdown route is removed and the ring
-> ships with the summary only. It does not block Phase A.
+> **OPEN — does `/context` enter the conversation Claude remembers?** Half
+> answered by the context-meter probe (`docs/evidence/2026-10-21-context-meter-probe.md`).
+> The exchange **is written into the session transcript**: the `/context` line
+> and its `local-command-stdout` answer are written once per reading. The
+> figures also suggest that the model is sent it. On the same model, with two
+> readings between the turns, turn 2's input grew by 783 tokens over turn 1's
+> total, where an 11-token reply and a one-line prompt account for well under
+> 100. The two readings between them would account for the rest. That is an inference: the
+> probe's direct check (step 6, after a resume) timed out and gave no answer.
+> The dated evidence correction preserves this as inference; neither a key
+> expiry diagnosis nor later controller figures have inspected supporting logs.
+> **Trigger that closes this:** a control run, the same three turns on one
+> model in two sessions, one with readings between the turns and one without.
+> If turn 2's input differs by about the readings' size, the breakdown route is
+> removed and the ring ships with the summary only, as decided above.
 
 Delivery: the thread snapshot carries each operation's invocation; the
 operation's terminal event carries the observed values; `GET /api/harnesses`
@@ -550,6 +604,16 @@ Matches the mockup agreed on 2026-09-24:
 - **Opening a conversation** opens its session. Until the answer arrives the bar reads "Connecting to Claude Code…"; a failure shows the daemon's message and a retry. Never a spinner without words.
 - **Header:** CLI picker (`cli-picker.tsx`). Unavailable harnesses shown disabled as "coming". Changeable until the first turn, then shown with a lock.
 - **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. Each mode carries one line saying what it lets the harness do; for Accept edits, that it edits, creates and deletes files in the project folder without asking and other commands are refused (§12.5). Choosing a model sets it at once (§12.7): the effort menu waits for the answer and then shows that model's efforts, at the effort the model route's answer reports (its remembered one, else the one the adapter carried over, §12.4) — an `options` frame streamed during the move may still carry the previous effort and does not settle it; a refusal puts the session's model back and shows the harness's message. Choosing an effort sets it at once too; a refusal puts the session's effort back and shows the message on the error line. When the observed model differs from the requested one, the reply shows both.
+- **The `+` menu** (amended 2026-10-22): it opens a menu with **Add photos** (also
+  Ctrl+U), **Slash commands** and **Plugins**. Add photos opens the file picker for
+  images; pasting an image into the message box or dropping one on it does the same.
+  Each image uploads at once (§4.2 Attachment) and shows as a thumbnail above the text
+  with a remove button and its upload state; Send waits for uploads and sends their ids
+  in order; a failed upload keeps the text and the other images and says why. Slash
+  commands opens the same `/` menu (§21), with the same list. Plugins opens the Plugins &
+  Skills settings of the conversation's AYLUL agent; in a project conversation it is
+  absent until Shadows has its own plugins. Add folder and Connectors are not shown until
+  they are designed.
 - **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.

@@ -1,6 +1,6 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::{Value, json};
-use shadows_core::testing::{self, LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::testing::{self, Harness, LiveHandles, SessionsConfig, Storage, acp};
 use shadows_core::{
     AgentInput, AppCore, AylulConfig, CoreError, CoreParts, ProviderInput, SecretKey, SendTurn,
     ThreadEntryKind, ThreadId,
@@ -13,7 +13,7 @@ struct World {
     home: std::path::PathBuf,
     storage: Arc<Storage>,
     core: Arc<AppCore>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     thread: ThreadId,
 }
 
@@ -23,8 +23,13 @@ async fn world() -> World {
     std::fs::create_dir_all(&root).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
-    let sessions = Sessions::new(
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
+    let sessions = shadows_core::AppCore::harness_for_tests(
         acp::fake_adapter(),
         storage.clone(),
         SessionsConfig {
@@ -37,6 +42,7 @@ async fn world() -> World {
         },
     );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime,
@@ -50,7 +56,7 @@ async fn world() -> World {
         .ensure_assistant("aylul", "AYLUL", &root)
         .await
         .unwrap();
-    core.profiles()
+    core.providers()
         .create_provider(
             "provider".into(),
             ProviderInput {
@@ -69,15 +75,15 @@ async fn world() -> World {
         )
         .await
         .unwrap();
-    core.secrets()
-        .set_provider_key("key".into(), "test-2", "synthetic-stored-one")
+    core.providers()
+        .set_key("key".into(), "test-2", "synthetic-stored-one")
         .await
         .unwrap();
-    core.profiles()
+    core.agents()
         .create_agent("agent".into(), agent("AYLUL"))
         .await
         .unwrap();
-    let project = core.profiles().assistant_project().await.unwrap();
+    let project = core.agents().assistant_project().await.unwrap();
     let thread = core
         .threads()
         .create(
@@ -112,11 +118,11 @@ fn agent(name: &str) -> AgentInput {
 async fn another(w: &World, name: &str) -> ThreadId {
     let agent = w
         .core
-        .profiles()
+        .agents()
         .create_agent(name.into(), agent(name))
         .await
         .unwrap();
-    let project = w.core.profiles().assistant_project().await.unwrap();
+    let project = w.core.agents().assistant_project().await.unwrap();
     w.core
         .threads()
         .create(
@@ -133,6 +139,7 @@ async fn another(w: &World, name: &str) -> ThreadId {
 
 fn request(model: &str, effort: &str) -> SendTurn {
     SendTurn {
+        attachments: Vec::new(),
         command_id: uuid::Uuid::new_v4().to_string(),
         prompt: "report".into(),
         model: model.into(),
@@ -153,7 +160,9 @@ async fn reply(w: &World, thread: &ThreadId, model: &str, effort: &str) -> Value
         .unwrap();
     tokio::time::timeout(Duration::from_secs(15), async {
         loop {
-            let op = w.storage.get_operation(&op).await.unwrap();
+            let op = shadows_core::Turns::get_operation_for_test(&w.storage, &op)
+                .await
+                .unwrap();
             if op.finished_at.is_some() {
                 assert_eq!(op.status_kind, "Completed");
                 break;

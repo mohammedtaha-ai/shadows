@@ -3,7 +3,7 @@
 
 import { CircleCheck, ShieldX, Wrench } from 'lucide-react'
 import { Suspense, lazy } from 'react'
-import type { Plan, PlanTask, ThreadEntry } from '@/api/client'
+import { attachmentUrl, type Plan, type PlanTask, type ThreadEntry } from '@/api/client'
 import { type HarnessPolicy, modeLabel } from '../mode-policy'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'
@@ -58,12 +58,17 @@ export function Entry({
   if (entry.kind === 'UserMessage') {
     return (
       <div className="flex justify-end">
-        <p
+        <div
           dir="auto"
           className="max-w-[80%] rounded-2xl rounded-br-md border border-border bg-card px-4 py-2.5 text-start text-sm whitespace-pre-wrap text-card-foreground [unicode-bidi:plaintext]"
         >
-          {entry.body}
-        </p>
+          {entry.attachments.length > 0 && <div className="flex flex-wrap gap-2">
+            {entry.attachments.map(image => <a key={image.id} href={attachmentUrl(entry.thread_id, image.id)} target="_blank" rel="noreferrer">
+              <img src={attachmentUrl(entry.thread_id, image.id)} alt={image.name ?? 'Attached image'} loading="lazy" className="max-h-48 max-w-64 rounded object-contain" />
+            </a>)}
+          </div>}
+          <p>{entry.body}</p>
+        </div>
       </div>
     )
   }

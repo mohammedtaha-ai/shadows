@@ -34,11 +34,13 @@ pub fn task(number: u32) -> PlanOp {
     }
 }
 
-pub async fn fixture() -> (tempfile::TempDir, Storage) {
+pub async fn fixture() -> (tempfile::TempDir, std::sync::Arc<Storage>) {
     let temp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&temp.path().join("links.sqlite3"))
-        .await
-        .unwrap();
+    let storage = std::sync::Arc::new(
+        Storage::open(&temp.path().join("links.sqlite3"))
+            .await
+            .unwrap(),
+    );
     sqlx::raw_sql(
         "INSERT INTO project (id, slug, name, directory, created_at)
          VALUES ('p', 'p', 'Project', '.', '2026-10-04T00:00:00Z');
@@ -66,13 +68,16 @@ pub async fn fixture() -> (tempfile::TempDir, Storage) {
 }
 
 /// Puts `project` at the plans stage and ties each of `plans` to its seeded part.
-pub async fn approve_roadmap(storage: &Storage, project: &str, plans: &[&str]) {
+pub async fn approve_roadmap(storage: &std::sync::Arc<Storage>, project: &str, plans: &[&str]) {
     let project = shadows_core::ProjectId::from_literal(project);
-    let part = storage.seed_roadmap_for_tests(&project).await.unwrap();
+    let part = shadows_core::AppCore::design_for_tests(storage.clone())
+        .seed_roadmap_for_tests(&project)
+        .await
+        .unwrap();
     for plan in plans {
         let plan = shadows_core::PlanId::from_literal(*plan);
-        storage
-            .link_plan_part_for_tests(&project, &plan, &part)
+        shadows_core::AppCore::plans_for_tests(storage.clone())
+            .link_plan_part_for_test(&project, &plan, &part)
             .await
             .unwrap();
     }

@@ -5,10 +5,10 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Work and improvements continue on branch `improvements`. The settings dialog,
-F-2 to F-9, is implemented and accepted by Mohammed in the app. F-10 and F-11 are
-implemented with focused automated checks, as are F-12 and F-14. The light palette and real
-desktop login-item behaviour still require their separate app/OS acceptance.
+The settings dialog is delivered by PR #40, merged at `1a2b601`: its tasks F-2 to F-12,
+F-14 and F-15 are in this file at `1a2b601`. The architecture plan's F-16 to F-22
+tasks below remain. Still open outside any task: the light palette and the real desktop login-item behaviour need their own app
+and OS acceptance.
 
 ## Tasks
 
@@ -29,160 +29,83 @@ desktop login-item behaviour still require their separate app/OS acceptance.
   composer still shows Auto and the second turn sends `mode: 'auto'`; it and the
   touched tests pass with `npm run typecheck` and `npm run lint`
 
-### F-2 · Settings opens as a dialog with a sidebar of sections, General inside
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-2-dialog-shell-sidebar-of-sections-general
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`; `web/src/app/settings/contract.yaml`; `web/src/app/new-project/new-project-dialog.tsx`
-- Touch: the Files list of Task F-2 in the plan
+### F-16 · The provider form's Enter trap
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
+- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: web/src/app/agents/{provider-form.tsx,provider-models.tsx}, their tests
 - Needs: none
-- Done when: `settings-dialog.test.tsx` passes with codemap, `npm run typecheck`, `npm run lint`
+- Done when: Enter in "Add a model by id" adds it and does not submit; saving with a typed, unadded id says so; `npm test -- provider` passes
 
-### F-3 · Account shows only the actions its state allows
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-3-account-shows-only-the-actions-its-state-allows
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Account); `web/src/app/desktop/contract.yaml`
-- Touch: the Files list of Task F-3 in the plan
-- Needs: F-2
-- Done when: `account-actions.test.ts` and `account.test.tsx` pass with codemap, typecheck, lint
-
-### F-4 · AYLUL character and Local Core sections
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-4-aylul-character-and-local-core-sections
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (AYLUL character, Local Core); `web/src/app/desktop/contract.yaml`
-- Touch: the Files list of Task F-4 in the plan
-- Needs: F-2
-- Done when: `companion-binding.test.tsx` and `core.test.tsx` pass with codemap, typecheck, lint
-
-### F-5 · Providers live in the dialog, with search and presets
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-5-providers-section-with-search-and-presets
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Providers); `web/src/app/agents/contract.yaml`
-- Touch: the Files list of Task F-5 in the plan
-- Needs: F-2
-- Done when: `aylul.test.tsx` and `provider-picker.test.tsx` pass with codemap, typecheck, lint
-
-### F-6 · Agents in the dialog; Agent settings and New agent open it
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-6-agents-section-agent-settings-and-new-agent-open-it
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Agents, the dialog's rulings); `web/src/app/agents/contract.yaml`;
-  `web/src/app/sidebar/contract.yaml`
-- Touch: the Files list of Task F-6 in the plan
-- Needs: F-2, F-5 (both change `agent-list.tsx` and `home.tsx`)
-- Done when: `aylul.test.tsx` and `agent-env.test.tsx` pass with codemap, typecheck, lint
-
-### F-7 · Account: the You card
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-7-account-the-you-card
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Account); `web/src/app/settings/contract.yaml`
-- Touch: the Files list of Task F-7 in the plan
-- Needs: B-5 (built). Devices left this plan: the account server and device management are a
-  separate piece of work
-- Done when: `you-card.test.tsx`, `settings-dialog.test.tsx` and `account.test.tsx` pass with codemap,
-  `npm run typecheck`, `npm run lint`
-
-### F-8 · Providers: label, presets from Core, test connection, model checklist
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-8-providers-label-presets-from-core-test-connection-model-checklist
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Providers); `web/src/app/agents/contract.yaml`;
-  the request's Providers answer
-- Touch: the Files list of Task F-8 in the plan (`web/src/api/schema.d.ts` is already regenerated: commit it, do not revert it)
-- Needs: B-1, B-2, B-3 (built)
-- Done when: step 1's `npm run typecheck` has 0 errors; `provider-setup.test.tsx`, `provider-picker.test.tsx`,
-  `aylul.test.tsx`, `agent-env.test.tsx`, `companion-send.test.tsx`, `draft.test.tsx` pass with codemap,
-  `npm run typecheck`, `npm run lint`
-
-### F-9 · Agents: character colour per agent
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-9-agents-character-colour-per-agent
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Agents, Character colour);
-  `web/src/app/agents/contract.yaml`; `web/src/app/desktop/contract.yaml`; `web/src/app/sidebar/contract.yaml`
-- Touch: the Files list of Task F-9 in the plan
-- Needs: F-6; `docs/shared/requests/2026-10-20-settings-dialog.md` (Agents: character colour)
-  accepted; B-4 built and shown in `api/openapi.json`; U-2 in `docs/aylul/ui/stages.md` (the colour
-  table) done
-- Done when: `character-colors.test.ts`, `aylul.test.tsx` and `companion-binding.test.tsx` pass with
-  codemap, `npm run typecheck`, `npm run lint`
-
-### F-10 · Plugins & Skills: the shared library and each agent's picker
-- Status: done
-- Reviewed: steps released by the controller, 2026-10-21
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-10-plugins--skills-shared-library-and-immediate-agent-switches
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Plugins & Skills);
-  `docs/shared/requests/2026-10-20-settings-dialog.md` (Plugins & Skills answer);
-  `docs/backend/plans/2026-10-21-settings-dialog-backend.md` (B-9);
-  `web/src/api/contract.yaml`, `web/src/app/settings/contract.yaml`, `web/src/app/agents/contract.yaml`
-- Touch: the Files list of Task F-10 in the plan
-- Needs: F-2, F-6, F-9 (done); accepted request and B-9 at `5a34995` (built);
-  controller approval of these steps before implementation
-- Done when: `plugins.test.tsx`, `agent-extensions.test.tsx`, `settings-dialog.test.tsx`,
-  `aylul.test.tsx`, `agent-env.test.tsx`, codemap, `npm run typecheck` and `npm run lint` pass;
-  library changes refresh all agent views, switches save independently, contracts/map and task
-  commit are complete (full assertions and commands in the plan)
-
-### F-11 · Usage section, by provider and by model
-- Status: done
-- Reviewed: steps released by the controller, 2026-10-21
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-11-usage-periods-provider-comparison-model-totals
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Usage);
-  `docs/shared/requests/2026-10-20-settings-dialog.md` (Usage answer);
-  `docs/backend/plans/2026-10-21-settings-dialog-backend.md` (B-7);
-  `web/src/api/contract.yaml`, `web/src/app/settings/contract.yaml`
-- Touch: the Files list of Task F-11 in the plan
-- Needs: F-2 (done); accepted request and B-7 at `58b4138` (built);
-  controller approval of these steps before implementation
-- Done when: `usage.test.tsx`, `usage-period.test.ts`, `settings-dialog.test.tsx`, codemap,
-  `npm run typecheck` and `npm run lint` pass; real period queries, snapshot titles, token bars
-  and unknown-cost handling match the plan; contracts/map and task commit are complete
-
-### F-12 · General: language and theme in Core with the person; start with Windows and tray native
-- Status: done
-- Reviewed: steps released by the controller, 2026-10-22
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-12-general-person-preferences-and-desktop-behaviour
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (General);
-  `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md` (accepted);
-  `docs/aylul/native/plans/2026-10-21-settings-native.md` (N-7);
-  `web/src/api/person.ts`, `web/src/api/saved-answer.ts`, settings/desktop contracts and frontend code map
-- Touch: the Files list of Task F-12 in the plan
-- Needs: B-5, N-7 at `cd7fd94`, F-7 and F-15 (built); controller approval of these steps
-- Done when: `general-preferences.test.tsx`, `person-theme.test.tsx`, `desktop-preferences.test.tsx`,
-  `settings-dialog.test.tsx`, `you-card.test.tsx`, `account.test.tsx`, codemap, typecheck and lint pass;
-  complete person writes and actual native state match the plan, with current contracts/map and a task commit
-
-### F-14 · Saving the companion agent repaints AYLUL at once
-- Status: done
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-14-saving-the-companion-agent-repaints-aylul-at-once
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Character colour, how it reaches the companion); `web/src/desktop/contract.yaml`
-- Touch: the Files list of Task F-14 in the plan
-- Needs: F-9 (done); accepted `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md`;
-  N-6 at `0c4d8c6` (built), refresh returns `{ ok: true }`
-- Done when: `aylul.test.tsx` passes with codemap, typecheck, lint
-
-### F-15 · A read sent before a save cannot overwrite the saved answer
-- Status: done
-- Plan: none; the problem and the fix are here. Found and fixed once in `you-card.tsx` (`79aa898`):
-  a query read sent before a mutation answers after it, and its old data overwrites the answer
-  the mutation just wrote with `setQueryData`. The screen then shows the old value although Core
-  saved the new one. `you-card.test.tsx` ("a read sent before the save cannot bring the old name
-  back") reproduces it by holding the second GET across the save.
-- Fix: one function, `writeSaved(client, queryKey, updater)` in a new
-  `web/src/api/saved-answer.ts`, that awaits `client.cancelQueries({ queryKey })` and then calls
-  `client.setQueryData`. Every place below that writes a mutation's answer into the cache uses it
-  (and `you-card.tsx` moves to it too). A place that is not writing a server answer after a
-  mutation (a seeded cache, a list read) is left as it is and named in the report with the reason.
-- Read: `web/src/api/contract.yaml`; `docs/frontend/codebase/README.md`; `web/src/app/settings/you-card.tsx`
-  and its test
-- Touch: `web/src/api/saved-answer.ts` (new), `web/src/api/saved-answer.test.ts` (new),
-  `web/src/api/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`, and
-  only these callers: `web/src/app/settings/you-card.tsx`, `web/src/app/settings/active-projects.tsx`,
-  `web/src/app/agreements/agreements-page.tsx`, `web/src/app/agreements/binding-editor.tsx`,
-  `web/src/app/conversation/cli-picker.tsx`, `web/src/app/conversation/composer.tsx`,
-  `web/src/app/conversation/draft.tsx`, `web/src/app/conversation/use-commands.ts`,
-  `web/src/app/conversation/use-session.ts`, `web/src/app/design/standards-view.tsx`,
-  `web/src/app/project-settings/code-index.tsx`, `web/src/app/project-settings/external-agents.tsx`,
-  `web/src/app/project-settings/instructions-editor.tsx`, `web/src/app/project-settings/project-modes.tsx`,
-  `web/src/app/project-settings/remove-project.tsx`, `web/src/app/sidebar/delete-thread-dialog.tsx`,
-  and the `contract.yaml` of each folder whose rule changes
+### F-17 · Mutation answers through `writeSaved`; one query-key factory
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
+- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: web/src/api/ (query keys), web/src/app/agreements/agreements-page.tsx, web/src/app/agents/agent-extensions.tsx, the files holding literal keys
 - Needs: none
-- Done when: `saved-answer.test.ts` shows a held read cannot overwrite a written answer (and fails
-  without the cancel); `you-card.test.tsx` and the existing tests of every changed caller pass;
-  `npx vitest run src/codemap.test.ts`, `npm run typecheck`, `npm run lint` pass. Not the whole suite.
+- Done when: no direct `setQueryData` on a mutation answer and no literal query key outside web/src/api/; web tests pass
+
+### F-18 · Core owns the rules the client copies
+- Status: blocked
+- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
+- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: web/src/app/agents/, web/src/app/settings/active-projects.tsx, web/src/app/design/create-structure.tsx, web/src/app/conversation/mode-policy.ts
+- Needs: a shared request for the values Core must return
+- Done when: model-picks.ts and the copied limits are gone; forms show Core's answers; web tests pass
+
+### F-19 · One owner per behaviour
+- Status: blocked
+- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
+- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: web/src/stream/, web/src/app/workflows/plan-frames.ts, the three proposal cards, the four confirm patterns, web/src/app/conversation/turn-state.ts
+- Needs: a shared request if `turn-state` needs a field Core does not send
+- Done when: one plan-refresh owner, one ProposalCard, one confirm pattern; web tests pass
+
+### F-20 · Split by job
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
+- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: web/src/api/client.ts, web/src/stream/frames.ts, web/src/app/conversation/composer.tsx, web/src/app/test-app.tsx
+- Needs: none
+- Done when: each new file's job is named without "and"; typecheck, lint, tests and build pass
+
+### F-21 · No `§` and no history in comments
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
+- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: web/src (hand-written files)
+- Needs: none
+- Done when: no hand-written comment cites `§` or history; lint and tests pass
+
+### F-22 · Keep the summary ring after breakdown removal
+- Status: blocked
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-7b--remove-the-breakdown-route-after-agreement
+- Read: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8; web/src/app/conversation/contract.yaml; web/src/api/contract.yaml; docs/shared/README.md
+- Touch: web/src/app/conversation/context-ring.tsx, web/src/api/client.ts, web/src/api/schema.d.ts (generated), both owning contracts, docs/frontend/codebase/README.md; controller enumerates the actual remaining callers and tests before dispatch
+- Needs: accepted shared request naming GET /api/threads/{id}/context removal and the summary-only ring; A-7b's generated OpenAPI; A-2's explicit slash-command path
+- Done when: `npm run gen:api` regenerates the schema; focused tests prove the ring makes no hidden breakdown request, summary usage remains visible and explicit `/context` still sends; typecheck and lint pass; both sides land on the same delivery branch
+
+### F-23 · The Mode menu saves the mode and shows Core's
+- Status: done (reviewed: 160 conversation tests, typecheck, lint and API regeneration diff pass; browser acceptance not run)
+- Plan: none. Owner spec: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.4 ("The mode is remembered per conversation"); request docs/shared/requests/2026-10-22-remembered-mode.md (accepted)
+- Read: `web/src/app/conversation/contract.yaml`; `composer-bar.tsx`, `composer.tsx`, `turn-settings.ts`, `use-session.ts`, `web/src/api/client.ts`
+- Touch: `web/src/app/conversation/` (the mode choice, its tests, its `contract.yaml`), `web/src/api/` (the new call, regenerated `schema.d.ts` via `npm run gen:api`)
+- Needs: B-10
+- Done when: choosing Auto calls `PUT /api/threads/{id}/session/mode` at once and the menu shows Core's answer; after navigating away and back, and after a remount with a fresh QueryClient, the menu shows Auto; a refusal keeps Core's mode and shows its message; the draft still starts at the policy default; the tests pass with `npm run typecheck` and `npm run lint`
+
+### F-24 · The `+` menu: Slash commands and Plugins
+- Status: done (reviewed: 150 conversation tests, typecheck and lint pass; browser acceptance not run)
+- Plan: none. Owner specs: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.11 ("The `+` menu"), docs/superpowers/specs/2026-10-05-slash-menu-design.md; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
+- Read: `web/src/app/conversation/contract.yaml`; `composer-bar.tsx` (the disabled `+`), `composer.tsx` (the `/` menu), the Plugins & Skills settings entry point
+- Touch: `web/src/app/conversation/` (the menu, its tests, its `contract.yaml`)
+- Needs: none (no backend change)
+- Done when: `+` opens a menu; Slash commands opens the existing `/` menu with the same list; Plugins opens the conversation's AYLUL agent's Plugins & Skills settings and is absent in a project conversation; Add photos is shown disabled with "Comes with F-25" until F-25; keyboard (Enter, arrows, Escape) works; the tests pass with `npm run typecheck` and `npm run lint`
+- Validation: `npm run typecheck` and `npm run lint` passed. Six menu tests written; vitest not run as instructed while the backend agent builds Rust. Browser acceptance not run.
+
+### F-25 · Paste, drop and pick images, and send them
+- Status: done
+- Plan: none. Owner specs: §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
+- Read: `web/src/app/conversation/contract.yaml`; `composer.tsx`, `composer-bar.tsx`, `draft.tsx`, `web/src/api/client.ts`
+- Touch: `web/src/app/conversation/` (paste, drop, picker, thumbnails, sending, the transcript's images, tests, `contract.yaml`), `web/src/api/` (the calls; `schema.d.ts` via `npm run gen:api`), `web/src/test/contract-fixtures.ts` and any other shared test fixture typed from `schema.d.ts` (the new required fields only)
+- Needs: B-11, F-24
+- Done when: Ctrl+V of a screenshot, a drop and Add photos (Ctrl+U) each upload at once and show a thumbnail with remove; ordinary text paste is unchanged; Send waits for uploads and sends the ids in order; an image-only message sends; a failed upload or a refused send keeps the text and images and shows Core's reason; Add photos and paste are disabled with the reason when `capabilities.image` is false; the draft's first send keeps its images; the transcript shows a message's images; the tests pass with `npm run typecheck` and `npm run lint`

@@ -1,0 +1,108 @@
+# Project identities and registration methods are imported from core-projects.
+# Providers is imported from core-providers; AgentsError preserves adapter failure semantics.
+# Secrets is imported from core-secrets; application error conversion preserves caller responses.
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Owns AYLUL agent identities: an agent's configuration, its permanent slug, its
+# isolated home and its environment variables (through Secrets), and the rule that
+# no live agent loses its provider or its default model.
+# Provider updates and deletions run here, because checking who uses a provider
+# reads aylul_agent; the provider row is written through Providers' in-transaction
+# methods. An agent's existence elsewhere is proved through require_live_in.
+# Deleting an agent is Harness's (it closes live adapters): Harness runs one write
+# with delete_in and Extensions::remove_agent_in.
+name: agents
+version: 1
+status: current
+source: crates/core-agents/src
+
+modules:
+  lib.rs: agent reads, writes, provider use and environment
+  model.rs: public agent metadata
+  home.rs: agent home seeding
+  error.rs: agent refusals
+  store/: agent SQL
+  ../assets/aylul-profile/CLAUDE.md: bundled home instructions
+  ../assets/aylul-profile/settings.json: bundled home settings
+
+dependencies:
+  providers: crates/core-providers/contract.yaml
+  secrets: crates/core-secrets/contract.yaml
+  projects: crates/core-projects/contract.yaml
+
+shapes:
+  Agents:
+    store: private AgentsStore over the shared storage handle
+    providers: Arc<Providers>
+    secrets: Arc<Secrets>
+    projects: Projects
+    home_root: Optional isolated home root
+  AgentsStore:
+    storage: Arc<Storage> # Private to agents; shares the existing pool.
+  AgentsError:
+    NotFound: String # AylulProfileNotFound for a caller
+    ProviderInUse: String # the live agents' names, ordered by slug
+    Invalid: String # ProfileInvalid for a caller
+    NotConfigured: AYLUL configuration is absent
+    Provider: ProvidersError
+    Secrets: SecretsError
+    Projects: ProjectsError
+    Storage: StorageError
+  Agent:
+    deleted: Permanent identity tombstone
+    character_color: Opaque color id; clients own palettes
+  AgentInput:
+    character_color: Optional; absent keeps the stored color or defaults to purple
+  AgentWorkspace:
+    project_id: The hidden assistant project
+    agents: Live agents
+
+functions:
+  new: "public: (storage, providers, secrets, projects, home_root) -> Arc<Agents>"
+  agents: List live agents in creation order with slug tie break.
+  agent: Read an agent including a tombstone.
+  workspace: Read the hidden project identity with its live agent list.
+  assistant_project: Resolve the hidden assistant project id through Projects.
+  create_agent: Validate, check the provider offers the default model and seed absent home files before insertion.
+  update_agent: Change live configuration while retaining the slug.
+  update_provider: Validate through Providers, then in one write refuse removal of a live agent's default model and replace the provider.
+  delete_provider: In one write refuse a provider with live users and remove it with its key.
+  list_env: Check the agent is live, then list its variable metadata.
+  set_env: Seal the value, then in one write replay or check the agent is live and store it through Secrets::put_in.
+  remove_env: In one write replay or check the agent is live and remove the value through Secrets::remove_in.
+  home: public; the agent's isolated home under the configured root, which Harness opens in.
+  require_live_in: public; refuse an unknown or deleted agent in the caller's write.
+  delete_in: public; classify agent.delete, tombstone a live agent and remove its variables in the caller's write.
+  seed_home: private; write each default home file the home lacks, never replacing one.
+
+called_by_other_services:
+  require_live_in: Threads checks an agent thread's agent and Extensions checks a switch's agent inside their writes.
+  delete_in: Harness::delete_agent, in the same write as Extensions::remove_agent_in.
+  home: Harness asks for the home an opening runs in.
+
+shared_in_transaction:
+  require_live_in: Agent existence in the caller snapshot.
+  delete_in: Agent tombstone and secret removal in the caller write.
+
+obligations:
+  - rule: Color ids are 1..=32 ASCII lowercase letters, digits or hyphens, starting with a letter.
+    tested_by: [color_id_shape_is_checked, unknown_but_well_formed_color_is_kept]
+  - rule: Create defaults to purple; absent on update preserves the stored color before fingerprinting.
+    tested_by: [color_defaults_to_purple, update_without_color_keeps_it]
+  - rule: Existing agents migrate to purple.
+    tested_by: [migration_colors_agents_purple]
+  - rule: Live default models prevent provider deletion or model removal.
+    tested_by: [provider_in_use_cannot_be_deleted, removing_an_agents_default_model_is_refused]
+  - rule: A deleted agent retains its slug forever; its variables are removed.
+    tested_by: [deleted_agent_slug_is_never_reused, delete_agent_removes_its_variables]
+  - rule: Command replay requires the same normalized input.
+    tested_by: [replay_with_other_input_conflicts]
+
+agreements:
+  - between: [Agent, AgentInput]
+    must: Core keeps any well-formed id; clients own palettes and draw purple for unknown ids.
+    holds: true
+    tested_by: [unknown_but_well_formed_color_is_kept]
+  - between: [delete_provider, providers::delete_in]
+    must: Check live users and remove the provider with its key in one write.
+    holds: true
+    tested_by: [provider_in_use_cannot_be_deleted, delete_provider_removes_its_key]

@@ -1,75 +1,36 @@
 # Shadows
 
-> **AI Start Here** — Read these files to get started:
->
-> | Document | Purpose |
-> |----------|---------|
-> | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
-> | [docs/README.md](./docs/README.md) | Product/runtime documentation routing: Core, AYLUL, independent code intelligence and integration. |
-> | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
-> | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns, and the Architecture Invariants. Read before writing code. |
-> | [docs/frontend/codebase/README.md](./docs/frontend/codebase/README.md) | **The frontend code map.** What each file in `web/src` owns; each feature folder's `contract.yaml` sits next to its code. Read before changing `web/`. |
-> | `crates/shadows-core/src/<service>/contract.yaml` | **One contract per service, next to its code**: its methods, obligations, agreements and tests. Read before changing that service. Written to [docs/codebase/contracts/TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml). |
-> | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
-> | [docs/future.md](./docs/future.md) · [docs/aylul/future.md](./docs/aylul/future.md) | **What is meant and not built yet**, one line each, linked to the vision. Decides nothing. |
-> | `docs/<side>/stages.md` | **What is left on the current branch**, per side. A finished task leaves when its PR merges; Git keeps it. |
-> | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
-> | [docs/backend/AGENTS.md](./docs/backend/AGENTS.md) · [docs/frontend/AGENTS.md](./docs/frontend/AGENTS.md) | **The two sides.** Hamoud (backend) and Masada (frontend): their domains, tasks in `stages.md`, builders and fixers. |
-> | [docs/shared/README.md](./docs/shared/README.md) | **Shared requests.** How the frontend and backend agree on the API before either writes code. |
->
-> **Documentation rules:**
-> - **New specs and plans follow their product owner.** Core backend/frontend
->   use `docs/backend/{specs,plans}/` and `docs/frontend/{specs,plans}/`; AYLUL uses
->   `docs/aylul/`, standalone code intelligence uses `docs/code-intelligence/`.
->   [The documentation map](./docs/README.md) routes native/character and integration work.
->   `docs/superpowers/` records earlier Core decisions: read it, amend an existing
->   owner section in place, add no new file.
-> - The specs are split by topic. Every decision has exactly one owner file and
->   is amended **in place**. Other files refer to it; they do not copy it.
-> - Do not create an ADR, a design note, or a plan document for a struct shape,
->   a library call, a test correction, or an implementation detail. Amend its owner spec.
-> - A question the project cannot answer yet is an **OPEN** block inside its owner spec,
->   at the point it bites, naming the trigger that closes it. An OPEN block with
->   no trigger is rot, not a question.
-> - Evidence files are dated facts. They never expire and are never design
->   authority. When a measurement changes a decision, amend its owner spec.
->   A closed milestone's evidence folder may be deleted from the tree; every
->   reference then names the path and the commit that still holds it
->   (`docs/evidence/milestone3/PROBE.md` at `92e6dae`).
-> - **Spike code is deleted once its evidence file is written.** A probe's job is
->   to produce an answer, not a codebase. Its raw output moves into
->   `docs/evidence/`; its source stays in Git history and the evidence file names
->   the commit. There is no `sandbox/` directory and no throwaway crate anywhere in
->   the tree — anything you find under `crates/` is the product. Do not keep a spike
->   around because it might be useful later; that is how a rewrite acquires a second
->   codebase nobody maintains.
-> - Earlier specs, the runtime draft, and the four consolidated ADRs were absorbed
->   into the topic specs and deleted. They remain in Git history and are not
->   active references.
-> - **The ownership table is written by hand and checked.** What each module
->   owns lives in `docs/codebase/README.md`, and
->   `cargo test -p shadows --test codemap` refuses a module with no owner row, a
->   path that does not exist, or a job stated with "and". Signatures are not
->   written down anywhere: the Rust LSP, or Serena for TypeScript,
->   answers them from the code.
->   `crates/shadows/tests/codemap/main.rs` owns that decision.
-> - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
+Local-first AI orchestration: planning, workflow, context, execution and
+verification, run by one local binary (`shadows serve`) with a React client.
+Rust 1.94+, SQLx 0.9, SQLite.
 
-## Project
+## Start here
 
-- **Slug:** shadows
-- **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, a Cargo workspace of the crates below, plus a React client in `web/`
-- **Status:** Guided planning through §23 PR 5 (groundwork, standards, vision proposals, project map, §24 authority, structure write, roadmap proposals and plan gates) is on `main`; PR 3c (project switches) waits on §24.3's OPEN probe. See each side's `stages.md` for work in flight, [docs/future.md](./docs/future.md) for what is not built yet, [the delivery roadmap](./docs/superpowers/plans/2026-10-03-project-planning-roadmap.md) for the full sequence, and [docs/vision.md](./docs/vision.md) for the product direction.
-- **Purpose:** Local-first AI orchestration layer (planning + workflow + context + execution + verification + continuity). Clean rewrite of `shadow` avoiding patching pattern.
+| Read | For |
+|---|---|
+| [docs/README.md](./docs/README.md) | Which folder holds which product's docs: Core, AYLUL, code intelligence |
+| [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns. Read before writing code. |
+| [docs/frontend/codebase/README.md](./docs/frontend/codebase/README.md) | The `web/src` code map |
+| `<module>/contract.yaml` | What one module does, as the code behaves. Shape: [TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml) |
+| [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | Which spec owns which decision |
+| `docs/<side>/stages.md` | What is left on the current branch |
+| [docs/future.md](./docs/future.md) · [docs/aylul/future.md](./docs/aylul/future.md) | Meant, not built. Decides nothing. |
+| [docs/backend/AGENTS.md](./docs/backend/AGENTS.md) · [docs/frontend/AGENTS.md](./docs/frontend/AGENTS.md) | The two sides, their builders and fixers |
 
-## Architecture
+Where this file and an owner spec disagree, the spec is right and this file is the defect.
 
-This section describes Shadows Core. The imported AYLUL desktop lives in
-`apps/desktop/` with its own [instructions](apps/desktop/AGENTS.md), npm lockfiles
-and separate Rust workspaces. Its documentation is under `docs/aylul/`; it does
-not join AppCore or the Core Cargo gate. See [documentation routing](docs/README.md).
+## Workspaces
 
-A Cargo workspace with a flat `crates/` directory (spec §14.3 owns the list), plus an independent browser client in `web/`. The one binary, `shadows serve`, serves the product locally but never opens a browser automatically.
+| Workspace | Root | Holds |
+|---|---|---|
+| Core | `Cargo.toml` (`members = ["crates/*"]`) | Every `shadows*` crate and `fake-acp` |
+| AYLUL desktop | `apps/desktop/src-tauri/` | The Tauri app ([its instructions](apps/desktop/AGENTS.md)) |
+| AYLUL hook | `apps/desktop/hook/` | The desktop hook |
+| Runtime (planned) | `runtime/` | Our own agent runtime, which replaces ACP step by step. Core calls it as a library. |
+| Code intelligence (planned) | `code-intelligence/` | `shadows-index`, which depends on no Shadows crate |
+
+Each workspace has its own lockfile, `target/` and gate. A crate in one workspace
+never reaches into another's source; it depends on it as a library.
 
 ```text
 shadows ─┬─► shadows-http ─┐                 ┌─► shadows-agent ─► shadows-process
@@ -77,153 +38,177 @@ shadows ─┬─► shadows-http ─┐                 ┌─► shadows-agent
          └────────────────►┘                 └─► shadows-index
 ```
 
-Dependencies point one way, and Cargo refuses a cycle. An adapter depends on
-`shadows-core` only; a `shadows-agent` type it serializes, such as
-`SessionChoices`, is re-exported by `shadows-core`. `fake-acp` is the test
-adapter binary; no product crate links it. `shadows-index` depends on no
-Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds twelve
-services, one folder each: `projects`, `threads`, `turns`, `harness`, `plans`,
-`grants`, `instructions`, `events`, `code`, `design`, `secrets` (spec §14.4). Planned,
-and not created until their first user exists: the `scheduler`, `execution`
-and `verification` services.
-
-### Single-ownership rules
+Dependencies point one way. An adapter (`shadows-http`, `shadows-mcp`, the binary)
+depends on `shadows-core` only. `shadows-index` depends on no Shadows crate.
 
 | Crate | Sole owner of |
 |---|---|
-| `shadows` | The binary: configuration, tracing, binding, signals; builds `AppCore` once |
+| `shadows` | The binary: configuration, tracing, binding, signals. Builds `AppCore` once. |
 | `shadows-http` | The HTTP API and SSE (`/api/…`), and mounting `/mcp` |
-| `shadows-mcp` | Shadows' MCP server at `/mcp`, a separate interface from the HTTP API (spec §13.6) |
-| `shadows-core` | The application: every operation is a method of one service. SQLite lives here only, in `db/` and the stores |
+| `shadows-mcp` | Shadows' MCP server at `/mcp` |
+| `shadows-core` | The application. SQLite lives here only, in `db/` and the stores. |
 | `shadows-agent` | The AI subprocess harness (the ACP `Connection`) |
-| `shadows-index` | tree-sitter: a file's text in, its tags out, knowing nothing of SQLite or projects (spec §15.3) |
-| `shadows-process` | `tokio::process` / `process-wrap` (private to this crate) |
-| `secrets` | Encrypted profile environment resolution inside `shadows-core` (config holds refs only) |
+| `shadows-index` | tree-sitter: a file's text in, its tags out |
+| `shadows-process` | `tokio::process` / `process-wrap` |
 
-### Persistence (spike outcome)
+## Code structure
 
-**Winner: SQLx 0.9 only.** The delta validated SQLx and SeaORM 2.0.3 end-to-end against PostgreSQL 16.15; SQLx retained the edge and SeaQuery had no demonstrated use case. See `docs/evidence/persistence/DELTA_VALIDATION.md` at `92e6dae`.
+Shadows Core is a **modular monolith**: one binary, built from service crates
+with hard boundaries. The compiler holds the boundaries, not good intentions.
 
-### External tools
+```text
+   adapters      shadows-http · shadows-mcp · shadows (cli)     translate only
+                                  │
+   composition   shadows-core = AppCore                          builds and wires
+                                  │
+   services      core-<service> crates: turns, harness, threads, plans, design, ...
+                 each one: its service, its model, its store (private)
+                                  │
+   foundation    core-db: the pool, the transaction, the journal
+```
 
-`gcode` is an optional external executable. Shadows may invoke it through the normal process/tool boundary when code search is added, but does not vendor or depend on `gobby-cli`, `gcore`, PostgreSQL, FalkorDB, or Qdrant. `ghook` and `gwiki` are not planned.
+Dependencies point down only, and Cargo refuses a cycle. **Today** the services
+are folders inside `shadows-core`; the architecture plan
+([docs/backend/plans/2026-10-21-architecture.md](docs/backend/plans/2026-10-21-architecture.md))
+first establishes private service stores and explicit dependencies in place,
+then extracts crates in the verified dependency order. A task number is not
+proof of that order. Until a service has moved, its folder follows the same
+ownership rules, enforced by module privacy and the architecture ratchet.
 
-## Rules (project-specific)
+> **STRICT RULE: AppCore is the map and the owner. Start there, every time.**
+> Every task in Core begins at `crates/shadows-core/src/app.rs`. `AppCore` names
+> every service, the one job it owns, its crate and its contract. Find the
+> service that owns what you are changing, go to its crate, read its
+> `contract.yaml`, and change only there. You may not:
+> - search the tree to find where something is done, instead of asking `AppCore`;
+> - reach a service, a store, or live state (sessions, running turns) except
+>   through `AppCore` and the service that owns it;
+> - add a second way in: a second composition root, a second HTTP surface, or a
+>   helper another service calls directly;
+> - put a rule in a second place because the owner was hard to find.
+>
+> If no service in `AppCore` owns what you need, **stop and report**. A new owner
+> is a design decision for the controller, never something to improvise. A change
+> that breaks this rule is refused in review, whatever else it gets right.
 
-- **The full gate runs once per branch, before its PR opens,** from the root. While
-  working, each commit runs the tests its change touches, never the whole suite.
-  CI (`.github/workflows/ci.yml`) runs steps 1–5:
+1. **One object at runtime.** `AppCore` is built once in `AppCore::start` and is
+   the only way in: `app.turns().send(…)`, `app.harness().open(…)`. Every
+   service is a struct with private fields, built only inside `AppCore::start`.
+   An adapter sees `AppCore` and nothing else. `shadows-core` holds `AppCore`
+   and its wiring only in the target structure, so `app.rs` is large by design.
+   Adapters receive `Arc<AppCore>`; services receive only their declared
+   dependencies, never `AppCore`, a global registry, or a back-reference to it.
+2. **A service crate owns its tables and its live state.**
+   - Its store is private to the service. Rust privacy prevents callers from
+     accessing that store; it does not understand SQL table ownership on a
+     shared database connection. The architecture ratchet and review also
+     check direct SQL and cross-service queries, before and after extraction.
+   - Its constructor receives the other services it calls. Its `Cargo.toml`
+     lists them, which makes its dependencies visible at a glance.
+   - A write that must share a transaction with another service goes through
+     that service's `*_in(&mut Tx, …)` method. `Tx` comes from `core-db`.
+   - Live state (sessions, running turns) belongs to one service, and others
+     reach it through that service's methods.
+3. **One rule, one method, one owner.** A rule such as "what a turn sends to the
+   model" is one method on one service. Others supply facts to it and never
+   assemble part of the answer. When two paths must give the same answer (open
+   and switch, single and batch, Core and web), they are listed in `agreements`
+   with the test that holds them.
+4. **A fixed shape per service crate.**
+   ```text
+   core-<service>/
+     Cargo.toml     the services it depends on, and core-db
+     src/lib.rs     the service struct, its constructor, its public types
+     src/model.rs   its types; no persistence imports
+     src/store/     its SQL, private to the crate
+     src/<job>.rs   one job's methods (`impl <Service>`) or private parts
+     contract.yaml  the service contract, with sections for its modules
+     tests/         its tests, through its public API
+   ```
+   - A type such as `ThreadId` is owned by its service's crate, and others
+     import it from there. There is no shared grab-bag crate.
+   - No free `pub fn`. A helper is a private function or a method.
+5. **Comments say why, never history.** No "used to", no "before the routes did",
+   no spec section numbers in code. The contract and the owner spec carry those.
+   A comment that disagrees with the code is a defect in the comment.
+6. **Products are workspaces.** `runtime/` and `code-intelligence/` follow the
+   same shape: one top object (`Runtime`), crates with private internals, and
+   Core depending on them as libraries.
+
+**A new operation is a new method on one service**, with its line in that
+service's contract, in the same commit. An HTTP route and an MCP tool that do the
+same thing call the same method. **An adapter translates and holds no rule:** it
+reads a request, calls one method, and shapes the answer.
+
+## Rules
+
+- **The full gate runs once per branch, before its PR opens,** from the root. Each
+  commit runs only the tests its change touches. CI (`.github/workflows/ci.yml`)
+  runs steps 1–5:
   1. `cargo fmt --all --check`
   2. `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings`
-     (`fake-acp` builds only with its `test-support`)
   3. `cargo test --workspace`
-  4. `cargo clippy --workspace -- -D warnings`, without `--all-targets`: the build
-     without `test-support`, where the core's boundary is checked
+  4. `cargo clippy --workspace -- -D warnings` (the build without `test-support`)
   5. `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
   6. `git diff --exit-code api/`: `api/openapi.json` changes only with a route
-- **One build cache, built over in place.** Every build goes into the project's
-  `target/` and reuses what is there; it is a development cache, not a release.
-  Never start a second copy: no `CARGO_TARGET_DIR`, no worktree build, no
-  `cargo clean`, no `--release`, `--profile`, `--target` or changed `RUSTFLAGS`.
-  The settings that keep it small stay as they are: `rust-lld.exe` in
-  `.cargo/config.toml`, `[lib] doctest = false` in each crate,
-  `debug = "line-tables-only"` and dependencies at `debug = false`. When
-  `target/debug/deps` holds old copies of a test binary, delete the older ones
-  (`.exe`, `.pdb`, `.d`) and keep the newest; never delete the dependency cache.
-- CI's format-overflow check is owned by [structure hygiene §1.2](./docs/superpowers/specs/2026-10-04-structure-hygiene-design.md#12-what-is-decided).
-- **Library-first for infrastructure only:** no custom ORM, no custom migration engine,
-  no hand-written crypto. Security and infrastructure use established crates (SQLx, axum,
-  tokio, aes-gcm, hkdf, hmac, keyring).
-- **Product logic is ours.** Parsing, validation, domain rules and small helpers are
-  written in this codebase, not pulled from a general-purpose crate (`parse_dotenv` is
-  ours, not `dotenvy`). A new dependency's commit names which of the two it is; a
-  general crate for product logic is refused in review.
-- **A file earns its size.** At **300 lines** a file stops being free: the change that
-  pushes it over states, in its commit message or report, what that file's single
-  responsibility is and why the new code shares it. At **500 lines** it splits. Split by
-  responsibility, never by line count — a `helpers.rs` or `utils.rs` is the same pile
-  under a new name, and so is a split that leaves two files that must be read together.
-  The test: name each resulting file's one job in a short phrase without using "and".
-  These thresholds are a trigger for judgment, not a lint; a 520-line file with one
-  genuine responsibility survives review by saying so.
-- **Known accretion points.** Three places take a change from nearly every task, so they
-  rot first and must be watched by name: `shadows-core/src/db/mod.rs` (the pool and
-  write transaction every store shares), `shadows-http` (one route per feature,
-  forever), and `shadows-core/tests/storage_contract/`. When one of them grows, the
-  split goes by domain — each service's `store` already does this — not into a second
-  facade.
-- **A new operation is a new method on one service,** with its line in that service's
-  contract. An HTTP route and an MCP tool that do the same thing call the same method.
-- **An adapter translates and holds no rule.** `shadows-http`, `shadows-mcp` and the
-  binary read a request, call one service method, and shape its answer (spec §14.5).
-- **Domain stays pure:** a service's `model.rs` carries no persistence imports (`sea_orm`, `sqlx`, `sea_query`, `Row`, `Entity`, `ActiveModel`, `Pg*`, `Sqlite*`); queries live in its `store`.
-- **Ordering is explicit:** durable event sequence, thread-entry ordinal, or another explicit stable domain key. No `rowid`, physical insertion order, or implicit `SELECT` order.
-- **DB-specific syntax isolation:** backend-specific SQL (FTS5, tsvector, `PRAGMA`, `rowid`, `strftime`) stays inside a `store` (each service's, and `runtime/store.rs`) and `shadows-core/src/db/`, never outside `shadows-core`. Enforced by crate and module boundaries, contract tests, and review — not by a keyword blacklist scanned across the tree (spec §2.9).
-- **Idempotency:** mutating commands carry `CommandId`, command kind, schema version, and normalized request fingerprint. Replay requires fingerprint equality; mismatch is `CommandConflict`.
-- **PLAN_BLOCKED = Operation outcome, NOT HTTP error.** Structured refusal, not transport failure.
+
+  The AYLUL desktop has its own gate (`.github/workflows/aylul.yml`), clippy included.
+- **One build cache per workspace, built over in place.** Never a second copy: no
+  `CARGO_TARGET_DIR`, no worktree build, no `cargo clean`, no `--release`,
+  `--profile`, `--target` or changed `RUSTFLAGS`. Keep `rust-lld.exe` in
+  `.cargo/config.toml`, `[lib] doctest = false`, `debug = "line-tables-only"` and
+  dependencies at `debug = false`. When `target/debug/deps` holds old copies of a
+  test binary, delete the older ones (`.exe`, `.pdb`, `.d`); never the dependency cache.
+- **Libraries for infrastructure, our code for product logic.** SQLx, axum, tokio,
+  aes-gcm, hkdf, hmac, keyring; no custom ORM, migration engine or crypto. Parsing,
+  validation and domain rules are written here (`parse_dotenv` is ours, not
+  `dotenvy`). A new dependency's commit says which of the two it is.
+- **A file earns its size by having one job, not by its line count.** A file of
+  1000 lines that does one clear thing stays whole. A file that mixes jobs
+  splits, however short it is: name each part's job without "and". No
+  `helpers.rs` or `utils.rs`, and no file that collects unrelated things, such as
+  every service's tests in one file: tests live with the thing they test. The
+  same holds at every level: a service with two jobs becomes two services, and
+  likewise a crate or a workspace.
+- **Watch the accretion points:** `shadows-core/src/db/mod.rs`, `shadows-http`, and
+  `shadows-core/tests/storage_contract/`. They split by domain, never into a second facade.
+- **Domain stays pure:** `model.rs` has no persistence imports (`sqlx`, `Row`, `Sqlite*`, `Pg*`).
+- **Ordering is explicit:** an event sequence, an entry ordinal or another stable
+  key. Never `rowid`, insertion order or an unordered `SELECT`.
+- **Database-specific SQL** (FTS5, `PRAGMA`, `rowid`, `strftime`) stays in a store or `db/`.
+- **Idempotency:** a mutating command carries `CommandId`, kind, schema version and
+  a normalized fingerprint. A replay needs an equal fingerprint; a mismatch is `CommandConflict`.
+- **`PLAN_BLOCKED` is an operation outcome,** not an HTTP error.
+- **Run it before you document it.** A slice is done when a person has started
+  `shadows serve`, used it in a browser and read its logs.
+- **No layer before its first user,** and one path end to end before any abstraction.
+
+## Documentation
+
+- Every decision has one owner spec, amended in place. Others link to it. New specs
+  and plans follow their product: `docs/backend/`, `docs/frontend/`, `docs/aylul/`,
+  `docs/code-intelligence/`. `docs/superpowers/` is read and amended, never added to.
+- No ADR, design note or plan for a struct shape, a library call or a test fix: amend the owner spec.
+- An open question is an **OPEN** block in its owner spec, with the trigger that closes it.
+- Evidence (`docs/evidence/`) is dated fact, never authority. A spike's code is
+  deleted once its evidence is written; the evidence names the commit.
+- The code map is written by hand and checked: `cargo test -p shadows --test codemap`
+  refuses a module with no owner row, a missing path, or a job stated with "and".
 
 ## How agents work here
 
-These override the defaults of any execution skill. Token cost is a real
-constraint on this project, and every rule below exists because a round trip,
-a crawl, or a re-read was paid for and bought nothing.
+Codex's project roles are in `.codex/agents/`; their dispatch and verification
+protocol is in [`.codex/README.md`](.codex/README.md). Read it before using a role.
 
-- **The code map is the entry point, not the source tree.** Read
-  `docs/codebase/README.md` (what each module owns) and the service's
-  `contract.yaml` FIRST, then ask the LSP (Rust) or Serena (TypeScript) for
-  signatures and callers, and open only the files they name. Reading the tree to discover
-  what a signature is means you skipped them — say so in your report.
-- **Find code with the language server, never with text search.** Rust: the
-  `LSP` tool (definition, references, callers, a file's symbols). TypeScript
-  (`.ts`/`.tsx`): Serena only. Either one names the file and line; open the
-  file only there. Grep is for text that is not a code symbol (docs, config,
-  log strings). They answer where, not how or why: that is the contract, the
-  owner spec, and the code itself. If the server for that language does not
-  answer, say so in your report before falling back to Glob and Read.
-- **The contract is the entry point for a service.** Read
-  `crates/shadows-core/src/<service>/contract.yaml` before changing that
-  service; open its code for what the contract points to.
-- **A change to a service updates its contract in the same commit:** its
-  methods, obligations, agreements and tests, following
-  `docs/codebase/contracts/TEMPLATE.yaml`. `contracts.rs` catches a missing
-  name; the reviewer catches a false rule.
-- **A reviewer fixes what it finds.** A review dispatch is one seat: find it,
-  fix it, run the gate, commit, and report what changed and why — not a findings
-  list that costs another dispatch to act on. It still reports everything it
-  found, including what it chose not to change and why. The controller reads the
-  resulting diff; that is the second pair of eyes. What a reviewer may NOT do
-  silently is contradict the plan or a spec — those it reports and leaves.
-- **Compose the dispatch once.** Everything a subagent needs — the task, the
-  interfaces, the rulings, the constraints — goes in the first message. A
-  follow-up message to steer an agent mid-task is a controller planning failure
-  and is paid for in full context re-read. Fix rounds are the exception, because
-  the findings did not exist yet.
-- **Branches are short-lived.** Finish the tasks, open the PR, merge it, delete
-  the branch. Do not carry a second long-lived branch alongside `main` and do
-  not leave merged branches on the remote. A branch nobody is committing to is
-  either merged or abandoned; both cases end with it deleted.
-- **The controller verifies a review; it does not repeat it.** After a reviewer
-  reports, the controller checks that the report is true — the commits exist,
-  the diff says what the report says, the gate and test count are real — and
-  rules on what was left to it. It does not re-read the code for a second deep
-  review. One whole-branch review runs before the PR, and that is the only other.
-
-## Lessons from `shadow`
-
-`shadow` spent 29 days, 413 commits and 67k lines of Rust and ended with
-nothing a person could run: no web client, and a socket on which no business
-method could execute. These three rules are what that cost.
-
-- **Run it before you document it.** A slice is not done until a person has
-  started `shadows serve`, used it in a browser, and read its logs. 35% of
-  `shadow`'s commits were docs about software nobody had run.
-- **One path end to end before any abstraction.** Every `shadow` method was
-  tested alone; the first test that crossed the layers found swapped arguments
-  in minutes. Build the path through every layer first, then widen it.
-- **No layer before its first user.** Protocol versions, nine authorities and
-  six crates existed before one request succeeded. A seam, trait, or version is
-  added when the second caller needs it, not when it might.
-
-## Decisions
-
-[`docs/superpowers/specs/README.md`](./docs/superpowers/specs/README.md) maps every design section to its sole owner file. Together those owner files hold the complete architecture semantics. The rules above are a working summary; where this file and an owner spec disagree, the owner spec is right and this file is the defect.
+- **Start from `AppCore`** (the strict rule above): `app.rs` names the owning
+  service, then its `contract.yaml`, then the files it names.
+  `docs/codebase/README.md` maps the crates outside Core. Find symbols with the LSP (Rust) or
+  Serena (TypeScript), never with text search. Grep is for docs, config and log text.
+- **A change to a module updates its contract in the same commit.**
+- **Compose a dispatch once.** Task, interfaces, rulings and constraints go in the
+  first message. Only fix rounds get follow-ups.
+- **A reviewer fixes what it finds,** runs the gate, commits, and reports everything,
+  including what it left. It never silently contradicts a plan or spec.
+- **The controller checks a report is true** (commits, diff, gate, counts) and does
+  not repeat the review. One whole-branch review runs before the PR.
+- **Branches are short-lived:** finish, open the PR, merge, delete the branch.

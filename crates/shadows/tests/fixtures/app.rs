@@ -23,12 +23,12 @@ use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
 use shadows_core::UiSignal;
+use shadows_core::testing::CommandContext;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
-use shadows_core::testing::{Sessions, SessionsConfig};
+use shadows_core::testing::{Harness, SessionsConfig};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_core::{PartId, ProjectId};
@@ -46,16 +46,16 @@ pub struct App {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
-    pub sessions: Arc<Sessions>,
+    pub sessions: Arc<Harness>,
     pub bus: Bus,
-    /// The live-only signals `plan_show` sends (§13.9).
+    /// The live-only signals `plan_show` sends.
     pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     /// The application the router is built from, on the same `Arc`s as above.
     pub core: Arc<AppCore>,
     pub router: Router,
     pub project: ProjectId,
-    /// The part the project's seeded roadmap answers, which plans tie to
-    /// (§23.6); `None` for an app made by `test_app_unseeded`.
+    /// The part the project's seeded roadmap answers, which plans tie to; `None` for an app made by
+    /// `test_app_unseeded`.
     pub part: Option<PartId>,
     pub thread: ThreadId,
     // Held: a dropped sender reads as a stopping daemon.
@@ -70,7 +70,7 @@ pub fn ctx(id: &str, kind: &str) -> CommandContext {
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &json!({ "id": id })),
+        request_fingerprint: CommandContext::fingerprint(kind, &json!({ "id": id })),
     }
 }
 
@@ -96,7 +96,7 @@ pub async fn test_app_at(dir: &Path) -> App {
 
 /// As `test_app_at`, with the sessions' own configuration and the `/mcp` URL
 /// the daemon reports. Its project is at the plans stage: plan work needs an
-/// approved roadmap (§23.6), so the roadmap is seeded with one part.
+/// approved roadmap, so the roadmap is seeded with one part.
 pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) -> App {
     assemble(dir, config, mcp_url, true).await
 }
@@ -117,33 +117,40 @@ pub async fn test_app_unseeded_with(dir: &Path, config: SessionsConfig, mcp_url:
 async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bool) -> App {
     let db = dir.join("s.sqlite3");
     let storage = Arc::new(Storage::open(&db).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
-    let runtime = Arc::new(runtime);
-    let project = storage
-        .create_project(
-            &ctx("c1", "project.create"),
-            "demo",
-            "Demo",
-            &ProjectDirectory::resolve(dir).unwrap(),
-            &policy::default_modes(),
-        )
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
         .unwrap();
+    let runtime = Arc::new(runtime);
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &ProjectDirectory::resolve(dir).unwrap(),
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let part = match roadmap {
-        true => Some(storage.seed_roadmap_for_tests(&project.id).await.unwrap()),
+        true => Some(
+            shadows_core::AppCore::design_for_tests(storage.clone())
+                .seed_roadmap_for_tests(&project.id)
+                .await
+                .unwrap(),
+        ),
         false => None,
     };
-    let thread = storage
-        .create_planning_thread(
-            &ctx("c2", "thread.create"),
-            &project.id,
-            "T",
-            policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx("c2", "thread.create"),
+        &project.id,
+        "T",
+        policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let secrets = shadows_core::testing::secrets(
         storage.clone(),
         config
@@ -155,12 +162,14 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
         secrets: Some(secrets.clone()),
         ..config
     };
-    let sessions = Sessions::new(acp::fake_adapter(), storage.clone(), config);
+    let sessions =
+        shadows_core::AppCore::harness_for_tests(acp::fake_adapter(), storage.clone(), config);
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (ui, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime: runtime.clone(),
@@ -195,8 +204,10 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
 /// Stops the daemon as `serve` does on a signal, so the directory can be
 /// opened again by `test_app_at`.
 pub async fn shut_down_app(app: App) {
-    shadows_core::testing::shut_down(
+    shadows_core::testing::PlannerTurn::shut_down(
         app.runtime.clone(),
+        app.runtime.storage_for_test(),
+        shadows_core::AppCore::operations_for_tests(app.runtime.storage_for_test()),
         app.handles.clone(),
         app.sessions.clone(),
         Duration::from_secs(5),
@@ -245,30 +256,28 @@ pub async fn get_json<T: DeserializeOwned>(app: &App, path: &str) -> T {
 /// A second project, on the system's temp directory, with one thread of its
 /// own: what a test needs to show something stays inside its own project.
 pub async fn other_project(app: &App) -> (ProjectId, ThreadId) {
-    let project = app
-        .storage
-        .create_project(
-            &ctx("other-project", "project.create"),
-            "other",
-            "Other",
-            &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
-            &policy::default_modes(),
-        )
-        .await
-        .unwrap()
-        .id;
-    let thread = app
-        .storage
-        .create_planning_thread(
-            &ctx("other-thread", "thread.create"),
-            &project,
-            "Other",
-            policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let project = shadows_core::testing::create_project(
+        &app.storage,
+        &ctx("other-project", "project.create"),
+        "other",
+        "Other",
+        &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        &policy::default_modes(),
+    )
+    .await
+    .unwrap()
+    .id;
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("other-thread", "thread.create"),
+        &project,
+        "Other",
+        policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     (project, thread)
 }
 
@@ -336,7 +345,9 @@ pub async fn start_and_finish(app: &App, prompt: &str, settings: Value) -> Opera
 
 pub async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
     for _ in 0..200 {
-        let loaded = app.storage.get_operation(op).await.unwrap();
+        let loaded = shadows_core::Turns::get_operation_for_test(&app.storage, op)
+            .await
+            .unwrap();
         if loaded.finished_at.is_some() {
             return loaded;
         }
@@ -346,7 +357,9 @@ pub async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
 }
 
 pub async fn entries_on(app: &App, thread: &ThreadId) -> Vec<ThreadEntry> {
-    app.storage.list_thread_entries(thread).await.unwrap()
+    shadows_core::Threads::list_thread_entries_for_test(&app.storage, thread)
+        .await
+        .unwrap()
 }
 
 pub async fn entries(app: &App) -> Vec<ThreadEntry> {

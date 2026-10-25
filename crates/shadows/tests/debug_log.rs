@@ -1,4 +1,4 @@
-//! `shadows serve --debug`'s log file (spec §8.7): created under the data
+//! `shadows serve --debug`'s log file: created under the data
 //! directory, holding what a run did once its guard is dropped, and never
 //! holding the prompt.
 //!
@@ -17,10 +17,10 @@ use shadows::cli::router;
 use shadows_core::Actor;
 use shadows_core::OperationId;
 use shadows_core::testing::Bus;
+use shadows_core::testing::CommandContext;
+use shadows_core::testing::Harness;
 use shadows_core::testing::Runtime;
-use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
-use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn};
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
@@ -80,7 +80,7 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     // adapter and its log shows the tree reaped.
     let stopped = start(&daemon, &thread, "ignore-cancel").await;
     PlannerTurn::stop(
-        daemon.runtime.clone(),
+        daemon.runtime.storage_for_test(),
         daemon.handles.clone(),
         daemon.sessions.clone(),
         &stopped,
@@ -188,13 +188,15 @@ struct Daemon {
     state: AppState,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
+    sessions: Arc<Harness>,
     bus: Bus,
 }
 
 async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Sender<bool>) {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let runtime = Arc::new(runtime);
     let handles = Arc::new(LiveHandles::default());
     let sessions = acp::fake_sessions(storage.clone());
@@ -204,6 +206,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage,
             runtime: runtime.clone(),
@@ -235,36 +238,43 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: fingerprint("project.create", &params),
+        request_fingerprint: CommandContext::fingerprint("project.create", &params),
     };
-    let project = runtime
-        .storage
-        .create_project(
-            &ctx,
-            "demo",
-            "Demo",
-            &shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap();
+    let project = shadows_core::testing::create_project(
+        &runtime.storage_for_test(),
+        &ctx,
+        "demo",
+        "Demo",
+        &shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: fingerprint("thread.create", &params),
+        request_fingerprint: CommandContext::fingerprint("thread.create", &params),
         ..ctx
     };
-    runtime
-        .storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
-        .await
-        .unwrap()
-        .id
+    shadows_core::Threads::create_planning_thread_for_test(
+        &runtime.storage_for_test(),
+        &tctx,
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id
 }
 
 async fn wait_for_terminal(runtime: &Runtime, op: &OperationId) {
     for _ in 0..100 {
-        let status = runtime.storage.get_operation(op).await.unwrap().status_kind;
+        let status = shadows_core::Turns::get_operation_for_test(&runtime.storage_for_test(), op)
+            .await
+            .unwrap()
+            .status_kind;
         if status != "Pending" && status != "Running" {
             return;
         }

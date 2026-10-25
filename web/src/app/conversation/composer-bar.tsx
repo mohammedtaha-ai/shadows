@@ -1,15 +1,16 @@
-// One job: the flat row under the message box (spec §12.11) — on the left
+// One job: the flat row under the message box — on the left
 // `+`, mode and folder; on the right model, effort and the context ring —
 // every menu built from what the harness session offers.
 
 import { ChevronDown, Folder, Plus } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, type RefObject, useRef } from 'react'
 import type { Choice, TurnSettings } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -34,6 +35,11 @@ export function ComposerBar({
   ring,
   opened = null,
   onOpened,
+  onSlashCommands,
+  onPlugins,
+  messageBox,
+  onPhotos,
+  imageReason,
 }: {
   /** The thread's harness kind, whose mode policy describes each mode. */
   harness: string
@@ -42,7 +48,7 @@ export function ComposerBar({
   /** `null` until the session has answered. */
   settings: TurnSettings | null
   onSettings: (next: TurnSettings) => void
-  /** The session is being set to a picked model or effort (spec §12.7). */
+  /** A session setting is being changed. */
   changingModel: boolean
   /** A draft: no session exists yet, so the model is not chosen until the
    * first message opens one. */
@@ -52,10 +58,16 @@ export function ComposerBar({
   /** Why the settings moved on their own, if they did. */
   note: string | null
   ring?: ReactNode
-  /** The picker `/model` or `/effort` opened (§21.4), until it closes. */
+  /** The picker `/model` or `/effort` opened, until it closes. */
   opened?: 'model' | 'effort' | null
   onOpened?: (opened: 'model' | 'effort' | null) => void
+  onSlashCommands: () => void
+  onPlugins?: () => void
+  onPhotos: () => void
+  imageReason: string | null
+  messageBox: RefObject<HTMLTextAreaElement | null>
 }) {
+  const openingPlugins = useRef(false)
   // Without `onOpened` the menus open on their own.
   const openAs = (setting: 'model' | 'effort') =>
     onOpened === undefined
@@ -68,16 +80,30 @@ export function ComposerBar({
   return (
     <div className="space-y-1.5">
       <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          disabled
-          focusableWhenDisabled
-          title="Attachments come later"
-          aria-label="Attach"
-        >
-          <Plus />
-        </Button>
+        <DropdownMenu onOpenChange={(open) => { if (open) openingPlugins.current = false }}>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label="Add" />}>
+            <Plus />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            side="top"
+            finalFocus={() => openingPlugins.current ? false : messageBox.current}
+          >
+            <DropdownMenuItem disabled={imageReason !== null} title={imageReason ?? 'Ctrl+U'} onClick={onPhotos}>
+              <span className="flex flex-col">
+                <span>Add photos</span>
+                <span className="text-xs text-muted-foreground">{imageReason ?? 'Ctrl+U'}</span>
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onSlashCommands}>Slash commands</DropdownMenuItem>
+            {onPlugins !== undefined && (
+              <DropdownMenuItem onClick={() => {
+                openingPlugins.current = true
+                onPlugins()
+              }}>Plugins</DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         {session.state === 'connecting' && (
           <span className="px-1.5">Connecting to {harnessLabel}…</span>
         )}
@@ -94,6 +120,7 @@ export function ComposerBar({
             title="Mode"
             options={choices.modes}
             value={settings.mode}
+            disabled={changingModel}
             describe={(mode) => modeDescription(policy, mode)}
             onChange={(mode) => onSettings({ ...settings, mode })}
           />

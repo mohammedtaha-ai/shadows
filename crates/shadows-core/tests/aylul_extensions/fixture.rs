@@ -1,7 +1,7 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::json;
 use shadows_core::ExtensionKind;
-use shadows_core::testing::{self, LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::testing::{self, Harness, LiveHandles, SessionsConfig, Storage, acp};
 use shadows_core::{
     AgentInput, AppCore, AylulConfig, CoreParts, ProviderInput, SecretKey, ThreadId,
 };
@@ -11,7 +11,7 @@ pub(super) struct World {
     pub(super) _tmp: tempfile::TempDir,
     pub(super) storage: Arc<Storage>,
     pub(super) core: Arc<AppCore>,
-    pub(super) sessions: Arc<Sessions>,
+    pub(super) sessions: Arc<Harness>,
     pub(super) thread: ThreadId,
 }
 
@@ -21,8 +21,13 @@ pub(super) async fn world() -> World {
     std::fs::create_dir_all(&root).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
-    let sessions = Sessions::new(
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
+    let sessions = shadows_core::AppCore::harness_for_tests(
         acp::fake_adapter(),
         storage.clone(),
         SessionsConfig {
@@ -35,6 +40,7 @@ pub(super) async fn world() -> World {
         },
     );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime,
@@ -48,7 +54,7 @@ pub(super) async fn world() -> World {
         .ensure_assistant("aylul", "AYLUL", &root)
         .await
         .unwrap();
-    core.profiles()
+    core.providers()
         .create_provider(
             "provider".into(),
             ProviderInput {
@@ -67,15 +73,15 @@ pub(super) async fn world() -> World {
         )
         .await
         .unwrap();
-    core.secrets()
-        .set_provider_key("key".into(), "test-2", "synthetic-stored-one")
+    core.providers()
+        .set_key("key".into(), "test-2", "synthetic-stored-one")
         .await
         .unwrap();
-    core.profiles()
+    core.agents()
         .create_agent("agent".into(), agent("AYLUL"))
         .await
         .unwrap();
-    let project = core.profiles().assistant_project().await.unwrap();
+    let project = core.agents().assistant_project().await.unwrap();
     let thread = core
         .threads()
         .create(

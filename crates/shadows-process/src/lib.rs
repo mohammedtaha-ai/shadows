@@ -1,19 +1,15 @@
+mod launch;
 mod persistent;
 pub use persistent::{ProcessIdentity, inspect_process, spawn_persistent};
 
 use std::io;
 use std::path::PathBuf;
-use std::process::Stdio;
 
-#[cfg(windows)]
-use process_wrap::tokio::JobObject;
-#[cfg(unix)]
-use process_wrap::tokio::ProcessSession;
-use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
+use process_wrap::tokio::ChildWrapper;
 use tokio::io::{AsyncBufReadExt, BufReader, Lines};
-use tokio::process::{ChildStderr, ChildStdin, ChildStdout, Command};
+use tokio::process::{ChildStderr, ChildStdin, ChildStdout};
 
-/// OS-level intent and nothing else. Spec §1.5: `shadows-process` knows nothing about
+/// OS-level intent and nothing else. `shadows-process` knows nothing about
 /// Role, Claude, Codex, planning, workflows, or verification.
 #[derive(Clone)]
 pub struct ProcessSpec {
@@ -60,8 +56,7 @@ pub struct ProcessHandle {
     stdout_raw: Option<ChildOut>,
     stderr: Option<ChildErr>,
     stdout: Option<Lines<BufReader<ChildStdout>>>,
-    /// Test-only. Spec §8.4 case 6 ("termination fails or cannot be
-    /// confirmed") has no reachable test otherwise: on Windows — this
+    /// Test-only. Termination failure has no reachable test otherwise: on Windows — this
     /// project's acceptance gate — `start_kill` on a live child does not fail
     /// on demand, so the branch that must not claim outcome ownership could
     /// only be reviewed, never exercised. Gated behind `test-support`, which
@@ -77,11 +72,10 @@ impl ProcessHandle {
     }
 
     /// Takes ownership of the captured stdout reader, leaving the handle
-    /// without one. Spec §8.3's stream reader must outlive the call that
+    /// without one. The stream reader must outlive the call that
     /// registers this handle in `LiveHandles` (a `'static` task reading lines
     /// while the handle itself is moved into a shared map), which an
-    /// accessor that only lends `&mut` cannot support — see Task 7's deferred
-    /// minor M2.
+    /// accessor that only lends `&mut` cannot support.
     pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>> {
         self.stdout.take()
     }
@@ -110,7 +104,7 @@ impl ProcessHandle {
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus> {
         loop {
             if let Some(status) = self.child.try_wait()? {
-                // The leader is reaped. Spec §8.7 `process.exit`; the caller's
+                // The leader is reaped; the caller's
                 // span supplies the operation and thread.
                 tracing::info!(%status, "process.exit");
                 match self.child.start_kill() {
@@ -126,8 +120,8 @@ impl ProcessHandle {
         }
     }
 
-    /// Whether the leader has already exited, without waiting for it. Spec
-    /// §8.4 case 4 needs this fact and not a wait: a cancellation that arrives
+    /// Whether the leader has already exited, without waiting for it.
+    /// A cancellation that arrives
     /// after the process ended on its own must not claim to have stopped it,
     /// and asking is only useful if it answers immediately.
     pub fn has_exited(&mut self) -> bool {
@@ -135,7 +129,7 @@ impl ProcessHandle {
     }
 
     /// Terminates the whole managed tree through the containment handle that
-    /// owns it. Spec §8.3: never by signalling a PID read from the database,
+    /// owns it. Never by signalling a PID read from the database,
     /// because the operating system reuses PIDs.
     pub fn terminate_tree(&mut self) -> io::Result<()> {
         let pid = self.child.id();
@@ -156,7 +150,7 @@ impl ProcessHandle {
         result
     }
 
-    /// Test-only: makes `terminate_tree` report failure so spec §8.4 case 6
+    /// Test-only: makes `terminate_tree` report failure so the failure path
     /// can be exercised rather than assumed. See the field's comment.
     #[cfg(feature = "test-support")]
     pub fn force_termination_failure(&mut self) {
@@ -164,25 +158,10 @@ impl ProcessHandle {
     }
 }
 
-/// Windows environment variables a child needs even under an otherwise
-/// explicit environment. Losing any of these breaks the child in ways that
-/// never reproduce on Linux.
-#[cfg(windows)]
-const WINDOWS_ESSENTIAL_ENV: &[&str] = &[
-    "SystemRoot",
-    "SystemDrive",
-    "ComSpec",
-    "PATHEXT",
-    "TEMP",
-    "TMP",
-    "USERPROFILE",
-    "APPDATA",
-];
-
 /// A child's stderr is a pipe, and a pipe nobody reads fills: once its buffer
 /// is full the child blocks on its next write and never exits, so a harness
 /// that warns at length would hang its turn forever. It is read to its end
-/// here. Only each line's length is logged, at debug: spec §8.7 keeps a
+/// here. Only each line's length is logged, at debug, keeping a
 /// harness's own output out of the log by default, and nothing yet says which
 /// of its stderr is safe to keep.
 fn drain_stderr(stderr: tokio::process::ChildStderr) {
@@ -200,47 +179,9 @@ fn drain_stderr(stderr: tokio::process::ChildStderr) {
 }
 
 pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
-    let mut cmd = Command::new(&spec.executable);
-    cmd.args(&spec.args)
-        .current_dir(&spec.cwd)
-        .env_clear()
-        // Spec §1.5: stdin is closed unless the child protocol runs over it.
-        .stdin(if spec.pipe_stdin {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
-        .stdout(if spec.capture_stdout {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
-        .stderr(Stdio::piped());
+    let mut wrapped = launch::Launch::managed(&spec);
 
-    #[cfg(windows)]
-    for key in WINDOWS_ESSENTIAL_ENV {
-        if let Ok(value) = std::env::var(key) {
-            cmd.env(key, value);
-        }
-    }
-    for (k, v) in &spec.env {
-        cmd.env(k, v);
-    }
-
-    let mut wrapped = CommandWrap::from(cmd);
-    // Load-bearing on Windows, not a convenience. `JobObject` asks
-    // `make_job_object` for `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` only when a
-    // `KillOnDrop` wrapper is registered alongside it, and that flag IS §1.5's
-    // kill-on-owner-close guarantee: without it the harness outlives a killed
-    // daemon. Measured 2026-09-22: removing this line leaves every containment
-    // test green and `clippy -D warnings` clean, so nothing here would tell you.
-    wrapped.wrap(KillOnDrop);
-    #[cfg(windows)]
-    wrapped.wrap(JobObject);
-    #[cfg(unix)]
-    wrapped.wrap(ProcessSession);
-
-    // Spec §8.7 `process.spawn`. The executable and working directory are
+    // The executable and working directory are
     // logged; the arguments and environment never are — a harness's arguments
     // carry the prompt, and the environment can carry credentials.
     let mut child = wrapped.spawn().inspect_err(|error| {

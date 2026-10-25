@@ -1,11 +1,9 @@
-//! What §16 adds to a plan's versions (spec §16.2, §16.3): one Draft per
-//! plan held by the database, a reason from v2 on, and the writer an
-//! approval speaks to. Split from `plan_storage.rs`, which holds §13's
-//! version rules.
+//! A plan's lifecycle: one Draft per plan held by the database, a reason
+//! from v2 on, and the writer an approval speaks to.
 
 use serde_json::json;
+use shadows_core::testing::Anchor;
 use shadows_core::testing::Writer;
-use shadows_core::testing::{Anchor, derived_id};
 use shadows_core::{CoreError, DraftStart, DraftStarted, ErrorCode, WorkflowState, WrittenBy};
 
 use shadows_core::testing::acp;
@@ -20,7 +18,7 @@ use plan::{
     planner, writer_ctx,
 };
 
-/// §16.2: one Draft per plan, held by the database. The second start answers
+/// One Draft per plan, held by the database. The second start answers
 /// the first's Draft.
 #[tokio::test]
 async fn two_starts_make_one_draft() {
@@ -31,7 +29,15 @@ async fn two_starts_make_one_draft() {
         draft_on(&app, &app.thread, "start-b"),
     );
     assert_eq!((a.workflow_id.clone(), a.version), (b.workflow_id, 2));
-    assert_eq!(a.plan_id, app.storage.get_plan(&v1).await.unwrap().plan_id);
+    assert_eq!(
+        a.plan_id,
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .get_plan_for_test(&v1)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .plan_id
+    );
     let drafts: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM workflow WHERE plan_id = ? AND state = 'Draft'")
             .bind(a.plan_id.as_str())
@@ -41,19 +47,26 @@ async fn two_starts_make_one_draft() {
     assert_eq!(drafts, 1);
 }
 
-/// §16.3: v2 needs its reason, refused INVALID_COMMAND without one; v1 has
+/// V2 needs its reason, refused INVALID_COMMAND without one; v1 has
 /// none, and a Draft answered again keeps the reason it was started with.
 #[tokio::test]
 async fn a_new_version_needs_its_reason() {
     let app = test_app().await;
     let v1 = approved_v1(&app).await;
-    let grant = app
-        .storage
-        .issue_project_grant(&ctx("g1", "McpGrantIssue"), &app.project)
+    let grant = shadows_core::Grants::issue_project_grant_for_test(
+        &app.storage,
+        &ctx("g1", "McpGrantIssue"),
+        &app.project,
+    )
+    .await
+    .unwrap()
+    .grant;
+    let plan_id = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
-        .grant;
-    let plan_id = app.storage.get_plan(&v1).await.unwrap().plan_id;
+        .plan_id;
     let plans = app.core.plans();
     let start = |reason: Option<&'static str>| {
         let (grant, plan_id) = (&grant, &plan_id);
@@ -71,7 +84,7 @@ async fn a_new_version_needs_its_reason() {
         }
     };
     for blank in [None, Some("  ")] {
-        match start(blank).await {
+        match start(blank).await.map_err(CoreError::from) {
             Err(CoreError::Refused {
                 code: ErrorCode::InvalidCommand,
                 message,
@@ -89,7 +102,8 @@ async fn a_new_version_needs_its_reason() {
         again.workflow_id, v2.workflow_id,
         "the Draft, answered again"
     );
-    let read = |id| app.storage.get_plan(id);
+    let plans = shadows_core::AppCore::plans_for_tests(app.storage.clone());
+    let read = |id| plans.get_plan_for_test(id);
     assert_eq!(
         read(&v2.workflow_id)
             .await
@@ -110,8 +124,8 @@ async fn first_start(app: &App, writer: &Writer) -> DraftStarted {
         "goal": "log in",
         "reason": null,
     });
-    app.storage
-        .start_draft(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(writer, "first", "DraftStart", params),
             writer,
             &app.project,
@@ -124,10 +138,11 @@ async fn first_start(app: &App, writer: &Writer) -> DraftStarted {
             std::slice::from_ref(app.part.as_ref().unwrap()),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap()
 }
 
-/// §13.5, §16.3: an identical retry of a Planner's first start still answers
+/// An identical retry of a Planner's first start still answers
 /// v1 after approval; it does not start v2.
 #[tokio::test]
 async fn a_retried_first_start_answers_its_v1() {
@@ -135,9 +150,10 @@ async fn a_retried_first_start_answers_its_v1() {
     let writer = planner(&app, &app.thread).await;
     let v1 = first_start(&app, &writer).await;
     edit(&app, &v1.workflow_id, 0, &[add(1)]).await;
-    app.storage
-        .approve_plan(&ctx("approve", "PlanApprove"), &v1.workflow_id, 1)
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&ctx("approve", "PlanApprove"), &v1.workflow_id, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(first_start(&app, &writer).await, v1);
     let versions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workflow WHERE plan_id = ?")
@@ -148,7 +164,7 @@ async fn a_retried_first_start_answers_its_v1() {
     assert_eq!(versions, 1);
 }
 
-/// §16.3: a person's approval of an external agent's version has no
+/// A person's approval of an external agent's version has no
 /// conversation to speak in.
 #[tokio::test]
 async fn approving_an_external_version_writes_no_entry() {
@@ -158,12 +174,11 @@ async fn approving_an_external_version_writes_no_entry() {
         grant: grant.clone(),
     };
     let r = insert_draft_ref(&app, &grant, &in_an_hour()).await;
-    let started = app
-        .storage
-        .start_draft(
+    let started = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(
                 &external,
-                &derived_id(Anchor::DraftRef(&r), ""),
+                &Anchor::derived_id(Anchor::DraftRef(&r), ""),
                 "DraftStart",
                 json!({}),
             ),
@@ -178,10 +193,11 @@ async fn approving_an_external_version_writes_no_entry() {
             std::slice::from_ref(app.part.as_ref().unwrap()),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let v1 = started.workflow_id;
-    app.storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&external, &v1, 0, &[add(1)]),
             &external,
             None,
@@ -190,18 +206,23 @@ async fn approving_an_external_version_writes_no_entry() {
             &[add(1)],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    let approved = app
-        .storage
-        .approve_plan(&ctx("approve-ext", "PlanApprove"), &v1, 1)
+    let approved = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&ctx("approve-ext", "PlanApprove"), &v1, 1)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
         (approved.workflow_id.clone(), approved.version),
         (v1.clone(), 1)
     );
 
-    let plan = app.storage.get_plan(&v1).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(plan.state, WorkflowState::Frozen);
     assert_eq!(plan.written_by, WrittenBy::External { grant_id: grant });
     let threads: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM planning_thread")

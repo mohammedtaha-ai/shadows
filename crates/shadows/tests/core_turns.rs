@@ -1,5 +1,4 @@
-//! Spec §14.9: starting and stopping a turn answer the same after moving into
-//! `Turns`, and `send` keeps its order: the harness is checked, then the
+//! Turn routes preserve send ordering: the harness is checked, then the
 //! thread's busyness, before any session is touched.
 
 use shadows_core::testing::acp;
@@ -15,7 +14,7 @@ use app::{
 use plan::{add, draft, edit};
 use serde_json::{Value, json};
 use shadows_core::OperationId;
-use shadows_core::testing::fingerprint;
+use shadows_core::testing::CommandContext;
 
 /// A turn body with the fake's own settings.
 fn turn(command: &str, prompt: &str) -> Value {
@@ -37,9 +36,7 @@ async fn turn_start_replays_after_the_move() {
     let (s2, again) = http_start(&app, &thread, turn("same", "hello")).await;
     assert_eq!((s1, s2), (202, 202), "{first} {again}");
     assert_eq!(first["operation_id"], again["operation_id"]);
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops.len(), 1, "one command, one turn");
@@ -65,17 +62,20 @@ async fn a_second_start_while_busy_is_thread_busy() {
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
 }
 
-/// The early busy check (§14.9) comes before the session: a thread whose turn
+/// The early busy check comes before the session: a thread whose turn
 /// has not ended is refused without opening an adapter. Without it the start
 /// would open the session and lease it, and only the transaction's own check
 /// would refuse it.
 #[tokio::test]
 async fn a_busy_thread_is_refused_before_its_session_opens() {
     let app = test_app().await;
-    app.storage
-        .create_pending_operation(&app.thread, &app.runtime.instance_id)
-        .await
-        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &app.storage,
+        &app.thread,
+        app.runtime.instance_id(),
+    )
+    .await
+    .unwrap();
     let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small",
         "mode": "acceptEdits", "effort": "high" });
     let (s, b) = http_start(&app, app.thread.as_str(), body).await;
@@ -83,7 +83,7 @@ async fn a_busy_thread_is_refused_before_its_session_opens() {
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
 }
 
-/// Harness availability (§14.9) is checked before any session work.
+/// Harness availability is checked before any session work.
 #[tokio::test]
 async fn an_unavailable_harness_opens_no_session() {
     let app = test_app().await;
@@ -135,9 +135,7 @@ async fn a_replay_found_by_the_transaction_gives_the_session_back() {
     assert!(breakdown["categories"].is_array(), "{breakdown}");
     assert_eq!((s1, s2), (202, 202), "{first} {again}");
     assert_eq!(first["operation_id"], again["operation_id"]);
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops.len(), 2, "the settled turn and one raced turn");
@@ -163,7 +161,10 @@ async fn turn_command_fingerprints_do_not_move() {
 
     let v1 = draft(&app).await.workflow_id;
     edit(&app, &v1, 0, &[add(1)]).await;
-    let plan = app.storage.get_plan(&v1).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .unwrap();
     let focus = json!({ "workflow_id": v1, "task_id": plan.tasks[0].id, "revision": 1 });
     let mut body = turn("pin-focus", "look");
     body["focus"] = focus.clone();
@@ -186,7 +187,7 @@ async fn turn_command_fingerprints_do_not_move() {
     let pinned = |id: &str, params: Value| {
         let (user, local) = ("User".to_string(), "local".to_string());
         let kind = "turn.start".to_string();
-        let fp = fingerprint(&kind, &params);
+        let fp = CommandContext::fingerprint(&kind, &params);
         (user, local, id.to_string(), kind, 1, fp)
     };
     let plain = json!({ "thread_id": thread, "prompt": "hi", "model": "fake-large",

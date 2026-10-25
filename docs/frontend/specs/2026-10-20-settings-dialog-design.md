@@ -3,7 +3,7 @@
 - Status: proposed with Mohammed on 2026-10-20 (mockups in the brainstorm session; not kept)
 - Owner: Masada (frontend). Backend needs: [settings dialog request](../../shared/requests/2026-10-20-settings-dialog.md)
 - Replaces: the single scrolling Settings page (`web/src/app/settings/settings-page.tsx` with
-  `web/src/app/desktop/native-settings.tsx` under it)
+  `web/src/app/desktop/native-settings.tsx` under it), both at `1a2b601^1`
 
 ## Why
 
@@ -77,7 +77,7 @@ The person's own data comes first, then the account state, then only the actions
 
 - **You:** their name, and **what AYLUL calls them** (the name AYLUL uses when it speaks to them).
   Both are kept by Core with the person and work without an account. *(needs backend)*
-- **State and actions**, from today's account states (`account-panel.tsx`):
+- **State and actions**, from today's account states (`account-panel.tsx` at `1a2b601^1`):
 
   | State | Shown | Actions |
   |---|---|---|
@@ -195,7 +195,7 @@ No CSS variable reaches the drawing: Canvas takes colours as strings at draw tim
   AYLUL's `blocked` would stop being red) and shifts the dark cloth's brightness unevenly per hue.
   Recoloured assets do not apply: there are no assets. CSS tokens cannot reach a canvas.
 - Cost: no image work; one table entry per colour; no draw call is added, so frame cost is
-  unchanged. The work is one careful pass over the renderer's literals (U-3), with a pixel test
+  unchanged. The work is one careful pass over the renderer's literals (U-3, at `1a2b601`), with a pixel test
   that purple is unchanged.
 
 **The picker** (in the agent form, after Default model):
@@ -228,10 +228,11 @@ command that rereads the agent and republishes, so an edit shows at once rather 
 next 10-second check.
 
 **Who builds what:** the web picker, list dot, sidebar icon, character-section line and the
-save-time refresh call are this side's (F-9, F-14); the companion state's parsing in
-`apps/desktop/src/platform/` is the desktop UI's (U-1); the native read and command belong to the
-native side (an AYLUL shared request). The colour table, its palette function and the renderer
-reading them are Masada's too (Mohammed's ruling, 2026-10-21): U-2 and U-3.
+save-time refresh call are this side's (F-9, F-14 in `docs/frontend/stages.md` at `1a2b601`); the
+companion state's parsing in `apps/desktop/src/platform/` is the desktop UI's (U-1 at `1a2b601`); the
+native read and command belong to the native side (an AYLUL shared request). The colour table, its
+palette function and the renderer reading them are Masada's too (Mohammed's ruling, 2026-10-21):
+U-2 (in `docs/aylul/ui/stages.md`) and U-3 (at `1a2b601`).
 
 ### Plugins & Skills
 

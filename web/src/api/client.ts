@@ -19,6 +19,7 @@ export type AgreementBinding = Schemas['AgreementBinding']
 export type PlanOp = Schemas['PlanOp']
 export type PlanningThread = Schemas['PlanningThread']
 export type ThreadEntry = Schemas['ThreadEntry']
+export type Attachment = Schemas['Attachment']
 export type Operation = Schemas['Operation']
 export type DirectoryListing = Schemas['DirectoryListing']
 export type DirectoryEntry = Schemas['DirectoryEntry']
@@ -69,6 +70,23 @@ export function listHarnesses(): Promise<HarnessInfo[]> {
   return unwrap(client.GET('/api/harnesses'))
 }
 
+/** Uploads one immutable image; Core validates its bytes and media type. */
+export function uploadAttachment(threadId: string, commandId: string, file: File): Promise<Attachment> {
+  const body = new FormData()
+  body.append('command_id', commandId)
+  body.append('file', file)
+  return unwrap(client.POST('/api/threads/{id}/attachments', {
+    params: { path: { id: threadId } },
+    body: { command_id: commandId, file: '' },
+    bodySerializer: () => body,
+  }))
+}
+
+/** The byte route used by thumbnails and durable messages. */
+export function attachmentUrl(threadId: string, attachmentId: string): string {
+  return `${DAEMON_URL}/api/threads/${encodeURIComponent(threadId)}/attachments/${encodeURIComponent(attachmentId)}`
+}
+
 /** Opens the thread's harness session if it is not open; answers what it
  * offers now. Idempotent: an open session answers what it holds (spec §12.2). */
 export function openSession(threadId: string): Promise<SessionChoices> {
@@ -96,6 +114,15 @@ export function changeEffort(threadId: string, effort: string): Promise<SessionC
     client.PUT('/api/threads/{id}/session/effort', {
       params: { path: { id: threadId } },
       body: { effort },
+    }),
+  )
+}
+
+export function changeMode(threadId: string, commandId: string, mode: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/mode', {
+      params: { path: { id: threadId } },
+      body: { command_id: commandId, mode },
     }),
   )
 }
@@ -164,7 +191,8 @@ export async function startTurn(
     focus = null,
     plan,
     clientTab,
-  }: { focus?: Focus | null; plan?: string | null; clientTab: string },
+    attachments,
+  }: { focus?: Focus | null; plan?: string | null; clientTab: string; attachments?: string[] },
 ): Promise<string> {
   const started = await unwrap(
     client.POST('/api/threads/{id}/turns', {
@@ -176,6 +204,7 @@ export async function startTurn(
         focus,
         ...(plan != null ? { plan } : {}),
         client_tab: clientTab,
+        ...(attachments === undefined ? {} : { attachments }),
       },
     }),
   )
@@ -196,7 +225,8 @@ export function queueMessage(
     focus = null,
     plan,
     clientTab,
-  }: { focus?: Focus | null; plan?: string | null; clientTab: string },
+    attachments,
+  }: { focus?: Focus | null; plan?: string | null; clientTab: string; attachments?: string[] },
 ): Promise<Queued> {
   return unwrap(
     client.POST('/api/threads/{id}/queue', {
@@ -208,6 +238,7 @@ export function queueMessage(
         focus,
         ...(plan != null ? { plan } : {}),
         client_tab: clientTab,
+        ...(attachments === undefined ? {} : { attachments }),
       },
     }),
   )

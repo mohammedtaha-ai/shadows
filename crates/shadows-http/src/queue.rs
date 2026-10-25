@@ -1,18 +1,19 @@
-//! One job: the routes of a conversation's waiting messages (spec §20.5).
+//! One job: the routes of a conversation's waiting messages.
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use shadows_core::{Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow, ThreadId};
 
-use super::conversation::{StartTurn, detached};
+use super::conversation::StartTurn;
 use super::failure::ErrorBody;
+use super::transport::Transport;
 use super::{AppState, Failure};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct CommandParam {
-    /// The idempotency key (spec §3.2).
+    /// The idempotency key.
     command_id: String,
 }
 
@@ -38,7 +39,7 @@ pub(super) async fn queue(
 ) -> Result<(StatusCode, Json<Queued>), Failure> {
     let turn: SendTurn = body.into();
     let core = s.core.clone();
-    let answer = detached(async move {
+    let answer = Transport::detached(async move {
         core.turns()
             .queue(thread, turn)
             .await
@@ -66,7 +67,9 @@ pub(super) async fn queued(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct SendNowBody {
-    /// The idempotency key (spec §3.2).
+    #[serde(default)]
+    attachments: Vec<shadows_core::AttachmentId>,
+    /// The idempotency key.
     command_id: String,
 }
 
@@ -96,9 +99,9 @@ pub(super) async fn send_now(
     Json(body): Json<SendNowBody>,
 ) -> Result<(StatusCode, Json<SentNow>), Failure> {
     let core = s.core.clone();
-    let answer = detached(async move {
+    let answer = Transport::detached(async move {
         core.turns()
-            .send_now(&thread, &qid, body.command_id)
+            .send_now(&thread, &qid, body.command_id, body.attachments)
             .await
             .map_err(Failure::from)
     })

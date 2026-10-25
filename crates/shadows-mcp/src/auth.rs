@@ -1,10 +1,9 @@
-//! One job: answering a `/mcp` request that carries no live grant with 401
-//! (spec §13.6).
+//! One job: answering a `/mcp` request that carries no live grant with 401.
 //!
 //! `Authorization: Bearer <token>` is looked up by its hash; a missing,
 //! unknown or revoked token is refused before `rmcp` reads the body, with an
 //! empty 401 and no `WWW-Authenticate` — Claude Code 2.1.281 reports that as a
-//! failed connection and tries no OAuth (`MCP_PROBE.md` §5). The grant found
+//! failed connection and tries no OAuth. The grant found
 //! travels on in the request's extensions, where the tools read it.
 
 use std::sync::Arc;
@@ -42,7 +41,7 @@ pub(super) async fn require_grant(
 }
 
 /// The token of an `Authorization: Bearer <token>` header; the scheme's case
-/// does not matter (RFC 9110 §11.1).
+/// does not matter (RFC 9110).
 fn bearer(headers: &axum::http::HeaderMap) -> Option<&str> {
     let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
     let (scheme, token) = value.split_once(' ')?;

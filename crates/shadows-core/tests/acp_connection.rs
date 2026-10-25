@@ -58,7 +58,7 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
         TurnEnd::Ended
     );
     let events = drain(&mut ev);
-    // The fake's `/` list (§21.1) is one of the events, wherever it falls.
+    // The fake's `/` list is one of the events, wherever it falls.
     assert!(
         events
             .iter()
@@ -88,6 +88,32 @@ async fn a_cancelled_prompt_answers_cancelled() {
     tokio::time::sleep(Duration::from_millis(200)).await;
     c.cancel(&s);
     assert_eq!(turn.await.unwrap().unwrap().end, TurnEnd::Cancelled);
+}
+
+#[tokio::test]
+async fn a_dropped_prompt_frees_the_session() {
+    let (_handle, connection, _events) = open_fake().await;
+    let session = connection
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
+        .await
+        .unwrap()
+        .session_id;
+    {
+        let prompt = connection.prompt(&session, "hang", &[]);
+        tokio::pin!(prompt);
+        tokio::select! {
+            biased;
+            result = &mut prompt => panic!("prompt unexpectedly ended: {result:?}"),
+            () = tokio::task::yield_now() => {}
+        }
+    }
+    let result = tokio::time::timeout(
+        Duration::from_secs(5),
+        connection.prompt(&session, "hi", &[]),
+    )
+    .await
+    .expect("the session accepts another prompt after its caller is dropped");
+    assert_eq!(result.unwrap().end, TurnEnd::Ended);
 }
 
 #[tokio::test]
@@ -240,13 +266,13 @@ async fn a_refused_prompt_names_the_acp_stop_reason() {
 
 #[test]
 fn claude_adapter_launches_node_with_the_explicit_agent() {
-    let adapter = ClaudeAdapter {
-        node: PathBuf::from("node.exe"),
-        adapter: PathBuf::from("adapter.js"),
-        agent: PathBuf::from("claude.exe"),
-        adapter_version: "1".into(),
-        agent_version: "2".into(),
-    };
+    let adapter = ClaudeAdapter::new(
+        PathBuf::from("node.exe"),
+        PathBuf::from("adapter.js"),
+        PathBuf::from("claude.exe"),
+        "1".into(),
+        "2".into(),
+    );
     let cwd = tmp();
     let spec = adapter.process_spec(&cwd);
     assert_eq!(spec.executable, PathBuf::from("node.exe"));

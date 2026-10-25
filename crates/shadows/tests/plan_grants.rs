@@ -1,12 +1,11 @@
-//! What a writer's grant permits a plan write (spec §13.5–§13.7): checked
+//! What a writer's grant permits a plan write: checked
 //! inside the write's transaction, scoped to a thread or a project, and the
 //! draft refs an external agent starts plans with.
 
 use serde_json::json;
-use shadows_core::StorageError;
+use shadows_core::testing::Anchor;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Writer;
-use shadows_core::testing::{Anchor, derived_id};
 use shadows_core::{DraftStarted, GrantId, ProjectId, WrittenBy};
 
 use shadows_core::testing::acp;
@@ -30,9 +29,9 @@ async fn external_start(
     plan: Option<&shadows_core::PlanId>,
     draft_ref: Option<&str>,
     command: &str,
-) -> Result<DraftStarted, StorageError> {
-    app.storage
-        .start_draft(
+) -> Result<DraftStarted, shadows_core::CoreError> {
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(external, command, "DraftStart", json!({ "r": draft_ref })),
             external,
             project,
@@ -45,24 +44,25 @@ async fn external_start(
             &[],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
 }
 
 fn ref_command(r: &str) -> String {
-    derived_id(Anchor::DraftRef(r), "")
+    Anchor::derived_id(Anchor::DraftRef(r), "")
 }
 
 async fn other_project(app: &App) -> ProjectId {
-    app.storage
-        .create_project(
-            &ctx("p2", "project.create"),
-            "other",
-            "Other",
-            &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
-            &shadows_agent::policy::default_modes(),
-        )
-        .await
-        .unwrap()
-        .id
+    shadows_core::testing::create_project(
+        &app.storage,
+        &ctx("p2", "project.create"),
+        "other",
+        "Other",
+        &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap()
+    .id
 }
 
 #[tokio::test]
@@ -92,7 +92,12 @@ async fn a_draft_ref_binds_in_both_paths() {
 
     // From a frozen plan: its next version.
     let v1 = approved_v1(&app).await;
-    let plan = app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .plan_id;
     let r2 = insert_draft_ref(&app, &grant, &in_an_hour()).await;
     let v2 = external_start(
         &app,
@@ -123,7 +128,13 @@ async fn a_draft_ref_binds_in_both_paths() {
     )
     .await;
     assert!(
-        matches!(outside, Err(StorageError::GrantScope)),
+        matches!(
+            outside,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{outside:?}"
     );
 
@@ -142,7 +153,13 @@ async fn a_draft_ref_binds_in_both_paths() {
         )
         .await;
         assert!(
-            matches!(refused, Err(StorageError::GrantScope)),
+            matches!(
+                refused,
+                Err(shadows_core::CoreError::Refused {
+                    code: shadows_core::ErrorCode::GrantScope,
+                    ..
+                })
+            ),
             "{refused:?}"
         );
     }
@@ -153,13 +170,16 @@ async fn a_draft_ref_binds_in_both_paths() {
             "a refused ref stays unbound"
         );
     }
-    let plans = app.storage.list_plans(&app.project, true).await.unwrap();
-    assert_eq!(plans.len(), 2, "the refused starts created no plan");
-    let threads = app
-        .storage
-        .list_threads_for_project(&app.project)
+    let plans = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .list_plans_for_test(&app.project, true)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
+    assert_eq!(plans.len(), 2, "the refused starts created no plan");
+    let threads =
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
+            .await
+            .unwrap();
     assert_eq!(
         threads.len(),
         1,
@@ -193,9 +213,8 @@ async fn an_edit_by_a_revoked_grant_writes_nothing() {
     let grant = insert_grant(&app, "project", &app.project, None).await;
     revoke_grant(&app, &grant).await;
     let external = Writer::External { grant };
-    let refused = app
-        .storage
-        .edit_plan(
+    let refused = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&external, &v1, 0, &[add(1)]),
             &external,
             None,
@@ -203,41 +222,46 @@ async fn an_edit_by_a_revoked_grant_writes_nothing() {
             0,
             &[add(1)],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
-        matches!(refused, Err(StorageError::GrantInvalid)),
+        matches!(
+            refused,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantInvalid,
+                ..
+            })
+        ),
         "{refused:?}"
     );
     assert_eq!(revision(&app, &v1).await, 0);
 }
 
-/// §16.4: storage holds a Planner to its own project; which of the project's
+/// Storage holds a Planner to its own project; which of the project's
 /// plans it reaches is `Plans`' scope check, not this one.
 #[tokio::test]
 async fn a_planner_grant_writes_only_in_its_own_project() {
     let app = test_app().await;
     let v1 = draft(&app).await.workflow_id;
     let foreign = other_project(&app).await;
-    let other = app
-        .storage
-        .create_planning_thread(
-            &ctx("t2", "thread.create"),
-            &foreign,
-            "O",
-            "claude-code",
-            None,
-        )
-        .await
-        .unwrap()
-        .id;
+    let other = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("t2", "thread.create"),
+        &foreign,
+        "O",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
     let grant = insert_grant(&app, "thread", &foreign, Some(&other)).await;
     let planner = Writer::Planner {
         thread: other,
         grant,
     };
-    let refused = app
-        .storage
-        .edit_plan(
+    let refused = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&planner, &v1, 0, &[add(1)]),
             &planner,
             None,
@@ -245,9 +269,16 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
             0,
             &[add(1)],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
-        matches!(refused, Err(StorageError::GrantScope)),
+        matches!(
+            refused,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{refused:?}"
     );
 
@@ -256,9 +287,8 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
         thread: app.thread.clone(),
         grant: own,
     };
-    let done = app
-        .storage
-        .edit_plan(
+    let done = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&planner, &v1, 0, &[add(1)]),
             &planner,
             None,
@@ -267,6 +297,7 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
             &[add(1)],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(done.revision, 1);
     let edited = events(&app, &app.thread).await;
@@ -292,7 +323,7 @@ async fn project_events(
     .unwrap()
 }
 
-/// §16.3: an external agent's plan from scratch has no conversation; its
+/// An external agent's plan from scratch has no conversation; its
 /// version is written by the grant, which is also the event's actor.
 #[tokio::test]
 async fn an_external_start_from_scratch_creates_a_plan_and_no_thread() {
@@ -314,13 +345,16 @@ async fn an_external_start_from_scratch_creates_a_plan_and_no_thread() {
     .unwrap();
     assert_eq!(started.version, 1);
 
-    let threads = app
-        .storage
-        .list_threads_for_project(&app.project)
-        .await
-        .unwrap();
+    let threads =
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
+            .await
+            .unwrap();
     assert_eq!(threads.len(), 1, "only the app's own thread");
-    let plan = app.storage.get_plan(&started.workflow_id).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&started.workflow_id)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(
         (plan.title.as_str(), plan.goal.as_str()),
         ("Search", "find things")
@@ -358,12 +392,23 @@ async fn external_draft_starts_require_a_draft_ref() {
     )
     .await;
     assert!(
-        matches!(scratch, Err(StorageError::GrantScope)),
+        matches!(
+            scratch,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{scratch:?}"
     );
 
     let frozen = approved_v1(&app).await;
-    let plan = app.storage.get_plan(&frozen).await.unwrap().plan_id;
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&frozen)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .plan_id;
     let in_plan = external_start(
         &app,
         &external,
@@ -374,24 +419,34 @@ async fn external_draft_starts_require_a_draft_ref() {
     )
     .await;
     assert!(
-        matches!(in_plan, Err(StorageError::GrantScope)),
+        matches!(
+            in_plan,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{in_plan:?}"
     );
     assert_eq!(
-        app.storage.thread_plan(&app.thread).await.unwrap(),
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .thread_plan_for_test(&app.thread)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap(),
         Some(frozen)
     );
     assert_eq!(
-        app.storage
-            .list_plans(&app.project, true)
+        shadows_core::AppCore::plans_for_tests(app.storage.clone())
+            .list_plans_for_test(&app.project, true)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .len(),
         1
     );
     assert_eq!(
-        app.storage
-            .list_threads_for_project(&app.project)
+        shadows_core::Threads::list_threads_for_project_for_test(&app.storage, &app.project)
             .await
             .unwrap()
             .len(),

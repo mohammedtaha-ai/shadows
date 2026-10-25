@@ -24,27 +24,32 @@ async fn the_planner_approves_a_vision_card_and_replay_appends_nothing() {
     )
     .await;
     // Same durable entry shape committed by Send now, within the current operation.
-    let steered = l
-        .app
-        .storage
-        .append_thread_entry(
-            &l.app.thread,
-            shadows_core::testing::NewThreadEntry {
-                kind: shadows_core::ThreadEntryKind::UserMessage,
-                author: shadows_core::Actor::user("local"),
-                body: "Approve this now",
-                refs: &[],
-                card: None,
-                operation_id: Some(&op),
-            },
-        )
-        .await
-        .unwrap();
+    let steered = shadows_core::Threads::append_thread_entry_for_test(
+        &l.app.storage,
+        &l.app.thread,
+        shadows_core::testing::NewThreadEntry {
+            kind: shadows_core::ThreadEntryKind::UserMessage,
+            author: shadows_core::Actor::user("local"),
+            body: "Approve this now",
+            refs: &[],
+            card: None,
+            operation_id: Some(op.as_str()),
+        },
+    )
+    .await
+    .unwrap();
     let args = json!({"proposal_id":p["id"]});
     let first = ok(&c, "vision_approve", args.clone()).await;
-    let cursor = l.app.storage.current_cursor().await.unwrap();
+    let cursor = shadows_core::Events::current_cursor_for_test(&l.app.storage)
+        .await
+        .unwrap();
     assert_eq!(ok(&c, "vision_approve", args).await, first);
-    assert_eq!(l.app.storage.current_cursor().await.unwrap(), cursor);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&l.app.storage)
+            .await
+            .unwrap(),
+        cursor
+    );
     let proposals = l
         .app
         .core
@@ -91,8 +96,8 @@ async fn vision(l: &listening::Listening) {
     .collect();
     l.app
         .core
-        .design()
-        .edit("vision".into(), &l.app.project, 0, ops)
+        .plans()
+        .edit_design("vision".into(), &l.app.project, 0, ops)
         .await
         .unwrap();
 }
@@ -111,8 +116,8 @@ async fn outdated_superseded_and_already_approved_cards_are_refused() {
     .await;
     l.app
         .core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "change-goal".into(),
             &l.app.project,
             1,
@@ -250,10 +255,8 @@ async fn the_planner_approves_a_map_without_waivers_and_a_plan() {
             .agent,
         "planner:claude-code"
     );
-    // Plans come after the roadmap (§23.6); the plan is tied to a part of the map.
-    let part = l
-        .app
-        .storage
+    // Plans come after the roadmap; the plan is tied to a part of the map.
+    let part = shadows_core::AppCore::design_for_tests(l.app.storage.clone())
         .seed_roadmap_for_tests(&l.app.project)
         .await
         .unwrap();

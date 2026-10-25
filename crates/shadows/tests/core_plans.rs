@@ -1,4 +1,4 @@
-//! Spec §14.9: plan operations answer the same after moving into `Plans`.
+//! Plan operations preserve replay identity and approval behavior.
 
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
@@ -12,14 +12,11 @@ use app::{other_project, post, start_settled};
 use listening::{listening_app, ok, project_client, refused, thread_client};
 use plan::{add, draft_on, tie_to_part};
 use serde_json::json;
-use shadows_core::testing::fingerprint;
+use shadows_core::testing::CommandContext;
 
-/// A replay only matches a command recorded by an earlier daemon when its
-/// kind, schema version and fingerprint parameters are the ones that daemon
-/// used. `plan_commands_replay_after_the_move` replays within one daemon, so
-/// it cannot see a parameter set that changed on both calls; this reads what
-/// the command log holds and compares it with each command's parameters as
-/// the code before the move wrote them (§14.9).
+/// Plan commands persist the kind, schema version and normalized parameters
+/// needed for replay across daemon restarts. Checking the command log against
+/// explicit parameters also catches a fingerprint change shared by both calls.
 #[tokio::test]
 async fn plan_command_fingerprints_do_not_move() {
     let l = listening_app().await;
@@ -61,7 +58,7 @@ async fn plan_command_fingerprints_do_not_move() {
     let scratch = json!({ "title": "X", "goal": "Y", "draft_ref": r["draft_ref"] });
     ok(&external, "draft_start", scratch).await;
 
-    // A person's PlanApprove, of a plan tied to a part (§23.6).
+    // A person's PlanApprove, of a plan tied to a part.
     let workflow = shadows_core::WorkflowId::from_literal(v1.as_str().unwrap());
     tie_to_part(&l.app, &workflow).await;
     let approve = json!({ "command_id": "pin-approve", "expected_revision": 1 });
@@ -81,8 +78,13 @@ async fn plan_command_fingerprints_do_not_move() {
     .await
     .unwrap();
     recorded.sort();
-    let pinned =
-        |kind: &str, params: serde_json::Value| (kind.to_string(), 1, fingerprint(kind, &params));
+    let pinned = |kind: &str, params: serde_json::Value| {
+        (
+            kind.to_string(),
+            1,
+            CommandContext::fingerprint(kind, &params),
+        )
+    };
     let mut expected = vec![
         pinned(
             "DraftStart",

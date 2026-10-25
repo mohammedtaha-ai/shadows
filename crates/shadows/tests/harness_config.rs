@@ -1,10 +1,10 @@
-//! Spec §1.4's one rule, and how the pinned adapter's version is read: the
+//! Explicit harness configuration and the pinned adapter's version: the
 //! configuration a harness is started from, not anything it answers.
 
 use shadows::config::{ConfigError, harness_path};
 use shadows_core::testing::adapter_version;
 
-/// Spec §1.4: the harness is resolved from explicit configuration, never from
+/// The harness is resolved from explicit configuration, never from
 /// `PATH`. `claude` is what a PATH lookup looks like when it is spelled as a
 /// path, and it was the CLI's default until this test existed.
 ///
@@ -47,13 +47,13 @@ fn adapter_version_is_read_from_its_package() {
 /// exit 127). The value is passed by name, never the whole environment.
 #[test]
 fn the_adapter_inherits_path_by_name_and_names_its_claude() {
-    let adapter = shadows_agent::claude::ClaudeAdapter {
-        node: "/usr/bin/node".into(),
-        adapter: "/opt/adapter/index.js".into(),
-        agent: "/opt/claude".into(),
-        adapter_version: "t".into(),
-        agent_version: "t".into(),
-    };
+    let adapter = shadows_agent::claude::ClaudeAdapter::new(
+        "/usr/bin/node".into(),
+        "/opt/adapter/index.js".into(),
+        "/opt/claude".into(),
+        "t".into(),
+        "t".into(),
+    );
     let spec = adapter.process_spec(std::path::Path::new("/tmp"));
     let get = |key: &str| {
         spec.env

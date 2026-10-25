@@ -1,0 +1,45 @@
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Owns the one local person record: the person's name, what AYLUL calls them, their
+# language and their theme. It needs no account or agent home, and depends on no
+# other service. Reading before the first write answers the defaults without a write.
+name: person
+version: 1
+status: current
+source: crates/core-person/src
+
+modules:
+  lib.rs: person record rules
+  error.rs: person refusals
+  model.rs: public person record
+  store/mod.rs: person SQL
+
+dependencies: {}
+
+shapes:
+  PersonSettings:
+    store: private PersonStore over the shared storage handle
+  PersonStore:
+    storage: Arc<Storage> # Private to person; shares the existing pool.
+  Person:
+    updated_at: Null before the first write
+  PersonInput:
+    note: Replaces the complete person record
+  Theme:
+    note: Dark, light or system; defaults to system before the first write
+
+functions:
+  new: "(storage: Arc<Storage>) -> PersonSettings"
+  person: Read the person record or its defaults without a write.
+  set_person: Validate and replace the record under one command.
+  normalize_name: private; trim a name, refuse controls and line breaks, and make empty null.
+  language_tag: private; a short tag shape, not a list.
+
+shared_in_transaction: {}
+
+obligations:
+  - rule: Names are trimmed, at most 64 characters, without controls or line breaks; empty is null.
+    tested_by: [person_names_are_checked]
+  - rule: Language is a short tag shape, not a list; theme is dark, light or system.
+    tested_by: [language_tag_shape_is_checked, theme_values_are_checked]
+  - rule: Person replay requires the same normalized input and writes nothing on replay or conflict.
+    tested_by: [person_replay_with_other_input_conflicts]

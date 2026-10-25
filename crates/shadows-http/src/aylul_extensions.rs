@@ -1,5 +1,5 @@
 //! Shared extension library HTTP translation.
-use super::{AppState, Failure, aylul_env::EnvJson, failure::ErrorBody};
+use super::{AppState, Failure, failure::ErrorBody, transport::EnvJson};
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -28,7 +28,7 @@ pub(super) struct Delete {
 #[utoipa::path(get,path="/api/aylul/extensions",tag="aylul",operation_id="list_extensions",
     responses((status=200,body=ExtensionLibrary),(status=500,body=ErrorBody)))]
 pub(super) async fn library(State(s): State<AppState>) -> Result<Json<ExtensionLibrary>, Failure> {
-    Ok(Json(s.core.profiles().extensions().await?))
+    Ok(Json(s.core.extensions().extensions().await?))
 }
 #[utoipa::path(post,path="/api/aylul/extensions",tag="aylul",operation_id="import_extension",
     request_body=Import,
@@ -42,7 +42,7 @@ pub(super) async fn import(
         StatusCode::CREATED,
         Json(
             s.core
-                .profiles()
+                .extensions()
                 .add_extension(b.command_id, b.kind, &b.path)
                 .await?,
         ),
@@ -59,7 +59,7 @@ pub(super) async fn remove(
     Query(b): Query<Delete>,
 ) -> Result<StatusCode, Failure> {
     s.core
-        .profiles()
+        .extensions()
         .delete_extension(b.command_id, kind, &id)
         .await?;
     Ok(StatusCode::NO_CONTENT)
@@ -72,7 +72,7 @@ pub(super) async fn agent(
     State(s): State<AppState>,
     Path(slug): Path<String>,
 ) -> Result<Json<AgentExtensions>, Failure> {
-    Ok(Json(s.core.profiles().agent_extensions(&slug).await?))
+    Ok(Json(s.core.extensions().agent_extensions(&slug).await?))
 }
 #[utoipa::path(put,path="/api/aylul/agents/{slug}/extensions/{kind}/{id}",tag="aylul",
     operation_id="set_agent_extension",
@@ -86,7 +86,7 @@ pub(super) async fn toggle(
 ) -> Result<Json<AgentItem>, Failure> {
     Ok(Json(
         s.core
-            .profiles()
+            .extensions()
             .set_agent_extension(b.command_id, &slug, kind, &id, b.enabled)
             .await?,
     ))

@@ -1,11 +1,10 @@
-//! Forking a thread from its last completed entry (spec §12.9): a new thread
+//! Forking a thread from its last completed entry: a new thread
 //! holding copies of the source's entries, whose first opening forks the
 //! source's harness session; the source is unchanged.
 
 use serde_json::{Value, json};
 use shadows_core::Actor;
 use shadows_core::OperationId;
-use shadows_core::StorageError;
 use shadows_core::ThreadEntryKind;
 use shadows_core::ThreadId;
 use shadows_core::testing::NewThreadEntry;
@@ -59,7 +58,7 @@ async fn fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone()
     .await;
     assert_eq!(s, 201, "{fork}");
     assert_eq!(fork["forked_from_thread"], app.thread.as_str());
-    // The source was titled after its first message (§4.2) before the fork.
+    // The source was titled after its first message before the fork.
     assert_eq!(fork["title"], "hello (fork)");
     assert_eq!(fork["harness"], "claude-code");
     let fork_id = fork["id"].as_str().unwrap();
@@ -89,7 +88,7 @@ async fn fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone()
     assert_eq!(listed.len(), 2);
 }
 
-/// §23.8: a subagent card is its own kind with its card in a column; a fork
+/// A subagent card is its own kind with its card in a column; a fork
 /// copies both.
 #[tokio::test]
 async fn a_fork_keeps_a_subagent_entry_and_its_card() {
@@ -98,20 +97,20 @@ async fn a_fork_keeps_a_subagent_entry_and_its_card() {
     let src = entries_json(&app, app.thread.as_str()).await;
     let op = OperationId::from_literal(src.last().unwrap()["operation_id"].as_str().unwrap());
     let card = json!({ "id": "a", "title": "List files" });
-    app.storage
-        .append_thread_entry(
-            &app.thread,
-            NewThreadEntry {
-                kind: ThreadEntryKind::Subagent,
-                author: Actor::system(),
-                body: "List files",
-                refs: &[],
-                card: Some(&card),
-                operation_id: Some(&op),
-            },
-        )
-        .await
-        .unwrap();
+    shadows_core::Threads::append_thread_entry_for_test(
+        &app.storage,
+        &app.thread,
+        NewThreadEntry {
+            kind: ThreadEntryKind::Subagent,
+            author: Actor::system(),
+            body: "List files",
+            refs: &[],
+            card: Some(&card),
+            operation_id: Some(op.as_str()),
+        },
+    )
+    .await
+    .unwrap();
     let fork = fork_last(&app).await;
     let copied = entries_json(&app, fork["id"].as_str().unwrap()).await;
     let last = copied.last().unwrap();
@@ -122,9 +121,7 @@ async fn a_fork_keeps_a_subagent_entry_and_its_card() {
 async fn the_forks_first_opening_forks_the_source_session() {
     let app = test_app().await;
     start_and_finish(&app, "hello", default_settings()).await;
-    let src_session = app
-        .storage
-        .turn_context(&app.thread)
+    let src_session = shadows_core::Threads::turn_context_for_test(&app.storage, &app.thread)
         .await
         .unwrap()
         .harness_session_id
@@ -136,13 +133,14 @@ async fn the_forks_first_opening_forks_the_source_session() {
     let r: Value = serde_json::from_str(&last_agent_entry_on(&app, fork_id).await.body).unwrap();
     assert_eq!(r["how"], "fork");
     assert_eq!(r["session"], format!("fork-of-{src_session}"));
-    let recorded = app
-        .storage
-        .turn_context(&ThreadId::from_literal(fork_id))
-        .await
-        .unwrap()
-        .harness_session_id
-        .unwrap();
+    let recorded = shadows_core::Threads::turn_context_for_test(
+        &app.storage,
+        &ThreadId::from_literal(fork_id),
+    )
+    .await
+    .unwrap()
+    .harness_session_id
+    .unwrap();
     assert_eq!(recorded, format!("fork-of-{src_session}"));
     let again = start_and_finish(&app, "report", default_settings()).await;
     assert_eq!(again.status_kind, "Completed", "the source runs on");
@@ -187,7 +185,7 @@ async fn a_stopped_last_turn_is_not_a_fork_point() {
     let op = start_settled(&app, "hang").await;
     wait_for_delta(&mut rx).await;
     PlannerTurn::stop(
-        app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         &op,
@@ -215,7 +213,7 @@ async fn fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_for
     assert_eq!((s, body["code"].as_str()), (409, Some("THREAD_BUSY")));
 }
 
-/// §12.6, §12.9: a fork's session is a fork of its source's, which no other
+/// A fork's session is a fork of its source's, which no other
 /// harness could continue, so its harness is locked from birth — before it
 /// has an operation of its own — in the route, the storage call and the
 /// trigger below both.
@@ -238,17 +236,28 @@ async fn a_fork_is_locked_to_its_sources_harness_from_birth() {
     );
 
     let thread = ThreadId::from_literal(fork_id);
-    let direct = app
-        .storage
-        .set_thread_harness(&app::ctx("h2", "thread.harness"), &thread, "codex")
-        .await;
-    assert!(matches!(direct, Err(StorageError::HarnessLocked)));
+    let direct = shadows_core::testing::Harness::set_thread_harness_for_test(
+        &app.storage,
+        &app::ctx("h2", "thread.harness"),
+        &thread,
+        "codex",
+    )
+    .await;
+    assert!(matches!(
+        direct.map_err(shadows_core::CoreError::from),
+        Err(shadows_core::CoreError::Refused {
+            code: shadows_core::ErrorCode::HarnessLocked,
+            ..
+        })
+    ));
     let raw = sqlx::query("UPDATE planning_thread SET harness_kind = 'codex' WHERE id = ?")
         .bind(fork_id)
         .execute(app.storage.reader())
         .await;
     assert!(raw.is_err(), "the trigger must refuse a raw update too");
-    let ctx = app.storage.turn_context(&thread).await.unwrap();
+    let ctx = shadows_core::Threads::turn_context_for_test(&app.storage, &thread)
+        .await
+        .unwrap();
     assert_eq!(ctx.harness, "claude-code");
 }
 

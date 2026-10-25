@@ -1,4 +1,4 @@
-//! Starting a turn as one command (spec §12.7): one transaction for the entry,
+//! Starting a turn as one command: one transaction for the entry,
 //! the operation, its invocation and the command record; a replay answered
 //! before anything else; every check before any write; the session set to the
 //! turn's settings before the prompt.
@@ -36,13 +36,14 @@ async fn start(
     id: &str,
     prompt: &str,
     settings: &TurnSettings,
-) -> Result<StartedTurn, StorageError> {
-    app.storage
-        .start_turn(
-            &turn_command(id, &app.thread, prompt, settings),
-            new_turn(&app.thread, &app.runtime, prompt, settings),
-        )
-        .await
+) -> Result<StartedTurn, shadows_core::CoreError> {
+    shadows_core::Turns::start_turn_for_test(
+        &app.storage,
+        &turn_command(id, &app.thread, prompt, settings),
+        new_turn(&app.thread, &app.runtime, prompt, settings),
+    )
+    .await
+    .map_err(shadows_core::CoreError::from)
 }
 
 async fn patch_modes(app: &App, modes: &[&str]) {
@@ -51,10 +52,14 @@ async fn patch_modes(app: &App, modes: &[&str]) {
         modes.iter().map(|m| m.to_string()).collect(),
     )]
     .into();
-    app.storage
-        .set_project_modes(&ctx("modes", "project.modes"), &app.project, &modes)
-        .await
-        .unwrap();
+    shadows_core::testing::set_project_modes(
+        &app.storage,
+        &ctx("modes", "project.modes"),
+        &app.project,
+        &modes,
+    )
+    .await
+    .unwrap();
 }
 
 fn thread(app: &App) -> String {
@@ -70,12 +75,10 @@ async fn one_command_writes_entry_operation_invocation_and_record_together() {
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].id, started.entry_id);
     assert_eq!(
-        entries[0].operation_id.as_ref(),
-        Some(&started.operation_id)
+        entries[0].operation_id.as_deref(),
+        Some(started.operation_id.as_str())
     );
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops[0].status_kind, "Pending");
@@ -97,7 +100,8 @@ async fn one_command_writes_entry_operation_invocation_and_record_together() {
     );
     assert!(inv.observed_model.is_none());
     assert_eq!(
-        app.storage
+        app.core
+            .harness()
             .remembered_settings("claude-code")
             .await
             .unwrap(),
@@ -121,18 +125,20 @@ async fn the_invocation_is_frozen_below_the_application() {
 async fn a_replayed_turn_start_starts_nothing_and_returns_the_first_operation() {
     let app = test_app().await;
     let first = start(&app, "t1", "hello", &small_edits()).await.unwrap();
-    app.storage
-        .mark_operation_failed(&first.operation_id, FailureStage::Prepare, "test")
-        .await
-        .unwrap();
+    shadows_core::Turns::mark_operation_failed_for_test(
+        &app.storage,
+        &first.operation_id,
+        FailureStage::Prepare,
+        "test",
+    )
+    .await
+    .unwrap();
     let again = start(&app, "t1", "hello", &small_edits()).await.unwrap();
     assert!(again.replayed);
     assert_eq!(again.operation_id, first.operation_id);
     assert_eq!(again.entry_id, first.entry_id);
     assert_eq!(entries(&app).await.len(), 1);
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops.len(), 1);
@@ -147,7 +153,12 @@ async fn the_same_command_id_with_another_body_is_a_conflict() {
         ..small_edits()
     };
     let other = start(&app, "t1", "hello", &large).await;
-    assert!(matches!(other, Err(StorageError::CommandConflict)));
+    assert!(matches!(
+        other,
+        Err(shadows_core::CoreError::Storage(
+            StorageError::CommandConflict
+        ))
+    ));
 }
 
 #[tokio::test]
@@ -156,7 +167,10 @@ async fn a_second_turn_while_one_is_running_is_thread_busy() {
     start(&app, "t1", "hello", &small_edits()).await.unwrap();
     assert!(matches!(
         start(&app, "t2", "again", &small_edits()).await,
-        Err(StorageError::ThreadBusy)
+        Err(shadows_core::CoreError::Refused {
+            code: shadows_core::ErrorCode::ThreadBusy,
+            ..
+        })
     ));
 }
 
@@ -182,7 +196,11 @@ async fn a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothin
     let foreign = draft_on(&app, &other_thread, "foreign-plan")
         .await
         .workflow_id;
-    let plan_id = app.storage.get_plan(&foreign).await.unwrap().plan_id;
+    let plan_id = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&foreign)
+        .await
+        .unwrap()
+        .plan_id;
     let (status, body) = http_start(
         &app,
         &thread(&app),
@@ -280,7 +298,7 @@ async fn session_model(app: &App) -> String {
     c["current"]["model"].as_str().unwrap().to_string()
 }
 
-/// §12.7: a refused turn leaves no trace, so a model set for it is set back.
+/// A refused turn leaves no trace, so a model set for it is set back.
 #[tokio::test]
 async fn a_refused_effort_leaves_the_session_on_its_model() {
     let app = test_app().await;
@@ -380,9 +398,7 @@ async fn a_model_without_efforts_runs_with_none() {
         (r["model"].as_str(), r["effort"].is_null()),
         (Some("fake-tiny"), true)
     );
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert!(
@@ -536,7 +552,9 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
     );
     let every = entries(&app).await;
     assert!(
-        every.iter().all(|e| e.operation_id.as_ref() == Some(&op)),
+        every
+            .iter()
+            .all(|e| e.operation_id.as_deref() == Some(op.as_str())),
         "the prompt and every entry the turn wrote name the turn"
     );
 }
@@ -559,7 +577,7 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
     let started = start(&app, "t1", "hello", &settings).await.unwrap();
     let op = started.operation_id;
     let stop = PlannerTurn::stop(
-        app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         &op,
@@ -570,10 +588,12 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
     assert_eq!(stop, StopOutcome::NotLive);
     PlannerTurn::start(
         app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         opened,
         PlannerTurnRequest {
+            images: Vec::new(),
             thread_id: app.thread.clone(),
             harness: "claude-code".into(),
             operation_id: op.clone(),

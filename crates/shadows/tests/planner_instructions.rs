@@ -1,4 +1,4 @@
-//! A project's Planner instructions (spec §13.8): each save a new numbered
+//! A project's Planner instructions: each save a new numbered
 //! version, nothing overwritten, the current one the highest number.
 
 use serde_json::{Value, json};
@@ -7,26 +7,21 @@ use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 
-use app::{call, ctx, get_json, other_project, test_app};
-
-fn save_ctx(id: &str, body: &str) -> shadows_core::testing::CommandContext {
-    let mut c = ctx(id, "PlannerInstructionsSave");
-    c.request_fingerprint =
-        shadows_core::testing::fingerprint("PlannerInstructionsSave", &json!(body));
-    c
-}
+use app::{call, get_json, other_project, test_app};
 
 #[tokio::test]
 async fn each_save_is_a_new_numbered_version() {
     let app = test_app().await;
     let first = app
-        .storage
-        .save_planner_instructions(&save_ctx("s1", "Plan small."), &app.project, "Plan small.")
+        .core
+        .instructions()
+        .save("s1".to_string(), &app.project, "Plan small.")
         .await
         .unwrap();
     let second = app
-        .storage
-        .save_planner_instructions(&save_ctx("s2", "Plan big."), &app.project, "Plan big.")
+        .core
+        .instructions()
+        .save("s2".to_string(), &app.project, "Plan big.")
         .await
         .unwrap();
     assert_eq!((first.number, first.body.as_str()), (1, "Plan small."));
@@ -35,8 +30,9 @@ async fn each_save_is_a_new_numbered_version() {
 
     // A replay answers the version it saved, and saves nothing.
     let replay = app
-        .storage
-        .save_planner_instructions(&save_ctx("s1", "Plan small."), &app.project, "Plan small.")
+        .core
+        .instructions()
+        .save("s1".to_string(), &app.project, "Plan small.")
         .await
         .unwrap();
     assert_eq!(replay, first);
@@ -52,36 +48,30 @@ async fn current_instructions_are_the_highest_number() {
     let app = test_app().await;
     let (other, _) = other_project(&app).await;
     assert_eq!(
-        app.storage
-            .current_planner_instructions(&app.project)
-            .await
-            .unwrap(),
+        app.core.instructions().current(&app.project).await.unwrap(),
         None
     );
     for (i, body) in ["one", "two", "three"].iter().enumerate() {
-        app.storage
-            .save_planner_instructions(&save_ctx(&format!("s{i}"), body), &app.project, body)
+        app.core
+            .instructions()
+            .save(format!("s{i}"), &app.project, body)
             .await
             .unwrap();
     }
     let current = app
-        .storage
-        .current_planner_instructions(&app.project)
+        .core
+        .instructions()
+        .current(&app.project)
         .await
         .unwrap()
         .unwrap();
     assert_eq!((current.number, current.body.as_str()), (3, "three"));
     // Another project's instructions are its own, numbered from 1.
-    assert_eq!(
-        app.storage
-            .current_planner_instructions(&other)
-            .await
-            .unwrap(),
-        None
-    );
+    assert_eq!(app.core.instructions().current(&other).await.unwrap(), None);
     let theirs = app
-        .storage
-        .save_planner_instructions(&save_ctx("o1", "theirs"), &other, "theirs")
+        .core
+        .instructions()
+        .save("o1".to_string(), &other, "theirs")
         .await
         .unwrap();
     assert_eq!(theirs.number, 1);
@@ -91,8 +81,9 @@ async fn current_instructions_are_the_highest_number() {
 async fn the_saved_event_does_not_carry_the_body() {
     let app = test_app().await;
     let body = "Keep every task under a day. لا تكتب رمزاً قبل الخطة.";
-    app.storage
-        .save_planner_instructions(&save_ctx("s1", body), &app.project, body)
+    app.core
+        .instructions()
+        .save("s1".to_string(), &app.project, body)
         .await
         .unwrap();
     let events: Vec<(String, String)> = sqlx::query_as(

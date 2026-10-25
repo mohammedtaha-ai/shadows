@@ -1,4 +1,4 @@
-//! The plan in the conversation (spec §13.9): a turn can point at a task,
+//! The plan in the conversation: a turn can point at a task,
 //! which the `UserMessage` keeps and the Planner is told in a context block;
 //! the Planner's `plan_show` writes a `PlanView` card and, live only, signals
 //! the tab that sent the turn with a `plan-show` frame.
@@ -34,7 +34,10 @@ async fn plan_with(app: &App, n: u32) -> WorkflowId {
 }
 
 async fn task_id(app: &App, workflow: &WorkflowId, number: u32) -> TaskId {
-    let plan = app.storage.get_plan(workflow).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(workflow)
+        .await
+        .unwrap();
     let task = plan.tasks.iter().find(|t| t.content.number == number);
     task.expect("the task").id.clone()
 }
@@ -63,7 +66,12 @@ async fn start(app: &App, body: Value) -> OperationId {
 
 async fn wait_running(app: &App, op: &OperationId) {
     for _ in 0..200 {
-        if app.storage.get_operation(op).await.unwrap().status_kind == "Running" {
+        if shadows_core::Turns::get_operation_for_test(&app.storage, op)
+            .await
+            .unwrap()
+            .status_kind
+            == "Running"
+        {
             return;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
@@ -72,7 +80,9 @@ async fn wait_running(app: &App, op: &OperationId) {
 }
 
 async fn release(l: &Listening, op: &OperationId) {
-    let context = l.app.storage.turn_context(&l.app.thread).await.unwrap();
+    let context = shadows_core::Threads::turn_context_for_test(&l.app.storage, &l.app.thread)
+        .await
+        .unwrap();
     let dir = context.project_directory.expect("a project directory");
     std::fs::write(dir.join("release"), "").unwrap();
     assert_eq!(wait_terminal(&l.app, op).await.status_kind, "Completed");
@@ -109,7 +119,13 @@ async fn a_focused_turn_stores_the_task_with_the_message_and_tells_the_planner()
         .find(|e| e.kind == ThreadEntryKind::UserMessage);
     let message = message.expect("the person's message");
     assert_eq!(message.body, "report");
-    assert_eq!(message.refs, [EntryRef::Workflow(v1), EntryRef::Task(t2)]);
+    assert_eq!(
+        message.refs,
+        [
+            EntryRef::Workflow(v1.as_str().into()),
+            EntryRef::Task(t2.as_str().into())
+        ]
+    );
 }
 
 #[tokio::test]
@@ -173,11 +189,9 @@ async fn a_focus_on_a_task_of_another_plan_is_refused() {
     .await;
     assert_eq!(answer["message"], "the chosen task is not in that plan");
     assert_eq!(entries(&l.app).await.len(), before, "nothing was written");
-    let turns = l
-        .app
-        .storage
-        .list_operations_for_thread(&l.app.thread)
-        .await;
+    let turns =
+        shadows_core::Turns::list_operations_for_thread_for_test(&l.app.storage, &l.app.thread)
+            .await;
     assert!(turns.unwrap().is_empty());
 }
 
@@ -234,8 +248,8 @@ async fn plan_show_writes_a_card_and_signals_only_the_sending_tab() {
         .find(|e| e.kind == ThreadEntryKind::PlanView);
     let card = card.expect("a PlanView entry");
     assert_eq!(card.body, "Plan v1");
-    assert_eq!(card.refs, [EntryRef::Workflow(v1.clone())]);
-    assert_eq!(card.operation_id.as_ref(), Some(&op));
+    assert_eq!(card.refs, [EntryRef::Workflow(v1.clone().as_str().into())]);
+    assert_eq!(card.operation_id.as_deref(), Some(op.as_str()));
     let recorded = events_of(&l.app, &l.app.thread, "PlanShown").await;
     assert_eq!(recorded.len(), 1);
     assert!(recorded[0].get("target_tab").is_none(), "{}", recorded[0]);
@@ -319,13 +333,23 @@ async fn plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards() {
     let (t1, t2) = (task_id(&l.app, &v1, 1).await, task_id(&l.app, &v1, 2).await);
     assert_eq!(
         cards[0].refs,
-        [EntryRef::Workflow(v1.clone()), EntryRef::Task(t1)]
+        [
+            EntryRef::Workflow(v1.clone().as_str().into()),
+            EntryRef::Task(t1.as_str().into())
+        ]
     );
     assert_eq!(
         cards[1].refs,
-        [EntryRef::Workflow(v1.clone()), EntryRef::Task(t2)]
+        [
+            EntryRef::Workflow(v1.clone().as_str().into()),
+            EntryRef::Task(t2.as_str().into())
+        ]
     );
-    assert!(cards.iter().all(|c| c.operation_id.as_ref() == Some(&op)));
+    assert!(
+        cards
+            .iter()
+            .all(|c| c.operation_id.as_deref() == Some(op.as_str()))
+    );
 
     let mut sent = Vec::new();
     while let Ok(signal) = signals.try_recv() {
@@ -361,18 +385,16 @@ async fn a_thread_grant_can_read_and_show_any_plan_in_its_project() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
     let v2 = draft_on(&l.app, &l.app.thread, "start-2").await.workflow_id;
-    let other = l
-        .app
-        .storage
-        .create_planning_thread(
-            &app::ctx("other-thread-in-project", "thread.create"),
-            &l.app.project,
-            "Other",
-            shadows_agent::policy::CLAUDE_CODE,
-            None,
-        )
-        .await
-        .unwrap();
+    let other = shadows_core::Threads::create_planning_thread_for_test(
+        &l.app.storage,
+        &app::ctx("other-thread-in-project", "thread.create"),
+        &l.app.project,
+        "Other",
+        shadows_agent::policy::CLAUDE_CODE,
+        None,
+    )
+    .await
+    .unwrap();
     let other_plan = draft_on(&l.app, &other.id, "other-plan").await.workflow_id;
     let planner = thread_client(&l, &l.app.thread).await;
 
@@ -428,6 +450,9 @@ async fn a_thread_grant_can_read_and_show_any_plan_in_its_project() {
         .collect();
     assert_eq!(cards.len(), 2);
     assert_eq!(cards[0].body, "Plan v1");
-    assert_eq!(cards[0].refs, [EntryRef::Workflow(v1)]);
-    assert_eq!(cards[1].refs, [EntryRef::Workflow(other_plan)]);
+    assert_eq!(cards[0].refs, [EntryRef::Workflow(v1.as_str().into())]);
+    assert_eq!(
+        cards[1].refs,
+        [EntryRef::Workflow(other_plan.as_str().into())]
+    );
 }

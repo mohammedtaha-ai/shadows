@@ -1,4 +1,4 @@
-//! §18.10: a Planner reads the workspace a person wrote, and cannot write it.
+//! A Planner reads the workspace a person wrote, and cannot write it.
 use serde_json::json;
 use shadows_core::testing::acp;
 use shadows_core::{DesignOp, PartContent, PartId, VisionField};
@@ -37,8 +37,7 @@ async fn map_propose_before_a_complete_vision_answers_stage_blocked() {
 #[tokio::test]
 async fn the_planner_proposes_vision_cards_but_an_external_agent_cannot() {
     let l = listening_app().await;
-    l.app
-        .storage
+    shadows_core::AppCore::design_for_tests(l.app.storage.clone())
         .seed_map_for_tests(&l.app.project)
         .await
         .unwrap();
@@ -76,8 +75,7 @@ async fn the_planner_proposes_vision_cards_but_an_external_agent_cannot() {
 #[tokio::test]
 async fn a_planner_reads_the_workspace_a_person_wrote() {
     let l = listening::listening_unseeded().await;
-    l.app
-        .storage
+    shadows_core::AppCore::design_for_tests(l.app.storage.clone())
         .seed_map_for_tests(&l.app.project)
         .await
         .unwrap();
@@ -106,8 +104,8 @@ async fn a_planner_reads_the_workspace_a_person_wrote() {
     };
     l.app
         .core
-        .design()
-        .edit(
+        .plans()
+        .edit_design(
             "workspace".into(),
             &l.app.project,
             0,

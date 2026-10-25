@@ -1,5 +1,5 @@
-//! One job: the routes over a project's Planner instructions (spec §13.8,
-//! §13.10) — reading the current version, saving the next.
+//! One job: the routes over a project's Planner instructions — reading the current version, saving
+//! the next.
 //!
 //! Every handler here is `pub(super)`, named only by the route table.
 
@@ -31,15 +31,14 @@ pub(super) async fn get_instructions(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct SaveInstructions {
-    /// The idempotency key (spec §13.5), scoped to the project.
+    /// The idempotency key, scoped to the project.
     command_id: String,
     /// The instructions, as the person wrote them.
     body: String,
 }
 
 /// Saves the project's instructions as its next version; nothing earlier is
-/// overwritten. A running Planner is told of the change before its next turn
-/// (§13.8), never mid-turn.
+/// overwritten. A running Planner is told of the change before its next turn, never mid-turn.
 #[utoipa::path(
     put,
     path = "/api/projects/{id}/planner-instructions",

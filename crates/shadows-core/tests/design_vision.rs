@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
+use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{
     AdditionalPart, AppCore, CoreError, CoreParts, DesignOp, ProjectId, StandardRule,
     StandardsAdditions, StorageError, VisionContent,
@@ -35,8 +35,14 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             .await
             .unwrap(),
     );
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,
@@ -47,7 +53,7 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         mcp_url: acp::MCP_URL.into(),
     });
     let project = core
-        .projects()
+        .project_lifecycle()
         .create(
             "project".into(),
             "vision",
@@ -63,9 +69,10 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         text: " رؤية ".into(),
     }];
     assert_eq!(
-        core.design()
-            .edit("first".into(), &project, 0, first.clone())
+        core.plans()
+            .edit_design("first".into(), &project, 0, first.clone())
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         1
@@ -74,8 +81,8 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         core.design().vision(&project).await.unwrap().content,
         content(" رؤية ")
     );
-    core.design()
-        .edit(
+    core.plans()
+        .edit_design(
             "second".into(),
             &project,
             1,
@@ -85,18 +92,20 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             }],
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(
-        core.design()
-            .edit("first".into(), &project, 0, first)
+        core.plans()
+            .edit_design("first".into(), &project, 0, first)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         1
     );
     assert!(matches!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "first".into(),
                 &project,
                 0,
@@ -105,11 +114,12 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                     text: "changed".into()
                 }]
             )
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::CommandConflict))
     ));
     let other = core
-        .projects()
+        .project_lifecycle()
         .create(
             "other".into(),
             "other",
@@ -124,27 +134,29 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         text: "competing".into(),
     }];
     let (a, b) = tokio::join!(
-        core.design().edit("a".into(), &other, 0, ops.clone()),
-        core.design().edit("b".into(), &other, 0, ops)
+        core.plans().edit_design("a".into(), &other, 0, ops.clone()),
+        core.plans().edit_design("b".into(), &other, 0, ops)
     );
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
     let loser = if a.is_err() { a } else { b };
     assert!(matches!(
-        loser,
+        loser.map_err(CoreError::from),
         Err(CoreError::Storage(StorageError::RevisionConflict {
             current: 1,
             ..
         }))
     ));
-    core.projects()
+    core.project_lifecycle()
         .remove("remove".into(), &project)
         .await
         .unwrap();
-    let before = storage.current_cursor().await.unwrap();
+    let before = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap();
     assert!(core.design().vision(&project).await.is_err());
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "removed".into(),
                 &project,
                 2,
@@ -154,9 +166,16 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
-    assert_eq!(storage.current_cursor().await.unwrap().0, before.0);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&storage)
+            .await
+            .unwrap()
+            .0,
+        before.0
+    );
     let events: Vec<String> = sqlx::query_scalar(
         r#"SELECT payload_json FROM durable_event
                WHERE kind = 'ProjectDesignChanged' AND project_id = ? ORDER BY seq"#,
@@ -186,10 +205,13 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
     .await
     .unwrap();
     let before_view = core.design().vision(&other).await.unwrap();
-    let before_cursor = storage.current_cursor().await.unwrap().0;
+    let before_cursor = shadows_core::Events::current_cursor_for_test(&storage)
+        .await
+        .unwrap()
+        .0;
     assert!(
-        core.design()
-            .edit(
+        core.plans()
+            .edit_design(
                 "rollback".into(),
                 &other,
                 1,
@@ -199,10 +221,17 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                 }]
             )
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     assert_eq!(core.design().vision(&other).await.unwrap(), before_view);
-    assert_eq!(storage.current_cursor().await.unwrap().0, before_cursor);
+    assert_eq!(
+        shadows_core::Events::current_cursor_for_test(&storage)
+            .await
+            .unwrap()
+            .0,
+        before_cursor
+    );
     let results: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM design_command_result")
         .fetch_one(storage.reader())
         .await
@@ -223,9 +252,10 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         },
     ];
     assert_eq!(
-        core.design()
-            .edit("batch".into(), &other, 1, batch)
+        core.plans()
+            .edit_design("batch".into(), &other, 1, batch)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .revision,
         2

@@ -15,15 +15,15 @@ async fn commands(home: &std::path::Path) -> Vec<String> {
         r#"{"hasCompletedOnboarding":true}"#,
     )
     .unwrap();
-    let adapter = ClaudeAdapter {
-        node: r"C:\Program Files\nodejs\node.exe".into(),
-        adapter: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let adapter = ClaudeAdapter::new(
+        r"C:\Program Files\nodejs\node.exe".into(),
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../harness/claude/node_modules/@agentclientprotocol")
             .join("claude-agent-acp/dist/index.js"),
-        agent: r"C:\Users\Mohammed\.local\bin\claude.exe".into(),
-        adapter_version: "0.81.1".into(),
-        agent_version: "2.1.303".into(),
-    };
+        r"C:\Users\Mohammed\.local\bin\claude.exe".into(),
+        "0.81.1".into(),
+        "2.1.303".into(),
+    );
     // The local fixture's fake model ids are replaced only in the live harness fixture.
     // Keep the product-generated extension settings and warm plugin cache intact.
     let settings_path = home.join("settings.json");
@@ -33,10 +33,10 @@ async fn commands(home: &std::path::Path) -> Vec<String> {
     settings["availableModels"] = json!(["MiniMax-M3"]);
     std::fs::write(&settings_path, serde_json::to_vec(&settings).unwrap()).unwrap();
     let model = "MiniMax-M3";
-    let profile = ClaudeProfile {
-        name: "extension-live".into(),
-        home: home.into(),
-        env: vec![
+    let profile = ClaudeProfile::new(
+        "extension-live".into(),
+        home.into(),
+        vec![
             (
                 "ANTHROPIC_BASE_URL".into(),
                 "https://api.minimax.io/anthropic".into(),
@@ -51,7 +51,7 @@ async fn commands(home: &std::path::Path) -> Vec<String> {
                 "1".into(),
             ),
         ],
-    };
+    );
     let mut process = shadows_process::spawn(
         adapter
             .process_spec_with(home, Some(&profile), &[], Some(&key))
@@ -102,7 +102,7 @@ async fn commands(home: &std::path::Path) -> Vec<String> {
 async fn live_agent_extension_isolation() {
     let w = world().await;
     w.core
-        .profiles()
+        .agents()
         .create_agent("b".into(), agent("Other"))
         .await
         .unwrap();
@@ -114,12 +114,12 @@ async fn live_agent_extension_isolation() {
         let src = source(&w, kind, name);
         let item = w
             .core
-            .profiles()
+            .extensions()
             .add_extension(name.into(), kind, &src)
             .await
             .unwrap();
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(format!("on-{name}"), "aylul", kind, &item.id, true)
             .await
             .unwrap();
@@ -135,7 +135,7 @@ async fn live_agent_extension_isolation() {
     assert!(!b.iter().any(|c| c.starts_with("live-")));
     for (kind, id) in items {
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(format!("off-{id}"), "aylul", kind, &id, false)
             .await
             .unwrap();

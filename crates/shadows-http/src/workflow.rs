@@ -1,8 +1,9 @@
-//! One job: the routes over plan versions (spec §13.10) — a project's list, one
+//! One job: the routes over plan versions — a project's list, one
 //! version's read, and the person's approval.
 //!
-//! Approval is a person's action in the web client (§13.2); no MCP tool
-//! approves. Every handler here is `pub(super)`, named only by the route table.
+//! These routes record the person's approval. A Planner uses MCP approval
+//! through the same Plans owner, with its own authority and provenance.
+//! Every handler here is `pub(super)`, named only by the route table.
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -34,7 +35,7 @@ pub(super) async fn plan_map(
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct ListPlansQuery {
-    /// When true, includes archived plans in the listing (§16.2).
+    /// When true, includes archived plans in the listing.
     #[serde(default)]
     archived: bool,
 }
@@ -82,14 +83,14 @@ pub(super) async fn get_plan(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct ApprovePlan {
-    /// The idempotency key (spec §13.5), scoped to the plan version.
+    /// The idempotency key, scoped to the plan version.
     command_id: String,
     /// The revision the person saw; approval of any other is refused.
     expected_revision: i64,
 }
 
 /// Approves a `Draft` version as the person saw it: it becomes `Frozen` and
-/// never changes again (§13.2). The client reads the plan again afterwards. A
+/// never changes again. The client reads the plan again afterwards. A
 /// replay of the same command answers what it answered first.
 #[utoipa::path(
     post,
@@ -131,7 +132,7 @@ pub(super) async fn approve_plan(
     ))
 }
 
-/// One plan with every version, oldest first (§16.10).
+/// One plan with every version, oldest first.
 #[utoipa::path(
     get,
     path = "/api/plans/{id}",
@@ -152,11 +153,11 @@ pub(super) async fn get_plan_versions(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct PlanCommand {
-    /// The idempotency key (spec §16.2), scoped to the plan.
+    /// The idempotency key, scoped to the plan.
     command_id: String,
 }
 
-/// Archives a plan (§16.2). An archived plan is read, never written.
+/// Archives a plan. An archived plan is read, never written.
 /// Archiving an already archived plan answers the plan unchanged.
 #[utoipa::path(
     post,
@@ -185,7 +186,7 @@ pub(super) async fn archive_plan(
     ))
 }
 
-/// Unarchives a plan (§16.2), returning it to `Active`.
+/// Unarchives a plan, returning it to `Active`.
 /// Unarchiving an active plan answers the plan unchanged.
 #[utoipa::path(
     post,

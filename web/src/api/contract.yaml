@@ -68,9 +68,12 @@ client_core:
 
 threads_and_turns:
   listHarnesses: "() -> Promise<HarnessInfo[]>"
+  uploadAttachment: "(threadId: string, commandId: string, file: File) -> Promise<Attachment>; multipart command_id and one file through the shared client; Core owns validation"
+  attachmentUrl: "(threadId: string, attachmentId: string) -> string; encoded byte-route ids under DAEMON_URL"
   openSession: "(threadId: string) -> Promise<SessionChoices>"
   changeModel: "(threadId: string, model: string) -> Promise<SessionChoices>"
   changeEffort: "(threadId: string, effort: string) -> Promise<SessionChoices>"
+  changeMode: "(threadId: string, commandId: string, mode: string) -> Promise<SessionChoices>; saves the mode and returns Core's choices"
   readContext: "(threadId: string) -> Promise<ContextBreakdown>"
   listThreads: "(projectId: string) -> Promise<PlanningThread[]>"
   getThread: "(threadId: string) -> Promise<PlanningThread>"
@@ -80,11 +83,11 @@ threads_and_turns:
   listOperations: "(threadId: string) -> Promise<Operation[]>"
   startTurn:
     "(threadId: string, commandId: string, prompt: string, settings: TurnSettings,
-      opts: { focus?: Focus | null; plan?: string | null; clientTab: string })
+      opts: { focus?: Focus | null; plan?: string | null; clientTab: string; attachments?: string[] })
       -> Promise<string>; resolves to the operation id"
   queueMessage:
     "(threadId: string, commandId: string, prompt: string, settings: TurnSettings,
-      opts: { focus?: Focus | null; plan?: string | null; clientTab: string })
+      opts: { focus?: Focus | null; plan?: string | null; clientTab: string; attachments?: string[] })
       -> Promise<Queued>"
   listQueued: "(threadId: string) -> Promise<QueuedMessage[]>"
   unqueueMessage: "(threadId: string, id: string, commandId: string) -> Promise<void>"
@@ -392,7 +395,8 @@ agreements:
 
   - between: [startTurn, queueMessage]
     must: >
-      send the same command_id, prompt, settings, focus, plan (only when given) and client_tab
+      send the same command_id, prompt, settings, focus, plan (only when given), client_tab
+      and ordered attachments (when given)
     holds: true
     why: >
       Both build the body from the same arguments in the same order.
@@ -595,3 +599,13 @@ extensions:
   removeExtension: "DELETE /api/aylul/extensions/{kind}/{id} with command_id query; unwrapEmpty handles 204"
   agentExtensionsQuery: "GET /api/aylul/agents/{slug}/extensions; ['aylul-agent-extensions', slug]"
   setAgentExtension: "PUT /api/aylul/agents/{slug}/extensions/{kind}/{id} with caller command_id and enabled; resolves AgentItem; no automatic mutation retry"
+
+image_attachments:
+  source: "client.ts; Attachment is an alias from schema.d.ts"
+  upload: "uploadAttachment sends FormData via bodySerializer; no manual Content-Type boundary; caller owns command id"
+  read: "attachmentUrl is the sole URL builder for image elements; Core serves the bytes"
+  send: "startTurn and queueMessage preserve ordered attachment ids; sendQueuedNow acts on the saved queue record"
+  tested_by:
+    - "uploadAttachment sends multipart and attachmentUrl encodes byte-route ids"
+    - "Send waits for uploads and sends image-only ids in selection order"
+    - "queue preserves ordered image ids and Send now uses the saved queued images"

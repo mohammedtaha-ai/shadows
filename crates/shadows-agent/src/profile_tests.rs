@@ -1,13 +1,13 @@
 use super::*;
 fn profile() -> ClaudeProfile {
-    ClaudeProfile {
-        name: "work".into(),
-        home: "C:/isolated/work".into(),
-        env: vec![(
+    ClaudeProfile::new(
+        "work".into(),
+        "C:/isolated/work".into(),
+        vec![(
             "ANTHROPIC_BASE_URL".into(),
             "https://provider.example".into(),
         )],
-    }
+    )
 }
 fn last(env: &[(String, String)], key: &str) -> Option<String> {
     env.iter()

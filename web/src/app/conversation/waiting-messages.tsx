@@ -2,7 +2,9 @@
 // when no turn runs) and Remove, and the reason a send failed.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { sendQueuedNow, unqueueMessage } from '@/api/client'
+import { useRef } from 'react'
+import { attachmentUrl, sendQueuedNow, unqueueMessage } from '@/api/client'
+import { ApiError } from '@/api/error'
 import { queuedQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
@@ -12,8 +14,17 @@ export function WaitingMessages({ threadId, running }: { threadId: string; runni
   const queryClient = useQueryClient()
   const refetch = () =>
     queryClient.invalidateQueries({ queryKey: queuedQuery(threadId).queryKey })
+  const sendCommands = useRef(new Map<string, string>())
   const sendNow = useMutation({
-    mutationFn: (id: string) => sendQueuedNow(threadId, id, crypto.randomUUID()),
+    mutationFn: (id: string) => {
+      const command = sendCommands.current.get(id) ?? crypto.randomUUID()
+      sendCommands.current.set(id, command)
+      return sendQueuedNow(threadId, id, command)
+    },
+    onSuccess: (_answer, id) => { sendCommands.current.delete(id) },
+    onError: (error, id) => {
+      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT') sendCommands.current.delete(id)
+    },
     onSettled: refetch,
   })
   const remove = useMutation({
@@ -31,6 +42,7 @@ export function WaitingMessages({ threadId, running }: { threadId: string; runni
             key={m.id}
             className="ml-auto max-w-[80%] rounded-xl border border-border/60 bg-muted/40 px-3 py-2 opacity-70"
           >
+            {(m.attachments ?? []).map(id => <img key={id} src={attachmentUrl(threadId, id)} alt="Queued image" className="size-24 rounded object-cover" />)}
             <p dir="auto" className="whitespace-pre-wrap text-sm text-foreground">
               {m.prompt}
             </p>

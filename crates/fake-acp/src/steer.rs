@@ -1,4 +1,4 @@
-//! One job: steering a `steerable` prompt that waits for `_session/steering` (spec §20.1).
+//! One job: steering a `steerable` prompt that waits for `_session/steering`.
 
 use std::sync::atomic::Ordering;
 
@@ -12,6 +12,11 @@ pub(crate) fn answer(s: &Session, params: &Value) -> Value {
     if !s.steerable.load(Ordering::SeqCst) {
         return json!({ "outcome": "promptRequired", "reason": "noRunningTurn" });
     }
+    std::fs::write(
+        s.cwd.join("image-steer.json"),
+        serde_json::to_vec(&params["prompt"]).unwrap(),
+    )
+    .unwrap();
     let text = params
         .pointer("/prompt/0/text")
         .and_then(Value::as_str)

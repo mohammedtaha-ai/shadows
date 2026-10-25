@@ -1,4 +1,4 @@
-//! Spec §14.7: a service contract that no longer matches its code fails here.
+//! A service contract that differs from its code fails here.
 //! It cannot check that a rule's prose is true; the reviewer owns that.
 
 use std::collections::BTreeSet;
@@ -101,7 +101,7 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
                             // the service's.
                             if matches!(m.vis, syn::Visibility::Public(_))
                                 && i.trait_.is_none()
-                                && f == dir.join("mod.rs")
+                                && (f == dir.join("mod.rs") || f == dir.join("lib.rs"))
                             {
                                 public.insert(m.sig.ident.to_string());
                             }
@@ -115,6 +115,97 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
     (all, public)
 }
 
+fn agreement_exists(src: &Path, declared: &BTreeSet<String>, path: &str) -> bool {
+    let Some((service, symbol)) = path.split_once("::") else {
+        return declared.contains(path);
+    };
+    // Compare directory entries exactly so Windows rejects paths Linux cannot resolve.
+    let local = std::fs::read_dir(src).unwrap().any(|entry| {
+        let entry = entry.unwrap();
+        entry.file_name() == service
+            && entry.path().is_dir()
+            && symbols(&entry.path()).0.contains(symbol)
+    });
+    if local {
+        return true;
+    }
+    let Some(crates) = src.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let Ok(entries) = std::fs::read_dir(crates) else {
+        return false;
+    };
+    entries.filter_map(Result::ok).any(|entry| {
+        entry.file_name() == format!("core-{}", service.replace('_', "-")).as_str()
+            && entry.path().join("src").is_dir()
+            && symbols(&entry.path().join("src")).0.contains(symbol)
+    })
+}
+
+#[test]
+fn agreement_paths_find_extracted_owners_with_exact_case() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("crates/shadows-core/src");
+    let foundation = root.path().join("crates/core-db/src");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::create_dir_all(&foundation).unwrap();
+    std::fs::write(
+        foundation.join("lib.rs"),
+        "pub struct JournalEntry; impl JournalEntry { pub fn with_project(&self) {} }",
+    )
+    .unwrap();
+    let declared = BTreeSet::new();
+    assert!(agreement_exists(&source, &declared, "db::with_project"));
+    assert!(!agreement_exists(&source, &declared, "Db::with_project"));
+    assert!(!agreement_exists(&source, &declared, "db::missing_method"));
+}
+
+#[test]
+fn agreement_paths_require_exact_service_directory_case() {
+    let root = tempfile::tempdir().unwrap();
+    let operations = root.path().join("operations");
+    std::fs::create_dir(&operations).unwrap();
+    std::fs::write(operations.join("mod.rs"), "fn thread_is_busy() {}").unwrap();
+    let declared = BTreeSet::from(["start_turn".to_owned()]);
+    assert!(agreement_exists(root.path(), &declared, "start_turn"));
+    assert!(agreement_exists(
+        root.path(),
+        &declared,
+        "operations::thread_is_busy"
+    ));
+    assert!(!agreement_exists(
+        root.path(),
+        &declared,
+        "Operations::thread_is_busy"
+    ));
+    assert!(!agreement_exists(
+        root.path(),
+        &declared,
+        "operations::missing_method"
+    ));
+}
+
+#[test]
+fn agreement_paths_resolve_underscored_owners_in_hyphenated_crates() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("crates/shadows-core/src");
+    let owner = root.path().join("crates/core-project-lifecycle/src");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::create_dir_all(&owner).unwrap();
+    std::fs::write(owner.join("lib.rs"), "pub struct ProjectLifecycle;").unwrap();
+    let declared = BTreeSet::new();
+    assert!(agreement_exists(
+        &source,
+        &declared,
+        "project_lifecycle::ProjectLifecycle"
+    ));
+    assert!(!agreement_exists(
+        &source,
+        &declared,
+        "Project_lifecycle::ProjectLifecycle"
+    ));
+}
+
 /// `pub(crate)`, exactly: neither `pub(super)` nor `pub(in …)` nor `pub`.
 fn crate_visible(vis: &syn::Visibility) -> bool {
     matches!(
@@ -123,9 +214,31 @@ fn crate_visible(vis: &syn::Visibility) -> bool {
     )
 }
 
+fn transaction_method(method: &syn::ImplItemFn) -> bool {
+    matches!(method.vis, syn::Visibility::Public(_))
+        && (method.sig.ident.to_string().ends_with("_in")
+            || method.sig.inputs.iter().any(|argument| {
+                let syn::FnArg::Typed(argument) = argument else {
+                    return false;
+                };
+                let syn::Type::Reference(reference) = &*argument.ty else {
+                    return false;
+                };
+                let syn::Type::Path(path) = &*reference.elem else {
+                    return false;
+                };
+                path.path.segments.last().is_some_and(|segment| {
+                    matches!(
+                        segment.ident.to_string().as_str(),
+                        "SqliteConnection" | "Tx"
+                    )
+                })
+            }))
+}
+
 /// Rule 9: the `pub(crate)` functions of a service's `store` (`store.rs` or `store/`), free
 /// or a method of one of its `impl` blocks, which are exactly the ones another service may
-/// call inside one write (§14.6).
+/// call inside one write.
 fn shared(dir: &Path) -> BTreeSet<String> {
     let mut files = Vec::new();
     rs_files(&dir.join("store"), &mut files);
@@ -133,6 +246,34 @@ fn shared(dir: &Path) -> BTreeSet<String> {
         files.push(dir.join("store.rs"))
     }
     let mut out = BTreeSet::new();
+    // Extracted owners expose transaction methods on the service, never its store.
+    if dir.file_name().is_some_and(|name| name == "src")
+        && dir
+            .parent()
+            .and_then(|p| p.file_name())
+            .is_some_and(|n| n != "core-db")
+    {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
+                let Ok(file) = syn::parse_file(&std::fs::read_to_string(&path).unwrap()) else {
+                    continue;
+                };
+                for item in file.items {
+                    if let syn::Item::Impl(i) = item {
+                        for item in i.items {
+                            if let syn::ImplItem::Fn(method) = item
+                                && transaction_method(&method)
+                            {
+                                out.insert(method.sig.ident.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     for f in files {
         let Ok(file) = syn::parse_file(&std::fs::read_to_string(&f).unwrap()) else {
             continue;
@@ -145,7 +286,9 @@ fn shared(dir: &Path) -> BTreeSet<String> {
                 syn::Item::Impl(i) => {
                     for it in &i.items {
                         if let syn::ImplItem::Fn(m) = it
-                            && crate_visible(&m.vis)
+                            && (crate_visible(&m.vis)
+                                || (dir.file_name().is_some_and(|name| name == "src")
+                                    && transaction_method(m)))
                         {
                             out.insert(m.sig.ident.to_string());
                         }
@@ -212,13 +355,29 @@ fn every_contract_matches_its_service() {
     let tests = all_tests();
     let mut problems = Vec::new();
     let mut found = BTreeSet::new();
-    for entry in std::fs::read_dir(&src).unwrap() {
-        let dir = entry.unwrap().path();
+    let mut directories: Vec<_> = std::fs::read_dir(&src)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    directories.extend(
+        std::fs::read_dir(workspace().join("crates"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with("core-"))
+            }),
+    );
+    for dir in directories {
         let path = dir.join("contract.yaml");
         if !path.exists() {
             continue;
         }
         let name = dir.file_name().unwrap().to_string_lossy().to_string();
+        let name = name
+            .strip_prefix("core-")
+            .unwrap_or(&name)
+            .replace('-', "_");
         found.insert(name.clone());
         let docs = match YamlLoader::load_from_str(&std::fs::read_to_string(&path).unwrap()) {
             Ok(d) => d,
@@ -248,7 +407,7 @@ fn every_contract_matches_its_service() {
                 problems.push(format!("{name}: `{f}` is not in {source}"))
             }
         }
-        // Rule 9's calls (§14.6): a store method another service calls outside
+        // Rule 9's calls: a store method another service calls outside
         // its own write is declared, and the declared name exists here.
         let mut calls = BTreeSet::new();
         listed(&doc["called_by_other_services"], &mut calls);
@@ -293,10 +452,7 @@ fn every_contract_matches_its_service() {
                 // A path in another service is written `harness::change_model` and looked up
                 // in that folder.
                 for s in &between {
-                    let found = match s.split_once("::") {
-                        Some((svc, sym)) => symbols(&src.join(svc)).0.contains(sym),
-                        None => declared.contains(*s),
-                    };
+                    let found = agreement_exists(&src, &declared, s);
                     if !found {
                         problems.push(format!("{name}: agreement path `{s}` does not exist"))
                     }
@@ -367,8 +523,8 @@ fn every_contract_matches_its_service() {
             ))
         }
     }
-    // §14.7: every service has a contract. A folder without one is skipped above, so the
-    // services are read from the code: `AppCore`'s accessors (`core.plans()`, §14.4), each
+    // Every service has a contract. A folder without one is skipped above, so the
+    // services are read from the code: `AppCore`'s accessors (`core.plans()`), each
     // named after its folder. A ninth service is required the day its accessor exists.
     let services = accessors(&src.join("app.rs"));
     if services.is_empty() {
@@ -383,5 +539,36 @@ fn every_contract_matches_its_service() {
         problems.is_empty(),
         "contracts out of date (spec §14.7):\n{}",
         problems.join("\n")
+    );
+}
+
+#[test]
+fn extracted_transaction_methods_are_checked_in_private_store_modules() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("src");
+    std::fs::create_dir_all(source.join("store")).unwrap();
+    std::fs::write(source.join("lib.rs"), "pub struct Projects;").unwrap();
+    std::fs::write(
+        source.join("store/mod.rs"),
+        "impl Projects { pub async fn retained_in() {} pub(super) fn load() {} }",
+    )
+    .unwrap();
+    assert_eq!(shared(&source), BTreeSet::from(["retained_in".to_owned()]));
+}
+
+#[test]
+fn extracted_transaction_methods_are_checked_without_suffixes() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("src");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::write(
+        source.join("lib.rs"),
+        "impl Grants { pub async fn check_writer(conn: &mut sqlx::SqliteConnection) {} \
+         pub async fn bind_draft_ref(conn: &mut core_db::Tx) {} pub fn tools_for() {} }",
+    )
+    .unwrap();
+    assert_eq!(
+        shared(&source),
+        BTreeSet::from(["bind_draft_ref".to_owned(), "check_writer".to_owned()])
     );
 }

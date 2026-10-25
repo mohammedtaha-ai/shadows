@@ -1,4 +1,4 @@
-//! Cross-plan link identities under §16.7.
+//! Cross-plan link identities.
 
 use serde_json::json;
 use shadows_core::Link;
@@ -44,8 +44,8 @@ async fn cross_plan_links_persist_replay_and_reopen_without_duplicate_events() {
     let (temp, storage) = fixture().await;
     let source = WorkflowId::from_literal(SOURCE);
     let target = WorkflowId::from_literal(TARGET);
-    storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(
             &command("target-task"),
             &Writer::Person,
             None,
@@ -67,17 +67,21 @@ async fn cross_plan_links_persist_replay_and_reopen_without_duplicate_events() {
     };
     let ops = [task(4), PlanOp::LinkPut { link: link.clone() }];
     let context = command("source-link");
-    let first = storage
-        .edit_plan(&context, &Writer::Person, None, &source, 0, &ops)
+    let first = shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(&context, &Writer::Person, None, &source, 0, &ops)
         .await
         .unwrap();
-    let replay = storage
-        .edit_plan(&context, &Writer::Person, None, &source, 0, &ops)
+    let replay = shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(&context, &Writer::Person, None, &source, 0, &ops)
         .await
         .unwrap();
     assert_eq!(first, replay);
     assert_eq!(
-        storage.get_plan(&source).await.unwrap().links,
+        shadows_core::AppCore::plans_for_tests(storage.clone())
+            .get_plan_for_test(&source)
+            .await
+            .unwrap()
+            .links,
         vec![link.clone()]
     );
     let events: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
@@ -89,15 +93,22 @@ async fn cross_plan_links_persist_replay_and_reopen_without_duplicate_events() {
     let reopened = Storage::open(&temp.path().join("links.sqlite3"))
         .await
         .unwrap();
-    assert_eq!(reopened.get_plan(&source).await.unwrap().links, vec![link]);
+    assert_eq!(
+        shadows_core::AppCore::plans_for_tests(std::sync::Arc::new(reopened))
+            .get_plan_for_test(&source)
+            .await
+            .unwrap()
+            .links,
+        vec![link]
+    );
 }
 
 #[tokio::test]
 async fn a_frozen_versions_cross_links_refuse_every_database_write() {
     let (_temp, storage) = fixture().await;
     let source = WorkflowId::from_literal(SOURCE);
-    storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(
             &command("guard-target"),
             &Writer::Person,
             None,
@@ -117,8 +128,8 @@ async fn a_frozen_versions_cross_links_refuse_every_database_write() {
         label: "Login result".into(),
         waiting_items: vec![],
     };
-    storage
-        .edit_plan(
+    shadows_core::AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(
             &command("frozen-link"),
             &Writer::Person,
             None,
@@ -153,23 +164,32 @@ async fn a_frozen_versions_cross_links_refuse_every_database_write() {
             "{error}"
         );
         assert_eq!(
-            storage.get_plan(&source).await.unwrap().links,
+            shadows_core::AppCore::plans_for_tests(storage.clone())
+                .get_plan_for_test(&source)
+                .await
+                .unwrap()
+                .links,
             vec![link.clone()]
         );
     }
-    let issued = storage
-        .issue_project_grant(&command("copy-grant"), &ProjectId::from_literal("p"))
+    let issued = shadows_core::Grants::issue_project_grant_for_test(
+        &storage,
+        &command("copy-grant"),
+        &ProjectId::from_literal("p"),
+    )
+    .await
+    .unwrap();
+    let grant = issued.grant.id;
+    let draft_ref = shadows_core::Grants::prepare_draft_for_test(&storage, &grant)
         .await
         .unwrap();
-    let grant = issued.grant.id;
-    let draft_ref = storage.prepare_draft(&grant).await.unwrap();
     let mut context = command("copy-links");
     context.principal_kind = "Grant".into();
     context.principal_id = grant.to_string();
     context.command_kind = "DraftStart".into();
     context.command_id = draft_ref.clone();
-    let next = storage
-        .start_draft(
+    let next = shadows_core::AppCore::plans_for_tests(storage.clone())
+        .start_draft_for_test(
             &context,
             &Writer::External { grant },
             &ProjectId::from_literal("p"),
@@ -185,7 +205,11 @@ async fn a_frozen_versions_cross_links_refuse_every_database_write() {
         .unwrap();
     assert_eq!(next.version, 2);
     assert_eq!(
-        storage.get_plan(&next.workflow_id).await.unwrap().links,
+        shadows_core::AppCore::plans_for_tests(storage.clone())
+            .get_plan_for_test(&next.workflow_id)
+            .await
+            .unwrap()
+            .links,
         vec![link]
     );
 }
@@ -205,8 +229,8 @@ async fn a_failed_cross_link_batch_leaves_no_tasks_revision_or_event() {
         waiting_items: vec![],
     };
     assert!(
-        storage
-            .edit_plan(
+        shadows_core::AppCore::plans_for_tests(storage.clone())
+            .edit_plan_for_test(
                 &command("invalid-link"),
                 &Writer::Person,
                 None,
@@ -217,7 +241,10 @@ async fn a_failed_cross_link_batch_leaves_no_tasks_revision_or_event() {
             .await
             .is_err()
     );
-    let plan = storage.get_plan(&source).await.unwrap();
+    let plan = shadows_core::AppCore::plans_for_tests(storage.clone())
+        .get_plan_for_test(&source)
+        .await
+        .unwrap();
     assert_eq!(plan.revision, 0);
     assert!(plan.tasks.is_empty());
     assert!(plan.links.is_empty());

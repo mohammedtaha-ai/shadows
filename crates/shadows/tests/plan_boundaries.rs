@@ -1,4 +1,4 @@
-//! Project plan write boundaries (§16): archive state is checked in the
+//! Project plan write boundaries: archive state is checked in the
 //! transaction, and writer attribution does not limit a conversation's reach.
 
 use serde_json::json;
@@ -23,11 +23,11 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
         .plans()
         .archive("archive".into(), &v1.plan_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     // These calls represent writes already scoped before the archive committed.
-    let edited = app
-        .storage
-        .edit_plan(
+    let edited = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .edit_plan_for_test(
             &edit_ctx(&writer, &v1.workflow_id, 1, &[add(2)]),
             &writer,
             None,
@@ -35,10 +35,10 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
             1,
             &[add(2)],
         )
-        .await;
-    let started = app
-        .storage
-        .start_draft(
+        .await
+        .map_err(shadows_core::CoreError::from);
+    let started = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .start_draft_for_test(
             &writer_ctx(&writer, "late-start", "DraftStart", json!({})),
             &writer,
             &app.project,
@@ -50,12 +50,14 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
             None,
             &[],
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     let approved = app
         .core
         .plans()
         .approve("late-approve".into(), &v1.workflow_id, 1)
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         edited
             .as_ref()
@@ -78,7 +80,11 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
         ),
         "{approved:?}"
     );
-    let after = app.storage.get_plan(&v1.workflow_id).await.unwrap();
+    let after = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1.workflow_id)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(
         (after.revision, after.state, after.tasks.len()),
         (1, WorkflowState::Draft, 1)
@@ -90,18 +96,21 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
     let app = test_app().await;
     let v1 = draft(&app).await;
     edit(&app, &v1.workflow_id, 0, &[add(1)]).await;
-    let plan = app.storage.get_plan(&v1.workflow_id).await.unwrap();
-    let other = app
-        .storage
-        .create_planning_thread(
-            &ctx("other", "thread.create"),
-            &app.project,
-            "Other",
-            "claude-code",
-            None,
-        )
+    let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&v1.workflow_id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
+    let other = shadows_core::Threads::create_planning_thread_for_test(
+        &app.storage,
+        &ctx("other", "thread.create"),
+        &app.project,
+        "Other",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap();
     let mut body = app::default_settings();
     body["command_id"] = json!("focus-shared");
     body["prompt"] = json!("report");
@@ -110,10 +119,13 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
     assert_eq!(status, 202, "{answer}");
     let op = OperationId::from_literal(answer["operation_id"].as_str().unwrap());
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
-    let entries = app.storage.list_thread_entries(&other.id).await.unwrap();
+    let entries = shadows_core::Threads::list_thread_entries_for_test(&app.storage, &other.id)
+        .await
+        .unwrap();
     assert!(entries.iter().any(|e| {
-        e.refs
-            .contains(&shadows_core::EntryRef::Task(plan.tasks[0].id.clone()))
+        e.refs.contains(&shadows_core::EntryRef::Task(
+            plan.tasks[0].id.clone().as_str().into(),
+        ))
     }));
     app.sessions.close_all().await.unwrap();
 }
@@ -131,14 +143,13 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
         .unwrap();
     let settings = default_turn_settings();
     let command = turn_command("pending", &app.thread, "hang", &settings);
-    let started = app
-        .storage
-        .start_turn(
-            &command,
-            new_turn(&app.thread, &app.runtime, "hang", &settings),
-        )
-        .await
-        .unwrap();
+    let started = shadows_core::Turns::start_turn_for_test(
+        &app.storage,
+        &command,
+        new_turn(&app.thread, &app.runtime, "hang", &settings),
+    )
+    .await
+    .unwrap();
     let op = started.operation_id;
     let mut commits = app.storage.watch_committed();
     let ((removed, at_answer), resumed) =
@@ -147,20 +158,23 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
                 async {
                     let removed = app
                         .core
-                        .threads()
-                        .remove("remove-pending".into(), &app.thread)
+                        .turns()
+                        .remove_thread("remove-pending".into(), &app.thread)
                         .await
                         .unwrap();
-                    (removed, app.storage.get_operation(&op).await.unwrap())
+                    (
+                        removed,
+                        shadows_core::Turns::get_operation_for_test(&app.storage, &op)
+                            .await
+                            .unwrap(),
+                    )
                 },
                 async {
                     // Keep preparation suspended until Stop actually requests
                     // cancellation. Merely waiting for removed_at lets this
                     // test finish preparation before Stop looks for the turn.
                     loop {
-                        if app
-                            .storage
-                            .get_operation(&op)
+                        if shadows_core::Turns::get_operation_for_test(&app.storage, &op)
                             .await
                             .unwrap()
                             .cancel_requested_at
@@ -172,10 +186,12 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
                     }
                     PlannerTurn::start(
                         app.runtime.clone(),
+                        app.runtime.storage_for_test(),
                         app.handles.clone(),
                         app.sessions.clone(),
                         opened,
                         PlannerTurnRequest {
+                            images: Vec::new(),
                             thread_id: app.thread.clone(),
                             harness: "claude-code".into(),
                             operation_id: op.clone(),

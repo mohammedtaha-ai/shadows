@@ -270,7 +270,7 @@ export interface paths {
         /** The code index's settings. */
         get: operations["get_settings"];
         /**
-         * Sets how many projects are active at once (§15.6). Lowering it stops the
+         * Sets how many projects are active at once. Lowering it stops the
          *     least recently used projects' watchers at once.
          */
         put: operations["put_settings"];
@@ -290,8 +290,7 @@ export interface paths {
         };
         /**
          * A directory's immediate subdirectories, or the roots to start from.
-         * @description Exposes the machine's directory names to any client the CORS list admits;
-         *     see spec §1's OPEN block on remote access.
+         * @description Exposes the machine's directory names to any client the CORS list admits.
          */
         get: operations["list_dirs"];
         put?: never;
@@ -334,7 +333,7 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Revoke (§13.7): Shadows refuses the grant's token from now on. It does not
+         * Revoke: Shadows refuses the grant's token from now on. It does not
          *     remove the server from the person's Claude configuration.
          */
         delete: operations["revoke_grant"];
@@ -388,7 +387,7 @@ export interface paths {
         /**
          * Stops a turn: asks the harness to cancel it, and if the harness does not
          *     confirm in time, terminates the adapter's process tree, confirms it is
-         *     gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers
+         *     gone, and only then records it `Cancelled`. Answers
          *     with the operation as it now stands — which may still be `Running` for a
          *     moment when the turn had already ended on its own and its ending is being
          *     recorded.
@@ -409,7 +408,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One plan with every version, oldest first (§16.10). */
+        /** One plan with every version, oldest first. */
         get: operations["get_plan_versions"];
         put?: never;
         post?: never;
@@ -429,7 +428,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Archives a plan (§16.2). An archived plan is read, never written.
+         * Archives a plan. An archived plan is read, never written.
          *     Archiving an already archived plan answers the plan unchanged.
          */
         post: operations["archive_plan"];
@@ -449,7 +448,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Unarchives a plan (§16.2), returning it to `Active`.
+         * Unarchives a plan, returning it to `Active`.
          *     Unarchiving an active plan answers the plan unchanged.
          */
         post: operations["unarchive_plan"];
@@ -488,7 +487,7 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Removes a project that holds no planning thread (spec §4.2): it is listed
+         * Removes a project that holds no planning thread: it is listed
          *     nowhere again, its code index, its links and its MCP grants go, and its
          *     slug stays taken. A replay answers the removed project.
          */
@@ -496,7 +495,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Sets the modes this project allows, per harness (spec §12.5). A turn's
+         * Sets the modes this project allows, per harness. A turn's
          *     mode is checked against them when it starts. A replay answers the project
          *     as it now stands.
          */
@@ -576,7 +575,7 @@ export interface paths {
         };
         /**
          * Where a name is defined: per hit, its project, path, line, kind and
-         *     signature (§15.5).
+         *     signature.
          */
         get: operations["definitions"];
         put?: never;
@@ -613,12 +612,12 @@ export interface paths {
         };
         get?: never;
         /**
-         * Lets the project read `linked`'s index, one way (§15.6). Linking twice
+         * Lets the project read `linked`'s index, one way. Linking twice
          *     answers the link.
          */
         put: operations["put_link"];
         post?: never;
-        /** Removes the link: the project no longer reads `linked`'s index. */
+        /** Removes the link, ending this project's access to `linked`'s index. */
         delete: operations["remove_link"];
         options?: never;
         head?: never;
@@ -633,7 +632,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The definitions in a file or folder (§15.5). It reads the index and
+         * The definitions in a file or folder. It reads the index and
          *     opens no path.
          */
         get: operations["outline"];
@@ -654,7 +653,7 @@ export interface paths {
         };
         /**
          * Where a name is used, matched by name only: every hit says
-         *     `matched_by: "name"` (§15.5).
+         *     `matched_by: "name"`.
          */
         get: operations["references"];
         put?: never;
@@ -786,7 +785,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * A project's plan/design notifications (§16.8, §18.11), replayed then live on the same
+         * A project's plan/design notifications, replayed then live on the same
          *     journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
          *     operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
          *     Archive notifications name the plan's latest version to refetch.
@@ -848,7 +847,7 @@ export interface paths {
         get: operations["list_grants"];
         put?: never;
         /**
-         * Connect (§13.7): issues a grant bound to this project for an external
+         * Connect: issues a grant bound to this project for an external
          *     agent. The token is shown once — here — and stored only as its hash.
          */
         post: operations["issue_grant"];
@@ -888,8 +887,7 @@ export interface paths {
         get: operations["get_instructions"];
         /**
          * Saves the project's instructions as its next version; nothing earlier is
-         *     overwritten. A running Planner is told of the change before its next turn
-         *     (§13.8), never mid-turn.
+         *     overwritten. A running Planner is told of the change before its next turn, never mid-turn.
          */
         put: operations["save_instructions"];
         post?: never;
@@ -1090,11 +1088,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Spec §2.10: durable replay, then a no-gap handoff to live, then
+         * Durable replay, then a no-gap handoff to live, then
          *     de-duplication by durable sequence.
          * @description Two live sources, both taken BEFORE a single journal row is read:
          *
-         *     - the storage's committed-sequence signal (spec §2.4: raised after each
+         *     - the storage's committed-sequence signal (raised after each
          *       commit that appended to the journal). A commit that lands while the
          *       replay is being read shows up as a pending change, so it cannot fall into
          *       the gap between the replay's last read and the live phase.
@@ -1131,13 +1129,45 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Changes the thread's CLI before its first turn (spec §12.6). A replay
+         * Changes the thread's CLI before its first turn. A replay
          *     answers the thread as it now stands and changes nothing, even once the
          *     harness is locked; a new command after the first turn, or on a fork (its
-         *     session is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change
-         *     closes the thread's adapter (§12.2).
+         *     session is a fork of its source's), is `HARNESS_LOCKED`. A change
+         *     closes the thread's adapter.
          */
         patch: operations["update_thread"];
+        trace?: never;
+    };
+    "/api/threads/{id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/{id}/attachments/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/threads/{id}/context": {
@@ -1148,8 +1178,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The context breakdown of the thread's session, read on demand (spec
-         *     §12.8). It is fetched only on an open, idle session that has answered a
+         * The context breakdown of the thread's session, read on demand. It is fetched only on an open,
+         *     idle session that has answered a
          *     turn, within five seconds; otherwise it says why it has none. Nothing is
          *     written: no operation, no entry.
          */
@@ -1190,7 +1220,7 @@ export interface paths {
         put?: never;
         /**
          * Forks the thread from its last completed entry into a new thread on the
-         *     same project (spec §12.9). The new thread holds copies of the entries up to
+         *     same project. The new thread holds copies of the entries up to
          *     and including `at_entry_id`; its next turn continues a fork of the
          *     source's harness session. The source is unchanged. A replay answers the
          *     fork already made.
@@ -1286,12 +1316,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Opens the thread's harness session (spec §12.2) and answers what it
+         * Opens the thread's harness session and answers what it
          *     offers. Idempotent: an open session answers what it holds. A client calls
          *     it when it shows the conversation, so the menus are ready before the
          *     first message. It carries no `command_id` and records no command, entry
          *     or operation. An opening that starts an adapter issues the thread's MCP
-         *     grant (spec §13.7): an `mcp_grant` row and a durable `McpGrantIssued`
+         *     grant: an `mcp_grant` row and a durable `McpGrantIssued`
          *     event, after revoking with `McpGrantRevoked` the grant of any closed
          *     adapter it replaces; an opening that fails revokes the grant it issued.
          *     A session already open writes nothing.
@@ -1312,14 +1342,31 @@ export interface paths {
         };
         get?: never;
         /**
-         * Sets the thread's session to `effort` as soon as a person picks it (spec
-         *     §12.7), as `PUT .../session/model` sets a model: it opens the session
+         * Sets the thread's session to `effort` as soon as a person picks it, as `PUT .../session/model`
+         *     sets a model: it opens the session
          *     first if it is not open, answers its choices exactly as `POST
          *     .../session` does, writes nothing durable and carries no `command_id`.
-         *     The remembered settings do not move (§12.4).
+         *     The remembered settings do not move.
          *     A running turn's session is not changed (`THREAD_BUSY`).
          */
         put: operations["change_effort"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/{id}/session/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Remembers the conversation's mode. A running turn keeps its current mode. */
+        put: operations["change_mode"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1336,14 +1383,14 @@ export interface paths {
         };
         get?: never;
         /**
-         * Sets the thread's session to `model` as soon as a person picks it (spec
-         *     §12.7), opening the session first if it is not open, and answers its
+         * Sets the thread's session to `model` as soon as a person picks it, opening the session first if
+         *     it is not open, and answers its
          *     choices exactly as `POST .../session` does — the efforts are now the new
          *     model's. The change itself writes nothing durable and no `command_id` is
          *     carried: setting the same model twice is the same state, and a turn
          *     records its model in its own invocation. An opening it causes writes what
          *     `POST .../session` writes (the thread's MCP grant and its events). The
-         *     remembered settings do not move (§12.4); when the session moves to the
+         *     remembered settings do not move; when the session moves to the
          *     model, it is set to that model's remembered effort if still offered.
          *     A running turn's session is not changed (`THREAD_BUSY`).
          */
@@ -1367,14 +1414,14 @@ export interface paths {
         /**
          * Starts a Planner turn. The turn runs in the thread's project directory and
          *     continues the thread's harness session; neither is the client's to name.
-         * @description Spec §3.3: a long-running command answers 202 with an operation id, and the
+         * @description A long-running command answers 202 with an operation id, and the
          *     operation reaches its terminal outcome later — watch it on
-         *     `/api/subscribe`. Spec §12.7: the prompt, the operation, its invocation
+         *     `/api/subscribe`. The prompt, the operation, its invocation
          *     and the command record commit together, after every check; a check that
          *     fails writes nothing. A retry with the same `command_id` and body answers
          *     the first operation and starts nothing, even while the daemon stops.
          *
-         *     A daemon that has begun to stop refuses a new turn with 503 (spec §8.5).
+         *     A daemon that has begun to stop refuses a new turn with 503.
          */
         post: operations["start_turn"];
         delete?: never;
@@ -1414,7 +1461,7 @@ export interface paths {
         put?: never;
         /**
          * Approves a `Draft` version as the person saw it: it becomes `Frozen` and
-         *     never changes again (§13.2). The client reads the plan again afterwards. A
+         *     never changes again. The client reads the plan again afterwards. A
          *     replay of the same command answers what it answered first.
          */
         post: operations["approve_plan"];
@@ -1444,14 +1491,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description Spec §13.3. One sentence someone can check, numbered within its task. */
+        /** @description One sentence someone can check, numbered within its task. */
         AcceptanceItem: {
             /** Format: int32 */
             number: number;
             text: string;
         };
         /**
-         * @description The account's limits as last reported by the harness (spec §12.8). A
+         * @description The account's limits as last reported by the harness. A
          *     window the harness did not report is `None`, never estimated.
          */
         AccountLimits: {
@@ -1606,7 +1653,7 @@ export interface components {
             thread_id: components["schemas"]["ThreadId"];
         };
         ApprovePlan: {
-            /** @description The idempotency key (spec §13.5), scoped to the plan version. */
+            /** @description The idempotency key, scoped to the plan version. */
             command_id: string;
             /**
              * Format: int64
@@ -1614,7 +1661,7 @@ export interface components {
              */
             expected_revision: number;
         };
-        /** @description What an approval did, fixed when it committed (§13.2, §13.5). */
+        /** @description What an approval did, fixed when it committed. */
         Approved: {
             frozen_at: string;
             /** Format: int64 */
@@ -1627,6 +1674,20 @@ export interface components {
             agent: string;
             principal: string;
             request?: null | components["schemas"]["ApprovalRequest"];
+        };
+        Attachment: {
+            /** Format: int64 */
+            byte_len: number;
+            id: components["schemas"]["AttachmentId"];
+            media_type: string;
+            name?: string | null;
+        };
+        /** Format: uuid */
+        AttachmentId: string;
+        AttachmentRef: {
+            id: components["schemas"]["AttachmentId"];
+            media_type: string;
+            name?: string | null;
         };
         BaseStandards: {
             contract_template: components["schemas"]["ContractTemplate"];
@@ -1654,18 +1715,22 @@ export interface components {
             workflow_id: components["schemas"]["WorkflowId"];
             workflow_state: components["schemas"]["WorkflowState"];
         };
-        /** @description The effort a person picked (spec §12.7). */
+        /** @description The effort a person picked. */
         ChangeEffort: {
             /** @description One of the session's `efforts`, for the model it holds. */
             effort: string;
         };
-        /** @description The model a person picked (spec §12.7). */
+        ChangeMode: {
+            command_id: string;
+            mode: string;
+        };
+        /** @description The model a person picked. */
         ChangeModel: {
             /** @description One of the session's `models`. */
             model: string;
         };
         /**
-         * @description One value the session offers for a setting (spec §12.4). `enabled: false`
+         * @description One value the session offers for a setting. `enabled: false`
          *     carries the `reason` it cannot be chosen.
          */
         Choice: {
@@ -1675,7 +1740,7 @@ export interface components {
             label: string;
             reason: string | null;
         };
-        /** @description The code index's settings (§15.6). */
+        /** @description The code index's settings. */
         CodeSettings: {
             /**
              * Format: int32
@@ -1684,7 +1749,7 @@ export interface components {
             active_limit: number;
         };
         /**
-         * @description The context breakdown read on demand (spec §12.8): the categories, or none
+         * @description The context breakdown read on demand: the categories, or none
          *     with the reason.
          */
         ContextBreakdown: {
@@ -1715,7 +1780,7 @@ export interface components {
         };
         CreateProject: {
             /**
-             * @description The idempotency key (spec §3.2). The same id with the same request
+             * @description The idempotency key. The same id with the same request
              *     replays the first answer; with a different one it is a conflict.
              */
             command_id: string;
@@ -1731,7 +1796,7 @@ export interface components {
             command_id: string;
         };
         CreateThread: {
-            /** @description The idempotency key (spec §3.2), scoped to the project. */
+            /** @description The idempotency key, scoped to the project. */
             command_id: string;
             /** @description The CLI for this conversation; `claude-code` when omitted. */
             harness?: string | null;
@@ -1865,7 +1930,7 @@ export interface components {
         };
         /**
          * @description What an edit did, fixed when it committed, so a replay answers exactly
-         *     that and not the plan as it is later (§13.5).
+         *     that and not the plan as it is later.
          */
         EditOutcome: {
             changed_tasks: number[];
@@ -1881,12 +1946,7 @@ export interface components {
             base: components["schemas"]["BaseStandards"];
         };
         EntryRef: {
-            /**
-             * @description Typed where the referenced entity's module exists. `Decision` and
-             *     `Research` reference entities whose modules no milestone has created
-             *     yet, and §4.1's rule is that no module is created before the task that
-             *     fills it.
-             */
+            /** @description References carry the identity interpreted by their owning entity. */
             Operation: components["schemas"]["OperationId"];
         } | {
             Decision: string;
@@ -1895,7 +1955,7 @@ export interface components {
         } | {
             Workflow: components["schemas"]["WorkflowId"];
         } | {
-            /** @description A message about one task of a plan (§13.9). */
+            /** @description A message about one task of a plan. */
             Task: components["schemas"]["TaskId"];
         };
         EnvEntry: {
@@ -1904,7 +1964,7 @@ export interface components {
         };
         /**
          * @description The body of every error this API answers: the stable code a client
-         *     matches on (spec §3.4), and a human message nobody should match on. A
+         *     matches on, and a human message nobody should match on. A
          *     request axum rejects before a handler runs (malformed JSON, a missing query
          *     parameter) gets one too, through
          *     [`rejections_as_error_bodies`].
@@ -1925,7 +1985,7 @@ export interface components {
         };
         /**
          * @description Stable codes clients pattern-match on. Never match on human text.
-         *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
+         *     `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
         ErrorCode: "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
@@ -1946,10 +2006,10 @@ export interface components {
             task_id: components["schemas"]["TaskId"];
             workflow_id: components["schemas"]["WorkflowId"];
         };
-        /** @description Forks the thread from its last completed entry (spec §12.9). */
+        /** @description Forks the thread from its last completed entry. */
         ForkThread: {
             at_entry_id: components["schemas"]["ThreadEntryId"];
-            /** @description The idempotency key (spec §3.2), scoped to the source thread. */
+            /** @description The idempotency key, scoped to the source thread. */
             command_id: string;
         };
         /** @description A grant as stored: never its token. */
@@ -1971,7 +2031,7 @@ export interface components {
          */
         GrantKind: "thread" | "project";
         /**
-         * @description A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
+         * @description A CLI a conversation can run on. `kind` is `claude-code` or
          *     `codex`.
          */
         HarnessInfo: {
@@ -1988,7 +2048,7 @@ export interface components {
             kind: string;
             /** Format: int32 */
             line: number;
-            /** @description `Some("name")` on every `references` hit: matched by name only (§15.5). */
+            /** @description `Some("name")` on every `references` hit: matched by name only. */
             matched_by?: string | null;
             name: string;
             /** @description Relative to the project's folder, with '/'. */
@@ -2002,7 +2062,7 @@ export interface components {
             kind: components["schemas"]["ExtensionKind"];
             path: string;
         };
-        /** @description How a project's index stands (§15.5). */
+        /** @description How a project's index stands. */
         IndexState: {
             /** @enum {string} */
             state: "ready";
@@ -2029,7 +2089,7 @@ export interface components {
         };
         /**
          * @description One saved version of a project's instructions. `id` is what an
-         *     `agent_invocation` records (§13.15); a client sees the number instead.
+         *     `agent_invocation` records; a client sees the number instead.
          */
         InstructionsVersion: {
             body: string;
@@ -2041,7 +2101,7 @@ export interface components {
             number: number;
         };
         /**
-         * @description What a turn asked for and what the harness reported (spec §8.2, §12.8).
+         * @description What a turn asked for and what the harness reported.
          *     Anything not reported is `None`, never estimated.
          */
         InvocationView: {
@@ -2058,7 +2118,7 @@ export interface components {
             requested_model: string;
         };
         IssueGrant: {
-            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            /** @description The idempotency key, scoped to the project. */
             command_id: string;
         };
         /**
@@ -2081,7 +2141,7 @@ export interface components {
             command_id: string;
             value: string;
         };
-        /** @description The edit that set a version's current revision (§13.10's plan read). */
+        /** @description The edit that set a version's current revision. */
         LastEdit: {
             changed_tasks: number[];
             /** Format: int64 */
@@ -2098,7 +2158,7 @@ export interface components {
             /** Format: double */
             utilization: number;
         };
-        /** @description Spec §13.3. `task` waits for `after`. */
+        /** @description `task` waits for `after`. */
         Link: {
             after: components["schemas"]["TaskParent"];
             kind: components["schemas"]["LinkKind"];
@@ -2110,7 +2170,7 @@ export interface components {
             waiting_items?: number[];
         };
         /**
-         * @description Spec §13.3. How a link's `task` waits for its `after`.
+         * @description How a link's `task` waits for its `after`.
          * @enum {string}
          */
         LinkKind: "needs" | "completes_after";
@@ -2190,11 +2250,7 @@ export interface components {
             /** Format: int64 */
             tokens_out: number;
         };
-        /**
-         * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
-         *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
-         *     for reviewability, that follows this task (spec §4.1 OPEN block).
-         */
+        /** @description The durable operation record; its thread reference is stored as plain text. */
         Operation: {
             cancel_requested_at?: string | null;
             created_at: string;
@@ -2290,7 +2346,7 @@ export interface components {
             name?: string | null;
             theme: components["schemas"]["Theme"];
         };
-        /** @description One stored version of a plan, as a reader sees it now (§13.2). */
+        /** @description One stored version of a plan, as a reader sees it now. */
         Plan: {
             approved_by?: null | components["schemas"]["ApprovedBy"];
             bindings?: components["schemas"]["AgreementBinding"][];
@@ -2300,8 +2356,8 @@ export interface components {
              */
             blockers: components["schemas"]["Problem"][];
             /**
-             * @description Why this version was started (§16.3): `None` for v1, and for a version
-             *     from before migration 0012, which reads "Reason not recorded".
+             * @description Why this version was started: `None` for v1 or when no reason is recorded.
+             *     From v2 on, a missing reason is displayed as "Reason not recorded".
              */
             change_reason?: string | null;
             created_at: string;
@@ -2324,11 +2380,11 @@ export interface components {
             title: string;
             /** Format: int64 */
             version: number;
-            /** @description Who wrote this version (§16.3). */
+            /** @description Who wrote this version. */
             written_by: components["schemas"]["WrittenBy"];
         };
         PlanCommand: {
-            /** @description The idempotency key (spec §16.2), scoped to the plan. */
+            /** @description The idempotency key, scoped to the plan. */
             command_id: string;
         };
         /** Format: uuid */
@@ -2392,7 +2448,7 @@ export interface components {
             task: number;
         };
         /**
-         * @description Spec §16.2. An `Archived` plan is read, never written.
+         * @description An `Archived` plan is read, never written.
          * @enum {string}
          */
         PlanState: "Active" | "Archived";
@@ -2400,7 +2456,7 @@ export interface components {
         PlanTask: components["schemas"]["TaskContent"] & {
             id: components["schemas"]["TaskId"];
         };
-        /** @description One plan with every version, oldest first (§16.10's GET /api/plans/{id}). */
+        /** @description One plan with every version, oldest first. */
         PlanVersions: {
             archived_at?: string | null;
             plan_id: components["schemas"]["PlanId"];
@@ -2410,12 +2466,11 @@ export interface components {
         };
         PlanningThread: {
             created_at: string;
-            /** @description The thread this one was forked from, if it is a fork (spec §12.9). */
+            /** @description The thread this one was forked from, if it is a fork. */
             forked_from_thread: string | null;
             /**
              * @description The CLI this conversation runs on (`agent::policy`): chosen at
-             *     creation, changeable until the thread's first operation, then fixed
-             *     (spec §12.6).
+             *     creation, changeable until the thread's first operation, then fixed.
              */
             harness: string;
             id: components["schemas"]["ThreadId"];
@@ -2434,7 +2489,7 @@ export interface components {
         };
         Project: {
             /**
-             * @description Per harness kind, the modes this project's turns may use (spec §12.5).
+             * @description Per harness kind, the modes this project's turns may use.
              *     Each list is a set: its order carries no meaning. Every known harness
              *     is present; an empty list means no turn can start on it.
              */
@@ -2448,9 +2503,8 @@ export interface components {
             assistant: boolean;
             created_at: string;
             /**
-             * @description Spec §4.2: the directory this project's turns run in, as
-             *     [`ProjectDirectory`] resolved it. `None` only for a project created
-             *     before projects owned one (`migrations/0003_project_directory.sql`);
+             * @description The directory this project's turns run in, as
+             *     [`ProjectDirectory`] resolved it. `None` when no directory is recorded;
              *     a turn on such a project fails at Prepare rather than running in the
              *     daemon's own working directory.
              */
@@ -2462,7 +2516,7 @@ export interface components {
         /** Format: uuid */
         ProjectId: string;
         /**
-         * @description A project reading another's index (§15.6). One way: `project` reads
+         * @description A project reading another's index. One way: `project` reads
          *     `linked`, never the reverse.
          */
         ProjectLink: {
@@ -2485,6 +2539,10 @@ export interface components {
             skipped: components["schemas"]["Skipped"][];
             state: components["schemas"]["IndexState"];
             updated_at?: string | null;
+        };
+        PromptCapabilities: {
+            image: boolean;
+            image_reason?: string | null;
         };
         /** @enum {string} */
         ProposalStatus: "Pending" | "Approved" | "Superseded";
@@ -2574,7 +2632,7 @@ export interface components {
             tokens_out: number;
         };
         PutLink: {
-            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            /** @description The idempotency key, scoped to the project. */
             command_id: string;
         };
         PutSettings: {
@@ -2583,10 +2641,10 @@ export interface components {
              * @description How many projects are active at once: 1 to 20.
              */
             active_limit: number;
-            /** @description The idempotency key (spec §13.5). */
+            /** @description The idempotency key. */
             command_id: string;
         };
-        /** @description Spec §20.2: what queueing answers. */
+        /** @description What queueing answers. */
         Queued: {
             message: components["schemas"]["QueuedMessage"];
             /** @enum {string} */
@@ -2596,13 +2654,14 @@ export interface components {
             /** @enum {string} */
             status: "started";
         };
-        /** @description Spec §20.2: a waiting message with the settings it will be sent under. */
+        /** @description A waiting message with the settings it will be sent under. */
         QueuedMessage: {
+            attachments?: components["schemas"]["AttachmentId"][];
             created_at: string;
             effort?: string | null;
             focus?: null | components["schemas"]["Focus"];
             id: components["schemas"]["QueuedMessageId"];
-            /** @description Why the last attempt to send it failed (§20.3), if one did. */
+            /** @description Why the last attempt to send it failed, if one did. */
             last_error?: string | null;
             mode: string;
             model: string;
@@ -2617,7 +2676,7 @@ export interface components {
         };
         /** Format: uuid */
         QueuedMessageId: string;
-        /** @description The model and effort last chosen for this harness (spec §12.4). */
+        /** @description The model and effort last chosen for this harness. */
         RememberedSettings: {
             effort: string | null;
             model: string;
@@ -2646,17 +2705,18 @@ export interface components {
         SaveInstructions: {
             /** @description The instructions, as the person wrote them. */
             body: string;
-            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            /** @description The idempotency key, scoped to the project. */
             command_id: string;
         };
         SavedProviderTest: {
             api_key?: string | null;
         };
         SendNowBody: {
-            /** @description The idempotency key (spec §3.2). */
+            attachments?: components["schemas"]["AttachmentId"][];
+            /** @description The idempotency key. */
             command_id: string;
         };
-        /** @description Spec §20.3: what Send now answers. */
+        /** @description What Send now answers. */
         SentNow: {
             entry_id: components["schemas"]["ThreadEntryId"];
             /** @enum {string} */
@@ -2667,12 +2727,13 @@ export interface components {
             status: "started";
         };
         /**
-         * @description What the thread's session offers now (spec §12.4). `efforts` are the
+         * @description What the thread's session offers now. `efforts` are the
          *     current model's. `modes` are after Shadows' policy; a mode the project does
          *     not allow is present with `enabled: false` and `reason: "Not allowed in
          *     this project"`.
          */
         SessionChoices: {
+            capabilities: components["schemas"]["PromptCapabilities"];
             current: components["schemas"]["TurnSettings"];
             efforts: components["schemas"]["Choice"][];
             models: components["schemas"]["Choice"][];
@@ -2721,17 +2782,18 @@ export interface components {
             content?: null | components["schemas"]["AgreementContent"];
             reason?: string | null;
         };
-        /** @description Starts a turn as one command (spec §12.7). */
+        /** @description Starts a turn as one command. */
         StartTurn: {
+            attachments?: components["schemas"]["AttachmentId"][];
             /**
-             * @description The sending tab's id, made once per page load (§13.9). Kept in memory
+             * @description The sending tab's id, made once per page load. Kept in memory
              *     for the turn only, so a `plan-show` frame can name it; not part of the
              *     command, never stored.
              */
             client_tab?: string | null;
-            /** @description The idempotency key (spec §3.2). A retry sends the same one. */
+            /** @description The idempotency key. A retry sends the same one. */
             command_id: string;
-            /** @description `null` exactly when the chosen model offers no effort (§12.4). */
+            /** @description `null` exactly when the chosen model offers no effort. */
             effort: string | null;
             focus?: null | components["schemas"]["Focus"];
             mode: string;
@@ -2746,7 +2808,7 @@ export interface components {
             paths: string[];
             resumed: boolean;
         };
-        /** @description Spec §13.3. A task as the plan holds it, shown as `T{number}`. */
+        /** @description A task as the plan holds it, shown as `T{number}`. */
         TaskContent: {
             acceptance: components["schemas"]["AcceptanceItem"][];
             goal: string;
@@ -2779,17 +2841,12 @@ export interface components {
         /** @enum {string} */
         Theme: "dark" | "light" | "system";
         ThreadEntry: {
-            /**
-             * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
-             *     `events::Actor`, which already has exactly this shape (`kind` + `id`) and
-             *     already answers "who did this" for durable events. Declaring a second
-             *     identical struct would record one decision twice, which this project's
-             *     documentation rules forbid. See the note in §4.2.
-             */
+            attachments: components["schemas"]["AttachmentRef"][];
+            /** @description The same `kind` and `id` identity that attributes durable events. */
             author: components["schemas"]["Actor"];
             body: string;
             /**
-             * @description A card's structured payload (§23.8): a `Subagent`'s card. `None` for
+             * @description A card's structured payload: a `Subagent`'s card. `None` for
              *     every other kind.
              */
             card: {
@@ -2799,8 +2856,8 @@ export interface components {
             id: components["schemas"]["ThreadEntryId"];
             kind: components["schemas"]["ThreadEntryKind"];
             /**
-             * @description The turn this entry belongs to (spec §12.7). `None` for entries written
-             *     before entries named their turn. A fork's copied entries keep the
+             * @description The turn this entry belongs to; `None` when no turn is recorded.
+             *     A fork's copied entries keep the
              *     source's operation: provenance, not something the fork can act on.
              */
             operation_id: string | null;
@@ -2812,9 +2869,8 @@ export interface components {
         /** Format: uuid */
         ThreadEntryId: string;
         /**
-         * @description What an entry is (spec §4.2, closed by §13.9). The client branches on it.
-         *     Each variant is stored as its name, the text storage held before this was
-         *     an enum, so no stored row is rewritten.
+         * @description What an entry is. The client branches on it.
+         *     Each variant uses its name for storage and serialization.
          * @enum {string}
          */
         ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
@@ -2825,8 +2881,8 @@ export interface components {
             enabled: boolean;
         };
         /**
-         * @description The settings a turn runs with (spec §12.7). `effort` is `None` exactly
-         *     when the model offers none (§12.4).
+         * @description The settings a turn runs with. `effort` is `None` exactly
+         *     when the model offers none.
          */
         TurnSettings: {
             effort: string | null;
@@ -2836,7 +2892,7 @@ export interface components {
         TurnStarted: {
             operation_id: components["schemas"]["OperationId"];
         };
-        /** @description Sets the modes this project allows, per harness (spec §12.5). */
+        /** @description Sets the modes this project allows, per harness. */
         UpdateProject: {
             /**
              * @description Per harness kind, the modes this project allows; a harness not named
@@ -2845,7 +2901,7 @@ export interface components {
             allowed_modes: {
                 [key: string]: string[];
             };
-            /** @description The idempotency key (spec §3.2), scoped to the project. */
+            /** @description The idempotency key, scoped to the project. */
             command_id: string;
         };
         /**
@@ -2853,10 +2909,15 @@ export interface components {
          *     a fork from birth (`HARNESS_LOCKED`).
          */
         UpdateThread: {
-            /** @description The idempotency key (spec §3.2), scoped to the thread. */
+            /** @description The idempotency key, scoped to the thread. */
             command_id: string;
             /** @description `claude-code` or `codex`. */
             harness: string;
+        };
+        Upload: {
+            command_id: string;
+            /** Format: binary */
+            file: string;
         };
         UsageReport: {
             by_model: components["schemas"]["ModelUsage"][];
@@ -2916,12 +2977,12 @@ export interface components {
         /** Format: uuid */
         WorkflowId: string;
         /**
-         * @description Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never
+         * @description A `Draft` is edited; a `Frozen` version is approved and never
          *     changes again. The web client shows `Frozen` as "Approved".
          * @enum {string}
          */
         WorkflowState: "Draft" | "Frozen";
-        /** @description Spec §16.3: who wrote a version, recorded once when it was created. */
+        /** @description Who wrote a version, recorded once when it was created. */
         WrittenBy: {
             /** @description `agent_invocation.harness_kind`, e.g. `claude-code`. */
             harness?: string | null;
@@ -4271,7 +4332,7 @@ export interface operations {
     revoke_grant: {
         parameters: {
             query: {
-                /** @description The idempotency key (spec §13.5), scoped to the grant. */
+                /** @description The idempotency key, scoped to the grant. */
                 command_id: string;
             };
             header?: never;
@@ -4721,7 +4782,7 @@ export interface operations {
     remove_project: {
         parameters: {
             query: {
-                /** @description The idempotency key (spec §3.2), scoped to the project. */
+                /** @description The idempotency key, scoped to the project. */
                 command_id: string;
             };
             header?: never;
@@ -5286,7 +5347,7 @@ export interface operations {
     remove_link: {
         parameters: {
             query: {
-                /** @description The idempotency key (spec §13.5), scoped to the project. */
+                /** @description The idempotency key, scoped to the project. */
                 command_id: string;
             };
             header?: never;
@@ -6611,7 +6672,7 @@ export interface operations {
     list_plans: {
         parameters: {
             query?: {
-                /** @description When true, includes archived plans in the listing (§16.2). */
+                /** @description When true, includes archived plans in the listing. */
                 archived?: boolean;
             };
             header?: never;
@@ -6689,17 +6750,17 @@ export interface operations {
         requestBody?: never;
         responses: {
             /**
-             * @description Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.
+             * @description Server-sent events for one thread: the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.
              *
              *     - `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.
              *     - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.
              *     - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.
-             *     - `subagent` — `{op, card}`: a running turn's subagent card, whole, after each change (§22.3): `{id, title, agent_type, model, status, prompt, steps, report, duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when it ends. Transient.
+             *     - `subagent` — `{op, card}`: a running turn's subagent card, whole, after each change: `{id, title, agent_type, model, status, prompt, steps, report, duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when it ends. Transient.
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
              *     - `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.
              *     - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.
              *     - `commands` — `{thread_id, commands}`: the harness's `/` list, each `{name, description, hint}`; sent after `caught-up` when there is one, and on every change. Transient.
-             *     - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan (§13.9). Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.
+             *     - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan. Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.
              *     - `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.
              *     - `fatal` — data is a message as plain text: the journal could not be read and the stream ends.
              *
@@ -6831,6 +6892,93 @@ export interface operations {
             };
             /** @description SETTING_NOT_OFFERED: a harness Shadows does not know */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Upload"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ThreadId"];
+                attachment_id: components["schemas"]["AttachmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": number[];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7109,7 +7257,7 @@ export interface operations {
     unqueue: {
         parameters: {
             query: {
-                /** @description The idempotency key (spec §3.2). */
+                /** @description The idempotency key. */
                 command_id: string;
             };
             header?: never;
@@ -7350,6 +7498,77 @@ export interface operations {
                 };
             };
             /** @description HARNESS_START_FAILED: the adapter did not start, or its session closed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    change_mode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeMode"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionChoices"];
+                };
+            };
+            /** @description MODE_NOT_ALLOWED */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT; PATH_NOT_FOUND */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED; HARNESS_UNAVAILABLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED */
             502: {
                 headers: {
                     [name: string]: unknown;
