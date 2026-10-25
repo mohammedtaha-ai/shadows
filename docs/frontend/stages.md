@@ -7,27 +7,12 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 The settings dialog is delivered by PR #40, merged at `1a2b601`: its tasks F-2 to F-12,
 F-14 and F-15 are in this file at `1a2b601`. The architecture plan's F-16 to F-22
-tasks below remain. Still open outside any task: the light palette and the real desktop login-item behaviour need their own app
+tasks below remain. F-1, F-23, F-24 and F-25 shipped in PR #41 (`c7e7bac4`) and are in this
+file at `c7e7bac4`. The [web architecture plan](plans/2026-10-25-web-architecture.md) absorbs
+F-16 to F-22 into its W tasks as they enter. Still open outside any task: the light palette and the real desktop login-item behaviour need their own app
 and OS acceptance.
 
 ## Tasks
-
-### F-1 · The mode chosen in a new conversation's draft stays after the first send
-- Status: done
-- Plan: none (bug Mohammed found in the AYLUL desktop on 2026-10-20). In the draft
-  (`/projects/:id/new`) he switches the mode from Accept edits to Auto, sends the
-  first message, and once the thread opens the mode menu shows Accept edits again;
-  the next turns run in Accept edits. Starting a new conversation at Accept edits is
-  decided by spec §12 and stays. The fixer finds the root cause; if it lies in the
-  backend (`crates/`), it stops and reports where.
-- Read: `web/src/app/conversation/contract.yaml`;
-  `docs/superpowers/specs/2026-09-24-harness-controls-design.md` §12.4–§12.5
-- Touch: `web/src/app/conversation/` (the files the root cause names, their tests,
-  its `contract.yaml`)
-- Needs: none
-- Done when: a test proves that after the draft's first send with Auto the thread's
-  composer still shows Auto and the second turn sends `mode: 'auto'`; it and the
-  touched tests pass with `npm run typecheck` and `npm run lint`
 
 ### F-16 · The provider form's Enter trap
 - Status: todo
@@ -84,28 +69,3 @@ and OS acceptance.
 - Touch: web/src/app/conversation/context-ring.tsx, web/src/api/client.ts, web/src/api/schema.d.ts (generated), both owning contracts, docs/frontend/codebase/README.md; controller enumerates the actual remaining callers and tests before dispatch
 - Needs: accepted shared request naming GET /api/threads/{id}/context removal and the summary-only ring; A-7b's generated OpenAPI; A-2's explicit slash-command path
 - Done when: `npm run gen:api` regenerates the schema; focused tests prove the ring makes no hidden breakdown request, summary usage remains visible and explicit `/context` still sends; typecheck and lint pass; both sides land on the same delivery branch
-
-### F-23 · The Mode menu saves the mode and shows Core's
-- Status: done (reviewed: 160 conversation tests, typecheck, lint and API regeneration diff pass; browser acceptance not run)
-- Plan: none. Owner spec: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.4 ("The mode is remembered per conversation"); request docs/shared/requests/2026-10-22-remembered-mode.md (accepted)
-- Read: `web/src/app/conversation/contract.yaml`; `composer-bar.tsx`, `composer.tsx`, `turn-settings.ts`, `use-session.ts`, `web/src/api/client.ts`
-- Touch: `web/src/app/conversation/` (the mode choice, its tests, its `contract.yaml`), `web/src/api/` (the new call, regenerated `schema.d.ts` via `npm run gen:api`)
-- Needs: B-10
-- Done when: choosing Auto calls `PUT /api/threads/{id}/session/mode` at once and the menu shows Core's answer; after navigating away and back, and after a remount with a fresh QueryClient, the menu shows Auto; a refusal keeps Core's mode and shows its message; the draft still starts at the policy default; the tests pass with `npm run typecheck` and `npm run lint`
-
-### F-24 · The `+` menu: Slash commands and Plugins
-- Status: done (reviewed: 150 conversation tests, typecheck and lint pass; browser acceptance not run)
-- Plan: none. Owner specs: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.11 ("The `+` menu"), docs/superpowers/specs/2026-10-05-slash-menu-design.md; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
-- Read: `web/src/app/conversation/contract.yaml`; `composer-bar.tsx` (the disabled `+`), `composer.tsx` (the `/` menu), the Plugins & Skills settings entry point
-- Touch: `web/src/app/conversation/` (the menu, its tests, its `contract.yaml`)
-- Needs: none (no backend change)
-- Done when: `+` opens a menu; Slash commands opens the existing `/` menu with the same list; Plugins opens the conversation's AYLUL agent's Plugins & Skills settings and is absent in a project conversation; Add photos is shown disabled with "Comes with F-25" until F-25; keyboard (Enter, arrows, Escape) works; the tests pass with `npm run typecheck` and `npm run lint`
-- Validation: `npm run typecheck` and `npm run lint` passed. Six menu tests written; vitest not run as instructed while the backend agent builds Rust. Browser acceptance not run.
-
-### F-25 · Paste, drop and pick images, and send them
-- Status: done
-- Plan: none. Owner specs: §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
-- Read: `web/src/app/conversation/contract.yaml`; `composer.tsx`, `composer-bar.tsx`, `draft.tsx`, `web/src/api/client.ts`
-- Touch: `web/src/app/conversation/` (paste, drop, picker, thumbnails, sending, the transcript's images, tests, `contract.yaml`), `web/src/api/` (the calls; `schema.d.ts` via `npm run gen:api`), `web/src/test/contract-fixtures.ts` and any other shared test fixture typed from `schema.d.ts` (the new required fields only)
-- Needs: B-11, F-24
-- Done when: Ctrl+V of a screenshot, a drop and Add photos (Ctrl+U) each upload at once and show a thumbnail with remove; ordinary text paste is unchanged; Send waits for uploads and sends the ids in order; an image-only message sends; a failed upload or a refused send keeps the text and images and shows Core's reason; Add photos and paste are disabled with the reason when `capabilities.image` is false; the draft's first send keeps its images; the transcript shows a message's images; the tests pass with `npm run typecheck` and `npm run lint`
