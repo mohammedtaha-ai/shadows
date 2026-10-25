@@ -14,6 +14,21 @@ and OS acceptance.
 
 ## Tasks
 
+### F-27 · W-2: every contract parses and the code map tells the truth
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-2--make-contracts-parseable-and-map-startup-ownership-truthfully
+- Read: the plan's section 1 ("Important map discrepancies"); `web/src/architecture.test.ts`
+  (the `contract` rule); `docs/frontend/codebase/README.md`
+- Touch: `web/src/desktop/contract.yaml`; `web/src/app/conversation/contract.yaml`;
+  `docs/frontend/codebase/README.md`; `web/src/architecture.baseline.txt` (the two `contract`
+  entries removed); this task's `Status:`
+- Needs: F-26
+- Done when: both contracts parse as YAML with their meaning unchanged (quote or block the
+  scalars, do not reword them); the code map names `app-root.tsx` as the QueryClient owner
+  and `app/mode-policy.ts` at its real path; the two `contract` baseline entries are gone;
+  `npx vitest run src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck` and
+  `npm run lint` pass
+
 ### F-26 · W-1: a shrinking architecture ratchet for `web/src`
 - Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions and #enforcing-check

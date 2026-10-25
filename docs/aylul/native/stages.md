@@ -125,3 +125,25 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   pins today's shape; focus, hiding, fitting and render-denial behaviour are unchanged; the
   `windows::companion → presence` owner edges and private accesses leave the baseline and no
   count goes up; the crate's tests, the architecture test, clippy, fmt and `npm test` pass
+
+### N-13 · D-6: the companion reaches Core through one client
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-6--consolidate-native-core-business-api-access
+  and #decision-d-0
+- Read: the plan's sections 2 ("How desktop reaches Core") and 3 ("Rules repeated across
+  paths": agent/thread eligibility, runtime identity); `apps/desktop/src-tauri/src/presence/contract.yaml`;
+  `src/presence/{binding,client,send}.rs`, `src/presence/watcher/feed.rs`;
+  `tests/architecture/README.md`
+- Touch: `src/presence/` (a private `core_client` module, `binding.rs`, `client.rs`, `send.rs`,
+  `watcher.rs`, `watcher/feed.rs`, their fixtures and tests, `contract.yaml`);
+  `tests/architecture/` (the Core HTTP owner rule names the new module; baseline);
+  `docs/aylul/codebase/README.md`; this task's `Status:`
+- Needs: N-12
+- Done when: every Core business HTTP call from the companion (binding and navigation reads,
+  observer snapshots and SSE, submission) goes through one private client module in
+  `presence/`; the agent/thread eligibility rule has one implementation, called from binding
+  and observation; request URLs, methods, headers, bodies (byte-identical retry bodies),
+  timeouts and the blocking-versus-async split are unchanged and pinned by the existing
+  fixtures; the architecture test's Core-HTTP rule allows only that module and fails on a
+  `reqwest` call elsewhere (proved by a fixture); no baseline count goes up; the crate's tests,
+  the architecture test, clippy, fmt and `npm test` pass
