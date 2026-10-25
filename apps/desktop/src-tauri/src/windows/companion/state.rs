@@ -277,6 +277,18 @@ mod wire_tests {
             Some("context-1".into()),
             Some("agent-a".into()),
         );
+        model.present(
+            SurfacePresence {
+                expression: "idle".into(),
+                status: "Ready".into(),
+                preview: None,
+            },
+            None,
+        );
+        assert_eq!(
+            serde_json::to_string(&model.view).unwrap(),
+            r#"{"revision":2,"composer":{"open":false,"revision":1,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":false,"renderAllowed":false,"paused":false,"error":null,"presence":{"expression":"idle","status":"Ready","preview":null}}"#
+        );
         model.input(true);
         let generation = model.begin_document();
         model.initialize(generation);
@@ -289,7 +301,7 @@ mod wire_tests {
                 preview: Some(SurfacePreview {
                     id: "reply-1".into(),
                     text: "مرحبا \"world\"\n".into(),
-                    expires_at_ms: 123456789,
+                    expires_at_ms: u64::MAX,
                 }),
             },
             Some(SurfaceAppearance {
@@ -298,14 +310,14 @@ mod wire_tests {
         );
         assert_eq!(
             serde_json::to_string(&model.view).unwrap(),
-            r#"{"revision":5,"composer":{"open":true,"revision":2,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":true,"paused":true,"error":null,"presence":{"expression":"success","status":"Reply ready","preview":{"id":"reply-1","text":"مرحبا \"world\"\n","expiresAtMs":123456789}},"appearance":{"color":"opaque(🌿)"}}"#
+            r#"{"revision":6,"composer":{"open":true,"revision":2,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":true,"paused":true,"error":null,"presence":{"expression":"success","status":"Reply ready","preview":{"id":"reply-1","text":"مرحبا \"world\"\n","expiresAtMs":18446744073709551615}},"appearance":{"color":"opaque(🌿)"}}"#
         );
         model.input(false);
         model.fail(true);
-        model.present(SurfacePresence::default(), None);
+        model.present(Model::default().view.presence, None);
         assert_eq!(
             serde_json::to_string(&model.view).unwrap(),
-            r#"{"revision":8,"composer":{"open":false,"revision":3,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":false,"paused":true,"error":"companion_render_failed","presence":{"expression":"idle","status":"Choose an agent","preview":null}}"#
+            r#"{"revision":9,"composer":{"open":false,"revision":3,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":false,"paused":true,"error":"companion_render_failed","presence":{"expression":"idle","status":"Choose an agent","preview":null}}"#
         );
     }
 }
