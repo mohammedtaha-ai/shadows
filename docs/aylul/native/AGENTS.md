@@ -56,7 +56,9 @@ delivered, and a plan whose tasks are all done; its commit names the PR, and Git
    report it: the lead updates the task, you do not widen it yourself.
 3. A changed module updates its `contract.yaml`, and a new or removed module its
    code-map row, in the same commit.
-4. Checks: Rust: `cargo test --manifest-path apps/desktop/<crate>/Cargo.toml <test>`. Sidecar, from `apps/desktop/sidecar/`: `npm run typecheck` and `node --test <file>`. Never the whole suite while working.
+4. Checks: Rust: `cargo test --manifest-path apps/desktop/<crate>/Cargo.toml <test>`. Sidecar, from `apps/desktop/sidecar/`: `npm run typecheck` and `node --test <file>`. Never the whole suite while working. A task that moves code between owners runs its crate's
+   suite (or the sidecar's `npm test`) once, before its commit, because a move can break a caller
+   no focused test names; its `Done when` says so.
 5. Commit with `git add <each file>`, never `git add -A` or `git add .`:
    other sides may be committing to the same branch. Do not switch branches,
    stash, rebase or push.

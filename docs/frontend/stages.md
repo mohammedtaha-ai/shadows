@@ -14,6 +14,19 @@ and OS acceptance.
 
 ## Tasks
 
+### F-28 · Each settings form saves only the fields it changed
+- Status: blocked
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
+- Read: `docs/shared/requests/2026-10-26-partial-person-update.md`; `web/src/api/person.ts`;
+  `web/src/app/settings/contract.yaml`
+- Touch: `web/src/api/person.ts` and its tests; `web/src/app/settings/you-card.tsx`,
+  `general-preferences.tsx`, their tests, `contract.yaml`; `web/src/api/schema.d.ts` through
+  `npm run gen:api` only
+- Needs: the partial person update request accepted and built in Core; F-17
+- Done when: the You card sends only names, General preferences only language and theme;
+  a test saves both forms close together and both changes survive; `npm test -- settings`,
+  the architecture and codemap tests, `npm run typecheck` and `npm run lint` pass
+
 ### F-27 · W-2: every contract parses and the code map tells the truth
 - Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-2--make-contracts-parseable-and-map-startup-ownership-truthfully
@@ -89,12 +102,13 @@ and OS acceptance.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
 - Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
-- Touch: web/src/app/agents/, web/src/app/settings/active-projects.tsx, web/src/app/design/create-structure.tsx, web/src/app/conversation/mode-policy.ts
-- Needs: a shared request for the values Core must return
+- Touch: web/src/app/agents/, web/src/app/settings/active-projects.tsx, web/src/app/design/create-structure.tsx, web/src/app/mode-policy.ts
+- Needs: a shared request for the values Core must return; replaced by the web plan's W-11 per-domain packets as they enter, and not dispatched in this form
 - Done when: model-picks.ts and the copied limits are gone; forms show Core's answers; web tests pass
 
 ### F-19 · One owner per behaviour
 - Status: blocked
+- Replaced by: the web plan's W-7 (stream refresh, unblocked), W-10 (proposal card, confirm pattern, plan wording, unblocked) and W-11 (`turn-state`, blocked by domain). Not dispatched in this form; this entry goes when those packets enter.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
 - Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
 - Touch: web/src/stream/, web/src/app/workflows/plan-frames.ts, the three proposal cards, the four confirm patterns, web/src/app/conversation/turn-state.ts
@@ -102,11 +116,12 @@ and OS acceptance.
 - Done when: one plan-refresh owner, one ProposalCard, one confirm pattern; web tests pass
 
 ### F-20 · Split by job
-- Status: todo
+- Status: blocked
+- Replaced by: the web plan's W-8 (`api/client.ts`, and `stream/frames.ts` by parser), W-9 (`conversation/composer.tsx`) and W-12 (`app/test-app.tsx`), each with its destinations, callers, contracts, map and baseline. Not dispatched in this form.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
 - Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
 - Touch: web/src/api/client.ts, web/src/stream/frames.ts, web/src/app/conversation/composer.tsx, web/src/app/test-app.tsx
-- Needs: none
+- Needs: F-17 and W-7 (W-8 needs F-17; W-9 needs F-17 and W-7; W-12 needs F-26)
 - Done when: each new file's job is named without "and"; typecheck, lint, tests and build pass
 
 ### F-21 · No `§` and no history in comments

@@ -20,7 +20,8 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
 ### N-8 · D-1: a shrinking architecture ratchet for the native crate
 - Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#decision-d-0 and
-  #ratchet-design (items 1 to 4, 6 and 7; sidecar and TypeScript checks wait for D-8 and D-10)
+  #ratchet-design (items 1 to 4, 6 and 7; sidecar checks wait for D-9, companion TypeScript checks
+  for D-10, guard and wrapper parity for D-2b)
 - Read: the plan's sections 2, 3 and 6; `crates/shadows/tests/architecture/` for the
   pattern Core uses; `apps/desktop/src-tauri/src/*/contract.yaml`;
   `docs/aylul/codebase/README.md`
@@ -185,8 +186,9 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   `src/agents/contract.yaml` (for `settingsFor`); `src/main.ts`; `src/contract.yaml`;
   `docs/aylul/codebase/README.md`; this task's `Status:`
 - Needs: none
-- Done when: `handlers.ts` holds no preview map or approval admission and only translates RPC
-  calls into owner methods; Approvals validates the latest item, rule and preview fingerprint
+- Done when: `handlers.ts` holds no preview map or approval admission and translates the
+  approval RPCs (preview, approve, deny, dismiss) into Approvals methods; its remaining Store
+  access and hook-installation plans are D-9's; Approvals validates the latest item, rule and preview fingerprint
   through one method; `settingsFor` lives with settings ownership and `main.ts` no longer
   imports it from `handlers.ts`; the RPC methods, their parameters and answers, the denial and
   stale-preview answers and the settings-change behaviour are unchanged and pinned by tests;

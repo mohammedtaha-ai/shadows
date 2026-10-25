@@ -570,7 +570,7 @@ These are **future validation requirements**, not checks performed for this repo
 
 - After W-1: W-2, W-3, and W-12’s relocation preparation can proceed independently.
 - W-4 can split by server domain, with exclusive API-file ownership.
-- After ownership settles: W-8’s API domain moves and W-9’s conversation split can proceed in parallel.
+- After ownership settles: W-8’s API domain moves and W-9’s conversation split can proceed in parallel only for API domains whose callers exclude W-9’s files (`composer.tsx`, `draft.tsx`, `carried-send.ts` and their callers); the session, turn and upload domains move in series with W-9.
 - W-10’s proposal and confirmation work can be separate lanes.
 - W-7 and W-9 should not edit conversation orchestration simultaneously.
 - Contracts, the code map, stages, and baseline files require serialized integration.
@@ -581,9 +581,9 @@ These are **future validation requirements**, not checks performed for this repo
 
 ### Decisions requiring Mohammed
 
-1. **Approve the module ownership graph.** In particular, settings as composition, API ownership of server caches, and stream ownership of refresh dispatch.
-2. **Approve backend capability requests.** Which endpoint supplies draft choices, validation constraints, structure preview, and authoritative turn facts is a cross-side contract decision.
-3. **Set person-update concurrency semantics.** Decide whether independent name/preferences changes must merge, conflict by revision, or serialize.
+Items 1 to 3 are decided; see "Decisions" at the top. Partial person updates are asked in
+[`docs/shared/requests/2026-10-26-partial-person-update.md`](../../shared/requests/2026-10-26-partial-person-update.md)
+and built by F-28; F-17's cache-write work does not complete that decision.
 4. **Resolve queued-message focus behavior.** Sending clears the focus chip; queue success currently does not. The intended user behavior remains unclear.
 5. **Choose cross-tab navigation synchronization.** Open-project state currently persists per-tab snapshots without merging changes from other tabs. Change only if synchronized behavior is wanted.
 

@@ -720,6 +720,24 @@ These are **proposed task packets**, not authorized implementation. Every source
 - **Needs:** D-5, D-6.
 - **Done-when:** selection/show, retarget/readiness, publication admission, and open-main navigation live behind owner methods; commands translate only; composition wires only.
 
+### D-7b · Complete the D-0 owner inventory
+
+- **Touch:** `src/app.rs`; `src/windows/` (a `MainWindow` owner); `src/presence/` (Presence and its watcher become one `Companion` owner); commands that reach them; `tests/architecture/` (the composition assertion and owner table); contracts/map.
+- **Needs:** D-7.
+- **Done-when:** `DesktopApp`'s fields are exactly D-0's nine owners by name (`CoreConnection`, `Companion`, `CompanionWindow`, `MainWindow`, `Navigation`, `DesktopPreferences`, `Account`, `Activity`, `AppPaths`); the architecture test asserts those identities, not a field count; behaviour unchanged.
+
+### D-7c · Window code does no service lookup
+
+- **Touch:** `src/windows/` (main and companion); `src/app.rs`; `tests/architecture/` (baseline); contracts/map.
+- **Needs:** D-7b.
+- **Done-when:** no file under `src/windows/` resolves `DesktopApp` or any managed state (D-0: `AppHandle` is for window and event work only); what a window needs arrives as an argument or a callback wired in composition; the `MainWindow ↔ CompanionWindow` owner cycle is gone; the matching `managed_state`, `owner_edge` and `owner_cycle` baseline entries leave and none is added.
+
+### D-2b · Command parity covers guards, wrappers and surface policy
+
+- **Touch:** `tests/architecture/inventory.rs` and fixtures; `apps/desktop/tests/native-acl.test.mjs`; baseline.
+- **Needs:** D-7c.
+- **Done-when:** for every registered command the ratchet compares, beyond names: the native caller guard (which window labels may call it), the capability that grants it, and the TypeScript wrapper that calls it (`web/src/desktop/`, `apps/desktop/src/platform/`); a command whose guard, grant and wrapper disagree fails; negative fixtures prove each comparison. Until then N-8 and N-9 hold name equality only (rule 7 is partly built).
+
 ### D-8 · Put sidecar approval admission inside Approvals
 
 - **Touch:** `sidecar/src/handlers.ts`; `approvals/`; `agents/settings-file.ts`; `main.ts`; focused tests/contracts.
@@ -730,9 +748,11 @@ These are **proposed task packets**, not authorized implementation. Every source
 
 - **Touch:** sidecar sessions/approvals/settings stores; current `store/`; hook route; handlers; composition; tests/contracts.
 - **Needs:** D-8.
-- **Done-when:** adapters receive service APIs; SQL belongs to declared stores; one connection remains possible; persistence and grant/terminal-answer behavior are preserved.
+- **Done-when:** adapters receive service APIs (`handlers.ts` and `hooks/route.ts` no longer reach the shared Store or assemble hook-installation plans); SQL belongs to declared stores; one connection remains possible; persistence and grant/terminal-answer behavior are preserved; a sidecar architecture check (ratchet rules 4, 8 and 10: service construction only in composition, sidecar RPC methods equal to the native allowlist and the main wrappers, SQL only in its domain's store) runs in `npm test` with adversarial fixtures and a shrinking baseline.
 
 ### D-10 · Enforce TS entry boundaries and place unit tests with owners
+
+A coordinating item. Its files belong to the UI side (`docs/aylul/ui/`: `platform/`, companion tests) and the Character side (`docs/aylul/character/`: companion renderer and animation); each side enters its own packet in its own `stages.md`, and D-11 waits for both. It is not dispatched as one native task.
 
 - **Touch:** companion/platform module entries; internal imports; pure unit-test locations; package scripts; contracts/map.
 - **Needs:** D-1; D-5 interface stability.
@@ -747,14 +767,14 @@ These are **proposed task packets**, not authorized implementation. Every source
 ### D-12 · Verify the integrated structure
 
 - **Touch:** affected stages/contracts/maps; dated evidence.
-- **Needs:** D-2 through D-11.
+- **Needs:** D-2 through D-11, D-2b, D-7b and D-7c.
 - **Done-when:** focused checks passed per change; complete affected gates passed before PR; shrinking baselines match the final tree; real Windows/provider acceptance is recorded separately with remaining gaps.
 
 **Parallel work:** after D-3, D-4, D-5, and D-6 can proceed with disjoint scopes. D-8/D-9 can run independently of native restructuring. D-10 can proceed once its native interface is stable. D-7 waits for D-5/D-6. Shared baselines, composition, documentation, and workflow edits need serialized integration. Native builds must also remain serialized.
 
 ## 8. Risks and decisions reserved for Mohammed
 
-1. **Architecture acceptance.** Approve the actual owner map and public boundaries before implementation, consistent with planner design §13.16. The proposal above is analysis, not an accepted architecture.
+1. **Architecture acceptance.** Decided: see "Decision (D-0)" at the top (2026-10-25).
 
 2. **Distribution ownership.** `bundle.active` is false, sidecar startup uses development paths, and Node/hook installation remains unresolved. Shipping managed binaries versus retaining explicit existing paths affects lifecycle, updates, and trust; builders should not decide it incidentally.
 
