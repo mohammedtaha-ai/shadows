@@ -6,7 +6,7 @@ import { type FormEvent, useRef, useState } from 'react'
 import { type CodeSettings, setActiveLimit } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { codeSettingsQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { saveCodeSettingsAnswer } from '@/api/code'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
@@ -48,7 +48,7 @@ function LimitForm({ saved }: { saved: CodeSettings }) {
     onSuccess: async (settings) => {
       pending.current = null
       setEdited(null)
-      await writeSaved(queryClient, codeSettingsQuery.queryKey, settings)
+      await saveCodeSettingsAnswer(queryClient, settings)
     },
   })
 

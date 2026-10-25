@@ -358,3 +358,5 @@ tests:
     checks: "ago(three seconds after now) equals the Intl format of 0 second."
 
 project_cache_owner: "api/projects.ts owns saved modes, removed projects, instructions and revoked grant cache updates; forms preserve their existing requests and lifecycles"
+
+code_cache_owner: "api/code.ts owns saved code-link cache updates"

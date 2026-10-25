@@ -657,3 +657,8 @@ project_cache:
   owner: projects.ts
   keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery polling and retries are unchanged"
   saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedGrantAnswer use writeSaved to cancel exact reads before replacing, filtering or merging server answers"
+
+code_cache:
+  owner: code.ts
+  keys: "codeKeys preserves settings, per-project status and link arrays; status polling intervals remain unchanged"
+  saved_answers: "saveCodeSettingsAnswer stores Core's answer and saveUnlinkedCodeAnswer filters one link through writeSaved, cancelling the exact prior read"
