@@ -59,13 +59,29 @@ and OS acceptance.
 - Needs: none
 - Done when: Enter in "Add a model by id" adds it and does not submit; saving with a typed, unadded id says so; `npm test -- provider` passes
 
-### F-17 · Mutation answers through `writeSaved`; one query-key factory
+### F-17 · W-4: query identities and cache writes belong to `api/`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
-- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
-- Touch: web/src/api/ (query keys), web/src/app/agreements/agreements-page.tsx, web/src/app/agents/agent-extensions.tsx, the files holding literal keys
-- Needs: none
-- Done when: no direct `setQueryData` on a mutation answer and no literal query key outside web/src/api/; web tests pass
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-4--establish-api-owned-query-identities-and-safe-cache-writes
+  and #decisions (1)
+- Read: the plan's section 3 ("Current owners", "Highest-priority ownership problems" 2 and 3);
+  `web/src/api/contract.yaml`; `web/src/api/saved-answer.ts`; `web/src/architecture.test.ts`
+  (`query_key`, `cache_write` rules); `web/src/architecture.baseline.txt`
+- Touch: `web/src/api/` (one key factory and the cache-update methods per server domain, next
+  to that domain's queries; `contract.yaml`); every product file the `query_key` and
+  `cache_write` baseline entries name (agreements, agents, conversation including
+  `use-session.ts`, `use-commands.ts` and composer callers, design, project-settings, sidebar,
+  workflows, stream, desktop) and their tests and `contract.yaml`;
+  `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md`; this task's `Status:`
+- Needs: F-26
+- Done when: no product file outside `web/src/api/` builds a query key or writes the cache: every
+  production `query_key` and `cache_write` baseline entry is gone (test files may keep theirs
+  only where the test seeds a cache on purpose, each named in the commit); key values are
+  unchanged (same arrays), so SSE refresh still matches; mutation answers go through owner
+  methods backed by `writeSaved`, including `agreements-page.tsx` and `agent-extensions.tsx`;
+  session and command frames update through their owner; a regression test per fixed
+  mutation shows a stale in-flight read cannot overwrite the saved answer; no other baseline
+  count goes up; `npm test` for each touched area, the architecture and codemap tests,
+  `npm run typecheck` and `npm run lint` pass. One commit per server domain.
 
 ### F-18 · Core owns the rules the client copies
 - Status: blocked

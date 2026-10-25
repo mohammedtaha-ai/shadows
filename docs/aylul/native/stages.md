@@ -172,3 +172,22 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   generations and foreground restoration are unchanged and their existing tests pass; the
   `owner_edge`, `private_access` and `managed_state` counts go down and no count goes up; the
   crate's tests, the architecture test, clippy, fmt and `npm test` pass
+
+### N-15 · D-8: approval admission lives in Approvals
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-8--put-sidecar-approval-admission-inside-approvals
+  and #sidecar-target
+- Read: the plan's sections 2 ("Within the sidecar") and 4 (`handlers.ts`); `apps/desktop/sidecar/src/contract.yaml`;
+  `src/approvals/contract.yaml`; `src/agents/contract.yaml`; `src/handlers.ts`, `src/main.ts`,
+  `src/approvals/approvals.ts`, `src/agents/settings-file.ts`
+- Touch: `apps/desktop/sidecar/src/handlers.ts` and `handlers.test.ts`; `src/approvals/`
+  (`approvals.ts`, its tests, `contract.yaml`); `src/agents/settings-file.ts` and its tests and
+  `src/agents/contract.yaml` (for `settingsFor`); `src/main.ts`; `src/contract.yaml`;
+  `docs/aylul/codebase/README.md`; this task's `Status:`
+- Needs: none
+- Done when: `handlers.ts` holds no preview map or approval admission and only translates RPC
+  calls into owner methods; Approvals validates the latest item, rule and preview fingerprint
+  through one method; `settingsFor` lives with settings ownership and `main.ts` no longer
+  imports it from `handlers.ts`; the RPC methods, their parameters and answers, the denial and
+  stale-preview answers and the settings-change behaviour are unchanged and pinned by tests;
+  from `apps/desktop/sidecar/`: `npm run typecheck` and `npm test` pass
