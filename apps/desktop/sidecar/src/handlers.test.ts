@@ -133,3 +133,16 @@ test('refusal.preview RPC checks the pending item and project before the rule pa
   closed.abort();
   await hook;
 });
+
+test('refusal.preview RPC checks the rule parameter before its narrowness', async () => {
+  const { handlers, approvals, home } = setup();
+  const closed = new AbortController();
+  const hook = approvals.refusal({ session_id: 's1', hook_event_name: 'PermissionDenied', project_dir: join(home, 'proj'),
+    tool_name: 'Bash', tool_input: { command: 'npm test' } }, closed.signal);
+  assert.deepEqual(await rpc(handlers, 'refusal.preview', { id: 'id1' }), { id: 15, error: 'bad_params' });
+  assert.deepEqual(await rpc(handlers, 'refusal.preview', { id: 'id1', rule: ' ' }), { id: 15, error: 'rule_too_broad' });
+  assert.deepEqual(await rpc(handlers, 'refusal.preview', { id: 'id1', rule: 'Bash(*)' }), { id: 15, error: 'rule_too_broad' });
+  assert.deepEqual(await rpc(handlers, 'refusal.approve', { id: 'id1', rule: 'Bash(*)', before: 'x' }), { id: 15, error: 'preview_mismatch' });
+  closed.abort();
+  await hook;
+});

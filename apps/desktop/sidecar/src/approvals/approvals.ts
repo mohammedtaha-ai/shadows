@@ -87,12 +87,13 @@ export class Approvals {
   approvePreview(id: string, rule: string, before: string): { backupPath: string } {
     const preview = this.#rulePreviews.get(id);
     if (!preview || preview.rule !== rule || preview.before !== before) throw new Error('preview_mismatch');
-    const result = this.approveRule(id, rule, before);
+    const result = this.#approveRule(id, rule, before);
     this.#rulePreviews.delete(id);
     return result;
   }
 
-  approveRule(id: string, rule: string, seen: string): { backupPath: string } {
+  // Private so that every write passes the preview admission above.
+  #approveRule(id: string, rule: string, seen: string): { backupPath: string } {
     const item = this.#items.get(id);
     if (!item || item.kind !== 'refusal') throw new Error('not_pending');
     if (!isNarrowRule(rule)) throw new Error('rule_too_broad');
