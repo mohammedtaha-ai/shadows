@@ -2,10 +2,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
-import { type Plan, type PlanOp, listAgreements, getAgreement, editBindings, getPlan } from '@/api/client'
+import { type Plan, type PlanOp, editBindings, getPlan } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { operations as documentOperations } from './agreement-document'
+import { agreementKeys, agreementsQuery, agreementQuery } from '@/api/agreements'
 import { partQuery } from '@/api/queries'
 import { writeSaved } from '@/api/saved-answer'
 export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
@@ -15,10 +16,8 @@ export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
   const [party, setParty] = useState('')
   const [operations, setOperations] = useState<string[]>([])
   const pending = useRef<{ id: string; revision: number; ops: PlanOp[] } | null>(null)
-  const list = useQuery({ queryKey: ['projects', plan.project_id, 'agreements'],
-    queryFn: () => listAgreements(plan.project_id) })
-  const selected = useQuery({ queryKey: ['projects', plan.project_id, 'agreement', id, version],
-    queryFn: () => getAgreement(plan.project_id, id, version), enabled: !!id })
+  const list = useQuery(agreementsQuery(plan.project_id))
+  const selected = useQuery({ ...agreementQuery(plan.project_id, id, version), enabled: !!id })
   const save = useMutation({ mutationFn: async (ops: PlanOp[]) => {
     pending.current ??= { id: crypto.randomUUID(), revision: plan.revision, ops }
     const request = pending.current
@@ -28,7 +27,7 @@ export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
     pending.current = null
     await writeSaved(client, ['workflows', 'plan', plan.id], p)
     void client.invalidateQueries({ queryKey: ['workflows'] })
-    void client.invalidateQueries({ queryKey: ['projects', plan.project_id, 'agreement'] })
+    void client.invalidateQueries({ queryKey: agreementKeys.versions(plan.project_id) })
     void client.invalidateQueries({ queryKey: ['projects', plan.project_id, 'design'] })
   } })
   const readonly = plan.state !== 'Draft' || plan.plan_state === 'Archived'
@@ -86,8 +85,7 @@ function PartyOption({ projectId, id, role }: { projectId: string; id: string; r
   </option>
 }
 function PinnedOperations({ projectId, binding }: { projectId: string; binding: NonNullable<Plan['bindings']>[number] }) {
-  const version = useQuery({ queryKey: ['projects', projectId, 'agreement', binding.agreement_id, binding.version],
-    queryFn: () => getAgreement(projectId, binding.agreement_id, binding.version) })
+  const version = useQuery(agreementQuery(projectId, binding.agreement_id, binding.version))
   return <div className="text-xs text-faint-foreground">
     {version.data && <p>{documentOperations(version.data.content.openapi)
       .filter(op => binding.operations.includes(op.key)).map(op => op.label).join(', ')}</p>}

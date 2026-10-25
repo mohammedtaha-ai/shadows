@@ -308,3 +308,5 @@ it is that folder's `contract.yaml`.
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
 | `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
 | `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |
+
+| `web/src/api/agreements.ts` | Agreement query identities with saved answers | `web/src/api/contract.yaml` |

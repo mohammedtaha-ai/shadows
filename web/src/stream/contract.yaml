@@ -635,3 +635,5 @@ tests:
     checks: >
       A side plan-show maps to camelCase; explicit null target_tab and task_number map to null;
       place 'window' throws FrameError.
+
+agreement_refresh: "AgreementChanged and caught-up invalidate api/agreements agreementKeys shared with feature reads"

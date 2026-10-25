@@ -2,8 +2,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
-import { listAgreements, getAgreement, startAgreement } from '@/api/client'
-import { writeSaved } from '@/api/saved-answer'
+import { startAgreement } from '@/api/client'
+import { agreementKeys, agreementsQuery, agreementQuery, saveAgreementAnswer } from '@/api/agreements'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { AgreementEditor } from './agreement-editor'
@@ -15,9 +15,8 @@ export function AgreementsPage() {
 }
 function AgreementsView({ projectId, id, number }: { projectId: string; id?: string; number?: number }) {
   const client = useQueryClient(), navigate = useNavigate()
-  const list = useQuery({ queryKey: ['projects', projectId, 'agreements'], queryFn: () => listAgreements(projectId) })
-  const selected = useQuery({ queryKey: ['projects', projectId, 'agreement', id, number],
-    queryFn: () => getAgreement(projectId, id!, number), enabled: id !== undefined })
+  const list = useQuery(agreementsQuery(projectId))
+  const selected = useQuery(agreementQuery(projectId, id, number))
   const [reload, setReload] = useState(0)
   const [reason, setReason] = useState('')
   const [title, setTitle] = useState('Login')
@@ -30,8 +29,8 @@ function AgreementsView({ projectId, id, number }: { projectId: string; id?: str
       : startAgreement(projectId, command.current.id, { capability: title, purpose: '', behavior: '',
         acceptance: [], parties: [], openapi: { openapi: '3.1.0', info: { title, version: '1' }, paths: {} } })
   }, onSuccess: async v => {
-    await writeSaved(client, ['projects', projectId, 'agreement', v.agreement_id, undefined], v)
-    await client.invalidateQueries({ queryKey: ['projects', projectId, 'agreements'] })
+    await saveAgreementAnswer(client, projectId, v.agreement_id, undefined, v)
+    await client.invalidateQueries({ queryKey: agreementKeys.list(projectId) })
     await navigate({ to: '/projects/$projectId/agreements', params: { projectId }, search: { agreement: v.agreement_id } })
     command.current = null
   } })
@@ -60,8 +59,8 @@ function AgreementsView({ projectId, id, number }: { projectId: string; id?: str
       </div>}
       <AgreementEditor key={`${id}:${selected.data.version}:${reload}`} version={selected.data} projectId={projectId}
         onSaved={v => {
-          client.setQueryData(['projects', projectId, 'agreement', id, number], v)
-          void client.invalidateQueries({ queryKey: ['projects', projectId, 'agreements'] })
+          void saveAgreementAnswer(client, projectId, id, number, v)
+          void client.invalidateQueries({ queryKey: agreementKeys.list(projectId) })
         }} onReload={() => { start.reset(); void selected.refetch().then(() => setReload(n => n + 1)) }} />
     </>}
   </div></main>

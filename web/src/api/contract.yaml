@@ -609,3 +609,9 @@ image_attachments:
     - "uploadAttachment sends multipart and attachmentUrl encodes byte-route ids"
     - "Send waits for uploads and sends image-only ids in selection order"
     - "queue preserves ordered image ids and Send now uses the saved queued images"
+
+agreement_cache:
+  owner: agreements.ts
+  keys: "agreementKeys preserves list, version prefix and exact version arrays including undefined"
+  queries: "agreementsQuery and agreementQuery share their keys with stream refresh"
+  saveAgreementAnswer: "Cancels the exact in-flight version read with writeSaved before caching a mutation answer"

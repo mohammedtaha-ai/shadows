@@ -1,3 +1,4 @@
+import { agreementKeys } from '@/api/agreements'
 // One job: refetching a project's plan views from its journal notifications (§16.8).
 
 import { type QueryClient, useQueryClient } from '@tanstack/react-query'
@@ -47,7 +48,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
     }
     const refetch = (planId: string, workflowId: string) => {
       void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
-      void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreement'] })
+      void queryClient.invalidateQueries({ queryKey: agreementKeys.versions(projectId) })
       invalidateProject()
       void queryClient.invalidateQueries({ queryKey: planVersionsQuery(planId).queryKey })
       void queryClient.invalidateQueries({
@@ -63,8 +64,8 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
       url: (after) => projectEventsUrl(projectId, after),
       onDurable: (event) => {
         if (event.kind === 'AgreementChanged') {
-          void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreements'] })
-          void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreement'] })
+          void queryClient.invalidateQueries({ queryKey: agreementKeys.list(projectId) })
+          void queryClient.invalidateQueries({ queryKey: agreementKeys.versions(projectId) })
           return
         }
         if (event.kind === 'ProjectDesignChanged' || event.kind === 'ProjectStandardsSaved' || event.kind === 'VisionProposed' || event.kind === 'MapProposed' || event.kind === 'RoadmapProposed' || event.kind === 'RoadmapApproved' || event.kind === 'ProjectStructureWritten') {
@@ -87,8 +88,8 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
         else pending.set(payload.workflow_id, payload.plan_id)
       },
       onCaughtUp: () => {
-        void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreements'] })
-        void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreement'] })
+        void queryClient.invalidateQueries({ queryKey: agreementKeys.list(projectId) })
+        void queryClient.invalidateQueries({ queryKey: agreementKeys.versions(projectId) })
         invalidateProject()
         // Refetch even without a replayed design event: reconnect can follow a stale cache read.
         void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })

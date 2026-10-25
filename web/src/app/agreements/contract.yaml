@@ -260,3 +260,5 @@ tests:
       A Save refused with REVISION_CONFLICT (409) leaves the typed Arabic purpose in the
       textarea, shows the server's message, and the last PUT body carries
       expected_revision 0 and that purpose.
+
+cache_owner: "api/agreements.ts owns query identities and saved answers; the editor does not write the cache"
