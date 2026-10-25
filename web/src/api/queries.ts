@@ -1,13 +1,10 @@
 // One job: the TanStack Query identity of each piece of daemon state.
 
 import { queryOptions } from '@tanstack/react-query'
-import { getOutcome, getOutcomes, getPart, getParts, getVision, listVisionProposals, listMapProposals, listRoadmapProposals } from './design'
 import {
   getCodeSettings,
   getCodeStatus,
   getInstructions,
-  getStandards,
-  getStage,
   getThread,
   listCodeLinks,
   listGrants,
@@ -101,49 +98,6 @@ export function instructionsQuery(projectId: string) {
   })
 }
 
-export function standardsQuery(projectId: string) {
-  return queryOptions({ queryKey: ['projects', projectId, 'design', 'standards'], queryFn: () => getStandards(projectId) })
-}
-
-export function stageQuery(projectId: string) {
-  return queryOptions({ queryKey: ['projects', projectId, 'design', 'stage'], queryFn: () => getStage(projectId) })
-}
-
-export function visionQuery(projectId: string) {
-  return queryOptions({
-    queryKey: ['projects', projectId, 'design', 'vision'],
-    queryFn: () => getVision(projectId),
-  })
-}
-
-export function visionProposalsQuery(projectId: string) {
-  return queryOptions({ queryKey: ['projects', projectId, 'design', 'vision-proposals'],
-    queryFn: () => listVisionProposals(projectId) })
-}
-
-export function mapProposalsQuery(projectId: string) {
-  return queryOptions({queryKey:['projects',projectId,'design','map-proposals'],
-    queryFn:() => listMapProposals(projectId)})
-}
-
-export function roadmapProposalsQuery(projectId: string) {
-  return queryOptions({queryKey:['projects',projectId,'design','roadmap-proposals'],
-    queryFn:() => listRoadmapProposals(projectId)})
-}
-
-export function partQuery(projectId: string, partId: string) {
-  return queryOptions({ queryKey: ['projects', projectId, 'design', 'part', partId], queryFn: () => getPart(projectId, partId) })
-}
-export function outcomeQuery(projectId: string, outcomeId: string) {
-  return queryOptions({ queryKey: ['projects', projectId, 'design', 'outcome', outcomeId], queryFn: () => getOutcome(projectId, outcomeId) })
-}
-export function outcomesQuery(projectId: string, parent?: string, after?: string) {
-  return queryOptions({ queryKey: ['projects', projectId, 'design', 'outcomes', parent ?? null, after ?? null], queryFn: () => getOutcomes(projectId, parent, after) })
-}
-export function partsQuery(projectId: string, parent?: string, after?: string) {
-  return queryOptions({ queryKey: ['projects', projectId, 'design', 'parts', parent ?? null, after ?? null], queryFn: () => getParts(projectId, parent, after) })
-}
-
 /** A project's grants for external agents (spec §13.7). No thread's stream
  * carries them, so the list is polled every 10 s while shown. */
 export function grantsQuery(projectId: string) {
@@ -190,3 +144,5 @@ export function dirsQuery(path: string | null) {
 }
 
 export { workflowsKey, planMapQuery, plansQuery, planVersionsQuery, planQuery } from './workflows'
+
+export { standardsQuery, stageQuery, visionQuery, visionProposalsQuery, mapProposalsQuery, roadmapProposalsQuery, partQuery, outcomeQuery, outcomesQuery, partsQuery } from './design'

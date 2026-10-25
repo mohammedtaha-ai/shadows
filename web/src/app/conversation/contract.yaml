@@ -1453,3 +1453,5 @@ image_attachments:
     - "the draft keeps staged images when its opened session refuses images"
 
 session_cache_owner: "api/sessions.ts owns session/command identities, frame updates, resets and saved mutation answers; feature hooks project presentation state"
+
+design_cache_identity: "Proposal approval refresh uses api/design.designKeys"

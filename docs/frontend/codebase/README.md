@@ -135,7 +135,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/aylul-profiles.ts` | HTTP calls for AYLUL configuration: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
 | `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
-| `web/src/api/design.ts` | HTTP calls for the project design workspace | `web/src/api/client.ts` |
+| `web/src/api/design.ts` | Project design query cache ownership | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | TanStack Query keys for each piece of daemon state | `web/src/api/client.ts` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |

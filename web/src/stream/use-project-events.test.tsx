@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { act } from 'react'
@@ -21,14 +22,14 @@ it('independent tabs refresh every design slice, deduplicate and resume after di
   const reads = [0, 0]
   function Workspace({ tab, project = 'p1' }: { tab: number; project?: string }) {
     useProjectEvents(project)
-    const vision = useQuery({ queryKey: ['projects', project, 'design', 'vision'], queryFn: async () => { reads[tab]++; return revision } })
-    const parts = useQuery({ queryKey: ['projects', project, 'design', 'parts'], queryFn: async () => revision })
-    const outcomes = useQuery({ queryKey: ['projects', project, 'design', 'outcomes'], queryFn: async () => revision })
+    const vision = useQuery({ queryKey: designKeys.vision(project), queryFn: async () => { reads[tab]++; return revision } })
+    const parts = useQuery({ queryKey: designKeys.collection(project, 'parts'), queryFn: async () => revision })
+    const outcomes = useQuery({ queryKey: designKeys.collection(project, 'outcomes'), queryFn: async () => revision })
     return <p>{vision.data}:{parts.data}:{outcomes.data}</p>
   }
   const render = (tab: number, project = 'p1') => roots[tab].render(<QueryClientProvider client={clients[tab]}><Workspace tab={tab} project={project} /></QueryClientProvider>)
   try {
-    clients.forEach(client => client.setQueryData(['projects', 'other', 'design', 'vision'], 99))
+    clients.forEach(client => client.setQueryData(designKeys.vision('other'), 99))
     await act(async () => { render(0); render(1) })
     await until(() => sources.length === 2 && tabs.every(tab => tab.textContent === '0:0:0'))
     act(() => sources.forEach(source => source.caughtUp(0)))
@@ -56,7 +57,7 @@ it('independent tabs refresh every design slice, deduplicate and resume after di
     act(() => sources.forEach(source => source.durable(7, 'ProjectDesignChanged')))
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
     expect(reads).toEqual(afterWrite)
-    clients.forEach(client => expect(client.getQueryState(['projects', 'other', 'design', 'vision'])?.isInvalidated).toBe(false))
+    clients.forEach(client => expect(client.getQueryState(designKeys.vision('other'))?.isInvalidated).toBe(false))
     act(() => sources[0].fail())
     expect(sources[0].closed).toBe(true)
     await until(() => sources.length === 3)

@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // Immutable map proposal content with live person-approval state.
 import {useMutation,useQuery,useQueryClient} from '@tanstack/react-query'
 import {useRef} from 'react'
@@ -30,7 +31,7 @@ export function MapProposalCard({entry,projectId}: {entry:ThreadEntry;projectId:
   const approve = useMutation({mutationFn:(sent:{id:string;commandId:string}) =>
     approveMapProposal(projectId,sent.id,sent.commandId),onSuccess:() => {
       attempt.current=null
-      void client.invalidateQueries({queryKey:['projects',projectId,'design']})
+      void client.invalidateQueries({queryKey:designKeys.all(projectId)})
     },onError:() => {void client.invalidateQueries({queryKey:mapProposalsQuery(projectId).queryKey})},
   })
   if (!proposed) return <p dir="auto">{entry.body}</p>

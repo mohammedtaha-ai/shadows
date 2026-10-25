@@ -639,3 +639,5 @@ tests:
 agreement_refresh: "AgreementChanged and caught-up invalidate api/agreements agreementKeys shared with feature reads"
 
 workflow_refresh_identity: "api/workflows.workflowKeys owns the plan prefix used by project journal refresh"
+
+design_cache_identity: "Project design refresh uses api/design.designKeys shared with feature queries"

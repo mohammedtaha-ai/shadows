@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 import { workflowKeys } from '@/api/workflows'
 import { agreementKeys } from '@/api/agreements'
 // One job: refetching a project's plan views from its journal notifications (§16.8).
@@ -48,7 +49,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
       } })
     }
     const refetch = (planId: string, workflowId: string) => {
-      void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+      void queryClient.invalidateQueries({ queryKey: designKeys.all(projectId) })
       void queryClient.invalidateQueries({ queryKey: agreementKeys.versions(projectId) })
       invalidateProject()
       void queryClient.invalidateQueries({ queryKey: planVersionsQuery(planId).queryKey })
@@ -70,7 +71,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
           return
         }
         if (event.kind === 'ProjectDesignChanged' || event.kind === 'ProjectStandardsSaved' || event.kind === 'VisionProposed' || event.kind === 'MapProposed' || event.kind === 'RoadmapProposed' || event.kind === 'RoadmapApproved' || event.kind === 'ProjectStructureWritten') {
-          void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+          void queryClient.invalidateQueries({ queryKey: designKeys.all(projectId) })
           return
         }
         if (REACH_EVENTS.has(event.kind)) {
@@ -93,7 +94,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
         void queryClient.invalidateQueries({ queryKey: agreementKeys.versions(projectId) })
         invalidateProject()
         // Refetch even without a replayed design event: reconnect can follow a stale cache read.
-        void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+        void queryClient.invalidateQueries({ queryKey: designKeys.all(projectId) })
         for (const [workflow, plan] of pending) refetch(plan, workflow)
         pending.clear()
       },

@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // A task adopts an exact Agreed contract; retry retains its command until the read succeeds.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -28,7 +29,7 @@ export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
     await savePlanAnswer(client, p)
     void client.invalidateQueries({ queryKey: workflowKeys.all() })
     void client.invalidateQueries({ queryKey: agreementKeys.versions(plan.project_id) })
-    void client.invalidateQueries({ queryKey: ['projects', plan.project_id, 'design'] })
+    void client.invalidateQueries({ queryKey: designKeys.all(plan.project_id) })
   } })
   const readonly = plan.state !== 'Draft' || plan.plan_state === 'Archived'
   const locked = readonly || save.isPending || save.isError

@@ -641,3 +641,9 @@ workflow_cache:
   owner: workflows.ts
   keys: "workflowKeys preserves workflows, map, list with archived object, versions and plan identities; queries.ts re-exports queries"
   savePlanAnswer: "writeSaved cancels the exact plan read before caching a binding edit's authoritative plan answer"
+
+design_cache:
+  owner: design.ts
+  keys: "designKeys owns design prefixes, details, proposals, hierarchy pages and structure-preview; arrays preserve null pagination and existing values"
+  queries: "Design queries are defined beside designKeys and re-exported by queries.ts; designPageQuery appends the existing cursor to the supplied branch key"
+  saveStandardsAnswer: "writeSaved cancels the exact standards read, retains a newer cached additions version and uses the saved snapshot only when the cache is absent"

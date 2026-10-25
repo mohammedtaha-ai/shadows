@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // The save/reload lifecycle shared by part and outcome editors.
 import { type UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
@@ -78,7 +79,7 @@ export function useDesignEditor<View extends ViewBasis, Content>(
   const save = useMutation({
     mutationFn: (body: DesignEdit) => editDesign(projectId, body),
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+      await client.invalidateQueries({ queryKey: designKeys.all(projectId) })
       if (!base) {
         attempt.current = null
         setConflict(false)
@@ -94,7 +95,7 @@ export function useDesignEditor<View extends ViewBasis, Content>(
     onError: error => {
       if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'REVISION_CONFLICT') {
         setConflict(true)
-        void client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+        void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
       }
     },
   })

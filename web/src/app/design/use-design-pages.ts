@@ -1,11 +1,12 @@
+import { designPageQuery } from '@/api/design'
 // Accumulate hierarchy pages only while their workspace revisions agree.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 interface Page<T> { revision: number; items: T[]; next?: string | null }
 export function useDesignPages<T>(baseKey: readonly unknown[], load: (after?: string) => Promise<Page<T>>) {
   const client = useQueryClient()
-  const queryKey = [...baseKey, null]
-  const first = useQuery({ queryKey, queryFn: () => load() })
+  const queryKey = designPageQuery(baseKey, load).queryKey
+  const first = useQuery(designPageQuery(baseKey, load))
   const [extra, setExtra] = useState<{ revision: number; pages: Page<T>[] } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -15,7 +16,7 @@ export function useDesignPages<T>(baseKey: readonly unknown[], load: (after?: st
     if (!next || !first.data) return
     setLoading(true); setError(null)
     try {
-      const page = await client.fetchQuery({ queryKey: [...baseKey, next], queryFn: () => load(next), staleTime: 0 })
+      const page = await client.fetchQuery({ ...designPageQuery(baseKey, load, next), staleTime: 0 })
       if (page.revision !== first.data.revision) {
         setExtra(null); await client.invalidateQueries({ queryKey })
       } else setExtra({ revision: page.revision, pages: [...(extra?.revision === page.revision ? extra.pages : []), page] })

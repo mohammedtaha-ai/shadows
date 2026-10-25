@@ -580,3 +580,5 @@ tests:
     checks: >
       A VisionProposed durable event adds the '1 proposal awaits' status and keeps the
       unsaved edit text, with Reload visible because the revision moved.
+
+design_cache_identity: "api/design.ts owns design query/page identities and saved standards answers"

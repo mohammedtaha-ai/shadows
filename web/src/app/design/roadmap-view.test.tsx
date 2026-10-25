@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // @vitest-environment happy-dom
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
@@ -120,7 +121,7 @@ it('an outcome create retry preserves its identity and basis through a refetch',
   typeInto(title()!, 'نتيجة جديدة')
   act(() => a.button('Create')?.click())
   await until(() => a.text().includes('response lost'))
-  await act(async () => { await a.queryClient.invalidateQueries({ queryKey: ['projects', 'p1', 'design'] }) })
+  await act(async () => { await a.queryClient.invalidateQueries({ queryKey: designKeys.all('p1') }) })
   expect(title()?.value).toBe('نتيجة جديدة')
   act(() => a.button('Create')?.click())
   await until(() => a.bodies.length === 2)

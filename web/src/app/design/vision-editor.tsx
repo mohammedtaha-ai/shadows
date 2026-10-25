@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // One job: the vision as five lists of items (§23.3), edited one item at a time.
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -63,7 +64,7 @@ function Editor({projectId,saved,titles}: {projectId:string;saved:VisionView;tit
       const op = body.ops[0]
       if (op.kind === 'VisionItemAdd') setDrafts(d => ({...d,[op.field]:''}))
       setEditing(null); attempt.current = null; setConflict(false)
-      await client.invalidateQueries({queryKey:['projects',projectId,'design']}, {cancelRefetch:false})
+      await client.invalidateQueries({queryKey:designKeys.all(projectId)}, {cancelRefetch:false})
       await reload(false)
     },
     onError: (e) => {

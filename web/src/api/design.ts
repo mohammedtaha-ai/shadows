@@ -1,3 +1,6 @@
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
+import { writeSaved } from './saved-answer'
+import { getStandards, getStage, type EffectiveStandards } from './client'
 // The HTTP calls for the project design workspace.
 import { client } from './client'
 import { unwrap } from './error'
@@ -75,4 +78,80 @@ export function approveVisionProposal(projectId: string, proposalId: string, com
   return unwrap(client.POST('/api/projects/{id}/vision-proposals/{proposal_id}/approve', {
     params: { path: { id: projectId, proposal_id: proposalId } }, body: { command_id: commandId },
   }))
+}
+
+export const designKeys = {
+  all: (projectId: string) => ['projects', projectId, 'design'],
+  standards: (projectId: string) => ['projects', projectId, 'design', 'standards'],
+  stage: (projectId: string) => ['projects', projectId, 'design', 'stage'],
+  vision: (projectId: string) => ['projects', projectId, 'design', 'vision'],
+  visionProposals: (projectId: string) => ['projects', projectId, 'design', 'vision-proposals'],
+  mapProposals: (projectId: string) => ['projects', projectId, 'design', 'map-proposals'],
+  roadmapProposals: (projectId: string) => ['projects', projectId, 'design', 'roadmap-proposals'],
+  part: (projectId: string, partId: string) => ['projects', projectId, 'design', 'part', partId],
+  outcome: (projectId: string, outcomeId: string) => ['projects', projectId, 'design', 'outcome', outcomeId],
+  collection: (projectId: string, kind: 'parts' | 'outcomes') => ['projects', projectId, 'design', kind],
+  page: (projectId: string, kind: 'parts' | 'outcomes', parent?: string, after?: string) => ['projects', projectId, 'design', kind, parent ?? null, after ?? null],
+  preview: (projectId: string) => ['projects', projectId, 'design', 'structure-preview'],
+}
+
+
+export function standardsQuery(projectId: string) {
+  return queryOptions({ queryKey: designKeys.standards(projectId), queryFn: () => getStandards(projectId) })
+}
+
+
+export function stageQuery(projectId: string) {
+  return queryOptions({ queryKey: designKeys.stage(projectId), queryFn: () => getStage(projectId) })
+}
+
+
+export function visionQuery(projectId: string) {
+  return queryOptions({
+    queryKey: designKeys.vision(projectId),
+    queryFn: () => getVision(projectId),
+  })
+}
+
+
+export function visionProposalsQuery(projectId: string) {
+  return queryOptions({ queryKey: designKeys.visionProposals(projectId),
+    queryFn: () => listVisionProposals(projectId) })
+}
+
+
+export function mapProposalsQuery(projectId: string) {
+  return queryOptions({queryKey:designKeys.mapProposals(projectId),
+    queryFn:() => listMapProposals(projectId)})
+}
+
+
+export function roadmapProposalsQuery(projectId: string) {
+  return queryOptions({queryKey:designKeys.roadmapProposals(projectId),
+    queryFn:() => listRoadmapProposals(projectId)})
+}
+
+
+export function partQuery(projectId: string, partId: string) {
+  return queryOptions({ queryKey: designKeys.part(projectId, partId), queryFn: () => getPart(projectId, partId) })
+}
+
+export function outcomeQuery(projectId: string, outcomeId: string) {
+  return queryOptions({ queryKey: designKeys.outcome(projectId, outcomeId), queryFn: () => getOutcome(projectId, outcomeId) })
+}
+
+export function outcomesQuery(projectId: string, parent?: string, after?: string) {
+  return queryOptions({ queryKey: designKeys.page(projectId, 'outcomes', parent, after), queryFn: () => getOutcomes(projectId, parent, after) })
+}
+
+export function partsQuery(projectId: string, parent?: string, after?: string) {
+  return queryOptions({ queryKey: designKeys.page(projectId, 'parts', parent, after), queryFn: () => getParts(projectId, parent, after) })
+}
+export function designPageQuery<T>(baseKey: readonly unknown[], load: (after?: string) => Promise<T>, after?: string) {
+  return queryOptions({ queryKey: [...baseKey, after ?? null], queryFn: () => load(after) })
+}
+export function saveStandardsAnswer(client: QueryClient, projectId: string, saved: EffectiveStandards, version: NonNullable<EffectiveStandards['additions']>) {
+  // A journal refresh can already hold a newer saved version.
+  return writeSaved<EffectiveStandards>(client, designKeys.standards(projectId), current =>
+    (current?.additions?.number ?? 0) > version.number ? current : { ...(current ?? saved), additions: version })
 }

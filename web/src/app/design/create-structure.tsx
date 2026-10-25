@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // The person's structure confirmation, write and retained result.
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -40,7 +41,7 @@ export function CreateStructure({ projectId }: {projectId:string}) {
   const [result, setResult] = useState<StructureWritten | null>(null)
   const command = useRef<string | null>(null)
   const preview = useQuery({
-    queryKey: ['projects',projectId,'design','structure-preview'],
+    queryKey: designKeys.preview(projectId),
     queryFn: () => fileCount(projectId),
     enabled: confirming && stage.data?.stage === 'structure' && stage.data.missing.length === 0,
   })
@@ -50,7 +51,7 @@ export function CreateStructure({ projectId }: {projectId:string}) {
       setResult(written)
       setConfirming(false)
       command.current = null
-      void client.invalidateQueries({queryKey:['projects',projectId,'design']})
+      void client.invalidateQueries({queryKey:designKeys.all(projectId)})
     },
     onError: error => {
       setConfirming(false)

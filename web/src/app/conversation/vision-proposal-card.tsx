@@ -1,3 +1,4 @@
+import { designKeys } from '@/api/design'
 // One job: the proposed content, its live state, and the person's approval (§23.5).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
@@ -31,7 +32,7 @@ export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; p
       approveVisionProposal(projectId, sent.proposalId, sent.commandId),
     onSuccess: () => {
       attempt.current = null
-      void client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+      void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
     },
     onError: () => {
       void client.invalidateQueries({ queryKey: visionProposalsQuery(projectId).queryKey })
