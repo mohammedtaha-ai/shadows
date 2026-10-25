@@ -89,3 +89,5 @@ workflow :: plans
 # turns SQL lives in crates/core-turns/src/store/.
 
 # project_lifecycle SQL lives in crates/core-project-lifecycle/src/store.rs.
+
+# events SQL lives in crates/core-events/src/store.rs.

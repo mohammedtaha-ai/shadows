@@ -579,3 +579,12 @@ impl From<core_project_lifecycle::ProjectLifecycleError> for CoreError {
         }
     }
 }
+
+impl From<core_events::EventsError> for CoreError {
+    fn from(error: core_events::EventsError) -> Self {
+        match error {
+            core_events::EventsError::Projects(error) => error.into(),
+            core_events::EventsError::Storage(error) => error.into(),
+        }
+    }
+}

@@ -15,11 +15,11 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::error::CoreError;
-use crate::events::Events;
 use core_agents::Agents;
 use core_code::{Code, CodeConfig};
 use core_db::Storage;
 use core_design::Design;
+use core_events::Events;
 use core_extensions::Extensions;
 use core_grants::Grants;
 use core_harness::{AylulOwners, Harness, SessionsConfig};
@@ -142,8 +142,8 @@ pub struct CoreParts {
          `crates/core-instructions/contract.yaml` |"]
 #[doc = " | `Events` | \
          thread or project event subscriptions | \
-         `crates/shadows-core/src/events` | \
-         `crates/shadows-core/src/events/contract.yaml` |"]
+         `crates/core-events/src` | \
+         `crates/core-events/contract.yaml` |"]
 #[doc = " | `Code` | \
          project code indexing | \
          `crates/core-code/src` | \

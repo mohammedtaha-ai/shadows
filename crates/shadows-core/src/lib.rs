@@ -1,6 +1,5 @@
 mod app;
 mod error;
-mod events;
 pub use core_project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]
 pub mod testing;
@@ -33,6 +32,7 @@ pub use core_design::{
 };
 pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use core_design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
+pub use core_events::{Delivery, Events, StoredEvent, Subscription};
 pub use core_extensions::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
@@ -75,7 +75,6 @@ pub use core_turns::{
 };
 pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 pub use error::{CoreError, ErrorCode};
-pub use events::{Delivery, Events, StoredEvent, Subscription};
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
@@ -115,3 +114,5 @@ pub use core_plans::PlansError;
 pub use core_turns::TurnsError;
 
 pub use core_project_lifecycle::ProjectLifecycleError;
+
+pub use core_events::EventsError;

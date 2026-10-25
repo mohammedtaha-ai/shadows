@@ -307,9 +307,9 @@ pattern to follow, not merely an example.
 | `crates/core-code/src/watch.rs` | keeping one active project's index current | `crates/core-code/src/watch.rs` |
 | `crates/core-code/src/active.rs` | which projects are active, in order of use | `crates/core-code/src/active.rs` |
 | `crates/core-code/src/links.rs` | the commands over links or the active limit | `crates/core-code/src/links.rs` |
-| `crates/shadows-core/src/events/` | what clients watch live | `crates/shadows-core/src/events/mod.rs` |
-| `crates/shadows-core/src/events/model.rs` | journal replay cursor | `crates/shadows-core/src/events/model.rs` |
-| `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |
+| `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
+| `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
+| `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |
 | `crates/shadows-agent/src/lib.rs` | the ACP client for a harness adapter | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/` | private ACP protocol implementation | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/connection.rs` | ACP transport initialization | `crates/shadows-agent/src/acp.rs` |
@@ -417,7 +417,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-project-lifecycle/src/store.rs` | atomic project removal composition | `crates/core-project-lifecycle/contract.yaml` |
 
 | `crates/core-plans/src/store/event_projection.rs` | identifier-only plan event projection | `crates/core-plans/contract.yaml` |
-| `crates/shadows-core/src/events/store.rs` | private journal replay persistence | `crates/shadows-core/src/events/contract.yaml` |
+| `crates/core-events/src/store.rs` | private journal replay persistence | `crates/core-events/contract.yaml` |
 | `crates/shadows-http/src/aylul_agents.rs` | agent HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_person.rs` | person settings HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_usage.rs` | usage HTTP translation | `crates/shadows-http/src/contract.yaml` |
@@ -486,3 +486,5 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-turns/src/shutdown.rs` | live shutdown orchestration | `crates/core-turns/contract.yaml` |
 
 | `crates/core-turns/src/spawn.rs` | live registration | `crates/core-turns/contract.yaml` |
+
+| `crates/core-events/src/error.rs` | event subscription failures | `crates/core-events/contract.yaml` |

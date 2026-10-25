@@ -28,16 +28,19 @@ name: events
 # Held by create_structure_route_writes_and_refuses.
 version: 1
 status: current
-source: crates/shadows-core/src/events
+source: crates/core-events/src
 modules:
-  mod.rs: subscription entry points
+  error.rs: event subscription failures
+  lib.rs: subscription entry points
   model.rs: durable event values
   store.rs: private journal replay persistence
   subscription.rs: replay handoff delivery
 dependencies:
+  operations: crates/core-operations/contract.yaml
+  threads: crates/core-threads/contract.yaml
   plans: crates/core-plans/contract.yaml
   harness: crates/core-harness/contract.yaml
-  projects: ../projects/contract.yaml
+  projects: crates/core-projects/contract.yaml
   turns: crates/core-turns/contract.yaml
   signal: crates/core-plans/contract.yaml
 
@@ -100,9 +103,10 @@ shapes:
 
 
 functions:
+  new: Constructs Events over declared publication and subscription dependencies.
   service:
     subscribe_project:
-      signature: "(&self, project: ProjectId, after: i64) -> Result<Subscription, CoreError>"
+      signature: "(&self, project: ProjectId, after: i64) -> Result<Subscription, EventsError>"
       # Validates the project is live; same committed watch and subscription
       # replay loop, filtered to plan events, ProjectDesignChanged and
       # AgreementChanged and ProjectStandardsSaved. Standards payload carries
@@ -181,10 +185,10 @@ enums:
     source: core_db::JournalEntry
     values: []
   Harness:
-    source: crate::harness::Harness
+    source: core_harness::Harness
     values: []
   Bus:
-    source: crate::turns::Bus
+    source: core_turns::Bus
     values: []
   HarnessEvent:
     source: shadows_agent::events::HarnessEvent

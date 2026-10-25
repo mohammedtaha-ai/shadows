@@ -223,3 +223,9 @@ impl From<shadows_core::ProjectLifecycleError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::EventsError> for Failure {
+    fn from(error: shadows_core::EventsError) -> Self {
+        CoreError::from(error).into()
+    }
+}

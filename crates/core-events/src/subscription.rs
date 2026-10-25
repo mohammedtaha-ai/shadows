@@ -30,10 +30,10 @@ use tokio::sync::{broadcast, watch};
 use super::store::EventsStore;
 use super::{EventCursor, StoredEvent};
 use core_harness::Harness;
+use core_operations::OperationId;
 use core_plans::UiSignal;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
-use core_turns::OperationId;
 
 /// How many journal rows one read returns; the replay reads until one is empty.
 const BATCH: i64 = 500;

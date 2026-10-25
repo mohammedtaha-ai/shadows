@@ -23,12 +23,13 @@ pub use model::EventCursor;
 pub use store::StoredEvent;
 pub use subscription::{Delivery, Subscription};
 
-use crate::error::CoreError;
+mod error;
 use core_db::Storage;
 use core_harness::Harness;
 use core_projects::{ProjectId, Projects};
 use core_threads::ThreadId;
 use core_turns::Turns;
+pub use error::EventsError;
 
 /// Events: every subscriber's stream, over the journal and the live sources.
 pub struct Events {
@@ -41,7 +42,7 @@ pub struct Events {
 }
 
 impl Events {
-    pub(crate) fn new(
+    pub fn new(
         storage: Arc<Storage>,
         harness: Arc<Harness>,
         projects: Projects,
@@ -98,7 +99,7 @@ impl Events {
         &self,
         project: ProjectId,
         after: i64,
-    ) -> Result<Subscription, CoreError> {
+    ) -> Result<Subscription, EventsError> {
         self.projects.get(&project).await?;
         Ok(Subscription::new(
             subscription::Scope::Project(project),
@@ -115,3 +116,5 @@ impl Events {
         ))
     }
 }
+
+use core_db::StorageError;
