@@ -12,6 +12,9 @@ workflow's native `cargo test` step includes it without another CI entry.
 `scanner.rs` parses every Rust file under `src/` with `syn`, including test and
 fixture sources and inline test modules. It follows module declarations and
 `#[path]` attributes, with directory-derived names for unattached fixture sources.
+Parent-relative paths are normalized. Missing explicit path targets and multiple
+mounts of one source fail rather than selecting an owner implicitly. Unknown
+inline owners fail coverage too.
 The `OWNERS` table maps the D-0 owners to current modules; `EDGES` is the D-0 graph.
 Account includes its private assistant and native-login primitives. Preferences
 is distinct from MainWindow even while it lives under `windows/`.
@@ -20,22 +23,39 @@ The checks hold:
 
 - Owner dependencies, including imports, aliases, qualified paths, type aliases
   and named reexports. Cycles are reported by participating file and owner edge.
-- Managed-state method/UFCS lookups and Tauri `State` injection outside `lib.rs`.
-- Construction of the explicitly inventoried lifetime owners outside `lib.rs`,
+- Managed-state method/UFCS lookups (including UFCS function values) and Tauri
+  `State` injection outside the root composition module in `lib.rs`.
+- Construction of the explicitly inventoried lifetime owners and OS login-item
+  adapter outside that composition module,
   including `new`, `start`, `resolve`, `default`, tuple calls and struct literals.
+  Associated factory signatures returning the inventoried type or `Self`
+  (including wrappers such as `Arc<Self>`) are discovered before checking calls,
+  so names such as `with_timing` and `from_environment` cannot bypass the rule.
   Ordinary DTO construction is allowed.
+  `Self::new` resolves through the enclosing implementation. A factory's `Self`
+  field initialization is allowed so it can implement the public constructor.
 - Cross-owner implementation-submodule access and private owner stores.
 - Core endpoint literals outside Companion/CoreConnection, including literals
   inside macros; reqwest paths outside those owners or retained Account HTTP.
 - Owner contract existence and code-map entry coverage. Existing standalone
   owners use their current map/spec references rather than invented contracts.
-- Equal command-name sets in `generate_handler!`, build metadata and every
+- Equal command-name sets in `generate_handler!` passed to `invoke_handler`,
+  build metadata and every
   permission file's allow/deny commands, including handwritten groups.
+  Registration and build metadata are collected from their own files. Direct
+  `#[cfg(test)]` modules/functions and `#[test]` functions do not contribute
+  production inventory; unused handler lists cannot fill registration omissions.
 
 The resolution is bounded source analysis, not Rust type checking. Foreign
 owner glob imports require explicit review rather than hiding their dependency
 surface. Native behavior tests remain responsible for focus, windows, races,
 HTTP behavior and permissions at runtime.
+Rust macro arguments are parsed as expressions, statements, or expression
+fragments around DSL separators; nested groups are scanned. Macro expansion,
+generated identifiers and runtime dispatch still require code review. Constructor
+types are explicitly inventoried; named return types supplement the conventional factory names;
+arbitrary factories returning erased types need review. Method names `state`
+and `try_state` are conservative without receiver type inference.
 
 `baseline.txt` contains only exact `rule :: file :: target` exceptions. Source
 findings carry an occurrence ordinal so adding an identical reference in the
@@ -53,4 +73,13 @@ forbidden/allowed edges, cycles, import aliases, qualified paths, reexports,
 type aliases, foreign globs, `#[path]`, managed state (`state`, `try_state`, UFCS,
 State injection), constructors, private submodules/stores, Core HTTP, contract/map
 coverage, three-way command omissions and extra permission commands, new/stale
-exceptions, repeated violations and duplicate baseline entries.
+exceptions, repeated violations and duplicate baseline entries. Alias resolution
+also covers private parent imports, public type aliases and block-local aliases
+inside macros. Private access checks retain the written module surface so a
+reexport cannot make an implementation submodule a public owner entry.
+The review fixtures also cover shadowing of absolute paths, private import
+aliases in reexports, inline declarations, Tauri globs, statement/DSL macros,
+handler aliases, inventory separation, path escape/multiple mounts, OS adapter
+construction, move relocation and deterministic output. Only root composition
+has construction/state exemptions; neither inline nor file-backed tests do.
+The inventory's test-only filtering does not exempt tests from ownership rules.

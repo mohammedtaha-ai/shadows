@@ -303,7 +303,8 @@ fn duplicate_baseline_is_invalid() {
 
 #[test]
 fn command_inventory_checks_each_surface_in_both_directions() {
-    let lib = "fn f() { tauri::generate_handler![commands::one, commands::two]; }";
+    let lib =
+        "fn f() { app.invoke_handler(tauri::generate_handler![commands::one, commands::two]); }";
     let build = "fn main() { manifest.commands(&[\"one\", \"two\"]); }";
     let permissions = BTreeMap::from([(
         "permissions.toml".into(),
@@ -342,4 +343,325 @@ fn command_inventory_checks_each_surface_in_both_directions() {
     )]);
     assert!(inventory::check(lib, build, &extra)
         .contains("command_inventory :: lib.rs :: missing extra"));
+}
+
+#[test]
+fn inline_owner_in_lib_is_not_composition() {
+    catches(
+        "lib.rs",
+        "mod navigation { fn f() { app.state::<u8>(); } }",
+        "managed_state",
+    );
+    catches(
+        "lib.rs",
+        "mod navigation { fn f() { crate::presence::Presence::new(); } }",
+        "construction",
+    );
+}
+
+#[test]
+fn self_constructor_is_not_an_ordinary_dto() {
+    catches(
+        "presence/mod.rs",
+        "struct Presence; impl Presence { fn duplicate() { Self::new(); } }",
+        "construction",
+    );
+}
+
+#[test]
+fn reexport_through_a_private_alias_keeps_the_original_owner() {
+    let found = scanner::scan(&BTreeMap::from([
+        (
+            "navigation.rs".into(),
+            "use crate::presence::Presence as P; pub use P as Hidden;".into(),
+        ),
+        (
+            "commands/mod.rs".into(),
+            "use crate::navigation::Hidden; fn f() { Hidden::new(); }".into(),
+        ),
+    ]));
+    assert!(
+        found.contains("construction :: commands/mod.rs :: presence::Presence::new #1"),
+        "{found:#?}"
+    );
+}
+
+#[test]
+fn macro_statement_tokens_do_not_hide_state_or_construction() {
+    catches(
+        "navigation.rs",
+        "fn f() { custom!(let x = app.state::<u8>();); }",
+        "managed_state",
+    );
+    catches(
+        "navigation.rs",
+        "fn f() { custom!(value => crate::presence::Presence::new()); }",
+        "construction",
+    );
+    catches(
+        "navigation.rs",
+        "fn f() { tauri::generate_handler![crate::auth::action]; }",
+        "owner_edge",
+    );
+}
+
+#[test]
+fn parent_path_attribute_uses_declared_owner() {
+    let found = scanner::scan(&BTreeMap::from([
+        (
+            "lib.rs".into(),
+            "mod navigation { #[path = \"../shared.rs\"] mod tests; }".into(),
+        ),
+        (
+            "shared.rs".into(),
+            "fn f() { super::super::auth::AuthController::new(); }".into(),
+        ),
+    ]));
+    assert!(
+        found.contains("construction :: shared.rs :: auth::AuthController::new #1"),
+        "{found:#?}"
+    );
+    assert!(
+        !found.iter().any(|v| v.starts_with("coverage")),
+        "{found:#?}"
+    );
+}
+
+#[test]
+fn cfg_test_has_no_architecture_exemption() {
+    catches(
+        "navigation.rs",
+        "#[cfg(test)] mod tests { fn f() { app.try_state::<u8>(); } }",
+        "managed_state",
+    );
+    catches(
+        "navigation/child.rs",
+        "fn f() { super::super::auth::AuthController::new(); }",
+        "construction",
+    );
+}
+
+#[test]
+fn pure_move_requires_one_for_one_baseline_relocation() {
+    let before = scan("navigation.rs", "fn f() { app.state::<u8>(); }");
+    let after = scan("navigation/moved.rs", "fn f() { app.state::<u8>(); }");
+    let diff = compare(&after, &before);
+    assert_eq!(diff.len(), 2);
+    assert!(diff[0].starts_with("NEW "));
+    assert!(diff[1].starts_with("STALE "));
+}
+
+#[test]
+fn handler_aliases_use_the_registered_command_name() {
+    let lib = "use tauri::generate_handler as handlers; use crate::commands::one as renamed; fn f() { app.invoke_handler(handlers![renamed]); }";
+    let build = "fn main() { manifest.commands(&[\"one\"]); }";
+    let permissions = BTreeMap::from([(
+        "one.toml".into(),
+        "[[permission]]\ncommands.allow = ['one']".into(),
+    )]);
+    assert!(inventory::check(lib, build, &permissions).is_empty());
+    assert!(inventory::check(lib, "fn main() {}", &permissions)
+        .contains("command_inventory :: build.rs :: missing one"));
+}
+
+#[test]
+fn tauri_glob_and_state_function_values_do_not_hide_lookups() {
+    catches(
+        "navigation.rs",
+        "use tauri::*; fn f(_: State<'_, u8>) {}",
+        "managed_state",
+    );
+    catches(
+        "navigation.rs",
+        "use tauri::Manager; fn f() { let lookup = Manager::state::<u8>; lookup(&app); }",
+        "managed_state",
+    );
+}
+
+#[test]
+fn absolute_crate_paths_do_not_follow_a_shadowing_import() {
+    catches(
+        "navigation.rs",
+        "use std as presence; fn f() { crate::presence::Presence::new(); }",
+        "construction",
+    );
+}
+
+#[test]
+fn inline_module_uses_its_own_type_declarations() {
+    catches(
+        "lib.rs",
+        "mod presence { struct Presence; fn f() { Presence::new(); } }",
+        "construction",
+    );
+}
+
+#[test]
+fn inventory_does_not_borrow_metadata_from_the_wrong_file() {
+    let lib = "fn f() { app.invoke_handler(tauri::generate_handler![commands::one]); fake.commands(&[\"one\"]); }";
+    let permissions = BTreeMap::from([(
+        "one.toml".into(),
+        "[[permission]]\ncommands.allow = ['one']".into(),
+    )]);
+    assert!(inventory::check(lib, "fn main() {}", &permissions)
+        .contains("command_inventory :: build.rs :: missing one"));
+    assert!(inventory::check("fn f() {}", lib, &permissions)
+        .contains("command_inventory :: lib.rs :: missing one"));
+}
+
+#[test]
+fn unknown_inline_owner_fails_coverage() {
+    catches("lib.rs", "mod hidden_service { fn f() {} }", "coverage");
+}
+
+#[test]
+fn os_adapter_construction_belongs_to_composition() {
+    catches(
+        "commands/preferences.rs",
+        "fn f() { crate::windows::preferences::PluginLoginItem(app); }",
+        "construction",
+    );
+}
+
+#[test]
+#[should_panic(expected = "multiple module mounts")]
+fn one_source_cannot_silently_replace_another_module_mount() {
+    scanner::scan(&BTreeMap::from([
+        (
+            "lib.rs".into(),
+            "#[path = \"shared.rs\"] mod navigation; #[path = \"shared.rs\"] mod presence;".into(),
+        ),
+        ("shared.rs".into(), "fn f() {}".into()),
+    ]));
+}
+
+#[test]
+#[should_panic(expected = "unscanned path module")]
+fn explicit_path_cannot_leave_the_scanned_source_tree() {
+    scan("lib.rs", "#[path = \"../outside.rs\"] mod navigation;");
+}
+
+#[test]
+fn findings_do_not_depend_on_source_insertion_order() {
+    let entries = [
+        (
+            "navigation.rs".into(),
+            "fn f() { app.state::<u8>(); }".into(),
+        ),
+        (
+            "presence/mod.rs".into(),
+            "fn f() { crate::auth::AuthController::new(); }".into(),
+        ),
+    ];
+    let forward = scanner::scan(&entries.clone().into_iter().collect());
+    let backward = scanner::scan(&entries.into_iter().rev().collect());
+    assert_eq!(forward, backward);
+    let errors = compare(&forward, &Findings::new());
+    assert!(errors.windows(2).all(|pair| pair[0] < pair[1]));
+}
+
+#[test]
+fn factory_return_types_identify_nonstandard_constructor_names() {
+    catches(
+        "presence/mod.rs",
+        "struct Presence; fn f() { Presence::with_config(); } impl Presence { fn with_config() -> Self { Self } }",
+        "construction",
+    );
+}
+
+#[test]
+fn block_aliases_inside_macros_keep_the_constructor_target() {
+    catches(
+        "presence/mod.rs",
+        "struct Presence; fn f() { custom!(use crate::presence::Presence as P; P::new();); }",
+        "construction",
+    );
+    catches(
+        "presence/mod.rs",
+        "struct Presence; fn f() { type P = Presence; P::new(); }",
+        "construction",
+    );
+}
+
+#[test]
+fn private_imports_in_the_parent_remain_resolvable_from_children() {
+    catches("presence/mod.rs", "struct Presence; use crate::presence::Presence as P; mod child { fn f() { super::P::new(); } }", "construction");
+}
+
+#[test]
+fn public_type_aliases_cannot_hide_construction() {
+    let found = scanner::scan(&BTreeMap::from([
+        (
+            "core_connection/mod.rs".into(),
+            "pub struct Connection; pub type Alias = Connection;".into(),
+        ),
+        (
+            "presence/mod.rs".into(),
+            "fn f() { crate::core_connection::Alias::new(); }".into(),
+        ),
+    ]));
+    assert!(
+        found.contains("construction :: presence/mod.rs :: core_connection::Connection::new #1"),
+        "{found:#?}"
+    );
+}
+
+#[test]
+fn reexport_does_not_make_a_private_module_a_public_entry() {
+    let found = scanner::scan(&BTreeMap::from([
+        (
+            "core_connection/mod.rs".into(),
+            "pub struct Connection; mod hidden { pub use super::Connection; }".into(),
+        ),
+        (
+            "presence/mod.rs".into(),
+            "fn f(_: crate::core_connection::hidden::Connection) {}".into(),
+        ),
+    ]));
+    assert!(
+        found.iter().any(|v| v.starts_with(
+            "private_access :: presence/mod.rs :: core_connection::hidden::Connection"
+        )),
+        "{found:#?}"
+    );
+}
+
+#[test]
+fn public_reexport_keeps_the_owner_entry_public() {
+    let found = scanner::scan(&BTreeMap::from([
+        (
+            "core_connection/mod.rs".into(),
+            "mod hidden { pub struct Connection; } pub use hidden::Connection;".into(),
+        ),
+        (
+            "presence/mod.rs".into(),
+            "use crate::core_connection::Connection; fn f(_: Connection) { type C = Connection; }"
+                .into(),
+        ),
+    ]));
+    assert!(found.is_empty(), "{found:#?}");
+}
+
+#[test]
+fn test_only_handler_registration_cannot_fill_a_production_omission() {
+    let lib = "fn run() { app.invoke_handler(tauri::generate_handler![commands::one]); } #[cfg(test)] mod tests { fn f() { app.invoke_handler(tauri::generate_handler![commands::two]); } }";
+    let build = "fn main() { manifest.commands(&[\"one\", \"two\"]); }";
+    let permissions = BTreeMap::from([(
+        "both.toml".into(),
+        "[[permission]]\ncommands.allow = ['one', 'two']".into(),
+    )]);
+    assert!(inventory::check(lib, build, &permissions)
+        .contains("command_inventory :: lib.rs :: missing two"));
+}
+
+#[test]
+fn unused_handler_lists_cannot_fill_a_registration_omission() {
+    let lib = "fn run() { app.invoke_handler(tauri::generate_handler![commands::one]); let unused = tauri::generate_handler![commands::two]; }";
+    let build = "fn main() { manifest.commands(&[\"one\", \"two\"]); }";
+    let permissions = BTreeMap::from([(
+        "both.toml".into(),
+        "[[permission]]\ncommands.allow = ['one', 'two']".into(),
+    )]);
+    assert!(inventory::check(lib, build, &permissions)
+        .contains("command_inventory :: lib.rs :: missing two"));
 }

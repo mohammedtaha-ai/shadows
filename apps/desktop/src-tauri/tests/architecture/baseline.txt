@@ -1,17 +1,35 @@
 command_inventory :: build.rs :: missing companion_input
 command_inventory :: build.rs :: missing companion_send
+construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #1
+construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #2
+construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #3
+construction :: auth/mod.rs :: auth::service::AuthService::from_environment #1
+construction :: auth/mod.rs :: auth::service::AuthService::from_environment #2
 construction :: auth/policy_tests.rs :: auth::service::AuthService #1
+construction :: auth/policy_tests.rs :: auth::service::AuthService::from_environment #1
+construction :: commands/preferences.rs :: windows::preferences::PluginLoginItem #1
+construction :: commands/preferences.rs :: windows::preferences::PluginLoginItem #2
 construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #1
 construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #2
 construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #3
 construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #4
 construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #5
+construction :: core_connection/mod.rs :: core_connection::Connection::new #1
 construction :: navigation.rs :: navigation::Navigation::default #1
+construction :: presence/appearance_tests.rs :: presence::watcher::PresenceWatcher::with_timing #1
+construction :: presence/appearance_tests.rs :: presence::watcher::PresenceWatcher::with_timing #2
+construction :: presence/appearance_tests.rs :: presence::watcher::PresenceWatcher::with_timing #3
+construction :: presence/binding_tests.rs :: core_connection::Connection::for_binding_test #1
 construction :: presence/binding_tests.rs :: navigation::Navigation::default #1
 construction :: presence/binding_tests.rs :: presence::Presence::new #1
 construction :: presence/binding_tests.rs :: presence::Presence::new #2
 construction :: presence/binding_tests.rs :: presence::Presence::new #3
+construction :: presence/send_fixture.rs :: core_connection::Connection::for_binding_test #1
 construction :: presence/send_fixture.rs :: presence::Presence::new #1
+construction :: presence/send_tests.rs :: core_connection::Connection::for_binding_test #1
+construction :: presence/watcher.rs :: presence::watcher::PresenceWatcher::start #1
+construction :: presence/watcher.rs :: presence::watcher::PresenceWatcher::start #2
+construction :: presence/watcher_tests.rs :: presence::watcher::PresenceWatcher::with_timing #1
 construction :: sidecar/mod.rs :: sidecar::Sidecar::start #1
 construction :: sidecar/mod.rs :: sidecar::Sidecar::start #2
 construction :: sidecar/mod.rs :: sidecar::SidecarState #1
@@ -60,7 +78,11 @@ managed_state :: windows/main_policy.rs :: state:: < AppPaths > #1
 managed_state :: windows/main_policy.rs :: state:: < AppPaths > #2
 managed_state :: windows/main_policy.rs :: state:: < Arc < Connection > > #1
 managed_state :: windows/mod.rs :: state:: < preferences::Store > #1
+owner_cycle :: presence/binding_tests.rs :: Companion -> CompanionWindow (cycle edge)
+owner_cycle :: windows/companion/input.rs :: CompanionWindow -> Companion (cycle edge)
+owner_cycle :: windows/companion/mod.rs :: CompanionWindow -> Companion (cycle edge)
 owner_cycle :: windows/companion/mod.rs :: CompanionWindow -> MainWindow (cycle edge)
+owner_cycle :: windows/companion/state.rs :: CompanionWindow -> Companion (cycle edge)
 owner_cycle :: windows/mod.rs :: MainWindow -> CompanionWindow (cycle edge)
 owner_edge :: commands/companion.rs :: navigation::Navigation #1
 owner_edge :: commands/companion.rs :: presence::Presence #1
@@ -111,6 +133,10 @@ owner_edge :: commands/desktop.rs :: presence::Presence #3
 owner_edge :: commands/desktop.rs :: presence::Presence #4
 owner_edge :: commands/desktop.rs :: presence::Presence #5
 owner_edge :: commands/desktop.rs :: presence::RefreshAppearanceReply #1
+owner_edge :: commands/desktop.rs :: presence::binding::BindingView #1
+owner_edge :: commands/desktop.rs :: presence::binding::BindingView #2
+owner_edge :: commands/desktop.rs :: presence::binding::BindingView #3
+owner_edge :: commands/desktop.rs :: presence::binding::BindingView #4
 owner_edge :: commands/desktop.rs :: presence::watcher::PresenceWatcher #1
 owner_edge :: commands/desktop.rs :: presence::watcher::PresenceWatcher #2
 owner_edge :: commands/desktop.rs :: windows::companion::on_ui #1
@@ -196,6 +222,7 @@ private_access :: lib.rs :: commands::preferences::set_desktop_preferences #1
 private_access :: lib.rs :: presence::watcher::PresenceWatcher #1
 private_access :: lib.rs :: presence::watcher::PresenceWatcher::new #1
 private_access :: lib.rs :: windows::companion::input::refresh #1
+private_access :: presence/binding_tests.rs :: windows::companion::state::Model::default #1
 private_access :: presence/preferences.rs :: core_connection::config::read_json #1
 private_access :: presence/preferences.rs :: core_connection::config::read_json #2
 private_access :: presence/preferences.rs :: core_connection::config::write_json #1
