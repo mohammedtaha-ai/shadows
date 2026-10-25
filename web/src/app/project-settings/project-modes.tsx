@@ -9,8 +9,8 @@ import { notifyManager, useMutation, useQuery, useQueryClient } from '@tanstack/
 import { useRef, useState } from 'react'
 import { type Project, setProjectModes } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { harnessesQuery, projectsQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { harnessesQuery } from '@/api/queries'
+import { saveProjectAnswer } from '@/api/projects'
 import { ErrorLine } from '../error-line'
 import { policyOf } from '../mode-policy'
 
@@ -41,9 +41,7 @@ export function ProjectModes({ project }: { project: Project }) {
     mutationFn: ({ commandId, allowed }: { commandId: string; allowed: Allowed }) =>
       setProjectModes(project.id, commandId, allowed),
     onSuccess: async (saved, { allowed }) => {
-      await writeSaved<Project[]>(queryClient, projectsQuery.queryKey, (projects) =>
-        projects?.map((p) => (p.id === saved.id ? saved : p)),
-      )
+      await saveProjectAnswer(queryClient, saved)
       settle(allowed)
     },
     // A refused change shows the set the daemon holds, with the error.

@@ -316,3 +316,5 @@ it is that folder's `contract.yaml`.
 | `web/src/api/workflows.ts` | Workflow query cache ownership | `web/src/api/contract.yaml` |
 
 | `web/src/api/threads.ts` | Thread query cache ownership | `web/src/api/contract.yaml` |
+
+| `web/src/api/projects.ts` | Project settings query cache ownership | `web/src/api/contract.yaml` |

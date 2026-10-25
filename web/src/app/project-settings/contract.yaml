@@ -356,3 +356,5 @@ tests:
     checks: "ago(two minutes before now) equals the Intl format of -2 minute."
   - name: "reads a time ahead of the browser clock as now"
     checks: "ago(three seconds after now) equals the Intl format of 0 second."
+
+project_cache_owner: "api/projects.ts owns saved modes, removed projects, instructions and revoked grant cache updates; forms preserve their existing requests and lifecycles"

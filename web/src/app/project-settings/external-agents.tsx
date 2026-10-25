@@ -12,7 +12,7 @@ import { useRef, useState } from 'react'
 import { type Grant, issueGrant, revokeGrant } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { grantsQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { saveRevokedGrantAnswer } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '../copy-button'
 import { ErrorLine } from '../error-line'
@@ -112,9 +112,7 @@ function GrantRow({ grant, projectId }: { grant: Grant; projectId: string }) {
     mutationFn: (commandId: string) => revokeGrant(grant.id, commandId),
     onSuccess: async (revoked) => {
       pending.current = null
-      await writeSaved<Grant[]>(queryClient, grantsQuery(projectId).queryKey, (list) =>
-        list?.map((g) => (g.id === revoked.id ? revoked : g)),
-      )
+      await saveRevokedGrantAnswer(queryClient, projectId, revoked)
     },
   })
 
