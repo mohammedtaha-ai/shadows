@@ -325,11 +325,11 @@ There are distinct paths with different jobs:
 |---|---|---|
 | Packaged main dashboard | HTTP through `web/src/api/`; SSE through `web/src/stream/` | Shared web client |
 | Runtime startup/attachment | Process launch, receipt files, OS process identity, `/api/runtime` | `core_connection/` |
-| Binding/navigation validation | Blocking HTTP reads | `presence/binding.rs` |
-| Companion observation | Async HTTP snapshots plus SSE | `presence/client.rs`, watcher |
-| Companion submission | Blocking HTTP create/session/model/turn calls | `presence/send.rs` |
+| Binding/navigation validation | Blocking HTTP reads | `presence/binding.rs` through `presence/core_client/` |
+| Companion observation | Async HTTP snapshots plus SSE | watcher through `presence/core_client/` |
+| Companion submission | Blocking HTTP create/session/model/turn calls | `presence/send.rs` through `presence/core_client/` |
 
-The native companion therefore has **three separately implemented business HTTP paths** within one presence owner.
+Binding, observation and submission share **one private client** (`presence/core_client/`): blocking requests for binding and submission, async snapshots and SSE for observation. The architecture ratchet refuses `reqwest` anywhere else in the companion.
 
 The sidecar is separate:
 

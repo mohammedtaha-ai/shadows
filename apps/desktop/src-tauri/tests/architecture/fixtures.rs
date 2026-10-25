@@ -307,11 +307,50 @@ fn companion_core_http_outside_its_client_fails() {
         "fn f() { reqwest::Client::new(); }",
         "core_http",
     );
-    catches(
-        "presence/core_client_shadow.rs",
-        "fn f() { reqwest::Client::new(); }",
-        "core_http",
-    );
+    for (file, source) in [
+        (
+            "presence/core_client_shadow.rs",
+            "fn f() { reqwest::Client::new(); }",
+        ),
+        (
+            "presence/watcher/core_client.rs",
+            "fn f() { reqwest::Client::new(); }",
+        ),
+        (
+            "presence/watcher.rs",
+            "mod core_client { fn f() { reqwest::Client::new(); } }",
+        ),
+        (
+            "presence/send.rs",
+            "use reqwest as r; fn f() { r::get(url); }",
+        ),
+        (
+            "presence/send.rs",
+            "use reqwest::blocking; fn f() { blocking::get(url); }",
+        ),
+        ("presence/binding.rs", "pub use reqwest::Client as Http;"),
+    ] {
+        catches(file, source, "core_http");
+    }
+    // A re-export from the client does not carry its exemption to the caller.
+    for caller in [
+        "use super::core_client::Http; fn f() { Http::new(); }",
+        "fn f() { super::core_client::reqwest::blocking::get(url); }",
+    ] {
+        let found = scanner::scan(&BTreeMap::from([
+            (
+                "presence/core_client/mod.rs".into(),
+                "pub use reqwest; pub use reqwest::blocking::Client as Http;".into(),
+            ),
+            ("presence/send.rs".into(), caller.into()),
+        ]));
+        assert!(
+            found
+                .iter()
+                .any(|s| s.starts_with("core_http :: presence/send.rs :: reqwest")),
+            "{caller}: {found:#?}"
+        );
+    }
     assert!(scan("auth/http.rs", "fn f() { reqwest::Client::new(); }").is_empty());
 }
 
