@@ -193,3 +193,26 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   imports it from `handlers.ts`; the RPC methods, their parameters and answers, the denial and
   stale-preview answers and the settings-change behaviour are unchanged and pinned by tests;
   from `apps/desktop/sidecar/`: `npm run typecheck` and `npm test` pass
+
+### N-16 · D-9: sidecar persistence is private to its domains
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-9--make-sidecar-persistence-domain-private
+  and #sidecar-target
+- Read: the plan's sections 2 ("Within the sidecar"), 3 (disk ownership) and 6 ("Sidecar target",
+  "Ratchet design" rules 4, 8, 10); `apps/desktop/sidecar/src/contract.yaml` and each folder's
+  `contract.yaml`; `src/store/store.ts`; `src/handlers.ts`; `src/hooks/route.ts`; `src/main.ts`;
+  `apps/desktop/src-tauri/src/sidecar/` (the native method allowlist) and `web/src/desktop/` (the
+  main wrappers), read only
+- Touch: `apps/desktop/sidecar/src/` (`store/`, `sessions/`, `approvals/`, `agents/`, `hooks/route.ts`,
+  `handlers.ts`, `main.ts`, their tests and `contract.yaml`); a new sidecar architecture test and
+  its baseline and fixtures under `apps/desktop/sidecar/src/` run by `npm test`;
+  `docs/aylul/codebase/README.md`; this task's `Status:`
+- Needs: N-15
+- Done when: `handlers.ts` and `hooks/route.ts` reach no shared Store and assemble no
+  hook-installation plan: they call service methods; each domain (sessions, approvals, agent
+  settings) owns the SQL for its own tables behind a private store that composition builds on
+  the one connection; the database file, its schema and every RPC answer are unchanged and pinned
+  by tests; the sidecar architecture test holds service construction only in composition, SQL only
+  in its domain's store, and sidecar RPC method names equal to the native allowlist and the main
+  wrappers, with adversarial fixtures and a shrinking baseline; from `apps/desktop/sidecar/`:
+  `npm run typecheck` and `npm test` pass
