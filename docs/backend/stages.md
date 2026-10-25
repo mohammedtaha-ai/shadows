@@ -557,6 +557,92 @@ Those exact records are listed with their sub-tasks below. No allowlist entries
 were added; Events and the final repairs changed none. No branch publication,
 manual browser acceptance, native acceptance or live-provider acceptance was run.
 
+#### A-19c review (2026-10-25, range `e89e9c4..d7a722cd`)
+
+P2 fixed: the architecture constructor index compared the normalized owner
+`project_lifecycle` with a filesystem crate path containing `project-lifecycle`.
+It therefore missed ProjectLifecycle construction outside AppCore. The index now
+restores the crate spelling for that comparison. A mutation test reproduces the
+missing ownership finding before the fix and checks both constructor calls and
+struct literals, including permitted construction in AppCore. No product code,
+service API, contract or allowlist changes are needed for this guard repair.
+
+Rust-analyzer definitions/references traced AppCore's Grants, Operations, Harness,
+Turns and Events owners and callers, plus the repaired constructor index and
+fixture scanner. Manifests retain the verified service dependency direction;
+private stores, transaction calls, service error conversions and event publication
+were inspected against the base. HTTP/MCP failure mappings, grant/fork behavior,
+stream frames, replay, atomic operation events and storage rollback pass locally.
+The binary's existing adapter assembly and shadows-process dependency predate
+this range; HTTP and MCP depend on shadows-core alone for application access.
+
+AST accounting finds all 791 baseline test functions at the head, including both
+functions with the one duplicated test name. No test is removed and no assertion
+count decreases. Changed assertions retain their checks through owner errors,
+application error conversion or public owner fixtures. The only test annotation
+change makes the moved Harness commands test async. Core's exact baseline is
+325 tests (322 runnable, three ignored), not approximately 292: 231 remain and
+94 move. Seven new Core tests yield 238 (235 runnable, the same three ignored).
+Seven adapter tests also move; 23 new adapter tests yield 396 before this review's
+additional architecture test. Foundation tests increase from 22 to 23.
+
+| Destination crate | Baseline tests moved here | Head test functions |
+|---|---:|---:|
+| core-runtime | 0 | 4 |
+| core-secrets | 19 | 19 |
+| core-projects | 7 | 8 |
+| core-instructions | 0 | 3 |
+| core-standards | 2 | 3 |
+| core-code | 2 | 3 |
+| core-providers | 5 | 7 |
+| core-agents | 8 | 8 |
+| core-extensions | 3 | 3 |
+| core-usage | 0 | 3 |
+| core-person | 4 | 4 |
+| core-threads | 6 (one Core, five adapter) | 6 |
+| core-grants | 2 (adapter) | 2 |
+| core-operations | 5 | 6 |
+| core-harness | 1 | 1 |
+| core-design | 9 | 9 |
+| core-plans | 18 | 18 |
+| core-turns | 9 | 9 |
+| core-project-lifecycle | 1 | 1 |
+| core-events | 0 | 1 |
+
+The 20 service crates hold 118 tests, including 101 relocated tests and 17 new
+tests. Head has 839 test functions across crates before this review (840 after).
+Unchanged crates retain shadows-agent 23, shadows-process 13 and shadows-index 3;
+HTTP retains 24 and MCP 1. This table is source accounting, not a claim that all
+those tests were rerun during review.
+
+All 251 comment records retain their evidence and occurrence. Exactly 44 change
+paths one-for-one: Projects 4, Threads 18, Plans 15 and Turns 7; the latter two
+explain the continuation's subtotal of 22. Ownership exceptions shrink 13 to 3,
+public functions 9 to 0, registration stays 0. No allowlist entry is added.
+The base-to-head API artifact diff is empty. Browser/native/live-provider
+acceptance, production and the full workspace test suite are outside this review.
+
+Review verification after the guard repair:
+
+| Check | Result |
+|---|---|
+| Exact CI line-length command; fmt; whitespace; changed-file LF | Pass |
+| Workspace all-target/test-support clippy | Pass |
+| Workspace production clippy; non-dev feature isolation | Pass; no test-support matches |
+| Architecture / codemap / OpenAPI | 49 / 1 / 7 passed |
+| core-grants / core-operations | 2 / 6 passed |
+| Adapter fork / grants / plan_grants / resync / stream_frames | 8 / 7 / 6 / 8 / 1 passed |
+| Core contracts / event_vocabulary / operation_lifecycle / storage_contract | 6 / 1 / 12 / 1 passed |
+| shadows-http / shadows-mcp library tests | 24 / 1 passed |
+| Working-tree and base-to-head api diffs | Empty |
+
+These are 140 distinct passing tests. Full Core and every adapter binary were not
+rerun: the repair changes the architecture guard only, with no shared product code.
+The source comparison and snapshots establish event compatibility within those
+checks; no second base binary was built for differential execution. Free space
+remained above 8 GiB; no build artifacts were deleted. No other agents, branch
+changes, worktrees, npm, vitest, publication or changes to web/apps were involved.
+
 #### Baseline graph inspection (2026-10-24, base `e89e9c4`; superseded by the controller continuation)
 
 Rust LSP module references, service-struct references, `CoreError`,

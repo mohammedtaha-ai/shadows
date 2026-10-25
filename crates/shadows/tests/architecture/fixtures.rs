@@ -40,6 +40,39 @@ fn hyphenated_service_crates_keep_their_private_store_owner() {
     rejected(root, &own, "ownership");
 }
 
+#[test]
+fn hyphenated_service_construction_belongs_only_to_appcore() {
+    let tree = fixture();
+    let root = tree.path();
+    put(
+        root,
+        "crates/core-project-lifecycle/src/lib.rs",
+        "pub struct ProjectLifecycle; impl ProjectLifecycle { \
+         pub fn new() -> Self { Self } }",
+    );
+    let before = scanner::scan(root);
+    let app = std::fs::read_to_string(root.join("crates/shadows-core/src/app.rs")).unwrap();
+    for expression in [
+        "core_project_lifecycle::ProjectLifecycle::new()",
+        "core_project_lifecycle::ProjectLifecycle {}",
+    ] {
+        put(
+            root,
+            "crates/shadows-core/src/app.rs",
+            &format!("{app}\nfn build() {{ let _ = {expression}; }}"),
+        );
+        let errors = compare(&scanner::scan(root), &before);
+        assert!(errors.is_empty(), "AppCore construction: {errors:#?}");
+        put(
+            root,
+            "crates/shadows-core/src/projects/invalid.rs",
+            &format!("fn build() {{ let _ = {expression}; }}"),
+        );
+        rejected(root, &before, "ownership");
+        std::fs::remove_file(root.join("crates/shadows-core/src/projects/invalid.rs")).unwrap();
+    }
+}
+
 fn fixture() -> tempfile::TempDir {
     let tree = tempfile::tempdir().unwrap();
     put(

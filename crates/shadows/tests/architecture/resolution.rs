@@ -267,7 +267,10 @@ impl Index {
                             && (source.path
                                 == format!("{}{}{}", super::CORE, source.owner, "/mod.rs")
                                 || source.path
-                                    == format!("crates/core-{}/src/lib.rs", source.owner))
+                                    == format!(
+                                        "crates/core-{}/src/lib.rs",
+                                        source.owner.replace('_', "-")
+                                    ))
                         {
                             index.constructors.insert(ty.clone());
                         }

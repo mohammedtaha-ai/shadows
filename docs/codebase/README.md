@@ -34,6 +34,8 @@ server is connected, answer it from the code.
 Its [README](../../crates/shadows/tests/architecture/README.md) describes the
 checks, explicit review cases, fixture mutations and baseline maintenance.
 Run it with `cargo test -p shadows --test architecture`.
+Constructor indexing preserves hyphenated crate paths separately from Rust module names;
+the ProjectLifecycle fixture checks construction through AppCore and rejects other callers.
 
 What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
 

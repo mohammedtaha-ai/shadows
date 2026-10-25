@@ -52,7 +52,8 @@ comparison. No mutation test edits the real product tree.
   Existing test-support bypasses are
   listed individually rather than excluded by filename or cfg. Construction
   checks also cover Core root files and foundation folders. Extracted services
-  may call their own store; the crate prefix identifies that owner.
+  may call their own store; the crate prefix identifies that owner. Hyphenated
+  crate names retain constructor checks while their Rust module names use underscores.
 - Free functions with any Rust visibility modifier are findings in service
   modules, including inline modules; impl/trait methods are not free functions.
 - Only parser comment tokens are checked for section signs and history markers.
