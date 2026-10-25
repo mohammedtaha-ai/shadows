@@ -57,8 +57,8 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/hook/` | One Claude Code hook call to the sidecar pipe | Colocated `contract.yaml` |
 | `apps/desktop/sidecar/src/hooks/` | Token guarded hook endpoint and pipe server | Colocated `contract.yaml` |
 | `apps/desktop/sidecar/src/sessions/` | Session state and trimmed steps from hook events | Colocated `contract.yaml` |
-| `apps/desktop/sidecar/src/agents/` | Narrow permission rules and safe settings edits | Colocated `contract.yaml` |
-| `apps/desktop/sidecar/src/approvals/` | Held requests and refusals with person supplied outcomes | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/agents/` | Narrow permission rules and safe project settings resolution/edits | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/approvals/` | Held requests and refusals with preview admission for person supplied outcomes | Colocated `contract.yaml` |
 | `apps/desktop/sidecar/src/store/` | Local SQLite sessions, steps, decisions and rule records | Colocated `contract.yaml` |
 | `apps/desktop/sidecar/src/` | Sidecar composition and stdio RPC for the desktop window | Colocated `contract.yaml` |
 

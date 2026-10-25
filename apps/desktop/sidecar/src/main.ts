@@ -7,8 +7,8 @@ import { Approvals } from './approvals/approvals.ts';
 import { createEndpoint, removeEndpoint } from './hooks/endpoint.ts';
 import { startHookServer } from './hooks/server.ts';
 import { makeRoute } from './hooks/route.ts';
-import { expectBefore, planAllowRule, writePlan } from './agents/settings-file.ts';
-import { makeHandlers, settingsFor } from './handlers.ts';
+import { expectBefore, planAllowRule, settingsFor, writePlan } from './agents/settings-file.ts';
+import { makeHandlers } from './handlers.ts';
 import { serveRpc } from './rpc.ts';
 
 // AYLUL_DATA_DIR keeps a smoke run away from the real hook.json and database.

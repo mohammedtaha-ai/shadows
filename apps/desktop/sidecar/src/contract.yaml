@@ -5,7 +5,7 @@ source: apps/desktop/sidecar/src
 responsibility: Compose the sidecar and answer the window's calls over stdio.
 public_api:
   serveRpc: One JSON line in, one out with the same id; unknown methods and unexpected errors become stable codes; ends with stdin.
-  makeHandlers: state, steps, request.answer, refusal.preview/approve/dismiss, hooks.preview/install; each validates its parameters; refusal approval requires the latest preview's item, rule and file fingerprint.
+  makeHandlers: state, steps, request.answer, refusal.preview/approve/dismiss, hooks.preview/install; translate approval RPC calls into Approvals methods; hook previews and installation keep their settings plans.
   main: Data under AYLUL_DATA_DIR, else %LOCALAPPDATA%\AYLUL; hold 580 s requests and 120 s refusals; stop and remove hook.json when stdin ends.
 obligations:
   - rule: Only own handler names are callable; error text never leaves except as a code.

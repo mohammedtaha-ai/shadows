@@ -4,6 +4,7 @@ status: current
 source: apps/desktop/sidecar/src/agents
 responsibility: Propose narrow permission rules and change Claude Code settings files safely.
 public_api:
+  settingsFor: Project-local .claude/settings.local.json with Windows path semantics.
   proposeRule: Exact Bash or PowerShell command, Edit/Read path anchored at the project root (/path), WebFetch host, or one MCP tool; null otherwise.
   isNarrowRule: Accept only the shapes proposeRule makes; any *, ?, [ ], unanchored or directory path, ~ or // path is refused.
   planEdit: Parse the file (missing or whitespace means {}), apply a change to a copy; settings_invalid for non-object JSON.
@@ -15,6 +16,8 @@ public_api:
   planHookInstall: Replace entries whose command ends in aylul-hook.exe with one exec-form entry per HOOK_EVENTS; keep all other hooks and settings.
   hooksInstalled: Every HOOK_EVENTS event has an entry with exactly this executable.
 obligations:
+  - rule: Project settings resolve at the project root with Windows path semantics.
+    tested_by: settingsFor locates project-local settings with Windows path semantics
   - rule: Multi-line, parenthesised, wildcard, pattern-character, outside-project and other-drive calls get no proposal.
     tested_by: a command with a newline, a closing parenthesis or a * proposes nothing, a file outside the project, on another drive, or with a pattern character proposes nothing
   - rule: Only exact rules are accepted, and every proposal is one.

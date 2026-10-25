@@ -1,6 +1,7 @@
 import type { HookEvent, HookReply } from '../protocol.ts';
 import { oneLine, trimStep } from '../sessions/steps.ts';
 import { isNarrowRule, proposeRule } from '../agents/rules.ts';
+import { diffLines, fingerprint, planAllowRule, settingsFor } from '../agents/settings-file.ts';
 
 export type Pending = {
   id: string;
@@ -35,6 +36,7 @@ const RETRY: HookReply = { output: { hookSpecificOutput: { hookEventName: 'Permi
 /** Requests and refusals waiting for the person. Only the person's answer allows anything. */
 export class Approvals {
   #items = new Map<string, Item>();
+  #rulePreviews = new Map<string, { rule: string; before: string }>();
   #d: ApprovalsDeps;
 
   constructor(deps: ApprovalsDeps) { this.#d = deps; }
@@ -69,6 +71,27 @@ export class Approvals {
     reply(behavior === 'allow' ? ALLOW : DENY);
   }
 
+  previewRule(id: string, value: unknown): { path: string; lines: string[]; before: string } {
+    const item = this.#items.get(id);
+    if (!item || item.kind !== 'refusal') throw new Error('not_pending');
+    if (!item.project) throw new Error('project_unknown');
+    if (typeof value !== 'string' || !value) throw new Error('bad_params');
+    const rule = value.trim();
+    if (!isNarrowRule(rule)) throw new Error('rule_too_broad');
+    const plan = planAllowRule(settingsFor(item.project), rule);
+    const preview = { path: plan.path, lines: diffLines(plan), before: fingerprint(plan.before) };
+    this.#rulePreviews.set(item.id, { rule, before: preview.before });
+    return preview;
+  }
+
+  approvePreview(id: string, rule: string, before: string): { backupPath: string } {
+    const preview = this.#rulePreviews.get(id);
+    if (!preview || preview.rule !== rule || preview.before !== before) throw new Error('preview_mismatch');
+    const result = this.approveRule(id, rule, before);
+    this.#rulePreviews.delete(id);
+    return result;
+  }
+
   approveRule(id: string, rule: string, seen: string): { backupPath: string } {
     const item = this.#items.get(id);
     if (!item || item.kind !== 'refusal') throw new Error('not_pending');
@@ -90,6 +113,7 @@ export class Approvals {
     this.#items.delete(id);
     this.#d.record(item, 'dismissed');
     reply?.({});
+    this.#rulePreviews.delete(id);
   }
 
   #item(kind: Pending['kind'], event: HookEvent, proposedRule: string | null): Item {

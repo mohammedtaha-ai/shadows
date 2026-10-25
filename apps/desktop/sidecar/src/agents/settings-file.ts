@@ -1,10 +1,12 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, win32 } from 'node:path';
 import { isNarrowRule } from './rules.ts';
 
 export type Plan = { path: string; before: string; after: string };
 type Settings = Record<string, unknown>;
+
+export const settingsFor = (project: string) => win32.join(project, '.claude', 'settings.local.json');
 
 const isObject = (v: unknown): v is Settings => typeof v === 'object' && v !== null && !Array.isArray(v);
 

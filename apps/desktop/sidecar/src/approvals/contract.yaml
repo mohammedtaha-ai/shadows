@@ -2,13 +2,15 @@ name: sidecar-approvals
 version: 1
 status: current
 source: apps/desktop/sidecar/src/approvals
-responsibility: Hold permission requests and auto-mode refusals until the person answers.
+responsibility: Own admission of the person's answers to permission requests and auto-mode refusals.
 public_api:
   request: Hold until answer, hang-up (answered in terminal) or requestHoldMs (timed out); reply allow, deny or {}.
   refusal: Propose a rule; hold up to refusalHoldMs; stays listed after the hold.
   answer: allow or deny one held request; not_pending otherwise.
+  previewRule: Validate a current refusal, its project and a narrow rule; return path, changed lines and file fingerprint; retain the latest preview per item.
+  approvePreview: Match the latest item's preview rule and fingerprint or preview_mismatch; call approveRule to validate the current refusal and write; consume the preview only after success.
   approveRule: Narrow rule and a known project root only; write it against the previewed fingerprint, record rule_written, then retry a still-held hook.
-  dismiss: Remove a refusal; a held hook gets {}.
+  dismiss: Remove a refusal and its preview; a held hook gets {}.
   pending: Current items, oldest first.
 obligations:
   - rule: Nothing is allowed without answer or approveRule.
@@ -27,6 +29,10 @@ obligations:
     tested_by: a broad rule is refused and nothing is written
   - rule: A refusal without project_dir gets no proposal and is never written.
     tested_by: a refusal with no project root proposes nothing and cannot be approved
+  - rule: Approval admission binds the latest preview's item, rule and fingerprint; successful approval or dismissal consumes the preview.
+    tested_by: a preview for one rule cannot approve a different rule, a newer rule preview invalidates the earlier one, approval admission rejects a changed fingerprint and consumes a successful preview, dismissal removes the preview and approval still requires a current refusal
+  - rule: An approval after the settings file changed writes nothing and retains its preview for retry.
+    tested_by: an approval after the settings file changed since the preview writes nothing, refusal.approve RPC preserves changed settings and permits retry after restoration
 gaps:
   - at: Approvals
     gap: Items live in memory; a sidecar restart drops listed refusals (their records stay in the store).

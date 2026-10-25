@@ -3,9 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { planAllowRule, writePlan, diffLines, fingerprint, expectBefore } from './settings-file.ts';
+import { planAllowRule, writePlan, diffLines, fingerprint, expectBefore, settingsFor } from './settings-file.ts';
 
 const now = new Date('2026-10-13T19:00:00.000Z');
+
+test('settingsFor locates project-local settings with Windows path semantics', () => {
+  assert.equal(settingsFor('C:\\work\\project'), 'C:\\work\\project\\.claude\\settings.local.json');
+  assert.equal(settingsFor('C:/work/project/'), 'C:\\work\\project\\.claude\\settings.local.json');
+});
 function project() {
   const dir = mkdtempSync(join(tmpdir(), 'aylul-proj-'));
   return { dir, settings: join(dir, '.claude', 'settings.local.json'), backups: join(dir, 'backups') };

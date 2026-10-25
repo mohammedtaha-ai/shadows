@@ -174,7 +174,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   crate's tests, the architecture test, clippy, fmt and `npm test` pass
 
 ### N-15 · D-8: approval admission lives in Approvals
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-8--put-sidecar-approval-admission-inside-approvals
   and #sidecar-target
 - Read: the plan's sections 2 ("Within the sidecar") and 4 (`handlers.ts`); `apps/desktop/sidecar/src/contract.yaml`;
