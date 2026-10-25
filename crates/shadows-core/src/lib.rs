@@ -1,8 +1,7 @@
 mod app;
 mod error;
 mod events;
-mod project_lifecycle;
-pub use project_lifecycle::ProjectLifecycle;
+pub use core_project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]
 pub mod testing;
 pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
@@ -114,3 +113,5 @@ pub use core_design::DesignError;
 pub use core_plans::PlansError;
 
 pub use core_turns::TurnsError;
+
+pub use core_project_lifecycle::ProjectLifecycleError;

@@ -412,9 +412,9 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-turns/src/store/images.rs` | neutral image read composition | `crates/core-turns/contract.yaml` |
 
-| `crates/shadows-core/src/project_lifecycle/` | cross-owner project lifecycle | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
-| `crates/shadows-core/src/project_lifecycle/error.rs` | project removal refusal | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
-| `crates/shadows-core/src/project_lifecycle/store.rs` | atomic project removal composition | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
+| `crates/core-project-lifecycle/src/` | cross-owner project lifecycle | `crates/core-project-lifecycle/contract.yaml` |
+| `crates/core-project-lifecycle/src/error.rs` | project removal refusal | `crates/core-project-lifecycle/contract.yaml` |
+| `crates/core-project-lifecycle/src/store.rs` | atomic project removal composition | `crates/core-project-lifecycle/contract.yaml` |
 
 | `crates/core-plans/src/store/event_projection.rs` | identifier-only plan event projection | `crates/core-plans/contract.yaml` |
 | `crates/shadows-core/src/events/store.rs` | private journal replay persistence | `crates/shadows-core/src/events/contract.yaml` |

@@ -136,7 +136,7 @@ fn agreement_exists(src: &Path, declared: &BTreeSet<String>, path: &str) -> bool
         return false;
     };
     entries.filter_map(Result::ok).any(|entry| {
-        entry.file_name() == format!("core-{service}").as_str()
+        entry.file_name() == format!("core-{}", service.replace('_', "-")).as_str()
             && entry.path().join("src").is_dir()
             && symbols(&entry.path().join("src")).0.contains(symbol)
     })
@@ -182,6 +182,27 @@ fn agreement_paths_require_exact_service_directory_case() {
         root.path(),
         &declared,
         "operations::missing_method"
+    ));
+}
+
+#[test]
+fn agreement_paths_resolve_underscored_owners_in_hyphenated_crates() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("crates/shadows-core/src");
+    let owner = root.path().join("crates/core-project-lifecycle/src");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::create_dir_all(&owner).unwrap();
+    std::fs::write(owner.join("lib.rs"), "pub struct ProjectLifecycle;").unwrap();
+    let declared = BTreeSet::new();
+    assert!(agreement_exists(
+        &source,
+        &declared,
+        "project_lifecycle::ProjectLifecycle"
+    ));
+    assert!(!agreement_exists(
+        &source,
+        &declared,
+        "Project_lifecycle::ProjectLifecycle"
     ));
 }
 
@@ -353,7 +374,10 @@ fn every_contract_matches_its_service() {
             continue;
         }
         let name = dir.file_name().unwrap().to_string_lossy().to_string();
-        let name = name.strip_prefix("core-").unwrap_or(&name).to_string();
+        let name = name
+            .strip_prefix("core-")
+            .unwrap_or(&name)
+            .replace('-', "_");
         found.insert(name.clone());
         let docs = match YamlLoader::load_from_str(&std::fs::read_to_string(&path).unwrap()) {
             Ok(d) => d,

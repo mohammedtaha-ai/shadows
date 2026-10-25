@@ -566,3 +566,16 @@ impl From<core_turns::TurnsError> for CoreError {
         }
     }
 }
+
+impl From<core_project_lifecycle::ProjectLifecycleError> for CoreError {
+    fn from(error: core_project_lifecycle::ProjectLifecycleError) -> Self {
+        match error {
+            core_project_lifecycle::ProjectLifecycleError::ProjectHasThreads => Self::Refused {
+                code: ErrorCode::ProjectHasThreads,
+                message: "the project has planning threads; it cannot be removed".into(),
+            },
+            core_project_lifecycle::ProjectLifecycleError::Projects(error) => error.into(),
+            core_project_lifecycle::ProjectLifecycleError::Storage(error) => error.into(),
+        }
+    }
+}

@@ -169,7 +169,10 @@ fn sources(root: &Path) -> Vec<Source> {
                     .unwrap_or("composition")
                     .to_owned()
             } else {
-                krate.strip_prefix("core-").unwrap_or(krate).to_owned()
+                krate
+                    .strip_prefix("core-")
+                    .unwrap_or(krate)
+                    .replace('-', "_")
             };
             let service = (relative.starts_with(CORE)
                 && owner != "composition"

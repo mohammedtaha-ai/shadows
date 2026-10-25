@@ -8,6 +8,38 @@ fn put(root: &Path, path: &str, source: &str) {
     std::fs::write(file, source).unwrap();
 }
 
+#[test]
+fn hyphenated_service_crates_keep_their_private_store_owner() {
+    let tree = fixture();
+    let root = tree.path();
+    put(
+        root,
+        "crates/core-project-lifecycle/src/lib.rs",
+        "mod store; use store::ProjectLifecycleStore; pub struct ProjectLifecycle; \
+         impl ProjectLifecycle { pub fn new() -> Self { \
+         let _store = ProjectLifecycleStore::new(); Self } }",
+    );
+    put(
+        root,
+        "crates/core-project-lifecycle/src/store.rs",
+        "pub(super) struct ProjectLifecycleStore; \
+         impl ProjectLifecycleStore { pub(super) fn new() -> Self { Self } }",
+    );
+    let own = scanner::scan(root);
+    assert!(
+        own.get("ownership")
+            .is_none_or(|entries| entries.is_empty()),
+        "the service's store is its own: {own:#?}"
+    );
+    put(
+        root,
+        "crates/core-other/src/lib.rs",
+        "use core_project_lifecycle::store::ProjectLifecycleStore; \
+         fn leak() { ProjectLifecycleStore::new(); }",
+    );
+    rejected(root, &own, "ownership");
+}
+
 fn fixture() -> tempfile::TempDir {
     let tree = tempfile::tempdir().unwrap();
     put(

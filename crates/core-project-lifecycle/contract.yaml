@@ -6,29 +6,30 @@
 name: project_lifecycle
 version: 1
 status: current
-source: crates/shadows-core/src/project_lifecycle
+source: crates/core-project-lifecycle/src
 modules:
-  mod.rs: cross-owner project lifecycle
+  lib.rs: cross-owner project lifecycle
   error.rs: project removal refusal
   store.rs: atomic project removal composition
 dependencies:
-  projects: ../projects/contract.yaml
-  threads: ../threads/contract.yaml
+  projects: crates/core-projects/contract.yaml
+  threads: crates/core-threads/contract.yaml
   plans: crates/core-plans/contract.yaml
-  code: ../code/contract.yaml
-  grants: ../grants/contract.yaml
+  code: crates/core-code/contract.yaml
+  grants: crates/core-grants/contract.yaml
 shapes:
   ProjectLifecycle:
     store: ProjectLifecycleStore
     projects: Projects
     code: Code
 functions:
+  new: Constructs project lifecycle with its shared foundation, Projects and Code.
   service:
     create:
-      signature: "(&self, command_id, slug, name, directory) -> Result<Project, CoreError>"
+      signature: "(&self, command_id, slug, name, directory) -> Result<Project, ProjectLifecycleError>"
       rule: Projects resolves and registers the directory, then Code is touched, including replay.
     remove:
-      signature: "(&self, command_id, project) -> Result<Project, CoreError>"
+      signature: "(&self, command_id, project) -> Result<Project, ProjectLifecycleError>"
       rule: >
         One write classifies project.remove, requires a live project with no live threads,
         soft-removes it through Projects, invalidates plan dependencies, deletes code index

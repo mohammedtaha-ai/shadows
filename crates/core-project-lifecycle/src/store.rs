@@ -1,6 +1,5 @@
 //! Removal composes table owners in one serialized transaction.
-use super::error::ProjectLifecycleError;
-use crate::CoreError;
+use crate::ProjectLifecycleError;
 use core_code::Code;
 use core_db::{Actor, CommandContext, JournalEntry, Storage};
 use core_grants::Grants;
@@ -23,7 +22,7 @@ impl ProjectLifecycleStore {
         &self,
         ctx: &CommandContext,
         project: &ProjectId,
-    ) -> Result<Project, CoreError> {
+    ) -> Result<Project, ProjectLifecycleError> {
         let (ctx, id, ts) = (ctx.clone(), project.clone(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
@@ -36,7 +35,7 @@ impl ProjectLifecycleStore {
                     }
                     Projects::require_live_in(conn, &id).await?;
                     if Threads::has_live_project_threads_in(conn, &id).await? {
-                        return Err(ProjectLifecycleError::ProjectHasThreads.into());
+                        return Err(ProjectLifecycleError::ProjectHasThreads);
                     }
                     Projects::mark_removed_in(conn, &id, &ts).await?;
                     let actor = Actor::user(&ctx.principal_id);

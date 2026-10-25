@@ -1,3 +1,4 @@
+# ProjectLifecycle errors translate through CoreError with unchanged responses.
 # Turns errors translate through CoreError with unchanged responses.
 # Plans errors translate through CoreError with unchanged responses.
 # Design errors translate through CoreError with unchanged responses.

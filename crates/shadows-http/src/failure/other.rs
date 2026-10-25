@@ -217,3 +217,9 @@ impl From<shadows_core::TurnsError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::ProjectLifecycleError> for Failure {
+    fn from(error: shadows_core::ProjectLifecycleError) -> Self {
+        CoreError::from(error).into()
+    }
+}

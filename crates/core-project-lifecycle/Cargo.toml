@@ -1,0 +1,32 @@
+[package]
+name = "core-project-lifecycle"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+core-db = { path = "../core-db" }
+core-code = { path = "../core-code" }
+core-grants = { path = "../core-grants" }
+core-plans = { path = "../core-plans" }
+core-projects = { path = "../core-projects" }
+core-threads = { path = "../core-threads" }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+
+[features]
+test-support = ["core-code/test-support"]
+
+[dev-dependencies]
+core-project-lifecycle = { path = ".", features = ["test-support"] }
+tempfile = { workspace = true }

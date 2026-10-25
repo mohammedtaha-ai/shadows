@@ -928,6 +928,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-project-lifecycle"
+version = "0.1.0"
+dependencies = [
+ "core-code",
+ "core-db",
+ "core-grants",
+ "core-plans",
+ "core-project-lifecycle",
+ "core-projects",
+ "core-threads",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "core-projects"
 version = "0.1.0"
 dependencies = [
@@ -3747,6 +3766,7 @@ dependencies = [
  "core-operations",
  "core-person",
  "core-plans",
+ "core-project-lifecycle",
  "core-projects",
  "core-providers",
  "core-runtime",

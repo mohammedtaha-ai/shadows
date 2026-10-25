@@ -16,7 +16,6 @@ use shadows_process::{ProcessSpec, spawn};
 
 use crate::error::CoreError;
 use crate::events::Events;
-use crate::project_lifecycle::ProjectLifecycle;
 use core_agents::Agents;
 use core_code::{Code, CodeConfig};
 use core_db::Storage;
@@ -29,6 +28,7 @@ use core_operations::Operations;
 use core_person::PersonSettings;
 use core_plans::Plans;
 use core_plans::UiSignal;
+use core_project_lifecycle::ProjectLifecycle;
 use core_projects::Projects;
 use core_providers::Providers;
 use core_runtime::Runtime;
@@ -130,8 +130,8 @@ pub struct CoreParts {
          `crates/core-projects/contract.yaml` |"]
 #[doc = " | `ProjectLifecycle` | \
          cross-owner project lifecycle | \
-         `crates/shadows-core/src/project_lifecycle` | \
-         `crates/shadows-core/src/project_lifecycle/contract.yaml` |"]
+         `crates/core-project-lifecycle/src` | \
+         `crates/core-project-lifecycle/contract.yaml` |"]
 #[doc = " | `Threads` | \
          planning thread lifecycle | \
          `crates/core-threads/src` | \
