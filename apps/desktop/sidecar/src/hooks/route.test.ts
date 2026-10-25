@@ -1,16 +1,31 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRoute } from './route.ts';
-import { Store } from '../store/store.ts';
-import { Approvals } from '../approvals/approvals.ts';
+import { createActivityApp } from '../main.ts';
+import { DatabaseSync } from 'node:sqlite';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 function setup() {
-  const store = new Store(':memory:');
-  const approvals = new Approvals({ now: () => new Date('2026-10-13T19:00:00.000Z'), newId: () => 'id1',
-    writeRule: () => ({ ruleId: 'r', backupPath: '' }), record: (i, o) => store.recordDecision(i, o, i.at),
-    requestHoldMs: 200, refusalHoldMs: 200 });
-  const route = makeRoute({ store, approvals, now: () => new Date('2026-10-13T19:00:00.000Z') });
-  return { store, approvals, route };
+  const home = mkdtempSync(join(tmpdir(), 'aylul-route-'));
+  const file = join(home, 'aylul.db');
+  const app = createActivityApp(file, { now: () => new Date('2026-10-13T19:00:00.000Z'), newId: () => 'id1',
+    claudeSettings: join(home, 'settings.json'), hookExe: undefined, backupDir: join(home, 'b'), requestHoldMs: 200, refusalHoldMs: 200 });
+  const db = new DatabaseSync(file);
+  const store = {
+    getSession: (id: string) => app.sessions.list().find(s => s.id === id),
+    steps: (id: string) => app.sessions.steps(id),
+    addRule: (project: string, rule: string, backup: string, at: string) => {
+      const id = 'rule1';
+      db.prepare("INSERT INTO rules VALUES (?, ?, ?, ?, 'person', ?)").run(id, project, rule, backup, at);
+      return id;
+    },
+    grantUses: () => db.prepare('SELECT rule_id AS ruleId, session_id AS sessionId, tool_use_id AS toolUseId FROM grant_uses ORDER BY seq').all().map(r => ({ ...r })),
+    decisions: () => db.prepare('SELECT outcome FROM decisions ORDER BY seq').all(),
+  };
+  const route = makeRoute(app);
+  return { store, approvals: app.approvals, route };
 }
 const never = new AbortController().signal;
 

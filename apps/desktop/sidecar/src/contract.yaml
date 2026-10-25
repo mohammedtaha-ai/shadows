@@ -4,10 +4,15 @@ status: current
 source: apps/desktop/sidecar/src
 responsibility: Compose the sidecar and answer the window's calls over stdio.
 public_api:
+  createActivityApp: Build Sessions, Approvals and AgentSettings with domain-private stores on one connection; retain request/refusal holds of 580 s/120 s and close the connection from process composition.
   serveRpc: One JSON line in, one out with the same id; unknown methods and unexpected errors become stable codes; ends with stdin.
-  makeHandlers: state, steps, request.answer, refusal.preview/approve/dismiss, hooks.preview/install; translate approval RPC calls into Approvals methods; hook previews and installation keep their settings plans.
+  makeHandlers: state, steps, request.answer, refusal.preview/approve/dismiss, hooks.preview/install; translate RPC calls into Sessions, Approvals and AgentSettings methods; receives no connection or store.
   main: Data under AYLUL_DATA_DIR, else %LOCALAPPDATA%\AYLUL; hold 580 s requests and 120 s refusals; stop and remove hook.json when stdin ends.
 obligations:
+  - rule: Persistence rows, schema, settings backups and RPC projections stay unchanged.
+    tested_by: RPC projections and persisted rows survive reopening the unchanged aylul.db schema
+  - rule: Service construction belongs to main.ts; SQL belongs to each domain store except the fixed schema bootstrap; adapters cannot import stores. RPC inventories match the native allowlist and main wrappers subject to the exact shrinking baseline.
+    tested_by: sidecar ownership and RPC parity match the exact shrinking baseline, adversarial TypeScript fixtures reject aliases, namespaces, store access and foreign SQL
   - rule: Only own handler names are callable; error text never leaves except as a code.
     tested_by: unknown methods, stable errors and unexpected errors come back as codes
   - rule: Unexpected error details, which may contain local content, are not written to stderr.

@@ -2,12 +2,19 @@ name: sidecar-sessions
 version: 1
 status: current
 source: apps/desktop/sidecar/src/sessions
-responsibility: Turn hook events into session state and trimmed steps.
+responsibility: Own persisted session projections and trimmed steps from hook events.
 public_api:
+  Sessions: Composition injects a private SessionsStore on the one connection and the clock.
+  Sessions.recordEvent: Apply the event, persist the session and optional capped step, and return the step plus timestamp for domain notifications.
+  Sessions.list/steps: Ordered session and step projections for RPC adapters.
+private_persistence:
+  store.ts: Only sessions and steps; upsert sessions by id, order by updated_at desc then id, cap each session at KEPT_STEPS and order steps by seq.
   trimStep: Tool, target (path, URL, pattern or one-line Bash/PowerShell command) and a one-line summary. A URL target keeps scheme, host and path only; query, fragment and credentials are dropped.
   oneLine: Collapse whitespace; cut at max with an ellipsis.
   applyEvent: New session object after one event; never mutates the given one.
 obligations:
+  - rule: Sessions are replaced, ordered and persistent across reopening; steps keep the latest KEPT_STEPS in seq order.
+    tested_by: sessions are saved, replaced and listed newest first, only the latest steps of a session are kept, in order, the database survives reopening
   - rule: No content, patch or tool output field reaches a step.
     tested_by: a step keeps tool and path and drops every content field, a Bash step is the command on one line with its description
   - rule: SessionStart/PostToolUse running; PermissionRequest, waiting notices and Stop waiting; SessionEnd ended.

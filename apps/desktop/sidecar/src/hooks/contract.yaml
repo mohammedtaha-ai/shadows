@@ -4,7 +4,7 @@ status: current
 source: apps/desktop/sidecar/src/hooks
 responsibility: Accept aylul-hook connections on a per-run pipe and hand each event to a route.
 public_api:
-  makeRoute: Apply every event to the session and step store, note steps covered by a recorded rule, then hand PermissionRequest and PermissionDenied to approvals; {} otherwise.
+  makeRoute: Call Sessions to persist each event, notify Approvals and AgentSettings of a step, then hand PermissionRequest and PermissionDenied to Approvals; {} otherwise. Receives service objects only.
   createEndpoint: New random pipe name and 32-byte token, written to hook.json under the given directory.
   removeEndpoint: Delete hook.json.
   startHookServer: Listen on the pipe; first line must carry v 1 and the token; set event.project_dir from the line's project_dir; reply one line with the route's answer.

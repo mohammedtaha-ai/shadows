@@ -3,7 +3,13 @@ version: 1
 status: current
 source: apps/desktop/sidecar/src/agents
 responsibility: Propose narrow permission rules and change Claude Code settings files safely.
+private_persistence:
+  store.ts: Only rules and grant_uses; record the person approver and backup path, order project rules by at then id, order uses by seq.
 public_api:
+  AgentSettings: Composition injects its private SettingsStore, settings paths, executable and clock.
+  AgentSettings.installed/previewHooks/installHooks: Own hook executable validation, settings plans, fingerprint admission and backup writes; install resolves the executable and plan before reading the fingerprint parameter.
+  AgentSettings.writeRule: Write the previewed project rule, then persist its rule id and backup path.
+  AgentSettings.noteGrantUse: Match the event's project and exact proposed rule against recorded rules and append a covered use.
   settingsFor: Project-local .claude/settings.local.json with Windows path semantics.
   proposeRule: Exact Bash or PowerShell command, Edit/Read path anchored at the project root (/path), WebFetch host, or one MCP tool; null otherwise.
   isNarrowRule: Accept only the shapes proposeRule makes; any *, ?, [ ], unanchored or directory path, ~ or // path is refused.
@@ -16,6 +22,10 @@ public_api:
   planHookInstall: Replace entries whose command ends in aylul-hook.exe with one exec-form entry per HOOK_EVENTS; keep all other hooks and settings.
   hooksInstalled: Every HOOK_EVENTS event has an entry with exactly this executable.
 obligations:
+  - rule: Hook installation retains executable/plan/parameter error precedence and writes the exact previous settings backup against the preview fingerprint.
+    tested_by: hooks.install preserves executable, plan and parameter error precedence, hooks.install keeps the preview fingerprint and returns its exact settings backup
+  - rule: Rules and their uses are recorded only for their own project.
+    tested_by: rules and their uses are recorded per project
   - rule: Project settings resolve at the project root with Windows path semantics.
     tested_by: settingsFor locates project-local settings with Windows path semantics
   - rule: Multi-line, parenthesised, wildcard, pattern-character, outside-project and other-drive calls get no proposal.

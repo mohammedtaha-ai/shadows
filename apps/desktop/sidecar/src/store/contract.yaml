@@ -1,22 +1,15 @@
-name: sidecar-store
+name: sidecar-database
 version: 1
 status: current
 source: apps/desktop/sidecar/src/store
-responsibility: Keep AYLUL's laptop records in node:sqlite.
+responsibility: Open the single laptop SQLite connection with the fixed schema.
 public_api:
-  saveSession/getSession/listSessions: Upsert by id; list by updated_at desc, then id.
-  addStep/steps: Keep the latest KEPT_STEPS per session, in insertion order (seq).
-  recordDecision/decisions: Append one row per outcome, ordered by seq.
-  markTerminalAllowed: Turn the latest matching answered_in_terminal into answered_in_terminal_allowed.
-  addRule/rulesFor: A rule the person approved, with its backup path and approver person.
-  addGrantUse/grantUses: A call a recorded rule covered (decider aylul_grant).
+  openDatabase: Composition alone opens aylul.db, creates the parent directory, and initializes the unchanged tables; returns the connection for private domain stores.
 obligations:
-  - rule: Steps are capped per session and kept in order.
-    tested_by: only the latest steps of a session are kept, in order
-  - rule: A terminal answer is marked allowed once, by its matching step.
-    tested_by: a terminal answer is marked allowed by the matching step
-  - rule: Records survive a restart.
-    tested_by: the database survives reopening
+  - rule: The database file and schema remain compatible without migration.
+    tested_by: RPC projections and persisted rows survive reopening the unchanged aylul.db schema
+  - rule: Domain SQL never returns to shared persistence or adapters.
+    tested_by: sidecar ownership and RPC parity match the exact shrinking baseline
 gaps:
-  - at: Store
+  - at: openDatabase
     gap: No retention yet; the 90-day approval-record limit is enforced in step 2(d) or later.

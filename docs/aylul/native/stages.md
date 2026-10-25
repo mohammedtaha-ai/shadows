@@ -195,7 +195,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   from `apps/desktop/sidecar/`: `npm run typecheck` and `npm test` pass
 
 ### N-16 · D-9: sidecar persistence is private to its domains
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-9--make-sidecar-persistence-domain-private
   and #sidecar-target
 - Read: the plan's sections 2 ("Within the sidecar"), 3 (disk ownership) and 6 ("Sidecar target",

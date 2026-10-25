@@ -56,10 +56,12 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/tests/` | Physical Windows shell and synthetic native acceptance drivers | Results in dated evidence |
 | `apps/desktop/hook/` | One Claude Code hook call to the sidecar pipe | Colocated `contract.yaml` |
 | `apps/desktop/sidecar/src/hooks/` | Token guarded hook endpoint and pipe server | Colocated `contract.yaml` |
-| `apps/desktop/sidecar/src/sessions/` | Session state and trimmed steps from hook events | Colocated `contract.yaml` |
-| `apps/desktop/sidecar/src/agents/` | Narrow permission rules and safe project settings resolution/edits | Colocated `contract.yaml` |
-| `apps/desktop/sidecar/src/approvals/` | Held requests and refusals with preview admission for person supplied outcomes | Colocated `contract.yaml` |
-| `apps/desktop/sidecar/src/store/` | Local SQLite sessions, steps, decisions and rule records | Colocated `contract.yaml` |
-| `apps/desktop/sidecar/src/` | Sidecar composition and stdio RPC for the desktop window | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/sessions/` | Persisted session projections and capped steps (Sessions; private sessions/store.ts) | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/agents/` | Hook installation and permission edits (AgentSettings; private agents/store.ts owns rules and grant_uses) | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/approvals/` | Approval lifecycle and preview admission (Approvals; private approvals/store.ts owns decisions) | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/store/` | One SQLite connection with the fixed aylul.db schema; no domain persistence API | Colocated `contract.yaml` |
+| `apps/desktop/sidecar/src/architecture.test.ts` | Parser-backed sidecar ownership and RPC inventory ratchet | Sidecar composition contract; exact baseline and adversarial JSON fixtures; TypeScript 7 AST over text inputs |
+| `apps/desktop/sidecar/src/persistence.test.ts` | Fixed-schema row and RPC projection pins | Sidecar composition contract |
+| `apps/desktop/sidecar/src/` | createActivityApp composition in main.ts plus service-only stdio adapters | Colocated `contract.yaml` |
 
 No backend source is imported by the client.

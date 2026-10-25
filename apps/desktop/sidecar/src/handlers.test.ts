@@ -6,21 +6,18 @@ import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { serveRpc } from './rpc.ts';
 import { makeHandlers } from './handlers.ts';
-import { Store } from './store/store.ts';
-import { Approvals } from './approvals/approvals.ts';
-import { expectBefore, planAllowRule, settingsFor, writePlan } from './agents/settings-file.ts';
+import { createActivityApp } from './main.ts';
+import { settingsFor } from './agents/settings-file.ts';
 
 function setup(withExe = true) {
   const home = mkdtempSync(join(tmpdir(), 'aylul-h-'));
   const exe = join(home, 'aylul-hook.exe');
   if (withExe) writeFileSync(exe, '');
-  const store = new Store(':memory:');
   const now = () => new Date('2026-10-13T19:00:00.000Z');
-  const approvals = new Approvals({ now, newId: () => 'id1', record: () => {}, requestHoldMs: 500, refusalHoldMs: 500,
-    writeRule: (project, rule, seen) => ({ ruleId: 'r',
-      backupPath: writePlan(expectBefore(planAllowRule(settingsFor(project), rule), seen), join(home, 'b'), now()) }) });
-  const handlers = makeHandlers({ store, approvals, claudeSettings: join(home, '.claude', 'settings.json'),
-    hookExe: withExe ? exe : undefined, backupDir: join(home, 'b'), now });
+  const app = createActivityApp(':memory:', { now, newId: () => 'id1', requestHoldMs: 500, refusalHoldMs: 500,
+    claudeSettings: join(home, '.claude', 'settings.json'), hookExe: withExe ? exe : undefined, backupDir: join(home, 'b') });
+  const { approvals } = app;
+  const handlers = makeHandlers(app);
   return { home, exe, approvals, handlers };
 }
 
@@ -145,4 +142,37 @@ test('refusal.preview RPC checks the rule parameter before its narrowness', asyn
   assert.deepEqual(await rpc(handlers, 'refusal.approve', { id: 'id1', rule: 'Bash(*)', before: 'x' }), { id: 15, error: 'preview_mismatch' });
   closed.abort();
   await hook;
+});
+
+test('hooks.install preserves executable, plan and parameter error precedence', () => {
+  const missing = setup(false);
+  assert.throws(() => missing.handlers['hooks.install']({}), { message: 'hook_exe_missing' });
+  assert.throws(() => missing.handlers['hooks.preview']({}), { message: 'hook_exe_missing' });
+  const present = setup();
+  assert.throws(() => present.handlers['hooks.install']({}), { message: 'bad_params' });
+  mkdirSync(join(present.home, '.claude'), { recursive: true });
+  writeFileSync(join(present.home, '.claude', 'settings.json'), '[]');
+  assert.throws(() => present.handlers['hooks.install']({}), { message: 'settings_invalid' });
+  assert.throws(() => present.handlers['hooks.preview']({}), { message: 'settings_invalid' });
+});
+
+test('hooks.install keeps the preview fingerprint and returns its exact settings backup', async () => {
+  const { handlers, home } = setup();
+  const path = join(home, '.claude', 'settings.json');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  const original = '{"model":"retained"}';
+  writeFileSync(path, original);
+  const preview = await rpc(handlers, 'hooks.preview', {});
+  assert.equal(preview.id, 15);
+  assert.deepEqual(Object.keys(preview.result), ['path', 'lines', 'before']);
+  assert.equal(preview.result.path, path);
+  writeFileSync(path, '{}');
+  assert.deepEqual(await rpc(handlers, 'hooks.install', { before: preview.result.before }), { id: 15, error: 'settings_changed' });
+  writeFileSync(path, original);
+  const installed = await rpc(handlers, 'hooks.install', { before: preview.result.before });
+  assert.equal(installed.id, 15);
+  assert.deepEqual(Object.keys(installed.result), ['backupPath']);
+  assert.equal(readFileSync(installed.result.backupPath, 'utf8'), original);
+  assert.equal(JSON.parse(readFileSync(path, 'utf8')).model, 'retained');
+  assert.equal((await rpc(handlers, 'state', {})).result.hooksInstalled, true);
 });

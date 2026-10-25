@@ -3,7 +3,10 @@ version: 1
 status: current
 source: apps/desktop/sidecar/src/approvals
 responsibility: Own admission of the person's answers to permission requests and auto-mode refusals.
+private_persistence:
+  store.ts: Only decisions; append outcomes by seq, mark the latest matching answered_in_terminal once.
 public_api:
+  observeStep: Mark the latest matching terminal answer allowed through the private approval store.
   request: Hold until answer, hang-up (answered in terminal) or requestHoldMs (timed out); reply allow, deny or {}.
   refusal: Propose a rule; hold up to refusalHoldMs; stays listed after the hold.
   answer: allow or deny one held request; not_pending otherwise.
@@ -12,6 +15,8 @@ public_api:
   dismiss: Remove a refusal and its preview; a held hook gets {}.
   pending: Current items, oldest first.
 obligations:
+  - rule: A terminal answer is marked allowed once by its matching step.
+    tested_by: a terminal answer is marked allowed by the matching step
   - rule: Nothing is allowed without answer or approvePreview.
     tested_by: allow from AYLUL answers the hook with allow, an unanswered request times out with no decision
   - rule: No rule is written without a matching preview.

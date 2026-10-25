@@ -1,0 +1,87 @@
+[
+  {
+    "path": "handlers.ts",
+    "source": "import { Sessions as Renamed } from './sessions/sessions.ts'; const Alias = Renamed; new Alias(s, now);",
+    "rule": "construction"
+  },
+  {
+    "path": "hooks/route.ts",
+    "source": "import * as sessions from '../sessions/sessions.ts'; new sessions.Sessions(s, now);",
+    "rule": "construction"
+  },
+  {
+    "path": "handlers.ts",
+    "source": "import type { SessionsStore as Hidden } from './sessions/store.ts';",
+    "rule": "store-access"
+  },
+  {
+    "path": "handlers.ts",
+    "source": "export { SessionsStore } from './sessions/store.ts';",
+    "rule": "store-access"
+  },
+  {
+    "path": "handlers.ts",
+    "source": "const module = await import('./sessions/store.ts');",
+    "rule": "store-access"
+  },
+  {
+    "path": "hooks/route.ts",
+    "source": "db['prepare']('SELECT body FROM sessions');",
+    "rule": "sql-location"
+  },
+  {
+    "path": "sessions/store.ts",
+    "source": "db.prepare(`SELECT * FROM decisions`);",
+    "rule": "sql-owner"
+  },
+  {
+    "path": "agents/store.ts",
+    "source": "const query = 'SELECT * FROM ' + 'sessions'; db.prepare(query);",
+    "rule": "sql-owner"
+  },
+  {
+    "path": "approvals/store.ts",
+    "source": "db.prepare(queryFromCaller);",
+    "rule": "dynamic-sql"
+  },
+  {
+    "path": "handlers.ts",
+    "source": "import { DatabaseSync as DB } from 'node:sqlite'; new DB(':memory:');",
+    "rule": "connection"
+  },
+  {
+    "path": "agents/settings.ts",
+    "source": "const fake = 'SELECT * FROM sessions'; // new Sessions()",
+    "rule": null
+  },
+  {
+    "path": "handlers.ts",
+    "source": "const run = db.prepare; run('SELECT * FROM sessions');",
+    "rule": "sql-indirection"
+  },
+  {
+    "path": "handlers.ts",
+    "source": "import { SessionsStore } from './sessions/store';",
+    "rule": "store-access"
+  },
+  {
+    "path": "sessions/store.ts",
+    "source": "db.prepare(\"SELECT * FROM 'decisions'\");",
+    "rule": "sql-owner"
+  },
+  {
+    "path": "hooks/route.ts",
+    "source": "import * as owners from '../sessions/sessions.ts'; const Other = owners.Sessions; new Other(s, now);",
+    "rule": "construction"
+  },
+  {
+    "path": "sessions/store.ts",
+    "source": "db.prepare('SELECT body FROM sessions ORDER BY updated_at DESC, id');",
+    "rule": null
+  },
+  {
+    "path": "store/store.ts",
+    "source": "db.prepare('SELECT * FROM decisions');",
+    "rule": "sql-location"
+  }
+]
