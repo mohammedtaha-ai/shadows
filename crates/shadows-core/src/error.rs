@@ -482,3 +482,26 @@ impl From<core_harness::HarnessError> for CoreError {
         }
     }
 }
+
+impl From<core_design::DesignError> for CoreError {
+    fn from(error: core_design::DesignError) -> Self {
+        use core_design::DesignError;
+        match error {
+            DesignError::StageBlocked(message) => Self::Refused {
+                code: ErrorCode::StageBlocked,
+                message,
+            },
+            DesignError::InvalidCommand(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            DesignError::GrantScope(message) => Self::Refused {
+                code: ErrorCode::GrantScope,
+                message,
+            },
+            DesignError::ReasonMissing => Self::ReasonMissing,
+            DesignError::Grants(error) => error.into(),
+            DesignError::Storage(error) => error.into(),
+        }
+    }
+}

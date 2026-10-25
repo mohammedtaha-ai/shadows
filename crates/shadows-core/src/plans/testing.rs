@@ -3,8 +3,8 @@ use super::{
     Approved, DraftStarted, EditOutcome, Place, Plan, PlanId, PlanListing, PlanMap, PlanOp,
     PlanShown, PlanVersions, Plans, WorkflowId,
 };
-use crate::design::PartId;
 use core_db::{CommandContext, StorageError};
+use core_design::PartId;
 use core_grants::Writer;
 use core_operations::OperationId;
 use core_projects::ProjectId;
@@ -151,7 +151,7 @@ impl Plans {
         project: &ProjectId,
         revision: i64,
         ops: Vec<super::DesignOp>,
-    ) -> Result<crate::design::DesignChange, crate::CoreError> {
+    ) -> Result<core_design::DesignChange, crate::CoreError> {
         self.edit_workspace_with(
             ctx.clone(),
             project,

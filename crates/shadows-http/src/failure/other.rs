@@ -199,3 +199,9 @@ impl From<shadows_core::HarnessError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::DesignError> for Failure {
+    fn from(error: shadows_core::DesignError) -> Self {
+        CoreError::from(error).into()
+    }
+}

@@ -1,7 +1,7 @@
 //! Workspace views composed from Design and Plans in one snapshot.
 use super::{BindingParticipant, PlanId, Plans};
-use crate::design::{Design, DesignRevision, Outcome, OutcomeId, Part, PartId};
 use crate::{CoreError, ProjectId, StorageError};
+use core_design::{Design, DesignRevision, Outcome, OutcomeId, Part, PartId};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct PartView {

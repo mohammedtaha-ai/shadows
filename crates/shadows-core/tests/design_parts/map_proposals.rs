@@ -99,13 +99,26 @@ async fn equivalent_map_retries_replay_the_original_card() {
         .design()
         .propose_map(&f.grant, first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let mut retry = first();
     retry.parts[0].content.title = " backend ".into();
     retry.parts[0].content.folders = vec!["./backend/".into()];
-    let repeated = f.core.design().propose_map(&f.grant, retry).await.unwrap();
+    let repeated = f
+        .core
+        .design()
+        .propose_map(&f.grant, retry)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(original.id, repeated.id);
-    let proposals = f.core.design().map_proposals(&f.p).await.unwrap();
+    let proposals = f
+        .core
+        .design()
+        .map_proposals(&f.p)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(proposals.len(), 1);
     assert_eq!(proposals[0].status, shadows_core::ProposalStatus::Pending);
     f.close().await;
@@ -119,12 +132,14 @@ async fn first_map_approval_records_waiver_and_replays_once() {
         .design()
         .propose_map(&f.grant, first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(
         f.core
             .design()
             .parts(&f.p, None, None)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .items
             .is_empty()
@@ -134,15 +149,23 @@ async fn first_map_approval_records_waiver_and_replays_once() {
         .design()
         .approve_map_proposal("approve".into(), &f.p, &p.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let b = f
         .core
         .design()
         .approve_map_proposal("approve".into(), &f.p, &p.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(a, b);
-    let proposals = f.core.design().map_proposals(&f.p).await.unwrap();
+    let proposals = f
+        .core
+        .design()
+        .map_proposals(&f.p)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     let approved = proposals.iter().find(|x| x.id == p.id).unwrap();
     assert_eq!(
         serde_json::to_value(approved).unwrap()["approved_by"]["agent"],
@@ -169,12 +192,19 @@ async fn first_map_refuses_an_unserved_goal_without_writes() {
     for part in &mut args.parts {
         part.content.serves.clear();
     }
-    let p = f.core.design().propose_map(&f.grant, args).await.unwrap();
+    let p = f
+        .core
+        .design()
+        .propose_map(&f.grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert!(matches!(
         f.core
             .design()
             .approve_map_proposal("bad".into(), &f.p, &p.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Refused {
             code: shadows_core::ErrorCode::StageBlocked,
             ..
@@ -185,6 +215,7 @@ async fn first_map_refuses_an_unserved_goal_without_writes() {
             .design()
             .parts(&f.p, None, None)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .items
             .is_empty()
@@ -202,12 +233,14 @@ async fn first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database() {
         .design()
         .propose_map(&f.grant, args.clone())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(matches!(
         f.core
             .design()
             .approve_map_proposal("missing".into(), &f.p, &p.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Refused {
             code: shadows_core::ErrorCode::StageBlocked,
             ..
@@ -217,7 +250,14 @@ async fn first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database() {
         part: "database".into(),
         reason: "skip".into(),
     });
-    assert!(f.core.design().propose_map(&f.grant, args).await.is_err());
+    assert!(
+        f.core
+            .design()
+            .propose_map(&f.grant, args)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .is_err()
+    );
     f.close().await;
 }
 
@@ -227,13 +267,21 @@ async fn approved(f: &Fixture) -> shadows_core::PartId {
         .design()
         .propose_map(&f.grant, first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     f.core
         .design()
         .approve_map_proposal("first".into(), &f.p, &p.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
-    f.core.design().parts(&f.p, None, None).await.unwrap().items[0]
+    f.core
+        .design()
+        .parts(&f.p, None, None)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .items[0]
         .id
         .clone()
 }
@@ -262,8 +310,21 @@ async fn a_part_change_is_outdated_by_its_served_item_only() {
     let mut args = addition("changed");
     args.action = MapAction::Change;
     args.part_id = Some(id);
-    let p = f.core.design().propose_map(&f.grant, args).await.unwrap();
-    let rev = f.core.design().vision(&f.p).await.unwrap().revision;
+    let p = f
+        .core
+        .design()
+        .propose_map(&f.grant, args)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
+    let rev = f
+        .core
+        .design()
+        .vision(&f.p)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .revision;
     f.core
         .plans()
         .edit_design(
@@ -282,6 +343,7 @@ async fn a_part_change_is_outdated_by_its_served_item_only() {
             .design()
             .map_proposals(&f.p)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .iter()
             .find(|i| i.id == p.id)
@@ -306,6 +368,7 @@ async fn a_part_change_is_outdated_by_its_served_item_only() {
             .design()
             .map_proposals(&f.p)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .iter()
             .find(|i| i.id == p.id)
@@ -317,6 +380,7 @@ async fn a_part_change_is_outdated_by_its_served_item_only() {
             .design()
             .approve_map_proposal("stale".into(), &f.p, &p.id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     f.close().await;
@@ -331,6 +395,7 @@ async fn approval_rechecks_vision_completeness_for_an_independent_addition() {
         .design()
         .propose_map(&f.grant, addition("notifications"))
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     f.core
         .plans()
@@ -347,6 +412,7 @@ async fn approval_rechecks_vision_completeness_for_an_independent_addition() {
             .design()
             .map_proposals(&f.p)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .iter()
             .find(|i| i.id == p.id)
@@ -357,7 +423,8 @@ async fn approval_rechecks_vision_completeness_for_an_independent_addition() {
         f.core
             .design()
             .approve_map_proposal("incomplete".into(), &f.p, &p.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Refused {
             code: shadows_core::ErrorCode::StageBlocked,
             ..
@@ -368,6 +435,7 @@ async fn approval_rechecks_vision_completeness_for_an_independent_addition() {
             .design()
             .parts(&f.p, None, None)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .items
             .len(),
@@ -385,20 +453,29 @@ async fn a_second_add_with_the_same_identity_is_refused_at_approval() {
         .design()
         .propose_map(&f.grant, addition("notifications"))
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let mut second = addition("NOTIFICATIONS");
     second.parts[0].content.design = "other".into();
-    let b = f.core.design().propose_map(&f.grant, second).await.unwrap();
+    let b = f
+        .core
+        .design()
+        .propose_map(&f.grant, second)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     f.core
         .design()
         .approve_map_proposal("add-first".into(), &f.p, &a.id)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert!(
         f.core
             .design()
             .approve_map_proposal("add-second".into(), &f.p, &b.id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     f.close().await;
@@ -421,6 +498,7 @@ async fn proposals_pin_the_turns_standards_not_newer_additions() {
         .design()
         .propose_map(&f.grant, first())
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let pin: Option<String> = sqlx::query_scalar(
         "SELECT standards_additions_version_id FROM design_map_proposal WHERE id=?",
@@ -430,12 +508,21 @@ async fn proposals_pin_the_turns_standards_not_newer_additions() {
     .await
     .unwrap();
     assert!(pin.is_none());
-    assert!(f.core.design().map_proposals(&f.p).await.unwrap()[0].outdated);
+    assert!(
+        f.core
+            .design()
+            .map_proposals(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()[0]
+            .outdated
+    );
     assert!(
         f.core
             .design()
             .approve_map_proposal("stale-standards".into(), &f.p, &p.id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     f.close().await;

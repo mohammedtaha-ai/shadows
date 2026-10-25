@@ -1,5 +1,5 @@
 //! Exact shared-agreement version pins owned by a plan version.
-use crate::design::{AgreementId, AgreementRole, PartId};
+use core_design::{AgreementId, AgreementRole, PartId};
 #[derive(
     Debug,
     Clone,

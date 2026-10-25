@@ -81,3 +81,5 @@ workflow :: plans
 # operations SQL lives in crates/core-operations/src/store/.
 
 # harness SQL lives in crates/core-harness/src/store/.
+
+# design SQL lives in crates/core-design/src/store/.

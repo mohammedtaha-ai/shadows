@@ -1,0 +1,659 @@
+# Harness invocation and session APIs are imported from core-harness.
+# Grant authority and approval provenance are imported from core-grants.
+# Thread identities and transaction methods are imported from core-threads.
+# Project standards are imported from core-standards.
+# Project identities and registration methods are imported from core-projects.
+# Durable journal publication converts owned ids directly to core-db JournalEntry.
+# Database infrastructure: core-db; domain rules and private stores remain here.
+# Running authority is read through Operations; transaction guards remain in the caller snapshot.
+# Grant authority calls use Grants methods; refusing writes promote GrantsError through write_txn_as.
+# Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
+# Owns project design edits (§18.2, §18.10–18.11), first called by person HTTP.
+# Reads lazily return an empty revision-zero vision for a live project.
+# Map paths reject Windows device names and Shadows-owned initial files.
+# Rendering rechecks old snapshots and emits contracts with yaml-rust2.
+# Structure writes pin map and standards, persist hashes before writing, refuse
+# Temporary names avoid all planned files, folders and other temporary names;
+# recorded file hashes are checked before temporary cleanup classification.
+# foreign/changed files before cleanup, publish without clobbering, and move to
+# roadmap only on committed completion. No MCP method invokes this operation.
+# Held by reserved_initial_files_are_refused, windows_device_names_are_refused,
+# renders_folders_contracts_files_and_shadows_md and a_reserved_path_refuses.
+# Replay precedes project/revision validation and returns an immutable result.
+name: design
+# Approval stores derive principal/agent/request in one transaction (§24.1).
+# Planner grants and running turns are rechecked before replay; waiver maps are human-only.
+version: 1
+status: current
+source: crates/core-design/src
+
+shapes:
+  StructureWritten:
+    map_version: i64
+    paths: Vec<String>
+    completed_at: String
+    resumed: bool
+  StageView:
+    drift: Vec<String>
+    stage: Stage
+    missing: Vec<String>
+  Design:
+    store: Arc<DesignStore>
+    operations: Operations
+    structure_lock: Arc<Mutex<()>>
+  AgreementContent:
+    capability: String
+    purpose: String
+    behavior: String
+    acceptance: Vec<String>
+    parties: Vec<AgreementParty>
+    openapi: Value
+  VisionAction: add | edit | remove
+  ProposalStatus: Pending | Approved | Superseded
+  VisionPropose:
+    action: VisionAction
+    field: Option<VisionField>
+    item_id: Option<String>
+    text: Option<String>
+    replaces: Option<String>
+  VisionProposal:
+    approved_by: "Option<core_grants::ApprovedBy>; provenance on approved proposals only"
+    id: String
+    thread_id: ThreadId
+    action: VisionAction
+    field: VisionField
+    item_id: Option<String>
+    text: Option<String>
+    old_text: Option<String>
+    expected_item_revision: Option<i64>
+    status: ProposalStatus
+    outdated: bool
+    created_at: String
+  VisionItem:
+    id: String
+    text: String
+    revision: i64
+    approved_from: Option<ThreadId>
+  VisionField: purpose | users | goals | boundaries | technical_direction
+  VisionContent:
+    purpose: Vec<VisionItem>
+    users: Vec<VisionItem>
+    goals: Vec<VisionItem>
+    boundaries: Vec<VisionItem>
+    technical_direction: Vec<VisionItem>
+  VisionView:
+    revision: DesignRevision
+    content: VisionContent
+  DesignChange:
+    revision: DesignRevision
+  PartContent:
+    serves: Vec<String>
+    folders: Vec<String>
+    files: Vec<InitialFile>
+    contract: ContractHead
+    title: String
+    responsibility: String
+    design: String
+    kind: Option<String>
+  Part:
+    id: PartId
+    parent: Option<PartId>
+    ordinal: i64
+    revision: i64
+    content: PartContent
+  PartPage:
+    revision: DesignRevision
+    items: Vec<Part>
+    next: Option<PartId>
+  OutcomeContent:
+    title: String
+    intended_result: String
+    acceptance: Vec<String>
+  Outcome:
+    id: OutcomeId
+    parent: Option<OutcomeId>
+    ordinal: i64
+    revision: i64
+    content: OutcomeContent
+  OutcomePage:
+    revision: DesignRevision
+    items: Vec<Outcome>
+    next: Option<OutcomeId>
+
+enums:
+  DesignError:
+    source: core_design::DesignError
+    values: [StageBlocked, ReasonMissing, InvalidCommand, GrantScope, Grants, Storage]
+  Stage: [Idea, Vision, Map, Structure, Roadmap, Plans]
+  RoadmapAction: [First, Add, Change, Remove]
+  WorkspaceOp:
+    OutcomeCreate: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId>, content: OutcomeContent }"
+    OutcomePut: "{ id: OutcomeId, content: OutcomeContent }"
+    OutcomeMove: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId> }"
+    OutcomePartPut: "{ outcome: OutcomeId, part: PartId }"
+    OutcomePartRemove: "{ outcome: OutcomeId, part: PartId }"
+    VisionItemAdd: "{ field: VisionField, text: String }"
+    VisionItemPut: "{ id: String, text: String }"
+    VisionItemRemove: "{ id: String }"
+    PartCreate: "{ id: PartId, parent: Option<PartId>, before: Option<PartId>, content: PartContent }"
+    PartPut: "{ id: PartId, content: PartContent }"
+    PartMove: "{ id: PartId, parent: Option<PartId>, before: Option<PartId> }"
+    PlanLinkPut: "{ anchor: DesignAnchor, plan: String }"
+    PlanLinkRemove: "{ anchor: DesignAnchor, plan: String }"
+  DesignAnchor:
+    Part: PartId
+    Outcome: OutcomeId
+
+functions:
+  new: Constructs Design over its shared foundation and Operations dependency.
+  from_recorded: Reconstructs owned identities retained by other services.
+  validate_roadmap_for_test: Test-support entry for pure roadmap proposal validation.
+  boundary:
+    approve_vision_proposal_for_test: Test-only approval using the supplied command and approver.
+    propose_vision_for_test: Test-only proposal using the supplied command, writer and operation.
+  service:
+    create_structure:
+      signature: "(&self, command_id: String, project: &ProjectId) -> Result<StructureWritten, DesignError>"
+      # Person HTTP only; daemon mutex, intent before disk, immutable command replay.
+    create_structure_stopping_after:
+      signature: "test-support only: (&self, command: String, project: &ProjectId, n: usize) -> Result<StructureWritten, DesignError>"
+    planner_approver:
+      signature: "private: derives Planner writer, running operation and harness from grant/thread"
+    approve_vision_proposal_as_planner:
+      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, DesignError>"
+      # Operation-scoped retry; store rechecks live grant and turn before approval.
+    approve_map_proposal_as_planner:
+      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, DesignError>"
+      # Same provenance; first-map waiver refusal is enforced inside the store.
+    propose_map:
+      signature: "(&self, grant: &Grant, args: MapPropose) -> Result<MapProposal, DesignError>"
+    map_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, DesignError>"
+    approve_map_proposal:
+      signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, DesignError>"
+    seed_map_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<(), DesignError>"
+    seed_roadmap_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, DesignError>"
+      # Seeds the map if absent, one part and roadmap_revision 1; answers the part. Idempotent.
+    propose_roadmap:
+      signature: "(&self, grant: &Grant, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
+      # Planner/thread grant plus running turn; structure write and roadmap revision checked in the store.
+    roadmap_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, DesignError>"
+    approve_roadmap_proposal_in:
+      signature: "(conn, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver, planned: &BTreeSet<String>) -> Result<DesignChange, DesignError>"
+      # Plans calls it inside its write: `planned` names the outcomes a plan links
+      # to, and removing one is StageBlocked "outcome has children or plans".
+      # Same provenance as the map: planner:<harness> with the request entry.
+    propose_vision:
+      signature: "(&self, grant: &Grant, args: VisionPropose) -> Result<VisionProposal, DesignError>"
+      # Planner/thread grant plus running turn only; writer rechecked in write transaction.
+    vision_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, DesignError>"
+      # One read snapshot; seq order; derived per-item staleness.
+    approve_vision_proposal:
+      signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, DesignError>"
+      # Person only; replay before live project, project-scoped proposal, state and staleness.
+    stage_line_in:
+      signature: "(conn, project: &ProjectId) -> Result<String, StorageError>"
+      # Turns reads the stage fact in its snapshot for both normal and steered prompts.
+    stage:
+      signature: "(&self, project: &ProjectId) -> Result<StageView, DesignError>"
+    agreements_for:
+      signature: "(&self, grant: &Grant) -> Result<Vec<AgreementVersion>, DesignError>"
+    agreement_for:
+      signature: "(&self, grant: &Grant, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, DesignError>"
+    start_agreement_for:
+      signature: "(&self, grant: &Grant, command_id: String, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, DesignError>"
+    edit_agreement_for:
+      signature: "(&self, grant: &Grant, command_id: String, id: &AgreementId, version: i64, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, DesignError>"
+    validate_agreement:
+      signature: "(content: &AgreementContent) -> Vec<AgreementIssue>"
+      # Offline library validation against bundled OAS 3.1 schema-base,
+      # stable UUID operation IDs, intent/party requirements and local refs.
+    agreements:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<AgreementVersion>, DesignError>"
+    agreement:
+      signature: "(&self, project: &ProjectId, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, DesignError>"
+    start_agreement:
+      signature: "(&self, command_id: String, project: &ProjectId, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, DesignError>"
+    edit_agreement:
+      signature: "(&self, command_id: String, project: &ProjectId, id: &AgreementId, version: i64, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, DesignError>"
+      # Names the Draft version it was built on; any other version refuses with
+      # InvalidCommand "vN is no longer the Draft; read vM", even at the same revision.
+      # Start and edit give every operation without x-shadows-operation-id a fresh
+      # UUID inside the write; an existing id is kept, so it survives a rename.
+    outcomes:
+      signature: "(&self, project: &ProjectId, parent: Option<&OutcomeId>, after: Option<&OutcomeId>) -> Result<OutcomePage, DesignError>"
+      # Wrong-parent cursors refuse with actionable InvalidCommand.
+    vision:
+      signature: "(&self, project: &ProjectId) -> Result<VisionView, DesignError>"
+    parts:
+      signature: "(&self, project: &ProjectId, parent: Option<&PartId>, after: Option<&PartId>) -> Result<PartPage, DesignError>"
+      # A cursor outside the requested parent is InvalidCommand with cursor details.
+    workspace_for:
+      signature: "(&self, grant: &Grant) -> Result<WorkspaceView, DesignError>"
+      # Read only, for any live grant of the project: the vision with the first
+      # page of top-level parts and outcomes. No MCP tool writes the workspace.
+  store:
+    propose_map_in:
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: MapPropose) -> Result<MapProposal, DesignError>"
+    list_map_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, StorageError>"
+    approve_map_proposal_in:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, DesignError>"
+    seed_map_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<(), StorageError>"
+    seed_roadmap_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, StorageError>"
+    propose_roadmap_in:
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
+    list_roadmap_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, StorageError>"
+    approve_roadmap_in:
+      signature: "(conn, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver, planned: &BTreeSet<String>) -> Result<DesignChange, DesignError>"
+    propose_vision_in:
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, DesignError>"
+    list_vision_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, StorageError>"
+    approve_vision_proposal_in:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, DesignError>"
+    project_stage:
+      signature: "(&self, project: &ProjectId) -> Result<StageView, StorageError>"
+      # Vision, top-level parts and additions all share one read transaction.
+    check_agreement_grant:
+      signature: "(&self, writer: &Writer, project: &ProjectId) -> Result<(), DesignError>"
+    design_agreements:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<AgreementVersion>, StorageError>"
+    design_agreement:
+      signature: "(&self, project: &ProjectId, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, StorageError>"
+    start_design_agreement:
+      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, DesignError>"
+    edit_design_agreement:
+      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: &AgreementId, version: i64, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, DesignError>"
+    design_outcome_in:
+      signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeDetails, StorageError>"
+      # One snapshot, iterative root-first ancestors, unique stable-ID associations.
+    design_outcomes:
+      signature: "(&self, project: &ProjectId, parent: Option<&OutcomeId>, after: Option<&OutcomeId>) -> Result<OutcomePage, StorageError>"
+      # Same 50-child snapshot page/cursor rules as parts; independent containment.
+    design_vision:
+      signature: "(&self, project: &ProjectId) -> Result<VisionView, StorageError>"
+      # One joined read excludes unknown/removed projects; no row initialization.
+    edit_workspace_in:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, StorageError>"
+      # write_txn → classify/replay → live project/workspace revision → ordered
+      # ops (empty batch refused) → affected element revisions once per batch →
+      # immutable design_command_result → append_event → record_command.
+    design_part_in:
+      signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartDetails, StorageError>"
+      # A read transaction supplies a consistent workspace revision, root-first
+      # iterative ancestor path and plan IDs ordered uniquely by stable id.
+    design_parts:
+      signature: "(&self, project: &ProjectId, parent: Option<&PartId>, after: Option<&PartId>) -> Result<PartPage, StorageError>"
+      # Snapshot reads, 50 children ordered by (ordinal,id); cursor must be
+      # in the requested parent; next names last returned item only if more exist.
+
+agreements:
+  - between: [plans::edit_design, db::with_project]
+    rule: >
+      ProjectDesignChanged is appended inside the edit's transaction and carries
+      only project_id, workspace revision, changed part/outcome IDs
+      and vision_changed. Events reads it on the existing project journal tail.
+    holds: true
+    tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
+  - between: [plans::edit_design, plans::check_design_plan_in]
+    rule: >
+      Design verifies same-project plan identity in its transaction through
+      Plans' declared lookup. Archived or Frozen plans are valid associations;
+      Design writes only association rows, never plan versions.
+    holds: true
+    tested_by: part_order_is_stable_across_restart
+
+shared_in_transaction:
+  approve_map_proposal_in: Private owner transaction entry; its command rules are listed under functions.
+  approve_roadmap_in: Private owner transaction entry; its command rules are listed under functions.
+  approve_roadmap_proposal_in: Private owner transaction entry; its command rules are listed under functions.
+  approve_vision_proposal_in: Private owner transaction entry; its command rules are listed under functions.
+  check_hand_edit: Private owner transaction entry; its command rules are listed under functions.
+  edit_design_agreement: Private owner transaction entry; its command rules are listed under functions.
+  finish_structure: Private owner transaction entry; its command rules are listed under functions.
+  propose_map_in: Private owner transaction entry; its command rules are listed under functions.
+  propose_roadmap_in: Private owner transaction entry; its command rules are listed under functions.
+  propose_vision_in: Private owner transaction entry; its command rules are listed under functions.
+  stage_line_in: Private owner transaction entry; its command rules are listed under functions.
+  stage_view_in: Private owner transaction entry; its command rules are listed under functions.
+  start_design_agreement: Private owner transaction entry; its command rules are listed under functions.
+  start_structure: Private owner transaction entry; its command rules are listed under functions.
+  structure_snapshot: Private owner transaction entry; its command rules are listed under functions.
+  agreement_in: Owner entry in the caller transaction; agreements rules.
+  agreed_before_in: Owner entry in the caller transaction; agreements rules.
+  mark_agreed_in: Owner entry in the caller transaction; agreements rules.
+  agreement_replay_in: Owner entry in the caller transaction; agreement write rules.
+  record_agreement_in: Owner entry in the caller transaction; agreement write rules.
+  design_outcome_in: Owner entry in the caller transaction; outcomes rules.
+  design_part_in: Owner entry in the caller transaction; parts rules.
+  require_part_in: Owner entry in the caller transaction; parts rules.
+  revision_in: Owner entry in the caller transaction; parts rules.
+  part_in: Owner entry in the caller transaction; parts rules.
+  replay_edit_in: Owner entry in the caller transaction; vision rules.
+  edit_workspace_in: Owner entry in the caller transaction; vision rules.
+  require_roadmap_in: "Plans calls it in start_draft, edit_plan (the binding edit included) and approve_plan_with, after the replay lookup: STAGE_BLOCKED while roadmap_revision is 0. Design owns the revision."
+  check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
+
+dependencies:
+  projects: crates/core-projects/contract.yaml
+  threads: crates/core-threads/contract.yaml
+  grants: crates/core-grants/contract.yaml
+  harness: crates/core-harness/contract.yaml
+  standards: crates/core-standards/contract.yaml
+  operations: crates/core-operations/contract.yaml
+
+called_by_other_services:
+  project_stage: "Design exposes its persisted stage view; Turns reads the rendered line through stage_line_in."
+
+obligations:
+  - rule: Map paths refuse Windows device names and initial files at Shadows-owned output paths.
+    tested_by: [windows_device_names_are_refused, reserved_initial_files_are_refused]
+  - rule: Map proposal fingerprints use normalized titles and paths; equivalent retries replay one card.
+    tested_by: equivalent_map_retries_replay_the_original_card
+  - rule: An approved map reports newly required mandatory kinds in its stage line and map page.
+    tested_by: [approved_map_reports_new_missing_mandatory_kinds, an_added_part_is_mandatory_for_the_stage]
+  - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
+    tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
+  - rule: >
+      Stage is plans once the structure write is complete and roadmap_revision is above zero.
+      Hand outcome edits and outcome plan links refuse STAGE_BLOCKED while it is zero.
+    tested_by: [create_structure_writes_exactly_the_approved_files, hand_outcome_edits_wait_for_the_first_roadmap]
+  - rule: >
+      A roadmap is proposed and approved only after the structure write. The first
+      is proposed whole; later proposals add, change or remove one outcome, every
+      outcome referencing at least one part of the project. Malformed proposals
+      refuse whole and write no card.
+    tested_by: [a_roadmap_waits_for_the_structure, a_malformed_roadmap_is_refused_whole, add_change_and_remove_work_after_the_first_roadmap]
+  - rule: >
+      Approval writes the outcomes, their part references and roadmap_revision in
+      one transaction with §24 provenance; replay writes nothing. A change replaces
+      its outcome's content, parts and parent, moving it when the parent differs.
+      A remove refuses an outcome with children or plans.
+    tested_by: [the_button_approves_a_first_roadmap_and_opens_the_plans_stage, the_planner_approves_at_the_persons_request, add_change_and_remove_work_after_the_first_roadmap, a_change_moves_its_outcome_to_the_parent_it_names]
+  - rule: >
+      A newer first, a newer change or remove of the same outcome, or a named
+      replaces supersedes the pending card. A card is outdated only by a referenced
+      part's content changing or the part going, its outcome's content or parent
+      changing or the outcome going, or (for a first) an approved roadmap. Plan
+      links and reordering raise revisions but outdate nothing; vision and
+      standards edits do not outdate it either.
+    tested_by: [a_newer_first_or_a_replaces_supersedes_the_pending_card, a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not, a_hand_edit_of_the_outcome_outdates_its_pending_change, tying_a_plan_to_a_part_leaves_a_pending_card_valid]
+  - rule: Part writes before the first approved map refuse atomically; every later part write stores a map version.
+    tested_by: a_hand_part_create_before_the_first_map_is_stage_blocked
+  - rule: Folder ownership follows containment; case-insensitive file paths never also name directories.
+    tested_by: [folders_nest_only_under_their_parent, initial_files_cannot_escape_part_ownership, initial_files_cannot_also_be_directories]
+  - rule: Missing mandatory kinds cannot be introduced by hand edits; metadata changes preserve review baselines.
+    tested_by: [a_hand_edit_cannot_drop_a_mandatory_part, removed_links_and_metadata_edits_preserve_drift]
+  - rule: A fresh proposal rechecks its exact running turn in its write transaction; terminal turns produce no card or supersession.
+    tested_by: a_new_proposal_cannot_commit_under_a_finished_turn
+  - rule: A proposal is an immutable pending card without a vision write; replay returns its original snapshot.
+    tested_by: a_proposal_is_a_pending_card_in_its_conversation
+  - rule: Person approval is project scoped, replayable and serialized; item revisions alone govern staleness.
+    tested_by: [approval_is_scoped_to_its_live_project, two_concurrent_approvals_write_once, approving_twice_with_one_command_writes_once, an_item_edited_back_to_its_old_text_still_outdates_the_proposal]
+  - rule: A pending item change or explicitly replaced addition is superseded atomically with the new card.
+    tested_by: a_newer_proposal_supersedes_by_item_or_by_replaces
+  - rule: Server-assigned ids count per field and are never reused, including transient batch additions.
+    tested_by: a_removed_id_is_never_reused
+  - rule: Each committed vision edit stores one version and advances edited item revisions.
+    tested_by: every_vision_change_is_a_stored_version
+  - rule: Unknown item ids and whitespace-only text refuse without a write.
+    tested_by: item_ops_refuse_an_unknown_id_and_empty_text
+  - rule: >
+      Stage is computed from one persisted snapshot: idea, vision, map, structure.
+      Only top-level parts whose trimmed kind exactly equals a required name count.
+      Added parts come from Standards; unknown/removed projects refuse the stage read.
+    tested_by: [the_stage_walks_idea_vision_map_structure, stage_counts_a_trimmed_kind_and_no_other_case, an_added_part_is_mandatory_for_the_stage]
+  - rule: >
+      Outcome containment is independent of parts; cycles/foreign associations
+      refuse the entire batch, titles are trimmed, other design text is exact.
+      Outcome references preserve existing part/plan identities. Affected outcome
+      revisions increment once per batch, including association changes.
+    tested_by: [outcome_spans_parts_without_copying_them, outcome_hierarchy_is_independent_of_parts]
+  - rule: >
+      Plan approval/archive or deletion of a writer conversation never completes
+      an outcome, removes its references or changes old Frozen stored content.
+    tested_by: plan_lifecycle_never_completes_outcomes
+  - rule: >
+      Parts retain identity through rename/reparent; foreign references or cycles
+      roll back the whole batch with no event. Workspace revisions refuse stale
+      concurrent moves; element revisions increment once per affected batch.
+    tested_by: part_moves_keep_identity_and_reject_cycles
+  - rule: >
+      Explicit sibling order survives reopen. A named before sibling must be in
+      the destination, distinct from the moved item. Plan links are unique;
+      archived/Frozen content remains unchanged. Removed projects refuse reads.
+    tested_by: [part_order_is_stable_across_restart, part_pages_are_bounded_and_replay_is_immutable]
+  - rule: >
+      A replay returns its original revision after later edits. Changed request
+      identity conflicts. Competing writes expecting zero produce one success.
+      A removed project accepts no new write or event; reads fail.
+    tested_by: vision_edit_is_atomic_replayable_and_revision_checked
+  - rule: >
+      HTTP round-trips Arabic/whitespace, retains 409 REVISION_CONFLICT with
+      current_revision and COMMAND_CONFLICT, and retains conversation API routes.
+    tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
+
+tests:
+  - name: a_recorded_file_with_a_temp_suffix_is_never_cleaned_up
+    checks: Changed approved temp-suffixed filenames refuse without deletion; restoration resumes.
+  - name: create_structure_writes_exactly_the_approved_files
+    checks: Approved bytes, contracts, SHADOWS.md, roadmap and one durable event.
+  - name: a_stopped_write_resumes
+    checks: Incomplete intent preserves structure stage; matching files remain and temp is removed.
+  - name: a_foreign_or_changed_file_refuses_the_resume
+    checks: Foreign or changed bytes refuse before cleanup; existing temporary file remains.
+  - name: a_reserved_path_from_an_older_map_refuses
+    checks: Older snapshot with backend/CONTRACT.yaml refuses with no disk write.
+  - name: concurrent_calls_write_once
+    checks: Daemon mutex serializes clicks; exactly one writes.
+  - name: a_revoked_grant_cannot_approve
+    checks: A revoked Planner grant cannot commit approval or record a command.
+  - name: an_ended_turn_cannot_approve
+    checks: A terminal operation cannot approve a pending proposal.
+  - name: the_planner_approves_a_vision_card_and_replay_appends_nothing
+    checks: Latest operation message, Planner agent, immutable retry and audit columns.
+  - name: the_planner_refuses_waiver_maps_but_the_person_approves
+    checks: Planner refusal preserves Pending state; human approval succeeds.
+  - name: equivalent_map_retries_replay_the_original_card
+    checks: Equivalent title/path spellings retain one pending proposal identity.
+  - name: approved_map_reports_new_missing_mandatory_kinds
+    checks: Structure stage does not claim map completeness when mandatory kinds are missing.
+  - name: first_map_approval_records_waiver_and_replays_once
+    checks: Proposal writes no parts; approval records the person, waiver and exactly one version on replay.
+  - name: proposals_pin_the_turns_standards_not_newer_additions
+    checks: Newer standards never overwrite the Planner invocation pin; stale approval refuses.
+  - name: first_map_refuses_an_unserved_goal_without_writes
+    checks: Unserved goals refuse approval without any partial map.
+  - name: approval_rechecks_vision_completeness_for_an_independent_addition
+    checks: A live independent card cannot bypass a newly incomplete vision.
+  - name: a_second_add_with_the_same_identity_is_refused_at_approval
+    checks: Concurrent pending additions revalidate identity against the committed map.
+  - name: a_roadmap_waits_for_the_structure
+    checks: STAGE_BLOCKED before the structure write; no card is stored.
+  - name: the_button_approves_a_first_roadmap_and_opens_the_plans_stage
+    checks: Card writes no outcome; approval writes the tree and parts once, replays, stage is plans.
+  - name: the_planner_approves_at_the_persons_request
+    checks: planner:<harness> provenance with the request entry.
+  - name: a_newer_first_or_a_replaces_supersedes_the_pending_card
+    checks: Supersession by a newer first and by replaces; a superseded card cannot be approved.
+  - name: a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not
+    checks: Per-part staleness; outdated approval is STAGE_BLOCKED with no write.
+  - name: a_malformed_roadmap_is_refused_whole
+    checks: No part, unknown part, blank title, duplicate key, cycle, change before a roadmap.
+  - name: add_change_and_remove_work_after_the_first_roadmap
+    checks: Add, change (content and part references) and a guarded remove.
+  - name: a_hand_edit_of_the_outcome_outdates_its_pending_change
+    checks: A hand content edit of the outcome outdates its pending change card.
+  - name: a_change_moves_its_outcome_to_the_parent_it_names
+    checks: A change with no parent moves a child to the top; naming a parent moves it back.
+  - name: tying_a_plan_to_a_part_leaves_a_pending_card_valid
+    checks: A person's plan link to a referenced part keeps the card valid; a content edit outdates it.
+  - name: the_planner_proposes_and_approves_a_roadmap_after_the_structure
+    checks: Over MCP, STAGE_BLOCKED before the structure, roadmap_approve as planner, then a tied plan approves.
+  - name: roadmap_proposal_routes_list_and_approve
+    checks: HTTP list and replayable approval; no Planner approval without a running turn; events reach the tail.
+  - name: hand_outcome_edits_wait_for_the_first_roadmap
+    checks: A hand outcome create is STAGE_BLOCKED until the roadmap; then accepted.
+  - name: a_hand_part_create_before_the_first_map_is_stage_blocked
+    checks: Refusal without writes; test-only seed enables edits and immutable map snapshots.
+  - name: folders_nest_only_under_their_parent
+    checks: Ancestor-owned folders allow child ownership; sibling overlap rolls back.
+  - name: initial_files_cannot_escape_part_ownership
+    checks: A starter file outside its part's folders is refused.
+  - name: initial_files_cannot_also_be_directories
+    checks: A file equal to a folder or containing a folder/file below it refuses the whole write.
+  - name: a_hand_edit_cannot_drop_a_mandatory_part
+    checks: Kind edits and moves cannot remove mandatory top-level ownership.
+  - name: removed_links_and_metadata_edits_preserve_drift
+    checks: Rename does not acknowledge changed goals; removed links do not block unrelated edits.
+  - name: a_new_proposal_cannot_commit_under_a_finished_turn
+    checks: Captured operation stopped before persistence refuses with no version, card or event.
+  - name: the_stage_walks_idea_vision_map_structure
+    checks: Empty/incomplete vision, missing map parts, complete map.
+  - name: stage_counts_a_trimmed_kind_and_no_other_case
+    checks: Trimming, case sensitivity, exclusion of child parts.
+  - name: an_added_part_is_mandatory_for_the_stage
+    checks: Effective additions extend stage requirements.
+  - name: a_planner_reads_the_workspace_a_person_wrote
+    checks: A Planner grant reads the vision and a part over MCP; workspace_get is read only.
+  - name: agreement_review_detects_stale_part_and_agrees_without_implicit_adoption
+    checks: Stale part review atomic refusal; person agreement and immutable replay.
+  - name: agreement_mcp_exposes_proposals_without_person_approval
+    checks: Real MCP proposals record grant provenance; no approval tool; revocation denies access.
+  - name: two_plans_adopt_independently_and_retain_frozen_pins_after_restart
+    checks: Two roles, exact per-pin impact, copy/adoption, historical pins and reopened state.
+  - name: agreement_content_validates_real_openapi_and_operation_identity
+    checks: Library-backed OAS validity with stable UUID operation identities.
+  - name: agreement_content_refuses_unresolved_references_and_incomplete_intent
+    checks: OAS schema-base validates Schema Objects; local refs resolve offline.
+  - name: agreement_draft_replays_exact_result_and_refuses_stale_edit
+    checks: Immutable command results, current Draft reuse, reason and Agreed guards.
+  - name: workspace_migrations_preserve_old_frozen_bytes_and_reopened_links
+    checks: Populated pre-0013 upgrade, exact legacy rows, foreign keys, persisted order/links/revisions and replay after reopen.
+  - name: mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded
+    checks: Actual HTTP 51-outcome pages, failed mixed batch leaves content/revision/events intact.
+  - name: design_stream_replays_resumes_and_keeps_projects_separate
+    checks: Actual HTTP project stream crosses Vision/Parts/Outcomes, immutable command replay, reconnect cursor and foreign-project isolation.
+  - name: outcome_spans_parts_without_copying_them
+    checks: Two parts/plans, identity-based rename, unique associations, whole-batch foreign rollback, unlink.
+  - name: outcome_hierarchy_is_independent_of_parts
+    checks: Separate containment, cycle/stale refusal, persisted root order and ancestors.
+  - name: plan_lifecycle_never_completes_outcomes
+    checks: Actual approval/archive/thread removal, unchanged outcome, retained link, exact Frozen row/JSON preservation.
+  - name: outcome_routes_round_trip_independent_hierarchy_and_references
+    checks: Router query translation, Arabic content, cursor details and ID-only mixed event payload.
+  - name: part_moves_keep_identity_and_reject_cycles
+    checks: Atomic foreign/cycle refusal, identity, ancestor path, text, competing revisions.
+  - name: part_order_is_stable_across_restart
+    checks: Before/order persistence, plan association lifecycle, Frozen content, same-project references.
+  - name: part_pages_are_bounded_and_replay_is_immutable
+    checks: 51 siblings in two bounded pages, durable replay, removed-project refusal.
+  - name: part_routes_paginate_and_refuse_invalid_references
+    checks: HTTP child query translation, detail JSON, invalid-command cursor/cycle details, ID-only event.
+  - name: vision_edit_is_atomic_replayable_and_revision_checked
+    checks: Lazy zero, exact text, durable replay, competing revisions, removed project, identifier event.
+  - name: vision_routes_round_trip_conflict_and_preserve_conversations
+    checks: Person HTTP path and project-event read using the same core service.
+
+  - name: a_removed_id_is_never_reused
+    checks: Counters survive removal and transient add-remove batches.
+  - name: every_vision_change_is_a_stored_version
+    checks: Ordered persisted versions and item revisions.
+  - name: item_ops_refuse_an_unknown_id_and_empty_text
+    checks: Refusal leaves the lazy revision-zero vision unchanged.
+
+  - name: a_proposal_is_a_pending_card_in_its_conversation
+    checks: Pending immutable card; no vision write; identical turn call replays.
+
+  - name: two_adds_approve_in_any_order_with_consecutive_ids
+    checks: Ids allocated in approval order with conversation provenance.
+
+  - name: an_edit_proposal_is_outdated_after_a_hand_edit_of_its_item
+    checks: Refused outdated approval leaves the hand edit intact.
+
+  - name: an_item_edited_back_to_its_old_text_still_outdates_the_proposal
+    checks: Item revision catches A to B to A.
+
+  - name: approval_is_scoped_to_its_live_project
+    checks: Foreign and removed project approvals refuse.
+
+  - name: two_concurrent_approvals_write_once
+    checks: Different commands competing on one proposal write once.
+
+  - name: approving_one_card_does_not_outdate_its_neighbours
+    checks: Unrelated addition preserves pending edit validity.
+
+  - name: a_newer_proposal_supersedes_by_item_or_by_replaces
+    checks: Item or explicit replacement supersedes pending proposals.
+
+  - name: approving_twice_with_one_command_writes_once
+    checks: Immutable approval result replays without another version or event.
+
+  - name: a_proposal_names_a_known_item_and_carries_text
+    checks: Required fields, external grants and absent turn refused.
+
+# Transaction-local read methods owned by Design:
+# stage_line_in(conn, project) -> String renders stage_view_in from the same snapshot.
+# Turns calls it through one shared stage method for normal and steered prompts.
+# Map proposal standards pins are read through Harness::pinned_standards_in.
+
+modules:
+  agreement.rs: Shared HTTP agreement value shapes
+  agreement_scope.rs: Live grant attribution for agreement proposals
+  agreement_validation.rs: Offline validation of canonical shared OpenAPI content
+  agreements.rs: Design's shared-agreement entry points
+  error.rs: Design lifecycle refusals with no plan-domain dependency
+  map_proposals.rs: Map proposal values
+  map_rules.rs: Pure map ownership, dependency
+  lib.rs: The project design workspace service
+  model.rs: The project workspace's public value shapes
+  ops.rs: Normalization of workspace edit operations
+  outcomes.rs: Roadmap read entry points
+  parts.rs: Part read entry points
+  proposal_context.rs: Shared identity
+  proposals.rs: Vision proposal values
+  roadmap_proposals.rs: Roadmap proposal values
+  stage.rs: Project stage computed from persisted workspace inputs
+  store/agreement_binding.rs: Agreed-version checks shared with Plans in its write transaction
+  store/agreement_write.rs: Serialized agreement starts
+  store/agreements.rs: Snapshot reads of exact shared-agreement versions
+  store/hierarchy.rs: Transactional containment checks with explicit sibling ordering
+  store/map_approval.rs: Atomic person approval of a map proposal
+  store/map_proposal_read.rs: Snapshot reads
+  store/map_proposal_shape.rs: Assemble a proposed map against current parts without
+    writing
+  store/map_proposals.rs: Persist Planner map proposals without approving parts
+  store/map_versions.rs: Transactional map snapshots
+  store/mod.rs: Persistence of the project design workspace
+  store/outcome_edit.rs: Transactional mutations of roadmap outcomes
+  store/outcomes.rs: Snapshot reads of roadmap outcomes
+  store/part_edit.rs: Transactional mutations of part content, containment
+  store/parts.rs: Snapshot reads of project parts with bounded child pages
+  store/proposal_approval.rs: Person approval of one vision proposal
+  store/proposal_read.rs: Snapshot reads of vision proposal state
+  store/proposals.rs: Recording Planner vision proposals
+  store/roadmap_approval.rs: Atomic approval of a roadmap proposal by the person or
+    at their request
+  store/roadmap_gate.rs: The gates that the roadmap places on hand outcome edits
+  store/roadmap_proposal_read.rs: Snapshot reads
+  store/roadmap_proposals.rs: Persist Planner roadmap proposals without approving outcomes
+  store/roadmap_seed.rs: Test-support seeds that put a project at the plans stage without
+    a conversation
+  store/roadmap_shape.rs: Checking a proposed roadmap against its action
+  store/stage.rs: Reading every stage input in one consistent project snapshot
+  store/structure.rs: Intent, snapshot
+  store/vision.rs: Atomic workspace edits with immutable command results
+  store/vision_versions.rs: Persisted vision versions
+  structure.rs: Rendering an approved map snapshot into files
+  structure_create.rs: Coordinating a person's structure write
+  structure_write.rs: Checking
+  vision_items.rs: Pure vision item edits with server-assigned identities
+  workspace.rs: A grant's read of its project's workspace, so a Planner plans from it

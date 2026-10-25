@@ -1,3 +1,4 @@
+# Design values and transaction APIs are imported from core-design.
 # Harness invocation and session APIs are imported from core-harness.
 # Operations lifecycle and transactions are imported from core-operations.
 # Grant authority and approval provenance are imported from core-grants.
@@ -85,7 +86,7 @@ dependencies:
   threads: crates/core-threads/contract.yaml
   grants: crates/core-grants/contract.yaml
   plans: crates/shadows-core/src/plans/contract.yaml
-  design: crates/shadows-core/src/design/contract.yaml
+  design: crates/core-design/contract.yaml
   standards: crates/core-standards/contract.yaml
   instructions: crates/core-instructions/contract.yaml
   usage: crates/core-usage/contract.yaml

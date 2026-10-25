@@ -46,8 +46,8 @@ pub(super) async fn setup() -> (
     (tmp, Storage::open(&db).await.unwrap(), core, p, dir)
 }
 
-fn blocked<T: std::fmt::Debug>(result: Result<T, CoreError>, reason: &str) {
-    match result.unwrap_err() {
+fn blocked<T: std::fmt::Debug, E: Into<CoreError>>(result: Result<T, E>, reason: &str) {
+    match result.unwrap_err().into() {
         CoreError::Refused {
             code: shadows_core::ErrorCode::StageBlocked,
             message,

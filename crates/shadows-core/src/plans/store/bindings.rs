@@ -21,9 +21,9 @@ impl BindingsRows {
             .map(|(task, id, version, part, role, operations)| {
                 Ok(AgreementBinding {
                     task,
-                    agreement_id: AgreementId::from_stored(id),
+                    agreement_id: AgreementId::from_recorded(id),
                     version,
-                    part_id: PartId::from_stored(part),
+                    part_id: PartId::from_recorded(part),
                     role: if role == "provides" {
                         AgreementRole::Provides
                     } else {
@@ -43,7 +43,7 @@ impl BindingsRows {
         bindings: &[AgreementBinding],
     ) -> Result<(), StorageError> {
         for binding in bindings {
-            crate::design::Design::check_agreement_binding_in(
+            core_design::Design::check_agreement_binding_in(
                 conn,
                 project,
                 &binding.agreement_id,

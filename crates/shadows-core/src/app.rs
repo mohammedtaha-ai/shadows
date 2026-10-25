@@ -14,7 +14,6 @@ use std::time::Duration;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_process::{ProcessSpec, spawn};
 
-use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::Events;
 use crate::plans::Plans;
@@ -24,6 +23,7 @@ use crate::turns::{Bus, LiveHandles, Turns};
 use core_agents::Agents;
 use core_code::{Code, CodeConfig};
 use core_db::Storage;
+use core_design::Design;
 use core_extensions::Extensions;
 use core_grants::Grants;
 use core_harness::{AylulOwners, Harness, SessionsConfig};
@@ -102,8 +102,8 @@ pub struct CoreParts {
          `crates/core-standards/contract.yaml` |"]
 #[doc = " | `Design` | \
          project design revisions | \
-         `crates/shadows-core/src/design` | \
-         `crates/shadows-core/src/design/contract.yaml` |"]
+         `crates/core-design/src` | \
+         `crates/core-design/contract.yaml` |"]
 #[doc = " | `Plans` | \
          plan version lifecycle | \
          `crates/shadows-core/src/plans` | \

@@ -43,6 +43,7 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
             None,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(person.content, agent.content);
     assert_eq!(person.content.capability, "Login");
@@ -53,7 +54,13 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
     );
 
     let list = http(&w, "GET", &root, Value::Null).await;
-    let scoped = w.core.design().agreements_for(&grant).await.unwrap();
+    let scoped = w
+        .core
+        .design()
+        .agreements_for(&grant)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(list, serde_json::to_value(scoped).unwrap());
     let path = format!("{root}/{}", person.agreement_id);
     let read = http(&w, "GET", &path, Value::Null).await;
@@ -62,6 +69,7 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
         .design()
         .agreement_for(&grant, &person.agreement_id, None)
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(read, serde_json::to_value(scoped).unwrap());
 
@@ -90,6 +98,7 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
             serde_json::from_value(edited).unwrap(),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(person.content, agent.content);
     assert_eq!(person.revision, agent.revision);
@@ -112,6 +121,7 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
             .design()
             .agreements_for(&grant)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap_err()
             .code(),
         ErrorCode::GrantInvalid

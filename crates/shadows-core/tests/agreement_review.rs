@@ -73,7 +73,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         }],openapi:json!({"openapi":"3.1.0","info":{"title":"API","version":"1"},
             "paths":{"/login":{"post":{"x-shadows-operation-id":
                 "c0000000-0000-4000-8000-000000000001","responses":{"200":{"description":"OK"}}}}}})
-    }),None).await.unwrap();
+    }),None).await.map_err(shadows_core::CoreError::from).unwrap();
     let review = core
         .plans()
         .review_agreement(&project, &first.agreement_id)
@@ -136,6 +136,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             Some("New behavior".into()),
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let mut content = v2.content;
     content.behavior = "Changed behavior".into();
@@ -151,7 +152,8 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             0,
             content.clone(),
         )
-        .await;
+        .await
+        .map_err(shadows_core::CoreError::from);
     assert!(
         matches!(&stale, Err(CoreError::Refused { message, .. }) if message.contains("read v2")),
         "{stale:?}"
@@ -166,6 +168,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             content,
         )
         .await
+        .map_err(shadows_core::CoreError::from)
         .unwrap();
     let replay = core
         .plans()
@@ -183,6 +186,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         core.design()
             .agreement(&project, &first.agreement_id, Some(1))
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .content
             .behavior,

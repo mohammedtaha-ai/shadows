@@ -54,6 +54,7 @@ impl Fixture {
             .design()
             .propose_vision(&self.grant, args)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
     }
     async fn approve(&self, cmd: &str, id: &str) -> shadows_core::DesignChange {
@@ -62,8 +63,15 @@ impl Fixture {
             .design()
             .approve_vision_proposal(cmd.into(), &self.p, id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap();
-        let proposals = self.core.design().vision_proposals(&self.p).await.unwrap();
+        let proposals = self
+            .core
+            .design()
+            .vision_proposals(&self.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap();
         let p = proposals.iter().find(|p| p.id == id).unwrap();
         let json = serde_json::to_value(p).unwrap();
         assert_eq!(json["approved_by"]["agent"], "human");
@@ -140,10 +148,17 @@ async fn refused_authority(end_turn: bool) {
             .design()
             .approve_vision_proposal_for_test(&ctx, &f.p, &p.id, &approver)
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     assert_eq!(
-        f.core.design().vision_proposals(&f.p).await.unwrap()[0].status,
+        f.core
+            .design()
+            .vision_proposals(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()[0]
+            .status,
         ProposalStatus::Pending
     );
     let count: i64 = sqlx::query_scalar(
@@ -208,6 +223,7 @@ async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
             .design()
             .propose_vision_for_test(&ctx, &writer, &f.p, &operation, args)
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     let after: i64 = sqlx::query_scalar(
@@ -223,6 +239,7 @@ async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
             .design()
             .vision_proposals(&f.p)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .is_empty()
     );
@@ -263,7 +280,16 @@ async fn a_proposal_is_a_pending_card_in_its_conversation() {
     assert_eq!(p.status, ProposalStatus::Pending);
     assert_eq!(p.item_id, None);
     assert!(!p.outdated);
-    assert_eq!(f.core.design().vision(&f.p).await.unwrap().revision, 0);
+    assert_eq!(
+        f.core
+            .design()
+            .vision(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .revision,
+        0
+    );
     let (kind, body, card): (String, String, String) =
         sqlx::query_as("SELECT kind,body,card_json FROM thread_entry WHERE kind='VisionProposal'")
             .fetch_one(f.storage.reader())
@@ -296,7 +322,13 @@ async fn two_adds_approve_in_any_order_with_consecutive_ids() {
     let b = f.propose(add("B")).await;
     f.approve("b", &b.id).await;
     f.approve("a", &a.id).await;
-    let v = f.core.design().vision(&f.p).await.unwrap();
+    let v = f
+        .core
+        .design()
+        .vision(&f.p)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(
         v.content
             .goals
@@ -317,6 +349,7 @@ async fn two_adds_approve_in_any_order_with_consecutive_ids() {
             .design()
             .vision_proposals(&f.p)
             .await
+            .map_err(shadows_core::CoreError::from)
             .unwrap()
             .iter()
             .all(|p| p.status == ProposalStatus::Approved)
@@ -330,14 +363,30 @@ async fn an_edit_proposal_is_outdated_after_a_hand_edit_of_its_item() {
     hand(&f, 0, "Old").await;
     let p = f.propose(edit("New")).await;
     hand(&f, 1, "Mine").await;
-    assert!(f.core.design().vision_proposals(&f.p).await.unwrap()[0].outdated);
     assert!(
-        matches!(f.core.design().approve_vision_proposal("bad".into(), &f.p, &p.id).await,
-        Err(CoreError::Refused { code: shadows_core::ErrorCode::InvalidCommand, message })
-            if message.contains("G1 changed after this proposal"))
+        f.core
+            .design()
+            .vision_proposals(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()[0]
+            .outdated
     );
+    assert!(matches!(
+            f.core.design().approve_vision_proposal("bad".into(), &f.p, &p.id)
+                .await.map_err(shadows_core::CoreError::from),
+        Err(CoreError::Refused { code: shadows_core::ErrorCode::InvalidCommand, message })
+            if message.contains("G1 changed after this proposal")));
     assert_eq!(
-        f.core.design().vision(&f.p).await.unwrap().content.goals[0].text,
+        f.core
+            .design()
+            .vision(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .content
+            .goals[0]
+            .text,
         "Mine"
     );
     f.close().await;
@@ -350,12 +399,21 @@ async fn an_item_edited_back_to_its_old_text_still_outdates_the_proposal() {
     let p = f.propose(edit("C")).await;
     hand(&f, 1, "B").await;
     hand(&f, 2, "A").await;
-    assert!(f.core.design().vision_proposals(&f.p).await.unwrap()[0].outdated);
+    assert!(
+        f.core
+            .design()
+            .vision_proposals(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()[0]
+            .outdated
+    );
     assert!(
         f.core
             .design()
             .approve_vision_proposal("bad".into(), &f.p, &p.id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     f.close().await;
@@ -376,7 +434,8 @@ async fn approval_is_scoped_to_its_live_project() {
         f.core
             .design()
             .approve_vision_proposal("wrong".into(), &q, &p.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::NotFound(_)))
     ));
     f.core
@@ -397,7 +456,8 @@ async fn approval_is_scoped_to_its_live_project() {
         f.core
             .design()
             .approve_vision_proposal("removed".into(), &f.p, &p.id)
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Storage(StorageError::NotFound(_)))
     ));
     assert_eq!(
@@ -423,7 +483,16 @@ async fn two_concurrent_approvals_write_once() {
             .approve_vision_proposal("b".into(), &f.p, &p.id)
     );
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
-    assert_eq!(f.core.design().vision(&f.p).await.unwrap().revision, 1);
+    assert_eq!(
+        f.core
+            .design()
+            .vision(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()
+            .revision,
+        1
+    );
     f.close().await;
 }
 
@@ -434,7 +503,15 @@ async fn approving_one_card_does_not_outdate_its_neighbours() {
     let a = f.propose(add("y")).await;
     let b = f.propose(edit("z")).await;
     f.approve("a", &a.id).await;
-    assert!(!f.core.design().vision_proposals(&f.p).await.unwrap()[1].outdated);
+    assert!(
+        !f.core
+            .design()
+            .vision_proposals(&f.p)
+            .await
+            .map_err(shadows_core::CoreError::from)
+            .unwrap()[1]
+            .outdated
+    );
     f.approve("b", &b.id).await;
     f.close().await;
 }
@@ -451,7 +528,13 @@ async fn a_newer_proposal_supersedes_by_item_or_by_replaces() {
         ..add("v")
     })
     .await;
-    let ps = f.core.design().vision_proposals(&f.p).await.unwrap();
+    let ps = f
+        .core
+        .design()
+        .vision_proposals(&f.p)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
     assert_eq!(ps[0].status, ProposalStatus::Superseded);
     assert_eq!(ps[2].status, ProposalStatus::Superseded);
     assert!(
@@ -459,6 +542,7 @@ async fn a_newer_proposal_supersedes_by_item_or_by_replaces() {
             .design()
             .approve_vision_proposal("old".into(), &f.p, &p.id)
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     f.close().await;
@@ -508,6 +592,7 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
                 .design()
                 .propose_vision(&f.grant, args)
                 .await
+                .map_err(shadows_core::CoreError::from)
                 .is_err()
         );
     }
@@ -521,7 +606,8 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
         f.core
             .design()
             .propose_vision(&issued.grant, add("x"))
-            .await,
+            .await
+            .map_err(shadows_core::CoreError::from),
         Err(CoreError::Refused {
             code: shadows_core::ErrorCode::GrantScope,
             ..
@@ -541,6 +627,7 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
             .design()
             .propose_vision(&grant, add("x"))
             .await
+            .map_err(shadows_core::CoreError::from)
             .is_err()
     );
     f.close().await;

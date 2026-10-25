@@ -1,8 +1,8 @@
 //! Roadmap approval, which refuses to remove an outcome a plan links to.
 use super::Plans;
-use crate::design::{Design, DesignChange};
 use crate::{CoreError, Grant, ProjectId};
 use core_db::CommandContext;
+use core_design::{Design, DesignChange};
 use core_grants::Approver;
 
 impl Plans {
@@ -52,6 +52,7 @@ impl Plans {
                         conn, &ctx, &project, &proposal, &approver, &planned,
                     )
                     .await
+                    .map_err(CoreError::from)
                 })
             })
             .await

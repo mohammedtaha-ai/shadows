@@ -1,8 +1,8 @@
 //! Agreement review composed above Design and plan bindings.
 use super::{AgreementReview, Plans};
-use crate::design::{AgreementId, AgreementVersion};
 use crate::{CoreError, Grant, ProjectId, StorageError};
 use core_db::CommandContext;
+use core_design::{AgreementId, AgreementVersion};
 impl Plans {
     pub async fn review_agreement(
         &self,

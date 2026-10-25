@@ -70,7 +70,7 @@ pub struct Plans {
     store: Arc<store::PlansStore>,
     grants: core_grants::Grants,
     operations: core_operations::Operations,
-    design: crate::design::Design,
+    design: core_design::Design,
 }
 
 /// `draft_start`'s arguments, as the tool received them.
@@ -82,7 +82,7 @@ pub struct DraftStart {
     pub reason: Option<String>,
     pub draft_ref: Option<String>,
     /// The parts this plan changes; a plan cannot be approved untied.
-    pub parts: Vec<crate::design::PartId>,
+    pub parts: Vec<core_design::PartId>,
 }
 
 /// `plan_edit`'s arguments, as the tool received them.
@@ -137,7 +137,7 @@ impl Plans {
         storage: Arc<Storage>,
         grants: core_grants::Grants,
         operations: core_operations::Operations,
-        design: crate::design::Design,
+        design: core_design::Design,
     ) -> Self {
         Self {
             store: Arc::new(store::PlansStore { storage }),

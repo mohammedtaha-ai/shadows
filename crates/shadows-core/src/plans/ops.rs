@@ -31,8 +31,8 @@ pub enum PlanOp {
     BindingRemove {
         task: u32,
         #[schemars(with = "String")]
-        agreement_id: crate::design::AgreementId,
-        role: crate::design::AgreementRole,
+        agreement_id: core_design::AgreementId,
+        role: core_design::AgreementRole,
     },
     PlanPut {
         title: String,
@@ -77,11 +77,7 @@ enum Object {
     Plan,
     Task(u32),
     Link(u32, TaskParent, LinkKind),
-    Binding(
-        u32,
-        crate::design::AgreementId,
-        crate::design::AgreementRole,
-    ),
+    Binding(u32, core_design::AgreementId, core_design::AgreementRole),
 }
 
 impl Object {

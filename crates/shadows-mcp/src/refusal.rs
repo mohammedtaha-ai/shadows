@@ -187,6 +187,12 @@ impl From<shadows_core::HarnessError> for Refusal {
     }
 }
 
+impl From<shadows_core::DesignError> for Refusal {
+    fn from(error: shadows_core::DesignError) -> Self {
+        CoreError::from(error).into()
+    }
+}
+
 #[cfg(test)]
 mod mapping_tests {
     include!(concat!(

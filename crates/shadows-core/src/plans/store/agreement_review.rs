@@ -1,10 +1,10 @@
 //! Snapshot impact reviews and atomic person agreement.
 use super::PlansStore;
 use crate::ProjectId;
-use crate::design::Design;
-use crate::design::{AgreementContent, AgreementId, AgreementState, AgreementVersion};
 use crate::plans::{AgreementParticipantImpact, AgreementPartyReview, AgreementReview};
 use core_db::{CommandContext, Storage, StorageError};
+use core_design::Design;
+use core_design::{AgreementContent, AgreementId, AgreementState, AgreementVersion};
 use serde_json::{Value, json};
 use sqlx::SqliteConnection;
 

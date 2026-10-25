@@ -112,20 +112,20 @@ pattern to follow, not merely an example.
 | `crates/core-secrets/src/crypto.rs` | authenticated environment encryption | `crates/core-secrets/src/crypto.rs` |
 | `crates/core-grants/src/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
 | `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
-| `crates/shadows-core/src/design/map_proposals.rs` | map proposal service entry points | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/map_proposals.rs` | recording map proposals | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/map_proposal_shape.rs` | assembling proposed map shapes | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/map_proposal_read.rs` | reading map proposal state | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/map_approval.rs` | committing approved map proposals | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/map_rules.rs` | pure map validation | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/map_versions.rs` | durable map snapshots | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/roadmap_gate.rs` | refusing work that needs an approved roadmap | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/roadmap_seed.rs` | test-only seeding of the plans stage | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/roadmap_proposals.rs` | roadmap proposal service entry points | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/roadmap_proposals.rs` | recording roadmap proposals | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/roadmap_shape.rs` | checking proposed roadmap shapes | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/roadmap_proposal_read.rs` | reading roadmap proposal state | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/store/roadmap_approval.rs` | committing approved roadmap proposals | `crates/shadows-core/src/design/contract.yaml` |
+| `crates/core-design/src/map_proposals.rs` | map proposal service entry points | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/map_proposals.rs` | recording map proposals | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/map_proposal_shape.rs` | assembling proposed map shapes | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/map_proposal_read.rs` | reading map proposal state | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/map_approval.rs` | committing approved map proposals | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/map_rules.rs` | pure map validation | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/map_versions.rs` | durable map snapshots | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/roadmap_gate.rs` | refusing work that needs an approved roadmap | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/roadmap_seed.rs` | test-only seeding of the plans stage | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/roadmap_proposals.rs` | roadmap proposal service entry points | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/roadmap_proposals.rs` | recording roadmap proposals | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/roadmap_shape.rs` | checking proposed roadmap shapes | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/roadmap_proposal_read.rs` | reading roadmap proposal state | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/roadmap_approval.rs` | committing approved roadmap proposals | `crates/core-design/contract.yaml` |
 | `crates/shadows/src/main.rs` | the one binary Shadows ships | `crates/shadows/src/cli/mod.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
 | `crates/shadows/src/desktop_runtime.rs` | desktop launch identity | `docs/aylul/specs/2026-10-20-aylul-desktop-web-companion-design.md` |
@@ -257,46 +257,46 @@ pattern to follow, not merely an example.
 | `crates/core-grants/src/model.rs` | the grant types callers meet | `crates/core-grants/src/model.rs` |
 | `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
 | `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
-| `crates/shadows-core/src/design/` | a project's design workspace | `crates/shadows-core/src/design/mod.rs` |
-| `crates/shadows-core/src/design/structure.rs` | rendering an approved map as files | `crates/shadows-core/src/design/structure.rs` |
-| `crates/shadows-core/src/design/structure_create.rs` | coordinating a person's structure write | `crates/shadows-core/src/design/structure_create.rs` |
-| `crates/shadows-core/src/design/structure_write.rs` | publishing recorded files safely | `crates/shadows-core/src/design/structure_write.rs` |
-| `crates/shadows-core/src/design/store/structure.rs` | structure write records | `crates/shadows-core/src/design/store/structure.rs` |
-| `crates/shadows-core/src/design/vision_items.rs` | applying vision item changes | `crates/shadows-core/src/design/vision_items.rs` |
-| `crates/shadows-core/src/design/store/vision_versions.rs` | stored vision versions | `crates/shadows-core/src/design/store/vision_versions.rs` |
-| `crates/shadows-core/src/design/proposals.rs` | vision proposal entry points | `crates/shadows-core/src/design/proposals.rs` |
-| `crates/shadows-core/src/design/store/proposals.rs` | recording vision proposals | `crates/shadows-core/src/design/store/proposals.rs` |
-| `crates/shadows-core/src/design/store/proposal_read.rs` | reading proposal state | `crates/shadows-core/src/design/store/proposal_read.rs` |
-| `crates/shadows-core/src/design/store/proposal_approval.rs` | approving vision proposals | `crates/shadows-core/src/design/store/proposal_approval.rs` |
-| `crates/shadows-core/src/design/model.rs` | the workspace value shapes | `crates/shadows-core/src/design/model.rs` |
-| `crates/shadows-core/src/design/agreement.rs` | shared agreement value shapes | `crates/shadows-core/src/design/agreement.rs` |
-| `crates/shadows-core/src/design/agreement_validation.rs` | offline agreement content validation | `crates/shadows-core/src/design/agreement_validation.rs` |
-| `crates/shadows-core/src/design/agreements.rs` | shared agreement service entry points | `crates/shadows-core/src/design/agreements.rs` |
-| `crates/shadows-core/src/design/agreement_scope.rs` | grant attribution for agreement calls | `crates/shadows-core/src/design/agreement_scope.rs` |
+| `crates/core-design/src/` | a project's design workspace | `crates/core-design/src/lib.rs` |
+| `crates/core-design/src/structure.rs` | rendering an approved map as files | `crates/core-design/src/structure.rs` |
+| `crates/core-design/src/structure_create.rs` | coordinating a person's structure write | `crates/core-design/src/structure_create.rs` |
+| `crates/core-design/src/structure_write.rs` | publishing recorded files safely | `crates/core-design/src/structure_write.rs` |
+| `crates/core-design/src/store/structure.rs` | structure write records | `crates/core-design/src/store/structure.rs` |
+| `crates/core-design/src/vision_items.rs` | applying vision item changes | `crates/core-design/src/vision_items.rs` |
+| `crates/core-design/src/store/vision_versions.rs` | stored vision versions | `crates/core-design/src/store/vision_versions.rs` |
+| `crates/core-design/src/proposals.rs` | vision proposal entry points | `crates/core-design/src/proposals.rs` |
+| `crates/core-design/src/store/proposals.rs` | recording vision proposals | `crates/core-design/src/store/proposals.rs` |
+| `crates/core-design/src/store/proposal_read.rs` | reading proposal state | `crates/core-design/src/store/proposal_read.rs` |
+| `crates/core-design/src/store/proposal_approval.rs` | approving vision proposals | `crates/core-design/src/store/proposal_approval.rs` |
+| `crates/core-design/src/model.rs` | the workspace value shapes | `crates/core-design/src/model.rs` |
+| `crates/core-design/src/agreement.rs` | shared agreement value shapes | `crates/core-design/src/agreement.rs` |
+| `crates/core-design/src/agreement_validation.rs` | offline agreement content validation | `crates/core-design/src/agreement_validation.rs` |
+| `crates/core-design/src/agreements.rs` | shared agreement service entry points | `crates/core-design/src/agreements.rs` |
+| `crates/core-design/src/agreement_scope.rs` | grant attribution for agreement calls | `crates/core-design/src/agreement_scope.rs` |
 | `crates/shadows-core/src/plans/agreement_review.rs` | agreement review value shapes | `crates/shadows-core/src/plans/agreement_review.rs` |
-| `crates/shadows-core/src/design/store/agreement_binding.rs` | exact-version adoption checks | `crates/shadows-core/src/design/store/agreement_binding.rs` |
+| `crates/core-design/src/store/agreement_binding.rs` | exact-version adoption checks | `crates/core-design/src/store/agreement_binding.rs` |
 | `crates/shadows-core/src/plans/store/agreement_review.rs` | captured impact review | `crates/shadows-core/src/plans/store/agreement_review.rs` |
-| `crates/shadows-core/src/design/store/agreements.rs` | captured agreement version reads | `crates/shadows-core/src/design/store/agreements.rs` |
-| `crates/shadows-core/src/design/store/agreement_write.rs` | transactional agreement Draft mutations | `crates/shadows-core/src/design/store/agreement_write.rs` |
-| `crates/shadows-core/src/design/parts.rs` | part service entry points | `crates/shadows-core/src/design/parts.rs` |
-| `crates/shadows-core/src/design/workspace.rs` | a grant's read-only view of its project workspace | `crates/shadows-core/src/design/workspace.rs` |
-| `crates/shadows-core/src/design/outcomes.rs` | outcome service entry points | `crates/shadows-core/src/design/outcomes.rs` |
-| `crates/shadows-core/src/design/ops.rs` | normalization of workspace edits | `crates/shadows-core/src/design/ops.rs` |
+| `crates/core-design/src/store/agreements.rs` | captured agreement version reads | `crates/core-design/src/store/agreements.rs` |
+| `crates/core-design/src/store/agreement_write.rs` | transactional agreement Draft mutations | `crates/core-design/src/store/agreement_write.rs` |
+| `crates/core-design/src/parts.rs` | part service entry points | `crates/core-design/src/parts.rs` |
+| `crates/core-design/src/workspace.rs` | a grant's read-only view of its project workspace | `crates/core-design/src/workspace.rs` |
+| `crates/core-design/src/outcomes.rs` | outcome service entry points | `crates/core-design/src/outcomes.rs` |
+| `crates/core-design/src/ops.rs` | normalization of workspace edits | `crates/core-design/src/ops.rs` |
 | `crates/core-standards/src/` | project standards versions | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/model.rs` | public standards values | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/base.rs` | bundled base parsing | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/validation.rs` | project additions validation | `crates/core-standards/contract.yaml` |
-| `crates/shadows-core/src/design/stage.rs` | a project's stage from its workspace | `crates/shadows-core/src/design/stage.rs` |
+| `crates/core-design/src/stage.rs` | a project's stage from its workspace | `crates/core-design/src/stage.rs` |
 | `crates/core-standards/src/store/` | immutable additions persistence | `crates/core-standards/contract.yaml` |
 | `crates/shadows-core/src/turns/store/standards.rs` | invocation standards selection | `crates/shadows-core/src/turns/contract.yaml` |
-| `crates/shadows-core/src/design/store/stage.rs` | reading a project's stage inputs | `crates/shadows-core/src/design/store/stage.rs` |
-| `crates/shadows-core/src/design/store/outcomes.rs` | snapshot reads of outcomes | `crates/shadows-core/src/design/store/outcomes.rs` |
-| `crates/shadows-core/src/design/store/outcome_edit.rs` | transactional outcome mutations | `crates/shadows-core/src/design/store/outcome_edit.rs` |
-| `crates/shadows-core/src/design/store/hierarchy.rs` | transactional containment ordering | `crates/shadows-core/src/design/store/hierarchy.rs` |
-| `crates/shadows-core/src/design/store/parts.rs` | snapshot reads of parts | `crates/shadows-core/src/design/store/parts.rs` |
-| `crates/shadows-core/src/design/store/part_edit.rs` | transactional part mutations | `crates/shadows-core/src/design/store/part_edit.rs` |
-| `crates/shadows-core/src/design/store/` | persistence of the design workspace | `crates/shadows-core/src/design/store/vision.rs` |
-| `crates/shadows-core/src/design/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/shadows-core/src/design/store/vision.rs` |
+| `crates/core-design/src/store/stage.rs` | reading a project's stage inputs | `crates/core-design/src/store/stage.rs` |
+| `crates/core-design/src/store/outcomes.rs` | snapshot reads of outcomes | `crates/core-design/src/store/outcomes.rs` |
+| `crates/core-design/src/store/outcome_edit.rs` | transactional outcome mutations | `crates/core-design/src/store/outcome_edit.rs` |
+| `crates/core-design/src/store/hierarchy.rs` | transactional containment ordering | `crates/core-design/src/store/hierarchy.rs` |
+| `crates/core-design/src/store/parts.rs` | snapshot reads of parts | `crates/core-design/src/store/parts.rs` |
+| `crates/core-design/src/store/part_edit.rs` | transactional part mutations | `crates/core-design/src/store/part_edit.rs` |
+| `crates/core-design/src/store/` | persistence of the design workspace | `crates/core-design/src/store/vision.rs` |
+| `crates/core-design/src/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/core-design/src/store/vision.rs` |
 | `crates/core-code/src/` | the code index of each project's folder | `crates/core-code/src/lib.rs` |
 | `crates/core-code/src/model.rs` | the code index types callers meet | `crates/core-code/src/model.rs` |
 | `crates/core-code/src/store/` | private CodeStore index persistence | `crates/core-code/src/store/mod.rs` |
@@ -388,8 +388,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-harness/src/store/invocation.rs` | invocation transaction entry points | `crates/core-harness/contract.yaml` |
 | `crates/shadows-core/src/turns/stage.rs` | shared prompt stage facts | `crates/shadows-core/src/turns/contract.yaml` |
 
-| `crates/shadows-core/src/design/error.rs` | error boundary | `crates/shadows-core/src/design/contract.yaml` |
-| `crates/shadows-core/src/design/proposal_context.rs` | proposal context boundary | `crates/shadows-core/src/design/contract.yaml` |
+| `crates/core-design/src/error.rs` | error boundary | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/proposal_context.rs` | proposal context boundary | `crates/core-design/contract.yaml` |
 | `crates/shadows-core/src/plans/agreements.rs` | agreements boundary | `crates/shadows-core/src/plans/contract.yaml` |
 | `crates/shadows-core/src/plans/design_edit.rs` | design edit boundary | `crates/shadows-core/src/plans/contract.yaml` |
 | `crates/shadows-core/src/plans/design_ops.rs` | design ops boundary | `crates/shadows-core/src/plans/contract.yaml` |
@@ -470,3 +470,11 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-harness/src/error.rs` | harness failure vocabulary | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/prompt.txt` | Planner opening instructions | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/schema_descriptions/` | harness wire description metadata | `crates/core-harness/contract.yaml` |
+
+| `crates/core-design/src/openapi-3.1-schema.json` | bundled OpenAPI document schema | `crates/core-design/contract.yaml` |
+
+| `crates/core-design/src/openapi-3.1-schema-base.json` | bundled OpenAPI schema-base validation | `crates/core-design/contract.yaml` |
+
+| `crates/core-design/src/openapi-3.1-meta.json` | bundled OpenAPI vocabulary schema | `crates/core-design/contract.yaml` |
+
+| `crates/core-design/src/openapi-3.1-dialect.json` | bundled OpenAPI schema dialect | `crates/core-design/contract.yaml` |

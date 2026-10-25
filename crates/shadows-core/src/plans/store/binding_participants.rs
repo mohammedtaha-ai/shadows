@@ -87,9 +87,9 @@ async fn read(
                 },
                 binding: AgreementBinding {
                     task: r.task,
-                    agreement_id: AgreementId::from_stored(r.agreement_id),
+                    agreement_id: AgreementId::from_recorded(r.agreement_id),
                     version: r.agreement_version,
-                    part_id: PartId::from_stored(r.part_id),
+                    part_id: PartId::from_recorded(r.part_id),
                     role: if r.role == "provides" {
                         AgreementRole::Provides
                     } else {

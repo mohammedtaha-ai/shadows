@@ -1,9 +1,9 @@
 //! Plan-to-part associations inside the plan command transaction.
 #[cfg(feature = "test-support")]
 use super::PlansStore;
-use crate::design::PartId;
 use crate::plans::{PlanId, Plans};
 use crate::{ProjectId, StorageError};
+use core_design::PartId;
 use sqlx::SqliteConnection;
 impl Plans {
     pub(crate) async fn plan_has_part_in(
@@ -28,7 +28,7 @@ impl Plans {
         parts: &[PartId],
     ) -> Result<(), StorageError> {
         for part in parts {
-            crate::design::Design::require_part_in(conn, project, part).await?;
+            core_design::Design::require_part_in(conn, project, part).await?;
             sqlx::query(
                 "INSERT INTO design_part_plan(project_id,part_id,plan_id) VALUES (?,?,?)
              ON CONFLICT DO NOTHING",

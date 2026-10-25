@@ -227,7 +227,7 @@ impl Plans {
 }
 
 /// The fingerprint names `parts` only when given, so older starts replay unchanged.
-fn with_parts(mut params: serde_json::Value, parts: &[crate::design::PartId]) -> serde_json::Value {
+fn with_parts(mut params: serde_json::Value, parts: &[core_design::PartId]) -> serde_json::Value {
     if !parts.is_empty() {
         params["parts"] = json!(parts);
     }

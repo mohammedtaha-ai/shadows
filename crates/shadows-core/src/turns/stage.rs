@@ -13,6 +13,6 @@ impl Turns {
         if context.harness == shadows_agent::policy::AYLUL {
             return Ok(String::new());
         }
-        crate::design::Design::stage_line_in(&mut conn, &context.project_id).await
+        core_design::Design::stage_line_in(&mut conn, &context.project_id).await
     }
 }

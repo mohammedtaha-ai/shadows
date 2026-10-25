@@ -1,3 +1,4 @@
+# Design values and transaction APIs are imported from core-design.
 # Harness invocation and session APIs are imported from core-harness.
 # Operations lifecycle and transaction reads are imported from core-operations.
 # Grant authority and approval provenance are imported from core-grants.

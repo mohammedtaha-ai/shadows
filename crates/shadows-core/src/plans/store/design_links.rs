@@ -1,7 +1,7 @@
 //! Plan-owned workspace associations.
-use crate::design::{DesignAnchor, WorkspaceOp};
 use crate::plans::Plans;
 use crate::{ProjectId, StorageError};
+use core_design::{DesignAnchor, WorkspaceOp};
 use sqlx::SqliteConnection;
 
 impl Plans {

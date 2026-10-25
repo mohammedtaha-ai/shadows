@@ -55,7 +55,7 @@ impl PlansStore {
                             .await
                             .map_err(Into::into);
                     }
-                    crate::design::Design::require_roadmap_in(conn, &project).await?;
+                    core_design::Design::require_roadmap_in(conn, &project).await?;
                     let plan = ReadRows::load_plan(conn, &workflow, None).await?;
                     PlanRows::require_active(conn, &plan.plan_id).await?;
                     writable(
@@ -176,7 +176,7 @@ impl PlansStore {
                             .await
                             .map_err(Into::into);
                     }
-                    crate::design::Design::require_roadmap_in(conn, &project).await?;
+                    core_design::Design::require_roadmap_in(conn, &project).await?;
                     let plan = ReadRows::load_plan(conn, &workflow, None).await?;
                     PlanRows::require_active(conn, &plan.plan_id).await?;
                     writable(
@@ -190,7 +190,7 @@ impl PlansStore {
                     .await?;
                     if !crate::plans::Plans::plan_has_part_in(conn, &project, &plan.plan_id).await?
                     {
-                        return Err(crate::design::DesignError::StageBlocked(
+                        return Err(core_design::DesignError::StageBlocked(
                             "plan has no part: link it to a part on the Project map page, \
                          or start it with parts"
                                 .into(),

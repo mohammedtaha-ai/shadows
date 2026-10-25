@@ -12,10 +12,10 @@ use super::plan::PlanRows;
 use super::plan_event;
 use super::read::ReadRows;
 use super::task::TaskRows;
-use crate::design::PartId;
 use crate::plans::model::{DraftStarted, PlanContent, PlanId, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
+use core_design::PartId;
 use core_grants::Grants;
 use core_grants::Writer;
 use core_operations::OperationId;
@@ -67,7 +67,7 @@ impl PlansStore {
                     if let Some(id) = recorded(conn, &ctx, scope, &project).await? {
                         return Ok(started(conn, &WorkflowId::from_stored(id)).await?);
                     }
-                    crate::design::Design::require_roadmap_in(conn, &project).await?;
+                    core_design::Design::require_roadmap_in(conn, &project).await?;
                     if let Some(plan) = &plan {
                         PlanRows::require_active(conn, plan).await?;
                     }

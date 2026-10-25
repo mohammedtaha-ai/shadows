@@ -1,5 +1,4 @@
 mod app;
-mod design;
 mod error;
 mod events;
 mod plans;
@@ -26,6 +25,17 @@ pub use core_code::{
 pub use core_agents::{Agent, AgentInput, AgentWorkspace, Agents, AgentsError};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+pub use core_design::StructureWritten;
+pub use core_design::{
+    AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
+    AgreementVersion, AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange,
+    DesignRevision, InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent,
+    OutcomeId, OutcomePage, Part, PartContent, PartId, PartPage, PartWaiver, ProposedPart,
+    ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
+    WorkspaceView,
+};
+pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
+pub use core_design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use core_extensions::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
 };
@@ -54,17 +64,6 @@ pub use core_threads::{
     WorkflowRef,
 };
 pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
-pub use design::StructureWritten;
-pub use design::{
-    AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
-    AgreementVersion, AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange,
-    DesignRevision, InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent,
-    OutcomeId, OutcomePage, Part, PartContent, PartId, PartPage, PartWaiver, ProposedPart,
-    ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
-    WorkspaceView,
-};
-pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
-pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use error::{CoreError, ErrorCode};
 pub use events::{Delivery, Events, StoredEvent, Subscription};
 pub use plans::UiSignal;
@@ -111,3 +110,5 @@ pub use core_standards::StandardsError;
 pub use core_code::CodeError;
 
 pub use core_threads::ThreadsError;
+
+pub use core_design::DesignError;

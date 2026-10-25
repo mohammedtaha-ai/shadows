@@ -1,5 +1,5 @@
 //! Values returned by a shared agreement impact review.
-use crate::design::{AgreementId, AgreementParty};
+use core_design::{AgreementId, AgreementParty};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct AgreementPartyReview {

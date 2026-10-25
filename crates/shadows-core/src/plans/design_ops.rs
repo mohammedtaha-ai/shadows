@@ -1,6 +1,6 @@
 //! Wire operations composed across design and plan associations.
 use super::PlanId;
-use crate::design::{DesignAnchor, OutcomeContent, OutcomeId, PartContent, PartId, VisionField};
+use core_design::{DesignAnchor, OutcomeContent, OutcomeId, PartContent, PartId, VisionField};
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(tag = "kind")]
 pub enum DesignOp {
@@ -63,7 +63,7 @@ pub enum DesignOp {
     },
 }
 
-impl From<DesignOp> for crate::design::WorkspaceOp {
+impl From<DesignOp> for core_design::WorkspaceOp {
     fn from(op: DesignOp) -> Self {
         match op {
             DesignOp::OutcomeCreate {
