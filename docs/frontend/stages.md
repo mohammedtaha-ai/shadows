@@ -14,6 +14,28 @@ and OS acceptance.
 
 ## Tasks
 
+### F-26 · W-1: a shrinking architecture ratchet for `web/src`
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions and #enforcing-check
+  (rules 1 to 7) and #w-1--establish-the-frontend-architecture-ratchet
+- Read: the plan's sections 2, 3, 5 and 6; `web/src/codemap.test.ts`;
+  `docs/frontend/codebase/README.md`; `apps/desktop/src-tauri/tests/architecture/README.md` for
+  the baseline rules (exact entries, new and stale fail, one-for-one moves)
+- Touch: `web/src/architecture.test.ts` and its baseline and fixture files (new, next to it);
+  `web/src/codemap.test.ts` only to share its file walk; `docs/frontend/codebase/README.md`
+  (its row, and the module table the plan's section 6 names: owner, entry, contract, allowed
+  dependencies); `web/package.json` and `web/package-lock.json` only for a YAML parser as a
+  dev-dependency; this task's `Status:`
+- Needs: none
+- Done when: `npx vitest run src/architecture.test.ts` passes on today's tree with every current
+  violation listed exactly in the baseline (the plan's 34 cross-feature edges, the upward
+  `desktop/` imports, server access outside its owners, query-key literals and cache writes
+  outside `api/`, test infrastructure reachable from `main.tsx`, the invalid
+  `desktop/contract.yaml`); a new violation fails; a stale entry fails; in-memory fixtures prove
+  alias (`@/`), relative, type-only, re-export and literal dynamic imports, and that the
+  injected `fetch` in `rule-preview.ts` is not flagged; no product source changes;
+  `npm run typecheck`, `npm run lint` and `npx vitest run src/codemap.test.ts` pass
+
 ### F-16 · The provider form's Enter trap
 - Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
