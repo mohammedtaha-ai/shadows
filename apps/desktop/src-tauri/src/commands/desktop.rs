@@ -1,6 +1,5 @@
 use crate::core_connection::{config::LaunchConfig, ConnectionView};
 use std::sync::Arc;
-use tauri::Manager;
 
 fn main_only(window: &tauri::WebviewWindow) -> Result<(), String> {
     if window.label() == "main" {
@@ -109,23 +108,7 @@ pub async fn select_companion_agent(
     agent: Option<String>,
 ) -> Result<crate::presence::BindingView, String> {
     main_only(&window)?;
-    let presence = desktop.presence();
-    let request = presence.request(None).map_err(str::to_owned)?;
-    let before = presence.view().generation;
-    let token = crate::windows::companion::visibility_token(window.app_handle());
-    let presence = presence.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || presence.select(request, agent))
-        .await
-        .map_err(|_| "companion_core_unavailable")?
-        .map_err(str::to_owned)?;
-    if result.agent.is_some() && result.generation != before {
-        let app = window.app_handle().clone();
-        crate::windows::companion::on_ui(app, move |app| {
-            crate::windows::companion::show_for_selection(app, token)
-        })
-        .await?;
-    }
-    Ok(result)
+    desktop.presence().select_companion_agent(agent).await
 }
 #[tauri::command]
 pub async fn target_companion_thread(
@@ -135,26 +118,10 @@ pub async fn target_companion_thread(
     expected_generation: u64,
 ) -> Result<crate::presence::BindingView, String> {
     main_only(&window)?;
-    let presence = desktop.presence();
-    let watcher = desktop.watcher();
-    let request = presence
-        .request(Some(expected_generation))
-        .map_err(str::to_owned)?;
-    let presence = presence.clone();
-    let current = presence.clone();
-    let result =
-        tauri::async_runtime::spawn_blocking(move || presence.retarget(request, thread_id))
-            .await
-            .map_err(|_| "companion_core_unavailable")?
-            .map_err(str::to_owned)?;
-    watcher
-        .wait_ready(&result, std::time::Duration::from_secs(2))
+    desktop
+        .presence()
+        .target_companion_thread(thread_id, expected_generation)
         .await
-        .map_err(str::to_owned)?;
-    if current.view().generation != result.generation {
-        return Err("companion_binding_changed".into());
-    }
-    Ok(result)
 }
 #[tauri::command]
 pub fn set_companion_previews(
@@ -193,10 +160,9 @@ pub async fn refresh_companion_appearance(
     desktop: tauri::State<'_, Arc<crate::app::DesktopApp>>,
 ) -> Result<crate::presence::RefreshAppearanceReply, String> {
     main_only(&window)?;
-    let presence = desktop.presence();
-    let watcher = desktop.watcher();
-    watcher
-        .refresh_appearance(&presence.view())
+    desktop
+        .presence()
+        .refresh_appearance()
         .await
         .map_err(str::to_owned)
 }

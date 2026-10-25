@@ -20,18 +20,18 @@ public_api:
   hide_main: Require main window label; call native hide; return a stable local error without OS details.
   allowed_caller: Explicit per-command window matrix; unknown names and windows are rejected.
   companion_state: Return only the native companion projection to main or companion.
-  companion_send: Companion-only text/command/context admission on a blocking worker; no caller-selected target or endpoint.
+  companion_send: Companion-only public Submission/Sent translation and admission on a blocking worker; no caller-selected target or endpoint.
   companion_input: Companion-only explicit editor mode change through the UI dispatcher.
   companion_ready: Require the owned companion and initialize its presentation through the UI dispatcher.
   companion_failed: Companion-only fixed rendering-failure report; revoke permission and expose native Retry state.
   set_companion_visible: Main-only visibility request through the native owner.
   set_companion_paused: Main-only pause request through the native owner.
   drag_companion: Companion-only native drag.
-  open_main_from_companion: Companion-only deliberate open at validated binding destination; pending request survives webview reload.
+  open_main_from_companion: Companion-only call to the Presence workflow for deliberate open at a validated binding destination; pending request survives webview reload.
 external_types:
   - tauri::WebviewWindow
 obligations:
-  - rule: Commands with native owners inject Arc<DesktopApp> and call typed accessors; UI-dispatched navigation resolves that same root.
+  - rule: Commands with native owners inject Arc<DesktopApp> and call typed accessors; companion selection/show, retarget/readiness, refresh and open-main each call one Presence method without looking up Navigation or the observer.
     tested_by: native_architecture_ratchet
   - rule: All 27 registered commands have build metadata and generated allow/deny permissions; companion_send and companion_input are granted only to companion and guarded by the native caller matrix.
     tested_by: [native_architecture_ratchet, companion_callers_are_restricted_for_every_operation, 'integration: companion submission and editor commands have generated metadata and companion-only grants in apps/desktop/tests/native-acl.test.mjs']

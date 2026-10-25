@@ -4,14 +4,16 @@ status: current
 source: apps/desktop/src-tauri/src/app.rs
 responsibility: Assemble the nine native lifetime owners behind one managed DesktopApp.
 public_api:
-  DesktopApp::start: Build existing owners and wire their notifiers inside Tauri setup; inject the companion editor context callback and map publication appearance into the window DTO; return one Arc for managed registration before window setup.
+  DesktopApp::start: Build existing owners and wire their notifiers inside Tauri setup; inject observer, navigation and native window actions into Presence; forward editor-context reads and UI-dispatched publications to that owner; return one Arc for managed registration before window setup.
   DesktopApp::preferences/auth/companion/watcher/presence/navigation/connection/paths/sidecar: Typed borrows of private owned values; preferences exposes DesktopPreferences with its private store and injected OS adapter.
   DesktopApp::stop: Stop the presence watcher before stopping the sidecar on application exit.
 obligations:
-  - rule: Composition injects editor context and maps publication appearance; window code resolves neither Presence nor Watcher.
+  - rule: Composition wires editor context and publication callbacks; Presence owns their consistency checks and projection mapping. Window code resolves neither Presence nor Watcher.
     tested_by: native_architecture_ratchet
   - rule: Only Arc<DesktopApp> is registered as managed application state; owner lookup uses its accessors.
     tested_by: [desktop_registers_one_private_composition_root, native_architecture_ratchet]
+  - rule: Navigation::open_main records the pending destination, emits main-navigation and opens main in that order; the companion workflow reaches it through its injected dependency.
+    tested_by: [old_ack_does_not_clear_a_newer_request, click_destination_is_closed_and_does_not_create_a_thread, native_architecture_ratchet]
 gaps:
   - at: native lifecycle
     gap: Automated behavior tests cover owner policies; physical Windows startup, tray and shutdown acceptance is separate.

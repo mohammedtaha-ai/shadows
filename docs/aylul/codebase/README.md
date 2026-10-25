@@ -15,8 +15,9 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/presence/send.rs` | Captured companion submission admission | Presence contract; a newer selection owns binding publication |
 | `apps/desktop/src-tauri/src/presence/send_fixture.rs` | Scripted submission HTTP server | Presence contract; test-only |
 | `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission admission regressions | Presence contract |
-| `apps/desktop/src-tauri/src/presence/` | Configuration-scoped companion presence | Colocated `contract.yaml` |
-| `apps/desktop/src-tauri/src/navigation.rs` | Closed pending main navigation | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
+| `apps/desktop/src-tauri/src/presence/` | Operate the configuration-scoped companion conversation | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/presence/workflows.rs` | Coordinate companion actions through injected observer, native surface operations and Navigation | Presence contract; selection/show, retarget/readiness, publication admission and open-main workflows |
+| `apps/desktop/src-tauri/src/navigation.rs` | Deliver closed pending main navigation before opening main | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
 | `apps/desktop/src-tauri/src/core_connection/` | Verified local Core lifecycle | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/desktop_preferences/` | Native desktop preference coordination | Colocated `contract.yaml`; private store and injected OS login-item adapter |

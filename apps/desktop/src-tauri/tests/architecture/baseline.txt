@@ -36,7 +36,6 @@ construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPref
 construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #3
 construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #4
 coverage :: main.rs :: missing composition map
-managed_state :: commands/companion.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #1
 managed_state :: commands/companion.rs :: tauri::State #1
 managed_state :: commands/companion.rs :: tauri::State #2
 managed_state :: commands/desktop.rs :: tauri::State #1
@@ -87,7 +86,6 @@ owner_edge :: commands/companion.rs :: windows::companion::on_ui #4
 owner_edge :: commands/companion.rs :: windows::companion::on_ui #5
 owner_edge :: commands/companion.rs :: windows::companion::on_ui #6
 owner_edge :: commands/companion.rs :: windows::companion::on_ui #7
-owner_edge :: commands/companion.rs :: windows::companion::on_ui #8
 owner_edge :: commands/companion.rs :: windows::companion::ready #1
 owner_edge :: commands/companion.rs :: windows::companion::set_paused #1
 owner_edge :: commands/companion.rs :: windows::companion::set_visible #1
@@ -99,7 +97,6 @@ owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState
 owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #5
 owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #6
 owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #7
-owner_edge :: commands/companion.rs :: windows::open_main #1
 owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #1
 owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #2
 owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #3
@@ -112,9 +109,6 @@ owner_edge :: commands/desktop.rs :: presence::binding::BindingView #1
 owner_edge :: commands/desktop.rs :: presence::binding::BindingView #2
 owner_edge :: commands/desktop.rs :: presence::binding::BindingView #3
 owner_edge :: commands/desktop.rs :: presence::binding::BindingView #4
-owner_edge :: commands/desktop.rs :: windows::companion::on_ui #1
-owner_edge :: commands/desktop.rs :: windows::companion::show_for_selection #1
-owner_edge :: commands/desktop.rs :: windows::companion::visibility_token #1
 owner_edge :: commands/mod.rs :: auth::service::View #1
 owner_edge :: commands/preferences.rs :: desktop_preferences::PreferencesView #1
 owner_edge :: commands/preferences.rs :: desktop_preferences::PreferencesView #2
@@ -148,8 +142,6 @@ owner_edge :: windows/mod.rs :: windows::companion::setup_companion #1
 owner_edge :: windows/mod.rs :: windows::companion::snapshot #1
 private_access :: app.rs :: presence::watcher::PresenceWatcher::new #1
 private_access :: app.rs :: windows::companion::input::refresh #1
-private_access :: commands/companion.rs :: presence::send::Sent #1
-private_access :: commands/companion.rs :: presence::send::Submission #1
 private_access :: commands/companion.rs :: windows::companion::input::set_input #1
 private_access :: commands/companion.rs :: windows::companion::state::CompanionState #1
 private_access :: commands/companion.rs :: windows::companion::state::CompanionState #2

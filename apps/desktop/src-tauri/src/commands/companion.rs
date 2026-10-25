@@ -54,8 +54,8 @@ pub async fn companion_state(window: tauri::WebviewWindow) -> Result<CompanionSt
 pub async fn companion_send(
     window: tauri::WebviewWindow,
     desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
-    submission: crate::presence::send::Submission,
-) -> Result<crate::presence::send::Sent, String> {
+    submission: crate::presence::Submission,
+) -> Result<crate::presence::Sent, String> {
     guard(&window, "companion_send")?;
     let owner = desktop.presence().clone();
     tauri::async_runtime::spawn_blocking(move || owner.send(submission).map_err(str::to_owned))
@@ -116,20 +116,7 @@ pub async fn open_main_from_companion(
     desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
 ) -> Result<(), String> {
     guard(&window, "open_main_from_companion")?;
-    let presence = desktop.presence().clone();
-    let destination = tauri::async_runtime::spawn_blocking(move || presence.destination())
-        .await
-        .map_err(|_| "main_open_failed")?;
-    companion::on_ui(window.app_handle().clone(), move |app| {
-        use tauri::Emitter;
-        let pending = app
-            .state::<std::sync::Arc<crate::app::DesktopApp>>()
-            .navigation()
-            .request(destination);
-        let _ = app.emit_to("main", "main-navigation", pending);
-        crate::windows::open_main(app).map_err(|_| "main_open_failed".into())
-    })
-    .await
+    desktop.presence().open_main_from_companion().await
 }
 #[cfg(test)]
 mod tests {

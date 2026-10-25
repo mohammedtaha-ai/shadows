@@ -2,8 +2,17 @@ name: native-companion-binding
 version: 1
 status: current
 source: apps/desktop/src-tauri/src/presence
-responsibility: Observe the bound conversation; mutate Core only for an explicit companion submission.
+responsibility: Operate the bound companion conversation through its injected observer, native surface actions and navigation.
 public_api:
+  attach_workflows: Install the observer, Navigation and native WindowActions once during composition; the publication callback retains only a weak Presence reference.
+  select_companion_agent: Capture request, generation and visibility intent before blocking validation; show the companion on the UI thread only after a changed nonempty selection.
+  target_companion_thread: Capture the ordered retarget request; await exact observer readiness for at most two seconds and recheck generation before replying.
+  refresh_appearance: Forward the current binding to the owned observer's acknowledged metadata refresh.
+  publish: On the UI thread, reject obsolete epochs, bindings and runtimes before presenting or republishing; acknowledge only after publication. Registration availability is supplied by composition.
+  editor_context: Supply scope, context and agent only when a second scope/context read still matches.
+  open_main_from_companion: Validate the captured destination on a blocking worker, then ask the injected Navigation to publish the pending request and restore main on the UI thread.
+  WindowActions: Explicit native surface dependency containing UI dispatch, visibility, show, present and republish callbacks; native application-handle lifetime stays in the composition adapter and workflows perform no managed-state lookup.
+  Submission/Sent: Public companion submission request and result values; command adapters do not import the send implementation module.
   CompanionAppearance: Opaque agent character colour copied without validation; absent when unbound or unavailable.
   core_client: The companion's one private Core HTTP client. Blocking reads and writes for binding, navigation and submission; async snapshots, metadata checks and SSE for observation. No other companion module builds a Core request.
   Client::validate_appearance: Reuse bounded metadata validation to return the optional colour.
@@ -24,6 +33,8 @@ public_api:
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
 obligations:
+  - rule: Selection/show, retarget/readiness, publication admission and open-main coordination belong to Presence; commands call one owner method and composition only wires callbacks and dependencies.
+    tested_by: [native_architecture_ratchet, latest_explicit_retarget_wins_and_old_generation_is_rejected, appearance_refresh_waits_for_recheck_and_publication, appearance_refresh_cannot_publish_a_superseded_binding, click_destination_is_closed_and_does_not_create_a_thread]
   - rule: Every companion Core request goes through core_client; reqwest elsewhere in the companion fails the architecture ratchet.
     tested_by: [companion_core_http_outside_its_client_fails, core_http_covers_alias_qualified_and_macro_endpoint]
   - rule: Binding and observation accept the same agents and threads through one predicate.

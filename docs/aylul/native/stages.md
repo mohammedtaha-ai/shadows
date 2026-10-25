@@ -149,7 +149,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   the architecture test, clippy, fmt and `npm test` pass
 
 ### N-14 · D-7: companion workflows live behind one owner
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-7--move-companion-workflows-behind-one-service
   and #decision-d-0
 - Read: the plan's section 2 ("Cross-owner internal access", "Every registered Tauri command")

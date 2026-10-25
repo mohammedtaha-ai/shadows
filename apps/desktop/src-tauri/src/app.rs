@@ -31,62 +31,41 @@ impl DesktopApp {
         let editor_presence = Arc::downgrade(&presence);
         companion.set_editor_context(Arc::new(move || {
             let owner = editor_presence.upgrade()?;
-            let (scope, context) = owner.context();
-            let agent = owner.view().agent;
-            if owner.context() != (scope.clone(), context.clone()) {
-                return None;
-            }
-            Some(windows::companion::EditorContext {
-                scope,
-                context,
-                agent,
-            })
+            owner.editor_context()
         }));
         let publisher = app.handle().clone();
-        let watcher =
-            presence::watcher::PresenceWatcher::new(std::sync::Arc::new(move |mut update| {
-                let app = publisher.clone();
-                let _ = publisher.run_on_main_thread(move || {
-                    if !update.is_current() {
-                        return;
-                    }
-                    if let Some(owner) = app.try_state::<Arc<DesktopApp>>() {
-                        if !update.matches_binding(&owner.presence().view()) {
-                            return;
-                        }
-                    }
-                    if let Some(scope) = update.scope.as_ref() {
-                        let Some(owner) = app.try_state::<Arc<DesktopApp>>() else {
-                            return;
-                        };
-                        let binding = owner.presence().view();
-                        let Some(ready) = owner.presence().connection.ready() else {
-                            return;
-                        };
-                        if binding.generation != scope.generation
-                            || binding.configuration_id.as_deref()
-                                != Some(scope.configuration_id.as_str())
-                            || ready.runtime_id != scope.runtime_id
-                        {
-                            return;
-                        }
-                    }
-                    if update.republish_only {
-                        windows::companion::republish(&app);
-                    } else {
-                        windows::companion::present(
-                            &app,
-                            update.projection.clone().into_surface(),
-                            update.appearance.clone().map(|appearance| {
-                                windows::companion::SurfaceAppearance {
-                                    color: appearance.color,
-                                }
-                            }),
-                        );
-                    }
-                    update.acknowledge();
-                });
-            }));
+        let publishing_presence = Arc::downgrade(&presence);
+        let watcher = presence::watcher::PresenceWatcher::new(Arc::new(move |update| {
+            let app = publisher.clone();
+            let presence = publishing_presence.clone();
+            let _ = publisher.run_on_main_thread(move || {
+                if let Some(presence) = presence.upgrade() {
+                    presence.publish(update, app.try_state::<Arc<DesktopApp>>().is_some());
+                }
+            });
+        }));
+        let navigation = Arc::new(navigation::Navigation::default());
+        let dispatch = app.handle().clone();
+        let visibility = app.handle().clone();
+        let republisher = app.handle().clone();
+        let presenter = app.handle().clone();
+        presence.attach_workflows(
+            watcher.clone(),
+            navigation.clone(),
+            presence::WindowActions {
+                on_ui: Arc::new(move |action| {
+                    Box::pin(windows::companion::on_ui(dispatch.clone(), action))
+                }),
+                visibility_token: Arc::new(move || {
+                    windows::companion::visibility_token(&visibility)
+                }),
+                show_for_selection: windows::companion::show_for_selection,
+                republish: Arc::new(move || windows::companion::republish(&republisher)),
+                present: Arc::new(move |projection, appearance| {
+                    windows::companion::present(&presenter, projection, appearance)
+                }),
+            },
+        );
         let binding_watcher = watcher.clone();
         let binding_connection = std::sync::Arc::downgrade(&connection);
         let emitter = app.handle().clone();
@@ -103,7 +82,6 @@ impl DesktopApp {
                 let _ = windows::companion::input::refresh(&owner);
             });
         }));
-        let navigation = Arc::new(navigation::Navigation::default());
         let binding = std::sync::Arc::downgrade(&presence);
         let owner = app.handle().clone();
         let connection_watcher = watcher.clone();
