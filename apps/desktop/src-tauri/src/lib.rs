@@ -4,6 +4,7 @@ mod assistant;
 pub mod auth;
 mod commands;
 mod core_connection;
+mod desktop_preferences;
 pub mod native_login;
 mod navigation;
 mod presence;

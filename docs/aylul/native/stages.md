@@ -81,7 +81,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   the crate's tests, the architecture test, clippy and fmt pass
 
 ### N-11 · D-4: desktop preferences have a private owner
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-4--give-desktop-preferences-a-private-owner
   and #decision-d-0
 - Read: `apps/desktop/src-tauri/src/windows/contract.yaml`; `src/windows/preferences.rs` and

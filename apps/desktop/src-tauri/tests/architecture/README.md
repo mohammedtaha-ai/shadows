@@ -28,7 +28,10 @@ composition module may name its stored lifetime types without private-access
 exceptions; nested owner modules retain all checks. Implementation-submodule
 workflow references remain ratcheted even in composition.
 Account includes its private assistant and native-login primitives. Preferences
-is distinct from MainWindow even while it lives under `windows/`.
+is the `desktop_preferences/` owner, distinct from MainWindow. Its lifetime
+constructor replaces the Store constructor in the service inventory; its private
+Store remains subject to cross-owner submodule checks. The OS-adapter constructor
+remains inventoried at its private module path and is injected by composition.
 
 The checks hold:
 
@@ -99,3 +102,12 @@ register one managed value, start `DesktopApp` once and retain nine private fiel
 The N-10 fixtures prove that window root lookups still count as managed-state
 and owner-edge violations, accessor calls retain owner edges/private access/cycles,
 and nested owners cannot inherit composition exemptions.
+
+N-11 relocates the four preference test-construction exemptions one-for-one to
+`desktop_preferences/tests.rs` and the three command DTO references to
+`desktop_preferences::PreferencesView`. It removes the main close handler's
+private Store access. No scanner rule is loosened and no allowed dependency edge
+changes. Accessor return-type checks also cover private Stores independently of
+the service-construction inventory, preserving private-store checks after the move.
+The seven moved tests retain their names and assertions through owner methods;
+the close-policy test now also exercises saving each policy through the owner.

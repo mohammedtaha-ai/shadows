@@ -2,6 +2,29 @@ use std::collections::BTreeMap;
 
 use super::{baseline, compare, inventory, scanner, Findings};
 
+#[test]
+fn preferences_owner_keeps_construction_and_private_internals_out_of_commands() {
+    assert_eq!(
+        scanner::owner("desktop_preferences"),
+        Some("DesktopPreferences")
+    );
+    catches(
+        "commands/preferences.rs",
+        "use crate::desktop_preferences::DesktopPreferences as P; fn f() { P::new(); }",
+        "construction",
+    );
+    catches(
+        "commands/preferences.rs",
+        "fn f() { crate::desktop_preferences::login_item::PluginLoginItem(app); }",
+        "construction",
+    );
+    catches(
+        "commands/preferences.rs",
+        "fn f(_: crate::desktop_preferences::store::Store) {}",
+        "private_access",
+    );
+}
+
 fn scan(file: &str, source: &str) -> Findings {
     scanner::scan(&BTreeMap::from([(file.into(), source.into())]))
 }
@@ -53,11 +76,11 @@ fn window_root_lookups_still_require_exact_managed_state_exceptions() {
 
 #[test]
 fn root_accessors_preserve_owner_edges_private_access_and_cycles() {
-    let root = "use crate::{presence, windows};
+    let root = "use crate::{presence, desktop_preferences};
         struct DesktopApp;
         impl DesktopApp {
             fn renamed_presence(&self) -> &std::sync::Arc<presence::Presence> { todo!() }
-            fn preferences(&self) -> &windows::preferences::Store { todo!() }
+            fn preferences(&self) -> &desktop_preferences::store::Store { todo!() }
         }";
     let found = scanner::scan(&BTreeMap::from([
         ("app.rs".into(), root.into()),
@@ -67,13 +90,13 @@ fn root_accessors_preserve_owner_edges_private_access_and_cycles() {
     ]));
     for entry in [
         "owner_edge :: windows/companion/input.rs :: presence::Presence #1",
-        "private_access :: windows/mod.rs :: windows::preferences::Store #1",
+        "private_access :: windows/mod.rs :: desktop_preferences::store::Store #1",
         "owner_cycle :: windows/companion/input.rs :: CompanionWindow -> Companion (cycle edge)",
     ] {
         assert!(found.contains(entry), "missing {entry}: {found:#?}");
     }
     let commands = scanner::scan(&BTreeMap::from([
-        ("app.rs".into(), root.into()),
+        ("app.rs".into(), root.replace("desktop_preferences::store::Store", "desktop_preferences::DesktopPreferences")),
         ("commands/mod.rs".into(), "fn f(desktop: &crate::app::DesktopApp) { desktop.renamed_presence(); desktop.preferences(); }".into()),
     ]));
     assert!(
@@ -286,21 +309,20 @@ fn type_alias_and_foreign_glob_require_the_same_boundary() {
 #[test]
 fn path_attribute_keeps_tests_with_their_declaring_owner() {
     let sources = BTreeMap::from([
-        ("lib.rs".into(), "mod windows;".into()),
-        ("windows/mod.rs".into(), "mod preferences;".into()),
+        ("lib.rs".into(), "mod desktop_preferences;".into()),
         (
-            "windows/preferences.rs".into(),
-            "pub struct Store; #[path = \"preferences_tests.rs\"] mod tests;".into(),
+            "desktop_preferences/mod.rs".into(),
+            "pub struct DesktopPreferences; #[path = \"preferences_tests.rs\"] mod tests;".into(),
         ),
         (
-            "windows/preferences_tests.rs".into(),
-            "use super::*; fn f() { Store::new(); }".into(),
+            "desktop_preferences/preferences_tests.rs".into(),
+            "use super::*; fn f() { DesktopPreferences::new(); }".into(),
         ),
     ]);
     let found = scanner::scan(&sources);
     assert!(
         found.contains(
-            "construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #1"
+            "construction :: desktop_preferences/preferences_tests.rs :: desktop_preferences::DesktopPreferences::new #1"
         ),
         "{found:#?}"
     );
@@ -322,7 +344,7 @@ fn allowed_graph_and_ordinary_dtos_are_not_violations() {
         ("navigation.rs", "fn f() { crate::windows::open_main(); }"),
         (
             "windows/mod.rs",
-            "use crate::windows::preferences::DesktopPreferences;",
+            "use crate::desktop_preferences::PreferencesView;",
         ),
         (
             "auth/service.rs",
@@ -594,7 +616,7 @@ fn unknown_inline_owner_fails_coverage() {
 fn os_adapter_construction_belongs_to_composition() {
     catches(
         "commands/preferences.rs",
-        "fn f() { crate::windows::preferences::PluginLoginItem(app); }",
+        "fn f() { crate::desktop_preferences::login_item::PluginLoginItem(app); }",
         "construction",
     );
 }

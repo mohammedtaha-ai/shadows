@@ -31,10 +31,10 @@ construction :: sidecar/mod.rs :: sidecar::Sidecar::start #2
 construction :: sidecar/mod.rs :: sidecar::SidecarState #1
 construction :: sidecar/mod.rs :: sidecar::SidecarState #2
 construction :: sidecar/mod.rs :: sidecar::SidecarState #3
-construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #1
-construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #2
-construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #3
-construction :: windows/preferences_tests.rs :: windows::preferences::Store::new #4
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #1
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #2
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #3
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #4
 coverage :: main.rs :: missing composition map
 managed_state :: commands/companion.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #1
 managed_state :: commands/companion.rs :: tauri::State #1
@@ -120,9 +120,9 @@ owner_edge :: commands/desktop.rs :: windows::companion::on_ui #1
 owner_edge :: commands/desktop.rs :: windows::companion::show_for_selection #1
 owner_edge :: commands/desktop.rs :: windows::companion::visibility_token #1
 owner_edge :: commands/mod.rs :: auth::service::View #1
-owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #1
-owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #2
-owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #3
+owner_edge :: commands/preferences.rs :: desktop_preferences::PreferencesView #1
+owner_edge :: commands/preferences.rs :: desktop_preferences::PreferencesView #2
+owner_edge :: commands/preferences.rs :: desktop_preferences::PreferencesView #3
 owner_edge :: windows/companion/input.rs :: app::DesktopApp #1
 owner_edge :: windows/companion/input.rs :: app::DesktopApp #2
 owner_edge :: windows/companion/input.rs :: app::DesktopApp #3
@@ -210,4 +210,3 @@ private_access :: windows/companion/state.rs :: presence::projection::PresencePr
 private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection #2
 private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection #3
 private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection::unbound #1
-private_access :: windows/mod.rs :: windows::preferences::Store #1

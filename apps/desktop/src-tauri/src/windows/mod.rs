@@ -3,7 +3,6 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 pub mod companion;
 mod main_policy;
 mod placement;
-pub mod preferences;
 
 // Foreground activation is reserved for explicit tray, shortcut and launch actions.
 pub fn open_main(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
@@ -50,16 +49,15 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     w.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
-            match preferences::close_action(
-                h.state::<std::sync::Arc<crate::app::DesktopApp>>()
-                    .preferences()
-                    .close_to_tray(),
-                false,
-            ) {
-                preferences::CloseAction::Hide => {
+            match h
+                .state::<std::sync::Arc<crate::app::DesktopApp>>()
+                .preferences()
+                .close_action(false)
+            {
+                crate::desktop_preferences::CloseAction::Hide => {
                     let _ = h.hide();
                 }
-                preferences::CloseAction::Exit => h.app_handle().exit(0),
+                crate::desktop_preferences::CloseAction::Exit => h.app_handle().exit(0),
             }
         }
     });

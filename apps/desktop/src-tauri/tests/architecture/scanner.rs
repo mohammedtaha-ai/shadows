@@ -7,13 +7,11 @@ use syn::visit::{self, Visit};
 use super::Findings;
 
 // Longest module prefix wins; private account primitives remain in Account.
-// Preferences needs its own prefix because MainWindow may depend on it.
 const OWNERS: &[(&str, &str)] = &[
     ("core_connection", "CoreConnection"),
     ("presence", "Companion"),
     ("windows::companion", "CompanionWindow"),
-    ("windows::preferences", "DesktopPreferences"),
-    ("windows::preferences_tests", "DesktopPreferences"),
+    ("desktop_preferences", "DesktopPreferences"),
     ("windows", "MainWindow"),
     ("navigation", "Navigation"),
     ("auth", "Account"),
@@ -41,8 +39,8 @@ const SERVICES: &[&str] = &[
     "presence::Presence",
     "presence::watcher::PresenceWatcher",
     "windows::companion::Store",
-    "windows::preferences::Store",
-    "windows::preferences::PluginLoginItem",
+    "desktop_preferences::DesktopPreferences",
+    "desktop_preferences::login_item::PluginLoginItem",
     "auth::AuthController",
     "navigation::Navigation",
     "app_paths::AppPaths",
@@ -251,7 +249,9 @@ fn desktop_accessors(sources: &BTreeMap<String, String>) -> Imports {
     impl<'ast> Visit<'ast> for ReturnOwners<'_> {
         fn visit_type_path(&mut self, ty: &'ast syn::TypePath) {
             let target = resolve(&path_text(&ty.path), "app", self.imports, &Imports::new());
-            if SERVICES.contains(&target.as_str()) {
+            if SERVICES.contains(&target.as_str())
+                || (target.ends_with("::Store") && owner(&target).is_some())
+            {
                 self.owners.insert(target);
             }
             visit::visit_type_path(self, ty);

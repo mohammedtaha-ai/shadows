@@ -35,6 +35,8 @@ obligations:
     tested_by: native_architecture_ratchet
   - rule: All 27 registered commands have build metadata and generated allow/deny permissions; companion_send and companion_input are granted only to companion and guarded by the native caller matrix.
     tested_by: [native_architecture_ratchet, companion_callers_are_restricted_for_every_operation, 'integration: companion submission and editor commands have generated metadata and companion-only grants in apps/desktop/tests/native-acl.test.mjs']
+  - rule: Preference commands call DesktopPreferences methods on a blocking worker; they neither access Store nor construct the OS adapter.
+    tested_by: [native_architecture_ratchet, preferences_owner_keeps_construction_and_private_internals_out_of_commands]
   - rule: Preference commands have both native main-label checks and generated main-only ACL grants; neither webview gets direct autostart plugin permissions.
     tested_by: [companion_callers_are_restricted_for_every_operation, 'integration: desktop preferences are granted only to main in apps/desktop/tests/native-acl.test.mjs']
   - rule: Appearance refresh is denied outside main by both native label guard and generated ACL permissions.

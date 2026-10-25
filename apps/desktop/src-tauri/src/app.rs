@@ -1,10 +1,12 @@
 //! Native owner assembly and lifetime.
-use crate::{app_paths, auth, core_connection, navigation, presence, sidecar, windows};
+use crate::{
+    app_paths, auth, core_connection, desktop_preferences, navigation, presence, sidecar, windows,
+};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
 pub struct DesktopApp {
-    preferences: windows::preferences::Store,
+    preferences: desktop_preferences::DesktopPreferences,
     auth: Arc<auth::AuthController>,
     companion: windows::companion::Store,
     watcher: Arc<presence::watcher::PresenceWatcher>,
@@ -18,7 +20,10 @@ pub struct DesktopApp {
 impl DesktopApp {
     pub fn start(app: &mut tauri::App) -> Result<Arc<Self>, Box<dyn std::error::Error>> {
         let paths = app_paths::AppPaths::resolve(app)?;
-        let preferences = windows::preferences::Store::new(paths.root().to_path_buf());
+        let preferences = desktop_preferences::DesktopPreferences::new(
+            paths.root().to_path_buf(),
+            desktop_preferences::PluginLoginItem(app.handle().clone()),
+        );
         let auth = auth::AuthController::new(paths.auth());
         let companion = windows::companion::Store::default();
         let connection = core_connection::Connection::new(paths.root().to_path_buf());
@@ -114,7 +119,7 @@ impl DesktopApp {
         }))
     }
 
-    pub fn preferences(&self) -> &windows::preferences::Store {
+    pub fn preferences(&self) -> &desktop_preferences::DesktopPreferences {
         &self.preferences
     }
 
@@ -148,10 +153,6 @@ impl DesktopApp {
 
     pub fn sidecar(&self) -> &Arc<sidecar::SidecarState> {
         &self.sidecar
-    }
-
-    pub fn login_item(&self, app: tauri::AppHandle) -> windows::preferences::PluginLoginItem {
-        windows::preferences::PluginLoginItem(app)
     }
 
     pub fn stop(&self) {

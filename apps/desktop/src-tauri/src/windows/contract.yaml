@@ -7,10 +7,6 @@ responsibility: >
   actions and recover an inaccessible title bar when an explicit open occurs.
   The companion subdirectory has its own contract and is excluded from this owner.
 public_api:
-  preferences::DesktopPreferences: Native camelCase launchAtLogin/closeToTray view; fresh defaults false/true.
-  preferences::Store: App-data JSON persistence with serialized partial updates; close policy activates only after a successful save.
-  preferences::PluginLoginItem: Rust-only OS login-item adapter using tauri-plugin-autostart 2.5.1.
-  preferences::close_action: Main close hides when closeToTray is true; otherwise exits the whole app; tray Quit always exits.
   build: Load the shared local dashboard with the configured endpoint in response CSP; reject remote navigation and new windows.
   setup: Build main, preference-driven close handler, left-click open, Open/Show-or-Hide-AYLUL/Quit menu and Ctrl+Alt+Shift+F12; start the separately owned companion without propagating its failure.
   open_main: Unminimize/show; fit inner size to physical work area accounting for frame; recover inaccessible origin; focus after deliberate user action.
@@ -22,14 +18,6 @@ external_types:
 obligations:
   - rule: Main construction and close callbacks resolve paths, connection and preference policy only through DesktopApp accessors.
     tested_by: native_architecture_ratchet
-  - rule: Fresh native preferences preserve close-to-tray; reads never enable an OS login item and return its actual state.
-    tested_by: [desktop_preferences_fresh_install_preserves_close_to_tray, desktop_preferences_reports_external_login_change]
-  - rule: Partial updates preserve omitted values across restart and concurrent setters; wire names are camelCase.
-    tested_by: [desktop_preferences_partial_update_survives_restart, desktop_preferences_concurrent_partial_updates_are_serialized]
-  - rule: OS refusal and storage failure retain saved close policy; corrupt files are not overwritten; failed rollback is not reported as success.
-    tested_by: [desktop_preferences_os_refusal_preserves_saved_close_policy, desktop_preferences_corrupt_or_unwritable_store_is_not_overwritten]
-  - rule: Main close hides or exits the application according to the saved flag; tray Quit always exits.
-    tested_by: [desktop_preferences_close_policy_hides_or_exits, 'integration: apps/desktop/tests/desktop-preferences.mjs']
   - rule: Off-screen and one-pixel-sliver windows recover a usable title bar.
     tested_by: lost_window_and_one_pixel_sliver_recover_a_usable_title_bar
   - rule: An accessible negative-coordinate monitor window remains where it is.
@@ -44,8 +32,6 @@ obligations:
     tested_by: 'integration: apps/desktop/tests/tray-menu.ps1'
     note: Owned MenuItem name/rectangle targeted by physical pointer input; current single-display evidence only.
 gaps:
-  - at: preferences::PluginLoginItem
-    gap: Real Windows login-item enable/disable and sign-in launch are reserved for Mohammed; fake adapters prove coordination only.
   - at: open_main
     gap: Recovery runs on explicit open, not an automatic display-change callback. Hardware monitor removal is untested.
   - at: setup
