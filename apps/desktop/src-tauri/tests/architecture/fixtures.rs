@@ -279,10 +279,39 @@ fn core_http_covers_alias_qualified_and_macro_endpoint() {
         "core_http",
     );
     assert!(scan(
-        "presence/client.rs",
+        "presence/core_client/observer.rs",
         "fn f() { reqwest::Client::new(); format!(\"/api/threads\"); }"
     )
     .is_empty());
+    assert!(scan(
+        "presence/core_client/mod.rs",
+        "fn f() { reqwest::blocking::Client::builder(); }"
+    )
+    .is_empty());
+}
+
+#[test]
+fn companion_core_http_outside_its_client_fails() {
+    catches(
+        "presence/send.rs",
+        "fn f() { reqwest::blocking::Client::builder(); }",
+        "core_http",
+    );
+    catches(
+        "presence/binding.rs",
+        "use reqwest::blocking::Client; fn f() { Client::new(); }",
+        "core_http",
+    );
+    catches(
+        "presence/watcher/feed.rs",
+        "fn f() { reqwest::Client::new(); }",
+        "core_http",
+    );
+    catches(
+        "presence/core_client_shadow.rs",
+        "fn f() { reqwest::Client::new(); }",
+        "core_http",
+    );
     assert!(scan("auth/http.rs", "fn f() { reqwest::Client::new(); }").is_empty());
 }
 

@@ -1,5 +1,5 @@
 pub mod binding;
-mod client;
+mod core_client;
 mod preferences;
 mod preview;
 pub mod projection;

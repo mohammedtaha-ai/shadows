@@ -1,6 +1,6 @@
+use super::core_client::Blocking;
 use crate::core_connection::ReadyConnection;
 use serde::{Deserialize, Serialize};
-use std::io::Read;
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConversationTarget {
@@ -42,44 +42,12 @@ pub struct Thread {
     pub profile: Option<String>,
     pub removed_at: Option<String>,
 }
-pub fn read<T: serde::de::DeserializeOwned>(
-    ready: &ReadyConnection,
-    path: &str,
-) -> Result<T, &'static str> {
-    let client = reqwest::blocking::Client::builder()
-        .no_proxy()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(std::time::Duration::from_secs(3))
-        .build()
-        .map_err(|_| "companion_core_unavailable")?;
-    let response = client
-        .get(format!("{}{path}", ready.origin))
-        .send()
-        .map_err(|_| "companion_core_unavailable")?;
-    if !response.status().is_success() {
-        return Err("companion_core_unavailable");
-    }
-    let mut bytes = Vec::new();
-    response
-        .take(1_048_577)
-        .read_to_end(&mut bytes)
-        .map_err(|_| "companion_core_unavailable")?;
-    if bytes.len() > 1_048_576 {
-        return Err("companion_response_invalid");
-    }
-    serde_json::from_slice(&bytes).map_err(|_| "companion_response_invalid")
-}
 pub fn workspace(ready: &ReadyConnection) -> Result<Workspace, &'static str> {
     runtime(ready)?;
-    read(ready, "/api/aylul/agents")
+    Blocking::new(ready).workspace()
 }
 pub fn runtime(ready: &ReadyConnection) -> Result<(), &'static str> {
-    #[derive(Deserialize)]
-    struct Identity {
-        runtime_id: String,
-        configuration_id: String,
-    }
-    let identity: Identity = read(ready, "/api/runtime")?;
+    let identity = Blocking::new(ready).runtime()?;
     if identity.runtime_id != ready.runtime_id
         || identity.configuration_id != ready.configuration_id
     {
@@ -87,11 +55,26 @@ pub fn runtime(ready: &ReadyConnection) -> Result<(), &'static str> {
     }
     Ok(())
 }
+/// Binding and observation accept the same agents: listed and not deleted.
+pub fn eligible_agent(slug: &str, deleted: bool, agent: &str) -> bool {
+    slug == agent && !deleted
+}
+impl Thread {
+    /// Binding and observation accept the same threads: this project's AYLUL
+    /// thread, run by the bound agent, not removed.
+    pub fn eligible(&self, id: &str, project_id: &str, agent: &str) -> bool {
+        self.id == id
+            && self.project_id == project_id
+            && self.harness == "aylul"
+            && self.profile.as_deref() == Some(agent)
+            && self.removed_at.is_none()
+    }
+}
 pub fn live_agent(workspace: &Workspace, agent: &str) -> Result<(), &'static str> {
     if workspace
         .agents
         .iter()
-        .any(|item| item.slug == agent && !item.deleted)
+        .any(|item| eligible_agent(&item.slug, item.deleted, agent))
     {
         Ok(())
     } else {
@@ -105,13 +88,8 @@ pub fn target(
     id: &str,
 ) -> Result<ConversationTarget, &'static str> {
     uuid::Uuid::parse_str(id).map_err(|_| "companion_thread_invalid")?;
-    let thread: Thread = read(ready, &format!("/api/threads/{id}"))?;
-    if thread.id != id
-        || thread.project_id != workspace.project_id
-        || thread.harness != "aylul"
-        || thread.profile.as_deref() != Some(agent)
-        || thread.removed_at.is_some()
-    {
+    let thread = Blocking::new(ready).thread(id)?;
+    if !thread.eligible(id, &workspace.project_id, agent) {
         return Err("companion_thread_invalid");
     }
     Ok(ConversationTarget {

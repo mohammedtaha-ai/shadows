@@ -1,8 +1,13 @@
-use super::{
-    binding::{BindingView, Thread},
-    projection::{Entry, Operation},
+//! Async Core requests for observation: metadata checks, snapshots and SSE.
+use super::RuntimeIdentity;
+use crate::{
+    core_connection::ReadyConnection,
+    presence::{
+        binding::{eligible_agent, BindingView, Thread},
+        projection::{Entry, Operation},
+        CompanionAppearance,
+    },
 };
-use crate::core_connection::ReadyConnection;
 use eventsource_stream::{Event, EventStreamError, Eventsource};
 use futures_util::{Stream, StreamExt};
 use serde::Deserialize;
@@ -119,7 +124,7 @@ impl Client {
     pub async fn validate_appearance(
         &self,
         binding: &BindingView,
-    ) -> Result<Option<super::CompanionAppearance>, Problem> {
+    ) -> Result<Option<CompanionAppearance>, Problem> {
         tokio::time::timeout(self.timeout, self.validate_inner(binding))
             .await
             .map_err(|_| Problem::Transport)?
@@ -127,13 +132,8 @@ impl Client {
     async fn validate_inner(
         &self,
         binding: &BindingView,
-    ) -> Result<Option<super::CompanionAppearance>, Problem> {
-        #[derive(Deserialize)]
-        struct Identity {
-            runtime_id: String,
-            configuration_id: String,
-        }
-        let identity: Identity = self.read("/api/runtime").await.map_err(|problem| {
+    ) -> Result<Option<CompanionAppearance>, Problem> {
+        let identity: RuntimeIdentity = self.read("/api/runtime").await.map_err(|problem| {
             if problem == Problem::Missing {
                 Problem::Changed
             } else {
@@ -169,7 +169,12 @@ impl Client {
         let agent = workspace
             .agents
             .iter()
-            .find(|agent| Some(agent.slug.as_str()) == binding.agent.as_deref() && !agent.deleted)
+            .find(|agent| {
+                binding
+                    .agent
+                    .as_deref()
+                    .is_some_and(|bound| eligible_agent(&agent.slug, agent.deleted, bound))
+            })
             .ok_or(Problem::Agent)?;
         #[derive(Deserialize)]
         struct Provider {
@@ -203,12 +208,8 @@ impl Client {
                         problem
                     }
                 })?;
-            if thread.id != target.thread_id
+            if !thread.eligible(&target.thread_id, &workspace.project_id, &agent.slug)
                 || thread.project_id != target.project_id
-                || thread.project_id != workspace.project_id
-                || thread.harness != "aylul"
-                || thread.profile.as_deref() != Some(&agent.slug)
-                || thread.removed_at.is_some()
             {
                 return Err(Problem::Thread);
             }
@@ -216,7 +217,7 @@ impl Client {
         Ok(agent
             .character_color
             .clone()
-            .map(|color| super::CompanionAppearance { color }))
+            .map(|color| CompanionAppearance { color }))
     }
     pub async fn snapshot(&self, thread: &str) -> Result<Snapshot, Problem> {
         tokio::time::timeout(self.timeout, self.snapshot_inner(thread))

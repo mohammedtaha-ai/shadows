@@ -1,9 +1,9 @@
 // One explicit companion submission through the existing Core admission API.
-use super::{binding, BindingView, Presence, RequestContext};
+use super::{binding, core_client::Blocking, BindingView, Presence, RequestContext};
 use crate::core_connection::ReadyConnection;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{io::Read, time::Duration};
+use std::time::Duration;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -218,13 +218,10 @@ impl Presence {
                 &Uuid::NAMESPACE_URL,
                 format!("companion-thread:{}", s.command_id).as_bytes(),
             );
-            let created = call(
-                &ready,
-                reqwest::Method::POST,
-                &format!("/api/projects/{}/threads", workspace.project_id),
-                Some(
-                    json!({"command_id":create_id,"title":"New conversation","harness":"aylul","profile":agent_slug}),
-                ),
+            let created = Blocking::new(&ready).create_thread(
+                &workspace.project_id,
+                create_id,
+                agent_slug,
                 timeouts.0,
             )?;
             let id = created["id"].as_str().ok_or("companion_send_uncertain")?;
@@ -272,23 +269,11 @@ impl Presence {
                 remembered
             }
         };
-        let base = format!("/api/threads/{}", target.thread_id);
-        let mut session = call(
-            &ready,
-            reqwest::Method::POST,
-            &format!("{base}/session"),
-            None,
-            timeouts.1,
-        )?;
+        let core = Blocking::new(&ready);
+        let mut session = core.open_session(&target.thread_id, timeouts.1)?;
         if let Some(default) = default_model {
             if session["current"]["model"].as_str() != Some(&default) {
-                session = call(
-                    &ready,
-                    reqwest::Method::PUT,
-                    &format!("{base}/session/model"),
-                    Some(json!({"model":default})),
-                    timeouts.1,
-                )?;
+                session = core.set_model(&target.thread_id, &default, timeouts.1)?;
             }
         }
         let current = &session["current"];
@@ -321,68 +306,12 @@ impl Presence {
     }
 }
 fn post_turn(c: &Captured, timeout: Duration) -> Result<Sent, &'static str> {
-    let response = call(
-        &c.ready,
-        reqwest::Method::POST,
-        &format!("/api/threads/{}/turns", c.thread_id),
-        Some(c.body.clone()),
-        timeout,
-    )?;
+    let response = Blocking::new(&c.ready).post_turn(&c.thread_id, c.body.clone(), timeout)?;
     let operation_id = response["operation_id"]
         .as_str()
         .ok_or("companion_send_uncertain")?;
     Ok(Sent {
         thread_id: c.thread_id.clone(),
         operation_id: operation_id.into(),
-    })
-}
-fn call(
-    ready: &ReadyConnection,
-    method: reqwest::Method,
-    path: &str,
-    body: Option<Value>,
-    timeout: Duration,
-) -> Result<Value, &'static str> {
-    let client = reqwest::blocking::Client::builder()
-        .no_proxy()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(timeout)
-        .build()
-        .map_err(|_| "companion_core_unavailable")?;
-    let mut request = client.request(method, format!("{}{path}", ready.origin));
-    if let Some(body) = body {
-        request = request.json(&body);
-    }
-    let response = request.send().map_err(|e| {
-        if e.is_connect() {
-            "companion_core_unavailable"
-        } else {
-            "companion_send_uncertain"
-        }
-    })?;
-    let status = response.status();
-    let mut bytes = Vec::new();
-    response
-        .take(1_048_577)
-        .read_to_end(&mut bytes)
-        .map_err(|_| "companion_send_uncertain")?;
-    if bytes.len() > 1_048_576 {
-        return Err("companion_send_uncertain");
-    }
-    let value: Value = serde_json::from_slice(&bytes).map_err(|_| "companion_send_uncertain")?;
-    if status.is_success() {
-        return Ok(value);
-    }
-    Err(match value["code"].as_str() {
-        Some("THREAD_BUSY") => "companion_send_busy",
-        Some(
-            "AYLUL_KEY_MISSING"
-            | "AYLUL_NOT_CONFIGURED"
-            | "AYLUL_PROFILE_NOT_FOUND"
-            | "AYLUL_PROVIDER_NOT_FOUND"
-            | "RUNTIME_NOT_CONFIGURED",
-        ) => "companion_send_setup",
-        Some("MODE_NOT_ALLOWED" | "SETTING_NOT_OFFERED") => "companion_send_settings",
-        _ => "companion_send_failed",
     })
 }

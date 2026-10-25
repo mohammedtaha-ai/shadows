@@ -439,7 +439,10 @@ impl Checker<'_> {
                 }
             }
         }
-        let http_owner = matches!(from, Some("Companion" | "CoreConnection" | "Account"));
+        // The companion reaches Core through its one private client only.
+        let companion_client = self.module == "presence::core_client"
+            || self.module.starts_with("presence::core_client::");
+        let http_owner = matches!(from, Some("CoreConnection" | "Account")) || companion_client;
         if (target == "reqwest" || target.starts_with("reqwest::")) && !http_owner {
             self.record("core_http", target);
         }

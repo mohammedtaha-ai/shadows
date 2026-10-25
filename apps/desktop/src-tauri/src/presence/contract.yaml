@@ -5,7 +5,9 @@ source: apps/desktop/src-tauri/src/presence
 responsibility: Observe the bound conversation; mutate Core only for an explicit companion submission.
 public_api:
   CompanionAppearance: Opaque agent character colour copied without validation; absent when unbound or unavailable.
+  core_client: The companion's one private Core HTTP client. Blocking reads and writes for binding, navigation and submission; async snapshots, metadata checks and SSE for observation. No other companion module builds a Core request.
   Client::validate_appearance: Reuse bounded metadata validation to return the optional colour.
+  eligible_agent / Thread::eligible: The one agent and thread eligibility rule, called by binding validation and observer metadata checks.
   PresenceWatcher::refresh_appearance: Serialized explicit metadata recheck acknowledged after guarded UI publication; no SSE restart.
   send: Admit an explicit context-scoped text submission to the captured Core thread; unchanged uncertain Retry reuses its complete turn body.
   context: Native opaque draft scope and generation token; own first-send bind preserves scope.
@@ -22,6 +24,10 @@ public_api:
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
 obligations:
+  - rule: Every companion Core request goes through core_client; reqwest elsewhere in the companion fails the architecture ratchet.
+    tested_by: [companion_core_http_outside_its_client_fails, core_http_covers_alias_qualified_and_macro_endpoint]
+  - rule: Binding and observation accept the same agents and threads through one predicate.
+    tested_by: [validation_rejects_deleted_unknown_and_wrong_thread, missing_key_and_removed_target_are_discovered_by_read_only_liveness]
   - rule: Projection-to-window mapping copies expression, status, optional preview text and absolute expiry exactly, including Unicode and the full u64 expiry range.
     tested_by: surface_mapping_preserves_projection_bytes
   - rule: Selection and periodic metadata checks copy all string colours unchanged; no native palette or persisted colour exists.

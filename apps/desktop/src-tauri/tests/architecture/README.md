@@ -51,7 +51,8 @@ The checks hold:
   field initialization is allowed so it can implement the public constructor.
 - Cross-owner implementation-submodule access and private owner stores.
 - Core endpoint literals outside Companion/CoreConnection, including literals
-  inside macros; reqwest paths outside those owners or retained Account HTTP.
+  inside macros; reqwest paths outside CoreConnection, retained Account HTTP and,
+  within Companion, its private `presence::core_client` module.
 - Owner contract existence and code-map entry coverage. Existing standalone
   owners use their current map/spec references rather than invented contracts.
 - Equal command-name sets in `generate_handler!` passed to `invoke_handler`,

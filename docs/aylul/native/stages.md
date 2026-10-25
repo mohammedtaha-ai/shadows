@@ -127,7 +127,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   count goes up; the crate's tests, the architecture test, clippy, fmt and `npm test` pass
 
 ### N-13 · D-6: the companion reaches Core through one client
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-6--consolidate-native-core-business-api-access
   and #decision-d-0
 - Read: the plan's sections 2 ("How desktop reaches Core") and 3 ("Rules repeated across
