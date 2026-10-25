@@ -1,3 +1,4 @@
+import { directoryKeys } from '@/api/directories'
 // One job: "New folder here" — asking for a name and creating that folder in
 // the directory the browser shows.
 
@@ -21,7 +22,7 @@ export function NewFolder({
   const create = useMutation({
     mutationFn: (folder: string) => createDir(parent, folder),
     onSuccess: (entry) => {
-      void queryClient.invalidateQueries({ queryKey: ['fs', 'dirs', parent] })
+      void queryClient.invalidateQueries({ queryKey: directoryKeys.children(parent) })
       setName(null)
       onCreated(entry.path)
     },

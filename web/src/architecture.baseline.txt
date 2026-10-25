@@ -156,7 +156,6 @@ public_entry :: router.tsx :: app/workflows/plan-page.tsx #1
 public_entry :: router.tsx :: desktop/runtime.ts #1
 public_entry :: stream/fake-event-source.ts :: stream/thread-stream.ts #1
 query_key :: app/desktop/use-activity.ts :: queryKey #1
-query_key :: app/new-project/new-folder.tsx :: queryKey #1
 query_key :: app/settings/usage.test.tsx :: queryKey #1
 server_access :: app/conversation/composer-bar.test.tsx :: global:fetch #1
 server_access :: app/conversation/draft.test.tsx :: global:fetch #1

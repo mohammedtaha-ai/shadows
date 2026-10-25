@@ -222,3 +222,5 @@ tests:
     checks: "`enter` sets both `at` and `input` to the path."
   - name: "going up lists the parent, and above a root lists the roots"
     checks: "`up` to a parent sets both; `up` with a null parent returns the initial state."
+
+directory_query_owner: "api/directories.ts owns the parent directory identity shared by browser reads and new-folder refresh"
