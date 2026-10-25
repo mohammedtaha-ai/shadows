@@ -55,7 +55,7 @@ and OS acceptance.
 - Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
 - Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
-- Touch: web/src/app/agents/{provider-form.tsx,provider-models.tsx}, their tests
+- Touch: web/src/app/agents/{provider-form.tsx,provider-models.tsx}, their tests, web/src/app/agents/contract.yaml
 - Needs: none
 - Done when: Enter in "Add a model by id" adds it and does not submit; saving with a typed, unadded id says so; `npm test -- provider` passes
 
