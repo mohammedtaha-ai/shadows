@@ -1,4 +1,4 @@
-//! Shadows' MCP server at `/mcp` as a transport (spec §13.6): a bearer grant
+//! Shadows' MCP server at `/mcp` as a transport: a bearer grant
 //! or 401, the daemon's guard before it, the tool list a grant's kind holds,
 //! and both lifecycles Claude Code speaks — through `rmcp`'s own client, and
 //! through raw HTTP where the transport itself is the subject. What each tool
@@ -149,7 +149,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     assert!(error.to_string().contains("tool not found"), "{error}");
 }
 
-/// Claude Code's fallback (MCP_PROBE.md §4): `initialize` at 2025-11-25,
+/// Claude Code's fallback: `initialize` at 2025-11-25,
 /// then every request carrying `MCP-Protocol-Version`, and never a session id.
 #[tokio::test]
 async fn the_legacy_initialize_lifecycle_works_without_a_session() {
@@ -208,7 +208,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
     );
 }
 
-/// Claude Code's first path (MCP_PROBE.md §4): `server/discover` at
+/// Claude Code's first path: `server/discover` at
 /// 2026-07-28, then requests that each carry the version, the client and its
 /// capabilities in `_meta`. No `initialize`, and no session id.
 #[tokio::test]

@@ -16,7 +16,7 @@ use shadows_core::{PlanningThread, Project, ProjectId};
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct CreateProject {
-    /// The idempotency key (spec §3.2). The same id with the same request
+    /// The idempotency key. The same id with the same request
     /// replays the first answer; with a different one it is a conflict.
     command_id: String,
     slug: String,
@@ -99,7 +99,7 @@ pub(super) async fn list_threads(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct CreateThread {
-    /// The idempotency key (spec §3.2), scoped to the project.
+    /// The idempotency key, scoped to the project.
     command_id: String,
     title: String,
     /// The CLI for this conversation; `claude-code` when omitted.
@@ -149,17 +149,17 @@ pub(super) async fn create_thread(
     ))
 }
 
-/// Sets the modes this project allows, per harness (spec §12.5).
+/// Sets the modes this project allows, per harness.
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct UpdateProject {
-    /// The idempotency key (spec §3.2), scoped to the project.
+    /// The idempotency key, scoped to the project.
     command_id: String,
     /// Per harness kind, the modes this project allows; a harness not named
     /// keeps its modes. Only modes in Shadows' policy for that harness.
     allowed_modes: BTreeMap<String, Vec<String>>,
 }
 
-/// Sets the modes this project allows, per harness (spec §12.5). A turn's
+/// Sets the modes this project allows, per harness. A turn's
 /// mode is checked against them when it starts. A replay answers the project
 /// as it now stands.
 #[utoipa::path(
@@ -196,11 +196,11 @@ pub(super) async fn update_project(
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct RemoveProjectQuery {
-    /// The idempotency key (spec §3.2), scoped to the project.
+    /// The idempotency key, scoped to the project.
     command_id: String,
 }
 
-/// Removes a project that holds no planning thread (spec §4.2): it is listed
+/// Removes a project that holds no planning thread: it is listed
 /// nowhere again, its code index, its links and its MCP grants go, and its
 /// slug stays taken. A replay answers the removed project.
 #[utoipa::path(

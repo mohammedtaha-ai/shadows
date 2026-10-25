@@ -1,4 +1,4 @@
-//! A project's plan notifications through the real HTTP stream (§16.8).
+//! A project's plan notifications through the real HTTP stream.
 
 use std::time::Duration;
 

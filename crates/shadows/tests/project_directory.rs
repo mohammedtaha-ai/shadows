@@ -1,4 +1,4 @@
-//! A project owns a directory (spec §4.2, §6.3, §8.3): it is checked at the
+//! A project owns a directory: it is checked at the
 //! HTTP boundary, stored canonical, and it is where every turn on the
 //! project's threads runs. A project from before projects owned one fails its
 //! turns at Prepare instead of running in the daemon's working directory.
@@ -155,7 +155,7 @@ async fn a_turn_runs_in_its_projects_directory() {
     assert_eq!(reported["cwd"], canonical.as_str(), "{reported}");
 }
 
-/// Spec §3.4: a path the daemon cannot use is refused with a 4xx and a code
+/// A path the daemon cannot use is refused with a 4xx and a code
 /// a client can match on — never a 500 — and nothing is created.
 #[tokio::test]
 async fn an_unusable_directory_is_refused_with_a_stable_code() {
@@ -276,7 +276,7 @@ async fn a_project_from_before_directories_has_its_turns_refused() {
         })),
     )
     .await;
-    // Spec §12.7: the session is opened before any write, and a directory
+    // The session is opened before any write, and a directory
     // that cannot be run in is a failure to open it — nothing durable.
     assert_eq!(status, StatusCode::CONFLICT, "{started}");
     assert_eq!(started["code"], "PATH_NOT_FOUND", "{started}");

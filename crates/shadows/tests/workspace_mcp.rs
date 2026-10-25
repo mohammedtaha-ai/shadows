@@ -1,4 +1,4 @@
-//! §18.10: a Planner reads the workspace a person wrote, and cannot write it.
+//! A Planner reads the workspace a person wrote, and cannot write it.
 use serde_json::json;
 use shadows_core::testing::acp;
 use shadows_core::{DesignOp, PartContent, PartId, VisionField};

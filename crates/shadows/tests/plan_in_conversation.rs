@@ -1,4 +1,4 @@
-//! The plan in the conversation (spec §13.9): a turn can point at a task,
+//! The plan in the conversation: a turn can point at a task,
 //! which the `UserMessage` keeps and the Planner is told in a context block;
 //! the Planner's `plan_show` writes a `PlanView` card and, live only, signals
 //! the tab that sent the turn with a `plan-show` frame.

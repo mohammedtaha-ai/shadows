@@ -1,5 +1,5 @@
 //! A conversation is named after its first message, then by its harness, and
-//! never over a name a person gave it (spec §4.2, §12.3).
+//! never over a name a person gave it.
 
 use std::time::Duration;
 
@@ -149,8 +149,7 @@ async fn a_title_a_person_gave_is_never_replaced() {
     assert!(retitled(&app).await.is_empty());
 }
 
-/// A thread an external draft from scratch made before §16.3, which no code
-/// creates now: migration 0012 leaves it as it was.
+/// A stored plan title remains protected from automatic title writers.
 #[tokio::test]
 async fn a_plan_thread_keeps_its_plan_title() {
     let app = test_app().await;

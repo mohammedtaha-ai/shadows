@@ -1,5 +1,4 @@
-//! Spec §14.9: starting and stopping a turn answer the same after moving into
-//! `Turns`, and `send` keeps its order: the harness is checked, then the
+//! Turn routes preserve send ordering: the harness is checked, then the
 //! thread's busyness, before any session is touched.
 
 use shadows_core::testing::acp;
@@ -63,7 +62,7 @@ async fn a_second_start_while_busy_is_thread_busy() {
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
 }
 
-/// The early busy check (§14.9) comes before the session: a thread whose turn
+/// The early busy check comes before the session: a thread whose turn
 /// has not ended is refused without opening an adapter. Without it the start
 /// would open the session and lease it, and only the transaction's own check
 /// would refuse it.
@@ -84,7 +83,7 @@ async fn a_busy_thread_is_refused_before_its_session_opens() {
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
 }
 
-/// Harness availability (§14.9) is checked before any session work.
+/// Harness availability is checked before any session work.
 #[tokio::test]
 async fn an_unavailable_harness_opens_no_session() {
     let app = test_app().await;

@@ -51,29 +51,29 @@ pub(super) async fn list_operations(
     Ok(Json(s.core.turns().operations(&thread_id).await?))
 }
 
-/// Starts a turn as one command (spec §12.7).
+/// Starts a turn as one command.
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct StartTurn {
-    /// The idempotency key (spec §3.2). A retry sends the same one.
+    /// The idempotency key. A retry sends the same one.
     command_id: String,
     prompt: String,
     #[serde(default)]
     attachments: Vec<shadows_core::AttachmentId>,
     model: String,
     mode: String,
-    /// `null` exactly when the chosen model offers no effort (§12.4).
+    /// `null` exactly when the chosen model offers no effort.
     #[schema(required)]
     effort: Option<String>,
-    /// The task the person points at (§13.9). It must be a task of that plan
+    /// The task the person points at. It must be a task of that plan
     /// version, which must be this thread's; it is kept with the message and
     /// told to the Planner. Part of the command: the same `command_id` with
     /// another focus is `COMMAND_CONFLICT`.
     #[serde(default)]
     focus: Option<Focus>,
-    /// The plan the person opened this conversation to continue (§16.4).
+    /// The plan the person opened this conversation to continue.
     #[serde(default)]
     plan: Option<PlanId>,
-    /// The sending tab's id, made once per page load (§13.9). Kept in memory
+    /// The sending tab's id, made once per page load. Kept in memory
     /// for the turn only, so a `plan-show` frame can name it; not part of the
     /// command, never stored.
     #[serde(default)]
@@ -115,14 +115,14 @@ pub(super) struct TurnStarted {
 /// Starts a Planner turn. The turn runs in the thread's project directory and
 /// continues the thread's harness session; neither is the client's to name.
 ///
-/// Spec §3.3: a long-running command answers 202 with an operation id, and the
+/// A long-running command answers 202 with an operation id, and the
 /// operation reaches its terminal outcome later — watch it on
-/// `/api/subscribe`. Spec §12.7: the prompt, the operation, its invocation
+/// `/api/subscribe`. The prompt, the operation, its invocation
 /// and the command record commit together, after every check; a check that
 /// fails writes nothing. A retry with the same `command_id` and body answers
 /// the first operation and starts nothing, even while the daemon stops.
 ///
-/// A daemon that has begun to stop refuses a new turn with 503 (spec §8.5).
+/// A daemon that has begun to stop refuses a new turn with 503.
 #[utoipa::path(
     post,
     path = "/api/threads/{id}/turns",
@@ -184,7 +184,7 @@ pub(super) async fn start_turn(
 
 /// Stops a turn: asks the harness to cancel it, and if the harness does not
 /// confirm in time, terminates the adapter's process tree, confirms it is
-/// gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers
+/// gone, and only then records it `Cancelled`. Answers
 /// with the operation as it now stands — which may still be `Running` for a
 /// moment when the turn had already ended on its own and its ending is being
 /// recorded.

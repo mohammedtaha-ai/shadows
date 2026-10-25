@@ -32,7 +32,7 @@ newtype_id! {
     PlanId
 }
 
-/// Spec §16.2. An `Archived` plan is read, never written.
+/// An `Archived` plan is read, never written.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
 )]
@@ -41,12 +41,11 @@ pub enum PlanState {
     Archived,
 }
 
-/// Spec §16.3: who wrote a version, recorded once when it was created.
+/// Who wrote a version, recorded once when it was created.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum WrittenBy {
-    /// The internal Planner: its conversation, and the turn when one was
-    /// recorded (none before migration 0012).
+    /// The internal Planner: its conversation and the turn, when recorded.
     Planner {
         thread_id: ThreadId,
         thread_title: String,
@@ -60,7 +59,7 @@ pub enum WrittenBy {
     External { grant_id: GrantId },
 }
 
-/// Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never
+/// A `Draft` is edited; a `Frozen` version is approved and never
 /// changes again. The web client shows `Frozen` as "Approved".
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
@@ -70,7 +69,7 @@ pub enum WorkflowState {
     Frozen,
 }
 
-/// Spec §13.3. How a link's `task` waits for its `after`.
+/// How a link's `task` waits for its `after`.
 #[derive(
     Debug,
     Clone,
@@ -110,7 +109,7 @@ impl Model {
     }
 }
 
-/// Spec §13.3. One sentence someone can check, numbered within its task.
+/// One sentence someone can check, numbered within its task.
 #[derive(
     Debug,
     Clone,
@@ -125,7 +124,7 @@ pub struct AcceptanceItem {
     pub text: String,
 }
 
-/// Spec §13.3. A task as the plan holds it, shown as `T{number}`.
+/// A task as the plan holds it, shown as `T{number}`.
 #[derive(
     Debug,
     Clone,
@@ -146,7 +145,7 @@ pub struct TaskContent {
     pub acceptance: Vec<AcceptanceItem>,
 }
 
-/// Spec §13.3. `task` waits for `after`.
+/// `task` waits for `after`.
 #[derive(
     Debug,
     Clone,
@@ -188,7 +187,7 @@ pub struct PlanTask {
     pub content: TaskContent,
 }
 
-/// The edit that set a version's current revision (§13.10's plan read).
+/// The edit that set a version's current revision.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct LastEdit {
     pub revision: i64,
@@ -196,7 +195,7 @@ pub struct LastEdit {
     pub changed_tasks: Vec<u32>,
 }
 
-/// One stored version of a plan, as a reader sees it now (§13.2).
+/// One stored version of a plan, as a reader sees it now.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Plan {
     #[serde(default)]
@@ -205,10 +204,10 @@ pub struct Plan {
     pub plan_id: PlanId,
     pub plan_state: PlanState,
     pub project_id: ProjectId,
-    /// Who wrote this version (§16.3).
+    /// Who wrote this version.
     pub written_by: WrittenBy,
-    /// Why this version was started (§16.3): `None` for v1, and for a version
-    /// from before migration 0012, which reads "Reason not recorded".
+    /// Why this version was started: `None` for v1 or when no reason is recorded.
+    /// A missing reason is displayed as "Reason not recorded".
     pub change_reason: Option<String>,
     pub version: i64,
     pub revision: i64,
@@ -255,7 +254,7 @@ impl Plan {
 }
 
 /// What an edit did, fixed when it committed, so a replay answers exactly
-/// that and not the plan as it is later (§13.5).
+/// that and not the plan as it is later.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct EditOutcome {
     pub workflow_id: WorkflowId,
@@ -274,7 +273,7 @@ pub struct DraftStarted {
     pub version: i64,
 }
 
-/// What an approval did, fixed when it committed (§13.2, §13.5).
+/// What an approval did, fixed when it committed.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Approved {
     pub workflow_id: WorkflowId,
@@ -295,7 +294,7 @@ pub struct PlanListing {
     pub updated_at: String,
 }
 
-/// One plan with every version, oldest first (§16.10's GET /api/plans/{id}).
+/// One plan with every version, oldest first.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct PlanVersions {
     pub plan_id: PlanId,

@@ -1,7 +1,5 @@
-//! What §16 adds to a plan's versions (spec §16.2, §16.3): one Draft per
-//! plan held by the database, a reason from v2 on, and the writer an
-//! approval speaks to. Split from `plan_storage.rs`, which holds §13's
-//! version rules.
+//! A plan's lifecycle: one Draft per plan held by the database, a reason
+//! from v2 on, and the writer an approval speaks to.
 
 use serde_json::json;
 use shadows_core::testing::Anchor;
@@ -20,7 +18,7 @@ use plan::{
     planner, writer_ctx,
 };
 
-/// §16.2: one Draft per plan, held by the database. The second start answers
+/// One Draft per plan, held by the database. The second start answers
 /// the first's Draft.
 #[tokio::test]
 async fn two_starts_make_one_draft() {
@@ -49,7 +47,7 @@ async fn two_starts_make_one_draft() {
     assert_eq!(drafts, 1);
 }
 
-/// §16.3: v2 needs its reason, refused INVALID_COMMAND without one; v1 has
+/// V2 needs its reason, refused INVALID_COMMAND without one; v1 has
 /// none, and a Draft answered again keeps the reason it was started with.
 #[tokio::test]
 async fn a_new_version_needs_its_reason() {
@@ -144,7 +142,7 @@ async fn first_start(app: &App, writer: &Writer) -> DraftStarted {
         .unwrap()
 }
 
-/// §13.5, §16.3: an identical retry of a Planner's first start still answers
+/// An identical retry of a Planner's first start still answers
 /// v1 after approval; it does not start v2.
 #[tokio::test]
 async fn a_retried_first_start_answers_its_v1() {
@@ -166,7 +164,7 @@ async fn a_retried_first_start_answers_its_v1() {
     assert_eq!(versions, 1);
 }
 
-/// §16.3: a person's approval of an external agent's version has no
+/// A person's approval of an external agent's version has no
 /// conversation to speak in.
 #[tokio::test]
 async fn approving_an_external_version_writes_no_entry() {

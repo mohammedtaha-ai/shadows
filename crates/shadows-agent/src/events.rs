@@ -22,13 +22,13 @@ pub enum HarnessEvent {
         /// Claude's name for the tool (`_meta.claudeCode.toolName`): `Read`,
         /// `Agent`, `SubagentHandback` …
         tool: Option<String>,
-        /// The Agent call this call is a step of (`parentToolUseId`, §22.1).
+        /// The Agent call this call is a step of (`parentToolUseId`).
         parent: Option<String>,
-        /// What an Agent call told of its subagent (§22.1); `None` for any
+        /// What an Agent call told of its subagent; `None` for any
         /// other tool.
         agent: Option<Box<AgentFacts>>,
     },
-    /// A subagent's card changed while its turn runs (§22.2). Sent by the
+    /// A subagent's card changed while its turn runs. Sent by the
     /// Planner's watcher, not the connection, as `TurnEnd` is.
     Subagent(SubagentCard),
     PermissionRefused {
@@ -42,11 +42,11 @@ pub enum HarnessEvent {
         cost: Option<UsageCost>,
     },
     Options(Value),
-    /// The harness's complete `/` list (§21), sent after the session opens
+    /// The harness's complete `/` list, sent after the session opens
     /// and whenever it changes, between turns too.
     Commands(Vec<SlashCommand>),
     /// The harness named its session: a `session_info_update` carrying a
-    /// `title` (§12.3). Sent between turns too, when nobody reads the
+    /// `title`. Sent between turns too, when nobody reads the
     /// thread's events: the adapter generates it after the turn has answered.
     SessionTitle {
         title: String,
@@ -60,7 +60,7 @@ pub enum HarnessEvent {
     },
 }
 
-/// One entry of the harness's `/` list (spec §21.1): a skill, a plugin
+/// One entry of the harness's `/` list: a skill, a plugin
 /// command or a built-in command, with no field saying which.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct SlashCommand {

@@ -1,4 +1,4 @@
-//! One job: the harness and session-choice routes (spec §12.4, §12.10).
+//! One job: the harness and session-choice routes.
 //!
 //! `GET /api/harnesses` lists the CLIs a conversation can run on; `POST
 //! /api/threads/{id}/session` opens a thread's harness session and answers
@@ -72,12 +72,12 @@ pub(super) async fn list_harnesses(
     Ok(Json(s.core.harness().list().await?))
 }
 
-/// Opens the thread's harness session (spec §12.2) and answers what it
+/// Opens the thread's harness session and answers what it
 /// offers. Idempotent: an open session answers what it holds. A client calls
 /// it when it shows the conversation, so the menus are ready before the
 /// first message. It carries no `command_id` and records no command, entry
 /// or operation. An opening that starts an adapter issues the thread's MCP
-/// grant (spec §13.7): an `mcp_grant` row and a durable `McpGrantIssued`
+/// grant: an `mcp_grant` row and a durable `McpGrantIssued`
 /// event, after revoking with `McpGrantRevoked` the grant of any closed
 /// adapter it replaces; an opening that fails revokes the grant it issued.
 /// A session already open writes nothing.
@@ -113,21 +113,21 @@ pub(super) async fn open_session(
     Ok(Json(s.core.harness().open_session(&thread).await?))
 }
 
-/// The model a person picked (spec §12.7).
+/// The model a person picked.
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct ChangeModel {
     /// One of the session's `models`.
     model: String,
 }
 
-/// Sets the thread's session to `model` as soon as a person picks it (spec
-/// §12.7), opening the session first if it is not open, and answers its
+/// Sets the thread's session to `model` as soon as a person picks it, opening the session first if
+/// it is not open, and answers its
 /// choices exactly as `POST .../session` does — the efforts are now the new
 /// model's. The change itself writes nothing durable and no `command_id` is
 /// carried: setting the same model twice is the same state, and a turn
 /// records its model in its own invocation. An opening it causes writes what
 /// `POST .../session` writes (the thread's MCP grant and its events). The
-/// remembered settings do not move (§12.4); when the session moves to the
+/// remembered settings do not move; when the session moves to the
 /// model, it is set to that model's remembered effort if still offered.
 /// A running turn's session is not changed (`THREAD_BUSY`).
 #[utoipa::path(
@@ -171,18 +171,18 @@ pub(super) async fn change_model(
     Ok(Json(choices))
 }
 
-/// The effort a person picked (spec §12.7).
+/// The effort a person picked.
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct ChangeEffort {
     /// One of the session's `efforts`, for the model it holds.
     effort: String,
 }
 
-/// Sets the thread's session to `effort` as soon as a person picks it (spec
-/// §12.7), as `PUT .../session/model` sets a model: it opens the session
+/// Sets the thread's session to `effort` as soon as a person picks it, as `PUT .../session/model`
+/// sets a model: it opens the session
 /// first if it is not open, answers its choices exactly as `POST
 /// .../session` does, writes nothing durable and carries no `command_id`.
-/// The remembered settings do not move (§12.4).
+/// The remembered settings do not move.
 /// A running turn's session is not changed (`THREAD_BUSY`).
 #[utoipa::path(
     put,
@@ -228,8 +228,8 @@ pub(super) async fn change_effort(
     Ok(Json(choices))
 }
 
-/// The context breakdown of the thread's session, read on demand (spec
-/// §12.8). It is fetched only on an open, idle session that has answered a
+/// The context breakdown of the thread's session, read on demand. It is fetched only on an open,
+/// idle session that has answered a
 /// turn, within five seconds; otherwise it says why it has none. Nothing is
 /// written: no operation, no entry.
 #[utoipa::path(

@@ -1,4 +1,4 @@
-//! Shared apparatus: a waiting message for the queue's store tests (spec §20.2).
+//! Shared apparatus: a waiting message for the queue's store tests.
 
 pub use core_turns::{NewQueued, QueueAnswer};
 

@@ -10,7 +10,7 @@ newtype_id! {
     QueuedMessageId
 }
 
-/// Spec §20.2: a waiting message with the settings it will be sent under.
+/// A waiting message with the settings it will be sent under.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct QueuedMessage {
     pub id: QueuedMessageId,
@@ -25,12 +25,12 @@ pub struct QueuedMessage {
     pub effort: Option<String>,
     pub focus: Option<Focus>,
     pub plan: Option<PlanId>,
-    /// Why the last attempt to send it failed (§20.3), if one did.
+    /// Why the last attempt to send it failed, if one did.
     pub last_error: Option<String>,
     pub created_at: String,
 }
 
-/// Spec §20.2: what queueing answers.
+/// What queueing answers.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 #[expect(
@@ -44,7 +44,7 @@ pub enum Queued {
     Started { operation_id: OperationId },
 }
 
-/// Spec §20.3: what Send now answers.
+/// What Send now answers.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum SentNow {
@@ -84,9 +84,7 @@ impl FailureStage {
     }
 }
 
-/// Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
-/// `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
-/// for reviewability, that follows this task (spec §4.1 OPEN block).
+/// The durable operation record; its thread reference is stored as plain text.
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct Operation {
     pub id: OperationId,
@@ -102,8 +100,8 @@ pub struct Operation {
     pub created_at: String,
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
-    /// What the turn asked of the harness and what it reported (§12.7).
-    /// `None` for an operation from before invocations were recorded.
+    /// What the turn asked of the harness and what it reported.
+    /// `None` when no invocation is recorded.
     #[schema(required)]
     pub invocation: Option<InvocationView>,
 }

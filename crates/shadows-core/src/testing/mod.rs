@@ -1,7 +1,7 @@
 //! What tests in every crate share, and nothing more: the internals a test
 //! drives below the services, the fake adapter and the paths that belong to
 //! this crate. Compiled only with `test-support`, which a crate enables only in
-//! its `[dev-dependencies]` (spec §14.6): a normal build that names
+//! its `[dev-dependencies]`: a normal build that names
 //! `crate::testing` does not compile.
 //!
 //! `acp` builds sessions over the fake adapter, and `turn` starts a Planner
@@ -82,14 +82,13 @@ pub use core_db::DatabaseWrites;
 
 /// The `fake-acp` binary, built once per test process. `CARGO_BIN_EXE_*`
 /// only names binaries of the test's own package, and `fake-acp` is its own
-/// package, so it is located through `escargot` (spec §14.3).
+/// package, so it is located through `escargot`.
 pub fn fake_acp_path() -> std::path::PathBuf {
     static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
     PATH.get_or_init(|| built("fake-acp", "fake-acp")).clone()
 }
 
-/// `shadows-process`'s `tree_probe`, which the daemon tests run as a stand-in
-/// executable (moved here from Task 1's `fixtures/probe.rs`).
+/// `shadows-process`'s `tree_probe`, which daemon tests run as a stand-in executable.
 pub fn tree_probe_path() -> std::path::PathBuf {
     static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
     PATH.get_or_init(|| built("shadows-process", "tree_probe"))
@@ -134,7 +133,7 @@ pub use core_turns::for_tests::{
 
 /// Storage, the runtime and the sessions, which the storage, recovery and
 /// session tests open directly and `CoreParts` is built from. Private to the
-/// crate everywhere else (§14.6).
+/// crate everywhere else.
 pub use crate::app::adapter_version;
 pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};

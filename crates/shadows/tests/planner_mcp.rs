@@ -1,4 +1,4 @@
-//! The Planner's session opens with Shadows (spec §13.7–§13.8): Shadows' MCP
+//! The Planner's session opens with Shadows: Shadows' MCP
 //! server behind a grant per adapter, Shadows' instructions with the
 //! project's appended to Claude Code's prompt, and Shadows' tools
 //! pre-approved. What changes after a session was created reaches it once,
@@ -180,7 +180,7 @@ async fn a_turn_edits_the_plan_through_mcp() {
     );
 }
 
-/// §16.4: conversation B carries on a plan conversation A wrote, with its
+/// Conversation B carries on a plan conversation A wrote, with its
 /// reason; the versions name their own conversations.
 #[tokio::test]
 async fn a_second_conversation_carries_the_plan_on() {
@@ -257,7 +257,7 @@ async fn a_second_conversation_carries_the_plan_on() {
     ));
 }
 
-/// An old habit, leaving workflow_id out, is told what to do.
+/// A call missing workflow_id is told which plan identity to supply.
 #[tokio::test]
 async fn a_planner_without_a_workflow_id_is_told_to_list() {
     let l = listening_app().await;
@@ -368,7 +368,7 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
         json!({ "command_id": "p1", "slug": "demo", "name": "Demo", "directory": dir }),
     )
     .await;
-    // Plan work needs an approved roadmap (§23.6): seeded beside the daemon.
+    // Plan work needs an approved roadmap: seeded beside the daemon.
     let seeded = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let id = shadows_core::ProjectId::from_literal(project["id"].as_str().unwrap());
     shadows_core::AppCore::design_for_tests(std::sync::Arc::new(seeded))
@@ -494,7 +494,7 @@ async fn changed_instructions_reach_the_next_turn_once_as_a_context_block() {
 async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
     let l = listening_app().await;
     report(&l.app).await;
-    // What a Milestone 1 turn recorded: no versions, and a session created
+    // A turn record without versions, with a session created
     // without Shadows' instructions.
     sqlx::query(
         "UPDATE agent_invocation SET prompt_version = NULL,

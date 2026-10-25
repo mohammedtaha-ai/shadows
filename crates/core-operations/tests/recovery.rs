@@ -39,7 +39,7 @@ async fn seed_operation(
         .unwrap();
 }
 
-/// Spec §8.6. A runtime that was lost leaves its operations non-terminal; the
+/// A runtime that was lost leaves its operations non-terminal; the
 /// next runtime resolves them to Interrupted by exact CAS, and never claims
 /// they succeeded, failed, or were cancelled.
 #[tokio::test]
@@ -79,7 +79,7 @@ async fn a_lost_runtimes_operations_become_interrupted() {
     assert_eq!(rows[1].2.as_deref(), Some("PreviousRuntimeEndedDuringRun"));
 }
 
-/// Spec §8.5 and §8.6. An Escalated shutdown records `stopped_at` on purpose
+/// An Escalated shutdown records `stopped_at` on purpose
 /// and leaves work non-terminal. Recovery selects by ownership, not by
 /// `stopped_at`, so that work must still be reconciled. This is the bug the
 /// review caught; the test is what stops it coming back.
@@ -115,7 +115,7 @@ async fn an_escalated_shutdowns_operations_are_not_stranded() {
     assert_eq!(status, "Interrupted");
 }
 
-/// Spec §8.5: `Graceful` is a claim only written when true. §8.6: finding one
+/// `Graceful` is a claim only written when true. Finding one
 /// that owns a non-terminal Operation is a defect, reconciled and reported,
 /// never stranded and never passed over silently.
 ///
@@ -164,7 +164,7 @@ async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
     assert_eq!(anomalies, vec!["op-leaked"]);
 }
 
-/// Spec §8.5, enforced where the claim is written: storage refuses `Graceful`
+/// Storage refuses `Graceful`
 /// for a runtime that owns a non-terminal operation, writes nothing, and still
 /// accepts `Escalated`, which claims nothing. Another runtime's unfinished work
 /// is not this runtime's to answer for, and does not block its `Graceful`.

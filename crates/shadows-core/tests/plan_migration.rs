@@ -1,5 +1,4 @@
-//! Migrations on a database written before them: 0012 (spec §16.9) and 0020
-//! (§23.8). Their own file: `storage_contract` is a named accretion point.
+//! Plan ownership and structured entry migrations on databases lacking their columns.
 
 use std::borrow::Cow;
 use std::str::FromStr;
@@ -140,7 +139,7 @@ async fn exec(pool: &sqlx::SqlitePool, sql: &'static str) {
     sqlx::query(sql).execute(pool).await.unwrap();
 }
 
-/// §16.9: each thread's chain becomes one Active plan with the same version
+/// Each thread's chain becomes one Active plan with the same version
 /// ids, written by that thread, with no reason; an external from-scratch
 /// thread's plan too. Built on the database shape before 0012.
 #[tokio::test]
@@ -270,7 +269,7 @@ async fn migration_0012_moves_every_version_into_a_plan() {
     assert!(insert.to_string().contains(FROZEN), "{insert}");
 }
 
-/// §23.8: tool and subagent bodies become their own kinds; anything else,
+/// Tool and subagent bodies become their own kinds; anything else,
 /// including a subagent body whose JSON is broken, is left as it was.
 #[tokio::test]
 async fn migration_0020_moves_tool_and_subagent_bodies_into_their_kinds() {
@@ -295,8 +294,7 @@ async fn migration_0020_moves_tool_and_subagent_bodies_into_their_kinds() {
         (2, format!("[subagent: {card}]")),
         (3, "[subagent: {broken]".to_string()),
         (4, "plain text".to_string()),
-        // The old web parser matched `[tool: ` and `[subagent: ` exactly, in
-        // lower case; SQLite's LIKE does not, so these must stay text.
+        // Migration markers are case-sensitive; SQLite's LIKE is not, so these stay text.
         (5, "[Tool: kept as text]".to_string()),
         (6, format!("[SUBAGENT: {card}]")),
         // The title is everything between the first `[tool: ` and the last `]`.

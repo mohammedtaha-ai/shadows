@@ -1,5 +1,5 @@
 //! Shared apparatus: starting a Planner turn without HTTP, the way the turn
-//! route does (spec §12.7) — the operation is committed by
+//! route does — the operation is committed by
 //! `Storage::start_turn`, then `PlannerTurn::start` runs it.
 
 use std::sync::Arc;

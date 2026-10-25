@@ -1,4 +1,4 @@
-//! One job: steering a `steerable` prompt that waits for `_session/steering` (spec §20.1).
+//! One job: steering a `steerable` prompt that waits for `_session/steering`.
 
 use std::sync::atomic::Ordering;
 

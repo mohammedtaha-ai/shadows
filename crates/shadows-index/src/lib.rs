@@ -1,4 +1,4 @@
-//! One job: turning one file's text into its tags (spec §15.3). It knows
+//! One job: turning one file's text into its tags. It knows
 //! nothing of SQLite, projects or the daemon.
 
 mod extract;

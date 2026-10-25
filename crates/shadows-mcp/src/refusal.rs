@@ -1,4 +1,4 @@
-//! One job: what a tool call answers (spec §13.6, the second error layer).
+//! One job: what a tool call answers at the tool-result error layer.
 //!
 //! Once a tool has started, it answers a result, never a JSON-RPC error: its
 //! JSON as text (the code tools' own lines, as they are), or `isError` with
@@ -26,7 +26,7 @@ impl Refusal {
         }
     }
 
-    /// A plan, thread or ref outside what the grant reaches (§13.6).
+    /// A plan, thread or ref outside what the grant reaches.
     pub(super) fn scope(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::GrantScope, message)
     }
@@ -76,8 +76,7 @@ impl Refusal {
 
 impl From<CoreError> for Refusal {
     /// A storage failure keeps the text written above; a service's own refusal
-    /// keeps its code and text; anything else, which no tool meets in this
-    /// milestone, answers its code and its own words.
+    /// keeps its code and text; other failures answer their code and words.
     fn from(e: CoreError) -> Self {
         let code = e.code();
         match e {

@@ -58,7 +58,7 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
         TurnEnd::Ended
     );
     let events = drain(&mut ev);
-    // The fake's `/` list (§21.1) is one of the events, wherever it falls.
+    // The fake's `/` list is one of the events, wherever it falls.
     assert!(
         events
             .iter()

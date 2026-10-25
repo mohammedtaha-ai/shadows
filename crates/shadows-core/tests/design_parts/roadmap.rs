@@ -1,4 +1,4 @@
-//! §23.5 roadmap proposals: structure first, one card, approval opens the plans stage.
+//! Roadmap proposals: structure first, one card, approval opens the plans stage.
 use super::*;
 use shadows_core::{
     ErrorCode, Grant, OutcomeContent, OutcomeId, ProposalStatus, ProposedOutcome, RoadmapAction,

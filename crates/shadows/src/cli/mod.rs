@@ -9,7 +9,7 @@ use crate::config::Config;
 use shadows_core::{AppCore, StartConfig};
 use shadows_http::AppState;
 
-/// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
+/// Binds, prints exactly one address, and serves. It never opens a
 /// browser. The user chooses which browser to use.
 pub async fn serve(config: Config) -> anyhow::Result<()> {
     let desktop = config
@@ -17,9 +17,9 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         .as_ref()
         .map(|launch| crate::desktop_runtime::DesktopRuntime::claim(launch, config.bind))
         .transpose()?;
-    // Bound first (§14.4): a grant's `claude mcp add` names the address
+    // Bound first: a grant's `claude mcp add` names the address
     // actually bound, which differs from `config.bind` when that asks for port
-    // 0, and every Planner session opens with that `/mcp` (§13.8). A daemon
+    // 0, and every Planner session opens with that `/mcp`. A daemon
     // that cannot bind stops here, before recovery touches anything.
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     let addr = listener.local_addr()?;
@@ -63,7 +63,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         println!("shadows serve debug log: {}", path.display());
     }
 
-    // Spec §8.5: shutdown reuses the cancellation path. There is no drain mode.
+    // Shutdown reuses the cancellation path. There is no drain mode.
     // The listener keeps accepting until this future returns — axum stops
     // accepting only then — so a turn requested meanwhile is refused by the
     // closed registry, not by the socket.
@@ -103,8 +103,8 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The daemon's whole router: the HTTP routes with `/mcp` mounted (spec
-/// §14.5). `/mcp` reaches the same application as the HTTP routes, because
+/// The daemon's whole router: the HTTP routes with `/mcp` mounted. `/mcp` reaches the same
+/// application as the HTTP routes, because
 /// both are built from the `AppState`'s one `AppCore`. `serve` serves it, and
 /// the tests drive it, so both run one wiring.
 pub fn router(state: AppState) -> axum::Router {
@@ -113,7 +113,7 @@ pub fn router(state: AppState) -> axum::Router {
 }
 
 /// How long shutdown waits for every owned operation to be confirmed terminal
-/// before it records `Escalated` instead of `Graceful` (§8.5). A terminated
+/// before it records `Escalated` instead of `Graceful`. A terminated
 /// tree is reaped, and its outcome written, in milliseconds; the bound exists
 /// for the turn that never confirms, so a daemon told once to stop still ends.
 const CONFIRMATION_BOUND: Duration = Duration::from_secs(10);

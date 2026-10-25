@@ -1,5 +1,4 @@
-//! Spec §14.9: the harness routes answer the same after moving into `Harness`,
-//! and a model change keeps its order: the harness is checked, then the
+//! Harness routes preserve model-change ordering: the harness is checked, then the
 //! thread's busyness, before any session is touched.
 
 use shadows_core::testing::acp;
@@ -17,7 +16,7 @@ async fn put_model(app: &App, thread: &str, model: &str) -> (u16, Value) {
     call(app, "PUT", &path, Some(json!({ "model": model }))).await
 }
 
-/// Busy (§14.9): a model change while a turn runs is THREAD_BUSY, and the
+/// Busy: a model change while a turn runs is THREAD_BUSY, and the
 /// running turn's session keeps the model it holds. Stopping the turn then
 /// records `Cancelled`. Either check alone refuses it (the early one at once,
 /// the lease after its wait), so this pins the answer, not which check gave it.
@@ -39,7 +38,7 @@ async fn change_model_is_refused_while_a_turn_runs() {
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
 }
 
-/// Busy, under the lease (§14.9): whoever holds the session's events has it
+/// Busy, under the lease: whoever holds the session's events has it
 /// to itself, even with no operation for the early check to see (a `/context`
 /// read, or a turn taking the session between the check and the change). The
 /// change waits out the lease, is THREAD_BUSY, and leaves the model alone;
@@ -93,7 +92,7 @@ async fn change_model_on_a_busy_thread_opens_no_session() {
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
 }
 
-/// Harness availability (§14.9) is checked before any session work.
+/// Harness availability is checked before any session work.
 #[tokio::test]
 async fn change_model_on_an_unavailable_harness_opens_no_session() {
     let app = test_app().await;

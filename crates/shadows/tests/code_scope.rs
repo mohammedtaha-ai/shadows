@@ -1,4 +1,4 @@
-//! What a code question may read (spec §15.5–§15.7): the asker's project and
+//! What a code question may read: the asker's project and
 //! the projects it links to, one way, over MCP and over HTTP alike.
 
 use std::time::Duration;

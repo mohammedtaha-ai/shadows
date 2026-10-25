@@ -217,8 +217,7 @@ async fn value_absent_from_db_wal_shm_and_command_record() {
 #[tokio::test]
 async fn reserved_name_can_be_removed() {
     let w = world().await;
-    // A row stored before its name became reserved fails the opening, which
-    // names it; removing it must stay possible.
+    // A stored row with a reserved name fails opening; removal must stay possible.
     assert!(
         w.secrets
             .remove_env("r".into(), "aylul", "ANTHROPIC_BASE_URL")

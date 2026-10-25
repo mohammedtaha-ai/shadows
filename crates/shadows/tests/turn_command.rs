@@ -1,4 +1,4 @@
-//! Starting a turn as one command (spec §12.7): one transaction for the entry,
+//! Starting a turn as one command: one transaction for the entry,
 //! the operation, its invocation and the command record; a replay answered
 //! before anything else; every check before any write; the session set to the
 //! turn's settings before the prompt.
@@ -298,7 +298,7 @@ async fn session_model(app: &App) -> String {
     c["current"]["model"].as_str().unwrap().to_string()
 }
 
-/// §12.7: a refused turn leaves no trace, so a model set for it is set back.
+/// A refused turn leaves no trace, so a model set for it is set back.
 #[tokio::test]
 async fn a_refused_effort_leaves_the_session_on_its_model() {
     let app = test_app().await;

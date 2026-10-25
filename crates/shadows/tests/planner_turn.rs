@@ -1,5 +1,5 @@
 //! Full-stack tests for a Planner turn over the thread's ACP connection and
-//! its cancellation interlock (spec §2.3, §8.4, §12.3). `fake_acp` (a
+//! its cancellation interlock. `fake_acp` (a
 //! test-support binary) stands in for Node and the pinned adapter, so these
 //! tests run with nothing installed; its prompts script what the agent does.
 
@@ -372,7 +372,7 @@ async fn a_turn_whose_adapter_cannot_start_writes_nothing() {
     assert!(operations.is_empty(), "{operations:?}");
 }
 
-/// Spec §8.4 case 6. `stop` on an operation this runtime holds no live
+/// `stop` on an operation this runtime holds no live
 /// registration for can only record the request — it must not invent a
 /// confirmation it does not have, and the operation is left non-terminal.
 #[tokio::test]
@@ -403,7 +403,7 @@ async fn stop_without_a_live_turn_records_the_request_and_stays_non_terminal() {
     assert!(loaded.finished_at.is_none());
 }
 
-/// Spec §8.4 case 6 with a live turn whose adapter cannot be terminated. Stop
+/// With a live turn whose adapter cannot be terminated, Stop
 /// must not take an outcome it cannot confirm: the registration stays, so the
 /// still-running tree can be reached again, and nothing terminal is written.
 #[tokio::test]

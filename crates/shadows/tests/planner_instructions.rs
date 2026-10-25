@@ -1,4 +1,4 @@
-//! A project's Planner instructions (spec §13.8): each save a new numbered
+//! A project's Planner instructions: each save a new numbered
 //! version, nothing overwritten, the current one the highest number.
 
 use serde_json::{Value, json};

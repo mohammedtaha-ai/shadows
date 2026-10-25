@@ -1,4 +1,4 @@
-//! The plan's storage contract (spec §13.2–§13.5, §13.15): versions, edits
+//! The plan's storage contract: versions, edits
 //! under a revision check, approval, and commands that answer on replay what
 //! they answered when they committed. Separate from `storage_contract/`, an
 //! accretion point.
@@ -503,7 +503,7 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
     );
 }
 
-/// §13.3: task scope stays in scope_json, separate from its contract.
+/// Task scope stays in scope_json, separate from its contract.
 #[tokio::test]
 async fn reads_and_writes_are_stored_in_scope_json() {
     let app = test_app().await;

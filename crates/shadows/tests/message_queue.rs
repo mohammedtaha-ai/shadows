@@ -1,4 +1,4 @@
-//! Spec §20: writing while a turn runs — the queue and Send now.
+//! Writing while a turn runs — the queue and Send now.
 
 #[path = "fixtures/app.rs"]
 mod app;

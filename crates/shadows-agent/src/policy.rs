@@ -1,16 +1,16 @@
-//! One job: the modes Shadows allows per harness (spec §12.4) — a decision of
+//! One job: the modes Shadows allows per harness — a decision of
 //! Shadows, not a list of what the harness offers.
 //!
 //! What a harness offers comes from its session (`choices.rs`); this file only
 //! says which of those offered modes Shadows lets a turn use at all, and which
 //! harnesses exist. A mode reaches a menu only if it is here, the harness
-//! lists it, and the project allows it (§12.5).
+//! lists it, and the project allows it.
 
 use std::collections::BTreeMap;
 
-/// Claude Code, run through the pinned ACP adapter (§12.2).
+/// Claude Code, run through the pinned ACP adapter.
 pub const CLAUDE_CODE: &str = "claude-code";
-/// Codex: listed, not yet runnable (§12.1).
+/// Codex: listed, not yet runnable.
 pub const CODEX: &str = "codex";
 
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
@@ -42,7 +42,7 @@ pub fn is_known(kind: &str) -> bool {
 }
 
 /// Whether a turn can run on `kind` in this daemon. Claude Code's three paths
-/// are required flags, so a running daemon always has them (§12.4).
+/// are required flags, so a running daemon always has them.
 pub fn is_available(kind: &str) -> bool {
     kind == CLAUDE_CODE
 }
@@ -52,7 +52,7 @@ pub fn is_available_with(kind: &str, aylul_configured: bool) -> bool {
     is_available(kind) || (kind == AYLUL && aylul_configured)
 }
 
-/// What a new project allows: every mode of every harness's policy (§12.5).
+/// What a new project allows: every mode of every harness's policy.
 pub fn default_modes() -> BTreeMap<String, Vec<String>> {
     KNOWN
         .iter()

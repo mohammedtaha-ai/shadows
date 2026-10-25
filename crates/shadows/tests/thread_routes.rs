@@ -1,5 +1,5 @@
-//! A conversation's harness and a project's allowed modes over HTTP (spec
-//! §12.5, §12.6, §12.10): chosen at creation, changeable until the first turn,
+//! A conversation's harness and a project's allowed modes over HTTP: chosen at creation, changeable
+//! until the first turn,
 //! refused outside the policy, and kept across a restart with the remembered
 //! settings and limits.
 
@@ -331,6 +331,6 @@ async fn a_browser_may_send_patch_from_an_allowed_origin() {
         .map(|v| v.to_str().unwrap().to_string())
         .unwrap_or_default();
     assert!(methods.contains("PATCH"), "{methods}");
-    // Picking a model sends a PUT (§12.7); the allowed list is one list.
+    // Picking a model sends a PUT; the allowed list is one list.
     assert!(methods.contains("PUT"), "{methods}");
 }

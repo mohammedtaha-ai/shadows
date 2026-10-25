@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 
 /// `shadows serve` must print exactly one local address and must not open a
-/// browser. Spec §1.0 and §11.1 both require the daemon to stop at printing.
+/// browser. The daemon stops at printing.
 #[test]
 fn serve_prints_one_local_address_and_does_not_open_a_browser() {
     let exe = env!("CARGO_BIN_EXE_shadows");
@@ -17,7 +17,7 @@ fn serve_prints_one_local_address_and_does_not_open_a_browser() {
         .arg(tmp.path().join("shadows.sqlite3"))
         .arg("--bind")
         .arg("127.0.0.1:0")
-        // Required, with no default: spec §1.4 resolves the harness from
+        // Required, with no default: the harness is resolved from
         // explicit configuration and refuses a bare name, which would be a PATH
         // lookup. The version probe may fail; startup records it as unknown.
         .arg("--harness")
@@ -43,7 +43,7 @@ fn serve_prints_one_local_address_and_does_not_open_a_browser() {
         .trim_start_matches("shadows serve listening on http://")
         .to_string();
 
-    // What it serves is an API, not a page (spec §1), and with no
+    // What it serves is an API, not a page, and with no
     // `--allow-origin` it admits Vite's dev server under both of its names.
     let projects = request(&addr, "GET /api/projects HTTP/1.1\r\n");
     let preflights: Vec<String> = shadows::config::DEFAULT_ALLOWED_ORIGINS

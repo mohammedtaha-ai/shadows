@@ -1,4 +1,4 @@
-//! The HTTP surface, driven through the real router (spec §3.3, §1.0).
+//! The HTTP surface, driven through the real router.
 //!
 //! `tests/resync.rs` owns what the stream guarantees and `tests/stream_frames.rs`
 //! what its frames carry; this file owns that each
@@ -103,7 +103,7 @@ async fn create_project(app: &Router, command_id: &str, name: &str) -> (StatusCo
     .await
 }
 
-/// Spec §1: the daemon does not serve or embed a client. There is no page at
+/// The daemon does not serve or embed a client. There is no page at
 /// `/` to fall back on; a client is served from its own origin.
 #[tokio::test]
 async fn the_daemon_serves_no_page() {
@@ -117,7 +117,7 @@ async fn the_daemon_serves_no_page() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
-/// Spec §3.2: the command id is the idempotency key. A replay with the same
+/// The command id is the idempotency key. A replay with the same
 /// body returns the first result; the same id with a different body is a
 /// `CommandConflict`, which the transport maps to 409.
 #[tokio::test]
@@ -190,7 +190,7 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
     let mut seen = String::new();
     read_until(&mut stream, &mut seen, |s| s.contains("event: caught-up")).await;
 
-    // Spec §3.3: a long-running command answers 202 and an operation id.
+    // A long-running command answers 202 and an operation id.
     let (status, started) = call(
         &f.app,
         "POST",
@@ -375,7 +375,7 @@ async fn stopping_an_unknown_operation_is_not_found() {
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
 }
 
-/// Spec §8.4 case 6 over HTTP. A Stop whose tree could not be terminated is a
+/// Over HTTP, a Stop whose tree could not be terminated is a
 /// failure of the daemon, and says so: 500 `PROCESS_TERMINATION_FAILED`, with
 /// the operation left non-terminal — not a 200 carrying a `Running` row that a
 /// client would read as "Stopping" forever.
@@ -438,7 +438,7 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
     );
 }
 
-/// Spec §8.5 says shutdown has no drain mode. A graceful HTTP shutdown still
+/// Shutdown has no drain mode. A graceful HTTP shutdown still
 /// waits for every open response, and a live stream never finishes on its
 /// own — so a daemon with one browser tab open would never exit. The stream
 /// must end when the daemon says it is stopping.
@@ -485,7 +485,7 @@ async fn an_open_live_stream_does_not_hold_up_shutdown() {
         .unwrap();
 }
 
-/// Spec §3.2: a refusal the schema makes is a 409 the client can act on, and
+/// A refusal the schema makes is a 409 the client can act on, and
 /// what reaches the client is written for it — not the driver's text, which
 /// names tables and columns. A thread asked for under a project that does not
 /// exist is missing, not in conflict.

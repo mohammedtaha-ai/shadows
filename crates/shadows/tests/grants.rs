@@ -1,7 +1,7 @@
-//! MCP grants (spec §13.7): a token shown once and stored only as its hash,
+//! MCP grants: a token shown once and stored only as its hash,
 //! thread grants for the Planner and project grants for external agents,
 //! each issued and revoked, and the draft refs an external agent starts
-//! plans with (§13.5).
+//! plans with.
 
 use serde_json::{Value, json};
 use shadows_core::testing::Token;
@@ -404,7 +404,7 @@ async fn a_thread_grant_cannot_name_a_thread_of_another_project() {
     assert_ne!(grant.project_id, app.project);
 }
 
-/// §13.7: the grant a session's opening issues is a durable event of the
+/// The grant a session's opening issues is a durable event of the
 /// thread, and a subscriber reads it at once, not at some later commit.
 #[tokio::test]
 async fn a_sessions_grant_reaches_a_subscriber_live() {

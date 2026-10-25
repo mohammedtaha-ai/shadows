@@ -1,4 +1,4 @@
-//! One job: the application's composition root (spec §14.4) — `AppCore`,
+//! One job: the application's composition root — `AppCore`,
 //! built once and shared as `Arc<AppCore>`.
 //!
 //! Not a global: no `static`, no `OnceLock`, no service locator. The binary
@@ -42,7 +42,7 @@ use core_usage::Usage;
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
 /// are public by design: it is the one way in, and only construction uses it.
-/// Outside the crate it is named only under `test-support` (§14.6): its
+/// Outside the crate it is named only under `test-support`: its
 /// fields are the internals no adapter reaches.
 pub struct CoreParts {
     pub secrets: Arc<Secrets>,
@@ -52,7 +52,7 @@ pub struct CoreParts {
     pub sessions: Arc<Harness>,
     pub handles: Arc<LiveHandles>,
     pub bus: Bus,
-    /// What `plan_show` signals the tab that sent the turn (§13.9): live
+    /// What `plan_show` signals the tab that sent the turn: live
     /// only, never stored.
     pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     /// `http://<bound address>/mcp`: what a grant's `claude mcp add` names.
@@ -265,7 +265,7 @@ impl AppCore {
     /// Opens storage, starts the runtime (recovery), revokes every thread
     /// grant, reads the harness versions, and builds the sessions on
     /// `mcp_url`. The caller binds first: `mcp_url` names the bound address,
-    /// and a daemon that cannot bind must not run recovery (§14.4).
+    /// and a daemon that cannot bind must not run recovery.
     pub async fn start(config: &StartConfig, mcp_url: String) -> anyhow::Result<Arc<AppCore>> {
         let storage = Arc::new(Storage::open(&config.db_path).await?);
         let secrets = Secrets::new(storage.clone(), config.secret_key.clone());
@@ -274,7 +274,7 @@ impl AppCore {
         let operations = Operations::new(storage.clone());
         operations.recover(runtime.instance_id()).await?;
         let runtime = Arc::new(runtime);
-        // Spec §13.7: a Planner's grant lives as long as its adapter, and every
+        // A Planner's grant lives as long as its adapter, and every
         // adapter of an earlier daemon is gone. Before anything is served.
         // The one `Grants`: it revokes here, before the sessions exist, and
         // then belongs to the core.
@@ -286,7 +286,7 @@ impl AppCore {
         let adapter_version = adapter_version(&config.adapter_path);
         tracing::info!(adapter_version, claude_version = %version, "harness.versions");
         // Every Planner session opens with the `/mcp` of the address actually
-        // bound (§13.8), which differs from the configured one on port 0.
+        // bound, which differs from the configured one on port 0.
         let projects = Projects::new(storage.clone());
         let owners = Self::build_aylul_owners(
             storage.clone(),
@@ -337,8 +337,8 @@ impl AppCore {
             standards,
             projects,
         );
-        // §15.8: the active set is chosen and the workers spawned; `serve`
-        // waits for no scan. The index never stops the daemon (§15.4).
+        // The active set is chosen and the workers spawned; `serve`
+        // waits for no scan. The index never stops the daemon.
         if let Err(error) = core.code.start(CodeConfig::default()).await {
             tracing::warn!(error = %error, "code.start_failed");
         }
@@ -521,11 +521,9 @@ impl AppCore {
         &self.code
     }
 
-    /// First `Code`'s watchers and workers stop (§15.8), each after the file
-    /// it is on; then §8.5 through `turns::shut_down(runtime, handles,
-    /// sessions, bound, second_signal)`, unchanged: every running turn is
-    /// stopped and every adapter closed. The binary keeps the signals and the
-    /// transport.
+    /// Stops Code's watchers and workers after their current file, then asks
+    /// Turns to stop every running turn and close every adapter. The binary
+    /// owns the signals and transport.
     pub async fn shut_down(
         &self,
         bound: Duration,
@@ -536,7 +534,7 @@ impl AppCore {
     }
 }
 
-/// Spec §1.4: read the harness's self-reported version and record it. The
+/// Read the harness's self-reported version and record it. The
 /// measured stream contract belongs to one installation at one version.
 ///
 /// It goes through `process::spawn` rather than `tokio::process` directly:

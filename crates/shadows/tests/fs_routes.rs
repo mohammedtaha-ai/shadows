@@ -1,4 +1,4 @@
-//! The disk routes a client uses to choose a project directory (spec §1),
+//! The disk routes a client uses to choose a project directory,
 //! driven through the real router against temporary directories: what a
 //! listing contains and in what order, where browsing starts, what creating a
 //! directory refuses, and that every refusal is a 4xx with a stable code.
@@ -260,7 +260,7 @@ async fn a_name_that_is_not_one_valid_component_is_refused() {
 }
 
 /// Axum refuses a malformed request before any handler runs, and answers it in
-/// plain text of its own. A client matches on codes (spec §3.4), so those
+/// plain text of its own. A client matches on codes, so those
 /// refusals carry the same `ErrorBody` as every other error.
 #[tokio::test]
 async fn a_request_refused_before_its_handler_still_answers_an_error_body() {

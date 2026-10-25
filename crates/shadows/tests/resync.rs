@@ -1,4 +1,4 @@
-//! Spec §2.10: durable replay, then a no-gap handoff to live, then
+//! Durable replay, then a no-gap handoff to live, then
 //! de-duplication by durable sequence.
 //!
 //! The first two tests own the replay half — what a cursor means and what
@@ -84,7 +84,7 @@ fn user_message(body: &str) -> NewThreadEntry<'_> {
     }
 }
 
-/// Spec §2.10. Reading after a cursor returns exactly the events the client has
+/// Reading after a cursor returns exactly the events the client has
 /// not seen, in sequence order, with no gap and no repeat.
 #[tokio::test]
 async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
@@ -162,7 +162,7 @@ async fn a_zero_cursor_replays_the_whole_thread() {
     assert_eq!(all[1].kind, "ThreadEntryAppended");
 }
 
-/// Spec §2.10's second clause, and the only one that can observe a gap.
+/// The handoff from replay to live delivery must leave no gap.
 ///
 /// The subscription is taken while the handler is still running, before a
 /// single durable row is read. This test publishes a live item in the window
@@ -213,7 +213,7 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
     );
 }
 
-/// Spec §2.4's live publication after commit, seen from the stream: a durable
+/// Live publication after commit, seen from the stream: a durable
 /// event committed after the handoff reaches a connected client, with its
 /// `seq`, without reconnecting.
 #[tokio::test]
@@ -241,7 +241,7 @@ async fn a_durable_event_committed_after_the_handoff_arrives_live() {
     assert_eq!(durable_seqs(&text).last(), Some(&seq), "{text}");
 }
 
-/// Spec §2.10's no-gap handoff for durable events. The entry is committed
+/// The handoff for durable events leaves no gap. The entry is committed
 /// after both live subscriptions exist and before the replay task has run, so
 /// it is reachable from both the replay and the live phase's re-read. It must
 /// arrive exactly once: not lost between them, and not repeated by both.
@@ -293,7 +293,7 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     assert_eq!(seqs, deduped, "no durable event is repeated: {text}");
 }
 
-/// Spec §2.10, §14.8: a client that reconnects with the last `seq` it applied
+/// A client that reconnects with the last `seq` it applied
 /// resumes exactly there. It is sent every durable event after that `seq`,
 /// in order, and none it already had; `caught-up` then names the last.
 #[tokio::test]
@@ -386,7 +386,7 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     );
 }
 
-/// Spec §6.18 scope semantics, seen from the client: an operation's
+/// Event scope, seen from the client: an operation's
 /// transitions reach its thread's stream as `durable` events — the start in the
 /// replay, the terminal transition live.
 #[tokio::test]

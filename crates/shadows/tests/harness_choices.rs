@@ -1,7 +1,7 @@
-//! The choices a thread's session offers (spec §12.4): read from the harness,
+//! The choices a thread's session offers: read from the harness,
 //! filtered by Shadows' policy and the project's modes, started at the
 //! remembered model and effort when the harness still offers them; and the
-//! harness list (§12.10).
+//! harness list.
 
 use serde_json::{Value, json};
 use shadows_agent::policy;
@@ -178,7 +178,7 @@ async fn put_model(app: &app::App, model: &str) -> (u16, Value) {
     .await
 }
 
-/// §12.7: a picked model is set at once, so the efforts answered are its own
+/// A picked model is set at once, so the efforts answered are its own
 /// before any turn; the session need not be open, and nothing is remembered.
 #[tokio::test]
 async fn picking_a_model_answers_that_models_efforts() {

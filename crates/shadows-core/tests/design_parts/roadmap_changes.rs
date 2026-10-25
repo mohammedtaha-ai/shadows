@@ -1,4 +1,4 @@
-//! §23.5 roadmap changes after the first: add, change and remove one outcome,
+//! Roadmap changes after the first: add, change and remove one outcome,
 //! each outdated only by its own outcome or the parts it references.
 use super::roadmap::{Fixture, refused};
 use super::*;

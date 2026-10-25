@@ -1,4 +1,4 @@
-//! One job: the routes of a conversation's waiting messages (spec §20.5).
+//! One job: the routes of a conversation's waiting messages.
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -13,7 +13,7 @@ use super::{AppState, Failure};
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct CommandParam {
-    /// The idempotency key (spec §3.2).
+    /// The idempotency key.
     command_id: String,
 }
 
@@ -69,7 +69,7 @@ pub(super) async fn queued(
 pub(super) struct SendNowBody {
     #[serde(default)]
     attachments: Vec<shadows_core::AttachmentId>,
-    /// The idempotency key (spec §3.2).
+    /// The idempotency key.
     command_id: String,
 }
 

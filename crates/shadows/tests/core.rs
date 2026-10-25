@@ -1,4 +1,4 @@
-//! Spec §14.4: the application is one `AppCore`; adapters and shutdown reach it through that.
+//! The application is one `AppCore`; adapters and shutdown reach it through that.
 
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
@@ -39,8 +39,7 @@ async fn shut_down_through_the_core_cancels_and_records() {
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
 }
 
-/// Spec §14.9: a grant issued and revoked through the routes, and the bearer
-/// check on `/mcp`, answer as they did before `Grants` owned them.
+/// A grant revoked through the routes is refused by the bearer check on `/mcp`.
 #[tokio::test]
 async fn revoked_grant_is_refused_after_the_move() {
     let l = listening_app().await;
@@ -76,11 +75,8 @@ async fn revoked_grant_is_refused_after_the_move() {
     assert_eq!(response.text().await.unwrap(), "");
 }
 
-/// A replayed issue or revoke matches a command an earlier daemon recorded
-/// only when its principal, kind, schema version and fingerprint parameters
-/// are the ones that daemon used. This reads the command log and compares it
-/// with each command's parameters as the code before the move wrote them
-/// (§14.9).
+/// Grant issue and revoke commands persist the principal, kind, schema version
+/// and normalized parameters needed to recognize a replay across daemon restarts.
 #[tokio::test]
 async fn grant_command_fingerprints_do_not_move() {
     let app = test_app().await;
@@ -128,7 +124,7 @@ async fn grant_command_fingerprints_do_not_move() {
     assert_eq!(recorded, expected);
 }
 
-/// Spec §14.9: a project create sent twice answers the first project, and two
+/// A project create sent twice answers the first project, and two
 /// spellings of one folder are one request, because the directory is resolved
 /// before the fingerprint is taken; another body under the same id conflicts.
 #[tokio::test]
@@ -156,11 +152,8 @@ async fn project_create_replays_after_the_move() {
     assert_eq!(conflict["code"], "COMMAND_CONFLICT");
 }
 
-/// A replayed project, thread or instructions command matches one an earlier
-/// daemon recorded only when its principal, kind, schema version and
-/// fingerprint parameters are the ones that daemon used. This reads the
-/// command log and compares it with each command's parameters as the code
-/// before the move wrote them (§14.9).
+/// Project, thread and instructions commands persist the principal, kind, schema
+/// version and normalized parameters needed for replay across daemon restarts.
 #[tokio::test]
 async fn project_thread_and_instructions_command_fingerprints_do_not_move() {
     let app = test_app().await;

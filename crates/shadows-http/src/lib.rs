@@ -68,9 +68,9 @@ use shadows_core::AppCore;
 
 #[derive(Clone)]
 pub struct AppState {
-    /// The application every route calls (spec §14.5).
+    /// The application every route calls.
     pub core: Arc<AppCore>,
-    /// Spec §1: the only origins a browser may call this daemon from. Every
+    /// The only origins a browser may call this daemon from. Every
     /// client is cross-origin, because the daemon serves no page. Validated
     /// by `config::allowed_origin` before it gets here.
     pub allowed_origins: Vec<String>,
@@ -81,12 +81,12 @@ pub struct AppState {
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 
-/// Spec §1: the daemon serves no page — there is no `GET /`. A client is
+/// The daemon serves no page — there is no `GET /`. A client is
 /// served from its own origin and reaches this API cross-origin.
 ///
 /// `mcp` is `/mcp` (`shadows_mcp::service`), passed in so this crate does not
-/// depend on the MCP adapter (spec §14.5). It is mounted outside
-/// `rejections_as_error_bodies` and inside the guard, as it always was.
+/// depend on the MCP adapter. It is mounted outside
+/// `rejections_as_error_bodies` and inside the guard.
 pub fn router(state: AppState, mcp: Router) -> Router {
     let cors = cors(&state.allowed_origins);
     let guard = axum::middleware::from_fn_with_state(state.clone(), guard::refuse_foreign_pages);
@@ -98,7 +98,7 @@ pub fn router(state: AppState, mcp: Router) -> Router {
         .layer(axum::middleware::map_response(
             failure::rejections_as_error_bodies,
         ))
-        // `/mcp` is MCP's own transport (§13.6): its refusals are not
+        // `/mcp` is MCP's own transport: its refusals are not
         // `ErrorBody`s, so it joins after that layer and before the guard.
         .merge(mcp)
         // Inside the CORS layer: a preflight is answered before it gets here,
@@ -256,7 +256,7 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
 /// `POST`, `PUT`, `PATCH` and `DELETE` (revoking a grant), JSON bodies, and
 /// `Last-Event-ID`, which a browser's `EventSource` sends when it reconnects a
 /// stream. No credentials: the API
-/// has none to send (spec §1's OPEN block on remote access).
+/// has none to send.
 fn cors(origins: &[String]) -> CorsLayer {
     let origins: Vec<HeaderValue> = origins
         .iter()

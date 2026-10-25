@@ -1,4 +1,4 @@
-//! One job: the routes over a project's roadmap proposals (§23.5), shaped as
+//! One job: the routes over a project's roadmap proposals, shaped as
 //! the map proposal routes in `design.rs` are.
 use super::{AppState, Failure, design::VisionApprove, failure::ErrorBody};
 use axum::{

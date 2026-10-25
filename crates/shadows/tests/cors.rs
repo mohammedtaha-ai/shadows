@@ -1,4 +1,4 @@
-//! Cross-origin access (spec §1): every client is on another origin, so the
+//! Cross-origin access: every client is on another origin, so the
 //! daemon answers a browser only for origins it was configured with. Driven
 //! through the real router; `tests/serve_smoke.rs` checks the binary's default
 //! list reaches it.
@@ -80,7 +80,7 @@ async fn a_preflight_from_an_allowed_origin_is_answered() {
     assert!(headers.contains("content-type"), "{headers}");
 }
 
-/// Revoking a grant is the router's one `DELETE` (spec §13.10). A browser
+/// Revoking a grant is the router's one `DELETE`. A browser
 /// preflights it, so the allowed methods must name it, and the guard, which
 /// judges origins and never methods, lets the web client's own origin send it.
 #[tokio::test]

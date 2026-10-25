@@ -9,7 +9,7 @@ pub struct LimitWindow {
     pub resets_at: i64,
 }
 
-/// The account's limits as last reported by the harness (spec §12.8). A
+/// The account's limits as last reported by the harness. A
 /// window the harness did not report is `None`, never estimated.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct AccountLimits {

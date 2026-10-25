@@ -96,7 +96,7 @@ impl Drop for Bystander {
 /// Stop must kill only what its turn started. The user runs Claude desktop and
 /// other Claude Code sessions on the same machine as Shadows, and those are
 /// processes with the same executable name as a turn's harness. Termination
-/// goes through the containment handle (§1.5, §8.3), so a process outside the
+/// goes through the containment handle, so a process outside the
 /// managed tree is out of its reach — even one running the very same binary,
 /// which is what this bystander is, so that a kill by name would find it.
 ///
@@ -150,7 +150,7 @@ async fn terminating_one_managed_tree_leaves_another_alive() {
     wait_until_gone(&[kept_child, kept_grandchild], "the kept tree").await;
 }
 
-/// Spec §1.5 and §3.7 Layer 4. A managed child and every managed descendant
+/// A managed child and every managed descendant
 /// must not survive termination. A direct-child-only assertion is insufficient,
 /// so the probe builds a real grandchild and checks that one too.
 #[tokio::test]
@@ -243,7 +243,7 @@ async fn waiting_for_the_leader_reaps_any_remaining_grandchild() {
     panic!("grandchild survived a completed managed wait: grandchild={grandchild}");
 }
 
-/// Spec §1.5: the child's stdin is closed. An open stdin that never receives
+/// The child's stdin is closed. An open stdin that never receives
 /// data costs a fixed stall on every turn — measured at three seconds against
 /// the real harness.
 #[tokio::test]
@@ -287,7 +287,7 @@ async fn a_piped_child_echoes_stdin_and_its_tree_is_contained() {
     handle.wait().await.unwrap();
 }
 
-/// Spec §8.4 case 4 turns on one fact and one only: had the process already
+/// Cancellation ownership turns on one fact: had the process already
 /// exited when cancellation arrived. `PlannerTurn::stop` asks `has_exited` and
 /// must get an answer immediately — a wait there would hang cancellation on
 /// the very process it is trying to outlive.

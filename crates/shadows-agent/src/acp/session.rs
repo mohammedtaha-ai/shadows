@@ -14,7 +14,7 @@ pub enum SessionStart {
     Fork(String),
 }
 
-/// What a session opens with (spec §13.8's table): sent alike on
+/// What a session opens with: sent alike on
 /// `session/new`, `session/resume` and a fork's opening. On a resume Claude
 /// Code keeps the `append` its session was created with, but reads
 /// `mcp_servers` again, so a new adapter's grant reaches it.

@@ -58,7 +58,7 @@ async fn fixture() -> (
     (tmp, storage, runtime, thread.id)
 }
 
-/// Spec §2.7. TX #1 persists Pending before anything spawns. A Pending
+/// TX #1 persists Pending before anything spawns. A Pending
 /// Operation is a durable attempt that has not yet claimed a running process.
 #[tokio::test]
 async fn phase_one_persists_pending_before_anything_spawns() {
@@ -78,7 +78,7 @@ async fn phase_one_persists_pending_before_anything_spawns() {
     assert!(loaded.finished_at.is_none());
 }
 
-/// Spec §2.7 and §8.3. The Pending -> Running transition is an exact CAS. It
+/// The Pending -> Running transition is an exact CAS. It
 /// must not fire against an operation owned by a different runtime, and it must
 /// not fire twice.
 #[tokio::test]
@@ -136,7 +136,7 @@ async fn the_running_transition_is_an_exact_compare_and_swap() {
     );
 }
 
-/// Spec §8.3. Prepare failure is not spawn failure: the process never existed.
+/// Prepare failure is not spawn failure: the process never existed.
 /// Keeping them distinct is what makes a diagnosis possible later.
 #[tokio::test]
 async fn prepare_failure_and_spawn_failure_are_distinguishable() {
@@ -179,7 +179,7 @@ async fn prepare_failure_and_spawn_failure_are_distinguishable() {
     assert_eq!(b.failure_stage.as_deref(), Some("Spawn"));
 }
 
-/// Spec §8.6: terminal states never transition again. A retry creates a new
+/// Terminal states never transition again. A retry creates a new
 /// Operation; it does not revive an old one.
 #[tokio::test]
 async fn a_terminal_operation_never_transitions_again() {
@@ -254,9 +254,8 @@ async fn every_transition_appends_its_event_atomically() {
         vec!["OperationCreated", "OperationStarted", "OperationCompleted"]
     );
 
-    // The `before` count was captured and then discarded. Scoping the assertion
-    // to this operation's own rows cannot see an event written against no
-    // operation at all, or against the wrong one — both of which leave `kinds`
+    // Scoping the assertion to this operation's own rows cannot see an event
+    // written against no operation at all, or against the wrong one — both of which leave `kinds`
     // exactly right while the journal has grown by more than these three.
     let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
         .fetch_one(storage.reader())
@@ -269,7 +268,7 @@ async fn every_transition_appends_its_event_atomically() {
     );
 }
 
-/// Spec §2.3. The request and the terminal state are two separate facts in two
+/// The request and the terminal state are two separate facts in two
 /// separate transactions. A request alone leaves the operation non-terminal.
 #[tokio::test]
 async fn a_cancellation_request_does_not_make_an_operation_terminal() {
@@ -296,11 +295,10 @@ async fn a_cancellation_request_does_not_make_an_operation_terminal() {
     assert!(loaded.finished_at.is_none());
 }
 
-/// Spec §2.3. Terminal Cancelled is written only after termination is
+/// Terminal Cancelled is written only after termination is
 /// confirmed, and it is what closes the operation.
-/// Spec §2.3 makes a repeated request idempotent; an operation that does not
-/// exist is not a repeat. Answering `Ok` for it let Stop report success for
-/// an id nobody had ever issued.
+/// A repeated cancellation request is idempotent; an operation that does not
+/// exist is not a repeat: Stop must not report success for an unknown id.
 #[tokio::test]
 async fn a_cancellation_request_for_an_unknown_operation_is_not_found() {
     let (_tmp, storage, _runtime, _thread) = fixture().await;
@@ -361,7 +359,7 @@ async fn cancelled_is_written_after_confirmation_and_closes_the_operation() {
     );
 }
 
-/// Spec §8.4 case 4. A process that exited on its own before cancellation took
+/// A process that exited on its own before cancellation took
 /// termination ownership is Completed by its own exit, not Cancelled. Shadows
 /// does not claim to have stopped something that had already stopped.
 #[tokio::test]
@@ -396,12 +394,12 @@ async fn a_natural_exit_wins_over_an_in_flight_cancellation() {
         "a terminal non-cancelled status may retain request metadata as history"
     );
 
-    // Spec §8.4 case 5 in reverse: the late Cancelled must not overwrite it.
+    // The late Cancelled must not overwrite it.
     let late = shadows_core::Turns::mark_operation_cancelled_for_test(&storage, &op).await;
     assert!(matches!(late, Err(StorageError::TransitionConflict { .. })));
 }
 
-/// Spec §8.4 case 6. If termination cannot be confirmed, the request is
+/// If termination cannot be confirmed, the request is
 /// preserved and Cancelled is NOT written. The operation stays non-terminal
 /// until recovery can make an honest Interrupted transition.
 #[tokio::test]
@@ -443,9 +441,9 @@ async fn unconfirmed_termination_leaves_the_operation_non_terminal() {
     );
 }
 
-/// Spec §6.18 scope semantics. Every operation event carries its operation's
+/// Every operation event carries its operation's
 /// thread, not only its operation — otherwise the thread cursor a client
-/// follows (§2.10) never selects it. All seven operation event kinds are
+/// follows never selects it. All seven operation event kinds are
 /// produced here, across four operations, and every one must name the thread.
 #[tokio::test]
 async fn every_operation_event_is_scoped_to_its_thread() {
@@ -537,9 +535,8 @@ async fn every_operation_event_is_scoped_to_its_thread() {
     }
 }
 
-/// Migration 0002 backfills the thread onto operation events written before
-/// the write path carried it. Reproduced by clearing the column on existing
-/// rows and forgetting that 0002 ran, so the next open applies it again.
+/// Migration 0002 backfills missing thread ids on operation events. Clearing
+/// the column and its migration record makes the next open exercise that backfill.
 #[tokio::test]
 async fn migration_backfills_the_thread_onto_existing_operation_events() {
     let (tmp, storage, runtime, thread) = fixture().await;

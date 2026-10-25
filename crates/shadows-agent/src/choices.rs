@@ -1,4 +1,4 @@
-//! One job: reading the harness's offered choices (spec §12.4).
+//! One job: reading the harness's offered choices.
 //!
 //! The model, effort and mode lists are the harness's own, read from the ACP
 //! session's `configOptions` by category, in the harness's order. Shadows
@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use super::{TurnSettings, policy};
 
-/// One value the session offers for a setting (spec §12.4). `enabled: false`
+/// One value the session offers for a setting. `enabled: false`
 /// carries the `reason` it cannot be chosen.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct Choice {
@@ -21,7 +21,7 @@ pub struct Choice {
     pub reason: Option<String>,
 }
 
-/// What the thread's session offers now (spec §12.4). `efforts` are the
+/// What the thread's session offers now. `efforts` are the
 /// current model's. `modes` are after Shadows' policy; a mode the project does
 /// not allow is present with `enabled: false` and `reason: "Not allowed in
 /// this project"`.

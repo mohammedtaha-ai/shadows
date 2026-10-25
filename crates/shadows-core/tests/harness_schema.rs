@@ -1,4 +1,4 @@
-//! Migration 0005's storage shapes and Shadows' mode policy (spec §12.4-§12.7):
+//! Migration 0005's storage shapes and Shadows' mode policy:
 //! a thread's harness locks at its first operation, below the application too;
 //! a project starts with the policy's modes; an entry names its turn.
 

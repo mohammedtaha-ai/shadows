@@ -1,4 +1,4 @@
-//! Cross-project plan reads use the grant's one-way project links (§16.10).
+//! Cross-project plan reads use the grant's one-way project links.
 
 use serde_json::json;
 use shadows_core::testing::acp;

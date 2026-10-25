@@ -1,4 +1,4 @@
-//! Workspace reads and Planner proposal translation (§23.5).
+//! Workspace reads and Planner proposal translation.
 use super::{
     refusal::{Refusal, answer},
     server::Shadows,

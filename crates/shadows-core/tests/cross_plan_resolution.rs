@@ -1,4 +1,4 @@
-//! Latest-version resolution and cross-plan approval under §16.7.
+//! Latest-version resolution and cross-plan approval.
 
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;

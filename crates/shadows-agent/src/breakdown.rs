@@ -1,4 +1,4 @@
-//! One job: reading Claude's `/context` answer (spec §12.8).
+//! One job: reading Claude's `/context` answer.
 //!
 //! Sent as a prompt, `/context` answers one markdown message whose table
 //! "Estimated usage by category" (`| Category | Tokens | Percentage |`) is the

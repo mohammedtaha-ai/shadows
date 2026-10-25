@@ -12,7 +12,7 @@ use core_projects::DirectoryError;
 use core_turns::StartError;
 
 /// Stable codes clients pattern-match on. Never match on human text.
-/// Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
+/// `Blocked`/`Rejected` are domain outcomes and never appear here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
@@ -53,39 +53,39 @@ pub enum ErrorCode {
     PathAlreadyExists,
     PathUnavailable,
     OriginRefused,
-    /// Spec §12.10: the thread's harness is listed but not runnable.
+    /// The thread's harness is listed but not runnable.
     HarnessUnavailable,
     /// A model, mode or effort the session does not offer, or a mode outside
     /// Shadows' policy.
     SettingNotOffered,
-    /// The project does not allow this mode (§12.5).
+    /// The project does not allow this mode.
     ModeNotAllowed,
-    /// The thread already ran a turn on its harness (§12.6).
+    /// The thread already ran a turn on its harness.
     HarnessLocked,
     /// The thread has a turn running.
     ThreadBusy,
-    /// The waiting message was already sent or removed (§20.5); 404.
+    /// The waiting message was already sent or removed; 404.
     QueuedMessageGone,
-    /// Fork from anything but the last completed entry (§12.9).
+    /// Fork from anything but the last completed entry.
     ForkPointNotSupported,
-    /// A change to a frozen plan version (§13.2); 409.
+    /// A change to a frozen plan version; 409.
     WorkflowFrozenImmutable,
-    /// A check of §13.4 failed; the answer lists each problem; 422.
+    /// Plan validation failed; the answer lists each problem; 422.
     WorkflowValidationFailed,
-    /// `expected_revision` is stale (§13.5); the answer carries the current
+    /// `expected_revision` is stale; the answer carries the current
     /// revision; 409.
     RevisionConflict,
-    /// A project that holds a planning thread is not removed (§4.2); 409.
+    /// A project that holds a planning thread is not removed; 409.
     ProjectHasThreads,
-    /// An MCP call outside its grant's thread or project (§13.6). MCP tool
+    /// An MCP call outside its grant's thread or project. MCP tool
     /// results only: no HTTP route answers it.
     GrantScope,
-    /// An MCP grant unknown, or revoked while its call was in flight (§13.7).
+    /// An MCP grant unknown, or revoked while its call was in flight.
     /// MCP tool results only: no HTTP route answers it.
     GrantInvalid,
 }
 
-/// The one failure a service returns (spec §14.4), in words no adapter owns.
+/// The one failure a service returns, in words no adapter owns.
 /// Each adapter maps it to its own shape — `Failure` for HTTP, `Refusal` for
 /// MCP — and the codes and texts clients see stay exactly what they were.
 #[derive(Debug, thiserror::Error)]
@@ -138,7 +138,7 @@ pub enum CoreError {
     HarnessStartFailed(String),
     #[error("the {0} harness is not available yet")]
     HarnessUnavailable(String),
-    /// `detail`, when given, is the harness's own refusal (§12.4).
+    /// `detail`, when given, is the harness's own refusal.
     #[error("{what} {id} is not offered")]
     SettingNotOffered {
         what: String,

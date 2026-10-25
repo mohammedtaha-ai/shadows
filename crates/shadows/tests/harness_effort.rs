@@ -1,4 +1,4 @@
-//! The effort a thread's session runs at (spec §12.4, §12.7): no `default`
+//! The effort a thread's session runs at: no `default`
 //! asked of the adapter, an effort set as soon as it is picked, and the
 //! effort remembered per model.
 
@@ -28,7 +28,7 @@ fn current(c: &Value) -> (&str, Option<&str>) {
     )
 }
 
-/// §12.4: `initialize` advertises the adapter's `recommendedValue`, under
+/// `initialize` advertises the adapter's `recommendedValue`, under
 /// which it offers no effort or model `default`. What the fake received is
 /// what Shadows sent.
 #[tokio::test]
@@ -43,7 +43,7 @@ async fn initialize_advertises_recommended_value() {
     );
 }
 
-/// §12.7: a picked effort is set at once and answered as `POST /session`
+/// A picked effort is set at once and answered as `POST /session`
 /// answers; twice is the same state, and nothing is remembered.
 #[tokio::test]
 async fn picking_an_effort_sets_it_at_once() {
@@ -89,7 +89,7 @@ async fn a_running_turns_effort_is_not_changed() {
     assert_eq!((s, current(&c)), (200, ("fake-large", Some("low"))));
 }
 
-/// §12.4: a turn remembers its effort for its model. Choosing a model, or
+/// A turn remembers its effort for its model. Choosing a model, or
 /// opening a session, comes back at that model's effort; a model no turn ran
 /// on starts at the harness's current value (the fake's `high`).
 #[tokio::test]

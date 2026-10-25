@@ -1,4 +1,4 @@
-//! Cross-plan link identities under §16.7.
+//! Cross-plan link identities.
 
 use serde_json::json;
 use shadows_core::Link;

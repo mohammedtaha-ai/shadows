@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 use core_db::newtype_id;
 
 newtype_id! {
-    /// Spec §4.1. A project's identity is a UUID, never its directory path:
-    /// §11.1 requires selecting a local directory without that path becoming the
+    /// A project's identity is a UUID, never its directory path:
+    /// Selecting a local directory must not make that path the
     /// project's identity, and the slug is the stable human key.
     ProjectId
 }
@@ -16,14 +16,13 @@ pub struct Project {
     pub id: ProjectId,
     pub slug: String,
     pub name: String,
-    /// Spec §4.2: the directory this project's turns run in, as
-    /// [`ProjectDirectory`] resolved it. `None` only for a project created
-    /// before projects owned one (`migrations/0003_project_directory.sql`);
+    /// The directory this project's turns run in, as
+    /// [`ProjectDirectory`] resolved it. `None` when no directory is recorded;
     /// a turn on such a project fails at Prepare rather than running in the
     /// daemon's own working directory.
     pub directory: Option<String>,
     pub created_at: String,
-    /// Per harness kind, the modes this project's turns may use (spec §12.5).
+    /// Per harness kind, the modes this project's turns may use.
     /// Each list is a set: its order carries no meaning. Every known harness
     /// is present; an empty list means no turn can start on it.
     pub allowed_modes: BTreeMap<String, Vec<String>>,

@@ -1,4 +1,4 @@
-//! A thread remembers its harness session (spec §12.2, §12.3): the first
+//! A thread remembers its harness session: the first
 //! turn's session is recorded once that turn ends, a thread whose adapter was
 //! closed resumes it at its next opening, and another thread has its own.
 //! `fake_acp`'s `report` prompt answers with the session it runs in and how
@@ -167,7 +167,7 @@ async fn a_closed_adapter_resumes_the_session_the_first_turn_started() {
 }
 
 /// A first turn whose adapter had to be terminated never ended, so its
-/// session is not recorded (§12.3): the next turn opens a new one rather than
+/// session is not recorded: the next turn opens a new one rather than
 /// resuming an id the harness may never have stored.
 #[tokio::test]
 async fn a_first_turn_stopped_by_termination_records_no_session() {

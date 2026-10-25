@@ -16,7 +16,7 @@ mod app;
 
 use app::{create_thread, entries_on, fresh_command, test_app};
 
-/// Spec §4.2 (closed by §13.9): the kind is an enum, and each variant is
+/// Entry kinds are stored by name: the kind is an enum, and each variant is
 /// stored as its name, so text written before the enum still reads.
 #[tokio::test]
 async fn every_entry_kind_round_trips_as_its_stored_name() {
@@ -74,7 +74,7 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
     );
 }
 
-/// §13.9: the person's message keeps the task it was about.
+/// The person's message keeps the task it was about.
 #[tokio::test]
 async fn a_task_reference_round_trips() {
     let app = test_app().await;

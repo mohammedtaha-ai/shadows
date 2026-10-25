@@ -13,8 +13,8 @@ use agent_client_protocol::schema::v1::{
 use serde_json::{Value, json};
 use tokio::sync::watch;
 
-/// The `/` list the fake offers after `session/new` and `session/resume`
-/// (§21.1): a built-in command without a hint and a skill with one.
+/// The `/` list the fake offers after `session/new` and `session/resume`: a built-in command
+/// without a hint and a skill with one.
 pub(crate) fn commands() -> Vec<AvailableCommand> {
     vec![
         AvailableCommand::new("compact", "Clear history but keep a summary"),
@@ -101,7 +101,7 @@ pub(crate) struct State {
 pub(crate) type Shared = Arc<Mutex<State>>;
 
 /// The efforts a fake model offers; `fake-tiny` offers none, as Haiku 4.5
-/// does (ACP_PROBE §1).
+/// does.
 pub(crate) fn efforts(model: &str) -> &'static [&'static str] {
     match model {
         "fake-large" => &["low", "high", "max"],
@@ -110,7 +110,7 @@ pub(crate) fn efforts(model: &str) -> &'static [&'static str] {
     }
 }
 
-/// The options as the real adapter shapes them (ACP_PROBE §1): ids that are
+/// The options as the real adapter shapes them: ids that are
 /// not their categories (`effort` is `thought_level`), the effort option
 /// absent for a model without one, and a `model_config` option to ignore.
 pub(crate) fn options(s: &Session) -> Vec<SessionConfigOption> {

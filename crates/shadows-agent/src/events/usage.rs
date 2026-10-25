@@ -1,13 +1,12 @@
 //! Reported turn usage values.
 use super::HarnessEvent;
 
-/// What the harness reported about a turn, from its last usage report
-/// (§12.8: only the last is trusted — the first `size` is a guess). Nothing
-/// it did not report is estimated.
+/// What the harness reported about a turn, trusting only its last usage report
+/// because the first `size` is a guess. Unreported values are not estimated.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TurnObservation {
     pub token_usage: Option<TurnUsage>,
-    /// The harness session the turn ran in (§12.7 `native_session_id`).
+    /// The harness session the turn ran in (`native_session_id`).
     pub native_session_id: Option<String>,
     pub observed_model: Option<String>,
     pub context_used: Option<u64>,

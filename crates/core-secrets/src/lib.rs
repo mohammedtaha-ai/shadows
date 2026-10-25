@@ -64,8 +64,8 @@ impl Secrets {
     }
 }
 
-/// The name's shape alone. Removal uses it, so a row stored before its name
-/// became reserved can still be removed after the opening names it.
+/// The name's shape alone. Removal accepts reserved names so a stored value
+/// refused during opening can still be removed.
 fn validate_env_format(name: &str) -> Result<(), SecretsError> {
     let bytes = name.as_bytes();
     let valid = (1..=128).contains(&bytes.len())

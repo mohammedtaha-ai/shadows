@@ -48,7 +48,7 @@ pub enum PlanOp {
         number: u32,
     },
     /// Adds the link, or replaces the one with the same `task`, `after` and
-    /// `kind` (§13.3: at most one link of each kind between two tasks).
+    /// `kind`: at most one link of each kind between two tasks.
     LinkPut {
         link: Link,
     },

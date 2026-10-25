@@ -156,7 +156,7 @@ fn the_fingerprint_changes_when_a_value_changes() {
 /// Spec section 6.19 names three things storage compares before it calls a
 /// submission a replay: command kind, **schema version**, and fingerprint. A
 /// bumped schema version means the request was normalised by different rules,
-/// so byte-equal params no longer prove the requests are the same one — the
+/// so byte-equal params cannot prove the requests are the same one — the
 /// only safe answer is CommandConflict. Without this, a version bump silently
 /// replays an outcome computed under the old normalisation.
 #[tokio::test]

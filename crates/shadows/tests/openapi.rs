@@ -1,4 +1,4 @@
-//! The OpenAPI document (spec §1: the protocol is described, not copied).
+//! The OpenAPI document the protocol is described, not copied.
 //!
 //! **The decision this file owns.** Clients generate their types from
 //! `api/openapi.json`, so that file is the protocol as a client sees it. It is

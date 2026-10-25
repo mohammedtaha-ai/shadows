@@ -1,4 +1,4 @@
-//! Spec §14.7: a service contract that no longer matches its code fails here.
+//! A service contract that differs from its code fails here.
 //! It cannot check that a rule's prose is true; the reviewer owns that.
 
 use std::collections::BTreeSet;
@@ -238,7 +238,7 @@ fn transaction_method(method: &syn::ImplItemFn) -> bool {
 
 /// Rule 9: the `pub(crate)` functions of a service's `store` (`store.rs` or `store/`), free
 /// or a method of one of its `impl` blocks, which are exactly the ones another service may
-/// call inside one write (§14.6).
+/// call inside one write.
 fn shared(dir: &Path) -> BTreeSet<String> {
     let mut files = Vec::new();
     rs_files(&dir.join("store"), &mut files);
@@ -407,7 +407,7 @@ fn every_contract_matches_its_service() {
                 problems.push(format!("{name}: `{f}` is not in {source}"))
             }
         }
-        // Rule 9's calls (§14.6): a store method another service calls outside
+        // Rule 9's calls: a store method another service calls outside
         // its own write is declared, and the declared name exists here.
         let mut calls = BTreeSet::new();
         listed(&doc["called_by_other_services"], &mut calls);
@@ -523,8 +523,8 @@ fn every_contract_matches_its_service() {
             ))
         }
     }
-    // §14.7: every service has a contract. A folder without one is skipped above, so the
-    // services are read from the code: `AppCore`'s accessors (`core.plans()`, §14.4), each
+    // Every service has a contract. A folder without one is skipped above, so the
+    // services are read from the code: `AppCore`'s accessors (`core.plans()`), each
     // named after its folder. A ninth service is required the day its accessor exists.
     let services = accessors(&src.join("app.rs"));
     if services.is_empty() {

@@ -75,8 +75,8 @@ impl ClaudeAdapter {
     }
 }
 
-/// What the adapter's tree inherits from the daemon, by name (architecture
-/// §4: the child environment is built explicitly, never cleared blindly).
+/// What the adapter's tree inherits from the daemon, by name.
+/// The child environment is built explicitly, never cleared blindly.
 /// Claude runs the Planner's shell tools, which need `PATH` to find `git` or
 /// `ls`, and reads its own configuration and sign-in from the home directory.
 /// An isolation profile (`process_spec_with`) adds its home and provider after

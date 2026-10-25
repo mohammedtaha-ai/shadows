@@ -1,4 +1,4 @@
-//! The plan's HTTP routes (spec §13.10): a project's plan list, one version's
+//! The plan's HTTP routes: a project's plan list, one version's
 //! read, and the person's approval with its refusals.
 
 use serde_json::{Value, json};
@@ -184,7 +184,7 @@ async fn approving_a_frozen_version_again_with_a_new_command_is_409_frozen() {
     );
 }
 
-/// §16.2: an archived plan leaves the list, is read only, and comes back.
+/// An archived plan leaves the list, is read only, and comes back.
 #[tokio::test]
 async fn an_archived_plan_is_read_only_until_unarchived() {
     let app = test_app().await;
@@ -358,7 +358,7 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
         app.thread.to_string()
     );
 
-    // A plan of a removed project is not found (§16.2).
+    // A plan of a removed project is not found.
     sqlx::query("UPDATE project SET removed_at = '2026-10-01T00:00:00Z' WHERE id = ?")
         .bind(app.project.as_str())
         .execute(app.storage.reader())

@@ -1,6 +1,6 @@
 //! One job: the OpenAPI document that describes this protocol.
 //!
-//! Spec §1: the protocol is described, not copied. The paths and schemas come
+//! The protocol is described, not copied. The paths and schemas come
 //! from the route table (`utoipa-axum`) and the annotated handlers and types;
 //! this file adds only what belongs to the document as a whole, and renders it
 //! in the one form that is served, checked in at `api/openapi.json`, and kept

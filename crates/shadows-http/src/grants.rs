@@ -1,4 +1,4 @@
-//! One job: the routes over external agents' MCP grants (spec §13.7, §13.10)
+//! One job: the routes over external agents' MCP grants
 //! — a project's list, issuing one, revoking one.
 //!
 //! The token is in the issuing answer only, once: a replay answers the grant
@@ -34,7 +34,7 @@ pub(super) async fn list_grants(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct IssueGrant {
-    /// The idempotency key (spec §13.5), scoped to the project.
+    /// The idempotency key, scoped to the project.
     command_id: String,
 }
 
@@ -49,7 +49,7 @@ pub(super) struct IssuedGrantBody {
     command: Option<String>,
 }
 
-/// Connect (§13.7): issues a grant bound to this project for an external
+/// Connect: issues a grant bound to this project for an external
 /// agent. The token is shown once — here — and stored only as its hash.
 #[utoipa::path(
     post,
@@ -85,11 +85,11 @@ pub(super) async fn issue_grant(
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct RevokeQuery {
-    /// The idempotency key (spec §13.5), scoped to the grant.
+    /// The idempotency key, scoped to the grant.
     command_id: String,
 }
 
-/// Revoke (§13.7): Shadows refuses the grant's token from now on. It does not
+/// Revoke: Shadows refuses the grant's token from now on. It does not
 /// remove the server from the person's Claude configuration.
 #[utoipa::path(
     delete,

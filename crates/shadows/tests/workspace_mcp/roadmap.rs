@@ -1,4 +1,4 @@
-//! §23.5–§23.6 through the real transports: the Planner proposes and approves
+//! Through the real transports: the Planner proposes and approves
 //! a roadmap over MCP, the person approves one over HTTP, and no plan tool
 //! works before a roadmap is approved.
 use super::*;
@@ -148,7 +148,7 @@ async fn roadmap_proposal_routes_list_and_approve() {
     let c = planner_client(&l, &thread).await;
     let parts = part_ids(&l, &p).await;
     let card = ok(&c, "roadmap_propose", first(&parts, "Login")).await;
-    // Without a running turn the Planner cannot approve, as for the map (§24.2).
+    // Without a running turn the Planner cannot approve, as for the map.
     l.app.core.turns().stop(&op).await.unwrap();
     for _ in 0..200 {
         if l.app.handles.running_for(&thread).await.is_none() {

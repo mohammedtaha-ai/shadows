@@ -14,7 +14,7 @@ pub enum TurnEnd {
     Refused(String),
 }
 
-/// What `_session/steering` answered (spec §20.1).
+/// What `_session/steering` answered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Steer {
     /// The message went into the running prompt; that prompt answers for it.
@@ -51,7 +51,7 @@ pub struct PromptResult {
 
 impl Connection {
     /// The person's text is the first content block; each `context` entry
-    /// is one more text block after it (§13.8).
+    /// is one more text block after it.
     pub async fn prompt(
         &self,
         session: &str,
@@ -100,7 +100,7 @@ impl Connection {
         };
         Ok(PromptResult { end, usage })
     }
-    /// Sends `text` into the session's running prompt (§20.4), asking the
+    /// Sends `text` into the session's running prompt, asking the
     /// adapter to start nothing when none runs.
     pub async fn steer(&self, session: &str, text: &str) -> Result<Steer, AcpError> {
         self.steer_blocks(session, &[PromptBlock::Text(text.into())])

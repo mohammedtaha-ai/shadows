@@ -1,4 +1,4 @@
-//! One job: the routes over the code index (spec §15.7) — a project's three
+//! One job: the routes over the code index — a project's three
 //! questions, its index status, its links, and the active limit.
 //!
 //! A person asks over HTTP, so a question is `Asker::Person`: a project
@@ -33,7 +33,7 @@ pub(super) struct PathQuery {
 }
 
 /// Where a name is defined: per hit, its project, path, line, kind and
-/// signature (§15.5).
+/// signature.
 #[utoipa::path(
     get,
     path = "/api/projects/{id}/code/definitions",
@@ -62,7 +62,7 @@ pub(super) async fn definitions(
 }
 
 /// Where a name is used, matched by name only: every hit says
-/// `matched_by: "name"` (§15.5).
+/// `matched_by: "name"`.
 #[utoipa::path(
     get,
     path = "/api/projects/{id}/code/references",
@@ -90,7 +90,7 @@ pub(super) async fn references(
     Ok(Json(s.core.code().references(asker, only, &q.name).await?))
 }
 
-/// The definitions in a file or folder (§15.5). It reads the index and
+/// The definitions in a file or folder. It reads the index and
 /// opens no path.
 #[utoipa::path(
     get,
@@ -159,11 +159,11 @@ pub(super) async fn links(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct PutLink {
-    /// The idempotency key (spec §13.5), scoped to the project.
+    /// The idempotency key, scoped to the project.
     command_id: String,
 }
 
-/// Lets the project read `linked`'s index, one way (§15.6). Linking twice
+/// Lets the project read `linked`'s index, one way. Linking twice
 /// answers the link.
 #[utoipa::path(
     put,
@@ -207,11 +207,11 @@ pub(super) async fn put_link(
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct RemoveLinkQuery {
-    /// The idempotency key (spec §13.5), scoped to the project.
+    /// The idempotency key, scoped to the project.
     command_id: String,
 }
 
-/// Removes the link: the project no longer reads `linked`'s index.
+/// Removes the link, ending this project's access to `linked`'s index.
 #[utoipa::path(
     delete,
     path = "/api/projects/{id}/code/links/{linked}",
@@ -257,13 +257,13 @@ pub(super) async fn get_settings(State(s): State<AppState>) -> Result<Json<CodeS
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct PutSettings {
-    /// The idempotency key (spec §13.5).
+    /// The idempotency key.
     command_id: String,
     /// How many projects are active at once: 1 to 20.
     active_limit: u32,
 }
 
-/// Sets how many projects are active at once (§15.6). Lowering it stops the
+/// Sets how many projects are active at once. Lowering it stops the
 /// least recently used projects' watchers at once.
 #[utoipa::path(
     put,

@@ -1,4 +1,4 @@
-//! Removing a project (spec §4.2, §15.4): refused while it holds a planning
+//! Removing a project: refused while it holds a planning
 //! thread; otherwise it is listed nowhere again, its index, its links both
 //! ways and its MCP grants go, and every later request about it is NotFound.
 

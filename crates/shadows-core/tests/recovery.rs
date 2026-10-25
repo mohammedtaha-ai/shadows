@@ -78,7 +78,7 @@ impl Daemon {
     }
 }
 
-/// Spec §12.2: the daemon's adapters do not survive it, and the thread's
+/// The daemon's adapters do not survive it, and the thread's
 /// recorded session does. The next daemon, holding no live adapter, opens the
 /// thread by resuming that session — which is how a conversation continues
 /// across a restart.

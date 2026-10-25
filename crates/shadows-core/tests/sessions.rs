@@ -287,7 +287,7 @@ async fn second_thread(fx: &Fixture) -> ThreadId {
     .id
 }
 
-/// §16.6: an adapter slow to open holds only its own thread. Stop on
+/// An adapter slow to open holds only its own thread. Stop on
 /// another thread does not wait for it.
 #[tokio::test]
 async fn one_thread_opening_does_not_hold_another() {

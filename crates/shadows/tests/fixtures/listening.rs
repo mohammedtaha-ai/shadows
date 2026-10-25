@@ -35,7 +35,7 @@ pub struct Listening {
 }
 
 /// `test_app()`, listening on `127.0.0.1` at a port the system chose, its
-/// sessions opening with this `/mcp` (§13.8). The server runs until the
+/// sessions opening with this `/mcp`. The server runs until the
 /// test's runtime ends.
 pub async fn listening_app() -> Listening {
     listening_with(acp::test_config()).await

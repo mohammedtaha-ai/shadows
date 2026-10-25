@@ -1,4 +1,4 @@
-//! Spec §15.4–§15.5: the code index follows the files of a project's folder,
+//! The code index follows the files of a project's folder,
 //! and the three questions answer from it.
 
 use std::future::Future;

@@ -46,10 +46,9 @@ pub struct PlanningThread {
     #[schema(value_type = Option<String>, required)]
     pub removed_at: Option<String>,
     /// The CLI this conversation runs on (`agent::policy`): chosen at
-    /// creation, changeable until the thread's first operation, then fixed
-    /// (spec §12.6).
+    /// creation, changeable until the thread's first operation, then fixed.
     pub harness: String,
-    /// The thread this one was forked from, if it is a fork (spec §12.9).
+    /// The thread this one was forked from, if it is a fork.
     #[schema(value_type = Option<String>, required)]
     pub forked_from_thread: Option<ThreadId>,
 }
@@ -81,15 +80,11 @@ pub struct ThreadEntry {
     pub thread_id: ThreadId,
     pub ordinal: i64,
     pub kind: ThreadEntryKind,
-    /// Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
-    /// `db::Actor`, which already has exactly this shape (`kind` + `id`) and
-    /// already answers "who did this" for durable events. Declaring a second
-    /// identical struct would record one decision twice, which this project's
-    /// documentation rules forbid. See the note in §4.2.
+    /// The same `kind` and `id` identity that attributes durable events.
     pub author: Actor,
     pub body: String,
     pub refs: Vec<EntryRef>,
-    /// A card's structured payload (§23.8): a `Subagent`'s card. `None` for
+    /// A card's structured payload: a `Subagent`'s card. `None` for
     /// every other kind.
     #[schema(
         value_type = Option<std::collections::HashMap<String, serde_json::Value>>,
@@ -97,8 +92,8 @@ pub struct ThreadEntry {
     )]
     pub card: Option<serde_json::Value>,
     pub created_at: String,
-    /// The turn this entry belongs to (spec §12.7). `None` for entries written
-    /// before entries named their turn. A fork's copied entries keep the
+    /// The turn this entry belongs to; `None` when no turn is recorded.
+    /// A fork's copied entries keep the
     /// source's operation: provenance, not something the fork can act on.
     #[schema(value_type = Option<String>, required)]
     pub operation_id: Option<String>,
@@ -117,30 +112,29 @@ pub struct NewThreadEntry<'a> {
     pub operation_id: Option<&'a str>,
 }
 
-/// What an entry is (spec §4.2, closed by §13.9). The client branches on it.
-/// Each variant is stored as its name, the text storage held before this was
-/// an enum, so no stored row is rewritten.
+/// What an entry is. The client branches on it.
+/// Each variant uses its name for storage and serialization.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
 )]
 pub enum ThreadEntryKind {
     UserMessage,
     AgentMessage,
-    /// A tool the harness ran; its body is the tool's title (§23.8).
+    /// A tool the harness ran; its body is the tool's title.
     ToolCall,
-    /// A subagent's card (§22.2); its body is the card's title and `card` the
-    /// card itself (§23.8).
+    /// A subagent's card; its body is the card's title and `card` the
+    /// card itself.
     Subagent,
-    /// A permission the harness asked for and Shadows refused (spec §12.2).
+    /// A permission the harness asked for and Shadows refused.
     PermissionRefused,
-    /// A plan shown in the conversation at the person's request (§13.9).
+    /// A plan shown in the conversation at the person's request.
     PlanView,
-    /// A plan version approved (§13.9).
+    /// A plan version approved.
     PlanApproved,
-    /// A vision proposal's immutable card (§23.5).
+    /// A vision proposal's immutable card.
     VisionProposal,
     MapProposal,
-    /// A roadmap proposal's immutable card (§23.5).
+    /// A roadmap proposal's immutable card.
     RoadmapProposal,
 }
 
@@ -182,15 +176,12 @@ impl ThreadEntryKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub enum EntryRef {
-    /// Typed where the referenced entity's module exists. `Decision` and
-    /// `Research` reference entities whose modules no milestone has created
-    /// yet, and §4.1's rule is that no module is created before the task that
-    /// fills it.
+    /// References carry the identity interpreted by their owning entity.
     Operation(OperationRef),
     Decision(String),
     Research(String),
     Workflow(WorkflowRef),
-    /// A message about one task of a plan (§13.9).
+    /// A message about one task of a plan.
     Task(TaskRef),
 }
 

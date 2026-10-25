@@ -1,4 +1,4 @@
-//! `shadows serve --debug`'s log file (spec §8.7): created under the data
+//! `shadows serve --debug`'s log file: created under the data
 //! directory, holding what a run did once its guard is dropped, and never
 //! holding the prompt.
 //!

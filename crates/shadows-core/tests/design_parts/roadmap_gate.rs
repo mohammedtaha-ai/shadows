@@ -1,4 +1,4 @@
-//! §23.6: no plan work before an approved roadmap, and no approval of an untied plan.
+//! No plan work before an approved roadmap, and no approval of an untied plan.
 use super::*;
 use shadows_core::{ErrorCode, Grant, OutcomeContent, OutcomeId};
 

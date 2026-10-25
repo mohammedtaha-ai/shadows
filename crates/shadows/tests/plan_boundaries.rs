@@ -1,4 +1,4 @@
-//! Project plan write boundaries (§16): archive state is checked in the
+//! Project plan write boundaries: archive state is checked in the
 //! transaction, and writer attribution does not limit a conversation's reach.
 
 use serde_json::json;

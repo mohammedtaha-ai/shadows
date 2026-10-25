@@ -6,7 +6,7 @@ pub use core_project_lifecycle::ProjectLifecycle;
 pub mod testing;
 pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
-// The public surface (spec §14.4, §14.6): the application, its failure, the
+// The public surface: the application, its failure, the
 // services, and every type an adapter names or serializes. Storage, the
 // sessions, the live-turn registry and the runtime are private to the crate;
 // tests reach what they need through `testing`, under `test-support`.
@@ -78,7 +78,7 @@ pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 pub use error::{CoreError, ErrorCode};
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on
-// `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
+// `shadows-agent`; adapters serialize the same schema name.
 pub use shadows_agent::choices::SessionChoices;
 pub use shadows_agent::profile::ClaudeProfile;
 

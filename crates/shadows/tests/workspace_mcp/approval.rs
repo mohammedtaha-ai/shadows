@@ -255,7 +255,7 @@ async fn the_planner_approves_a_map_without_waivers_and_a_plan() {
             .agent,
         "planner:claude-code"
     );
-    // Plans come after the roadmap (§23.6); the plan is tied to a part of the map.
+    // Plans come after the roadmap; the plan is tied to a part of the map.
     let part = shadows_core::AppCore::design_for_tests(l.app.storage.clone())
         .seed_roadmap_for_tests(&l.app.project)
         .await

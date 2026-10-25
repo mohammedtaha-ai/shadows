@@ -1,4 +1,4 @@
-//! One job: the table of languages Shadows indexes (spec §15.3). Adding a
+//! One job: the table of languages Shadows indexes. Adding a
 //! language is one entry here, its grammar crate, and its extra query file.
 
 use std::path::Path;
@@ -6,8 +6,7 @@ use std::sync::LazyLock;
 
 use tree_sitter_tags::TagsConfiguration;
 
-/// Patterns the grammars' own queries miss
-/// (docs/evidence/milestone3/PROBE.md at 92e6dae).
+/// Patterns the grammars' own queries miss.
 /// Always after the grammar's query: the earlier pattern wins a name.
 const RUST_EXTRA: &str = include_str!("../queries/rust.scm");
 const TS_EXTRA: &str = include_str!("../queries/typescript.scm");

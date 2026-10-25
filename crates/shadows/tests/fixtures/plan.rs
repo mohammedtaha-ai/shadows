@@ -43,7 +43,7 @@ pub fn writer_ctx(
     }
 }
 
-/// A `plan_edit` as a caller that names no command id builds it (§13.5): the
+/// A `plan_edit` as a caller that names no command id builds it: the
 /// id derived from the expected revision and the request's fingerprint.
 pub fn edit_ctx(
     writer: &Writer,
@@ -207,7 +207,7 @@ pub async fn events(app: &App, thread: &ThreadId) -> Vec<(String, String, String
 }
 
 /// The payloads of every `kind` event of `project`, in order: a plan event
-/// names a thread only when a Planner wrote it (§16.3).
+/// names a thread only when a Planner wrote it.
 pub async fn project_events_of(app: &App, project: &ProjectId, kind: &str) -> Vec<Value> {
     let rows: Vec<String> = sqlx::query_scalar(
         "SELECT payload_json FROM durable_event WHERE project_id = ? AND kind = ? ORDER BY seq",
@@ -236,7 +236,7 @@ pub async fn draft(app: &App) -> DraftStarted {
     draft_on(app, &app.thread, "start-1").await
 }
 
-/// `thread`'s Planner, under a new thread grant: since §16.3 a version is
+/// `thread`'s Planner, under a new thread grant: a version is
 /// written by a Planner's thread or an external agent's grant, never by a
 /// person.
 pub async fn planner(app: &App, thread: &ThreadId) -> Writer {
@@ -272,8 +272,7 @@ pub async fn plan_of(app: &App, thread: &ThreadId) -> Option<PlanId> {
 }
 
 /// The thread's Planner starts a draft outside a turn: v1 when the thread has
-/// no plan, else that plan's Draft or its next version, with a reason
-/// (§16.3).
+/// no plan, else that plan's Draft or its next version, with a reason.
 pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStarted {
     let writer = planner(app, thread).await;
     let plan = plan_of(app, thread).await;
@@ -301,7 +300,7 @@ pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStart
 }
 
 /// Ties the plan of `workflow` to its project's seeded part, as the person
-/// does on the Project map page: a plan tied to no part is not approved (§23.6).
+/// does on the Project map page: a plan tied to no part is not approved.
 pub async fn tie_to_part(app: &App, workflow: &WorkflowId) {
     let plan = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .get_plan_for_test(workflow)

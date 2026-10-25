@@ -1,4 +1,4 @@
-//! What a writer's grant permits a plan write (spec §13.5–§13.7): checked
+//! What a writer's grant permits a plan write: checked
 //! inside the write's transaction, scoped to a thread or a project, and the
 //! draft refs an external agent starts plans with.
 
@@ -237,7 +237,7 @@ async fn an_edit_by_a_revoked_grant_writes_nothing() {
     assert_eq!(revision(&app, &v1).await, 0);
 }
 
-/// §16.4: storage holds a Planner to its own project; which of the project's
+/// Storage holds a Planner to its own project; which of the project's
 /// plans it reaches is `Plans`' scope check, not this one.
 #[tokio::test]
 async fn a_planner_grant_writes_only_in_its_own_project() {
@@ -323,7 +323,7 @@ async fn project_events(
     .unwrap()
 }
 
-/// §16.3: an external agent's plan from scratch has no conversation; its
+/// An external agent's plan from scratch has no conversation; its
 /// version is written by the grant, which is also the event's actor.
 #[tokio::test]
 async fn an_external_start_from_scratch_creates_a_plan_and_no_thread() {

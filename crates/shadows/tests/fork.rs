@@ -1,4 +1,4 @@
-//! Forking a thread from its last completed entry (spec §12.9): a new thread
+//! Forking a thread from its last completed entry: a new thread
 //! holding copies of the source's entries, whose first opening forks the
 //! source's harness session; the source is unchanged.
 
@@ -58,7 +58,7 @@ async fn fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone()
     .await;
     assert_eq!(s, 201, "{fork}");
     assert_eq!(fork["forked_from_thread"], app.thread.as_str());
-    // The source was titled after its first message (§4.2) before the fork.
+    // The source was titled after its first message before the fork.
     assert_eq!(fork["title"], "hello (fork)");
     assert_eq!(fork["harness"], "claude-code");
     let fork_id = fork["id"].as_str().unwrap();
@@ -88,7 +88,7 @@ async fn fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone()
     assert_eq!(listed.len(), 2);
 }
 
-/// §23.8: a subagent card is its own kind with its card in a column; a fork
+/// A subagent card is its own kind with its card in a column; a fork
 /// copies both.
 #[tokio::test]
 async fn a_fork_keeps_a_subagent_entry_and_its_card() {
@@ -213,7 +213,7 @@ async fn fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_for
     assert_eq!((s, body["code"].as_str()), (409, Some("THREAD_BUSY")));
 }
 
-/// §12.6, §12.9: a fork's session is a fork of its source's, which no other
+/// A fork's session is a fork of its source's, which no other
 /// harness could continue, so its harness is locked from birth — before it
 /// has an operation of its own — in the route, the storage call and the
 /// trigger below both.

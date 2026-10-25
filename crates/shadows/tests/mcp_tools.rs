@@ -1,4 +1,4 @@
-//! What each tool on `/mcp` does with plans (spec §13.5–§13.6): the reach of
+//! What each tool on `/mcp` does with plans: the reach of
 //! a thread grant and a project grant, revision conflicts, replays, draft
 //! refs, and text that survives the trip unchanged. The transport itself is
 //! `mcp_server.rs`.
@@ -301,7 +301,7 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     let l = listening_app().await;
     let (grant, external) = project_client(&l).await;
 
-    // From scratch: a plan and its v1, with no thread (§16.3).
+    // From scratch: a plan and its v1, with no thread.
     let r1 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
     let scratch = json!({ "draft_ref": r1, "title": "Search", "goal": "find things" });
     let first = ok(&external, "draft_start", scratch.clone()).await;
@@ -437,7 +437,7 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
     );
 }
 
-/// A Planner's plan_id and reason are part of its DraftStart identity (§16.4).
+/// A Planner's plan_id and reason are part of its DraftStart identity.
 #[tokio::test]
 async fn a_planner_draft_start_names_a_project_plan() {
     let l = listening_app().await;
@@ -476,7 +476,7 @@ async fn a_planner_draft_start_names_a_project_plan() {
     assert_eq!(events.len(), 2, "v1 and v2 only");
 }
 
-/// A Planner edits only the latest version of a named Active plan (§16.4).
+/// A Planner edits only the latest version of a named Active plan.
 #[tokio::test]
 async fn a_planner_edits_only_the_plan_latest_version() {
     let l = listening_app().await;

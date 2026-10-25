@@ -1,5 +1,5 @@
 //! One job: the `rmcp` handler — which tools a request's grant may see and
-//! call (spec §13.6's table).
+//! call.
 //!
 //! The grant reaches a request through the extensions `rmcp` hands a handler:
 //! `RequestContext::extensions` holds the request's `http::request::Parts`,

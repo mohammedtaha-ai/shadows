@@ -1,4 +1,4 @@
-//! Spec §8.5, daemon shutdown: `Graceful` is written only when every operation
+//! Daemon shutdown: `Graceful` is written only when every operation
 //! the runtime owns is terminal; anything short of that is `Escalated`, and a
 //! stopping runtime takes no new turn. Driven through `testing::shut_down`,
 //! which is what `shadows serve` runs on its stop signal, with `fake_acp`
@@ -217,7 +217,7 @@ async fn a_shutdown_that_confirms_every_operation_records_graceful() {
     assert!(!is_alive(pid), "Cancelled was written over a live process");
 }
 
-/// The window the old shutdown fell into: the prompt has answered but the
+/// The prompt has answered but the
 /// watcher is still writing the turn's ending, so `stop` finds it resolved by
 /// the turn and returns before that write. `Graceful` must wait for it rather
 /// than be recorded over a `Running` row.
@@ -247,7 +247,7 @@ async fn a_turn_whose_outcome_is_still_being_written_is_terminal_before_graceful
     );
 }
 
-/// Spec §8.4 case 6 during shutdown. A tree that could not be terminated is not
+/// During shutdown, a tree that could not be terminated is not
 /// stopped: the operation is not `Cancelled`, and the runtime records
 /// `Escalated` — at once, not after waiting out the bound on a tree already
 /// known to be alive.
@@ -306,7 +306,7 @@ async fn unconfirmed_work_is_escalated_when_the_bound_runs_out() {
     assert_eq!(f.operation(&pending).await.status_kind, "Pending");
 }
 
-/// Spec §8.5: a second stop signal stops the waiting. The bound here is far
+/// A second stop signal stops the waiting. The bound here is far
 /// longer than the test allows, so only the signal can end it.
 #[tokio::test]
 async fn a_second_stop_signal_escalates_at_once() {

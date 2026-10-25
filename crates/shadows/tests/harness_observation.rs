@@ -1,4 +1,4 @@
-//! What the harness reports about a turn (spec §12.8): the answering model and
+//! What the harness reports about a turn: the answering model and
 //! the context, written into the turn's invocation when it completes; the
 //! account limits, kept per harness; a `usage` frame as each report arrives;
 //! and the context breakdown, read on demand without leaving a trace.

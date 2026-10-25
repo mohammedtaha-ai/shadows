@@ -1,7 +1,7 @@
 //! Subagent tool metadata and conversation cards.
 use serde_json::Value;
 
-/// What an Agent call's updates told of its subagent (spec §22.1), each
+/// What an Agent call's updates told of its subagent, each
 /// `None` until an update carries it: its input, then the numbers Claude's
 /// `PostToolUse` hook reports after the call has ended.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -19,7 +19,7 @@ pub struct AgentFacts {
     pub report: Option<String>,
 }
 
-/// What `_meta.claudeCode` and `rawInput` say about one tool call (§22.1).
+/// What `_meta.claudeCode` and `rawInput` say about one tool call.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ToolMeta {
     pub tool: Option<String>,
@@ -69,8 +69,8 @@ impl ToolMeta {
     }
 }
 
-/// One subagent as the conversation shows it (spec §22.2): written once as
-/// a `Subagent` entry carrying this as its `card` (§23.8), and sent whole on
+/// One subagent as the conversation shows it: written once as
+/// a `Subagent` entry carrying this as its `card`, and sent whole on
 /// every change while it runs.
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SubagentCard {

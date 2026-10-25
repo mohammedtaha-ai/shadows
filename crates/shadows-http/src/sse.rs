@@ -1,4 +1,4 @@
-//! One job: the durable-replay-then-live stream (spec §2.10), framed as SSE.
+//! One job: the durable-replay-then-live stream, framed as SSE.
 //!
 //! `Events` (`shadows-core`) owns what is delivered and in what order; this
 //! file owns the framing: each `Delivery` becomes today's frame, with its
@@ -24,7 +24,7 @@ pub(super) struct ProjectSubscribeQuery {
     pub after: i64,
 }
 
-/// A project's plan/design notifications (§16.8, §18.11), replayed then live on the same
+/// A project's plan/design notifications, replayed then live on the same
 /// journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
 /// operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
 /// Archive notifications name the plan's latest version to refetch.
@@ -72,12 +72,12 @@ pub(super) struct SubscribeQuery {
     pub after: i64,
 }
 
-/// Spec §2.10: durable replay, then a no-gap handoff to live, then
+/// Durable replay, then a no-gap handoff to live, then
 /// de-duplication by durable sequence.
 ///
 /// Two live sources, both taken BEFORE a single journal row is read:
 ///
-/// - the storage's committed-sequence signal (spec §2.4: raised after each
+/// - the storage's committed-sequence signal (raised after each
 ///   commit that appended to the journal). A commit that lands while the
 ///   replay is being read shows up as a pending change, so it cannot fall into
 ///   the gap between the replay's last read and the live phase.
@@ -253,7 +253,7 @@ fn frame(delivery: Delivery) -> Event {
                 .to_string(),
         ),
         // A usage report as it arrives, with the harness's latest limits,
-        // which the watcher recorded before publishing it (§12.8). A `size`
+        // which the watcher recorded before publishing it. A `size`
         // of 0 is no window.
         Delivery::Usage {
             thread,
@@ -269,11 +269,11 @@ fn frame(delivery: Delivery) -> Event {
             })
             .to_string(),
         ),
-        // The thread's new offer as a client sees it (§12.4).
+        // The thread's new offer as a client sees it.
         Delivery::Options { thread, choices } => Event::default()
             .event("options")
             .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
-        // The harness's `/` list (§21.3).
+        // The harness's `/` list.
         Delivery::Commands { thread, commands } => Event::default()
             .event("commands")
             .data(serde_json::json!({ "thread_id": thread, "commands": commands }).to_string()),

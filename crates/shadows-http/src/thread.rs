@@ -1,5 +1,4 @@
-//! One job: the routes that change a planning thread itself — its harness
-//! (spec §12.6), or a fork of it (§12.9).
+//! One job: the routes that change a planning thread itself — its harness, or a fork of it.
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -9,7 +8,7 @@ use super::failure::ErrorBody;
 use super::{AppState, Failure};
 use shadows_core::{PlanningThread, ThreadEntryId, ThreadId};
 
-/// The idempotency key for conversation deletion (§16.5).
+/// The idempotency key for conversation deletion.
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct RemoveThreadQuery {
@@ -58,17 +57,17 @@ pub(super) async fn remove_thread(
 /// a fork from birth (`HARNESS_LOCKED`).
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct UpdateThread {
-    /// The idempotency key (spec §3.2), scoped to the thread.
+    /// The idempotency key, scoped to the thread.
     command_id: String,
     /// `claude-code` or `codex`.
     harness: String,
 }
 
-/// Changes the thread's CLI before its first turn (spec §12.6). A replay
+/// Changes the thread's CLI before its first turn. A replay
 /// answers the thread as it now stands and changes nothing, even once the
 /// harness is locked; a new command after the first turn, or on a fork (its
-/// session is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change
-/// closes the thread's adapter (§12.2).
+/// session is a fork of its source's), is `HARNESS_LOCKED`. A change
+/// closes the thread's adapter.
 #[utoipa::path(
     patch,
     path = "/api/threads/{id}",
@@ -104,16 +103,16 @@ pub(super) async fn update_thread(
     ))
 }
 
-/// Forks the thread from its last completed entry (spec §12.9).
+/// Forks the thread from its last completed entry.
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct ForkThread {
-    /// The idempotency key (spec §3.2), scoped to the source thread.
+    /// The idempotency key, scoped to the source thread.
     command_id: String,
     at_entry_id: ThreadEntryId,
 }
 
 /// Forks the thread from its last completed entry into a new thread on the
-/// same project (spec §12.9). The new thread holds copies of the entries up to
+/// same project. The new thread holds copies of the entries up to
 /// and including `at_entry_id`; its next turn continues a fork of the
 /// source's harness session. The source is unchanged. A replay answers the
 /// fork already made.

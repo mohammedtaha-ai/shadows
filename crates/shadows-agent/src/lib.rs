@@ -6,8 +6,8 @@ pub mod events;
 pub mod policy;
 pub mod profile;
 
-/// The settings a turn runs with (spec §12.7). `effort` is `None` exactly
-/// when the model offers none (§12.4).
+/// The settings a turn runs with. `effort` is `None` exactly
+/// when the model offers none.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct TurnSettings {
     pub model: String,

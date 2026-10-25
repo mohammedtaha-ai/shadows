@@ -48,14 +48,14 @@ pub struct App {
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Harness>,
     pub bus: Bus,
-    /// The live-only signals `plan_show` sends (§13.9).
+    /// The live-only signals `plan_show` sends.
     pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     /// The application the router is built from, on the same `Arc`s as above.
     pub core: Arc<AppCore>,
     pub router: Router,
     pub project: ProjectId,
-    /// The part the project's seeded roadmap answers, which plans tie to
-    /// (§23.6); `None` for an app made by `test_app_unseeded`.
+    /// The part the project's seeded roadmap answers, which plans tie to; `None` for an app made by
+    /// `test_app_unseeded`.
     pub part: Option<PartId>,
     pub thread: ThreadId,
     // Held: a dropped sender reads as a stopping daemon.
@@ -96,7 +96,7 @@ pub async fn test_app_at(dir: &Path) -> App {
 
 /// As `test_app_at`, with the sessions' own configuration and the `/mcp` URL
 /// the daemon reports. Its project is at the plans stage: plan work needs an
-/// approved roadmap (§23.6), so the roadmap is seeded with one part.
+/// approved roadmap, so the roadmap is seeded with one part.
 pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) -> App {
     assemble(dir, config, mcp_url, true).await
 }

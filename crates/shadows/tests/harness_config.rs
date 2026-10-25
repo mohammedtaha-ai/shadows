@@ -1,10 +1,10 @@
-//! Spec §1.4's one rule, and how the pinned adapter's version is read: the
+//! Explicit harness configuration and the pinned adapter's version: the
 //! configuration a harness is started from, not anything it answers.
 
 use shadows::config::{ConfigError, harness_path};
 use shadows_core::testing::adapter_version;
 
-/// Spec §1.4: the harness is resolved from explicit configuration, never from
+/// The harness is resolved from explicit configuration, never from
 /// `PATH`. `claude` is what a PATH lookup looks like when it is spelled as a
 /// path, and it was the CLI's default until this test existed.
 ///

@@ -1,4 +1,4 @@
-//! Spec §8.4 case 7: a client disconnecting never cancels or strands work.
+//! A client disconnecting never cancels or strands work.
 //!
 //! Hyper drops a handler's future when its connection closes. Here each
 //! request's future is dropped after its first poll through the real router,

@@ -1,4 +1,4 @@
-//! One job: one file's text in, its tags out (spec §15.3).
+//! One job: one file's text in, its tags out.
 
 use std::cell::RefCell;
 
