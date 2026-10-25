@@ -1,6 +1,6 @@
 //! Shared apparatus: a waiting message for the queue's store tests (spec §20.2).
 
-pub use crate::turns::{NewQueued, QueueAnswer};
+pub use core_turns::{NewQueued, QueueAnswer};
 
 /// A waiting message with the fixture's settings (`fake-small`, `acceptEdits`, `high`).
 pub fn new_queued(prompt: &'static str) -> NewQueued<'static> {

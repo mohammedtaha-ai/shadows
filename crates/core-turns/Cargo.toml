@@ -1,0 +1,44 @@
+[package]
+name = "core-turns"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+time = { workspace = true }
+core-db = { path = "../core-db" }
+core-code = { path = "../core-code" }
+core-design = { path = "../core-design" }
+core-grants = { path = "../core-grants" }
+core-harness = { path = "../core-harness" }
+core-instructions = { path = "../core-instructions" }
+core-operations = { path = "../core-operations" }
+core-plans = { path = "../core-plans" }
+core-projects = { path = "../core-projects" }
+core-runtime = { path = "../core-runtime" }
+core-standards = { path = "../core-standards" }
+core-threads = { path = "../core-threads" }
+core-usage = { path = "../core-usage" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+shadows-agent = { path = "../shadows-agent" }
+
+[features]
+test-support = ["core-db/test-support", "core-harness/test-support", "core-runtime/test-support", "core-threads/test-support"]
+
+[dev-dependencies]
+core-turns = { path = ".", features = ["test-support"] }
+tempfile = { workspace = true }

@@ -55,7 +55,8 @@ async fn deleted_agent_with_live_adapter_is_not_found() {
         w.core
             .turns()
             .send(w.thread.clone(), request("fake-large", "high"))
-            .await,
+            .await
+            .map_err(CoreError::from),
         Err(CoreError::AylulProfileNotFound(_))
     ));
     assert_eq!(
@@ -91,7 +92,8 @@ async fn deleting_last_agent_is_not_found_not_unavailable() {
         w.core
             .turns()
             .send(w.thread.clone(), request("fake-large", "high"))
-            .await,
+            .await
+            .map_err(CoreError::from),
         Err(CoreError::AylulProfileNotFound(_))
     ));
     let list = serde_json::to_value(w.core.harness().list().await.unwrap()).unwrap();
@@ -320,7 +322,8 @@ async fn a_failed_model_replacement_cannot_prompt_with_stale_process_limits() {
         .core
         .turns()
         .send(w.thread.clone(), request("fake-large", "high"))
-        .await;
+        .await
+        .map_err(CoreError::from);
     assert!(
         matches!(sent, Err(CoreError::HarnessStartFailed(_))),
         "{sent:?}"

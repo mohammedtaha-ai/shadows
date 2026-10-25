@@ -45,21 +45,19 @@ pub use handles::LiveHandles;
 pub use model::{
     InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
 };
-pub use spawn::StartError;
+pub use spawn::{OnCompleted, PlannerTurnRequest, StartError};
 pub use store::{NewQueued, QueueAnswer};
 
 use prompt::Prompt;
 use record::Turn;
-use spawn::PlannerTurnRequest;
 use store::Dequeue;
 
-use turn::PlannerTurn;
-pub(crate) use turn::StopOutcome;
+pub use turn::PlannerTurn;
+pub use turn::StopOutcome;
 
 /// A running turn's live harness events, for every live subscriber.
 pub type Bus =
     tokio::sync::broadcast::Sender<(ThreadId, OperationId, shadows_agent::events::HarnessEvent)>;
-use crate::error::CoreError;
 use core_code::Code;
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_harness::{Harness, LeaseError};
@@ -70,12 +68,13 @@ use core_runtime::Runtime;
 use core_runtime::StopKind;
 use core_standards::Standards;
 use core_threads::ThreadId;
+pub use error::TurnsError;
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
 /// `shadows_core::testing` re-exports these, and nothing outside the crate
 /// reaches them otherwise.
 #[cfg(feature = "test-support")]
-pub(crate) mod for_tests {
+pub mod for_tests {
     pub use super::model::FailureStage;
     pub use super::spawn::PlannerTurnRequest;
     pub use super::store::{Dequeue, InvocationVersions, NewTurn, StartedTurn};
@@ -147,7 +146,7 @@ fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> Comm
 impl Turns {
     // One argument for each service it calls: the constructor is its dependency list.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         storage: Arc<Storage>,
         operations: core_operations::Operations,
         runtime: Arc<Runtime>,
@@ -187,18 +186,18 @@ impl Turns {
         &self,
         thread_id: ThreadId,
         turn: SendTurn,
-    ) -> Result<OperationId, CoreError> {
+    ) -> Result<OperationId, TurnsError> {
         self.send_with(thread_id, turn, None).await
     }
 
     /// `send`, and when `dequeue` names a waiting message, the turn that takes
     /// it from the queue in its own transaction.
-    pub(crate) async fn send_with(
+    pub async fn send_with(
         &self,
         thread_id: ThreadId,
         turn: SendTurn,
         dequeue: Option<(QueuedMessageId, Option<CommandContext>)>,
-    ) -> Result<OperationId, CoreError> {
+    ) -> Result<OperationId, TurnsError> {
         let command = start_command(turn.command_id.clone(), &thread_id, &turn);
         let SendTurn {
             command_id: _,
@@ -215,7 +214,7 @@ impl Turns {
             return Ok(replay.operation_id);
         }
         if self.handles.is_closed().await {
-            return Err(CoreError::RuntimeStopping);
+            return Err(TurnsError::RuntimeStopping);
         }
         let images = self.images(&thread_id, &attachments).await?;
         let settings = TurnSettings {
@@ -241,9 +240,10 @@ impl Turns {
                     .into_iter()
                     .find(|plan| &plan.plan_id == plan_id)
                     .map(|plan| Prompt::continue_plan_block(&plan))
-                    .ok_or_else(|| crate::error::CoreError::Refused {
-                        code: crate::error::ErrorCode::InvalidCommand,
-                        message: "the plan is not in this conversation's project".into(),
+                    .ok_or_else(|| {
+                        crate::TurnsError::InvalidCommand(
+                            "the plan is not in this conversation's project".into(),
+                        )
                     })?,
             ),
             None => None,
@@ -267,15 +267,15 @@ impl Turns {
         // read, cannot change or prompt it until this turn gives it back.
         let events =
             (self.sessions.lease_events(&thread_id, &opened).await).map_err(|e| match e {
-                LeaseError::Busy => CoreError::from(error::TurnsError::ThreadBusy),
-                LeaseError::Closed => CoreError::HarnessStartFailed(e.to_string()),
+                LeaseError::Busy => TurnsError::ThreadBusy,
+                LeaseError::Closed => TurnsError::HarnessStartFailed(e.to_string()),
             })?;
         // A concurrent pick may finish between model settlement and this lease.
         if self.sessions.offered(&thread_id).await != Some(offered.clone()) {
             self.sessions
                 .give_back_events(&thread_id, &opened, events)
                 .await;
-            return Err(CoreError::from(error::TurnsError::ThreadBusy));
+            return Err(TurnsError::ThreadBusy);
         }
         let turn = Turn {
             command: &command,
@@ -334,7 +334,7 @@ impl Turns {
     /// Stops a turn as the local user, then answers the
     /// operation as it now stands. A tree that could not be terminated is
     /// `TerminationFailed`, and the operation is not `Cancelled`.
-    pub async fn stop(&self, op: &OperationId) -> Result<Operation, CoreError> {
+    pub async fn stop(&self, op: &OperationId) -> Result<Operation, TurnsError> {
         let outcome = PlannerTurn::stop(
             self.storage.clone(),
             self.handles.clone(),
@@ -344,14 +344,14 @@ impl Turns {
         )
         .await?;
         if outcome == StopOutcome::TerminationFailed {
-            return Err(CoreError::TerminationFailed);
+            return Err(TurnsError::TerminationFailed);
         }
         Ok(self.store.get_operation(op).await?)
     }
 
     /// Stops every running turn and closes every adapter before recording shutdown.
     /// Answers the stop kind recorded.
-    pub(crate) async fn shut_down(
+    pub async fn shut_down(
         &self,
         bound: Duration,
         second_signal: impl Future<Output = ()>,
@@ -370,16 +370,13 @@ impl Turns {
 }
 
 impl Turns {
-    pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError> {
+    pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, TurnsError> {
         Ok(self.store.list_operations_for_thread(thread).await?)
     }
 }
 
 impl Turns {
-    pub(crate) async fn stop_running(
-        &self,
-        thread: &ThreadId,
-    ) -> Result<StopOutcome, StorageError> {
+    pub async fn stop_running(&self, thread: &ThreadId) -> Result<StopOutcome, StorageError> {
         // A turn commits Pending before it registers a live handle. Removal
         // must also stop that gap, and wait for the durable terminal write
         // when a live watcher is still finishing after Stop answers.
@@ -409,7 +406,7 @@ impl Turns {
         }
         Ok(outcome)
     }
-    pub(crate) fn subscribe_live(
+    pub fn subscribe_live(
         &self,
     ) -> tokio::sync::broadcast::Receiver<(
         ThreadId,
@@ -421,21 +418,30 @@ impl Turns {
 }
 
 impl Turns {
-    pub(super) async fn images(
+    pub(crate) async fn images(
         &self,
         thread: &ThreadId,
         ids: &[core_threads::AttachmentId],
-    ) -> Result<Vec<shadows_agent::acp::ImageBlock>, CoreError> {
+    ) -> Result<Vec<shadows_agent::acp::ImageBlock>, TurnsError> {
         Self::images_in_storage(&self.storage, thread, ids).await
     }
 
-    pub(super) async fn images_in_storage(
+    pub(crate) async fn images_in_storage(
         storage: &Arc<Storage>,
         thread: &ThreadId,
         ids: &[core_threads::AttachmentId],
-    ) -> Result<Vec<shadows_agent::acp::ImageBlock>, CoreError> {
+    ) -> Result<Vec<shadows_agent::acp::ImageBlock>, TurnsError> {
         store::TurnsStore::with_storage(storage.clone())
             .images(thread, ids)
             .await
     }
 }
+
+use core_grants::Grant;
+
+#[cfg(feature = "test-support")]
+pub use entries::{Collector as TestCollector, Durable as TestDurable};
+#[cfg(feature = "test-support")]
+pub use prompt::{Prompt as TestPrompt, PromptParts as TestPromptParts};
+
+use core_harness::AylulUsageSnapshot;

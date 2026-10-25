@@ -1,6 +1,6 @@
 //! Thread removal commits before live cancellation, so a new turn cannot race it.
 use super::{StopOutcome, Turns};
-use crate::CoreError;
+use crate::TurnsError;
 use core_db::CommandContext;
 use core_threads::{PlanningThread, ThreadId};
 impl Turns {
@@ -9,7 +9,7 @@ impl Turns {
         &self,
         command_id: String,
         thread: &ThreadId,
-    ) -> Result<PlanningThread, CoreError> {
+    ) -> Result<PlanningThread, TurnsError> {
         let c = CommandContext::user(
             command_id,
             "thread.remove",

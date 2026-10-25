@@ -63,7 +63,7 @@ async fn waiting_messages_keep_their_order_and_a_removed_one_is_gone() {
     )
     .await;
     assert!(matches!(
-        again,
+        again.map_err(shadows_core::CoreError::from),
         Err(shadows_core::CoreError::Refused {
             code: shadows_core::ErrorCode::QueuedMessageGone,
             ..

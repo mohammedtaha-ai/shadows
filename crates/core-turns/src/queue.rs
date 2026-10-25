@@ -8,8 +8,8 @@ use super::handles::SteerTarget;
 use super::spawn::OnCompleted;
 use super::steer::SteerRequest;
 use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, start_command};
-use crate::error::CoreError;
-use crate::turns::model::{Queued, QueuedMessage, QueuedMessageId, SentNow};
+use crate::TurnsError;
+use crate::model::{Queued, QueuedMessage, QueuedMessageId, SentNow};
 use core_db::CommandContext;
 use core_threads::{ThreadEntryId, ThreadId};
 
@@ -21,7 +21,7 @@ fn idle_start_id(command_id: &str) -> String {
 impl Turns {
     /// A waiting message on a busy thread; on an idle one, the turn
     /// it starts. A replay answers what the first call answered.
-    pub async fn queue(&self, thread: ThreadId, turn: SendTurn) -> Result<Queued, CoreError> {
+    pub async fn queue(&self, thread: ThreadId, turn: SendTurn) -> Result<Queued, TurnsError> {
         let derived = start_command(idle_start_id(&turn.command_id), &thread, &turn);
         if let Some(replay) = self.store.replayed_turn(&derived, &thread).await? {
             return Ok(Queued::Started {
@@ -68,10 +68,7 @@ impl Turns {
                         ..turn.clone()
                     };
                     match self.send(thread.clone(), start).await {
-                        Err(CoreError::Refused {
-                            code: crate::ErrorCode::ThreadBusy,
-                            ..
-                        }) => continue,
+                        Err(TurnsError::ThreadBusy) => continue,
                         other => {
                             return other.map(|operation_id| Queued::Started { operation_id });
                         }
@@ -79,11 +76,11 @@ impl Turns {
                 }
             }
         }
-        Err(crate::turns::error::TurnsError::ThreadBusy.into())
+        Err(crate::TurnsError::ThreadBusy)
     }
 
     /// The thread's waiting messages in `position` order.
-    pub async fn queued(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, CoreError> {
+    pub async fn queued(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, TurnsError> {
         Ok(self.store.queued_messages(thread).await?)
     }
 
@@ -93,7 +90,7 @@ impl Turns {
         thread: &ThreadId,
         id: &QueuedMessageId,
         command_id: String,
-    ) -> Result<(), CoreError> {
+    ) -> Result<(), TurnsError> {
         let params = serde_json::json!({ "thread_id": thread, "queued_id": id });
         let command = CommandContext::user(command_id, "turn.unqueue", params);
         self.store.unqueue_message(&command, thread, id).await
@@ -125,7 +122,7 @@ impl Turns {
         id: &QueuedMessageId,
         command_id: String,
         attachments: Vec<core_threads::AttachmentId>,
-    ) -> Result<SentNow, CoreError> {
+    ) -> Result<SentNow, TurnsError> {
         let mut params = serde_json::json!({ "thread_id": thread, "queued_id": id });
         if !attachments.is_empty() {
             params["attachments"] = serde_json::json!(attachments);
@@ -138,17 +135,16 @@ impl Turns {
             .store
             .queued_message(thread, id)
             .await?
-            .ok_or(crate::turns::error::TurnsError::QueuedMessageGone)?;
+            .ok_or(crate::TurnsError::QueuedMessageGone)?;
         self.images(thread, &attachments).await?;
         if row.attachments != attachments {
-            return Err(CoreError::Refused {
-                code: crate::ErrorCode::InvalidCommand,
-                message: "The attachments must match the queued message in order".into(),
-            });
+            return Err(TurnsError::InvalidCommand(
+                "The attachments must match the queued message in order".into(),
+            ));
         }
         if let Some(target) = self.handles.steer_target(thread).await {
             if target.cancel_requested.load(Ordering::SeqCst) {
-                return Err(crate::turns::error::TurnsError::ThreadBusy.into());
+                return Err(crate::TurnsError::ThreadBusy);
             }
             if let Some(entry_id) = Self::steer_in(&target, &command, &row.id).await? {
                 return Ok(SentNow::Steered { entry_id });
@@ -164,7 +160,7 @@ impl Turns {
         target: &SteerTarget,
         command: &CommandContext,
         row: &QueuedMessageId,
-    ) -> Result<Option<ThreadEntryId>, CoreError> {
+    ) -> Result<Option<ThreadEntryId>, TurnsError> {
         let (reply, answer) = tokio::sync::oneshot::channel();
         let request = SteerRequest {
             command: command.clone(),
@@ -179,12 +175,12 @@ impl Turns {
 
     /// Starts `row` as a turn, taking it from the queue in the turn's own
     /// transaction.
-    pub(crate) async fn send_queued(
+    pub async fn send_queued(
         &self,
         thread: &ThreadId,
         row: &QueuedMessage,
         also: Option<CommandContext>,
-    ) -> Result<OperationId, CoreError> {
+    ) -> Result<OperationId, TurnsError> {
         let turn = SendTurn {
             command_id: queued_start_id(&row.id),
             prompt: row.prompt.clone(),
@@ -203,7 +199,7 @@ impl Turns {
     /// The first waiting message, unless it carries an error and so
     /// waits for the person. `ThreadBusy` is not a failure: the turn that took
     /// the thread sends it when it completes. A gone row was sent by Send now.
-    pub(crate) async fn send_next(&self, thread: &ThreadId) {
+    pub async fn send_next(&self, thread: &ThreadId) {
         let first = match self.store.queued_messages(thread).await {
             Ok(list) => list.into_iter().next(),
             Err(error) => {
@@ -216,10 +212,7 @@ impl Turns {
         };
         match self.send_queued(thread, &row, None).await {
             Ok(_) => {}
-            Err(CoreError::Refused {
-                code: crate::ErrorCode::ThreadBusy | crate::ErrorCode::QueuedMessageGone,
-                ..
-            }) => {}
+            Err(TurnsError::ThreadBusy | TurnsError::QueuedMessageGone) => {}
             Err(error) => {
                 let message = error.to_string();
                 if let Err(e) = self.store.fail_queued(thread, &row.id, &message).await {

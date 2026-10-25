@@ -2,7 +2,7 @@
 
 use sqlx::SqliteConnection;
 
-use crate::turns::model::{QueuedMessage, QueuedMessageId};
+use crate::model::{QueuedMessage, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_operations::Operations;
 use core_plans::{Focus, PlanId};
@@ -87,7 +87,7 @@ impl super::TurnsStore {
         conn: &mut SqliteConnection,
         thread: &ThreadId,
         id: &QueuedMessageId,
-    ) -> Result<(), crate::CoreError> {
+    ) -> Result<(), crate::TurnsError> {
         let gone = sqlx::query("DELETE FROM queued_message WHERE id = ? AND thread_id = ?")
             .bind(id.as_str())
             .bind(thread.as_str())
@@ -96,7 +96,7 @@ impl super::TurnsStore {
             .rows_affected()
             == 0;
         if gone {
-            return Err(crate::turns::error::TurnsError::QueuedMessageGone.into());
+            return Err(crate::TurnsError::QueuedMessageGone);
         }
         Ok(())
     }
@@ -238,7 +238,7 @@ impl super::TurnsStore {
         ctx: &CommandContext,
         thread: &ThreadId,
         id: &QueuedMessageId,
-    ) -> Result<(), crate::CoreError> {
+    ) -> Result<(), crate::TurnsError> {
         let (ctx, thread, id, ts) = (ctx.clone(), thread.clone(), id.clone(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
@@ -314,7 +314,7 @@ impl super::TurnsStore {
 }
 
 impl super::TurnsStore {
-    pub(in crate::turns) async fn replayed_queue(
+    pub(crate) async fn replayed_queue(
         &self,
         ctx: &CommandContext,
         thread: &ThreadId,

@@ -1,7 +1,7 @@
-use crate::turns::StartError;
 use core_db::StorageError;
 use core_harness::OpenError;
 use core_projects::DirectoryError;
+use core_turns::StartError;
 
 /// Stable codes clients pattern-match on. Never match on human text.
 /// Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
@@ -527,6 +527,42 @@ impl From<core_plans::PlansError> for CoreError {
                 code: ErrorCode::InvalidCommand,
                 message,
             },
+        }
+    }
+}
+
+impl From<core_turns::TurnsError> for CoreError {
+    fn from(error: core_turns::TurnsError) -> Self {
+        use core_turns::TurnsError;
+        let message = error.to_string();
+        match error {
+            TurnsError::ThreadBusy => Self::Refused {
+                code: ErrorCode::ThreadBusy,
+                message,
+            },
+            TurnsError::QueuedMessageGone => Self::Refused {
+                code: ErrorCode::QueuedMessageGone,
+                message,
+            },
+            TurnsError::RuntimeStopping => Self::RuntimeStopping,
+            TurnsError::TerminationFailed => Self::TerminationFailed,
+            TurnsError::InvalidCommand(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            TurnsError::HarnessStartFailed(message) => Self::HarnessStartFailed(message),
+            TurnsError::SettingNotOffered { what, id, detail } => {
+                Self::SettingNotOffered { what, id, detail }
+            }
+            TurnsError::ModeNotAllowed(mode) => Self::ModeNotAllowed(mode),
+            TurnsError::Start(error) => error.into(),
+            TurnsError::Harness(error) => error.into(),
+            TurnsError::Plans(error) => error.into(),
+            TurnsError::Projects(error) => error.into(),
+            TurnsError::Threads(error) => error.into(),
+            TurnsError::Instructions(error) => error.into(),
+            TurnsError::Standards(error) => error.into(),
+            TurnsError::Storage(error) => error.into(),
         }
     }
 }

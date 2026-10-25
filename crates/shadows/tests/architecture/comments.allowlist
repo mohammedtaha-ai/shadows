@@ -110,13 +110,13 @@ crates/core-threads/src/model.rs :: ThreadEntryKind comment [f3ffc2b669d5e71d] #
 crates/core-threads/src/model.rs :: ThreadEntryKind comment [feab4355e1b77dc2] #1
 crates/core-threads/src/model.rs :: module comment [6c5d0abc3d1b1d1b] #1
 # A-19: serialized Turns model documentation stays byte-for-byte for OpenAPI stability.
-crates/shadows-core/src/turns/model.rs :: Operation comment [dce7c2c955970d93] #1
-crates/shadows-core/src/turns/model.rs :: QueuedMessage comment [f51551a5d112374e] #1
-crates/shadows-core/src/turns/model.rs :: module comment [117ff91835127a76] #1
-crates/shadows-core/src/turns/model.rs :: module comment [161966978e4619b6] #1
-crates/shadows-core/src/turns/model.rs :: module comment [487f2102cba686c8] #1
-crates/shadows-core/src/turns/model.rs :: module comment [c3da7d41aee9460d] #1
-crates/shadows-core/src/turns/model.rs :: module comment [f46b5454090b5b6f] #1
+crates/core-turns/src/model.rs :: Operation comment [dce7c2c955970d93] #1
+crates/core-turns/src/model.rs :: QueuedMessage comment [f51551a5d112374e] #1
+crates/core-turns/src/model.rs :: module comment [117ff91835127a76] #1
+crates/core-turns/src/model.rs :: module comment [161966978e4619b6] #1
+crates/core-turns/src/model.rs :: module comment [487f2102cba686c8] #1
+crates/core-turns/src/model.rs :: module comment [c3da7d41aee9460d] #1
+crates/core-turns/src/model.rs :: module comment [f46b5454090b5b6f] #1
 crates/shadows-http/src/code.rs :: PutLink comment [05d9a3f0c2cf6a88] #1
 crates/shadows-http/src/code.rs :: PutSettings comment [03907044ea15b9ab] #1
 crates/shadows-http/src/code.rs :: RemoveLinkQuery comment [05d9a3f0c2cf6a88] #1

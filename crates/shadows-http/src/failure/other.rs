@@ -211,3 +211,9 @@ impl From<shadows_core::PlansError> for Failure {
         CoreError::from(error).into()
     }
 }
+
+impl From<shadows_core::TurnsError> for Failure {
+    fn from(error: shadows_core::TurnsError) -> Self {
+        CoreError::from(error).into()
+    }
+}

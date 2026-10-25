@@ -126,8 +126,8 @@ pub use core_plans::for_tests::{Applied, Ops, Rules};
 /// The turn machinery below `Turns`, which the turn, shutdown and recovery
 /// tests drive directly. Private to `turns` everywhere else: a caller starts
 /// or stops a turn through `Turns` only.
-pub use crate::turns::LiveHandles;
-pub use crate::turns::for_tests::{
+pub use core_turns::LiveHandles;
+pub use core_turns::for_tests::{
     Dequeue, FailureStage, InvocationVersions, NewTurn, PlannerTurn, PlannerTurnRequest,
     StartedTurn, StopOutcome,
 };
@@ -137,7 +137,6 @@ pub use crate::turns::for_tests::{
 /// crate everywhere else (§14.6).
 pub use crate::app::adapter_version;
 pub use crate::events::EventCursor;
-pub use crate::turns::Bus;
 pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
 pub use core_grants::Writer;
@@ -147,6 +146,7 @@ pub use core_operations::ReconcileReport;
 pub use core_projects::ProjectDirectory;
 pub use core_runtime::Runtime;
 pub use core_threads::{NewThreadEntry, TurnContext};
+pub use core_turns::Bus;
 
 impl AppCore {
     /// The application over parts a test built, so the test keeps its own

@@ -5,7 +5,6 @@ mod project_lifecycle;
 pub use project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]
 pub mod testing;
-mod turns;
 pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
 // The public surface (spec §14.4, §14.6): the application, its failure, the
@@ -71,13 +70,13 @@ pub use core_threads::{
     PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
     WorkflowRef,
 };
-pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
-pub use error::{CoreError, ErrorCode};
-pub use events::{Delivery, Events, StoredEvent, Subscription};
-pub use turns::{
+pub use core_turns::{
     InvocationView, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
     StartError, Turns,
 };
+pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
+pub use error::{CoreError, ErrorCode};
+pub use events::{Delivery, Events, StoredEvent, Subscription};
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
@@ -113,3 +112,5 @@ pub use core_threads::ThreadsError;
 pub use core_design::DesignError;
 
 pub use core_plans::PlansError;
+
+pub use core_turns::TurnsError;

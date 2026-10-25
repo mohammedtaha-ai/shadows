@@ -95,7 +95,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/extension_home.rs` | per-agent extension projection | `crates/core-harness/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/core-extensions/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
-| `crates/shadows-core/src/turns/store/usage.rs` | atomic turn usage insertion | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/core-turns/src/store/usage.rs` | atomic turn usage insertion | `crates/core-turns/contract.yaml` |
 | `crates/core-harness/src/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/core-agents/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
@@ -200,18 +200,18 @@ pattern to follow, not merely an example.
 | `crates/core-operations/src/store/` | private operation persistence | `crates/core-operations/contract.yaml` |
 | `crates/core-operations/src/fork.rs` | transactional fork eligibility | `crates/core-operations/contract.yaml` |
 | `crates/core-operations/src/testing.rs` | test-only runtime stop entry | `crates/core-operations/contract.yaml` |
-| `crates/shadows-core/src/turns/testing.rs` | test-only lifecycle composition | `crates/shadows-core/src/turns/contract.yaml` |
-| `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
-| `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
-| `crates/shadows-core/src/turns/store/` | turn command persistence | `crates/shadows-core/src/turns/store/turn.rs` |
-| `crates/shadows-core/src/turns/store/queue.rs` | the queue's SQLite queries | `crates/shadows-core/src/turns/store/queue.rs` |
-| `crates/shadows-core/src/turns/store/steer.rs` | recording a steered message | `crates/shadows-core/src/turns/store/steer.rs` |
-| `crates/shadows-core/src/turns/queue.rs` | the waiting messages of a conversation | `crates/shadows-core/src/turns/queue.rs` |
-| `crates/shadows-core/src/turns/record.rs` | the checks that commit a turn's start | `crates/shadows-core/src/turns/record.rs` |
-| `crates/shadows-core/src/turns/steer.rs` | a Send now inside the turn's watcher | `crates/shadows-core/src/turns/steer.rs` |
-| `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
-| `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
-| `crates/shadows-core/src/turns/subagents.rs` | gathering a subagent's tool calls into its card (§22) | `crates/shadows-core/src/turns/subagents.rs` |
+| `crates/core-turns/src/testing.rs` | test-only lifecycle composition | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/` | Planner turns, from start to stop | `crates/core-turns/src/lib.rs` |
+| `crates/core-turns/src/model.rs` | the operation types callers meet | `crates/core-turns/src/model.rs` |
+| `crates/core-turns/src/store/` | turn command persistence | `crates/core-turns/src/store/turn.rs` |
+| `crates/core-turns/src/store/queue.rs` | the queue's SQLite queries | `crates/core-turns/src/store/queue.rs` |
+| `crates/core-turns/src/store/steer.rs` | recording a steered message | `crates/core-turns/src/store/steer.rs` |
+| `crates/core-turns/src/queue.rs` | the waiting messages of a conversation | `crates/core-turns/src/queue.rs` |
+| `crates/core-turns/src/record.rs` | the checks that commit a turn's start | `crates/core-turns/src/record.rs` |
+| `crates/core-turns/src/steer.rs` | a Send now inside the turn's watcher | `crates/core-turns/src/steer.rs` |
+| `crates/core-turns/src/turn.rs` | the recorded ending of a live Planner turn | `crates/core-turns/src/turn.rs` |
+| `crates/core-turns/src/entries.rs` | turning harness events into durable entries | `crates/core-turns/src/entries.rs` |
+| `crates/core-turns/src/subagents.rs` | gathering a subagent's tool calls into its card (§22) | `crates/core-turns/src/subagents.rs` |
 | `crates/core-harness/src/` | the harnesses, each thread's open session included | `crates/core-harness/src/lib.rs` |
 | `crates/core-harness/src/model.rs` | the harness shapes callers meet | `crates/core-harness/src/model.rs` |
 | `crates/core-harness/src/store/` | harness persistence | `crates/core-harness/contract.yaml` |
@@ -221,7 +221,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/mode.rs` | durable conversation mode commands | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/fork.rs` | atomic conversation fork composition | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/store/mode.rs` | conversation permission persistence | `crates/core-harness/contract.yaml` |
-| `crates/shadows-core/src/turns/store/remove.rs` | thread removal composition | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/core-turns/src/store/remove.rs` | thread removal composition | `crates/core-turns/contract.yaml` |
 | `crates/core-harness/src/setup.rs` | what a Planner session opens with | `crates/core-harness/src/setup.rs` |
 | `crates/core-harness/src/standards.rs` | Planner standards rendering | `crates/core-harness/src/standards.rs` |
 | `crates/core-harness/src/offers.rs` | the latest choices each open session offers | `crates/core-harness/src/offers.rs` |
@@ -288,7 +288,7 @@ pattern to follow, not merely an example.
 | `crates/core-standards/src/validation.rs` | project additions validation | `crates/core-standards/contract.yaml` |
 | `crates/core-design/src/stage.rs` | a project's stage from its workspace | `crates/core-design/src/stage.rs` |
 | `crates/core-standards/src/store/` | immutable additions persistence | `crates/core-standards/contract.yaml` |
-| `crates/shadows-core/src/turns/store/standards.rs` | invocation standards selection | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/core-turns/src/store/standards.rs` | invocation standards selection | `crates/core-turns/contract.yaml` |
 | `crates/core-design/src/store/stage.rs` | reading a project's stage inputs | `crates/core-design/src/store/stage.rs` |
 | `crates/core-design/src/store/outcomes.rs` | snapshot reads of outcomes | `crates/core-design/src/store/outcomes.rs` |
 | `crates/core-design/src/store/outcome_edit.rs` | transactional outcome mutations | `crates/core-design/src/store/outcome_edit.rs` |
@@ -386,7 +386,7 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-harness/src/access.rs` | live session owner operations | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/store/invocation.rs` | invocation transaction entry points | `crates/core-harness/contract.yaml` |
-| `crates/shadows-core/src/turns/stage.rs` | shared prompt stage facts | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/core-turns/src/stage.rs` | shared prompt stage facts | `crates/core-turns/contract.yaml` |
 
 | `crates/core-design/src/error.rs` | error boundary | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/proposal_context.rs` | proposal context boundary | `crates/core-design/contract.yaml` |
@@ -401,16 +401,16 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-plans/src/store/design_parts.rs` | design parts boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/project_links.rs` | project links boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/testing.rs` | testing boundary | `crates/core-plans/contract.yaml` |
-| `crates/shadows-core/src/turns/plan_show.rs` | plan show boundary | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/core-turns/src/plan_show.rs` | plan show boundary | `crates/core-turns/contract.yaml` |
 
-| `crates/shadows-core/src/turns/remove.rs` | thread removal orchestration | `crates/shadows-core/src/turns/contract.yaml` |
-| `crates/shadows-core/src/turns/error.rs` | turn refusal mapping | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/core-turns/src/remove.rs` | thread removal orchestration | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/error.rs` | turn refusal mapping | `crates/core-turns/contract.yaml` |
 
 | `crates/core-threads/src/attachment.rs` | bounded image validation through every animation frame | `crates/core-threads/contract.yaml` |
 | `crates/core-threads/src/store/attachment.rs` | immutable image persistence | `crates/core-threads/contract.yaml` |
 | `crates/shadows-http/src/attachments.rs` | image HTTP translation | `crates/core-threads/contract.yaml` |
 
-| `crates/shadows-core/src/turns/store/images.rs` | neutral image read composition | `crates/shadows-core/src/turns/contract.yaml` |
+| `crates/core-turns/src/store/images.rs` | neutral image read composition | `crates/core-turns/contract.yaml` |
 
 | `crates/shadows-core/src/project_lifecycle/` | cross-owner project lifecycle | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
 | `crates/shadows-core/src/project_lifecycle/error.rs` | project removal refusal | `crates/shadows-core/src/project_lifecycle/contract.yaml` |
@@ -478,3 +478,11 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-design/src/openapi-3.1-meta.json` | bundled OpenAPI vocabulary schema | `crates/core-design/contract.yaml` |
 
 | `crates/core-design/src/openapi-3.1-dialect.json` | bundled OpenAPI schema dialect | `crates/core-design/contract.yaml` |
+
+| `crates/core-turns/src/handles.rs` | live turn registry | `crates/core-turns/contract.yaml` |
+
+| `crates/core-turns/src/prompt.rs` | prompt composition | `crates/core-turns/contract.yaml` |
+
+| `crates/core-turns/src/shutdown.rs` | live shutdown orchestration | `crates/core-turns/contract.yaml` |
+
+| `crates/core-turns/src/spawn.rs` | live registration | `crates/core-turns/contract.yaml` |

@@ -7,7 +7,7 @@
 
 use sqlx::SqliteConnection;
 
-use crate::turns::model::{OperationId, QueuedMessageId};
+use crate::model::{OperationId, QueuedMessageId};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_harness::{Harness, NewInvocation};
 use core_operations::Operations;
@@ -92,7 +92,7 @@ async fn focused(
     conn: &mut SqliteConnection,
     thread: &ThreadId,
     focus: &Focus,
-) -> Result<(u32, String), crate::CoreError> {
+) -> Result<(u32, String), crate::TurnsError> {
     let project = Threads::project_in(conn, thread).await?;
     let in_project = Plans::workflow_in_project_in(conn, &focus.workflow_id, &project).await?;
     if !in_project {
@@ -118,7 +118,7 @@ impl super::TurnsStore {
         &self,
         ctx: &CommandContext,
         turn: NewTurn<'_>,
-    ) -> Result<StartedTurn, crate::CoreError> {
+    ) -> Result<StartedTurn, crate::TurnsError> {
         let snapshot = turn.aylul_usage.cloned();
         let (ctx, ts) = (ctx.clone(), Storage::now());
         let thread = turn.thread_id.clone();
@@ -145,7 +145,7 @@ impl super::TurnsStore {
         .map(str::to_owned);
         let (started, transition) = self
             .storage
-            .write_txn_as::<_, _, crate::CoreError>(move |conn| {
+            .write_txn_as::<_, _, crate::TurnsError>(move |conn| {
                 Box::pin(async move {
                     if let Some(outcome) =
                         CommandContext::classify(conn, &ctx, SCOPE, thread.as_str()).await?
@@ -155,7 +155,7 @@ impl super::TurnsStore {
                     core_threads::Threads::require_live_in(conn, &thread).await?;
                     Threads::attachment_refs_in(conn, &thread, &attachments).await?;
                     if Operations::has_open_in(conn, &thread).await? {
-                        return Err(crate::turns::error::TurnsError::ThreadBusy.into());
+                        return Err(crate::TurnsError::ThreadBusy);
                     }
                     if let Some((id, _)) = &dequeue {
                         Self::take_queued_in(conn, &thread, id).await?;

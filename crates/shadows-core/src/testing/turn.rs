@@ -5,12 +5,12 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
-use crate::turns::{LiveHandles, OperationId, StartError};
 use core_db::CommandContext;
 use core_harness::Harness;
 use core_runtime::Runtime;
 use core_threads::ThreadId;
+use core_turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
+use core_turns::{LiveHandles, OperationId, StartError};
 use shadows_agent::TurnSettings;
 use shadows_agent::events::HarnessEvent;
 
@@ -96,7 +96,7 @@ pub async fn start_direct(
             if handles.is_closed().await {
                 return Err(StartError::RuntimeStopping.into());
             }
-            return Err(e);
+            return Err(e.into());
         }
     };
     PlannerTurn::start(

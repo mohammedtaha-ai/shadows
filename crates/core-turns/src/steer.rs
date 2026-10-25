@@ -13,13 +13,13 @@ use super::{
     prompt::Prompt,
     turn::{PlannerTurn, TurnWatch},
 };
-use crate::error::CoreError;
+use crate::TurnsError;
 use core_threads::ThreadEntryId;
 use shadows_agent::acp::Steer;
 
 /// A Send now for the running turn: `Ok(Some(entry))` is the message steered
 /// in, `Ok(None)` is the adapter saying no prompt runs.
-pub(crate) type SteerAnswer = Result<Option<ThreadEntryId>, CoreError>;
+pub(crate) type SteerAnswer = Result<Option<ThreadEntryId>, TurnsError>;
 
 pub(crate) struct SteerRequest {
     pub command: CommandContext,
@@ -47,7 +47,7 @@ async fn attempt(
     // The watcher steers one message at a time, so a row taken since the
     // caller read it is seen here, before a second copy reaches the adapter.
     let Some(queued) = store.queued_message(&w.thread_id, row).await? else {
-        return Err(crate::turns::error::TurnsError::QueuedMessageGone.into());
+        return Err(crate::TurnsError::QueuedMessageGone);
     };
     let images =
         super::Turns::images_in_storage(&w.storage, &w.thread_id, &queued.attachments).await?;
@@ -74,7 +74,7 @@ async fn attempt(
         Err(error) => {
             let reason = format!("the message did not reach the turn: {error}");
             store.fail_queued(&w.thread_id, row, &reason).await?;
-            Err(CoreError::HarnessStartFailed(reason))
+            Err(TurnsError::HarnessStartFailed(reason))
         }
     }
 }

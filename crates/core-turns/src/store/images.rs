@@ -1,15 +1,15 @@
 //! Neutral image reads composed through Threads in one snapshot.
-use crate::CoreError;
+use crate::TurnsError;
 use core_db::StorageError;
 use core_threads::{AttachmentId, ThreadId, Threads};
 use shadows_agent::acp::ImageBlock;
 
 impl super::TurnsStore {
-    pub(in crate::turns) async fn images(
+    pub(crate) async fn images(
         &self,
         thread: &ThreadId,
         ids: &[AttachmentId],
-    ) -> Result<Vec<ImageBlock>, CoreError> {
+    ) -> Result<Vec<ImageBlock>, TurnsError> {
         let mut conn = self
             .storage
             .reader()

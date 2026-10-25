@@ -1,5 +1,5 @@
 //! Stage facts supplied to both normal and steered Planner prompts.
-use crate::turns::Turns;
+use crate::Turns;
 use core_db::{Storage, StorageError};
 use core_threads::{ThreadId, Threads};
 

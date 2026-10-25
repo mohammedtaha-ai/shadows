@@ -2,13 +2,6 @@
 # A-20: test module glob resolution review.
 # A-20: legacy fixture service constructors.
 # A-20: adapter fixtures retain explicit storage, session and live-registry handles.
-crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::app::CoreParts [eb819e5a3702e515] #1
-crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports core_db::Storage [9c1c6a74e7ff5b3b] #1
-crates/shadows-http/src/aylul_env_tests.rs :: module adapter imports shadows_core::turns::handles::LiveHandles [9c1c6a74e7ff5b3b] #1
-crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::app::CoreParts [27e260cba753808c] #1
-crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses core_db::Storage::open [7d87dc6849ac2337] #1
-crates/shadows-http/src/aylul_env_tests.rs :: world adapter accesses shadows_core::turns::handles::LiveHandles::default [68c6bc98750ff5dc] #1
-crates/shadows-http/src/aylul_env_tests.rs :: world adapter calls core_db::Storage::unwrap [bf25e3bc00c2485f] #1
 # A-20: binary test module glob resolution reviews.
 crates/shadows/src/aylul_tests.rs :: module name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows/src/cli/args.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1

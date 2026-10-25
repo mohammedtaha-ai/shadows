@@ -1,3 +1,4 @@
+# Turns errors translate through CoreError with unchanged responses.
 # Plans errors translate through CoreError with unchanged responses.
 # Design errors translate through CoreError with unchanged responses.
 # OperationsError is translated through CoreError with unchanged responses.

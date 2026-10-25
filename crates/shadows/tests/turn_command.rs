@@ -43,6 +43,7 @@ async fn start(
         new_turn(&app.thread, &app.runtime, prompt, settings),
     )
     .await
+    .map_err(shadows_core::CoreError::from)
 }
 
 async fn patch_modes(app: &App, modes: &[&str]) {

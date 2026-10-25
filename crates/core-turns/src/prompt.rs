@@ -10,7 +10,7 @@ use core_plans::{Focus, PlanListing};
 use shadows_agent::acp::{ImageBlock, PromptBlock};
 
 /// What the harness and the turn's request supply; none of it is ordered yet.
-pub(super) struct PromptParts {
+pub struct PromptParts {
     pub images: Vec<shadows_agent::acp::ImageBlock>,
     pub text: String,
     /// The harness's facts: what changed since the session last heard, and the stage line.
@@ -21,7 +21,7 @@ pub(super) struct PromptParts {
 }
 
 /// The blocks of one prompt, in the order they are sent.
-pub(super) struct Prompt {
+pub struct Prompt {
     pub blocks: Vec<PromptBlock>,
     /// A command went without the changes, so the session has still to hear them.
     pub withholds: bool,
@@ -30,7 +30,7 @@ pub(super) struct Prompt {
 impl Prompt {
     /// Orders the person's text, images, changes since the session last heard,
     /// focus, the selected plan, then the stage line.
-    pub(super) fn compose(parts: PromptParts) -> Prompt {
+    pub fn compose(parts: PromptParts) -> Prompt {
         let PromptParts {
             text,
             images,
@@ -65,11 +65,7 @@ impl Prompt {
             .collect()
     }
 
-    pub(super) fn steered_blocks(
-        text: &str,
-        stage: &str,
-        images: Vec<ImageBlock>,
-    ) -> Vec<PromptBlock> {
+    pub fn steered_blocks(text: &str, stage: &str, images: Vec<ImageBlock>) -> Vec<PromptBlock> {
         let text = if images.is_empty() || stage.is_empty() {
             Self::steered(text, stage)
         } else {
@@ -86,7 +82,7 @@ impl Prompt {
     }
 
     /// A steered message is one text: the stage line follows it, unless it is a command.
-    pub(super) fn steered(text: &str, stage: &str) -> String {
+    pub fn steered(text: &str, stage: &str) -> String {
         if Self::is_command(text) {
             text.trim_start().to_string()
         } else if stage.is_empty() {
@@ -98,7 +94,7 @@ impl Prompt {
 
     /// The context block that tells the Planner which task the person points
     /// at: task `number`, titled `title`, as the turn command read it.
-    pub(super) fn focus_block(focus: &Focus, number: u32, title: &str) -> String {
+    pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String {
         format!(
             "[Shadows] The person is pointing at task T{number} (\"{title}\") of plan {}, \
                 revision {}. \
@@ -108,93 +104,12 @@ impl Prompt {
     }
 
     /// The context block for a person continuing a plan in a new conversation.
-    pub(super) fn continue_plan_block(plan: &PlanListing) -> String {
+    pub fn continue_plan_block(plan: &PlanListing) -> String {
         format!(
             "[Shadows] The person opened this conversation to continue the plan \"{}\" \
              (plan_id {}, latest version workflow_id {}). \
              Read it with workflow_get before you plan.",
             plan.title, plan.plan_id, plan.id
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Prompt, PromptBlock, PromptParts};
-
-    fn texts(values: &[&str]) -> Vec<PromptBlock> {
-        values
-            .iter()
-            .map(|s| PromptBlock::Text((*s).into()))
-            .collect()
-    }
-
-    fn parts(text: &str) -> PromptParts {
-        PromptParts {
-            images: Vec::new(),
-            text: text.into(),
-            changes: Some("changed".into()),
-            stage: "stage".into(),
-            focus: Some("focus".into()),
-            continue_plan: Some("plan".into()),
-        }
-    }
-
-    #[test]
-    fn a_slash_command_is_sent_as_one_block() {
-        let prompt = Prompt::compose(parts("/context"));
-        assert_eq!(prompt.blocks, texts(&["/context"]));
-        assert!(prompt.withholds);
-        assert_eq!(Prompt::steered("/context", "stage"), "/context");
-
-        for typed in [" /context", "\n/context", "  \n/context"] {
-            let indented = Prompt::compose(parts(typed));
-            assert_eq!(indented.blocks, texts(&["/context"]), "{typed:?}");
-            assert!(indented.withholds, "{typed:?}");
-            assert_eq!(Prompt::steered(typed, "stage"), "/context", "{typed:?}");
-        }
-
-        let unchanged = Prompt::compose(PromptParts {
-            changes: None,
-            ..parts("/context")
-        });
-        assert!(!unchanged.withholds, "nothing to withhold");
-    }
-
-    #[test]
-    fn a_normal_turn_orders_its_blocks_and_withholds_nothing() {
-        let prompt = Prompt::compose(parts("hello"));
-        assert_eq!(
-            prompt.blocks,
-            texts(&["hello", "changed", "focus", "plan", "stage"])
-        );
-        assert!(!prompt.withholds);
-        assert_eq!(Prompt::steered("hello", "stage"), "hello\n\nstage");
-
-        assert_eq!(
-            Prompt::compose(parts("  hello")).blocks[0],
-            PromptBlock::Text("  hello".into())
-        );
-        assert_eq!(Prompt::steered("  hello", ""), "  hello");
-
-        let path = Prompt::compose(parts("read src/main.rs and a/b"));
-        assert_eq!(
-            path.blocks,
-            texts(&[
-                "read src/main.rs and a/b",
-                "changed",
-                "focus",
-                "plan",
-                "stage"
-            ])
-        );
-        assert!(!path.withholds);
-
-        let empty = Prompt::compose(parts(""));
-        assert_eq!(
-            empty.blocks,
-            texts(&["", "changed", "focus", "plan", "stage"])
-        );
-        assert_eq!(Prompt::steered("", ""), "");
     }
 }

@@ -85,3 +85,5 @@ workflow :: plans
 # design SQL lives in crates/core-design/src/store/.
 
 # plans SQL lives in crates/core-plans/src/store/.
+
+# turns SQL lives in crates/core-turns/src/store/.

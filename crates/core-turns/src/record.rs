@@ -6,7 +6,7 @@ use shadows_agent::choices::Offered;
 
 use super::Turns;
 use super::store::{Dequeue, NewTurn, StartedTurn};
-use crate::error::CoreError;
+use crate::TurnsError;
 use core_db::{CommandContext, StorageError};
 use core_harness::OpenSession;
 use core_plans::Focus;
@@ -31,7 +31,7 @@ impl Turns {
         context: &TurnContext,
         turn: Turn<'_>,
         offered: &Offered,
-    ) -> Result<StartedTurn, CoreError> {
+    ) -> Result<StartedTurn, TurnsError> {
         self.start(
             thread_id,
             context,
@@ -50,7 +50,7 @@ impl Turns {
         turn: Turn<'_>,
         offered: &Offered,
         snapshot: Option<&crate::AylulUsageSnapshot>,
-    ) -> Result<StartedTurn, CoreError> {
+    ) -> Result<StartedTurn, TurnsError> {
         let Turn {
             command,
             attachments,
@@ -60,7 +60,7 @@ impl Turns {
             dequeue,
         } = turn;
         if let Some((what, id)) = offered.refusal(&context.harness, settings) {
-            return Err(CoreError::SettingNotOffered {
+            return Err(TurnsError::SettingNotOffered {
                 what: what.to_string(),
                 id,
                 detail: None,
@@ -71,7 +71,7 @@ impl Turns {
             .allowed_modes(&context.project_id, &context.harness)
             .await?;
         if !allowed.contains(&settings.mode) {
-            return Err(CoreError::ModeNotAllowed(settings.mode.clone()));
+            return Err(TurnsError::ModeNotAllowed(settings.mode.clone()));
         }
 
         let adapter = self.sessions.adapter();
@@ -110,10 +110,10 @@ impl Turns {
             .await;
         match started {
             Ok(started) => Ok(started),
-            Err(CoreError::Storage(StorageError::TransitionConflict { .. }))
+            Err(TurnsError::Storage(StorageError::TransitionConflict { .. }))
                 if self.handles.is_closed().await =>
             {
-                Err(CoreError::RuntimeStopping)
+                Err(TurnsError::RuntimeStopping)
             }
             Err(e) => Err(e),
         }

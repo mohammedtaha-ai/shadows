@@ -38,7 +38,7 @@ dependencies:
   plans: crates/core-plans/contract.yaml
   harness: crates/core-harness/contract.yaml
   projects: ../projects/contract.yaml
-  turns: ../turns/contract.yaml
+  turns: crates/core-turns/contract.yaml
   signal: crates/core-plans/contract.yaml
 
 

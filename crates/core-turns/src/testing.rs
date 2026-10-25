@@ -1,5 +1,5 @@
-use crate::turns::model::FailureStage;
-use crate::turns::{Operation, OperationId, Turns};
+use crate::model::FailureStage;
+use crate::{Operation, OperationId, Turns};
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_runtime::RuntimeInstanceId;
 use core_threads::ThreadId;
@@ -10,7 +10,7 @@ impl Turns {
         storage: &std::sync::Arc<Storage>,
         command: &core_db::CommandContext,
         turn: super::store::NewTurn<'_>,
-    ) -> Result<super::store::StartedTurn, crate::CoreError> {
+    ) -> Result<super::store::StartedTurn, crate::TurnsError> {
         super::store::TurnsStore::with_storage(storage.clone())
             .start_turn(command, turn)
             .await
@@ -38,7 +38,7 @@ impl Turns {
         command: &core_db::CommandContext,
         thread: &ThreadId,
         row: &super::QueuedMessageId,
-    ) -> Result<(), crate::CoreError> {
+    ) -> Result<(), crate::TurnsError> {
         super::store::TurnsStore::with_storage(storage.clone())
             .unqueue_message(command, thread, row)
             .await

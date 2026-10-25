@@ -17,7 +17,6 @@ use shadows_process::{ProcessSpec, spawn};
 use crate::error::CoreError;
 use crate::events::Events;
 use crate::project_lifecycle::ProjectLifecycle;
-use crate::turns::{Bus, LiveHandles, Turns};
 use core_agents::Agents;
 use core_code::{Code, CodeConfig};
 use core_db::Storage;
@@ -37,6 +36,7 @@ use core_runtime::StopKind;
 use core_secrets::{SecretKey, Secrets};
 use core_standards::Standards;
 use core_threads::Threads;
+use core_turns::{Bus, LiveHandles, Turns};
 use core_usage::Usage;
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
@@ -118,8 +118,8 @@ pub struct CoreParts {
          `crates/core-operations/contract.yaml` |"]
 #[doc = " | `Turns` | \
          turn execution lifecycle | \
-         `crates/shadows-core/src/turns` | \
-         `crates/shadows-core/src/turns/contract.yaml` |"]
+         `crates/core-turns/src` | \
+         `crates/core-turns/contract.yaml` |"]
 #[doc = " | `Harness` | \
          thread harness sessions | \
          `crates/core-harness/src` | \

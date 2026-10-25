@@ -1,7 +1,7 @@
 //! One job: recording a steered message.
 
 use super::queue::SCOPE;
-use crate::turns::model::{OperationId, QueuedMessageId, SentNow};
+use crate::model::{OperationId, QueuedMessageId, SentNow};
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads};
 
@@ -16,7 +16,7 @@ impl super::TurnsStore {
         row: &QueuedMessageId,
         prompt: &str,
         attachments: &[core_threads::AttachmentId],
-    ) -> Result<ThreadEntryId, crate::CoreError> {
+    ) -> Result<ThreadEntryId, crate::TurnsError> {
         let (ctx, thread, op, row, prompt, ts) = (
             ctx.clone(),
             thread.clone(),

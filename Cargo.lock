@@ -1038,6 +1038,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-turns"
+version = "0.1.0"
+dependencies = [
+ "core-code",
+ "core-db",
+ "core-design",
+ "core-grants",
+ "core-harness",
+ "core-instructions",
+ "core-operations",
+ "core-plans",
+ "core-projects",
+ "core-runtime",
+ "core-standards",
+ "core-threads",
+ "core-turns",
+ "core-usage",
+ "serde",
+ "serde_json",
+ "shadows-agent",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "core-usage"
 version = "0.1.0"
 dependencies = [
@@ -3722,6 +3753,7 @@ dependencies = [
  "core-secrets",
  "core-standards",
  "core-threads",
+ "core-turns",
  "core-usage",
  "dunce",
  "escargot",

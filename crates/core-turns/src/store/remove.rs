@@ -4,7 +4,7 @@ use core_grants::Grants;
 use core_harness::Harness;
 use core_threads::{PlanningThread, ThreadId, Threads};
 impl super::TurnsStore {
-    pub(in crate::turns) async fn remove_thread(
+    pub(crate) async fn remove_thread(
         &self,
         command: &CommandContext,
         thread: &ThreadId,
