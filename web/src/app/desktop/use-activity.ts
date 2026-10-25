@@ -1,11 +1,9 @@
+import {nativeActivityQuery} from '@/api/native-activity'
 import {useQuery} from '@tanstack/react-query'
 import {getState} from '../../desktop/activity-api'
 
 /** Poll the native sidecar only while this mounted panel is visible. */
 export function useActivity(intervalMs=1000){
-  const query=useQuery({
-    queryKey:['desktop-local-activity'],queryFn:getState,retry:false,
-    refetchInterval:intervalMs,refetchIntervalInBackground:false,
-  })
+  const query=useQuery(nativeActivityQuery(getState,intervalMs))
   return {state:query.isError?null:query.data??null,refresh:async()=>{await query.refetch()}}
 }

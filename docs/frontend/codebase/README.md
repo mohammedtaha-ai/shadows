@@ -322,3 +322,5 @@ it is that folder's `contract.yaml`.
 | `web/src/api/code.ts` | Code index query cache ownership | `web/src/api/contract.yaml` |
 
 | `web/src/api/directories.ts` | Directory query identities | `web/src/api/contract.yaml` |
+
+| `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |

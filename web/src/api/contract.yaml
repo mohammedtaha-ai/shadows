@@ -667,3 +667,8 @@ directory_cache:
   owner: directories.ts
   keys: "directoryKeys.children preserves ['fs', 'dirs', path] including null roots; dirsQuery is re-exported by queries.ts"
   refresh: "New folder creation invalidates the same parent identity the folder browser reads; no automatic retry"
+
+native_activity_cache:
+  owner: native-activity.ts
+  keys: "nativeActivityKeys.state preserves ['desktop-local-activity']"
+  nativeActivityQuery: "The desktop bridge supplies the typed read function; API owns query identity and options without importing native infrastructure; retry false and visible-panel polling are unchanged"
