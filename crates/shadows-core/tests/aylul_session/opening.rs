@@ -267,6 +267,18 @@ async fn a_leased_adapter_is_not_replaced_by_a_model_pick() {
     assert_eq!(report["context_tokens"], "321000");
 }
 
+/// The connection notices its adapter's exit on its own reader task, so a
+/// stopped adapter reads as closed a moment later on a slow machine.
+async fn closes(closed: impl Fn() -> bool) -> bool {
+    for _ in 0..100 {
+        if closed() {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    closed()
+}
+
 #[tokio::test]
 async fn model_replacement_keeps_turn_output_and_closes_the_current_adapter() {
     let w = world().await;
@@ -282,7 +294,7 @@ async fn model_replacement_keeps_turn_output_and_closes_the_current_adapter() {
         .unwrap();
     let current_pid = w.sessions.pid(&w.thread).await.unwrap();
     assert_ne!(current_pid, old_pid);
-    assert!(previous.connection().is_closed());
+    assert!(closes(|| previous.connection().is_closed()).await);
     w.sessions
         .terminate_adapter(&w.thread, &previous)
         .await
@@ -299,7 +311,7 @@ async fn model_replacement_keeps_turn_output_and_closes_the_current_adapter() {
     let current = w.sessions.open(&w.thread).await.unwrap();
     w.sessions.close_all().await.unwrap();
     assert_eq!(w.sessions.live_count().await, 0);
-    assert!(current.connection().is_closed());
+    assert!(closes(|| current.connection().is_closed()).await);
     w.core.harness().open_session(&w.thread).await.unwrap();
     w.sessions.terminate(&w.thread).await.unwrap();
     assert_eq!(w.sessions.live_count().await, 0);
