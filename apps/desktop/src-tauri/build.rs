@@ -20,6 +20,8 @@ fn main() {
             "cancel_login",
             "aylul_call",
             "companion_state",
+            "companion_send",
+            "companion_input",
             "companion_ready",
             "companion_failed",
             "set_companion_visible",

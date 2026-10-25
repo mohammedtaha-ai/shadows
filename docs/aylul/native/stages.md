@@ -39,7 +39,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   existing `cargo test` step.
 
 ### N-9 · D-2: the command inventory has no drift
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-2--close-command-inventory-drift
 - Read: the plan's section 2 "Every registered Tauri command"; `apps/desktop/src-tauri/src/commands/contract.yaml`;
   `apps/desktop/src-tauri/tests/architecture/README.md`; `apps/desktop/tests/native-acl.test.mjs`

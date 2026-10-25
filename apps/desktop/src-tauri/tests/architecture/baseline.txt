@@ -1,5 +1,3 @@
-command_inventory :: build.rs :: missing companion_input
-command_inventory :: build.rs :: missing companion_send
 construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #1
 construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #2
 construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #3

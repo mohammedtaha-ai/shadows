@@ -2,6 +2,23 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
+test('companion submission and editor commands have generated metadata and companion-only grants',()=>{
+ const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
+ const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));
+ const capabilities=JSON.parse(readFileSync(new URL('capabilities.json',root),'utf8'));
+ const permissions=manifests['__app-acl__'].permissions;
+ for(const name of ['companion_send','companion_input']) {
+  const id=name.replaceAll('_','-');
+  assert.deepEqual(permissions['allow-'+id]?.commands.allow,[name],`${name} must have generated allow metadata`);
+  assert.deepEqual(permissions['deny-'+id]?.commands.deny,[name],`${name} must have generated deny metadata`);
+  for(const label of ['main','companion']) {
+   const commands=Object.values(capabilities).filter(c=>c.local&&c.windows.includes(label))
+    .flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
+   assert.equal(commands.includes(name),label==='companion',`${name} must be granted only to companion`);
+  }
+ }
+});
+
 test('generated native permissions grant sidecar access only to main',()=>{
  const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
  const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));

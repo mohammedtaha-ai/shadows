@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-companion-input"
+description = "Enables the companion_input command without any pre-configured scope."
+commands.allow = ["companion_input"]
+
+[[permission]]
+identifier = "deny-companion-input"
+description = "Denies the companion_input command without any pre-configured scope."
+commands.deny = ["companion_input"]
