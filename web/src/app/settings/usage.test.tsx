@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { answers } from '@/test/fake-daemon'
-import type { UsageReport, ProviderUsage } from '@/api/usage'
+import { usageKeys, type UsageReport, type ProviderUsage } from '@/api/usage'
 import { startApp, until, type TestApp, type Answer } from '../test-app'
 
 let app: TestApp | null = null
@@ -55,7 +55,7 @@ it('changing the period fetches its own report', async () => {
   await until(() => a.text().includes('MiniMax (Month)'))
   await act(async () => replies[0](Response.json({ by_provider: [provider('old', 'Old')], by_model: [] })))
   expect(a.text()).not.toContain('MiniMax (Old)')
-  expect(a.queryClient.getQueryCache().findAll({ queryKey: ['aylul-usage'] })).toHaveLength(3)
+  expect(a.queryClient.getQueryCache().findAll({ queryKey: usageKeys.all() })).toHaveLength(3)
 })
 it('provider snapshots and labelled keys stay distinct', async () => {
   const a = await open(); await until(() => table('By provider') !== undefined)

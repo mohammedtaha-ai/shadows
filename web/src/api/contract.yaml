@@ -672,3 +672,7 @@ native_activity_cache:
   owner: native-activity.ts
   keys: "nativeActivityKeys.state preserves ['desktop-local-activity']"
   nativeActivityQuery: "The desktop bridge supplies the typed read function; API owns query identity and options without importing native infrastructure; retry false and visible-panel polling are unchanged"
+
+usage_cache:
+  owner: usage.ts
+  keys: "usageKeys owns the unchanged ['aylul-usage'] prefix and ['aylul-usage', from, to] report array; intervals and retry behavior are unchanged"

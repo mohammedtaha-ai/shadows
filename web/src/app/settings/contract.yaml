@@ -227,3 +227,5 @@ extension_refresh_owner: "Library changes invalidate extensionKeys from api/exte
 person_cache_owner: "Both person forms pass saved whole records through api/person.savePersonAnswer; request fields remain unchanged"
 
 code_cache_owner: "api/code.ts owns saved active-project settings answers"
+
+usage_query_identity: "Usage cache inspection and feature reads use api/usage.usageKeys"
