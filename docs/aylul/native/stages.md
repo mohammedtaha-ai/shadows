@@ -56,3 +56,26 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   whether those two commands were reachable from the companion before this change; the
   architecture test passes with the two inventory entries gone; `npm test` in `apps/desktop/`
   and the crate's tests pass
+
+### N-10 · D-3: one `DesktopApp` is the native composition root
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-3--introduce-the-single-native-composition-root
+  and #decision-d-0
+- Read: the plan's sections 3 ("Shared and persisted state") and 6 ("One native top object");
+  `apps/desktop/src-tauri/src/lib.rs`; each module's `contract.yaml` for the owners it builds;
+  `apps/desktop/src-tauri/tests/architecture/README.md`; Core's `crates/shadows-core/src/app.rs`
+  for the shape (not the code)
+- Touch: `apps/desktop/src-tauri/src/app.rs` (new) and its `contract.yaml` section or file;
+  `src/lib.rs`; every file that reads managed state today: `src/commands/{mod,desktop,companion,
+  preferences}.rs`, `src/windows/{mod,main_policy}.rs`, `src/windows/companion/{mod,input}.rs`,
+  `src/presence/watcher_fixture.rs` and the tests that build these owners; the touched modules'
+  `contract.yaml`; `tests/architecture/` (owner table, baseline); `docs/aylul/codebase/README.md`;
+  this task's `Status:`
+- Needs: N-9
+- Done when: `lib.rs` registers exactly one managed value, `Arc<DesktopApp>`, built once in
+  `DesktopApp::start` (or `new`), whose private fields hold today's nine owners with typed
+  accessors; every service constructor runs inside it; commands and window code reach owners
+  only through `DesktopApp` accessors (a lookup of `DesktopApp` itself still counts as a
+  managed-state entry until D-5 and D-7 remove it, relocated one-for-one); no behaviour change;
+  the `construction` and `managed_state` baseline counts go down and no other count goes up;
+  the crate's tests, the architecture test, clippy and fmt pass
