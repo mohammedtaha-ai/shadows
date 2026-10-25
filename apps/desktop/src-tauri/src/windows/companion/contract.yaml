@@ -4,13 +4,16 @@ status: current
 source: apps/desktop/src-tauri/src/windows/companion
 responsibility: Own the independent local companion window, revisioned rendering permission, physical fitting and no-activation show adapter.
 public_api:
-  input::refresh: Publish native composer scope and context; a changed scope closes editor without activating main.
+  input::refresh: Read the composition-injected editor context callback synchronously; a changed scope closes editor without activating main; an absent or superseded context skips publication.
+  EditorContext: Explicit optional scope, context and agent supplied by composition.
+  SurfacePresence/SurfacePreview/SurfaceAppearance: Window-owned serialized presentation values; producers map into them outside window code.
+  Store::set_editor_context: Install the editor context callback once during native assembly.
   input::set_input: Explicit companion-only open grants focus; close restores compact bounds without opening main.
   input::open_bounds/closed_origin: Physical editor geometry preserves the character anchor at the monitor scale.
   Store: Application-owned native model, retained origin, visibility-intent counter and optional tray item.
   visibility_token/show_for_selection: Capture the visibility intent before agent validation; show on the UI thread only if no later visibility action occurred.
   setup_companion: Build or reconstruct a hidden transparent 240px logical window; report construction failure without terminating main.
-  snapshot: Return revisioned visibility/render permission plus bounded native PresenceProjection.
+  snapshot: Return revisioned visibility/render permission plus the window-owned surface DTO.
   republish: Emit the current companion state without mutation.
   present: Atomically update conversation presentation plus optional opaque appearance; never grant drawing, clear renderer errors, show or focus a window.
   ready: Initialize current surface and apply requested visibility; used after local Canvas resources are ready.
@@ -23,8 +26,10 @@ external_types:
   - tauri::WebviewWindow
   - tauri::Monitor
 obligations:
-  - rule: Surface model, placement, paths and composer presence are reached through DesktopApp accessors at the existing UI dispatch points.
+  - rule: Surface model, placement and paths use their DesktopApp accessors at existing UI dispatch points; editor context arrives through an injected callback, with no Presence or Watcher lookup in window code.
     tested_by: native_architecture_ratchet
+  - rule: Command answers and companion-state events serialize the same CompanionState; field order, nulls, omitted appearance, opaque colour, preview expiry and render failure retain their exact bytes.
+    tested_by: companion_surface_wire_is_pinned
   - rule: Colour-only updates advance one revision without changing render permission, error, visibility, pause or composer; absent appearance is omitted on the wire.
     tested_by: appearance_changes_revision_without_render_permission
   - rule: Closing input restores the valid prior external foreground only while companion still owns focus; main is never a restoration target.

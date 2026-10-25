@@ -12,6 +12,7 @@ public_api:
   PresenceWatcher::wait_ready: Bounded acknowledgement of the exact generation/configuration/thread after snapshot and caught-up; a failed setup never admits or replays a turn.
   PresenceWatcher::replace/stop: One cancellable native read-only feed; binding/configuration/runtime guards are checked again at UI publication.
   Projection::apply: Pure actual-status mapping; terminal states are monotonic; replay never celebrates.
+  PresenceProjection::into_surface: Map projection fields into window-owned SurfacePresence and SurfacePreview without changing serialized bytes.
   reply_preview: CommonMark parsing with bounded plain-text extraction; no full reply is retained by the sanitizer.
   snapshot: Revisioned credential-free BindingView or fixed preference error.
   request: Capture verified ReadyConnection, binding generation and ordered explicit-action ticket.
@@ -21,6 +22,8 @@ public_api:
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
 obligations:
+  - rule: Projection-to-window mapping copies expression, status, optional preview text and absolute expiry exactly, including Unicode and the full u64 expiry range.
+    tested_by: surface_mapping_preserves_projection_bytes
   - rule: Selection and periodic metadata checks copy all string colours unchanged; no native palette or persisted colour exists.
     tested_by: [appearance_check_copies_opaque_colour, appearance_selection_and_liveness_publish_colour]
   - rule: Unbound, unavailable or disconnected appearance is absent; a later successful check restores it.

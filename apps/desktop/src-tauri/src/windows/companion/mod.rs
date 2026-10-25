@@ -2,9 +2,12 @@ pub mod input;
 mod no_activate;
 mod placement;
 pub mod state;
+mod surface;
+
+pub use surface::{EditorContext, SurfaceAppearance, SurfacePresence, SurfacePreview};
 
 use state::{CompanionState, Model};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, OnceLock};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[derive(Default)]
@@ -15,6 +18,18 @@ pub struct Store {
     toggle: Mutex<Option<tauri::menu::MenuItem<tauri::Wry>>>,
     rebuilding: Mutex<bool>,
     visibility_intent: std::sync::atomic::AtomicU64,
+    editor_context: OnceLock<Arc<dyn Fn() -> Option<EditorContext> + Send + Sync>>,
+}
+impl Store {
+    pub fn set_editor_context(
+        &self,
+        context: Arc<dyn Fn() -> Option<EditorContext> + Send + Sync>,
+    ) {
+        assert!(
+            self.editor_context.set(context).is_ok(),
+            "editor context wired once"
+        );
+    }
 }
 fn model<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut Model) -> T) -> T {
     f(&mut app
@@ -285,8 +300,8 @@ pub fn republish(app: &tauri::AppHandle) {
 }
 pub fn present(
     app: &tauri::AppHandle,
-    presence: crate::presence::projection::PresenceProjection,
-    appearance: Option<crate::presence::CompanionAppearance>,
+    presence: SurfacePresence,
+    appearance: Option<SurfaceAppearance>,
 ) {
     model(app, |model| model.present(presence, appearance));
     publish(app);

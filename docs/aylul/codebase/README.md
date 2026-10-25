@@ -42,6 +42,8 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/app.rs` | Assemble the nine native owners | `src-tauri/src/contract.yaml` |
 | `apps/desktop/src-tauri/src/windows/` | Main/tray lifecycle and physical placement | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit editor focus with physical bounds | Companion window contract |
+| `apps/desktop/src-tauri/src/windows/companion/surface.rs` | Window-owned presentation DTOs | Companion window contract; producers map outside window code |
+| `apps/desktop/src-tauri/src/windows/companion/state.rs` | Revisioned companion surface state | Companion window contract; serialized byte pin covers command answers and events |
 | `apps/desktop/src-tauri/src/windows/companion/` | Independent native companion lifecycle, explicit render permission, no-activation show and complete-rectangle fitting | Colocated `contract.yaml`; excluded from parent scope |
 | `apps/desktop/src-tauri/src/commands/` | Main-only native action IPC boundary | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/native_login/` | Local return/verifier/browser/DPAPI primitives | Colocated `contract.yaml` |

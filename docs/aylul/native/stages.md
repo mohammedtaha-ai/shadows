@@ -104,7 +104,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   test, clippy, fmt and `npm test` pass
 
 ### N-12 · D-5: the companion window holds no conversation state
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-5--make-companion-windows-independent-of-conversation-state
   and #decision-d-0
 - Read: `apps/desktop/src-tauri/src/windows/companion/contract.yaml`; `src/presence/contract.yaml`

@@ -28,6 +28,20 @@ impl DesktopApp {
         let companion = windows::companion::Store::default();
         let connection = core_connection::Connection::new(paths.root().to_path_buf());
         let presence = presence::Presence::new(paths.root().to_path_buf(), connection.clone());
+        let editor_presence = Arc::downgrade(&presence);
+        companion.set_editor_context(Arc::new(move || {
+            let owner = editor_presence.upgrade()?;
+            let (scope, context) = owner.context();
+            let agent = owner.view().agent;
+            if owner.context() != (scope.clone(), context.clone()) {
+                return None;
+            }
+            Some(windows::companion::EditorContext {
+                scope,
+                context,
+                agent,
+            })
+        }));
         let publisher = app.handle().clone();
         let watcher =
             presence::watcher::PresenceWatcher::new(std::sync::Arc::new(move |mut update| {
@@ -62,8 +76,12 @@ impl DesktopApp {
                     } else {
                         windows::companion::present(
                             &app,
-                            update.projection.clone(),
-                            update.appearance.clone(),
+                            update.projection.clone().into_surface(),
+                            update.appearance.clone().map(|appearance| {
+                                windows::companion::SurfaceAppearance {
+                                    color: appearance.color,
+                                }
+                            }),
                         );
                     }
                     update.acknowledge();

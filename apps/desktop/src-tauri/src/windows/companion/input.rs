@@ -72,12 +72,25 @@ pub(super) fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
 }
 pub fn refresh(app: &tauri::AppHandle) -> Result<CompanionState, String> {
     let desktop = app.state::<std::sync::Arc<crate::app::DesktopApp>>();
-    let owner = desktop.presence();
-    let (scope, context) = owner.context();
-    let agent = owner.view().agent;
-    if owner.context() != (scope.clone(), context.clone()) {
+    let Some(context) = desktop
+        .companion()
+        .editor_context
+        .get()
+        .and_then(|read| read())
+    else {
         return Ok(snapshot(app));
-    }
+    };
+    apply_context(app, context)
+}
+fn apply_context(
+    app: &tauri::AppHandle,
+    editor: super::EditorContext,
+) -> Result<CompanionState, String> {
+    let super::EditorContext {
+        scope,
+        context,
+        agent,
+    } = editor;
     if snapshot(app).composer.scope != scope {
         set_input(app, false)?;
     }

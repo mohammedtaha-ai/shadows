@@ -1,3 +1,7 @@
+#[cfg(test)]
+use super::SurfacePreview;
+use super::{SurfaceAppearance, SurfacePresence};
+
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposerView {
@@ -16,9 +20,9 @@ pub struct CompanionState {
     pub render_allowed: bool,
     pub paused: bool,
     pub error: Option<String>,
-    pub presence: crate::presence::projection::PresenceProjection,
+    pub presence: SurfacePresence,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub appearance: Option<crate::presence::CompanionAppearance>,
+    pub appearance: Option<SurfaceAppearance>,
 }
 pub struct Model {
     pub view: CompanionState,
@@ -26,6 +30,7 @@ pub struct Model {
     pub initialized: bool,
     pub generation: u64,
 }
+
 impl Default for Model {
     fn default() -> Self {
         Self {
@@ -37,7 +42,7 @@ impl Default for Model {
                 render_allowed: false,
                 paused: false,
                 error: None,
-                presence: crate::presence::projection::PresenceProjection::unbound(),
+                presence: SurfacePresence::default(),
             },
             requested: true,
             initialized: false,
@@ -53,11 +58,7 @@ impl Model {
             self.view.revision += 1;
         }
     }
-    pub fn present(
-        &mut self,
-        presence: crate::presence::projection::PresenceProjection,
-        appearance: Option<crate::presence::CompanionAppearance>,
-    ) {
+    pub fn present(&mut self, presence: SurfacePresence, appearance: Option<SurfaceAppearance>) {
         self.change(|view| {
             view.presence = presence;
             view.appearance = appearance;
@@ -217,7 +218,7 @@ mod presence_tests {
         model.fail(false);
         let error = model.view.error.clone();
         model.present(
-            crate::presence::projection::PresenceProjection {
+            SurfacePresence {
                 expression: "success".into(),
                 status: "Reply ready".into(),
                 preview: None,
@@ -242,7 +243,7 @@ mod appearance_tests {
         let presence = before.presence.clone();
         model.present(
             presence.clone(),
-            Some(crate::presence::CompanionAppearance {
+            Some(SurfaceAppearance {
                 color: "teal".into(),
             }),
         );
@@ -257,5 +258,54 @@ mod appearance_tests {
             .unwrap()
             .get("appearance")
             .is_none());
+    }
+}
+
+#[cfg(test)]
+mod wire_tests {
+    use super::*;
+
+    #[test]
+    fn companion_surface_wire_is_pinned() {
+        let mut model = Model::default();
+        assert_eq!(
+            serde_json::to_string(&model.view).unwrap(),
+            r#"{"revision":0,"composer":{"open":false,"revision":0,"scope":null,"context":null,"agent":null},"visible":false,"renderAllowed":false,"paused":false,"error":null,"presence":{"expression":"idle","status":"Choose an agent","preview":null}}"#
+        );
+        model.composer_context(
+            Some("scope-1".into()),
+            Some("context-1".into()),
+            Some("agent-a".into()),
+        );
+        model.input(true);
+        let generation = model.begin_document();
+        model.initialize(generation);
+        model.finish(true, None);
+        model.pause(true);
+        model.present(
+            SurfacePresence {
+                expression: "success".into(),
+                status: "Reply ready".into(),
+                preview: Some(SurfacePreview {
+                    id: "reply-1".into(),
+                    text: "مرحبا \"world\"\n".into(),
+                    expires_at_ms: 123456789,
+                }),
+            },
+            Some(SurfaceAppearance {
+                color: "opaque(🌿)".into(),
+            }),
+        );
+        assert_eq!(
+            serde_json::to_string(&model.view).unwrap(),
+            r#"{"revision":5,"composer":{"open":true,"revision":2,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":true,"paused":true,"error":null,"presence":{"expression":"success","status":"Reply ready","preview":{"id":"reply-1","text":"مرحبا \"world\"\n","expiresAtMs":123456789}},"appearance":{"color":"opaque(🌿)"}}"#
+        );
+        model.input(false);
+        model.fail(true);
+        model.present(SurfacePresence::default(), None);
+        assert_eq!(
+            serde_json::to_string(&model.view).unwrap(),
+            r#"{"revision":8,"composer":{"open":false,"revision":3,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":false,"paused":true,"error":"companion_render_failed","presence":{"expression":"idle","status":"Choose an agent","preview":null}}"#
+        );
     }
 }
