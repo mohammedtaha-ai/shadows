@@ -3,7 +3,7 @@ mod core_client;
 mod preferences;
 mod preview;
 pub mod projection;
-pub mod send;
+mod send;
 pub use send::{Sent, Submission};
 #[cfg(test)]
 mod send_fixture;

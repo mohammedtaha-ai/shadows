@@ -127,7 +127,7 @@ impl DesktopApp {
         &self.companion
     }
 
-    pub fn watcher(&self) -> &Arc<presence::watcher::PresenceWatcher> {
+    fn watcher(&self) -> &Arc<presence::watcher::PresenceWatcher> {
         &self.watcher
     }
 
