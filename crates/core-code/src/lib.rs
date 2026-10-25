@@ -247,7 +247,7 @@ impl Code {
 
     /// The files of the first 50 hits whose size or modified time
     /// changed, or that are gone, go to their project's worker as one
-    /// `Recheck`, awaited for at most 2 s in all. `true` when any went, so
+    /// `Recheck`, awaited for at most 2 s in all. `true` for nonempty hits, so
     /// the caller asks again, once. A project with no worker answers from its
     /// rows; its status says `indexing` or `inactive`.
     async fn recheck(&self, scope: &[ScopeRow], hits: &[Hit]) -> bool {
@@ -277,7 +277,9 @@ impl Code {
             }
         }
         if jobs.is_empty() {
-            return false;
+            // A worker may have committed between the hit query and the stamp
+            // query. A current stamp does not make the earlier hits current.
+            return !hits.is_empty();
         }
         let wait = async {
             for (worker, changed) in jobs {
@@ -337,3 +339,7 @@ impl Code {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/recheck/invariants.rs"]
+mod tests;

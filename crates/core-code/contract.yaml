@@ -255,7 +255,7 @@ functions:
       signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CodeError>"
       # `inside` first; the scope; `touch` of the asker's project; the
       # definitions whose key is the path's or under it, every one for ""
-      # or "."; `recheck`, and the query once more when it sent any. No
+      # or "."; `recheck`, and the query once more for nonempty hits. No
       # suggestions.
     status:
       signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CodeError>"
@@ -264,7 +264,7 @@ functions:
       signature: "(&self, asker, only, name, role) -> Result<Answer, CodeError>"
       private: true
       # The scope (its refusals first), `touch` of the asker's project, the
-      # query, `recheck` and the query once more when it sent any, then the
+      # query, `recheck` and the query once more for nonempty hits, then the
       # suggestions when there is no hit.
     recheck:
       signature: "(&self, scope: &[ScopeRow], hits: &[Hit]) -> bool"
@@ -272,7 +272,8 @@ functions:
       # Per project with a folder: the distinct paths of the first 50 hits
       # through `stale`; the changed ones go as one `Job::Recheck` to its
       # worker, if it has one. Sending and every reply are awaited within
-      # 2 s in all (`code.recheck_timeout` past it). True when any was sent.
+      # 2 s in all (`code.recheck_timeout` past it). True for nonempty hits:
+      # a worker may have committed between the hit query and the stamp query.
     answer:
       signature: "(&self, scope, hits, suggestions) -> Result<Answer, CodeError>"
       private: true
@@ -655,15 +656,21 @@ obligations:
       answered within 10 s.
 
   - rule: >
-      A question never points at a stale line: before it answers,
+      Before a question answers,
       `definitions`, `references` and `outline` stat the files of their
       first 50 hits, send the changed or gone ones to the project's worker
-      as `Recheck`, wait at most 2 s, and ask again once.
+      as `Recheck`, wait at most 2 s, and ask again once for nonempty hits.
+      Hits are reloaded even when no job is needed: a worker can commit
+      between reading the hits and checking their stored stamps. A timeout
+      may still answer rows whose file has not yet been refreshed.
     tested_by: watching_and_the_periodic_scan_keep_the_index_true
     note: >
       A save through rename (write `.a.rs.tmp`, rename it over a.rs) is
-      answered at its new line at once; with `recheck` made to send nothing
-      the body fails at that assertion.
+      answered at its new line when the re-check finishes within its budget
+      or the worker has already indexed the save.
+      hits_are_reloaded_when_indexing_finishes_before_the_stamp_check
+      deterministically holds the interleaving where old hits have been read
+      but the renamed file is indexed before stale checks its stamp.
 
   - rule: >
       Only the `active_limit` most recently used projects with a folder are
@@ -826,6 +833,11 @@ not_the_caller's:
 
 
 tests:
+  - name: hits_are_reloaded_when_indexing_finishes_before_the_stamp_check
+    checks: >
+      Read line 1 hits, replace the file through rename, then index line 2
+      before checking stamps. No file is stale and no worker is running,
+      but recheck still requires the caller to reload its hits, yielding line 2.
   - name: indexing_follows_the_files
     checks: >
       After one scan: `alpha` is defined at src/a.rs:1 with its signature,
