@@ -28,9 +28,6 @@ const OWNERS: &[(&str, &str)] = &[
 
 const EDGES: &[(&str, &str)] = &[
     ("commands", "composition"),
-    // Window lookups remain ratcheted as managed_state until their owner moves.
-    ("MainWindow", "composition"),
-    ("CompanionWindow", "composition"),
     ("Companion", "CoreConnection"),
     ("Companion", "CompanionWindow"),
     ("Companion", "Navigation"),
@@ -234,6 +231,68 @@ pub(super) fn uses(tree: &syn::UseTree, prefix: &str, out: &mut Vec<(String, Str
 
 type Imports = BTreeMap<String, String>;
 
+fn desktop_accessors(sources: &BTreeMap<String, String>) -> Imports {
+    let Some(source) = sources.get("app.rs") else {
+        return Imports::new();
+    };
+    let tree = syn::parse_file(source).unwrap();
+    let mut imports = Imports::new();
+    for item in &tree.items {
+        if let syn::Item::Use(item) = item {
+            let mut entries = Vec::new();
+            uses(&item.tree, "", &mut entries);
+            imports.extend(entries);
+        }
+    }
+    struct ReturnOwners<'a> {
+        imports: &'a Imports,
+        owners: BTreeSet<String>,
+    }
+    impl<'ast> Visit<'ast> for ReturnOwners<'_> {
+        fn visit_type_path(&mut self, ty: &'ast syn::TypePath) {
+            let target = resolve(&path_text(&ty.path), "app", self.imports, &Imports::new());
+            if SERVICES.contains(&target.as_str()) {
+                self.owners.insert(target);
+            }
+            visit::visit_type_path(self, ty);
+        }
+    }
+    let mut accessors = Imports::new();
+    for item in &tree.items {
+        let syn::Item::Impl(item) = item else {
+            continue;
+        };
+        let syn::Type::Path(ty) = item.self_ty.as_ref() else {
+            continue;
+        };
+        if !ty.path.is_ident("DesktopApp") {
+            continue;
+        }
+        for item in &item.items {
+            let syn::ImplItem::Fn(method) = item else {
+                continue;
+            };
+            if method.sig.receiver().is_none() {
+                continue;
+            }
+            let mut returns = ReturnOwners {
+                imports: &imports,
+                owners: BTreeSet::new(),
+            };
+            returns.visit_return_type(&method.sig.output);
+            for target in returns.owners {
+                assert!(
+                    accessors
+                        .insert(method.sig.ident.to_string(), target)
+                        .is_none(),
+                    "ambiguous desktop accessor"
+                );
+            }
+        }
+    }
+    accessors
+}
+
 pub(super) fn resolve(raw: &str, module: &str, imports: &Imports, exports: &Imports) -> String {
     let mut path = raw.to_owned();
     let mut rooted = false;
@@ -315,6 +374,7 @@ struct Checker<'a> {
     symbols: &'a BTreeSet<String>,
     edges: &'a mut BTreeSet<(String, String, String)>,
     factories: &'a mut BTreeSet<String>,
+    accessors: &'a Imports,
 }
 
 impl Checker<'_> {
@@ -556,6 +616,14 @@ impl<'ast> Visit<'ast> for Checker<'_> {
         visit::visit_expr_struct(self, expr);
     }
     fn visit_expr_method_call(&mut self, expr: &'ast syn::ExprMethodCall) {
+        // Commands may use the root; service access through it retains its owner.
+        // Conservatively match accessor names because this scan has no receiver types.
+        if !matches!(owner(&self.module), Some("commands" | "composition")) {
+            if let Some(target) = self.accessors.get(&expr.method.to_string()).cloned() {
+                self.reference(&target);
+                self.private_access(&target);
+            }
+        }
         if matches!(expr.method.to_string().as_str(), "state" | "try_state") && !self.composition()
         {
             let generics = expr
@@ -684,6 +752,7 @@ impl Checker<'_> {
 }
 
 pub(super) fn scan(sources: &BTreeMap<String, String>) -> Findings {
+    let accessors = desktop_accessors(sources);
     let modules = modules(sources);
     let parsed: Vec<_> = sources
         .iter()
@@ -819,6 +888,7 @@ pub(super) fn scan(sources: &BTreeMap<String, String>) -> Findings {
                 symbols: &symbols,
                 edges: &mut edges,
                 factories: &mut factories,
+                accessors: &accessors,
             };
             checker.visit_items(&tree.items);
         }

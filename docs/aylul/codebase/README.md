@@ -9,7 +9,7 @@ Mobile and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
-| `apps/desktop/src-tauri/tests/architecture/` | Shrinking native ownership ratchet | `docs/aylul/native/plans/2026-10-25-desktop-architecture.md` D-0; exact baseline and in-memory fixtures |
+| `apps/desktop/src-tauri/tests/architecture/` | Shrinking native ownership ratchet | `docs/aylul/native/plans/2026-10-25-desktop-architecture.md` D-0; exact baseline, accessor-owner fixtures and removed-entry audit in its README |
 | `apps/desktop/src-tauri/src/presence/appearance_tests.rs` | Opaque companion appearance regressions | Presence contract |
 | `apps/desktop/src-tauri/src/presence/send.rs` | Captured companion submission admission | Presence contract; a newer selection owns binding publication |
 | `apps/desktop/src-tauri/src/presence/send_fixture.rs` | Scripted submission HTTP server | Presence contract; test-only |

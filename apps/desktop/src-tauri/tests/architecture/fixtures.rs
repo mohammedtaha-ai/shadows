@@ -43,13 +43,43 @@ fn window_root_lookups_still_require_exact_managed_state_exceptions() {
                 app.state::<std::sync::Arc<crate::app::DesktopApp>>();
             }",
         );
-        assert_eq!(findings.len(), 1, "{file}: {findings:#?}");
-        assert!(findings
-            .iter()
-            .next()
-            .unwrap()
-            .starts_with("managed_state :: "));
+        assert!(
+            findings.iter().any(|v| v.starts_with("owner_edge :: ")),
+            "{file}: {findings:#?}"
+        );
+        assert!(findings.iter().any(|v| v.starts_with("managed_state :: ")));
     }
+}
+
+#[test]
+fn root_accessors_preserve_owner_edges_private_access_and_cycles() {
+    let root = "use crate::{presence, windows};
+        struct DesktopApp;
+        impl DesktopApp {
+            fn renamed_presence(&self) -> &std::sync::Arc<presence::Presence> { todo!() }
+            fn preferences(&self) -> &windows::preferences::Store { todo!() }
+        }";
+    let found = scanner::scan(&BTreeMap::from([
+        ("app.rs".into(), root.into()),
+        ("windows/companion/input.rs".into(), "fn f(desktop: &crate::app::DesktopApp) { let owner = desktop.renamed_presence(); owner.context(); }".into()),
+        ("windows/mod.rs".into(), "fn f(desktop: &crate::app::DesktopApp) { desktop.preferences().close_to_tray(); }".into()),
+        ("presence/mod.rs".into(), "use crate::windows::companion::Store;".into()),
+    ]));
+    for entry in [
+        "owner_edge :: windows/companion/input.rs :: presence::Presence #1",
+        "private_access :: windows/mod.rs :: windows::preferences::Store #1",
+        "owner_cycle :: windows/companion/input.rs :: CompanionWindow -> Companion (cycle edge)",
+    ] {
+        assert!(found.contains(entry), "missing {entry}: {found:#?}");
+    }
+    let commands = scanner::scan(&BTreeMap::from([
+        ("app.rs".into(), root.into()),
+        ("commands/mod.rs".into(), "fn f(desktop: &crate::app::DesktopApp) { desktop.renamed_presence(); desktop.preferences(); }".into()),
+    ]));
+    assert!(
+        commands.is_empty(),
+        "commands may use the root: {commands:#?}"
+    );
 }
 
 fn catches(file: &str, source: &str, rule: &str) {

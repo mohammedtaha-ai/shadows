@@ -73,6 +73,7 @@ managed_state :: windows/main_policy.rs :: state:: < std::sync::Arc < crate::app
 managed_state :: windows/main_policy.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #3
 managed_state :: windows/mod.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #1
 owner_cycle :: presence/binding_tests.rs :: Companion -> CompanionWindow (cycle edge)
+owner_cycle :: windows/companion/input.rs :: CompanionWindow -> Companion (cycle edge)
 owner_cycle :: windows/companion/mod.rs :: CompanionWindow -> Companion (cycle edge)
 owner_cycle :: windows/companion/mod.rs :: CompanionWindow -> MainWindow (cycle edge)
 owner_cycle :: windows/companion/state.rs :: CompanionWindow -> Companion (cycle edge)
@@ -122,6 +123,22 @@ owner_edge :: commands/mod.rs :: auth::service::View #1
 owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #1
 owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #2
 owner_edge :: commands/preferences.rs :: windows::preferences::DesktopPreferences #3
+owner_edge :: windows/companion/input.rs :: app::DesktopApp #1
+owner_edge :: windows/companion/input.rs :: app::DesktopApp #2
+owner_edge :: windows/companion/input.rs :: app::DesktopApp #3
+owner_edge :: windows/companion/input.rs :: app::DesktopApp #4
+owner_edge :: windows/companion/input.rs :: presence::Presence #1
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #1
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #2
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #3
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #4
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #5
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #6
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #7
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #8
+owner_edge :: windows/companion/mod.rs :: app::DesktopApp #9
+owner_edge :: windows/companion/mod.rs :: app_paths::AppPaths #1
+owner_edge :: windows/companion/mod.rs :: app_paths::AppPaths #2
 owner_edge :: windows/companion/mod.rs :: presence::CompanionAppearance #1
 owner_edge :: windows/companion/mod.rs :: presence::projection::PresenceProjection #1
 owner_edge :: windows/companion/mod.rs :: windows::main_policy::reject_html_fallback #1
@@ -132,6 +149,13 @@ owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjec
 owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjection #2
 owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjection #3
 owner_edge :: windows/companion/state.rs :: presence::projection::PresenceProjection::unbound #1
+owner_edge :: windows/main_policy.rs :: app::DesktopApp #1
+owner_edge :: windows/main_policy.rs :: app::DesktopApp #2
+owner_edge :: windows/main_policy.rs :: app::DesktopApp #3
+owner_edge :: windows/main_policy.rs :: app_paths::AppPaths #1
+owner_edge :: windows/main_policy.rs :: app_paths::AppPaths #2
+owner_edge :: windows/main_policy.rs :: core_connection::Connection #1
+owner_edge :: windows/mod.rs :: app::DesktopApp #1
 owner_edge :: windows/mod.rs :: windows::companion::attach_toggle #1
 owner_edge :: windows/mod.rs :: windows::companion::set_visible #1
 owner_edge :: windows/mod.rs :: windows::companion::setup_companion #1
@@ -186,3 +210,4 @@ private_access :: windows/companion/state.rs :: presence::projection::PresencePr
 private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection #2
 private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection #3
 private_access :: windows/companion/state.rs :: presence::projection::PresenceProjection::unbound #1
+private_access :: windows/mod.rs :: windows::preferences::Store #1
