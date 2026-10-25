@@ -38,7 +38,11 @@ export function ProviderModels({ listed, picked, onChange, manual, onManualChang
     </div>
     <div className="flex gap-2"><Input aria-label="Add a model by id" placeholder="Add a model by id" value={manual} onChange={event => onManualChange(event.target.value)}
       onKeyDown={event => {
-        if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); add() }
+        // An Enter that confirms an IME composition is not an Add; Safari reports it
+        // after compositionend, with only keyCode 229 to tell it apart.
+        if (event.key !== 'Enter' || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
+        // Enter here would otherwise submit the provider form with the id still unadded.
+        event.preventDefault(); add()
       }} />
       <Button type="button" variant="outline" onClick={add}>Add</Button>
     </div>

@@ -78,12 +78,15 @@ pure:
     file: web/src/app/agents/model-picks.ts
 
 obligations:
-  - rule: Enter in the manual model field uses the Add action without submitting the provider form, including when the id is invalid. Saving with an unadded id shows an explicit message and preserves the draft until it is added or cleared.
+  - rule: Enter (with or without Shift) in the manual model field uses the Add action without submitting the provider form, including when the id is invalid; an Enter that confirms an IME composition does nothing. Saving with an unadded id shows an explicit alert and preserves the draft; adding or clearing the id removes the alert.
     tested_by:
       - Enter adds a model without submitting the new provider
       - Enter adds a model without submitting the saved provider
+      - Shift+Enter adds a model like Enter
+      - Enter that confirms an IME composition does not add the model
       - saving the new provider with an unadded id explains it and preserves the draft
       - saving the saved provider with an unadded id explains it and preserves the draft
+      - clearing an unadded id removes its message and saves the picked models
       - Enter with invalid model id "" does not submit the provider
       - Enter with invalid model id "default" does not submit the provider
       - Enter with invalid model id "m1" does not submit the provider

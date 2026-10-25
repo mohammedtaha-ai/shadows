@@ -18,6 +18,9 @@ import { ProviderModels } from './provider-models'
 import { modelPicksError, type ModelPick } from './model-picks'
 import { testLine } from './provider-test'
 
+// Shown only while the field holds text, so adding or clearing the id removes it.
+const UNADDED = 'You have an unadded model id. Add it or clear the field before saving.'
+
 export function ProviderForm({ provider, group, onSaved }: {
   provider: Provider | null
   group: PresetGroup | null
@@ -100,7 +103,7 @@ export function ProviderForm({ provider, group, onSaved }: {
   })
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (manual !== '') return setInvalid('You have an unadded model id. Add it or clear the field before saving.')
+    if (manual !== '') return setInvalid(UNADDED)
     const error = modelPicksError(picked)
     if (error) return setInvalid(error)
     if (label.trim().length > 64) return setInvalid('Label must be at most 64 characters.')
@@ -153,7 +156,8 @@ export function ProviderForm({ provider, group, onSaved }: {
           </Field>
           {line && <p role={line.kind === 'error' ? 'alert' : 'status'}>{line.text}</p>}
           {test.error && <ErrorLine error={test.error} />}
-          <ProviderModels listed={listed} picked={picked} onChange={setPicked} manual={manual} onManualChange={setManual} />
+          <ProviderModels listed={listed} picked={picked} onChange={setPicked} manual={manual}
+            onManualChange={value => { setManual(value); if (invalid === UNADDED) setInvalid(null) }} />
           {invalid !== null && <p role="alert" className="text-xs text-destructive-foreground">{invalid}</p>}
           {save.error !== null && <ErrorLine error={save.error} />}
           {removeKey.error !== null && <ErrorLine error={removeKey.error} />}
