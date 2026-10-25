@@ -618,10 +618,15 @@ impl<'ast> Visit<'ast> for Checker<'_> {
     fn visit_expr_method_call(&mut self, expr: &'ast syn::ExprMethodCall) {
         // Commands may use the root; service access through it retains its owner.
         // Conservatively match accessor names because this scan has no receiver types.
-        if !matches!(owner(&self.module), Some("commands" | "composition")) {
+        if owner(&self.module) != Some("composition") {
             if let Some(target) = self.accessors.get(&expr.method.to_string()).cloned() {
-                self.reference(&target);
-                self.private_access(&target);
+                if owner(&self.module) != Some("commands") {
+                    self.reference(&target);
+                    self.private_access(&target);
+                } else if target.ends_with("::Store") {
+                    // Commands translate owner operations; they never receive storage.
+                    self.private_access(&target);
+                }
             }
         }
         if matches!(expr.method.to_string().as_str(), "state" | "try_state") && !self.composition()

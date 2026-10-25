@@ -21,7 +21,8 @@ may reference the root. Window references require exact `owner_edge` exceptions,
 and every lookup still needs a `managed_state` exception until D-5/D-7 remove it.
 Accessor return signatures in `DesktopApp` identify the underlying owners:
 outside commands/composition, those accesses retain owner, cycle and private-store
-checks. Accessor names are matched conservatively without receiver type inference,
+checks. Commands may call owner accessors but still cannot obtain private stores.
+Accessor names are matched conservatively without receiver type inference,
 including renamed accessors; an unrelated method with the same name needs review.
 Only the top-level
 composition module may name its stored lifetime types without private-access
@@ -103,11 +104,6 @@ The N-10 fixtures prove that window root lookups still count as managed-state
 and owner-edge violations, accessor calls retain owner edges/private access/cycles,
 and nested owners cannot inherit composition exemptions.
 
-N-11 relocates the four preference test-construction exemptions one-for-one to
-`desktop_preferences/tests.rs` and the three command DTO references to
-`desktop_preferences::PreferencesView`. It removes the main close handler's
-private Store access. No scanner rule is loosened and no allowed dependency edge
-changes. Accessor return-type checks also cover private Stores independently of
-the service-construction inventory, preserving private-store checks after the move.
-The seven moved tests retain their names and assertions through owner methods;
-the close-policy test now also exercises saving each policy through the owner.
+Accessor return-type checks cover private Stores independently of the
+service-construction inventory. Preference fixtures cover command accessor
+privacy and OS-adapter construction through the owner's reexport.

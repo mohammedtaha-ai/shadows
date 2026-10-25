@@ -25,6 +25,52 @@ fn preferences_owner_keeps_construction_and_private_internals_out_of_commands() 
     );
 }
 
+#[test]
+fn preference_store_accessor_is_private_even_for_commands() {
+    let found = scanner::scan(&BTreeMap::from([
+        (
+            "app.rs".into(),
+            "struct DesktopApp; impl DesktopApp {
+                fn preferences(&self) -> &crate::desktop_preferences::store::Store { todo!() }
+            }"
+            .into(),
+        ),
+        (
+            "commands/preferences.rs".into(),
+            "fn f(desktop: &crate::app::DesktopApp) { desktop.preferences().read(); }".into(),
+        ),
+    ]));
+    assert!(
+        found.contains(
+            "private_access :: commands/preferences.rs :: desktop_preferences::store::Store #1"
+        ),
+        "commands must not obtain a private store through composition: {found:#?}"
+    );
+}
+
+#[test]
+fn reexported_login_adapter_construction_is_still_ratcheted() {
+    let sources = BTreeMap::from([
+        (
+            "desktop_preferences/mod.rs".into(),
+            "mod login_item; pub(crate) use login_item::PluginLoginItem;".into(),
+        ),
+        (
+            "desktop_preferences/login_item.rs".into(),
+            "pub(crate) struct PluginLoginItem(pub(crate) tauri::AppHandle);".into(),
+        ),
+        (
+            "commands/preferences.rs".into(),
+            "fn f() { crate::desktop_preferences::PluginLoginItem(app); }".into(),
+        ),
+    ]);
+    let found = scanner::scan(&sources);
+    assert!(
+        found.contains("construction :: commands/preferences.rs :: desktop_preferences::login_item::PluginLoginItem #1"),
+        "the owner entry reexport must retain the adapter construction check: {found:#?}"
+    );
+}
+
 fn scan(file: &str, source: &str) -> Findings {
     scanner::scan(&BTreeMap::from([(file.into(), source.into())]))
 }

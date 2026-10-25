@@ -23,7 +23,7 @@ obligations:
   - rule: Main close hides or exits the application according to the saved flag; tray Quit always exits.
     tested_by: [desktop_preferences_close_policy_hides_or_exits, 'integration: apps/desktop/tests/desktop-preferences.mjs']
   - rule: Commands call owner methods only; the store module is private and the architecture ratchet rejects owner or OS-adapter construction outside composition.
-    tested_by: [native_architecture_ratchet, preferences_owner_keeps_construction_and_private_internals_out_of_commands]
+    tested_by: [native_architecture_ratchet, preferences_owner_keeps_construction_and_private_internals_out_of_commands, preference_store_accessor_is_private_even_for_commands, reexported_login_adapter_construction_is_still_ratcheted]
 gaps:
   - at: PluginLoginItem
     gap: Real Windows login-item enable/disable and sign-in launch are reserved for Mohammed; fake adapters prove coordination only.
