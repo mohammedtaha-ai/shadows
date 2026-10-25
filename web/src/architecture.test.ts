@@ -38,7 +38,7 @@ function matches(file: string, selector: string): boolean {
 }
 
 function walk(dir: string): Sources {
-  return Object.assign({}, ...readdirSync(dir, { withFileTypes: true }).map(entry => {
+  return Object.assign({}, ...readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0).map(entry => {
     const full = path.join(dir, entry.name)
     return entry.isDirectory() ? walk(full) : /\.(tsx?|yaml)$/.test(entry.name)
       ? { [path.relative(src, full).replaceAll('\\', '/')]: readFileSync(full, 'utf8') } : {}
@@ -65,7 +65,7 @@ function scan(sources: Sources, owners: Owner[]): string[] {
   host.fileExists = file => localSource(file) ? files.has(file.replaceAll('\\', '/')) : ts.sys.fileExists(file)
   // Virtual directories must participate in TypeScript's alias/relative resolution.
   host.directoryExists = dir => localSource(`${dir}/`) ? [...files.keys()].some(file => file.startsWith(`${dir.replaceAll('\\', '/')}/`)) : ts.sys.directoryExists(dir)
-  const sourceNames = Object.keys(sources).filter(file => /\.tsx?$/.test(file))
+  const sourceNames = Object.keys(sources).filter(file => /\.tsx?$/.test(file)).sort()
   const program = ts.createProgram(sourceNames.map(absolute), options, host)
   const checker = program.getTypeChecker()
   const ownerOf = (file: string) => {
@@ -80,7 +80,7 @@ function scan(sources: Sources, owners: Owner[]): string[] {
   }
   const edges: Edge[] = []
 
-  for (const file of Object.keys(sources).filter(file => file.endsWith('/contract.yaml'))) {
+  for (const file of Object.keys(sources).filter(file => file.endsWith('/contract.yaml')).sort()) {
     if (!owners.some(item => item.contract === file)) add('map', file, 'unmapped contract')
   }
 
@@ -113,6 +113,28 @@ function scan(sources: Sources, owners: Owner[]): string[] {
     }
   }
 
+  function valueSymbol(node: ts.Node): ts.Symbol | undefined {
+    let symbol = checker.getSymbolAtLocation(node)
+    if (symbol?.valueDeclaration && ts.isShorthandPropertyAssignment(symbol.valueDeclaration)) {
+      symbol = checker.getShorthandAssignmentValueSymbol(symbol.valueDeclaration)
+    }
+    return symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
+  }
+
+  /** Follow stored values so an object property cannot launder a forbidden operation. */
+  function assignedExpression(declaration: ts.Declaration): ts.Expression | undefined {
+    if (ts.isVariableDeclaration(declaration) || ts.isPropertyAssignment(declaration)) return declaration.initializer
+    if (ts.isBindingElement(declaration) && ts.isVariableDeclaration(declaration.parent.parent)) {
+      const container = declaration.parent.parent.initializer
+      const name = declaration.propertyName ?? declaration.name
+      if (container && (ts.isIdentifier(name) || ts.isStringLiteralLike(name))) {
+        const property = checker.getTypeAtLocation(container).getProperty(name.text)?.valueDeclaration
+        if (property && ts.isPropertyAssignment(property)) return property.initializer
+      }
+    }
+    return undefined
+  }
+
   /** Symbol provenance prevents a parameter named fetch from becoming a network call. */
   function origin(node: ts.Node, seen = new Set<ts.Symbol>()): string {
     if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node)) return origin(node.expression, seen)
@@ -124,10 +146,9 @@ function scan(sources: Sources, owners: Owner[]): string[] {
       if (root === 'global' && ['fetch', 'EventSource'].includes(name)) return `global:${name}`
       if (root === 'openapi-fetch' && ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'default'].includes(name)) return 'openapi-fetch'
     }
-    let symbol = checker.getSymbolAtLocation(node)
+    const symbol = valueSymbol(node)
     if (!symbol || seen.has(symbol)) return ''
     seen.add(symbol)
-    if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
     if (symbol.name === 'globalThis' && !symbol.declarations?.length) return 'global'
     for (const declaration of symbol.declarations ?? []) {
       const file = declaration.getSourceFile().fileName.replaceAll('\\', '/')
@@ -136,7 +157,8 @@ function scan(sources: Sources, owners: Owner[]): string[] {
         if (['globalThis', 'window', 'self'].includes(symbol.name)) return 'global'
       }
       if (file.includes('/openapi-fetch/')) return 'openapi-fetch'
-      if (ts.isVariableDeclaration(declaration) && declaration.initializer) return origin(declaration.initializer, seen)
+      const assigned = assignedExpression(declaration)
+      if (assigned) return origin(assigned, seen)
       if (ts.isBindingElement(declaration) && ts.isVariableDeclaration(declaration.parent.parent) && declaration.parent.parent.initializer) {
         const root = origin(declaration.parent.parent.initializer, seen)
         const name = declaration.propertyName?.getText() ?? declaration.name.getText()
@@ -148,17 +170,25 @@ function scan(sources: Sources, owners: Owner[]): string[] {
   }
 
   function calledName(node: ts.Node, seen = new Set<ts.Symbol>()): string {
+    if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node)) return calledName(node.expression, seen)
     if (ts.isCallExpression(node)) return calledName(node.expression, seen)
     if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      const symbol = valueSymbol(node)
+      const assigned = symbol?.valueDeclaration && assignedExpression(symbol.valueDeclaration)
+      if (symbol && assigned) {
+        if (seen.has(symbol)) return ''
+        seen.add(symbol)
+        return calledName(assigned, seen)
+      }
       const name = ts.isPropertyAccessExpression(node) ? node.name.text : ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : ''
       return ['bind', 'call', 'apply'].includes(name) ? calledName(node.expression, seen) : name
     }
-    let symbol = checker.getSymbolAtLocation(node)
+    const symbol = valueSymbol(node)
     if (!symbol || seen.has(symbol)) return node.getText()
     seen.add(symbol)
-    if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
     for (const declaration of symbol.declarations ?? []) {
-      if (ts.isVariableDeclaration(declaration) && declaration.initializer) return calledName(declaration.initializer, seen)
+      const assigned = assignedExpression(declaration)
+      if (assigned) return calledName(assigned, seen)
       if (ts.isBindingElement(declaration)) return (declaration.propertyName ?? declaration.name).getText()
     }
     return symbol.name
@@ -171,14 +201,14 @@ function scan(sources: Sources, owners: Owner[]): string[] {
       if (!ts.isBlock(node.body)) return hasLocalArray(node.body, seen)
       return node.body.statements.some(statement => ts.isReturnStatement(statement) && statement.expression && hasLocalArray(statement.expression, seen))
     }
-    if (ts.isIdentifier(node) || ts.isCallExpression(node)) {
-      let symbol = checker.getSymbolAtLocation(ts.isCallExpression(node) ? node.expression : node)
+    if (ts.isIdentifier(node) || ts.isCallExpression(node) || ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      const symbol = valueSymbol(ts.isCallExpression(node) ? node.expression : node)
       if (!symbol || seen.has(symbol)) return false
       seen.add(symbol)
-      if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
       return (symbol.declarations ?? []).some(declaration => {
         if (owner(relative(declaration.getSourceFile().fileName))?.name === 'api') return false
-        if (ts.isVariableDeclaration(declaration) && declaration.initializer) return hasLocalArray(declaration.initializer, seen)
+        const assigned = assignedExpression(declaration)
+        if (assigned) return hasLocalArray(assigned, seen)
         if (ts.isFunctionDeclaration(declaration) || ts.isArrowFunction(declaration)) {
           let found = false
           const returns = (child: ts.Node) => {
@@ -311,6 +341,8 @@ describe('frontend architecture ratchet', () => {
     const source = "import { value } from '../agents/private'"
     const target = { 'app/agents/private.ts': 'export const value = 1' }
     const before = scan({ ...target, 'app/design/old.ts': source }, owners)
+    const reversed = Object.fromEntries(Object.entries({ ...target, 'app/design/old.ts': source }).reverse())
+    expect(scan(reversed, owners)).toEqual(before)
     const after = scan({ ...target, 'app/design/renamed.ts': source }, owners)
     expect(before).toHaveLength(2)
     expect(after).toEqual(before.map(entry => entry.replace('app/design/old.ts', 'app/design/renamed.ts')))

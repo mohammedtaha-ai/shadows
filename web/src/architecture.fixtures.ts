@@ -15,6 +15,7 @@ export const fixtures: Fixture[] = [
     ['type-only import', "import type { Shape } from '../agents/private'"],
     ['inline type-only import', "import { type Shape } from '../agents/private'"],
     ['re-export', "export { value } from '../agents/private'"],
+    ['star re-export', "export * from '../agents/private'"],
     ['type re-export', "export type { Shape } from '../agents/private'"],
     ['literal dynamic import', "void import('@/app/agents/private')"],
     ['import type expression', "type X = import('../agents/private').Shape"],
@@ -33,6 +34,7 @@ export const fixtures: Fixture[] = [
   } },
   ...[
     ['global fetch', "fetch('/api/projects')"],
+    ['globalThis fetch', "globalThis.fetch('/api/projects')"],
     ['globalThis fetch alias', "const send = globalThis.fetch; send('/api/projects')"],
     ['window fetch', "window.fetch('/api/projects')"],
     ['element fetch', "globalThis['fetch']('/api/projects')"],
@@ -40,6 +42,8 @@ export const fixtures: Fixture[] = [
     ['bound fetch', "const send = fetch.bind(window); send('/api/projects')"],
     ['EventSource', "new EventSource('/api/events')"],
     ['EventSource alias', "const Events = EventSource; new Events('/api/events')"],
+    ['object fetch alias', "const network = { send: globalThis.fetch }; network.send('/api/projects')"],
+    ['shorthand fetch alias', "const network = { fetch }; network.fetch('/api/projects')"],
     ['generated client factory', "import makeClient from 'openapi-fetch'; const client = makeClient()"],
     ['generated client access', "import { client } from '@/api/client'; client.GET('/api/projects')"],
   ].map(([name, source]) => ({ name: `rejects foreign ${name}`, rule: 'server_access', sources: {
@@ -61,6 +65,19 @@ export const fixtures: Fixture[] = [
   { name: 'rejects a locally aliased query identity', rule: 'query_key', sources: {
     'app/agents/view.ts': "const key = ['projects'] as const; useQuery({ queryKey: key })",
   } },
+  { name: 'rejects a query identity spread from an API key', rule: 'query_key', sources: {
+    'api/keys.ts': "export const key = ['projects']",
+    'app/agents/view.ts': "import { key } from '@/api/keys'; useQuery({ queryKey: [...key, 'local'] })",
+  } },
+  { name: 'rejects a query identity stored in an object', rule: 'query_key', sources: {
+    'app/agents/view.ts': "const keys = { projects: ['projects'] }; useQuery({ queryKey: keys.projects })",
+  } },
+  { name: 'rejects a destructured query identity', rule: 'query_key', sources: {
+    'app/agents/view.ts': "const keys = { projects: ['projects'] }; const { projects: key } = keys; useQuery({ queryKey: key })",
+  } },
+  { name: 'rejects a query identity stored as a shorthand property', rule: 'query_key', sources: {
+    'app/agents/view.ts': "const projects = ['projects']; const keys = { projects }; useQuery({ queryKey: keys.projects })",
+  } },
   { name: 'allows API-owned query identities', rule: 'query_key', count: 0, sources: {
     'api/keys.ts': "export const key = () => ['projects']", 'app/agents/view.ts': "import { key } from '@/api/keys'; useQuery({ queryKey: key() })",
   } },
@@ -76,6 +93,15 @@ export const fixtures: Fixture[] = [
   { name: 'rejects destructured cache writes', rule: 'cache_write', sources: {
     'app/agents/view.ts': 'const { setQueryData: save } = client; save(key, answer)',
   } },
+  { name: 'rejects bound renamed cache writes', rule: 'cache_write', sources: {
+    'app/agents/view.ts': 'const cache = queryClient; const save = cache.setQueryData.bind(cache); save(key, answer)',
+  } },
+  { name: 'rejects cache writes stored in an object', rule: 'cache_write', sources: {
+    'app/agents/view.ts': 'const cache = { save: queryClient.setQueryData }; cache.save(key, answer)',
+  } },
+  { name: 'rejects cache writes stored as a shorthand property', rule: 'cache_write', sources: {
+    'app/agents/view.ts': 'const save = queryClient.setQueryData; const cache = { save }; cache.save(key, answer)',
+  } },
   { name: 'rejects shorthand query identities', rule: 'query_key', sources: {
     'app/agents/view.ts': "const queryKey = ['projects']; useQuery({ queryKey })",
   } },
@@ -84,6 +110,9 @@ export const fixtures: Fixture[] = [
   } },
   { name: 'rejects transitive production reachability to fixtures', rule: 'production_test', sources: {
     'main.tsx': "import './app/shell'", 'app/shell.tsx': "void import('@/test/fake')", 'test/fake.ts': 'export {}',
+  } },
+  { name: 'rejects production reachability through a product re-export', rule: 'production_test', sources: {
+    'main.tsx': "import './app/agents'", 'app/agents/index.ts': "export * from '@/test/fake'", 'test/fake.ts': 'export const fake = 1',
   } },
   { name: 'allows the named test-support import exemption', rule: 'dependency', count: 0, sources: {
     'app/agents/view.test.ts': "import '@/test/fake'", 'test/fake.ts': 'export {}',

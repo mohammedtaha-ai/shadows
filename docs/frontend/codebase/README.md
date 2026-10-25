@@ -45,6 +45,13 @@ Missing entries are exact baseline items until their migration task creates them
 check does not invent contracts for those modules. Existing contracts must parse
 as YAML and identify their mapped source folder.
 
+The table maps today's folders onto the plan's section 6: `shared` covers the
+root feedback/policy files; the navigation/feedback folders are target paths,
+with navigation extraction assigned to W-5. `api/*` exposes the unsplit API
+until W-8 establishes domain entries. `workflows`
+has its own row because its directory owns workflow presentation. These migration
+boundaries do not exempt their sources from the other architecture rules.
+
 | Owner | Sources | Entry | Contract | Allowed dependencies |
 |---|---|---|---|---|
 | `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, new-project, project-settings, settings, sidebar, workflows` |
