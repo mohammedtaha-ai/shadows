@@ -18,8 +18,6 @@ cache_write :: app/settings/plugins.test.tsx :: setQueryData #2
 cache_write :: stream/use-project-events.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #2
-contract :: conversation :: invalid app/conversation/contract.yaml #1
-contract :: desktop :: invalid desktop/contract.yaml #1
 dependency :: app/agents/agent-extensions.tsx :: app/settings/use-settings.ts #1
 dependency :: app/agents/agent-settings.tsx :: app/settings/use-settings.ts #1
 dependency :: app/agents/home.tsx :: app/settings/use-settings.ts #1

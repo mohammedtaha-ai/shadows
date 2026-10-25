@@ -1135,8 +1135,7 @@ tests:
     checks: "Hidden set {2} and text 'Hello' until durable ordinals include 2, then null."
   - name: "does not give way to the entry while the turn is still streaming"
     checks: "A live reply keeps its text and cursor even when entry 2 is in the list."
-  - name: "splits messages where the stream stood when the entry was announced, not at the last
-    render"
+  - name: "splits messages where the stream stood when the entry was announced, not at the last render"
     checks: "Cut at the announced stream text: 'First.' then 'Second' joined by a blank line."
   - name: "a turn stopped mid-sentence stays until entries are fetched after it ended"
     checks: "Stopped reply shown until a fetch at or after endedAt, then null."

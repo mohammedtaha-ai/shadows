@@ -12,7 +12,7 @@ public_api:
   getState/answerRequest/previewRule/approveRule/dismissRefusal/previewHooks/installHooks: Narrow sidecar method wrappers.
   connectCompanion/setCompanionVisible/setCompanionPaused: Subscribe-before-snapshot native presentation state; latest revision wins.
   hideToTray: Preserve native hide failure as a rejected promise.
-  refreshCompanionAppearance: Main-only refresh_companion_appearance returns an acknowledgement { ok: true }; wrapper resolves void and is a no-op in browser.
+  refreshCompanionAppearance: "Main-only refresh_companion_appearance returns an acknowledgement { ok: true }; wrapper resolves void and is a no-op in browser."
   getDesktopPreferences: Main-only desktop_preferences has no wire arguments; validates the full camelCase boolean object without changing OS state.
   setDesktopPreferences: Main-only set_desktop_preferences receives a flat partial launchAtLogin/closeToTray object; validates the full answer; no frontend defaults are persisted on read.
 obligations:

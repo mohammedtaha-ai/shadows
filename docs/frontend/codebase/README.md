@@ -126,7 +126,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/desktop/approvals-panel.tsx` | Preview-bound person approvals | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/rule-preview.ts` | Rule preview identity | `web/src/app/desktop/contract.yaml` |
 | `web/src/api/daemon-origin.ts` | One-time verified native origin | `web/src/api/contract.yaml` |
-| `web/src/app-root.tsx` | Shared dashboard mounting | `web/src/desktop/contract.yaml` |
+| `web/src/app-root.tsx` | Shared dashboard mounting, owns the app's one QueryClient | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/connection-settings.tsx` | Local Core connection form | `web/src/app/desktop/contract.yaml` |
 | `web/src/desktop/runtime.ts` | Readiness ordering | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/native.ts` | Desktop invocation wrappers | `web/src/desktop/contract.yaml` |
@@ -295,7 +295,7 @@ it is that folder's `contract.yaml`.
 | `web/src/components/ui/popover.tsx` | Popover built on Base UI's Popover | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/tooltip.tsx` | Hover label built on Base UI's Tooltip | `web/src/components/ui/button.tsx` |
 | `web/src/env.d.ts` | Declares the build-time environment variables | `web/src/main.tsx` |
-| `web/src/main.tsx` | Mounts the app, with its one QueryClient | `web/src/router.tsx` |
+| `web/src/main.tsx` | Mounts the app | `web/src/router.tsx` |
 | `web/src/router.tsx` | The app's routes, each open thing a URL | `web/src/main.tsx` |
 | `web/src/stream/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/frames.ts` | Typed reading of each subscribe frame | `web/src/stream/contract.yaml` |

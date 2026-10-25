@@ -15,7 +15,7 @@ and OS acceptance.
 ## Tasks
 
 ### F-27 · W-2: every contract parses and the code map tells the truth
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-2--make-contracts-parseable-and-map-startup-ownership-truthfully
 - Read: the plan's section 1 ("Important map discrepancies"); `web/src/architecture.test.ts`
   (the `contract` rule); `docs/frontend/codebase/README.md`
