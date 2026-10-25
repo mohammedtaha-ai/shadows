@@ -102,3 +102,26 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   still pass from their new place; baseline entries for the commands → preferences store and
   the adapter construction are gone and no count goes up; the crate's tests, the architecture
   test, clippy, fmt and `npm test` pass
+
+### N-12 · D-5: the companion window holds no conversation state
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-5--make-companion-windows-independent-of-conversation-state
+  and #decision-d-0
+- Read: `apps/desktop/src-tauri/src/windows/companion/contract.yaml`; `src/presence/contract.yaml`
+  (projection); `src/windows/companion/{mod,input,state}.rs`; `src/presence/projection.rs`;
+  `src/app.rs`; `src/lib.rs` (the editor-refresh and publication callbacks);
+  `tests/architecture/README.md`
+- Touch: `src/windows/companion/` (its surface DTO, `mod.rs`, `input.rs`, `state.rs`, their
+  tests, `contract.yaml`); `src/presence/projection.rs` and `src/presence/contract.yaml` (the
+  mapping from projection to the window DTO); `src/app.rs`, `src/lib.rs`, `src/contract.yaml`
+  (wiring the scope and context the window needs); `src/commands/companion.rs` only where it
+  forwards those values; `tests/architecture/` (baseline); `docs/aylul/codebase/README.md`;
+  this task's `Status:`
+- Needs: N-10
+- Done when: nothing under `src/windows/companion/` names a `presence` type or reads
+  `DesktopApp` for a Presence or Watcher; the editor's scope and context reach the window as
+  explicit arguments or a callback wired in composition; the companion surface's serialized
+  JSON (the `companion_state` answer and its events) is byte-identical, proven by a test that
+  pins today's shape; focus, hiding, fitting and render-denial behaviour are unchanged; the
+  `windows::companion → presence` owner edges and private accesses leave the baseline and no
+  count goes up; the crate's tests, the architecture test, clippy, fmt and `npm test` pass
