@@ -632,3 +632,7 @@ session_cache:
   reads: "sessionQuery opens once with no retry or focus refetch; commandsQuery is disabled and never stale"
   frames: "replaceChoices ignores intermediate opening frames; replaceCommands stores the supplied stream list; reopenSession clears commands then resets the session"
   saveSessionAnswer: "writeSaved cancels the exact in-flight session read before storing model, effort or mode mutation answers"
+
+profile_cache:
+  owner: aylul-profiles.ts
+  keys: "profileKeys owns unchanged provider presets, providers, agents, agent thread and environment arrays"

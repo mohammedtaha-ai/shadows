@@ -174,16 +174,12 @@ query_key :: app/design/use-design-pages.ts :: queryKey #2
 query_key :: app/design/use-design-pages.ts :: queryKey #3
 query_key :: app/design/use-design-pages.ts :: queryKey #4
 query_key :: app/design/vision-editor.tsx :: queryKey #1
-query_key :: app/desktop/companion-binding.test.tsx :: queryKey #1
-query_key :: app/desktop/companion-binding.test.tsx :: queryKey #2
-query_key :: app/desktop/companion-binding.test.tsx :: queryKey #3
 query_key :: app/desktop/use-activity.ts :: queryKey #1
 query_key :: app/new-project/new-folder.tsx :: queryKey #1
 query_key :: app/settings/desktop-preferences.test.tsx :: setQueryData #1
 query_key :: app/settings/settings-dialog.test.tsx :: getQueryData #1
 query_key :: app/settings/settings-dialog.test.tsx :: queryKey #1
 query_key :: app/settings/usage.test.tsx :: queryKey #1
-query_key :: app/sidebar/delete-thread-dialog.tsx :: queryKey #1
 query_key :: stream/use-project-events.test.tsx :: getQueryState #1
 query_key :: stream/use-project-events.test.tsx :: queryKey #1
 query_key :: stream/use-project-events.test.tsx :: queryKey #2

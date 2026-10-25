@@ -13,8 +13,16 @@ export type ProviderPreset = components['schemas']['ProviderPreset']
 export type ProviderTestOutcome = components['schemas']['ProviderTestOutcome']
 export type ProviderTest = components['schemas']['ProviderTest']
 
+export const profileKeys = {
+  presets: () => ['aylul-provider-presets'],
+  providers: () => ['aylul-providers'],
+  agents: () => ['aylul-agents'],
+  threads: (slug: string) => ['aylul-agent', slug, 'threads'],
+  env: (slug: string) => ['aylul-agent', slug, 'env'],
+}
+
 export const providerPresetsQuery = queryOptions({
-  queryKey: ['aylul-provider-presets'], staleTime: Infinity,
+  queryKey: profileKeys.presets(), staleTime: Infinity,
   queryFn: () => unwrap(client.GET('/api/aylul/provider-presets')),
 })
 export function testProvider(body: ProviderTest): Promise<ProviderTestOutcome> {
@@ -27,19 +35,19 @@ export function testSavedProvider(slug: string, apiKey: string | null): Promise<
 }
 
 export const providersQuery = queryOptions({
-  queryKey: ['aylul-providers'], queryFn: () => unwrap(client.GET('/api/aylul/providers')),
+  queryKey: profileKeys.providers(), queryFn: () => unwrap(client.GET('/api/aylul/providers')),
 })
 export const agentsQuery = queryOptions({
-  queryKey: ['aylul-agents'], queryFn: () => unwrap(client.GET('/api/aylul/agents')),
+  queryKey: profileKeys.agents(), queryFn: () => unwrap(client.GET('/api/aylul/agents')),
 })
 export function agentThreadsQuery(slug: string) {
-  return queryOptions({ queryKey: ['aylul-agent', slug, 'threads'],
+  return queryOptions({ queryKey: profileKeys.threads(slug),
     queryFn: () => unwrap(client.GET('/api/aylul/agents/{slug}/threads', {
       params: { path: { slug } },
     })), refetchInterval: 10_000 })
 }
 export function agentEnvQuery(slug: string) {
-  return queryOptions({ queryKey: ['aylul-agent', slug, 'env'],
+  return queryOptions({ queryKey: profileKeys.env(slug),
     queryFn: () => unwrap(client.GET('/api/aylul/agents/{slug}/env', {
       params: { path: { slug } },
     })) })

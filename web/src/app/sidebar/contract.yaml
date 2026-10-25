@@ -296,3 +296,5 @@ tests:
   - name: empty_states_guide_to_provider_then_agent
     checks: No provider shows "Add a provider first"; a provider without agents, "Add an agent to start".
     file: web/src/app/agents/aylul.test.tsx
+
+agent_refresh_owner: "Conversation removal uses api/aylul-profiles profileKeys for agent thread refresh"

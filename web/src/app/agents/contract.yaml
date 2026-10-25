@@ -142,3 +142,5 @@ tests:
 provider_models: Provider models carry id and per-model context_window; the agent selector uses each model id.
 
 extension_cache_owner: "api/extensions.ts owns saved switch merges and cancels stale reads before writing"
+
+profile_query_owner: "api/aylul-profiles.ts owns provider and agent query factories"

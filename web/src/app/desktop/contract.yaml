@@ -31,3 +31,5 @@ obligations:
 gaps:
   - at: account and hook installation
     gap: Tests use synthetic native replies; real account surrender and personal hook installation are not part of this acceptance.
+
+profile_fixture_identity: "Companion fixtures use api/aylul-profiles profileKeys for mocked Core reads"

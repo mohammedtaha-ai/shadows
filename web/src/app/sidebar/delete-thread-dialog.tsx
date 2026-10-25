@@ -1,3 +1,4 @@
+import { profileKeys } from '@/api/aylul-profiles'
 // One job: confirming a conversation's removal as an idempotent command (§16.8).
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -38,7 +39,7 @@ export function DeleteThreadDialog({ thread, open, onOpenChange, isCurrent }: {
       await writeSaved<PlanningThread[]>(queryClient, threadsQuery(thread.project_id).queryKey,
         (threads) => threads?.filter((t) => t.id !== thread.id))
       void queryClient.invalidateQueries({ queryKey: threadsQuery(thread.project_id).queryKey })
-      if (thread.profile != null) void queryClient.invalidateQueries({ queryKey: ['aylul-agent', thread.profile, 'threads'] })
+      if (thread.profile != null) void queryClient.invalidateQueries({ queryKey: profileKeys.threads(thread.profile) })
       void queryClient.invalidateQueries({ queryKey: workflowsKey })
     },
   })
