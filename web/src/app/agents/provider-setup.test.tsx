@@ -25,6 +25,52 @@ async function testKey(a: TestApp) {
 function addModel(a: TestApp, id: string) {
   typeInto(input('Add a model by id'), id); act(() => a.button('Add')!.click())
 }
+it.each(['new', 'saved'])('Enter adds a model without submitting the %s provider', async (mode) => {
+  const overrides = { 'POST /api/aylul/providers': () => Response.json(provider), 'PUT /api/aylul/providers/p': () => Response.json(provider) }
+  const a = mode === 'new' ? await setup('MiniMax', overrides) : app = await startApp('/aylul?settings=providers', { ...base(), ...overrides })
+  if (mode === 'saved') {
+    await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
+  }
+  typeInto(input('Add a model by id'), 'manual')
+  const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+  await act(async () => { input('Add a model by id').dispatchEvent(enter) })
+  expect(enter.defaultPrevented).toBe(true)
+  expect(input('manual').checked).toBe(true)
+  expect(input('Add a model by id').value).toBe('')
+  expect(a.calls).not.toContain('POST /api/aylul/providers')
+  expect(a.calls).not.toContain('PUT /api/aylul/providers/p')
+  act(() => a.button(mode === 'new' ? 'Add 1 models' : 'Save provider')!.click())
+  await until(() => a.bodies.length === 1)
+  expect(a.bodies[0]).toEqual(expect.objectContaining({ models: [...(mode === 'saved' ? provider.models : []), { id: 'manual', context_window: 200000 }] }))
+})
+it.each(['new', 'saved'])('saving the %s provider with an unadded id explains it and preserves the draft', async (mode) => {
+  const overrides = { 'POST /api/aylul/providers': () => Response.json(provider), 'PUT /api/aylul/providers/p': () => Response.json(provider) }
+  const a = mode === 'new' ? await setup('MiniMax', overrides) : app = await startApp('/aylul?settings=providers', { ...base(), ...overrides })
+  if (mode === 'saved') {
+    await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
+  } else addModel(a, 'm1')
+  typeInto(input('Add a model by id'), 'manual')
+  await act(async () => { a.button(mode === 'new' ? 'Add 1 models' : 'Save provider')!.click() })
+  expect(document.querySelector('[role="alert"]')?.textContent).toBe('You have an unadded model id. Add it or clear the field before saving.')
+  expect(input('Add a model by id').value).toBe('manual')
+  expect(a.calls).not.toContain('POST /api/aylul/providers')
+  expect(a.calls).not.toContain('PUT /api/aylul/providers/p')
+  act(() => a.button('Add')!.click())
+  act(() => a.button(mode === 'new' ? 'Add 2 models' : 'Save provider')!.click())
+  await until(() => a.bodies.length === 1)
+  expect(a.bodies[0]).toEqual(expect.objectContaining({ models: [...(mode === 'saved' ? provider.models : [{ id: 'm1', context_window: 200000 }]), { id: 'manual', context_window: 200000 }] }))
+})
+it.each(['', 'default', 'm1'])('Enter with invalid model id "%s" does not submit the provider', async (id) => {
+  const a = app = await startApp('/aylul?settings=providers', base())
+  await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
+  typeInto(input('Add a model by id'), id)
+  const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+  await act(async () => { input('Add a model by id').dispatchEvent(enter) })
+  expect(enter.defaultPrevented).toBe(true)
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain('Models must')
+  expect(input('Add a model by id').value).toBe(id)
+  expect(a.calls).not.toContain('PUT /api/aylul/providers/p')
+})
 it('presets come from Core, grouped by name', async () => {
   const a = app = await startApp('/aylul?settings=providers', base())
   await until(() => a.button('Add provider') !== undefined); act(() => a.button('Add provider')!.click())

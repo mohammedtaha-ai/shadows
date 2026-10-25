@@ -5,10 +5,20 @@ import { Button } from '@/components/ui/button'
 import { idError, type ModelPick } from './model-picks'
 type ListedModel = { id: string; context_window?: number | null }
 
-export function ProviderModels({ listed, picked, onChange }: { listed: ListedModel[]; picked: ModelPick[]; onChange: (picked: ModelPick[]) => void }) {
+export function ProviderModels({ listed, picked, onChange, manual, onManualChange }: {
+  listed: ListedModel[]
+  picked: ModelPick[]
+  onChange: (picked: ModelPick[]) => void
+  manual: string
+  onManualChange: (value: string) => void
+}) {
   const [search, setSearch] = useState('')
-  const [manual, setManual] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const add = () => {
+    const invalid = idError(manual) ?? (picked.some(pick => pick.id === manual) ? 'Models must be listed once each.' : picked.length >= 20 ? 'Models must be 1 to 20 ids.' : null)
+    setError(invalid)
+    if (!invalid) { onChange([...picked, { id: manual, contextWindow: listed.find(item => item.id === manual)?.context_window ?? 200000 }]); onManualChange('') }
+  }
   const rows = [...new Map([...listed, ...picked.filter(pick => !listed.some(item => item.id === pick.id)).map(pick => ({ id: pick.id, context_window: pick.contextWindow }))].map(item => [item.id, item])).values()]
   return <section className="grid gap-3" aria-label="Provider models">
     {rows.length > 0 && <Input aria-label="Search models" placeholder="Search models" value={search} onChange={event => setSearch(event.target.value)} />}
@@ -26,12 +36,11 @@ export function ProviderModels({ listed, picked, onChange }: { listed: ListedMod
         </div>
       })}
     </div>
-    <div className="flex gap-2"><Input aria-label="Add a model by id" placeholder="Add a model by id" value={manual} onChange={event => setManual(event.target.value)} />
-      <Button type="button" variant="outline" onClick={() => {
-        const invalid = idError(manual) ?? (picked.some(pick => pick.id === manual) ? 'Models must be listed once each.' : picked.length >= 20 ? 'Models must be 1 to 20 ids.' : null)
-        setError(invalid)
-        if (!invalid) { onChange([...picked, { id: manual, contextWindow: listed.find(item => item.id === manual)?.context_window ?? 200000 }]); setManual('') }
-      }}>Add</Button>
+    <div className="flex gap-2"><Input aria-label="Add a model by id" placeholder="Add a model by id" value={manual} onChange={event => onManualChange(event.target.value)}
+      onKeyDown={event => {
+        if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); add() }
+      }} />
+      <Button type="button" variant="outline" onClick={add}>Add</Button>
     </div>
     {error && <p role="alert" className="text-xs text-destructive-foreground">{error}</p>}
   </section>

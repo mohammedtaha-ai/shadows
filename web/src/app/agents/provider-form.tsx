@@ -28,6 +28,7 @@ export function ProviderForm({ provider, group, onSaved }: {
   const [url, setUrl] = useState(provider?.base_url ?? '')
   const [preset, setPreset] = useState(group?.presets.find(preset => preset.id === provider?.preset) ?? group?.presets[0] ?? null)
   const [picked, setPicked] = useState<ModelPick[]>(provider?.models.map(model => ({ id: model.id, contextWindow: model.context_window })) ?? [])
+  const [manual, setManual] = useState('')
   const [listed, setListed] = useState<{ id: string; context_window?: number | null }[]>(provider?.models ?? [])
   const [label, setLabel] = useState(provider?.label ?? '')
   const [testedKey, setTestedKey] = useState('')
@@ -99,6 +100,7 @@ export function ProviderForm({ provider, group, onSaved }: {
   })
   const submit = (event: FormEvent) => {
     event.preventDefault()
+    if (manual !== '') return setInvalid('You have an unadded model id. Add it or clear the field before saving.')
     const error = modelPicksError(picked)
     if (error) return setInvalid(error)
     if (label.trim().length > 64) return setInvalid('Label must be at most 64 characters.')
@@ -151,7 +153,7 @@ export function ProviderForm({ provider, group, onSaved }: {
           </Field>
           {line && <p role={line.kind === 'error' ? 'alert' : 'status'}>{line.text}</p>}
           {test.error && <ErrorLine error={test.error} />}
-          <ProviderModels listed={listed} picked={picked} onChange={setPicked} />
+          <ProviderModels listed={listed} picked={picked} onChange={setPicked} manual={manual} onManualChange={setManual} />
           {invalid !== null && <p role="alert" className="text-xs text-destructive-foreground">{invalid}</p>}
           {save.error !== null && <ErrorLine error={save.error} />}
           {removeKey.error !== null && <ErrorLine error={removeKey.error} />}

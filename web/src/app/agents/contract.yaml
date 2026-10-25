@@ -40,7 +40,7 @@ components:
     # Preset/region or Custom URL, label, write-only key tests, model selection;
     # Delete provider retains inline confirmation.
   ProviderModels:
-    signature: "({ listed, picked: ModelPick[], onChange }) => JSX.Element; default is picked[0]"
+    signature: "({ listed, picked: ModelPick[], onChange, manual: string, onManualChange }) => JSX.Element; default is picked[0]"
   AgentForm:
     signature: "({ slug: string | null, onDone: () => void }) => JSX.Element"
     # Null creates an agent; a saved agent includes its scoped environment and deletion.
@@ -78,6 +78,15 @@ pure:
     file: web/src/app/agents/model-picks.ts
 
 obligations:
+  - rule: Enter in the manual model field uses the Add action without submitting the provider form, including when the id is invalid. Saving with an unadded id shows an explicit message and preserves the draft until it is added or cleared.
+    tested_by:
+      - Enter adds a model without submitting the new provider
+      - Enter adds a model without submitting the saved provider
+      - saving the new provider with an unadded id explains it and preserves the draft
+      - saving the saved provider with an unadded id explains it and preserves the draft
+      - Enter with invalid model id "" does not submit the provider
+      - Enter with invalid model id "default" does not submit the provider
+      - Enter with invalid model id "m1" does not submit the provider
   - rule: A successful save of the desktop's companion agent requests an appearance refresh; other agents and browser saves do not. Failed native refresh is ignored because native polls the agent again.
     tested_by: ["saving the companion agent refreshes the character", "saving another agent does not", "a failed refresh does not fail the save"]
   - rule: Every saved-agent extension switch saves immediately, independently of Save agent, and accepts the returned enabled value. Failure rolls back its optimistic state; unchanged explicit retry reuses its command id. Pending and late responses stay scoped to their captured agent/item.

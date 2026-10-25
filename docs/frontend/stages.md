@@ -52,7 +52,7 @@ and OS acceptance.
   `npm run typecheck`, `npm run lint` and `npx vitest run src/codemap.test.ts` pass
 
 ### F-16 · The provider form's Enter trap
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
 - Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
 - Touch: web/src/app/agents/{provider-form.tsx,provider-models.tsx}, their tests, web/src/app/agents/contract.yaml
