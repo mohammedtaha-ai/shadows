@@ -14,6 +14,35 @@ and OS acceptance.
 
 ## Tasks
 
+### F-31 · W-7: stream refresh has one owner
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-7--give-stream-refresh-one-owner
+  and section 3 ("Highest-priority ownership problems" 1)
+- Read: the plan's sections 3 and 6 (`stream` row); `web/src/stream/contract.yaml` (with
+  `thread-stream.ts`, `use-thread-stream.ts`, `use-project-events.ts`, `frames.ts`);
+  `web/src/app/workflows/contract.yaml` (with `plan-frames.ts`, `use-plan.ts`);
+  `web/src/app/conversation/contract.yaml` (with `use-conversation.ts`, `conversation.tsx`);
+  the API domains' invalidation methods in `web/src/api/`
+- Touch: `web/src/stream/` (its files, tests, `contract.yaml`, `index.ts`);
+  `web/src/app/workflows/plan-frames.ts`, `use-plan.ts`, `index.ts`, their tests,
+  `contract.yaml`; `web/src/app/conversation/use-conversation.ts`, `conversation.tsx`,
+  `use-conversation.test.tsx`, `plan-in-conversation.test.tsx`, `conversation.test.tsx`,
+  `contract.yaml`; invalidation methods in `web/src/api/` domain files and
+  `api/contract.yaml`; `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md`;
+  this task's `Status:`
+- Needs: F-17, F-30
+- Done when: one function under `stream/` classifies an event and one dispatcher there
+  refreshes the queries it names, through the API owners' invalidation methods; project
+  events, writer-thread plan events and conversation plan events all go through it, so
+  archive and unarchive refresh plans on every path; each path refreshes at least what it
+  refreshes today (no update is lost, pinned by a test per path written before the move);
+  one registry under `stream/` holds at most one connection per thread, shared by every
+  subscriber and closed when the last one leaves; no feature constructs `ThreadStream` or
+  holds a connection map (`HeldThreadStream` either goes or only tells the registry who holds
+  the thread); focused tests cover project/thread overlap, replay, archive/unarchive, shared
+  watchers and last-subscriber cleanup; no baseline count goes up; the touched areas' tests,
+  the architecture and codemap tests, `npm run typecheck` and `npm run lint` pass
+
 ### F-30 · W-6: features meet only through their declared entries
 - Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-6--declare-feature-entries-and-close-private-imports
