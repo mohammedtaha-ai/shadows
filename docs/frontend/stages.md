@@ -130,6 +130,28 @@ settings dialog, PR #40) at `1a2b601`.
   src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
   `npm run build` pass
 
+### F-37 · W-10a: the project plan list words a frozen plan as the plan page does
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
+  (W-10 enters in four packets: a, plan-state wording; b, one proposal approval lifecycle for the
+  vision, map and roadmap cards; c, one confirmation component for the four delete/remove
+  confirms; d, desktop capabilities)
+- Read: the plan's W-10 and its "Plan state wording" row; `web/src/app/design/workspace-plans.tsx`;
+  `web/src/app/workflows/plan-state.ts`; the agreement and the defect naming `stateLabel` in
+  `web/src/app/design/contract.yaml`; `web/src/app/workflows/contract.yaml` (`feature_entry`)
+- Touch: `web/src/app/design/workspace-plans.tsx`; one test for it, either added to an existing
+  `web/src/app/design/*.test.tsx` that already renders the plan list, or a new
+  `workspace-plans.test.tsx` that adds no `architecture.baseline.txt` entry;
+  `web/src/app/design/contract.yaml`; this task's `Status:`
+- Needs: W-6 (done)
+- Done when: `WorkspacePlans` shows each version through `stateLabel` from
+  `@/app/workflows/plan-state` ("Approved v1" for a frozen version, "Draft v2" otherwise) and
+  keeps " · Archived" for an archived plan; a test proves a frozen plan reads "Approved v1" and
+  never "Frozen"; the design contract's `WorkspacePlans`/`stateLabel` agreement holds (true, with
+  that test) and its defect line is gone. `plan-state.ts` is unchanged. From `web/`:
+  `npx vitest run src/app/design src/app/workflows src/architecture.test.ts src/codemap.test.ts`,
+  `npm run typecheck`, `npm run lint` and `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
