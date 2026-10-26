@@ -321,7 +321,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   `apps/desktop/`: each new script passes locally
 
 ### N-21 · D-12: the integrated structure is verified before the PR
-- Status: open
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-12--verify-the-integrated-structure
 - Read: the plan's D-12, section 5 and section 8 item 4; `.github/workflows/aylul.yml`;
   `.github/workflows/ci.yml`; `docs/evidence/README.md`; the ratchet READMEs
