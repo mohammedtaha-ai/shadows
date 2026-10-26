@@ -1,3 +1,4 @@
+// Public lazy route modules: plan-page.tsx, plan-map.tsx.
 export { HeldThreadStream } from './plan-frames'
 export { PlanGraph } from './plan-graph'
 export { usePlan } from './use-plan'

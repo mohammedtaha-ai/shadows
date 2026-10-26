@@ -15,7 +15,7 @@ and OS acceptance.
 ## Tasks
 
 ### F-30 · W-6: features meet only through their declared entries
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-6--declare-feature-entries-and-close-private-imports
   and sections 2 (cross-feature edges, cycles) and 6 (module table)
 - Read: the plan's sections 2 and 6; `docs/frontend/codebase/README.md` (the module table);

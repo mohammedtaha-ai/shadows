@@ -225,3 +225,5 @@ code_cache_owner: "api/code.ts owns saved active-project settings answers"
 usage_query_identity: "Usage cache inspection and feature reads use api/usage.usageKeys"
 
 feature_imports: "Cross-feature production imports use declared public entries."
+
+feature_entry: "index.ts exposes readSettingsSearch, SettingsDialog, PersonTheme."

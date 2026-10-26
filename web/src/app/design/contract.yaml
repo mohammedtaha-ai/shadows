@@ -571,3 +571,5 @@ design_cache_identity: "api/design.ts owns design query/page identities and save
 feature_entry: "index.ts exposes MapPartDetails, VISION_FIELDS."
 
 pagination_owner: "api/design.ts owns useDesignPages and usePartPages; design views import part pagination directly from that owner."
+
+route_entries: "workspace-page.tsx remain separate public lazy route modules declared by index.ts."

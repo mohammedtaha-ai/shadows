@@ -44,3 +44,5 @@ startup_entry: "startup.ts exports only ConnectionSettings before native readine
 feature_imports: "Cross-feature production imports use declared public entries."
 
 feature_entry: "index.ts exposes UseWithCompanion, CompanionControls, CompanionSettings, ConnectionSettings."
+
+route_entries: "activity.tsx remain separate public lazy route modules declared by index.ts."

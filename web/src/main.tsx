@@ -12,7 +12,7 @@ void bootApplication(isDesktop(),async ()=>{
   const {mountApplication}=await import('./app-root')
   mountApplication(root)
   if(isDesktop()){
-    const {connectNavigation}=await import('./desktop/navigation')
+    const {connectNavigation}=await import('./desktop')
     const {router}=await import('./router')
     await connectNavigation(async destination=>{
       switch(destination.kind){

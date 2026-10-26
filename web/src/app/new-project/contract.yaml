@@ -225,4 +225,4 @@ tests:
 
 directory_query_owner: "api/directories.ts owns the parent directory identity shared by browser reads and new-folder refresh"
 
-feature_entry: "index.ts exposes useOpenNewProject."
+feature_entry: "index.ts exposes useOpenNewProject, NewProjectProvider."

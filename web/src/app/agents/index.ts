@@ -1,3 +1,4 @@
+// Public lazy route modules: home.tsx.
 export { providerTitle } from './provider-presets'
 export { colorOf } from './character-colors'
 export { ColorDot } from './color-swatches'

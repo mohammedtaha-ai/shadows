@@ -360,3 +360,5 @@ tests:
 project_cache_owner: "api/projects.ts owns saved modes, removed projects, instructions and revoked grant cache updates; forms preserve their existing requests and lifecycles"
 
 code_cache_owner: "api/code.ts owns saved code-link cache updates"
+
+route_entries: "project-settings.tsx remain separate public lazy route modules declared by index.ts."

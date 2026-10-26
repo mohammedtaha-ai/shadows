@@ -148,3 +148,5 @@ profile_query_owner: "api/aylul-profiles.ts owns provider and agent query factor
 feature_entry: "index.ts exposes providerTitle, colorOf, ColorDot, AgentForm, DeleteAgent, ProviderForm, ProviderPicker, presetOf, presetGroups, PresetGroup."
 
 feature_imports: "Cross-feature production imports use declared public entries."
+
+route_entries: "home.tsx remain separate public lazy route modules declared by index.ts."

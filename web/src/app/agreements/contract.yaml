@@ -270,3 +270,5 @@ design_cache_identity: "Binding adoption refresh uses api/design.designKeys"
 pagination_owner: "PartyPicker imports usePartPages from api/design.ts; agreement UI depends on no design editor hook."
 
 feature_entry: "index.ts exposes BindingEditor."
+
+route_entries: "agreements-page.tsx remain separate public lazy route modules declared by index.ts."
