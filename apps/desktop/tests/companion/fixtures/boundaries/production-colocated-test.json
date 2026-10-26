@@ -1,0 +1,9 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "export * from '../platform/state.test.ts';",
+    "src/platform/state.test.ts": "export const scene = 1;"
+  },
+  "expected": [
+    "production-import :: src/app/companion.tsx :: src/platform/state.test.ts #1"
+  ]
+}

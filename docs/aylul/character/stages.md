@@ -16,3 +16,33 @@ C-6 implementation and automated/native-shell checks passed; physical WebView
 suspension/performance, real DPI transitions, native studio download/audio and user visual
 acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md at
 `0187365`.
+
+### C-7 · D-10 (Character part): companion modules have entries and their unit tests sit with them
+- Status: done
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-10--enforce-ts-entry-boundaries-and-place-unit-tests-with-owners
+  and section 6 ("TS modules and entries")
+- Read: the plan's section 6 ("TS modules and entries"); `apps/desktop/src/features/companion/contract.yaml`
+  and `studio/contract.yaml`; `apps/desktop/tests/companion/boundaries.test.ts` and its baseline
+  (from U-4); `apps/desktop/package.json` (`test:companion:unit`); the companion rows of
+  `docs/aylul/codebase/README.md`
+- Touch: `apps/desktop/src/features/companion/` (new `renderer/index.ts` and `animation/index.ts`
+  entries exporting only what studio and the production feature use; `studio/` imports switched
+  to them; the tests moved next to their owners: `tests/companion/geometry.test.ts`,
+  `messages.test.ts`, `model.test.ts`, `scheduler.test.ts` into `animation/`,
+  `composer.test.ts` beside `composer-model.ts`, `desktop-gesture.test.ts` beside
+  `desktop-gesture.ts`, and `tests/companion/fakes.ts` beside the tests that use it, named as
+  test support; `contract.yaml`, `studio/contract.yaml`); `apps/desktop/tests/companion/` (the
+  boundary baseline entries this task removes, and in `boundaries.test.ts` only the baseline
+  self-test, so it still proves new, stale and duplicate entries fail when today's baseline is
+  empty); `apps/desktop/package.json`
+  (`test:companion:unit` paths this task moves); `docs/aylul/codebase/README.md` (its rows);
+  this task's `Status:`
+- Needs: U-4
+- Done when: studio reaches renderer and animation only through their entries; no file outside
+  `features/companion/` imports a renderer or animation internal; the six moved unit tests pass
+  where they now live and `test:companion:unit` runs them; no shape, motion, expression or
+  colour changes (the browser renderer and studio specs pass unchanged); every boundary
+  baseline entry in `features/companion/` that the entries fix is gone and none is added; from
+  `apps/desktop/`: `npm run build`, `npm run test:companion:unit`,
+  `npm run test:companion:production` and `npx playwright test tests/companion/renderer.spec.ts
+  tests/companion/studio.spec.ts` pass

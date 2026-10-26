@@ -2,22 +2,10 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
-import { subscribeUrl } from '@/api/client'
-import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
+import { holdThreadRefresh } from './refresh'
 import type { DurableEvent } from './frames'
-import { type Notice, type StreamState, ThreadStream } from './thread-stream'
-
-/** Every project's thread list: a title lives there, and the stream names
- * the thread, not its project. */
-const isThreadList = (key: readonly unknown[]) => (key[0] === 'projects' || key[0] === 'aylul-agent') && key[2] === 'threads'
-
-/** Operation events after which the operation is over. */
-const TERMINAL_KINDS: ReadonlySet<string> = new Set([
-  'OperationCompleted',
-  'OperationFailed',
-  'OperationCancelled',
-  'OperationInterrupted',
-])
+import { type Notice, type StreamState } from './thread-stream'
+import { threadBinding } from './thread-registry'
 
 export type DurableListener = (event: DurableEvent, live: boolean, state: StreamState) => void
 export type NoticeListener = (notice: Notice) => void
@@ -42,49 +30,18 @@ export function useThreadStream(
   threadId: string,
   onDurable?: DurableListener,
   onNotice?: NoticeListener,
+  projectId?: string,
 ): StreamState & { retry: () => void } {
   const queryClient = useQueryClient()
 
-  // Constructing a ThreadStream opens nothing, so creating it during render is
-  // safe; the effect below owns the connection.
   const { stream, listeners, noticeListeners } = useMemo(() => {
-    const listeners = new Set<DurableListener>()
-    const noticeListeners = new Set<NoticeListener>()
-    const refetch = (key: readonly unknown[]) => void queryClient.invalidateQueries({ queryKey: key })
-    const refetchTitles = () =>
-      void queryClient.invalidateQueries({ predicate: (query) => isThreadList(query.queryKey) })
-    // Whether the replay under way held a `ThreadRetitled`.
-    const replay = { retitled: false }
-    const created: ThreadStream = new ThreadStream({
-      url: (after) => subscribeUrl(threadId, after),
-      onCaughtUp: () => {
-        refetch(threadEntriesKey(threadId))
-        refetch(threadOperationsKey(threadId))
-        if (replay.retitled) refetchTitles()
-        replay.retitled = false
-      },
-      // Only while live. During any replay — the first, or the one after a
-      // reconnect, when `caughtUp` is already true — the `caught-up` that
-      // ends it refetches once for the lot.
-      onDurable: (event) => {
-        const live = created.getState().connection === 'live'
-        if (live && (event.kind === 'ThreadEntryAppended' || TERMINAL_KINDS.has(event.kind))) {
-          refetch(threadEntriesKey(threadId))
-        }
-        // A turn's ending settles its invocation's observed values (spec §12.8).
-        if (live && TERMINAL_KINDS.has(event.kind)) refetch(threadOperationsKey(threadId))
-        if (event.kind === 'ThreadRetitled') {
-          if (live) refetchTitles()
-          else replay.retitled = true
-        }
-        for (const listener of listeners) listener(event, live, created.getState())
-      },
-      onNotice: (notice) => {
-        for (const listener of noticeListeners) listener(notice)
-      },
-    })
-    return { stream: created, listeners, noticeListeners }
+    const stream = threadBinding(queryClient, threadId)
+    return { stream, listeners: stream.durable, noticeListeners: stream.notices }
   }, [threadId, queryClient])
+
+  // Held before the store subscribes, so queries are refreshed before any
+  // listener below hears the same event.
+  useEffect(() => holdThreadRefresh(queryClient, threadId, { projectId }), [queryClient, threadId, projectId])
 
   useEffect(() => {
     if (onNotice === undefined) return
@@ -103,11 +60,6 @@ export function useThreadStream(
       listeners.delete(onDurable)
     }
   }, [listeners, onDurable])
-
-  useEffect(() => {
-    stream.start()
-    return () => stream.close()
-  }, [stream])
 
   const state = useSyncExternalStore(stream.subscribe, stream.getState)
   return { ...state, retry: stream.retry }

@@ -213,10 +213,22 @@
           "markdownDescription": "Enables the companion_failed command without any pre-configured scope."
         },
         {
+          "description": "Enables the companion_input command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-companion-input",
+          "markdownDescription": "Enables the companion_input command without any pre-configured scope."
+        },
+        {
           "description": "Enables the companion_ready command without any pre-configured scope.",
           "type": "string",
           "const": "allow-companion-ready",
           "markdownDescription": "Enables the companion_ready command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the companion_send command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-companion-send",
+          "markdownDescription": "Enables the companion_send command without any pre-configured scope."
         },
         {
           "description": "Enables the companion_state command without any pre-configured scope.",
@@ -369,10 +381,22 @@
           "markdownDescription": "Denies the companion_failed command without any pre-configured scope."
         },
         {
+          "description": "Denies the companion_input command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-companion-input",
+          "markdownDescription": "Denies the companion_input command without any pre-configured scope."
+        },
+        {
           "description": "Denies the companion_ready command without any pre-configured scope.",
           "type": "string",
           "const": "deny-companion-ready",
           "markdownDescription": "Denies the companion_ready command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the companion_send command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-companion-send",
+          "markdownDescription": "Denies the companion_send command without any pre-configured scope."
         },
         {
           "description": "Denies the companion_state command without any pre-configured scope.",

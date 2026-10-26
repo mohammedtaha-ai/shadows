@@ -1,5 +1,5 @@
 // Native focus and bounds for the explicit compact editor.
-use super::{model, placement, publish, snapshot, state::CompanionState, Store};
+use super::{model, placement, publish, snapshot, state::CompanionState, Handle};
 use tauri::Manager;
 
 #[derive(Default)]
@@ -19,7 +19,7 @@ pub fn open_bounds(closed: (i32, i32), scale: f64) -> (i32, i32, u32, u32) {
 pub fn closed_origin(open: (i32, i32), scale: f64) -> (i32, i32) {
     (open.0 + (28.0 * scale).round() as i32, open.1)
 }
-pub(super) fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
+pub(super) fn fit(app: &tauri::AppHandle, handle: &Handle, initial: bool) -> Result<(), String> {
     let w = app
         .get_webview_window("companion")
         .ok_or("companion_unavailable")?;
@@ -43,7 +43,7 @@ pub(super) fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
         })
         .collect();
     let origin = if initial {
-        *app.state::<Store>().origin.lock().unwrap()
+        *handle.store.shared.origin.lock().unwrap()
     } else {
         w.outer_position().ok().map(|p| (p.x, p.y))
     };
@@ -58,26 +58,44 @@ pub(super) fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
             w.set_position(tauri::PhysicalPosition::new(x, y))
                 .map_err(|_| "companion_position_failed")?;
         }
-        *app.state::<Store>().origin.lock().unwrap() = Some((x, y));
+        *handle.store.shared.origin.lock().unwrap() = Some((x, y));
     }
     Ok(())
 }
-pub fn refresh(app: &tauri::AppHandle) -> Result<CompanionState, String> {
-    let owner = app.state::<std::sync::Arc<crate::presence::Presence>>();
-    let (scope, context) = owner.context();
-    let agent = owner.view().agent;
-    if owner.context() != (scope.clone(), context.clone()) {
-        return Ok(snapshot(app));
-    }
-    if snapshot(app).composer.scope != scope {
-        set_input(app, false)?;
-    }
-    model(app, |m| m.composer_context(scope, context, agent));
-    Ok(publish(app))
+pub fn refresh(app: &tauri::AppHandle, handle: &Handle) -> Result<CompanionState, String> {
+    let Some(context) = handle
+        .store
+        .shared
+        .editor_context
+        .get()
+        .and_then(|read| read())
+    else {
+        return Ok(snapshot(handle));
+    };
+    apply_context(app, handle, context)
 }
-pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, String> {
-    let store = app.state::<Store>();
-    let current = snapshot(app);
+fn apply_context(
+    app: &tauri::AppHandle,
+    handle: &Handle,
+    editor: super::EditorContext,
+) -> Result<CompanionState, String> {
+    let super::EditorContext {
+        scope,
+        context,
+        agent,
+    } = editor;
+    if snapshot(handle).composer.scope != scope {
+        set_input(app, handle, false)?;
+    }
+    model(handle, |m| m.composer_context(scope, context, agent));
+    Ok(publish(app, handle))
+}
+pub fn set_input(
+    app: &tauri::AppHandle,
+    handle: &Handle,
+    open: bool,
+) -> Result<CompanionState, String> {
+    let current = snapshot(handle);
     if current.composer.open == open {
         return Ok(current);
     }
@@ -94,7 +112,7 @@ pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, S
     if open {
         let rect = open_bounds((pos.x, pos.y), scale);
         {
-            let mut placement = store.input.lock().unwrap();
+            let mut placement = handle.store.shared.input.lock().unwrap();
             placement.closed = Some((pos.x, pos.y));
             placement.return_focus = super::no_activate::previous_foreground(&w);
         }
@@ -103,11 +121,11 @@ pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, S
                 .map_err(|_| "companion_position_failed")?;
             w.set_position(tauri::PhysicalPosition::new(rect.0, rect.1))
                 .map_err(|_| "companion_position_failed")?;
-            fit(app, false)?;
+            fit(app, handle, false)?;
             let fitted = w
                 .outer_position()
                 .map_err(|_| "companion_position_failed")?;
-            store.input.lock().unwrap().opened = Some((fitted.x, fitted.y));
+            handle.store.shared.input.lock().unwrap().opened = Some((fitted.x, fitted.y));
             w.set_focusable(true)
                 .map_err(|_| "companion_focus_failed")?;
             // Background show bypasses Tao's cached visibility. Explicit open may
@@ -126,7 +144,7 @@ pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, S
         w.set_focusable(false)
             .map_err(|_| "companion_focus_failed")?;
         let origin = {
-            let placement = store.input.lock().unwrap();
+            let placement = handle.store.shared.input.lock().unwrap();
             if placement.opened == Some((pos.x, pos.y)) {
                 placement
                     .closed
@@ -139,12 +157,19 @@ pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, S
             .map_err(|_| "companion_position_failed")?;
         w.set_position(tauri::PhysicalPosition::new(origin.0, origin.1))
             .map_err(|_| "companion_position_failed")?;
-        fit(app, false)?;
-        let previous = store.input.lock().unwrap().return_focus.take();
+        fit(app, handle, false)?;
+        let previous = handle
+            .store
+            .shared
+            .input
+            .lock()
+            .unwrap()
+            .return_focus
+            .take();
         super::no_activate::restore_foreground(&w, previous);
     }
-    model(app, |m| m.input(open));
-    Ok(publish(app))
+    model(handle, |m| m.input(open));
+    Ok(publish(app, handle))
 }
 #[cfg(test)]
 mod tests {

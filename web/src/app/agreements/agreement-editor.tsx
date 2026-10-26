@@ -1,8 +1,7 @@
 // One agreement version's editor; refresh never overwrites unsaved fields.
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { type AgreementVersion, type AgreementContent, type AgreementReview,
-  editAgreement, reviewAgreement, agreeAgreement } from '@/api/client'
+import { type AgreementVersion, type AgreementContent, type AgreementReview, editAgreement, reviewAgreement, agreeAgreement } from '@/api/agreements'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { WriterName } from './names'

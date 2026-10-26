@@ -1,9 +1,10 @@
 pub mod binding;
-mod client;
+mod core_client;
 mod preferences;
 mod preview;
 pub mod projection;
-pub mod send;
+mod send;
+pub use send::{Sent, Submission};
 #[cfg(test)]
 mod send_fixture;
 #[cfg(test)]
@@ -11,6 +12,8 @@ mod send_tests;
 #[cfg(test)]
 mod tests;
 pub mod watcher;
+mod workflows;
+pub use workflows::WindowActions;
 #[cfg(test)]
 mod watcher_fixture;
 #[cfg(test)]
@@ -19,7 +22,7 @@ use crate::{core_connection::Connection, navigation::MainDestination};
 pub use binding::{BindingView, RequestContext};
 use std::{
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 type Notify = Arc<dyn Fn(BindingView) + Send + Sync>;
 struct Model {
@@ -33,6 +36,8 @@ pub struct Presence {
     pub(crate) connection: Arc<Connection>,
     inner: Mutex<Model>,
     notifier: Mutex<Option<Notify>>,
+    workflows: OnceLock<workflows::Dependencies>,
+    watcher: OnceLock<Arc<watcher::PresenceWatcher>>,
 }
 impl Presence {
     pub fn new(root: PathBuf, connection: Arc<Connection>) -> Arc<Self> {
@@ -61,6 +66,8 @@ impl Presence {
                 ticket: 0,
             }),
             notifier: Mutex::new(None),
+            workflows: OnceLock::new(),
+            watcher: OnceLock::new(),
         })
     }
     pub fn set_notifier(&self, notify: Notify) {

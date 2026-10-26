@@ -87,7 +87,7 @@ built yet, stays `blocked`.
 3. A change to a folder updates its `contract.yaml` in the same commit; a new
    or removed file updates its row in the code map
    (`npx vitest run src/codemap.test.ts` checks it).
-4. Every HTTP call goes through `web/src/api/client.ts`; the event stream is
+4. Every HTTP call goes through a domain file `web/src/api/<domain>.ts` over the one transport in `web/src/api/transport/`; the event stream is
    read only through `web/src/stream/`.
 5. Run, from `web/`, the tests the task names plus `npm run typecheck` and
    `npm run lint`. Never the whole suite while working.

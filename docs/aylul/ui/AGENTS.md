@@ -62,7 +62,7 @@ delivered, and a plan whose tasks are all done; its commit names the PR, and Git
    report it: the lead updates the task, you do not widen it yourself.
 3. A changed module updates its `contract.yaml`, and a new or removed module its
    code-map row, in the same commit.
-4. Checks: From `apps/desktop/`: `npm run build` (typecheck + bundle) and the tests the task names (`node --test <file>`). Never the whole suite while working.
+4. Checks: From `apps/desktop/`: `npm run build` (typecheck + bundle), `npm run typecheck:tests` and the tests the task names (`node --test <file>`). The desktop CI gate runs `npm test`, `npm run test:companion:unit` and `npm run test:companion:production`; a separate browser job runs `npm run test:companion:browser`. `RECORD_PURPLE`, `EXPORT_COLORS` and native acceptance scripts stay opt-in. Never the whole suite while working.
 5. Commit with `git add <each file>`, never `git add -A` or `git add .`:
    other sides may be committing to the same branch. Do not switch branches,
    stash, rebase or push.

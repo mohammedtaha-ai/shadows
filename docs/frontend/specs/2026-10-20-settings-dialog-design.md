@@ -26,7 +26,7 @@ place, split into sections, that shows only what applies now.
 Mohammed's ruling (2026-10-21): the same daemon runs on this machine (with the Tauri desktop) and
 on the server. Later the client will take some data from the server and its daemon, and other
 data from the local daemon. Nothing in this dialog may assume one daemon: no section reads a
-fixed base URL or builds a request outside `web/src/api/client.ts`, and each section's data is
+fixed base URL or builds a request outside the API transport (`web/src/api/transport/`, reached through `web/src/api/<domain>.ts`), and each section's data is
 named by its owner (this machine: AYLUL character, Local Core, start with Windows, tray; the
 person and their settings, providers, agents, plugins and skills, usage: whichever daemon the
 client is pointed at for them). Which daemon serves which data is decided with that later work,

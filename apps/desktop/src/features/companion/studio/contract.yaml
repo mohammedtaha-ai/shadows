@@ -11,6 +11,9 @@ exports:
   - name: exportCharacterPNG
     file: apps/desktop/src/features/companion/studio/export.ts
 obligations:
+  - rule: Studio reaches drawing and motion internals only through renderer/index.ts and animation/index.ts.
+    tested_by: apps/desktop/tests/companion/boundaries.test.ts
+    test: companion import boundaries match the exact shrinking baseline
   - rule: Export combines the frozen motion pose with current expression outfit and direction even if the stage cannot draw.
     tested_by: apps/desktop/tests/companion/studio.spec.ts
     test: offscreen export uses the latest expression outfit and direction

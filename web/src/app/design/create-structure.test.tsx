@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { designKeys } from '@/api/design'
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers as baseAnswers } from '@/test/fake-daemon'
@@ -56,7 +57,7 @@ it('confirms the directory and count, writes, then preserves success after roadm
   expect(a.text()).toContain('backend/contract.yaml')
   expect(a.bodies.at(-1)).toMatchObject({command_id:expect.any(String)})
   await until(() => a.button('Create structure') === undefined)
-  expect(a.queryClient.getQueryData(['projects','p1','design','stage'])).toMatchObject({stage:'roadmap'})
+  expect(a.queryClient.getQueryData(designKeys.stage('p1'))).toMatchObject({stage:'roadmap'})
 })
 
 it('shows the daemon refusal verbatim below the control', async () => {

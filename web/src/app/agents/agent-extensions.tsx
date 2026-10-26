@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { agentExtensionsQuery, setAgentExtension, type AgentExtensions as ExtensionState, type AgentItem, type ExtensionKind } from '@/api/extensions'
+import { agentExtensionsQuery, setAgentExtension, saveAgentExtensionAnswer, type AgentItem, type ExtensionKind } from '@/api/extensions'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
-import { useOpenSettings } from '../settings/use-settings'
+import { useOpenSettings } from '@/app/navigation'
 
 export function AgentExtensions({ slug }: { slug: string }) {
   const state = useQuery(agentExtensionsQuery(slug))
@@ -32,8 +32,7 @@ function ExtensionSwitch({ slug, kind, item }: { slug: string; kind: ExtensionKi
     },
     onSuccess: async saved => {
       attempt.current = null
-      const field = kind === 'plugin' ? 'plugins' : 'skills'
-      client.setQueryData<ExtensionState>(queryKey, current => current ? { ...current, [field]: current[field].map(value => value.id === saved.id ? saved : value) } : current)
+      await saveAgentExtensionAnswer(client, slug, kind, saved)
       await client.invalidateQueries({ queryKey, exact: true })
     },
     onSettled: () => { locked.current = false; setOptimistic(null) },

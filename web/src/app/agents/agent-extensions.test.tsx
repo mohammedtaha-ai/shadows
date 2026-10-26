@@ -115,3 +115,25 @@ it('library removal clears every agent view', async () => {
   act(() => a.buttons('Edit')[0].click()); await until(() => a.text().includes('No plugins or skills yet.'))
   expect(switchOf('git')).toBeNull()
 })
+
+it('a stale inactive extension read cannot overwrite a saved switch', async () => {
+  let releaseRead!: (value: Response) => void
+  let releaseSave!: (value: Response) => void
+  let reads = 0
+  const a = await open({
+    'GET /api/aylul/agents/ay/extensions': () => ++reads === 1 ? Response.json(view())
+      : new Promise<Response>(resolve => { releaseRead = resolve }),
+    [`PUT /api/aylul/agents/ay/extensions/skill/${skill.id}`]: () => new Promise<Response>(resolve => { releaseSave = resolve }),
+  })
+  act(() => switchOf('review').click())
+  await until(() => a.bodies.length === 1)
+  let pending!: Promise<unknown>
+  act(() => { pending = a.queryClient.refetchQueries({ queryKey: agentExtensionsQuery('ay').queryKey, exact: true }) })
+  await until(() => reads === 2)
+  act(() => a.button('Back')!.click())
+  await until(() => a.buttons('Edit').length === 2)
+  await act(async () => releaseSave(Response.json({ ...skill, enabled: true })))
+  await until(() => a.queryClient.getQueryData<AgentExtensions>(agentExtensionsQuery('ay').queryKey)?.skills[0].enabled === true)
+  await act(async () => { releaseRead(Response.json(view())); await pending })
+  expect(a.queryClient.getQueryData(agentExtensionsQuery('ay').queryKey)).toEqual(view(true))
+})

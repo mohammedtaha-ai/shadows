@@ -1,4 +1,4 @@
-import { ConnectionSettings } from '../../desktop/connection-settings'
+import { ConnectionSettings } from '@/app/desktop'
 
 export function CoreSection() {
   return <ConnectionSettings />

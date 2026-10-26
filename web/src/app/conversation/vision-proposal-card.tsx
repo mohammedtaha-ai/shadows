@@ -1,13 +1,14 @@
 // One job: the proposed content, its live state, and the person's approval (§23.5).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
-import type { ThreadEntry } from '@/api/client'
+import type { ThreadEntry } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { approveVisionProposal, type VisionProposal } from '@/api/design'
-import { visionProposalsQuery } from '@/api/queries'
+import { visionProposalsQuery } from '@/api/design'
+import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
-import { VISION_FIELDS } from '../design/vision-fields'
+import { VISION_FIELDS } from '@/app/design'
 import { ApprovedBy } from './approved-by'
 
 type Snapshot = Pick<VisionProposal, 'id' | 'action' | 'field' | 'item_id' | 'text' | 'old_text'>
@@ -31,7 +32,7 @@ export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; p
       approveVisionProposal(projectId, sent.proposalId, sent.commandId),
     onSuccess: () => {
       attempt.current = null
-      void client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+      void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
     },
     onError: () => {
       void client.invalidateQueries({ queryKey: visionProposalsQuery(projectId).queryKey })

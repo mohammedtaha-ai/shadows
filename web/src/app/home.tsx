@@ -2,10 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { FolderPlus } from 'lucide-react'
-import { projectsQuery } from '@/api/queries'
+import { projectsQuery } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { DaemonProblem } from './daemon-status'
-import { useOpenNewProject } from './new-project/open-new-project'
+import { useOpenNewProject } from '@/app/new-project'
 
 export function Home() {
   const { status, data, error, refetch, isFetching } = useQuery(projectsQuery)

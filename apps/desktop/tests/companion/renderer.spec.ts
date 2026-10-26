@@ -1,26 +1,62 @@
-import { test, expect } from "@playwright/test";
-import { createHash } from 'node:crypto';
+import { test, expect, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { brotliCompressSync, brotliDecompressSync, constants } from 'node:zlib';
 import colors from '../../../../assets/aylul/character-colors.json' with { type:'json' };
 const expressions = ['idle','happy','listening','speaking','thinking','working','success','blocked','sleeping'];
 const outfits = ['default','crown','moon','scarf','starry','winter','headphones','mask','halo','special'];
 
+// Canvas output differs between rasterizers (GPU, SwiftShader, software Skia):
+// gradients by a level or two, anti-aliased edges and shadow blur by up to 255 on
+// single pixels. Each frame is therefore compared as the mean premultiplied RGBA
+// of 4x4 pixel blocks (64x64 blocks for the 256x256 canvas). Across rasterizers
+// a block channel moved by at most 17, so a block may move by TOLERANCE and no
+// block more. Moving the earring by 2px moves blocks by up to 54, recolouring the
+// 3px brow stroke of the special outfit by up to 128. A 2px stroke shifted by 40
+// levels in one channel moves blocks by 14 and stays below the tolerance.
+const BLOCK = 4, SIZE = 256 / BLOCK, TOLERANCE = 24;
+const purpleFile = new URL('./fixtures/purple-frames.json', import.meta.url);
+type Frames = Record<string, string>;
+
+/** Renders every purple frame and returns its block means, base64 RGBA, keyed `character/<expression>/<outfit>` or `scene/<expression>`. */
+async function purpleFrames(page: Page, color?: string): Promise<Frames> {
+  return page.evaluate(async ({ expressions, outfits, color, block, size }) => {
+    const fixture = (window as any).fixture;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = block * size;
+    const context = canvas.getContext('2d', { willReadFrequently: true })!;
+    const blocks = async (url: string) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data, sums = new Float64Array(size * size * 4);
+      for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+        const from = (y * canvas.width + x) * 4, to = (Math.floor(y / block) * size + Math.floor(x / block)) * 4, alpha = pixels[from + 3];
+        for (let channel = 0; channel < 3; channel++) sums[to + channel] += pixels[from + channel] * alpha / 255;
+        sums[to + 3] += alpha;
+      }
+      let text = '';
+      for (const sum of sums) text += String.fromCharCode(Math.round(sum / (block * block)));
+      return btoa(text);
+    };
+    const frames: Record<string, string> = {};
+    for (const expression of expressions) {
+      for (const outfit of outfits) frames[`character/${expression}/${outfit}`] = await blocks((await fixture.render(expression, outfit, color)).image);
+      frames[`scene/${expression}`] = await blocks((await fixture.scene(expression, color)).image);
+    }
+    return frames;
+  }, { expressions, outfits, color, block: BLOCK, size: SIZE });
+}
+
 test('record purple frames', async ({ page, browser }) => {
   test.skip(process.env.RECORD_PURPLE !== '1', 'Explicit baseline recording only');
   await page.goto('/tests/companion/fixture.html');
-  const frames = await page.evaluate(async ({ expressions, outfits }) => {
-    const fixture = (window as any).fixture;
-    const character: Record<string,string> = {}, scene: Record<string,string> = {};
-    for (const expression of expressions) {
-      for (const outfit of outfits) character[`${expression}/${outfit}`] = (await fixture.render(expression, outfit)).image;
-      scene[expression] = (await fixture.scene(expression)).image;
-    }
-    return { character, scene };
-  }, { expressions, outfits });
-  const hash = (values: Record<string,string>) => Object.fromEntries(Object.entries(values).map(([key,value]) => [key,createHash('sha256').update(value).digest('hex')]));
-  const directory = new URL('./fixtures/',import.meta.url);
-  mkdirSync(directory,{ recursive:true });
-  writeFileSync(new URL('purple-frames.json',directory),JSON.stringify({ browser:browser.version(), character:hash(frames.character), scene:hash(frames.scene) },null,2)+'\n');
+  const frames = await purpleFrames(page);
+  const pixels = Buffer.concat(Object.values(frames).map(frame => Buffer.from(frame, 'base64')));
+  const packed = brotliCompressSync(pixels, { params: { [constants.BROTLI_PARAM_QUALITY]: 11, [constants.BROTLI_PARAM_LGWIN]: 24 } });
+  mkdirSync(new URL('./', purpleFile), { recursive: true });
+  writeFileSync(purpleFile, JSON.stringify({ browser: browser.version(), block: BLOCK, size: SIZE, frames: Object.keys(frames), pixels: packed.toString('base64') }, null, 2) + '\n');
 });
 test.beforeEach(async ({ page }) => {
   await page.goto("/tests/companion/fixture.html");
@@ -92,17 +128,25 @@ test("defaults match source", async ({ page }) => {
   });
 });
 test("purple draws today's pixels", async ({ page }) => {
-  const baseline=JSON.parse(readFileSync(new URL('./fixtures/purple-frames.json',import.meta.url),'utf8'));
+  const baseline=JSON.parse(readFileSync(purpleFile,'utf8'));
+  expect([baseline.block,baseline.size]).toEqual([BLOCK,SIZE]);
+  const pixels=brotliDecompressSync(Buffer.from(baseline.pixels,'base64')),length=SIZE*SIZE*4;
+  expect(pixels.length).toBe(baseline.frames.length*length);
   for(const color of [undefined,colors.base,'red']){
-    const frames=await page.evaluate(async({expressions,outfits,color})=>{
-      const fixture=(window as any).fixture,character:Record<string,string>={},scene:Record<string,string>={};
-      for(const expression of expressions){
-        for(const outfit of outfits)character[`${expression}/${outfit}`]=(await fixture.render(expression,outfit,color)).image;
-        scene[expression]=(await fixture.scene(expression,color)).image;
+    const frames=await purpleFrames(page,color),failures:string[]=[];
+    expect(Object.keys(frames)).toEqual(baseline.frames);
+    baseline.frames.forEach((key:string,index:number)=>{
+      const actual=Buffer.from(frames[key],'base64'),expected=pixels.subarray(index*length,(index+1)*length);
+      let over=0,worst=0;
+      for(let block=0;block<length;block+=4){
+        let difference=0;
+        for(let channel=0;channel<4;channel++)difference=Math.max(difference,Math.abs(actual[block+channel]-expected[block+channel]));
+        worst=Math.max(worst,difference);
+        if(difference>TOLERANCE)over++;
       }
-      return {character,scene};
-    },{expressions,outfits,color});
-    for(const kind of ['character','scene'] as const)for(const [key,data] of Object.entries(frames[kind]))expect(createHash('sha256').update(data).digest('hex'),`${color??'absent'} ${kind} ${key}`).toBe(baseline[kind][key]);
+      if(over>0)failures.push(`${color??'absent'} ${key}: ${over} blocks over ${TOLERANCE}, worst ${worst}`);
+    });
+    expect(failures).toEqual([]);
   }
 });
 test('each colour in the table draws its own look',async({page})=>{

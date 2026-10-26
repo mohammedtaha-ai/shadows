@@ -13,9 +13,9 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 
 What the code keeps true. Each one was checked by reading the code that enforces it.
 
-- Feature HTTP calls go through `web/src/api/`. `client.ts` is the only file that
+- Feature HTTP calls go through `web/src/api/`. `transport/index.ts` is the only file that
   calls `fetch` and the only one that creates the `openapi-fetch` client; every other
-  API module uses this shared client.
+  API domain module uses this shared client.
 - `web/src/api/schema.d.ts` is generated from the daemon's `api/openapi.json` by
   `npm run gen:api`. It is committed, its header says not to edit it, and CI fails
   on any difference after regeneration. A protocol change is made in the daemon and
@@ -33,6 +33,63 @@ What the code keeps true. Each one was checked by reading the code that enforces
   shared pieces at the root of `web/src/app/` (`error-line.tsx`, `copy-button.tsx`,
   `daemon-status.tsx`, `mode-policy.ts`) are imported by the feature folders that need them.
 
+## Architecture modules
+
+The architecture test reads this table as its only ownership/dependency graph.
+Paths are relative to `web/src`. `/**` covers a subtree; `/*` covers direct
+children. Exact selectors take precedence over folder selectors so named test
+infrastructure retains its owner. Each source has exactly one most-specific
+owner. Entries are public import surfaces, including type imports and reexports.
+Missing entries are exact baseline items until their migration task creates them.
+`-` in Contract identifies a current module without a colocated contract; this
+check does not invent contracts for those modules. Existing contracts must parse
+as YAML and identify their mapped source folder.
+
+The table maps today's folders onto the plan's section 6: `shared` covers the
+root feedback/policy files; `navigation` owns the settings actions, and feedback
+remains a target path. `api/*` exposes domain entries while keeping `api/transport/` private. `workflows` has its own row because its directory owns workflow presentation. These migration
+boundaries do not exempt their sources from the other architecture rules.
+
+| Owner | Sources | Entry | Contract | Allowed dependencies |
+|---|---|---|---|---|
+| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, new-project, project-settings, settings, sidebar, workflows, navigation` |
+| `navigation` | `app/navigation/**` | `app/navigation/index.ts` | `app/navigation/contract.yaml` | `-` |
+| `api` | `api/**` | `api/*` | `api/contract.yaml` | `-` |
+| `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
+| `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
+| `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `-` | `api, ui` |
+| `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
+| `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
+| `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
+| `design` | `app/design/**` | `app/design/index.ts, app/design/workspace-page.tsx` | `app/design/contract.yaml` | `api, ui, shared, workflows` |
+| `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts, app/desktop/startup.ts, app/desktop/activity.tsx` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
+| `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
+| `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared` |
+| `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
+| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, workflows, navigation` |
+| `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
+| `test-support` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
+
+The two `startup.ts` entries expose only pre-readiness dependencies; their static
+import graphs, and `main.tsx`'s, cannot reach `api/transport/index.ts`. Route modules listed
+beside an `index.ts` remain separate lazy imports declared by that entry.
+`app/workflows/plan-state.ts` is a second workflows entry so the sidebar's plan
+labels do not statically pull the plan graph into the shell's chunk.
+
+Named exemption **test fixture imports**: a `*.test.ts` / `*.test.tsx` source
+may import `test-support` entries for fixtures. Test support may import its own
+fixtures. This exempts only that edge from public-entry/dependency checks; tests
+retain all other rules. Production runtime reachability from `main.tsx` to any
+test or named test-support source always fails.
+
+`architecture.baseline.txt` holds sorted, exact `rule :: importer :: target`
+records with occurrence ordinals. New, stale, duplicate or unsorted entries fail.
+Adding an identical violation fails too. Remove entries with their violations;
+a pure rename relocates entries one-for-one and does not reduce the debt count.
+The scanner never updates the baseline. In-memory fixtures exercise the same
+TypeScript parser, configured module resolver, symbol checker and comparator.
+
 ## Contracts
 
 Each folder below carries a `contract.yaml` next to its code, written to the template
@@ -47,6 +104,7 @@ above. `codemap.test.ts` checks that each one exists.
 - `web/src/app/design`
 - `web/src/app/new-project`
 - `web/src/app/project-settings`
+- `web/src/app/navigation`
 - `web/src/app/settings`
 - `web/src/app/agents`
 - `web/src/app/sidebar`
@@ -74,20 +132,30 @@ it is that folder's `contract.yaml`.
 | `web/src/app/desktop/approvals-panel.tsx` | Preview-bound person approvals | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/rule-preview.ts` | Rule preview identity | `web/src/app/desktop/contract.yaml` |
 | `web/src/api/daemon-origin.ts` | One-time verified native origin | `web/src/api/contract.yaml` |
-| `web/src/app-root.tsx` | Shared dashboard mounting | `web/src/desktop/contract.yaml` |
+| `web/src/app-root.tsx` | Shared dashboard mounting, owns the app's one QueryClient | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/connection-settings.tsx` | Local Core connection form | `web/src/app/desktop/contract.yaml` |
 | `web/src/desktop/runtime.ts` | Readiness ordering | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/native.ts` | Desktop invocation wrappers | `web/src/desktop/contract.yaml` |
-| `web/src/desktop/bootstrap.tsx` | Native startup gate | `web/src/desktop/contract.yaml` |
+| `web/src/app/desktop/index.ts` | Exposes native connection presentation | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/startup.ts` | Expose connection controls before API initialization | `web/src/app/desktop/contract.yaml` |
+| `web/src/desktop/bootstrap.tsx` | Native startup gate with injected connection UI | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.test.tsx` | Readiness ordering fixtures | `web/src/desktop/contract.yaml` |
-| `web/src/api/aylul-profiles.ts` | HTTP calls for AYLUL configuration: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
-| `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
+| `web/src/api/aylul-profiles.ts` | AYLUL configuration server state: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
-| `web/src/api/design.ts` | HTTP calls for the project design workspace | `web/src/api/client.ts` |
-| `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
-| `web/src/api/queries.ts` | TanStack Query keys for each piece of daemon state | `web/src/api/client.ts` |
+| `web/src/api/design.ts` | Project design server state | `web/src/api/contract.yaml` |
+| `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
+| `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
+| `web/src/api/agreements.ts` | Agreement server state | `web/src/api/contract.yaml` |
+| `web/src/api/code.ts` | Code index server state | `web/src/api/contract.yaml` |
+| `web/src/api/directories.ts` | Filesystem directory server state | `web/src/api/contract.yaml` |
+| `web/src/api/harnesses.ts` | Harness capabilities server state | `web/src/api/contract.yaml` |
+| `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
+| `web/src/api/projects.ts` | Project server state | `web/src/api/contract.yaml` |
+| `web/src/api/sessions.ts` | Harness session server state | `web/src/api/contract.yaml` |
+| `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
+| `web/src/api/workflows.ts` | Workflow server state | `web/src/api/contract.yaml` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
-| `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
+| `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/contract.yaml` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/agent-settings.tsx` | Agent editing form | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/delete-zone.tsx` | Danger zone confirming the deletion of a provider or agent | `web/src/app/agents/contract.yaml` |
@@ -108,6 +176,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agreements/names.tsx` | Display names for a part id or a version writer | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/operations-editor.tsx` | Structured editor for an agreement's operations | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/party-picker.tsx` | Picks participant identities from a nested tree | `web/src/app/agreements/contract.yaml` |
+| `web/src/app/agreements/index.ts` | Expose app/agreements public capabilities | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/conversation/approved-by.tsx` | Attribution line linking to the approving conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/bidi.ts` | Text direction for each block of a reply | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/carried-send.ts` | Carries a failed first message to its thread page | `web/src/app/conversation/contract.yaml` |
@@ -147,6 +216,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/use-session.ts` | Harness session state the conversation screen reads | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/waiting-messages.tsx` | Queued messages waiting to be sent or removed | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/index.ts` | Declare lazy route surfaces | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/copy-button.tsx` | Button that copies a text to the clipboard | `web/src/app/error-line.tsx` |
 | `web/src/app/daemon-status.tsx` | Shows whether the daemon answers, with the reason | `web/src/app/error-line.tsx` |
 | `web/src/app/design/create-structure.tsx` | Confirms the project's structure write | `web/src/app/design/contract.yaml` |
@@ -158,13 +228,12 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/roadmap-view.tsx` | Navigator for outcomes, without derived completion | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/standards-view.tsx` | Standards page: read-only base, editable additions | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/use-design-editor.ts` | Save lifecycle shared by the design editors | `web/src/app/design/contract.yaml` |
-| `web/src/app/design/use-design-pages.ts` | Collects hierarchy pages while revisions agree | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/use-outcome-pages.ts` | Outcome hierarchy pages from the daemon | `web/src/app/design/contract.yaml` |
-| `web/src/app/design/use-part-pages.ts` | Part hierarchy pages from the daemon | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/vision-editor.tsx` | Vision as five item lists, edited one item at a time | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/vision-fields.ts` | Display names of the vision fields | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/workspace-page.tsx` | Design workspace page, opening on Vision | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/workspace-plans.tsx` | Project plan list, with its archive filter | `web/src/app/design/contract.yaml` |
+| `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
 | `web/src/app/mode-policy.ts` | Shadows' mode policy per harness, for display | `web/src/app/error-line.tsx` |
@@ -175,6 +244,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/new-project/new-project-provider.tsx` | Owns whether the New project dialog is open | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/new-project/open-new-project.ts` | Opens the New project dialog from any door | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/new-project/slug.ts` | Derives a project's slug from its name | `web/src/app/new-project/contract.yaml` |
+| `web/src/app/new-project/index.ts` | Expose app/new-project public capabilities | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/page-pending.tsx` | Pane shown while a lazy page loads | `web/src/app/home.tsx` |
 | `web/src/app/project-settings/code-index.tsx` | Code index status with its linked projects | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/external-agents.tsx` | External agents allowed on the project, with grants | `web/src/app/project-settings/contract.yaml` |
@@ -183,10 +253,11 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-settings/project-settings.tsx` | Project settings page, assembled from its sections | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/remove-project.tsx` | Danger-zone control that removes the project | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/when.ts` | Formats a stored time for the settings page | `web/src/app/project-settings/contract.yaml` |
+| `web/src/app/project-settings/index.ts` | Declare lazy route surfaces | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/settings-dialog.tsx` | URL-selected settings dialog | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections.ts` | Settings section availability | `web/src/app/settings/contract.yaml` |
-| `web/src/app/settings/use-settings.ts` | Settings URL navigation hooks | `web/src/app/settings/contract.yaml` |
+| `web/src/app/navigation/index.ts` | Settings URL navigation hooks | `web/src/app/navigation/contract.yaml` |
 | `web/src/app/settings/sections/general.tsx` | General settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/account.tsx` | Account state controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/character.tsx` | Character settings content | `web/src/app/settings/contract.yaml` |
@@ -199,16 +270,20 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/person-theme.tsx` | Person theme synchronization | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/desktop-preferences.tsx` | Native preference controls | `web/src/app/settings/contract.yaml` |
 | `web/src/desktop/preferences.ts` | Desktop preference invocation wrappers | `web/src/desktop/contract.yaml` |
-| `web/src/api/person.ts` | Person HTTP operations | `web/src/api/contract.yaml` |
-| `web/src/api/usage.ts` | Usage report HTTP queries | `web/src/api/contract.yaml` |
-| `web/src/api/extensions.ts` | Extension library HTTP operations | `web/src/api/contract.yaml` |
+| `web/src/desktop/index.ts` | Expose desktop public capabilities | `web/src/desktop/contract.yaml` |
+| `web/src/desktop/startup.ts` | Expose native bootstrap before API initialization | `web/src/desktop/contract.yaml` |
+| `web/src/api/person.ts` | Person server state | `web/src/api/contract.yaml` |
+| `web/src/api/usage.ts` | Usage report server state | `web/src/api/contract.yaml` |
+| `web/src/api/extensions.ts` | Extension library server state | `web/src/api/contract.yaml` |
 | `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/index.ts` | Expose app/agents public capabilities | `web/src/app/agents/contract.yaml` |
 | `web/src/app/settings/sections/usage.tsx` | Usage period selection | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/usage-period.ts` | Usage interval calculation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/usage-tables.tsx` | Usage report presentation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/index.ts` | Expose app/settings public capabilities | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |
@@ -219,6 +294,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/sidebar/workflow-list.tsx` | An open project's plans in the sidebar | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workspace-switcher.tsx` | Sidebar title as the workspace menu | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workspace.ts` | Which workspace the sidebar shows, the page deciding before the stored choice | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/index.ts` | Expose app/sidebar public capabilities | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
 | `web/src/app/workflows/approve-bar.tsx` | Approval control for a Draft plan, with refusals | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/inspect-panel.tsx` | Panel showing one task beside the graph | `web/src/app/workflows/contract.yaml` |
@@ -235,6 +311,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/task-node.tsx` | Draws one node of the plan graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/use-plan.ts` | One plan version, kept current for a component | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/version-line.tsx` | Line naming a version's writer, with its reason | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/index.ts` | Expose app/workflows public capabilities | `web/src/app/workflows/contract.yaml` |
 | `web/src/components/ui/alert.tsx` | Alert box with its title, body, action | `web/src/components/ui/input.tsx` |
 | `web/src/components/ui/button.tsx` | Button, styled by its variant props | `web/src/components/ui/input.tsx` |
 | `web/src/components/ui/dialog.tsx` | Modal dialog built on Base UI's Dialog | `web/src/components/ui/button.tsx` |
@@ -243,14 +320,20 @@ it is that folder's `contract.yaml`.
 | `web/src/components/ui/popover.tsx` | Popover built on Base UI's Popover | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/tooltip.tsx` | Hover label built on Base UI's Tooltip | `web/src/components/ui/button.tsx` |
 | `web/src/env.d.ts` | Declares the build-time environment variables | `web/src/main.tsx` |
-| `web/src/main.tsx` | Mounts the app, with its one QueryClient | `web/src/router.tsx` |
+| `web/src/main.tsx` | Composes native callbacks before app mounting | `web/src/router.tsx` |
 | `web/src/router.tsx` | The app's routes, each open thing a URL | `web/src/main.tsx` |
 | `web/src/stream/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/frames.ts` | Typed reading of each subscribe frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/tab-id.ts` | This tab's id, sent with every turn | `web/src/stream/contract.yaml` |
 | `web/src/stream/thread-stream.ts` | Client side of one thread's replay, then live feed | `web/src/stream/contract.yaml` |
+| `web/src/stream/thread-registry.ts` | Share resumable connections within a cache scope | `web/src/stream/contract.yaml` |
+| `web/src/stream/refresh.ts` | Refresh API-owned queries from stream events, once per shared stream | `web/src/stream/contract.yaml` |
+| `web/src/stream/use-plan-events.ts` | Hold writer-thread plan refresh | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-project-events.ts` | Refetches project plan views on journal notices | `web/src/stream/contract.yaml` |
-| `web/src/stream/use-thread-stream.ts` | Binds a thread stream to a component's lifetime | `web/src/stream/contract.yaml` |
+| `web/src/stream/use-thread-stream.ts` | Bind a registry subscription to a component | `web/src/stream/contract.yaml` |
+| `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
 | `web/src/test/contract-fixtures.ts` | Sample daemon values typed against `schema.d.ts` | `web/src/test/fake-daemon.ts` |
 | `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon | `web/src/test/contract-fixtures.ts` |
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
+| `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
+| `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |

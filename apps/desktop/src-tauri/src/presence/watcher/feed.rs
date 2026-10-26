@@ -4,7 +4,7 @@ use crate::{
     core_connection::ReadyConnection,
     presence::{
         binding::BindingView,
-        client::{Client, Problem},
+        core_client::{Client, Problem},
         projection::{Observation, PresenceInput, PresenceProjection, Projection, Scope},
     },
 };

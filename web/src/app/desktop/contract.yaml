@@ -3,6 +3,8 @@ version: 1
 status: current
 source: web/src/app/desktop
 responsibility: Present retained native person actions in the shared dashboard.
+public_api:
+  entry: web/src/app/desktop/index.ts exposes companion presentation to other features; startup.ts isolates ConnectionSettings.
 components:
   ConnectionSettings: Revisioned native Core state above a closed Advanced configuration disclosure; save or explicit Retry; fixed native errors. No HTTP consumer, including at bootstrap.
   CompanionSettings: Explicit live agent selection with provider titles (Core preset/region/label) and model IDs; independent preview preference; stale replies ignored; explicit Local Core retry also restarts the native observer.
@@ -31,3 +33,16 @@ obligations:
 gaps:
   - at: account and hook installation
     gap: Tests use synthetic native replies; real account surrender and personal hook installation are not part of this acceptance.
+
+profile_fixture_identity: "Companion fixtures use api/aylul-profiles profileKeys for mocked Core reads"
+
+activity_query_owner: "api/native-activity.ts owns activity query identity and polling options; useActivity supplies desktop/activity-api.getState as the native transport"
+
+startup_entry: "startup.ts exports only ConnectionSettings before native readiness; its static graph cannot reach api/transport/index.ts."
+
+
+feature_imports: "Cross-feature production imports use declared public entries."
+
+feature_entry: "index.ts exposes UseWithCompanion, CompanionControls, CompanionSettings, ConnectionSettings."
+
+route_entries: "activity.tsx remain separate public lazy route modules declared by index.ts."

@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
 import { Archive, ChevronDown, Lock } from 'lucide-react'
 import { useState } from 'react'
-import { type Plan, archivePlan, unarchivePlan } from '@/api/client'
-import { planVersionsQuery, workflowsKey } from '@/api/queries'
+import { type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
+import { planVersionsQuery, workflowsKey } from '@/api/workflows'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,

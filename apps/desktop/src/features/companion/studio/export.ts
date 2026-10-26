@@ -1,5 +1,5 @@
 import type { CharacterFrame, CompanionSettings } from "../types.ts";
-import { renderCharacter } from "../renderer/character.ts";
+import { renderCharacter } from "../renderer/index.ts";
 export async function exportCharacterPNG(
   frame: CharacterFrame,
   settings: CompanionSettings,

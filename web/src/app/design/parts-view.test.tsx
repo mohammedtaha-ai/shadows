@@ -3,6 +3,7 @@ import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers as baseAnswers } from '@/test/fake-daemon'
 import type { DesignEdit, PartView } from '@/api/design'
+import { designKeys } from '@/api/design'
 import { type TestApp, startApp, typeInto, until } from '../test-app'
 
 let app: TestApp | null = null
@@ -152,7 +153,7 @@ it('a create retry keeps its command and revision after an unrelated refetch', a
   typeInto(a.container.querySelector<HTMLInputElement>('input[aria-label="Part title"]')!, 'قسم جديد')
   act(() => a.button('Create')?.click())
   await until(() => a.text().includes('response lost'))
-  await act(async () => { await a.queryClient.invalidateQueries({ queryKey: ['projects', 'p1', 'design'] }) })
+  await act(async () => { await a.queryClient.invalidateQueries({ queryKey: designKeys.all('p1') }) })
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)) })
   act(() => a.button('Create')?.click())
   await until(() => writes === 2)

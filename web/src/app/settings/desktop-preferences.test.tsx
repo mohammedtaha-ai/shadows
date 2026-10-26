@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { personQuery } from '@/api/person'
+import { codeKeys } from '@/api/code'
 import { GeneralSection } from './sections/general'
 import { DesktopPreferencesControls } from './desktop-preferences'
 import { until, typeInto } from '../test-app'
@@ -21,7 +22,7 @@ beforeEach(() => {
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
   client.setQueryData(personQuery.queryKey, { name: 'Name', aylul_calls_me: null, language: null, theme: 'system', updated_at: null })
-  client.setQueryData(['code', 'settings'], { active_limit: 5 })
+  client.setQueryData(codeKeys.settings(), { active_limit: 5 })
   invoke.mockReset().mockResolvedValue(defaults)
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     const body = await request.json()

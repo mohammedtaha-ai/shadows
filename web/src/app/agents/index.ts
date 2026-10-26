@@ -1,0 +1,11 @@
+// Public lazy route modules: home.tsx.
+export { providerTitle } from './provider-presets'
+export { colorOf } from './character-colors'
+export { ColorDot } from './color-swatches'
+export { AgentForm } from './agent-settings'
+export { DeleteAgent } from './agent-settings'
+export { ProviderForm } from './provider-form'
+export { ProviderPicker } from './provider-picker'
+export { presetOf } from './provider-presets'
+export { presetGroups } from './provider-presets'
+export { type PresetGroup } from './provider-presets'

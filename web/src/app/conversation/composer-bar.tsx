@@ -4,7 +4,7 @@
 
 import { ChevronDown, Folder, Plus } from 'lucide-react'
 import { type ReactNode, type RefObject, useRef } from 'react'
-import type { Choice, TurnSettings } from '@/api/client'
+import type { Choice, TurnSettings } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

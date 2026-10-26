@@ -9,14 +9,16 @@ import {CHARACTER_COLORS} from '../agents/character-colors'
 const {invoke,listen}=vi.hoisted(()=>({invoke:vi.fn(),listen:vi.fn()}))
 vi.mock('@tauri-apps/api/core',()=>({invoke}))
 vi.mock('@tauri-apps/api/event',()=>({listen}))
-vi.mock('@/api/aylul-profiles',()=>({
- providerPresetsQuery:{queryKey:['fixture-presets'],queryFn:async()=>[]},
- agentsQuery:{queryKey:['fixture-agents'],queryFn:async()=>({project_id:'project',agents:[
+vi.mock('@/api/aylul-profiles',async()=>{
+ const {profileKeys}=await vi.importActual<typeof import('@/api/aylul-profiles')>('@/api/aylul-profiles')
+ return {
+ providerPresetsQuery:{queryKey:profileKeys.presets(),queryFn:async()=>[]},
+ agentsQuery:{queryKey:profileKeys.agents(),queryFn:async()=>({project_id:'project',agents:[
   {slug:'agent-a',name:'AYLUL A',provider:'provider-a',default_model:'fake-large',deleted:false,character_color:'blue'},
   {slug:'deleted',name:'Deleted agent',provider:'provider-a',default_model:'fake-small',deleted:true},
  ]})},
- providersQuery:{queryKey:['fixture-providers'],queryFn:async()=>[{slug:'provider-a',name:'Local provider'}]},
-}))
+ providersQuery:{queryKey:profileKeys.providers(),queryFn:async()=>[{slug:'provider-a',name:'Local provider'}]},
+}})
 let host:HTMLDivElement,root:Root,client:QueryClient
 async function flush(){await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10))})}
 beforeEach(()=>{

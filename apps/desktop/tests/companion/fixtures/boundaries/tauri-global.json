@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "src/app/bad.ts": "window.__TAURI_INTERNALS__.invoke('x'); globalThis['__TAURI__'];",
+    "src/platform/ok.ts": "window.__TAURI_INTERNALS__;"
+  },
+  "expected": [
+    "tauri-import :: src/app/bad.ts :: __TAURI_INTERNALS__ #1",
+    "tauri-import :: src/app/bad.ts :: __TAURI__ #1"
+  ]
+}

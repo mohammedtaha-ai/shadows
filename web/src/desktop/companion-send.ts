@@ -1,5 +1,5 @@
 import {useSyncExternalStore} from 'react'
-import {getThread} from '@/api/client'
+import { getThread } from '@/api/threads'
 import {isDesktop} from './runtime'
 import {companionBinding,targetCompanionThread} from './presence'
 let problem:{threadId:string;message:string}|null=null

@@ -1,6 +1,6 @@
 // Approval attribution with a link to the request's own conversation.
 import { Link } from '@tanstack/react-router'
-import type { Plan } from '@/api/client'
+import type { Plan } from '@/api/workflows'
 
 export function ApprovedBy({ by, projectId }: {
   by: Plan['approved_by'] | null | undefined

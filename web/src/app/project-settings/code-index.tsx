@@ -7,16 +7,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, X } from 'lucide-react'
 import { useRef } from 'react'
-import {
-  type Project,
-  type ProjectLink,
-  type ProjectStatus,
-  putCodeLink,
-  removeCodeLink,
-} from '@/api/client'
+import { type ProjectLink, type ProjectStatus, putCodeLink, removeCodeLink } from '@/api/code'
+import { type Project } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { codeLinksQuery, codeStatusQuery, projectsQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { codeLinksQuery, codeStatusQuery } from '@/api/code'
+import { projectsQuery } from '@/api/projects'
+import { saveUnlinkedCodeAnswer } from '@/api/code'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -122,9 +118,7 @@ function LinkedRow({
       removeCodeLink(projectId, linkedId, commandId),
     onSuccess: async () => {
       pending.current = null
-      await writeSaved<ProjectLink[]>(queryClient, codeLinksQuery(projectId).queryKey, (list) =>
-        list?.filter((l) => l.linked !== link.linked),
-      )
+      await saveUnlinkedCodeAnswer(queryClient, projectId, link.linked)
       void queryClient.invalidateQueries({ queryKey: codeLinksQuery(projectId).queryKey })
     },
   })

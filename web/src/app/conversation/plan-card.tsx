@@ -4,10 +4,11 @@
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { Plan, PlanTask, ThreadEntry } from '@/api/client'
+import type { Plan, PlanTask } from '@/api/workflows'
+import type { ThreadEntry } from '@/api/threads'
 import { ErrorLine } from '../error-line'
-import { PlanGraph } from '../workflows/plan-graph'
-import { usePlan } from '../workflows/use-plan'
+import { PlanGraph } from '@/app/workflows'
+import { usePlan } from '@/app/workflows'
 import { ApprovedBy } from './approved-by'
 
 /** The plan version an entry refers to, and the task if it names one. */

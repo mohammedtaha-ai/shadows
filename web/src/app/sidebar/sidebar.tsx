@@ -3,17 +3,17 @@
 
 import {useState} from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
-import {isDesktop} from '../../desktop/runtime'
-import {hideToTray} from '../../desktop/native'
+import {isDesktop} from '@/desktop'
+import {hideToTray} from '@/desktop'
 import { Plus, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConnectionIndicator } from '../daemon-status'
-import { useOpenNewProject } from '../new-project/open-new-project'
+import { useOpenNewProject } from '@/app/new-project'
 import { AgentList } from './agent-list'
 import { WorkspaceSwitcher } from './workspace-switcher'
 import { useWorkspace } from './workspace'
 import { ProjectList } from './project-list'
-import { useOpenSettings } from '../settings/use-settings'
+import { useOpenSettings } from '@/app/navigation'
 
 export function Sidebar() {
   const [nativeError,setNativeError]=useState<string|null>(null)

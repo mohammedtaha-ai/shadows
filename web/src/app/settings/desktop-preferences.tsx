@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getDesktopPreferences, setDesktopPreferences, type DesktopPreferences } from '@/desktop/preferences'
+import { getDesktopPreferences, setDesktopPreferences, type DesktopPreferences } from '@/desktop'
 import { Button } from '@/components/ui/button'
 
 export function DesktopPreferencesControls() {

@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useEffect, useSyncExternalStore } from 'react'
-import { threadQuery } from '@/api/queries'
+import { threadQuery } from '@/api/threads'
 export type Workspace = 'shadows' | 'aylul'
 let fallback: Workspace = 'shadows'
 const listeners = new Set<() => void>()

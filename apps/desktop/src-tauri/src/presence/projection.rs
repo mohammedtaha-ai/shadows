@@ -38,7 +38,21 @@ pub struct PresenceProjection {
     pub status: String,
     pub preview: Option<Preview>,
 }
+
 impl PresenceProjection {
+    pub fn into_surface(self) -> crate::windows::companion::SurfacePresence {
+        crate::windows::companion::SurfacePresence {
+            expression: self.expression,
+            status: self.status,
+            preview: self
+                .preview
+                .map(|preview| crate::windows::companion::SurfacePreview {
+                    id: preview.id,
+                    text: preview.text,
+                    expires_at_ms: preview.expires_at_ms,
+                }),
+        }
+    }
     pub fn unbound() -> Self {
         Self {
             expression: "idle".into(),
@@ -306,6 +320,34 @@ impl Projection {
             expression: expression.into(),
             status: status.into(),
             preview: self.preview.clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod surface_tests {
+    use super::*;
+
+    #[test]
+    fn surface_mapping_preserves_projection_bytes() {
+        for projection in [
+            PresenceProjection::unbound(),
+            PresenceProjection::unavailable("Unavailable"),
+            PresenceProjection {
+                expression: "success".into(),
+                status: "Reply ready".into(),
+                preview: Some(Preview {
+                    id: "reply-1".into(),
+                    text: "مرحبا \"world\"\n".into(),
+                    expires_at_ms: u64::MAX,
+                }),
+            },
+        ] {
+            assert_eq!(
+                serde_json::to_vec(&projection).unwrap(),
+                serde_json::to_vec(&projection.into_surface()).unwrap(),
+                "surface mapping preserves every serialized field"
+            );
         }
     }
 }

@@ -1,0 +1,9 @@
+{
+  "sources": {
+    "src/features/companion/animation/bad.ts": "import '../studio/../studio';",
+    "src/features/companion/studio/index.tsx": "export const value = 1;"
+  },
+  "expected": [
+    "character-dependency :: src/features/companion/animation/bad.ts :: src/features/companion/studio/index.tsx -> src/features/companion/studio/index.tsx #1"
+  ]
+}

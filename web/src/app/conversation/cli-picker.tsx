@@ -5,10 +5,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Lock } from 'lucide-react'
 import { useRef } from 'react'
-import { type PlanningThread, setThreadHarness } from '@/api/client'
+import { setThreadHarness } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { harnessesQuery, threadsQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { harnessesQuery } from '@/api/harnesses'
+import { reopenSession } from '@/api/sessions'
+import { saveThreadHarnessAnswer } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -19,7 +20,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ErrorLine } from '../error-line'
-import { reopenSession } from './use-session'
 
 /** The harness kind of AYLUL's brain, offered in the assistant project only. */
 export const AYLUL_HARNESS = 'aylul'
@@ -50,9 +50,7 @@ export function CliPicker({
       setThreadHarness(threadId, commandId, kind),
     onSuccess: async (thread) => {
       pending.current = null
-      await writeSaved<PlanningThread[]>(queryClient, threadsQuery(projectId).queryKey, (threads) =>
-        threads?.map((t) => (t.id === thread.id ? thread : t)),
-      )
+      await saveThreadHarnessAnswer(queryClient, projectId, thread)
       reopenSession(queryClient, threadId)
     },
   })

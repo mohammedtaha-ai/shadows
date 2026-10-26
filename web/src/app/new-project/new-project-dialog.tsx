@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useReducer, useRef, useState } from 'react'
-import { createProject } from '@/api/client'
+import { createProject } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { projectsQuery } from '@/api/queries'
+import { projectsQuery } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

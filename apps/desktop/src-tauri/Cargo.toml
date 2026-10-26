@@ -37,5 +37,9 @@ serde = { version = "1.0.229", features = ["derive"] }
 [workspace]
 
 [dev-dependencies]
+syn = { version = "2", features = ["full", "visit"] }
+quote = "1"
+proc-macro2 = "1"
+toml = "0.8"
 tempfile = "3.27"
 axum = "0.8"

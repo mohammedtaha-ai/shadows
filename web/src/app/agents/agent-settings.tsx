@@ -16,9 +16,9 @@ import { Field, Select } from './form-field'
 import { providerTitle } from './provider-presets'
 import { colorOf } from './character-colors'
 import { ColorSwatches } from './color-swatches'
-import { isDesktop } from '@/desktop/runtime'
-import { useCompanionBinding, refreshCompanionAppearance } from '@/desktop/presence'
-import { useOpenSettings } from '../settings/use-settings'
+import { isDesktop } from '@/desktop'
+import { useCompanionBinding, refreshCompanionAppearance } from '@/desktop'
+import { useOpenSettings } from '@/app/navigation'
 
 export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () => void }) {
   const agent = useQuery(agentsQuery).data?.agents.find(agent => agent.slug === slug)

@@ -1,16 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Approvals, type Outcome, type Pending } from './approvals.ts';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Approvals } from './approvals.ts';
+import { ApprovalsStore } from './store.ts';
+import { openDatabase } from '../store/store.ts';
 
 function setup(hold = { request: 200, refusal: 200 }) {
   let n = 0;
-  const records: Array<[string, Outcome]> = [];
+  const store = new ApprovalsStore(openDatabase(':memory:'));
+  const records = () => store.decisions().map(d => [d.itemId, d.outcome]);
   const written: Array<[string, string]> = [];
   const approvals = new Approvals({
     now: () => new Date('2026-10-13T19:00:00.000Z'),
     newId: () => `id${++n}`,
     writeRule: (project, rule, _seen) => { written.push([project, rule]); return { ruleId: 'r1', backupPath: 'b1' }; },
-    record: (item: Pending, outcome) => { records.push([item.id, outcome]); },
+    store,
     requestHoldMs: hold.request,
     refusalHoldMs: hold.refusal,
   });
@@ -19,6 +25,8 @@ function setup(hold = { request: 200, refusal: 200 }) {
 const request = { session_id: 's1', hook_event_name: 'PermissionRequest', cwd: 'C:\\p\\src', project_dir: 'C:\\p', tool_name: 'Bash', tool_input: { command: 'npm test' } };
 const refusal = { session_id: 's1', hook_event_name: 'PermissionDenied', cwd: 'C:\\p\\src', project_dir: 'C:\\p', tool_name: 'Bash', tool_input: { command: 'npm run deploy' }, reason: '[Prod Deploy]' };
 const open = () => new AbortController();
+// A preview reads the project's settings file, so an approval needs a real, empty project.
+const projectRoot = () => mkdtempSync(join(tmpdir(), 'aylul-approvals-'));
 
 test('allow from AYLUL answers the hook with allow', async () => {
   const { approvals, records } = setup();
@@ -27,7 +35,7 @@ test('allow from AYLUL answers the hook with allow', async () => {
   assert.equal(item.target, 'npm test');
   approvals.answer(item.id, 'allow');
   assert.deepEqual(await reply, { output: { hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: 'allow' } } } });
-  assert.deepEqual(records, [['id1', 'allowed']]);
+  assert.deepEqual(records(),[['id1', 'allowed']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
@@ -59,14 +67,14 @@ test('an answer in the terminal ends the request without a decision', async () =
   const reply = approvals.request(request, hook.signal);
   hook.abort();
   assert.deepEqual(await reply, {});
-  assert.deepEqual(records, [['id1', 'answered_in_terminal']]);
+  assert.deepEqual(records(),[['id1', 'answered_in_terminal']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
 test('an unanswered request times out with no decision', async () => {
   const { approvals, records } = setup({ request: 30, refusal: 200 });
   assert.deepEqual(await approvals.request(request, open().signal), {});
-  assert.deepEqual(records, [['id1', 'timed_out']]);
+  assert.deepEqual(records(),[['id1', 'timed_out']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
@@ -101,30 +109,43 @@ test('a refusal carries its reason and a proposed rule', async () => {
 
 test('approving the rule within the hold writes it, then asks Claude to retry', async () => {
   const { approvals, written, records } = setup();
-  const reply = approvals.refusal(refusal, open().signal);
-  const result = approvals.approveRule(approvals.pending()[0].id, 'Bash(npm run deploy)', 'seen');
+  const root = projectRoot();
+  const reply = approvals.refusal({ ...refusal, project_dir: root }, open().signal);
+  const id = approvals.pending()[0].id;
+  const result = approvals.approvePreview(id, 'Bash(npm run deploy)', approvals.previewRule(id, 'Bash(npm run deploy)').before);
   assert.deepEqual(result, { backupPath: 'b1' });
-  assert.deepEqual(written, [['C:\\p', 'Bash(npm run deploy)']]);
+  assert.deepEqual(written, [[root, 'Bash(npm run deploy)']]);
   assert.deepEqual(await reply, { output: { hookSpecificOutput: { hookEventName: 'PermissionDenied', retry: true } } });
-  assert.deepEqual(records, [['id1', 'rule_written']]);
+  assert.deepEqual(records(),[['id1', 'rule_written']]);
 });
 
 test('a late approval still writes the rule', async () => {
   const { approvals, written, records } = setup({ request: 200, refusal: 30 });
-  assert.deepEqual(await approvals.refusal(refusal, open().signal), {});
+  const root = projectRoot();
+  assert.deepEqual(await approvals.refusal({ ...refusal, project_dir: root }, open().signal), {});
   const [item] = approvals.pending();
   assert.equal(item.held, false);
-  approvals.approveRule(item.id, 'Bash(npm run deploy)', 'seen');
-  assert.deepEqual(written, [['C:\\p', 'Bash(npm run deploy)']]);
-  assert.deepEqual(records, [['id1', 'listed'], ['id1', 'rule_written']]);
+  approvals.approvePreview(item.id, 'Bash(npm run deploy)', approvals.previewRule(item.id, 'Bash(npm run deploy)').before);
+  assert.deepEqual(written, [[root, 'Bash(npm run deploy)']]);
+  assert.deepEqual(records(),[['id1', 'listed'], ['id1', 'rule_written']]);
   assert.deepEqual(approvals.pending(), []);
 });
 
 test('a broad rule is refused and nothing is written', () => {
   const { approvals, written } = setup();
-  void approvals.refusal(refusal, open().signal);
+  void approvals.refusal({ ...refusal, project_dir: projectRoot() }, open().signal);
   const id = approvals.pending()[0].id;
-  assert.throws(() => approvals.approveRule(id, 'Bash(*)', 'seen'), { message: 'rule_too_broad' });
+  assert.throws(() => approvals.previewRule(id, 'Bash(*)'), { message: 'rule_too_broad' });
+  assert.throws(() => approvals.approvePreview(id, 'Bash(*)', 'seen'), { message: 'preview_mismatch' });
+  assert.deepEqual(written, []);
+  assert.equal(approvals.pending().length, 1);
+});
+
+test('without a preview no rule is written', () => {
+  const { approvals, written } = setup();
+  void approvals.refusal({ ...refusal, project_dir: projectRoot() }, open().signal);
+  const id = approvals.pending()[0].id;
+  assert.throws(() => approvals.approvePreview(id, 'Bash(npm run deploy)', 'seen'), { message: 'preview_mismatch' });
   assert.deepEqual(written, []);
   assert.equal(approvals.pending().length, 1);
 });
@@ -136,7 +157,8 @@ test('a refusal with no project root proposes nothing and cannot be approved', (
   const [item] = approvals.pending();
   assert.equal(item.project, '');
   assert.equal(item.proposedRule, null);
-  assert.throws(() => approvals.approveRule(item.id, 'Bash(npm run deploy)', 'seen'), { message: 'project_unknown' });
+  assert.throws(() => approvals.previewRule(item.id, 'Bash(npm run deploy)'), { message: 'project_unknown' });
+  assert.throws(() => approvals.approvePreview(item.id, 'Bash(npm run deploy)', 'seen'), { message: 'preview_mismatch' });
   assert.deepEqual(written, []);
 });
 
@@ -145,6 +167,6 @@ test('a dismissed refusal leaves the list and answers a held hook with no decisi
   const reply = approvals.refusal(refusal, open().signal);
   approvals.dismiss(approvals.pending()[0].id);
   assert.deepEqual(await reply, {});
-  assert.deepEqual(records, [['id1', 'dismissed']]);
+  assert.deepEqual(records(),[['id1', 'dismissed']]);
   assert.deepEqual(approvals.pending(), []);
 });

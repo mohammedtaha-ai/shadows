@@ -1,0 +1,12 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "import '../platform/companion';",
+    "src/platform/companion.ts": "import { invoke } from '@tauri-apps/api/core';",
+    "src/features/companion/studio/good.ts": "import '../renderer'; import '../animation/index.ts';",
+    "src/features/companion/renderer/index.ts": "export * from './draw';",
+    "src/features/companion/renderer/draw.ts": "const text = 'fetch(1)'; // fetch(1)\nconst data = {fetch: 'plain text'};",
+    "src/features/companion/animation/index.ts": "export const motion = 1;",
+    "src/features/companion/renderer/draw.test.ts": "import 'node:test'; fetch('/fixture');"
+  },
+  "expected": []
+}

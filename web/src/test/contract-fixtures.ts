@@ -5,22 +5,12 @@
 // The models, efforts and modes are made up, as the fake agent's are: no test
 // of product behaviour names a real Claude model (plan, Global Constraints).
 
-import type {
-  Choice,
-  Grant,
-  HarnessInfo,
-  InvocationView,
-  Operation,
-  Plan,
-  PlanListing,
-  PlanTask,
-  PlanVersions,
-  PlanningThread,
-  Project,
-  ProjectStatus,
-  SessionChoices,
-  ThreadEntry,
-} from '@/api/client'
+import type { HarnessInfo } from '@/api/harnesses'
+import type { Plan, PlanListing, PlanTask, PlanVersions } from '@/api/workflows'
+import type { ProjectStatus } from '@/api/code'
+import type { Grant, Project } from '@/api/projects'
+import type { Choice, SessionChoices } from '@/api/sessions'
+import type { InvocationView, Operation, PlanningThread, ThreadEntry } from '@/api/threads'
 import type { VisionProposal } from '@/api/design'
 
 export function visionProposalEntry(id: string, proposal: VisionProposal): ThreadEntry {

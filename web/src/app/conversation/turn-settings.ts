@@ -8,7 +8,7 @@
 // it on the session at once (spec §12.7) and its answer carries them; until
 // then the effort menu is disabled, the effort stays and Send waits.
 
-import type { Choice, SessionChoices, TurnSettings } from '@/api/client'
+import type { Choice, SessionChoices, TurnSettings } from '@/api/sessions'
 
 /** The session's current values, except a mode that is disabled moves to the
  * first enabled one. */

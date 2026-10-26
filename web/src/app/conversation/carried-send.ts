@@ -3,7 +3,7 @@
 // text and the error, and a retry reuses the turn's command id.
 
 import { useEffect, useState } from 'react'
-import { uploadAttachment, type Attachment } from '@/api/client'
+import { uploadAttachment, type Attachment } from '@/api/threads'
 import { ApiError } from '@/api/error'
 import type { Attempt } from '@/api/command-id'
 

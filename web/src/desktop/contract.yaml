@@ -4,7 +4,7 @@ status: current
 source: web/src/desktop
 responsibility: Gate shared dashboard mounting on native verified Core readiness.
 public_api:
-  prepareDesktop: Subscribe before snapshot; show connection controls until ready; freeze verified origin before API modules load.
+  prepareDesktop: Subscribe before snapshot; render the injected connection controls until ready; freeze verified origin before API modules load.
   nativeCall: Desktop-only typed invocation; never called from browser startup.
   saveConnection: Persist normalized configuration natively; changed configuration reloads main at Settings.
   watchConnection: Reload main at /?settings=core on configuration identity replacement.
@@ -12,7 +12,7 @@ public_api:
   getState/answerRequest/previewRule/approveRule/dismissRefusal/previewHooks/installHooks: Narrow sidecar method wrappers.
   connectCompanion/setCompanionVisible/setCompanionPaused: Subscribe-before-snapshot native presentation state; latest revision wins.
   hideToTray: Preserve native hide failure as a rejected promise.
-  refreshCompanionAppearance: Main-only refresh_companion_appearance returns an acknowledgement { ok: true }; wrapper resolves void and is a no-op in browser.
+  refreshCompanionAppearance: "Main-only refresh_companion_appearance returns an acknowledgement { ok: true }; wrapper resolves void and is a no-op in browser."
   getDesktopPreferences: Main-only desktop_preferences has no wire arguments; validates the full camelCase boolean object without changing OS state.
   setDesktopPreferences: Main-only set_desktop_preferences receives a flat partial launchAtLogin/closeToTray object; validates the full answer; no frontend defaults are persisted on read.
 obligations:
@@ -26,6 +26,10 @@ obligations:
     tested_by: web/src/desktop/bootstrap.test.tsx
   - rule: A failed launch waits for explicit Retry.
     tested_by: web/src/desktop/bootstrap.test.tsx
+  - rule: prepareDesktop renders the connection controls it is given while waiting, and fixes the verified origin before the application mounts.
+    tested_by: web/src/desktop/bootstrap-composition.test.tsx
+  - rule: connectNavigation reads the snapshot only after the given readiness resolves, acknowledges a revision only after the given navigation has applied it, and newer events win over a delayed snapshot.
+    tested_by: web/src/desktop/native-parity.test.ts
 
 binding:
   BindingView: Native revision/generation/configurationId/agent/target/previews; actual Rust fixture owns IPC parity.
@@ -33,7 +37,7 @@ binding:
   selectCompanionAgent/targetCompanionThread/setCompanionPreviews: Main-only explicit native mutations.
 navigation:
   parseNavigation: Accept only three closed native destination kinds with validated identities.
-  connectNavigation: Listen before snapshot, wait for router readiness, acknowledge only an applied revision.
+  connectNavigation: Listen before snapshot, wait for the injected readiness callback, await the injected destination navigation, then acknowledge only an applied revision.
 
 presence_projection:
   parsePresence: Validate actual native serialized expression/status/preview bounds; listening is not a presence state.
@@ -42,3 +46,7 @@ presence_projection:
 companion_send:
   noteCompanionSend: Capture selected-agent generation, validate the existing thread profile and attempt native targeting; report a fixed independent issue without throwing into ordinary Send/Queue.
   useCompanionSendProblem: Read the current thread's binding issue from an in-memory external store.
+
+startup_entry: "startup.ts exposes readiness ordering, loadNativeGate (a deferred import of bootstrap.tsx, so the browser page never loads the native gate) and the connection calls and types used by the pre-readiness ConnectionSettings screen; its static graph cannot reach api/transport/index.ts."
+
+feature_entry: "index.ts exposes noteCompanionSend, useCompanionSendProblem, isDesktop, aylulMessage, answerRequest, approveRule, dismissRefusal, previewRule, AylulState, Pending, connectCompanion, setCompanionVisible, setCompanionPaused, CompanionState, retryConnection, connectBinding, useCompanionBinding, selectCompanionAgent, setCompanionPreviews, BindingView, Plan, installHooks, previewHooks, getState, AuthAction, AuthView, getDesktopPreferences, setDesktopPreferences, DesktopPreferences, authAction, cancelLogin, refreshCompanionAppearance, hideToTray, connectNavigation."

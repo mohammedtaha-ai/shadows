@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import type { PlanningThread } from '@/api/client'
-import { entriesQuery, operationsQuery } from '@/api/queries'
+import type { PlanningThread } from '@/api/threads'
+import { entriesQuery, operationsQuery } from '@/api/threads'
 import { ErrorLine } from '../error-line'
 import { Messages } from './messages'
 import { SubagentPanel } from './subagent-panel'

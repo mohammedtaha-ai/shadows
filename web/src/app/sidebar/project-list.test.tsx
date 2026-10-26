@@ -7,7 +7,7 @@
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Answer } from '@/app/test-app'
-import { threadsQuery } from '@/api/queries'
+import { threadsQuery } from '@/api/threads'
 import { projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '../test-app'

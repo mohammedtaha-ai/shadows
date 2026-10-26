@@ -3,10 +3,10 @@
 
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { Plan, PlanTask } from '@/api/client'
+import type { Plan, PlanTask } from '@/api/workflows'
 import { Button } from '@/components/ui/button'
 import { parentName } from './linked-layout'
-import { BindingEditor } from '../agreements/binding-editor'
+import { BindingEditor } from '@/app/agreements'
 
 export function InspectPanel({
   plan,

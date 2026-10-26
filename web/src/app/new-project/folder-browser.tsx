@@ -5,7 +5,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { CornerLeftUp, Folder, HardDrive, LoaderCircle } from 'lucide-react'
 import type { Dispatch, ReactNode } from 'react'
-import { dirsQuery } from '@/api/queries'
+import { dirsQuery } from '@/api/directories'
 import { ErrorLine } from '../error-line'
 import type { FolderAction, FolderState } from './folder-state'
 import { NewFolder } from './new-folder'

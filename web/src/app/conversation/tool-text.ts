@@ -2,8 +2,8 @@
 // Shadows' own tools a sentence (§13.11), a subagent's card (§22), or no line
 // at all. Entries are told apart by their kind (§23.8), never by their text.
 
-import type { ThreadEntry } from '@/api/client'
-import { type SubagentCard, readSubagentCard } from '@/stream/frames'
+import type { ThreadEntry } from '@/api/threads'
+import { type SubagentCard, readSubagentCard } from '@/stream'
 
 /** What each of Shadows' tools (`mcp__shadows__<name>`, §13.6) did, said as a
  * person would. `plan_show` says nothing: the card it wrote is the entry. */

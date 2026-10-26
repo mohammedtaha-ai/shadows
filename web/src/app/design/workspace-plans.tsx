@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { plansQuery } from '@/api/queries'
+import { plansQuery } from '@/api/workflows'
 import { ErrorLine } from '../error-line'
 export function WorkspacePlans({ projectId }: { projectId: string }) {
   const [archived, setArchived] = useState(false)

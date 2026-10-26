@@ -1,0 +1,20 @@
+name: native-desktop-composition
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/app.rs
+responsibility: Assemble the nine native lifetime owners behind one managed DesktopApp.
+public_api:
+  DesktopApp::start: Build existing owners and wire their notifiers inside Tauri setup; hand the observer publication callback to Presence for startup; inject navigation and native window actions; inject configured-origin reads and main webview options into MainWindow; forward editor-context reads and UI-dispatched publications to that owner; return one Arc for managed registration before window setup.
+  DesktopApp::preferences/auth/companion/main_window/presence/navigation/connection/paths/sidecar: Typed access to private owned values; preferences exposes DesktopPreferences with its private store and injected OS adapter. The nine fields are core_connection, companion, companion_window, main_window, navigation, desktop_preferences, account, activity and app_paths. The companion accessor returns the public opaque window Handle while its Store remains private to composition and window code; other accessors return their owner types. The observer is held only by Presence.
+  DesktopApp::setup_windows: Supply MainWindow and live close-policy, tray attachment, toggle and companion setup callbacks after managed registration; supply companion webview options through AppPaths.
+  DesktopApp::stop: Stop through Presence before stopping the sidecar on application exit.
+obligations:
+  - rule: Composition wires editor context and publication callbacks; Presence owns their consistency checks and projection mapping. Window code resolves no managed state; companion callbacks retain its explicit window Handle.
+    tested_by: native_architecture_ratchet
+  - rule: Only Arc<DesktopApp> is registered as managed application state; owner lookup uses its accessors.
+    tested_by: [desktop_registers_one_private_composition_root, native_architecture_ratchet]
+  - rule: Navigation::open_main records the pending destination, emits main-navigation and opens main in that order; the companion workflow reaches it through its injected dependency.
+    tested_by: [old_ack_does_not_clear_a_newer_request, click_destination_is_closed_and_does_not_create_a_thread, native_architecture_ratchet]
+gaps:
+  - at: native lifecycle
+    gap: Automated behavior tests cover owner policies; physical Windows startup, tray and shutdown acceptance is separate.

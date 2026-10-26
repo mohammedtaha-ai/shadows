@@ -1,4 +1,4 @@
-use crate::windows::preferences::{DesktopPreferences, PluginLoginItem, Store};
+use crate::desktop_preferences::PreferencesView;
 fn main_only(window: &tauri::WebviewWindow) -> Result<(), String> {
     if super::companion::allowed_caller(window.label(), "desktop_preferences") {
         Ok(())
@@ -9,13 +9,12 @@ fn main_only(window: &tauri::WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 pub async fn desktop_preferences(
     window: tauri::WebviewWindow,
-    app: tauri::AppHandle,
-    store: tauri::State<'_, Store>,
-) -> Result<DesktopPreferences, String> {
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+) -> Result<PreferencesView, String> {
     main_only(&window)?;
-    let store = store.inner().clone();
+    let desktop = desktop.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        store.read(&PluginLoginItem(app)).map_err(str::to_owned)
+        desktop.preferences().read().map_err(str::to_owned)
     })
     .await
     .map_err(|_| "desktop_preferences_load_failed".to_owned())?
@@ -23,16 +22,16 @@ pub async fn desktop_preferences(
 #[tauri::command(rename_all = "camelCase")]
 pub async fn set_desktop_preferences(
     window: tauri::WebviewWindow,
-    app: tauri::AppHandle,
-    store: tauri::State<'_, Store>,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
     launch_at_login: Option<bool>,
     close_to_tray: Option<bool>,
-) -> Result<DesktopPreferences, String> {
+) -> Result<PreferencesView, String> {
     main_only(&window)?;
-    let store = store.inner().clone();
+    let desktop = desktop.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        store
-            .set(&PluginLoginItem(app), launch_at_login, close_to_tray)
+        desktop
+            .preferences()
+            .set(launch_at_login, close_to_tray)
             .map_err(str::to_owned)
     })
     .await

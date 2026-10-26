@@ -4,7 +4,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { projectsQuery } from '@/api/queries'
+import { projectsQuery } from '@/api/projects'
 import { CodeIndex } from './code-index'
 import { ExternalAgents } from './external-agents'
 import { InstructionsEditor } from './instructions-editor'

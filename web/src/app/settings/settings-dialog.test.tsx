@@ -4,6 +4,7 @@
 // the sidebar, it saves the active limit as one command and refuses a number
 // out of range before sending it.
 
+import { codeKeys } from '@/api/code'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { answers } from '@/test/fake-daemon'
@@ -118,7 +119,7 @@ describe('settings', () => {
     expect(app.bodies.at(-1)).toEqual({ active_limit: 8, command_id: expect.stringMatching(/.+/) })
     // Save is also disabled while pending: wait for the response to reach
     // the cache before checking the completed field and button state.
-    await until(() => app.queryClient.getQueryData<{ active_limit: number }>(['code', 'settings'])?.active_limit === 8)
+    await until(() => app.queryClient.getQueryData<{ active_limit: number }>(codeKeys.settings())?.active_limit === 8)
     await until(() => app.button('Save')?.disabled === true && field()?.value === '8')
     expect(field()?.value).toBe('8')
   })
@@ -132,7 +133,7 @@ describe('settings', () => {
 
     // Another tab saved 7: a refetch brings it, and the field shows it.
     limit = 7
-    await act(() => app.queryClient.invalidateQueries({ queryKey: ['code', 'settings'] }))
+    await act(() => app.queryClient.invalidateQueries({ queryKey: codeKeys.settings() }))
     await until(() => field()?.value === '7')
     expect(app.button('Save')?.disabled).toBe(true)
   })

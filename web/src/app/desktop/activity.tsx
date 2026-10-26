@@ -1,4 +1,4 @@
-import {isDesktop} from '../../desktop/runtime'
+import {isDesktop} from '@/desktop'
 import {SessionsPanel} from './sessions-panel'
 import {ApprovalsPanel} from './approvals-panel'
 import {useActivity} from './use-activity'

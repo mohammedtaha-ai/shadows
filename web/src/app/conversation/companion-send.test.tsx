@@ -2,7 +2,7 @@
 import {act} from 'react'
 import {afterEach,it,expect,vi} from 'vitest'
 import * as companion from '@/desktop/companion-send'
-import * as api from '@/api/client'
+import * as api from '@/api/threads'
 import * as presence from '@/desktop/presence'
 import {threadFixture,projectFixture,claudeHarness,runningOperation} from '@/test/contract-fixtures'
 import {answers} from '@/test/fake-daemon'

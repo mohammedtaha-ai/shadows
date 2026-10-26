@@ -1,0 +1,29 @@
+name: native-desktop-preferences
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/desktop_preferences
+responsibility: Coordinate machine-specific desktop preferences through a private JSON store and OS login-item adapter.
+public_api:
+  PreferencesView: Native camelCase launchAtLogin/closeToTray view; fresh defaults false/true.
+  DesktopPreferences::new: Composition injects the OS login-item adapter and storage root; fields remain private.
+  DesktopPreferences::read: Return saved close policy with actual OS login-item state without enabling it.
+  DesktopPreferences::set: Serialize optional patches; save only after OS verification; restore the OS state on verification or save failure.
+  DesktopPreferences::close_action: Main close hides when saved closeToTray is true; otherwise exits; tray Quit always exits.
+modules:
+  store.rs: Private desktop-preferences-v1.json persistence with unchanged camelCase fields, defaults, recovery and atomic save.
+  login_item.rs: Private OS adapter implementation; crate-visible PluginLoginItem is constructed only in DesktopApp and injected into the owner.
+  tests.rs: Preference coordination regressions through the owner's methods with a fake OS adapter.
+obligations:
+  - rule: Fresh native preferences preserve close-to-tray; reads never enable an OS login item and return its actual state.
+    tested_by: [desktop_preferences_fresh_install_preserves_close_to_tray, desktop_preferences_reports_external_login_change]
+  - rule: Partial updates preserve omitted values across restart and concurrent setters; wire names are camelCase.
+    tested_by: [desktop_preferences_partial_update_survives_restart, desktop_preferences_concurrent_partial_updates_are_serialized]
+  - rule: OS refusal and storage failure retain saved close policy; corrupt files are not overwritten; failed rollback is not reported as success.
+    tested_by: [desktop_preferences_os_refusal_preserves_saved_close_policy, desktop_preferences_corrupt_or_unwritable_store_is_not_overwritten]
+  - rule: Main close hides or exits the application according to the saved flag; tray Quit always exits.
+    tested_by: [desktop_preferences_close_policy_hides_or_exits, 'integration: apps/desktop/tests/desktop-preferences.mjs']
+  - rule: Commands call owner methods only; the store module is private and the architecture ratchet rejects owner or OS-adapter construction outside composition.
+    tested_by: [native_architecture_ratchet, preferences_owner_keeps_construction_and_private_internals_out_of_commands, preference_store_accessor_is_private_even_for_commands, reexported_login_adapter_construction_is_still_ratcheted]
+gaps:
+  - at: PluginLoginItem
+    gap: Real Windows login-item enable/disable and sign-in launch are reserved for Mohammed; fake adapters prove coordination only.

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { editDesign, type DesignEdit } from '@/api/design'
 import { ApiError } from '@/api/error'
+import { designKeys } from '@/api/design'
 
 type ViewBasis = { revision: number; plans: string[] }
 type DesignOp = DesignEdit['ops'][number]
@@ -78,7 +79,7 @@ export function useDesignEditor<View extends ViewBasis, Content>(
   const save = useMutation({
     mutationFn: (body: DesignEdit) => editDesign(projectId, body),
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+      await client.invalidateQueries({ queryKey: designKeys.all(projectId) })
       if (!base) {
         attempt.current = null
         setConflict(false)
@@ -94,7 +95,7 @@ export function useDesignEditor<View extends ViewBasis, Content>(
     onError: error => {
       if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'REVISION_CONFLICT') {
         setConflict(true)
-        void client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+        void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
       }
     },
   })

@@ -4,6 +4,7 @@ import { afterEach, expect, it } from 'vitest'
 import { answers } from '@/test/fake-daemon'
 import { planFixture } from '@/test/contract-fixtures'
 import type { DesignEdit } from '@/api/design'
+import { designKeys } from '@/api/design'
 import { type TestApp, startApp, typeInto, until } from '../test-app'
 
 let app: TestApp | null = null
@@ -120,7 +121,7 @@ it('an outcome create retry preserves its identity and basis through a refetch',
   typeInto(title()!, 'نتيجة جديدة')
   act(() => a.button('Create')?.click())
   await until(() => a.text().includes('response lost'))
-  await act(async () => { await a.queryClient.invalidateQueries({ queryKey: ['projects', 'p1', 'design'] }) })
+  await act(async () => { await a.queryClient.invalidateQueries({ queryKey: designKeys.all('p1') }) })
   expect(title()?.value).toBe('نتيجة جديدة')
   act(() => a.button('Create')?.click())
   await until(() => a.bodies.length === 2)

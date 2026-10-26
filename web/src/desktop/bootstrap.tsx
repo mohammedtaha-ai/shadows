@@ -1,17 +1,17 @@
 import {createRoot} from 'react-dom/client'
-import {ConnectionSettings} from '../app/desktop/connection-settings'
+import type {ReactNode} from 'react'
 import {setDaemonOrigin} from '../api/daemon-origin'
 import {connectionBridge,openExternal} from './native'
 import {waitForReady,type ConnectionView} from './runtime'
 
-export async function prepareDesktop():Promise<void>{
+export async function prepareDesktop(connectionSettings:ReactNode):Promise<void>{
   const element=document.getElementById('root')
   if(!element)throw new Error('missing_root')
   const root=createRoot(element)
   const render=(view:ConnectionView)=>root.render(<main className="mx-auto max-w-2xl p-8">
     <h1 className="mb-4 text-2xl">AYLUL</h1>
     <p role="status" className="mb-4">{view.state==='starting'?'Starting local Core…':view.error??'Configure local Core to continue.'}</p>
-    <ConnectionSettings/>
+    {connectionSettings}
   </main>)
   try{
     const ready=await waitForReady(connectionBridge,render)

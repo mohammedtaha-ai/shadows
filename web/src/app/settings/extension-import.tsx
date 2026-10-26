@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
-import { addExtension, extensionsQuery, type ExtensionKind } from '@/api/extensions'
+import { addExtension, extensionsQuery, extensionKeys, type ExtensionKind } from '@/api/extensions'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,7 @@ export function ExtensionImport({ kind, onDone }: { kind: ExtensionKind; onDone:
     },
     onSuccess: async () => {
       attempt.current = null; setPath('')
-      await Promise.all([client.invalidateQueries({ queryKey: extensionsQuery.queryKey }), client.invalidateQueries({ queryKey: ['aylul-agent-extensions'] })])
+      await Promise.all([client.invalidateQueries({ queryKey: extensionsQuery.queryKey }), client.invalidateQueries({ queryKey: extensionKeys.agents() })])
       onDone()
     },
     onSettled: () => { locked.current = false },

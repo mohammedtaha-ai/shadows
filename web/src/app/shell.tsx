@@ -2,11 +2,11 @@
 
 import { Outlet, useParams } from '@tanstack/react-router'
 import { MotionConfig } from 'motion/react'
-import { useProjectEvents } from '@/stream/use-project-events'
-import { NewProjectProvider } from './new-project/new-project-provider'
-import { Sidebar } from './sidebar/sidebar'
-import { SettingsDialog } from './settings/settings-dialog'
-import { PersonTheme } from './settings/person-theme'
+import { useProjectEvents } from '@/stream'
+import { NewProjectProvider } from '@/app/new-project'
+import { Sidebar } from '@/app/sidebar'
+import { SettingsDialog } from '@/app/settings'
+import { PersonTheme } from '@/app/settings'
 
 export function Shell() {
   const { projectId } = useParams({ strict: false })

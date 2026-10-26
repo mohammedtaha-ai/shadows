@@ -1,4 +1,4 @@
-import type { Plan } from '../../desktop/activity-api';
+import type { Plan } from '@/desktop';
 
 export type RulePreview = Plan & { rule: string };
 

@@ -10,10 +10,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { type Project, removeProject } from '@/api/client'
+import { type Project, removeProject } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { projectsQuery, threadsQuery } from '@/api/queries'
-import { writeSaved } from '@/api/saved-answer'
+import { projectsQuery } from '@/api/projects'
+import { threadsQuery } from '@/api/threads'
+import { saveRemovedProjectAnswer } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -91,9 +92,7 @@ function ConfirmRemove({
       settled()
       // Home first, so nothing on screen asks after the project any more.
       await navigate({ to: '/' })
-      await writeSaved<Project[]>(queryClient, projectsQuery.queryKey, (list) =>
-        list?.filter((p) => p.id !== project.id),
-      )
+      await saveRemovedProjectAnswer(queryClient, project.id)
       void queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey })
     },
     // A conversation started since: the zone learns it and turns Remove off.

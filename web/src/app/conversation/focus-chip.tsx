@@ -2,7 +2,7 @@
 // that says which, and the `focus` the next turn carries for it.
 
 import { Crosshair, X } from 'lucide-react'
-import type { PlanTask } from '@/api/client'
+import type { PlanTask } from '@/api/workflows'
 
 /** A task clicked in a card or the side panel, in the version and at the
  * revision the person was looking at. */

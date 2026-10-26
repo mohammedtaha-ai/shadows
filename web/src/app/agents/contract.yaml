@@ -40,7 +40,7 @@ components:
     # Preset/region or Custom URL, label, write-only key tests, model selection;
     # Delete provider retains inline confirmation.
   ProviderModels:
-    signature: "({ listed, picked: ModelPick[], onChange }) => JSX.Element; default is picked[0]"
+    signature: "({ listed, picked: ModelPick[], onChange, manual: string, onManualChange }) => JSX.Element; default is picked[0]"
   AgentForm:
     signature: "({ slug: string | null, onDone: () => void }) => JSX.Element"
     # Null creates an agent; a saved agent includes its scoped environment and deletion.
@@ -78,6 +78,18 @@ pure:
     file: web/src/app/agents/model-picks.ts
 
 obligations:
+  - rule: Enter (with or without Shift) in the manual model field uses the Add action without submitting the provider form, including when the id is invalid; an Enter that confirms an IME composition does nothing. Saving with an unadded id shows an explicit alert and preserves the draft; adding or clearing the id removes the alert.
+    tested_by:
+      - Enter adds a model without submitting the new provider
+      - Enter adds a model without submitting the saved provider
+      - Shift+Enter adds a model like Enter
+      - Enter that confirms an IME composition does not add the model
+      - saving the new provider with an unadded id explains it and preserves the draft
+      - saving the saved provider with an unadded id explains it and preserves the draft
+      - clearing an unadded id removes its message and saves the picked models
+      - Enter with invalid model id "" does not submit the provider
+      - Enter with invalid model id "default" does not submit the provider
+      - Enter with invalid model id "m1" does not submit the provider
   - rule: A successful save of the desktop's companion agent requests an appearance refresh; other agents and browser saves do not. Failed native refresh is ignored because native polls the agent again.
     tested_by: ["saving the companion agent refreshes the character", "saving another agent does not", "a failed refresh does not fail the save"]
   - rule: Every saved-agent extension switch saves immediately, independently of Save agent, and accepts the returned enabled value. Failure rolls back its optimistic state; unchanged explicit retry reuses its command id. Pending and late responses stay scoped to their captured agent/item.
@@ -128,3 +140,13 @@ tests:
     checks: Replace sends the new value for that name; Remove sends one DELETE.
 
 provider_models: Provider models carry id and per-model context_window; the agent selector uses each model id.
+
+extension_cache_owner: "api/extensions.ts owns saved switch merges and cancels stale reads before writing"
+
+profile_query_owner: "api/aylul-profiles.ts owns provider and agent query factories"
+
+feature_entry: "index.ts exposes providerTitle, colorOf, ColorDot, AgentForm, DeleteAgent, ProviderForm, ProviderPicker, presetOf, presetGroups, PresetGroup."
+
+feature_imports: "Cross-feature production imports use declared public entries."
+
+route_entries: "home.tsx remain separate public lazy route modules declared by index.ts."

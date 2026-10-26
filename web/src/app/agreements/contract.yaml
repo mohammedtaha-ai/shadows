@@ -35,7 +35,7 @@ shapes:
     label: "'METHOD /path'"
 
 
-# ── external types (owned by web/src/api/schema.d.ts, re-exported by api/client) ─
+# ── external types (owned by web/src/api/schema.d.ts, re-exported by api/agreements) ─
 
 external:
   AgreementVersion: "agreement_id, version, revision, state, writer, content, issues"
@@ -260,3 +260,15 @@ tests:
       A Save refused with REVISION_CONFLICT (409) leaves the typed Arabic purpose in the
       textarea, shows the server's message, and the last PUT body carries
       expected_revision 0 and that purpose.
+
+cache_owner: "api/agreements.ts owns query identities and saved answers; the editor does not write the cache"
+
+binding_plan_cache: "api/workflows.ts owns saved plans and workflow refresh identities"
+
+design_cache_identity: "Binding adoption refresh uses api/design.designKeys"
+
+pagination_owner: "PartyPicker imports usePartPages from api/design.ts; agreement UI depends on no design editor hook."
+
+feature_entry: "index.ts exposes BindingEditor."
+
+route_entries: "agreements-page.tsx remain separate public lazy route modules declared by index.ts."

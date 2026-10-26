@@ -11,7 +11,7 @@ import {
   createMessageSlot,
   receiveMessage,
   visibleMessage,
-} from "./animation/messages.ts";
+} from "./animation/index.ts";
 import { createTones, type ToneController } from "./audio.ts";
 import "./companion.css";
 const idle: CompanionPresentation = {

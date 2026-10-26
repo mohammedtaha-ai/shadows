@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "src/features/companion/studio/bad.ts": "import { draw } from '../bridge';",
+    "src/features/companion/bridge.ts": "import { draw } from './renderer/draw'; export { draw };",
+    "src/features/companion/renderer/draw.ts": "export const draw = 1;"
+  },
+  "expected": [
+    "studio-entry :: src/features/companion/studio/bad.ts :: src/features/companion/bridge.ts -> src/features/companion/renderer/draw.ts #1"
+  ]
+}

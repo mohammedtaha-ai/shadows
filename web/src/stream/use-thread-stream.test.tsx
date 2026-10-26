@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
+import { threadEntriesKey, threadOperationsKey } from '@/api/threads'
+import { projectKeys } from '@/api/projects'
+import { threadKeys } from '@/api/threads'
 import { FakeSource } from './fake-event-source'
 import { useThreadStream } from './use-thread-stream'
 
@@ -123,7 +125,8 @@ describe('useThreadStream', () => {
     expect(entries()).toBe(3)
     act(() => current().caughtUp(8))
     expect([entries(), operations()]).toEqual([4, 3])
-    expect(invalidate).toHaveBeenCalledTimes(7)
+    // Each caught-up also reconciles workflows for the conversation's plan views.
+    expect(invalidate).toHaveBeenCalledTimes(9)
   })
 
   it('hands every durable event to its caller once, saying whether it was live', () => {
@@ -157,8 +160,8 @@ describe('useThreadStream', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const lists = () =>
       invalidate.mock.calls.filter(([filters]) => filters?.predicate !== undefined).length
-    queryClient.setQueryData(['projects', 'p1', 'threads'], [])
-    queryClient.setQueryData(['projects', 'p1'], {})
+    queryClient.setQueryData(threadKeys.list('p1'), [])
+    queryClient.setQueryData(projectKeys.project('p1'), {})
     show('t1')
 
     act(() => current().durable(1, 'ThreadRetitled', null, { title: 'A', source: 'harness' }))
@@ -169,7 +172,7 @@ describe('useThreadStream', () => {
     expect(lists()).toBe(1)
     act(() => current().durable(2, 'ThreadRetitled', null, { title: 'B', source: 'harness' }))
     expect(lists()).toBe(2)
-    expect(queryClient.getQueryState(['projects', 'p1', 'threads'])?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(['projects', 'p1'])?.isInvalidated).toBe(false)
+    expect(queryClient.getQueryState(threadKeys.list('p1'))?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(projectKeys.project('p1'))?.isInvalidated).toBe(false)
   })
 })

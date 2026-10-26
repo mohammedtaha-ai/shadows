@@ -1,6 +1,6 @@
 import {useEffect,useState,type FormEvent} from 'react'
-import {connectionBridge,connectionConfig,saveConnection,retryConnection,type LaunchConfig} from '../../desktop/native'
-import type {ConnectionView} from '../../desktop/runtime'
+import {connectionBridge,connectionConfig,saveConnection,retryConnection,type LaunchConfig} from '@/desktop/startup'
+import type {ConnectionView} from '@/desktop/startup'
 const empty:LaunchConfig={configurationId:'',executable:'',db:'',node:'',adapter:'',harness:'',aylulConfig:'',origin:'http://127.0.0.1:4318'}
 const fields=[
   ['executable','Shadows executable'],['db','Existing database'],['node','Node executable'],

@@ -5,10 +5,12 @@ import {
   advanceMotion,
   pokeMotion,
   readFrame,
-} from "./animation/model.ts";
-import { createFrameLoop, type FrameLoop } from "./animation/scheduler.ts";
-import { backingSize, localPointer } from "./animation/geometry.ts";
-import { renderScene } from "./renderer/scene.ts";
+  createFrameLoop,
+  type FrameLoop,
+  backingSize,
+  localPointer,
+} from "./animation/index.ts";
+import { renderScene } from "./renderer/index.ts";
 export type CompanionCanvasProps = {
   input: MotionInput;
   paused: boolean;

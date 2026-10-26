@@ -5,12 +5,15 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { agentsQuery } from '@/api/aylul-profiles'
-import type { Plan, PlanTask, PlanningThread, Project, ThreadEntry } from '@/api/client'
-import { harnessesQuery, projectsQuery, threadQuery, threadsQuery } from '@/api/queries'
-import { type PlanShowFrame, type SubagentCard, toLimits } from '@/stream/frames'
-import {UseWithCompanion} from '../desktop/companion-settings'
+import type { Plan, PlanTask } from '@/api/workflows'
+import type { Project } from '@/api/projects'
+import type { PlanningThread, ThreadEntry } from '@/api/threads'
+import { harnessesQuery } from '@/api/harnesses'
+import { projectsQuery } from '@/api/projects'
+import { threadQuery, threadsQuery } from '@/api/threads'
+import { type PlanShowFrame, type SubagentCard, toLimits } from '@/stream'
+import {UseWithCompanion} from '@/app/desktop'
 import { ErrorLine } from '../error-line'
-import { HeldThreadStream } from '../workflows/plan-frames'
 import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { Composer } from './composer'
@@ -96,7 +99,7 @@ function Conversation({
   // In the version and at the revision the person was looking at.
   const onPointAt = (plan: Plan, task: PlanTask) =>
     setPointed({ workflowId: plan.id, revision: plan.revision, task })
-  const c = useConversation(threadId, showHere)
+  const c = useConversation(threadId, showHere, projectId)
   // Opened as soon as the conversation shows, so the menus are ready before
   // the first message (spec §12.2).
   const session = useSession(threadId)
@@ -119,97 +122,93 @@ function Conversation({
   }
 
   return (
-    // This conversation's stream carries its plans' changes: its cards and
-    // panel open no stream of their own.
-    <HeldThreadStream value={threadId}>
-      <div className="flex h-full min-h-0">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
-            <div className="min-w-0">
-              <h1 dir="auto" className="truncate text-start text-sm font-medium">
-                {thread?.title ?? 'Conversation'}
-              </h1>
-              {harness !== 'aylul' && <StageChip projectId={projectId} />}
-              <p className="truncate text-xs text-faint-foreground">
-                <bdi>{harness === 'aylul' ? agentLabel : project?.name ?? '…'}</bdi>
-                {project?.assistant === true ? null : ' · Planner'}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <CliPicker
-                projectId={projectId}
-                threadId={threadId}
-                harness={harness}
-                label={label}
-                assistant={project?.assistant === true}
-                // A fork is locked from birth (spec §12.9): its session is a fork
-                // of its source's, which no other harness could continue.
-                locked={c.latest !== null || thread?.forked_from_thread != null}
-              />
-              <StatusBadge running={c.running} latest={c.latest} />
-              <UseWithCompanion threadId={threadId} profile={thread?.profile??null} harness={harness}/>
-            </div>
-          </header>
-          <StreamBanner
-            connection={c.stream.connection}
-            problem={c.stream.problem}
-            retry={c.stream.retry}
-          />
-          {c.entries.isError && (
-            <div className="px-6 pt-3">
-              <ErrorLine error={c.entries.error} />
-            </div>
-          )}
-          <Messages
-            entries={c.entries.data}
-            loading={!c.stream.caughtUp}
-            reply={c.reply}
-            running={c.running !== null}
-            thinking={c.thinking}
-            label={c.label}
-            operations={c.operations}
-            models={session.state === 'ready' ? session.choices.models : []}
-            harness={harness}
-            forkFrom={c.known && c.running === null ? { projectId, threadId } : null}
-            projectId={projectId}
-            onPointAt={onPointAt}
-            subagents={live}
-            onOpenSubagent={openAgent}
-          />
-          <WaitingMessages threadId={threadId} running={c.running !== null} />
-          <Composer
-            to={{ threadId }}
-            carried={carried}
-            harness={harness}
-            harnessLabel={label}
-            session={session}
-            running={c.running}
-            directory={project?.directory}
-            known={c.known}
-            commands={c.commands}
-            agentProfile={configuredAgents.data?.agents.find(a => a.slug === thread?.profile && !a.deleted)?.slug}
-            ring={<ContextRing threadId={threadId} usage={c.context} limits={limits} />}
-            onStarted={c.started}
-            pointed={pointed}
-            // Only the chip that was sent or dismissed: a task clicked meanwhile stays.
-            onPointed={(done) => setPointed((now) => (now === done ? null : now))}
-          />
-        </div>
-        {side !== null && (
-          <PlanSidePanel
-            // Another version is another graph, fitted afresh.
-            key={side.workflowId}
-            shown={side}
-            projectId={projectId}
-            onClose={() => setSide(null)}
-            onPointAt={onPointAt}
-          />
+    <div className="flex h-full min-h-0">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
+          <div className="min-w-0">
+            <h1 dir="auto" className="truncate text-start text-sm font-medium">
+              {thread?.title ?? 'Conversation'}
+            </h1>
+            {harness !== 'aylul' && <StageChip projectId={projectId} />}
+            <p className="truncate text-xs text-faint-foreground">
+              <bdi>{harness === 'aylul' ? agentLabel : project?.name ?? '…'}</bdi>
+              {project?.assistant === true ? null : ' · Planner'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <CliPicker
+              projectId={projectId}
+              threadId={threadId}
+              harness={harness}
+              label={label}
+              assistant={project?.assistant === true}
+              // A fork is locked from birth (spec §12.9): its session is a fork
+              // of its source's, which no other harness could continue.
+              locked={c.latest !== null || thread?.forked_from_thread != null}
+            />
+            <StatusBadge running={c.running} latest={c.latest} />
+            <UseWithCompanion threadId={threadId} profile={thread?.profile??null} harness={harness}/>
+          </div>
+        </header>
+        <StreamBanner
+          connection={c.stream.connection}
+          problem={c.stream.problem}
+          retry={c.stream.retry}
+        />
+        {c.entries.isError && (
+          <div className="px-6 pt-3">
+            <ErrorLine error={c.entries.error} />
+          </div>
         )}
-        {agentCard !== null && (
-          <SubagentPanel key={agentCard.id} card={agentCard} onClose={() => setAgent(null)} />
-        )}
+        <Messages
+          entries={c.entries.data}
+          loading={!c.stream.caughtUp}
+          reply={c.reply}
+          running={c.running !== null}
+          thinking={c.thinking}
+          label={c.label}
+          operations={c.operations}
+          models={session.state === 'ready' ? session.choices.models : []}
+          harness={harness}
+          forkFrom={c.known && c.running === null ? { projectId, threadId } : null}
+          projectId={projectId}
+          onPointAt={onPointAt}
+          subagents={live}
+          onOpenSubagent={openAgent}
+        />
+        <WaitingMessages threadId={threadId} running={c.running !== null} />
+        <Composer
+          to={{ threadId }}
+          carried={carried}
+          harness={harness}
+          harnessLabel={label}
+          session={session}
+          running={c.running}
+          directory={project?.directory}
+          known={c.known}
+          commands={c.commands}
+          agentProfile={configuredAgents.data?.agents.find(a => a.slug === thread?.profile && !a.deleted)?.slug}
+          ring={<ContextRing threadId={threadId} usage={c.context} limits={limits} />}
+          onStarted={c.started}
+          pointed={pointed}
+          // Only the chip that was sent or dismissed: a task clicked meanwhile stays.
+          onPointed={(done) => setPointed((now) => (now === done ? null : now))}
+        />
       </div>
-    </HeldThreadStream>
+      {side !== null && (
+        <PlanSidePanel
+          // Another version is another graph, fitted afresh.
+          key={side.workflowId}
+          shown={side}
+          projectId={projectId}
+          onClose={() => setSide(null)}
+          onPointAt={onPointAt}
+        />
+      )}
+      {agentCard !== null && (
+        <SubagentPanel key={agentCard.id} card={agentCard} onClose={() => setAgent(null)} />
+      )}
+    </div>
   )
 }
 

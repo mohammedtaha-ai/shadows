@@ -27,6 +27,17 @@ pub struct Navigation {
     inner: Mutex<(u64, Option<PendingNavigation>)>,
 }
 impl Navigation {
+    pub fn open_main(
+        &self,
+        app: &tauri::AppHandle,
+        destination: MainDestination,
+    ) -> Result<(), String> {
+        use tauri::Emitter;
+        let pending = self.request(destination);
+        let _ = app.emit_to("main", "main-navigation", pending);
+        crate::windows::open_main(app).map_err(|_| "main_open_failed".into())
+    }
+
     pub fn request(&self, destination: MainDestination) -> PendingNavigation {
         let mut inner = self.inner.lock().unwrap();
         inner.0 += 1;

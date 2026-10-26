@@ -10,15 +10,15 @@
 import {
   createRootRoute, createRoute, createRouter, createHashHistory, lazyRouteComponent, redirect,
 } from '@tanstack/react-router'
-import {isDesktop} from './desktop/runtime'
+import {isDesktop} from '@/desktop'
 import { Home } from './app/home'
-import { storedWorkspace } from './app/sidebar/workspace'
+import { storedWorkspace } from '@/app/sidebar'
 import { PagePending } from './app/page-pending'
 import { Shell } from './app/shell'
-import { readSettingsSearch } from './app/settings/sections'
+import { readSettingsSearch } from '@/app/settings'
 
 // Each page loads when it is first opened, so the first load carries only the
-// shell (vite's 500 kB chunk warning; every new page used to grow one bundle).
+// shell (vite's 500 kB chunk warning).
 const ConversationRoute = lazyRouteComponent(() => import('./app/conversation/conversation'), 'ConversationRoute')
 const DraftRoute = lazyRouteComponent(() => import('./app/conversation/draft'), 'DraftRoute')
 const WorkspacePage = lazyRouteComponent(() => import('./app/design/workspace-page'), 'WorkspacePage')

@@ -3,33 +3,27 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useReducer, useState } from 'react'
-import { entriesQuery, operationsQuery, queuedQuery } from '@/api/queries'
-import type { Limits, PlanShowFrame, UsageFrame } from '@/stream/frames'
-import { tabId } from '@/stream/tab-id'
-import { useThreadStream } from '@/stream/use-thread-stream'
-import { isPlanEvent, refetchPlans } from '../workflows/plan-frames'
+import { entriesQuery, operationsQuery } from '@/api/threads'
+import { replaceChoices, replaceCommands } from '@/api/sessions'
+import { invalidateQueue } from '@/api/threads'
+import type { Limits, PlanShowFrame, UsageFrame } from '@/stream'
+import { tabId } from '@/stream'
+import { useThreadStream } from '@/stream'
 import { initialReply, replyReducer, shownReply } from './reply'
 import { initialTurnState, latestTurn, runningTurn, turnReducer } from './turn-state'
 import { type ContextFigures, latestContext } from './usage'
-import { replaceCommands, useCommands } from './use-commands'
-import { replaceChoices } from './use-session'
+import { useCommands } from './use-commands'
 
-/** The durable events that change a thread's waiting messages (§20). */
-const QUEUE_EVENTS = new Set([
-  'MessageQueued',
-  'QueuedMessageRemoved',
-  'QueuedMessageSent',
-  'QueuedMessageFailed',
-])
+const QUEUE_EVENTS = new Set(['MessageQueued', 'QueuedMessageRemoved', 'QueuedMessageSent', 'QueuedMessageFailed'])
 
 /** Mount once per thread (key the caller by thread id): the reducers here
  * hold that one thread's turns and reply.
  *
  * The stream also keeps this thread's plans current, for its cards and side
- * panel (see `plan-frames.ts`). `onShowHere` hears a plan the Planner showed
+ * panel through the stream owner. `onShowHere` hears a plan the Planner showed
  * for this tab (§13.9): a live `plan-show` naming this tab's id, never a
  * replayed card and never another tab's. */
-export function useConversation(threadId: string, onShowHere?: (show: PlanShowFrame) => void) {
+export function useConversation(threadId: string, onShowHere?: (show: PlanShowFrame) => void, projectId?: string) {
   const [turns, dispatchTurn] = useReducer(turnReducer, initialTurnState)
   const [reply, dispatchReply] = useReducer(replyReducer, initialReply)
   // The latest the harness reported live; a report that left a figure out
@@ -50,10 +44,7 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
     threadId,
     (event, live, current) => {
       dispatchTurn({ type: 'event', event, now: Date.now() })
-      if (live && isPlanEvent(event.kind)) refetchPlans(queryClient)
-      if (live && QUEUE_EVENTS.has(event.kind)) {
-        void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId).queryKey })
-      }
+      if (live && QUEUE_EVENTS.has(event.kind)) invalidateQueue(queryClient, threadId)
       if (live && event.kind === 'ThreadEntryAppended') {
         const ordinal = agentOrdinal(event.payload)
         if (ordinal !== null) {
@@ -73,15 +64,12 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
         onShowHere?.(notice.show)
       }
     },
+    projectId,
   )
 
-  // Each replay's end reads the plans and the waiting messages again, for any
-  // change it carried.
   const live = stream.connection === 'live'
   useEffect(() => {
-    if (!live) return
-    refetchPlans(queryClient)
-    void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId).queryKey })
+    if (live) invalidateQueue(queryClient, threadId)
   }, [live, queryClient, threadId])
 
   const commands = useCommands(threadId)

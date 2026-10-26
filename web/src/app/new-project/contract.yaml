@@ -43,7 +43,7 @@ shapes:
 # ── external types ───────────────────────────────────────────────────────────────
 
 external:
-  Project: "web/src/api/client; id, name, slug, directory, allowed_modes"
+  Project: "web/src/api/projects; id, name, slug, directory, allowed_modes"
   CreateProject: "name, slug, directory, command_id"
   DirectoryEntry: "name, path, hidden"
   DirectoryListing: "path, parent, entries"
@@ -222,3 +222,7 @@ tests:
     checks: "`enter` sets both `at` and `input` to the path."
   - name: "going up lists the parent, and above a root lists the roots"
     checks: "`up` to a parent sets both; `up` with a null parent returns the initial state."
+
+directory_query_owner: "api/directories.ts owns the parent directory identity shared by browser reads and new-folder refresh"
+
+feature_entry: "index.ts exposes useOpenNewProject, NewProjectProvider."

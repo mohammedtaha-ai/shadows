@@ -4,7 +4,6 @@ const {navigate,listen,nativeCall}=vi.hoisted(()=>({navigate:vi.fn(),listen:vi.f
 vi.mock('@tauri-apps/api/event',()=>({listen}))
 vi.mock('./native',()=>({nativeCall}))
 import {parseBinding,parsePresence} from './presence'
-vi.mock('../router',()=>({router:{load:async()=>{},navigate}}))
 import {parseNavigation,connectNavigation} from './navigation'
 it('consumes actual Rust-serialized binding and closed navigation projections',()=>{
   for(const value of [fixture.unbound,fixture.binding,fixture.target])expect(parseBinding(value)).toEqual(value)
@@ -29,7 +28,7 @@ it('new navigation events win over a delayed snapshot and only the applied revis
   listen.mockReset().mockResolvedValue(off)
   navigate.mockReset().mockResolvedValue(undefined)
   nativeCall.mockReset().mockImplementation(async(command:string)=>command==='navigation_snapshot'?snapshotPromise:undefined)
-  const connected=connectNavigation()
+  const connected=connectNavigation(navigate,async()=>{})
   await Promise.resolve();await Promise.resolve()
   listen.mock.calls[0][1]({payload:fixture.destinations[2]})
   snapshot(fixture.destinations[0])
@@ -39,4 +38,35 @@ it('new navigation events win over a delayed snapshot and only the applied revis
   expect(nativeCall).toHaveBeenCalledWith('ack_navigation',{revision:fixture.destinations[2].revision})
   expect(()=>listen.mock.calls[0][1]({payload:{revision:99,destination:{kind:'url',url:'https://example.com'}}})).not.toThrow()
   dispose();expect(off).toHaveBeenCalledTimes(1)
+})
+
+it('acknowledges navigation only after the injected navigation has applied',async()=>{
+  let applied!:()=>void
+  const applying=new Promise<void>(resolve=>{applied=resolve})
+  listen.mockReset().mockResolvedValue(vi.fn())
+  navigate.mockReset().mockReturnValue(applying)
+  nativeCall.mockReset().mockImplementation(async(command:string)=>command==='navigation_snapshot'?fixture.destinations[0]:undefined)
+  const dispose=await connectNavigation(navigate,async()=>{})
+  expect(navigate).toHaveBeenCalledWith(fixture.destinations[0].destination)
+  expect(nativeCall).not.toHaveBeenCalledWith('ack_navigation',expect.anything())
+  applied()
+  await Promise.resolve();await Promise.resolve()
+  expect(nativeCall).toHaveBeenCalledWith('ack_navigation',{revision:fixture.destinations[0].revision})
+  dispose()
+})
+
+it('waits for injected router readiness before reading the navigation snapshot',async()=>{
+  let ready!:()=>void
+  const loading=new Promise<void>(resolve=>{ready=resolve})
+  listen.mockReset().mockResolvedValue(vi.fn())
+  navigate.mockReset().mockResolvedValue(undefined)
+  nativeCall.mockReset().mockResolvedValue(null)
+  const connected=connectNavigation(navigate,()=>loading)
+  await Promise.resolve();await Promise.resolve()
+  expect(listen).toHaveBeenCalledTimes(1)
+  expect(nativeCall).not.toHaveBeenCalled()
+  ready()
+  const dispose=await connected
+  expect(nativeCall).toHaveBeenCalledWith('navigation_snapshot')
+  dispose()
 })

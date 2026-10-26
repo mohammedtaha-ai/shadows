@@ -1,0 +1,13 @@
+{
+  "sources": {
+    "src/features/companion/renderer/bad.ts": "fetch('/a'); new XMLHttpRequest(); new EventSource('/b'); window.fetch('/c'); globalThis['fetch']('/d'); const request = fetch; request('/e');"
+  },
+  "expected": [
+    "renderer-http :: src/features/companion/renderer/bad.ts :: EventSource #1",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: XMLHttpRequest #1",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: fetch #1",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: fetch #2",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: globalThis['fetch'] #1",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: window.fetch #1"
+  ]
+}

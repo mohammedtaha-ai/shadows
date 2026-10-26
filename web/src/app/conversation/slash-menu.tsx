@@ -2,7 +2,7 @@
 // one, and its description beside the list. Keys are the composer's.
 
 import { useEffect, useRef } from 'react'
-import type { SlashCommand } from '@/stream/frames'
+import type { SlashCommand } from '@/stream'
 
 export function SlashMenu({
   items,

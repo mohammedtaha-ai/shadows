@@ -1,12 +1,15 @@
-use crate::{app_paths::AppPaths, core_connection::Connection};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tauri::{
     utils::config::{Csp, CspDirectiveSources},
-    Manager, WebviewUrl, WebviewWindowBuilder,
+    WebviewUrl, WebviewWindowBuilder,
 };
 
-pub fn build(app: &tauri::App) -> Result<tauri::WebviewWindow, tauri::Error> {
-    let connection = app.state::<Arc<Connection>>().inner().clone();
+pub(super) fn build(
+    app: &tauri::App,
+    configured_origin: Arc<dyn Fn() -> Option<String> + Send + Sync>,
+    data_directory: Option<PathBuf>,
+    browser_args: Option<&str>,
+) -> Result<tauri::WebviewWindow, tauri::Error> {
     let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("AYLUL")
         .inner_size(1200., 800.)
@@ -23,11 +26,8 @@ pub fn build(app: &tauri::App) -> Result<tauri::WebviewWindow, tauri::Error> {
                 if let Ok(value) = header.to_str() {
                     let mut policy: HashMap<String, CspDirectiveSources> =
                         Csp::Policy(value.to_owned()).into();
-                    if let Some(config) = connection.configured() {
-                        policy
-                            .entry("connect-src".into())
-                            .or_default()
-                            .push(config.origin);
+                    if let Some(origin) = configured_origin() {
+                        policy.entry("connect-src".into()).or_default().push(origin);
                     }
                     policy
                         .entry("style-src-attr".into())
@@ -39,11 +39,11 @@ pub fn build(app: &tauri::App) -> Result<tauri::WebviewWindow, tauri::Error> {
                 }
             }
         });
-    if let Some(directory) = app.state::<AppPaths>().webview("main") {
+    if let Some(directory) = data_directory {
         builder = builder.data_directory(directory);
     }
-    if let Some(args) = app.state::<AppPaths>().browser_args("main") {
-        builder = builder.additional_browser_args(&args);
+    if let Some(args) = browser_args {
+        builder = builder.additional_browser_args(args);
     }
     builder.build()
 }

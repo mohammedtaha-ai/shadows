@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "src/features/companion/renderer/bad.ts": "import '../bridge';",
+    "src/features/companion/bridge.ts": "export * from '../../platform/./entry.tsx';",
+    "src/platform/entry.tsx": "export const value = 1;"
+  },
+  "expected": [
+    "character-dependency :: src/features/companion/renderer/bad.ts :: src/features/companion/bridge.ts -> src/platform/entry.tsx #1"
+  ]
+}

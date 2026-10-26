@@ -1,10 +1,11 @@
 // Immutable roadmap proposal content with live person-approval state.
 import {useMutation,useQuery,useQueryClient} from '@tanstack/react-query'
 import {useRef} from 'react'
-import type {ThreadEntry} from '@/api/client'
+import type { ThreadEntry } from '@/api/threads'
 import {type Attempt,attemptFor} from '@/api/command-id'
 import {approveRoadmapProposal,type OutcomeContent,type RoadmapProposal} from '@/api/design'
-import {outcomeQuery,partQuery,roadmapProposalsQuery} from '@/api/queries'
+import { outcomeQuery, partQuery, roadmapProposalsQuery } from '@/api/design'
+import { designKeys } from '@/api/design'
 import {Button} from '@/components/ui/button'
 import {ErrorLine} from '../error-line'
 import {ApprovedBy} from './approved-by'
@@ -32,7 +33,7 @@ export function RoadmapProposalCard({entry,projectId}: {entry:ThreadEntry;projec
   const approve = useMutation({mutationFn:(sent:{id:string;commandId:string}) =>
     approveRoadmapProposal(projectId,sent.id,sent.commandId),onSuccess:() => {
       attempt.current=null
-      void client.invalidateQueries({queryKey:['projects',projectId,'design']})
+      void client.invalidateQueries({queryKey:designKeys.all(projectId)})
     },onError:() => {void client.invalidateQueries({queryKey:roadmapProposalsQuery(projectId).queryKey})},
   })
   if (!proposed) return <p dir="auto">{entry.body}</p>

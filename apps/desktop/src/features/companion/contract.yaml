@@ -28,8 +28,26 @@ exports:
     file: apps/desktop/src/features/companion/renderer/character.ts
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
+  - name: createMotion
+    file: apps/desktop/src/features/companion/animation/model.ts
+  - name: readFrame
+    file: apps/desktop/src/features/companion/animation/model.ts
+entries:
+  - file: apps/desktop/src/features/companion/renderer/index.ts
+    exposes: renderCharacter (studio) and renderScene (presence canvas); no other renderer module.
+  - file: apps/desktop/src/features/companion/animation/index.ts
+    exposes: the motion, frame loop, viewport and message operations presence uses, of which studio takes createMotion and readFrame; no test support.
 obligations:
-  - rule: Character and scene tones resolve from the frame colour; omitted or unknown colour retains every recorded purple pixel. Each frame shares its palette with the drawing passes; accessory crystal callers that omit the optional palette keep the base tones.
+  - rule: Modules reachable from the production companion entry import no studio module, co-located unit test or test fixture, including animation/fixtures/test-fakes.ts.
+    tested_by: apps/desktop/tests/companion/boundaries.test.ts
+    test: companion import boundaries match the exact shrinking baseline
+  - rule: The companion bundle holds no studio module, co-located unit test or test fixture.
+    tested_by: apps/desktop/tests/companion/production.test.ts
+    test: production includes companion and excludes studio modules and remote assets
+  - rule: The entries export only what presence and studio consume; no test checks the export lists.
+    tested_by: none
+    test: none
+  - rule: Character and scene tones resolve from the frame colour; omitted or unknown colour draws every recorded purple frame (4x4 block means, each channel within 24 of the reference, so rasterizer differences pass). Each frame shares its palette with the drawing passes; accessory crystal callers that omit the optional palette keep the base tones.
     tested_by: apps/desktop/tests/companion/renderer.spec.ts
     test: purple draws today's pixels
   - rule: Recolouring preserves transparency and visible coverage while blocked rose and success gold remain state signals.
@@ -39,10 +57,10 @@ obligations:
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: the companion window draws the state's colour
   - rule: The base palette preserves today's exact tones; unknown or missing colour IDs resolve to the same cached base palette.
-    tested_by: apps/desktop/tests/companion/palette.test.ts
+    tested_by: apps/desktop/src/features/companion/renderer/palette.test.ts
     test: an unknown or missing id draws purple
   - rule: Each colour derives a complete cached palette by rotating the base hue while preserving saturation and lightness, with explicit tone overrides taking precedence.
-    tested_by: apps/desktop/tests/companion/palette.test.ts
+    tested_by: apps/desktop/src/features/companion/renderer/palette.test.ts
     test: a derived tone keeps lightness and saturation
   - rule: An in-flight send keeps the textarea focusable but read-only so Escape can close the editor without changing or cancelling the submission.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
@@ -78,7 +96,7 @@ obligations:
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: desktop entry draws transparent character without account or studio
   - rule: An eight pixel drag consumes the panel click and lost mouse-up does not strand the next gesture.
-    tested_by: apps/desktop/tests/companion/desktop-gesture.test.ts
+    tested_by: apps/desktop/src/features/companion/desktop-gesture.test.ts
     test: eight pixel drag consumes panel click and next gesture survives lost up
   - rule: Explicit native denial cancels all draws even if document visibility remains visible.
     tested_by: apps/desktop/tests/companion/native-visibility.spec.ts
@@ -87,13 +105,13 @@ obligations:
     tested_by: apps/desktop/tests/companion/native-visibility.spec.ts
     test: initialization reports ready without a draw under denied permission
   - rule: Perching uses scene-aware scale and position so the hands meet the mock top with hood headroom.
-    tested_by: apps/desktop/tests/companion/model.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/model.test.ts
     test: perch hands meet the mock top without clipping the hood
   - rule: A live browser DPR change updates backing pixels while motion remains paused.
     tested_by: apps/desktop/tests/companion/presence.spec.ts
     test: live DPR change resizes backing pixels while paused
   - rule: Locked direction updates remain visible on a still frame without advancing motion.
-    tested_by: apps/desktop/tests/companion/model.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/model.test.ts
     test: locked direction is visible on a still redraw without advancing motion
   - rule: Poking cannot replace owner messages or report work outcomes.
     tested_by: apps/desktop/tests/companion/presence.spec.ts
@@ -105,13 +123,13 @@ obligations:
     tested_by: apps/desktop/tests/companion/presence.spec.ts
     test: hidden document cancels frames until restored
   - rule: Frame cadence preserves elapsed simulation and each model owns its random state.
-    tested_by: apps/desktop/tests/companion/model.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/model.test.ts
     test: motion cadence is stable at 30 60 and 120 Hz and inputs unchanged
   - rule: One frame owner cancels callbacks on pause and disposal.
-    tested_by: apps/desktop/tests/companion/scheduler.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/scheduler.test.ts
     test: one loop is owned across double starts stop and dispose
   - rule: Repeated message IDs cannot extend their lifetime.
-    tested_by: apps/desktop/tests/companion/messages.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/messages.test.ts
     test: same ID does not extend expiry and same text new ID does
   - rule: All nine expressions and ten outfits draw with a real Canvas context and no global engine.
     tested_by: apps/desktop/tests/companion/renderer.spec.ts

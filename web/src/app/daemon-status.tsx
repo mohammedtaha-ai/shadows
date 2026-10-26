@@ -5,9 +5,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { DAEMON_URL } from '@/api/client'
+import { DAEMON_URL } from '@/api/projects'
 import { ApiError } from '@/api/error'
-import { projectsQuery } from '@/api/queries'
+import { projectsQuery } from '@/api/projects'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 

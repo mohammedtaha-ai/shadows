@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, act, useEffect } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
+import { threadEntriesKey, threadOperationsKey } from '@/api/threads'
 import { FakeSource } from '@/stream/fake-event-source'
 import { useConversation } from './use-conversation'
 
@@ -44,6 +44,26 @@ afterEach(() => {
 })
 
 describe('useConversation', () => {
+  it.each([
+    ['WorkflowDraftStarted', true], ['WorkflowEdited', true], ['WorkflowFrozen', true],
+    ['PlanArchived', true], ['PlanUnarchived', true],
+  ] as const)('pins conversation refresh for %s', async (kind, refreshes) => {
+    const client = new QueryClient()
+    const keys = [
+      ['workflows', 'map', 'p1'], ['workflows', 'list', 'p1', { archived: false }],
+      ['workflows', 'versions', 'plan1'], ['workflows', 'plan', 'w1'], ['workflows', 'plan', 'other'],
+    ['projects', 'p1', 'design', 'vision'], ['projects', 'p1', 'agreement', 'a1', 1],
+    ]
+    function Watcher() { useConversation('t1', undefined, 'p1'); return null }
+    root = createRoot(document.createElement('div'))
+    act(() => root!.render(<QueryClientProvider client={client}><Watcher /></QueryClientProvider>))
+    act(() => sources[0].caughtUp(0))
+    for (const queryKey of keys) await client.fetchQuery({ queryKey, staleTime: Infinity, queryFn: async () => ({ project_id: 'p1', plan_id: 'plan1' }) })
+    act(() => sources[0].durable(1, kind, null, { plan_id: 'plan1', workflow_id: 'w1' }))
+    expect(keys.map(key => client.getQueryState(key)?.isInvalidated)).toEqual(keys.map(() => refreshes))
+    client.clear()
+  })
+
   // Each delta used to reach the reply through an effect, one nested render
   // per delta: a long reply passed React's update depth limit and threw.
   it('streams a long reply without exceeding the update depth', async () => {

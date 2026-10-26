@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { PartContent } from '@/api/design'
-import { visionQuery } from '@/api/queries'
+import { visionQuery } from '@/api/design'
 import { Button } from '@/components/ui/button'
 
 export function MapPartDetails({content,projectId}: {content:PartContent;projectId:string}) {

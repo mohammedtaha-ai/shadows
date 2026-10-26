@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react'
-import {connectCompanion,setCompanionVisible,setCompanionPaused,type CompanionState} from '../../desktop/native'
+import {connectCompanion,setCompanionVisible,setCompanionPaused,type CompanionState} from '@/desktop'
 export function CompanionControls(){
   const [state,setState]=useState<CompanionState|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
   const receive=(value:CompanionState)=>setState(current=>!current||value.revision>current.revision?value:current)

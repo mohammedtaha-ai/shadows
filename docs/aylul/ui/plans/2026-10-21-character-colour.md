@@ -187,12 +187,13 @@ meaning; any id the table does not hold draws purple.
 
 - [ ] **Step 1: Record today's pixels, before any renderer change.** Add `scene()` to the
   fixture and a spec `record purple frames` (skipped unless `RECORD_PURPLE=1`) that writes, for
-  each of the nine expressions × ten outfits, plus each expression through `scene()`, the
-  SHA-256 of the canvas data URL into `fixtures/purple-frames.json`. Run it once on the unchanged
+  each of the nine expressions × ten outfits, plus each expression through `scene()`, the mean
+  premultiplied RGBA of each 4x4 pixel block (brotli, base64) into `fixtures/purple-frames.json`.
+  A hash would tie the reference to one machine's rasterizer. Run it once on the unchanged
   renderer and commit the file alone: `test(desktop): record today's character pixels`.
 - [ ] **Step 2: Write the failing tests** in `renderer.spec.ts`:
   - `purple draws today's pixels`: every recorded frame, drawn with `color` absent, `'purple'`
-    and `'red'` (not in the table), hashes to its recorded value.
+    and `'red'` (not in the table), matches its recorded blocks with no channel more than 24 off.
   - `each colour in the table draws its own look`: for every table entry other than the base,
     `render('idle', 'default', id)` differs from purple's hash, keeps transparent corners and
     draws as many or more visible pixels than purple minus 1%.

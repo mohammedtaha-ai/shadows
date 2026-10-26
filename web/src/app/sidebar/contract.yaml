@@ -39,9 +39,9 @@ shapes:
 
 external:
   Desktop: "Native-only Local activity link and Hide to tray; failures shown locally"
-  Project: "web/src/api/client; id, slug, name, directory"
-  PlanningThread: "web/src/api/client; id, project_id, title, removed_at"
-  PlanListing: "web/src/api/client; id, plan_id, plan_state, title, state, version"
+  Project: "web/src/api/projects; id, slug, name, directory"
+  PlanningThread: "web/src/api/threads; id, project_id, title, removed_at"
+  PlanListing: "web/src/api/workflows; id, plan_id, plan_state, title, state, version"
   Agent: "web/src/api/aylul-profiles; slug, name, provider, default_model"
 
 
@@ -296,3 +296,11 @@ tests:
   - name: empty_states_guide_to_provider_then_agent
     checks: No provider shows "Add a provider first"; a provider without agents, "Add an agent to start".
     file: web/src/app/agents/aylul.test.tsx
+
+agent_refresh_owner: "Conversation removal uses api/aylul-profiles profileKeys for agent thread refresh"
+
+removed_thread_cache_owner: "api/threads.ts owns removed-thread detail and live-list cache writes"
+
+feature_imports: "Cross-feature production imports use declared public entries."
+
+feature_entry: "index.ts exposes storedWorkspace, Sidebar."

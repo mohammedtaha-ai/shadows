@@ -3,7 +3,7 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
-import type { AccountLimits, Choice, SessionChoices } from '@/api/client'
+import type { AccountLimits, Choice, SessionChoices } from '@/api/sessions'
 
 /** One journal event. `operationId` and `threadId` are the ids the event
  * names, `null` where it names none; `payload` is the event's JSON payload. */

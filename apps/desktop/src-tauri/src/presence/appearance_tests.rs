@@ -1,6 +1,6 @@
 use super::{
     binding::{BindingView, ConversationTarget},
-    client::Client,
+    core_client::Client,
     watcher::{PresenceWatcher, Timing, Update},
     watcher_fixture::*,
 };

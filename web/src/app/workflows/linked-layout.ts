@@ -1,7 +1,7 @@
 // Related tasks keep plan-qualified identities in the current plan's graph.
 
 import type { Node } from '@xyflow/react'
-import type { LinkedTask, Plan, PlanLink } from '@/api/client'
+import type { LinkedTask, Plan, PlanLink } from '@/api/workflows'
 import type { PlanEdge } from './layout'
 
 export interface LinkedData extends Record<string, unknown> {

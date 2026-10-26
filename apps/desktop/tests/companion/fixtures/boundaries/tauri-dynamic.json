@@ -1,0 +1,8 @@
+{
+  "sources": {
+    "src/app/bad.ts": "void import('@tauri-apps/api/core');"
+  },
+  "expected": [
+    "tauri-import :: src/app/bad.ts :: @tauri-apps/api/core #1"
+  ]
+}

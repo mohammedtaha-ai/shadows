@@ -43,8 +43,11 @@ Cloud wire schemas remain in `../shadows-backend`; import generated artifacts
 through their contract, never sibling application source. Mobile is a future
 direction; no mobile implementation was present in the imported snapshot.
 
-Validate from the new paths: frontend build/focused Node and companion tests,
-sidecar typecheck/tests, native/hook Cargo tests. Use debug native acceptance
+Validate from `apps/desktop/`: `npm run build`, `npm run typecheck:tests`,
+`npm test`, `npm run test:companion:unit`, `npm run test:companion:production`
+and `npm run test:companion:browser`; sidecar typecheck/tests and native/hook
+Cargo tests use their own workspaces. `RECORD_PURPLE`, `EXPORT_COLORS` and native
+acceptance scripts remain opt-in. Use debug native acceptance
 until release validation is explicitly needed. The nine original Claude launcher
 definitions remain at the preserved NYLRA checkout; no global agent configuration
 was installed or overwritten by this import.

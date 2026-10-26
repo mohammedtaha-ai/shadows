@@ -2,11 +2,11 @@
 # editor, the roadmap (outcomes) tree and editor, the standards additions, the
 # structure confirmation, and the Workspace route that switches between them.
 #
-# Owns the two shared mechanisms the screens rely on. useDesignEditor is the
+# Owns the editor lifecycle the screens rely on. useDesignEditor is the
 # save/reload lifecycle for a part or an outcome: one command id per unchanged
 # request, a Reload banner instead of an overwrite, and a base that adopts a newer
-# saved revision only while the draft is clean. useDesignPages accumulates pages
-# of one branch only while the branch's revision holds.
+# saved revision only while the draft is clean. The API design owner accumulates
+# hierarchy pages only while the branch's revision holds.
 #
 # Trap: the vision editor does not use useDesignEditor. Vision edits are one item
 # at a time, each its own command, so its save lifecycle is its own (`Editor`).
@@ -30,7 +30,7 @@ source: web/src/app/design
 # Declared here. View and Content types (PartView, PartContent, OutcomeView,
 # OutcomeContent, VisionView, VisionItem, VisionContent, Part, Outcome,
 # EffectiveStandards, StandardsAdditions, StructureWritten, DesignEdit) come from
-# '@/api/design' and '@/api/client'. Not restated.
+# '@/api/design'. Not restated.
 
 DesignEditorConfig:
   # Generic over View (a detail read) and Content (the editable fields).
@@ -53,12 +53,6 @@ ViewBasis:
   # Structural minimum a detail view must provide (not exported).
   revision: int
   plans: "string[]"
-
-Page:
-  # One page of a branch read (not exported).
-  revision: int
-  items: "T[]"
-  next: "string | null | undefined"
 
 DraftState:
   # Standards editor draft (not exported). Rule parts are edited as comma text.
@@ -89,16 +83,6 @@ hooks:
       submit sends one PartCreate or PartPut (or the outcome forms), then a Move if
       moving, then PlanLinkPut and PlanLinkRemove for the plan-link difference, then
       the relations ops. An edit adopts the saved revision after the save succeeds.
-  useDesignPages:
-    signature: >-
-      "<T>(baseKey: readonly unknown[], load: (after?) => Promise<Page<T>>)
-      -> { items: T[]; next; more(): Promise<void>; loading; pending; error }"
-    note: >
-      The first page is a query. Further pages are kept in state only while their
-      revision equals the first page's. A page whose revision differs invalidates
-      the branch's first page and drops the extra pages.
-  usePartPages:
-    signature: "(projectId: string, parent?: string) -> useDesignPages result"
   useOutcomePages:
     signature: "(projectId: string, parent?: string) -> useDesignPages result"
 
@@ -580,3 +564,11 @@ tests:
     checks: >
       A VisionProposed durable event adds the '1 proposal awaits' status and keeps the
       unsaved edit text, with Reload visible because the revision moved.
+
+design_cache_identity: "api/design.ts owns design query/page identities and saved standards answers"
+
+feature_entry: "index.ts exposes MapPartDetails, VISION_FIELDS."
+
+pagination_owner: "api/design.ts owns useDesignPages and usePartPages; design views import part pagination directly from that owner."
+
+route_entries: "workspace-page.tsx remain separate public lazy route modules declared by index.ts."

@@ -43,24 +43,25 @@ fn guard(window: &tauri::WebviewWindow, name: &str) -> Result<(), String> {
     Ok(())
 }
 #[tauri::command]
-pub async fn companion_state(window: tauri::WebviewWindow) -> Result<CompanionState, String> {
+pub async fn companion_state(
+    window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+) -> Result<CompanionState, String> {
     guard(&window, "companion_state")?;
-    companion::on_ui(window.app_handle().clone(), |app| {
-        Ok(companion::snapshot(app))
+    let store = desktop.companion();
+    companion::on_ui(window.app_handle().clone(), move |_app| {
+        Ok(companion::snapshot(&store))
     })
     .await
 }
 #[tauri::command]
 pub async fn companion_send(
     window: tauri::WebviewWindow,
-    submission: crate::presence::send::Submission,
-) -> Result<crate::presence::send::Sent, String> {
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+    submission: crate::presence::Submission,
+) -> Result<crate::presence::Sent, String> {
     guard(&window, "companion_send")?;
-    let owner = window
-        .app_handle()
-        .state::<std::sync::Arc<crate::presence::Presence>>()
-        .inner()
-        .clone();
+    let owner = desktop.presence().clone();
     tauri::async_runtime::spawn_blocking(move || owner.send(submission).map_err(str::to_owned))
         .await
         .map_err(|_| "companion_send_failed".to_string())?
@@ -68,43 +69,63 @@ pub async fn companion_send(
 #[tauri::command]
 pub async fn companion_input(
     window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
     open: bool,
 ) -> Result<CompanionState, String> {
     guard(&window, "companion_input")?;
+    let store = desktop.companion();
     companion::on_ui(window.app_handle().clone(), move |app| {
-        companion::input::set_input(app, open)
+        companion::input::set_input(app, &store, open)
     })
     .await
 }
 #[tauri::command]
-pub async fn companion_ready(window: tauri::WebviewWindow) -> Result<CompanionState, String> {
+pub async fn companion_ready(
+    window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+) -> Result<CompanionState, String> {
     guard(&window, "companion_ready")?;
-    companion::on_ui(window.app_handle().clone(), companion::ready).await
+    let store = desktop.companion();
+    companion::on_ui(window.app_handle().clone(), move |app| {
+        companion::ready(app, &store)
+    })
+    .await
 }
 #[tauri::command]
-pub async fn companion_failed(window: tauri::WebviewWindow) -> Result<CompanionState, String> {
+pub async fn companion_failed(
+    window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+) -> Result<CompanionState, String> {
     guard(&window, "companion_failed")?;
-    companion::on_ui(window.app_handle().clone(), companion::failed).await
+    let store = desktop.companion();
+    companion::on_ui(window.app_handle().clone(), move |app| {
+        companion::failed(app, &store)
+    })
+    .await
 }
 #[tauri::command]
 pub async fn set_companion_visible(
     window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
     visible: bool,
 ) -> Result<CompanionState, String> {
     guard(&window, "set_companion_visible")?;
+    let store = desktop.companion();
     companion::on_ui(window.app_handle().clone(), move |app| {
-        companion::set_visible(app, visible)
+        companion::set_visible(app, &store, visible)
     })
     .await
 }
 #[tauri::command]
 pub async fn set_companion_paused(
     window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
     paused: bool,
 ) -> Result<CompanionState, String> {
     guard(&window, "set_companion_paused")?;
+    let store = desktop.companion();
     companion::on_ui(window.app_handle().clone(), move |app| {
-        companion::set_paused(app, paused)
+        companion::set_paused(app, &store, paused)
     })
     .await
 }
@@ -114,25 +135,12 @@ pub async fn drag_companion(window: tauri::WebviewWindow) -> Result<(), String> 
     companion::on_ui(window.app_handle().clone(), companion::drag).await
 }
 #[tauri::command]
-pub async fn open_main_from_companion(window: tauri::WebviewWindow) -> Result<(), String> {
+pub async fn open_main_from_companion(
+    window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+) -> Result<(), String> {
     guard(&window, "open_main_from_companion")?;
-    let presence = window
-        .app_handle()
-        .state::<std::sync::Arc<crate::presence::Presence>>()
-        .inner()
-        .clone();
-    let destination = tauri::async_runtime::spawn_blocking(move || presence.destination())
-        .await
-        .map_err(|_| "main_open_failed")?;
-    companion::on_ui(window.app_handle().clone(), move |app| {
-        use tauri::Emitter;
-        let pending = app
-            .state::<std::sync::Arc<crate::navigation::Navigation>>()
-            .request(destination);
-        let _ = app.emit_to("main", "main-navigation", pending);
-        crate::windows::open_main(app).map_err(|_| "main_open_failed".into())
-    })
-    .await
+    desktop.presence().open_main_from_companion().await
 }
 #[cfg(test)]
 mod tests {

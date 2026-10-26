@@ -2,17 +2,26 @@ name: sidecar-approvals
 version: 1
 status: current
 source: apps/desktop/sidecar/src/approvals
-responsibility: Hold permission requests and auto-mode refusals until the person answers.
+responsibility: Own admission of the person's answers to permission requests and auto-mode refusals.
+private_persistence:
+  store.ts: Only decisions; append outcomes by seq, mark the latest matching answered_in_terminal once.
 public_api:
+  Approvals: Composition injects its private ApprovalsStore, which is the only place every outcome is recorded.
+  observeStep: Mark the latest matching terminal answer allowed through the private approval store.
   request: Hold until answer, hang-up (answered in terminal) or requestHoldMs (timed out); reply allow, deny or {}.
   refusal: Propose a rule; hold up to refusalHoldMs; stays listed after the hold.
   answer: allow or deny one held request; not_pending otherwise.
-  approveRule: Narrow rule and a known project root only; write it against the previewed fingerprint, record rule_written, then retry a still-held hook.
-  dismiss: Remove a refusal; a held hook gets {}.
+  previewRule: Validate a current refusal, its project and a narrow rule; return path, changed lines and file fingerprint; retain the latest preview per item.
+  approvePreview: The only write path. Match the latest item's preview rule and fingerprint or preview_mismatch; then a current refusal, a narrow rule and a known project root only; write against the previewed fingerprint, record rule_written, retry a still-held hook; consume the preview only after success.
+  dismiss: Remove a refusal and its preview; a held hook gets {}.
   pending: Current items, oldest first.
 obligations:
-  - rule: Nothing is allowed without answer or approveRule.
+  - rule: A terminal answer is marked allowed once by its matching step.
+    tested_by: a terminal answer is marked allowed by the matching step
+  - rule: Nothing is allowed without answer or approvePreview.
     tested_by: allow from AYLUL answers the hook with allow, an unanswered request times out with no decision
+  - rule: No rule is written without a matching preview.
+    tested_by: without a preview no rule is written
   - rule: A PowerShell request exposes its command in the pending item before an answer.
     tested_by: a PowerShell request shows the command before it can be answered
   - rule: A request shows the complete one-line shell command, including a tail beyond the step summary limit.
@@ -27,6 +36,12 @@ obligations:
     tested_by: a broad rule is refused and nothing is written
   - rule: A refusal without project_dir gets no proposal and is never written.
     tested_by: a refusal with no project root proposes nothing and cannot be approved
+  - rule: A refusal's rule reaches the root project's settings.local.json through preview and approve, even when Claude ran in a subfolder.
+    tested_by: a refusal is previewed and approved into the project settings
+  - rule: Approval admission binds the latest preview's item, rule and fingerprint; successful approval or dismissal consumes the preview.
+    tested_by: a preview for one rule cannot approve a different rule, a newer rule preview invalidates the earlier one, approval admission rejects a changed fingerprint and consumes a successful preview, dismissal removes the preview and approval still requires a current refusal
+  - rule: An approval after the settings file changed writes nothing and retains its preview for retry.
+    tested_by: an approval after the settings file changed since the preview writes nothing, refusal.approve RPC preserves changed settings and permits retry after restoration
 gaps:
   - at: Approvals
     gap: Items live in memory; a sidecar restart drops listed refusals (their records stay in the store).

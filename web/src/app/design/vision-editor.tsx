@@ -5,7 +5,9 @@ import { useRef, useState } from 'react'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { editDesign, type DesignEdit, type VisionContent, type VisionItem, type VisionView } from '@/api/design'
 import { ApiError } from '@/api/error'
-import { threadsQuery, visionProposalsQuery, visionQuery } from '@/api/queries'
+import { visionProposalsQuery, visionQuery } from '@/api/design'
+import { threadsQuery } from '@/api/threads'
+import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { VISION_FIELDS, fieldLabel } from './vision-fields'
@@ -63,7 +65,7 @@ function Editor({projectId,saved,titles}: {projectId:string;saved:VisionView;tit
       const op = body.ops[0]
       if (op.kind === 'VisionItemAdd') setDrafts(d => ({...d,[op.field]:''}))
       setEditing(null); attempt.current = null; setConflict(false)
-      await client.invalidateQueries({queryKey:['projects',projectId,'design']}, {cancelRefetch:false})
+      await client.invalidateQueries({queryKey:designKeys.all(projectId)}, {cancelRefetch:false})
       await reload(false)
     },
     onError: (e) => {

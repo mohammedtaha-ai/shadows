@@ -26,12 +26,15 @@ version: 1
 status: current
 source: web/src/app/workflows
 
+refresh_pinning:
+  writer: "pins writer-thread refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."
+
 
 # ── shapes ───────────────────────────────────────────────────────────────────
 #
 # Declared here, consumed by the graph components. Wire types (Plan, PlanTask,
 # PlanLink, LinkedTask, WrittenBy, PlanMap, MapPlan, PlanListing) come from
-# '@/api/client' and are owned by web/src/api/schema.d.ts. Not restated.
+# '@/api/workflows' and are owned by web/src/api/schema.d.ts. Not restated.
 
 TaskData:
   task: PlanTask
@@ -112,15 +115,13 @@ camera:
       refits a focused or clicked task whenever the canvas size changes.
 
 frames:
-  isPlanEvent: "(kind: string) -> boolean"
-  refetchPlans: "(queryClient: QueryClient) -> void"
   usePlanFrames:
-    signature: "(threadId: string | undefined) -> void"
+    signature: "(threadId: string | undefined, projectId?: string) -> void"
     note: >
-      Opens one ThreadStream per thread for all watchers in the QueryClient. The
-      stream closes when its last watcher unmounts. A thread that an enclosing screen
-      holds through HeldThreadStream is not opened a second time.
-  HeldThreadStream: "React context: string | null"
+      Holds the thread's shared refresh through stream/usePlanEvents, sharing the
+      conversation's connection and refresh in the QueryClient: many plan cards
+      refetch once per event. The registry closes the connection when the last
+      holder leaves.
 
 plan_data:
   usePlan:
@@ -310,15 +311,12 @@ obligations:
   - rule: >
       One ThreadStream is shared by every watcher of a thread, and it closes when the
       last watcher unmounts.
-    tested_by: none
-    note: >
-      Only the project stream's sharing is tested (plan-map.test.tsx, sidebar test),
-      not usePlanFrames' own map.
+    tested_by: shares writer watchers with a sibling conversation stream until the last watcher leaves
 
   - rule: >
-      An enclosing screen that holds its thread's stream (HeldThreadStream) receives
-      plan events through it, and no second stream opens for that thread.
-    tested_by: none
+      An enclosing conversation and its plan cards share the registry connection
+      for their writer thread.
+    tested_by: shares writer watchers with a sibling conversation stream until the last watcher leaves
 
   - rule: >
       writerThread returns a thread only when a Planner wrote the version; an external
@@ -435,15 +433,14 @@ gaps:
 
 open_questions:
   - >
+      Does the daemon deliver archive and unarchive on the writer-thread feed?
+      The client handles both kinds there; fixture tests establish its reaction,
+      not which events the daemon emits.
+  - >
       Can plan.links name a local task number that is absent from plan.tasks? If so,
       taskNode shows its 'needs' text while layoutPlan draws no edge, because the
       filter in layoutPlan drops that link. Answering needs the daemon's plan
       projection (crates/shadows-core/src/plans), not read here.
-  - >
-      Does the thread stream carry PlanArchived and PlanUnarchived? PLAN_KINDS in
-      plan-frames.ts omits them. A writer-thread watcher therefore refetches on
-      archive only if the project stream reaches it. Answering needs the thread
-      stream's event list (web/src/stream).
   - >
       Does the daemon accept an archive or unarchive command id it has already
       committed, and answer with the same result? Answering needs the Plans archive
@@ -570,3 +567,9 @@ tests:
       The version line shows 'v2 · from Web fixes · opus-5-5 · Claude Code' and the
       change reason. Archive sends a UUID command id, and afterward 'Archived · read
       only' shows with no Approve button.
+
+feature_entry: "index.ts exposes PlanGraph and usePlan. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph."
+
+feature_imports: "Cross-feature production imports use declared public entries."
+
+route_entries: "plan-page.tsx, plan-map.tsx remain separate public lazy route modules declared by index.ts."

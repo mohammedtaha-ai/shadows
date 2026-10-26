@@ -4,22 +4,23 @@ status: current
 source: apps/desktop/sidecar/src
 responsibility: Compose the sidecar and answer the window's calls over stdio.
 public_api:
+  createActivityApp: app.ts, the only composition. Build Sessions, Approvals and AgentSettings with domain-private stores on one connection; default request/refusal holds of 580 s/120 s; close() closes the connection.
   serveRpc: One JSON line in, one out with the same id; unknown methods and unexpected errors become stable codes; ends with stdin.
-  makeHandlers: state, steps, request.answer, refusal.preview/approve/dismiss, hooks.preview/install; each validates its parameters; refusal approval requires the latest preview's item, rule and file fingerprint.
-  main: Data under AYLUL_DATA_DIR, else %LOCALAPPDATA%\AYLUL; hold 580 s requests and 120 s refusals; stop and remove hook.json when stdin ends.
+  makeHandlers: state, steps, request.answer, refusal.preview/approve/dismiss, hooks.preview/install; translate RPC calls into Sessions, Approvals and AgentSettings methods; receives no connection or store.
+  main: The process entry, run unconditionally under any path spelling. Data under AYLUL_DATA_DIR, else %LOCALAPPDATA%\AYLUL; build createActivityApp with the 580 s/120 s holds; stop, remove hook.json and close the database when stdin ends.
 obligations:
+  - rule: Persistence rows, schema, settings backups and RPC projections stay unchanged.
+    tested_by: RPC projections and persisted rows survive reopening the unchanged aylul.db schema
+  - rule: Service and store construction belongs to app.ts; SQL belongs to each domain store except the fixed schema bootstrap; no module imports or re-exports another's store, or loads a module by a computed name; only stores and the bootstrap reach node:sqlite. RPC inventories match the native allowlist (no duplicates) and main wrappers subject to the exact shrinking baseline.
+    tested_by: sidecar ownership and RPC parity match the exact shrinking baseline, adversarial TypeScript fixtures reject aliases, namespaces, store access and foreign SQL
   - rule: Only own handler names are callable; error text never leaves except as a code.
     tested_by: unknown methods, stable errors and unexpected errors come back as codes
   - rule: Unexpected error details, which may contain local content, are not written to stderr.
     tested_by: unexpected error details are not written to stderr
   - rule: Hook install needs the executable; parameters are checked.
     tested_by: without the hook executable, install is refused, missing or wrong parameters are bad_params
-  - rule: A refusal's rule reaches the root project's settings.local.json through preview and approve, even when Claude ran in a subfolder.
-    tested_by: a refusal is previewed and approved into the project settings
-  - rule: An approval against a settings file that changed since its preview writes nothing.
-    tested_by: an approval after the settings file changed since the preview writes nothing
-  - rule: A preview of one rule cannot approve a different or superseded rule.
-    tested_by: a preview for one rule cannot approve a different rule, a newer rule preview invalidates the earlier one
+  - rule: Approval calls keep their answers, fields, error codes and check order; Approvals owns the admission they reach.
+    tested_by: refusal.approve RPC returns the backup path and retries the held hook, request.answer deny RPC returns null and the exact denial message, refusal.approve RPC rejects a superseded preview without writing, refusal.approve RPC preserves changed settings and permits retry after restoration, refusal.preview RPC checks the pending item and project before the rule parameter, refusal.preview RPC checks the rule parameter before its narrowness
 gaps:
   - at: main
     gap: Node prints an ExperimentalWarning for node:sqlite on stderr at start.

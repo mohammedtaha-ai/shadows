@@ -11,13 +11,14 @@
 # body, and a success with no body becomes an error (see gaps). `unwrapEmpty` is
 # for a route whose success is an empty response.
 #
-# Trap: client.ts never makes a command id. Every mutating function takes one
+# Trap: Domain operations never make a command id. Every mutating function takes one
 # from its caller, and a retry must pass the same one. `command-id.ts` makes the
 # key a form reuses, and only it does. `changeModel` and `changeEffort` carry no
 # command id by design: they write nothing durable.
 #
-# Trap: the keys in `queries.ts` are prefixes that `src/stream/` invalidates by
-# shape. Renaming a key here silently stops that invalidation.
+# Trap: domain key factories supply prefixes that `src/stream/` invalidates by
+# shape. Changing their values silently stops that invalidation. Each domain
+# exposes its operations, query identities and generated schema aliases together.
 
 name: web-api
 version: 1
@@ -49,22 +50,25 @@ shapes:
 externally_owned:
   schema: "web/src/api/schema.d.ts, generated from api/openapi.json; not described here"
   aliases: >
-    client.ts and design.ts re-export `Schemas['X']` / `components['schemas']['X']`
+    Domain files re-export `Schemas['X']` / `components['schemas']['X']`
     under the same name. Each alias is that schema's type; none is redefined here.
   ErrorCode: "schema.d.ts components.schemas.ErrorCode; the daemon's error codes"
 
 
 # ── functions ────────────────────────────────────────────────────────────────
 #
-# Every function in client.ts is one HTTP call that resolves to its body through
+# Every domain operation is one HTTP call that resolves to its body through
 # `unwrap` (or `unwrapEmpty`). The client adds no retry, no cache and no
 # validation of arguments; the daemon owns those rules.
 
 client_core:
+  owner: transport/index.ts
   DAEMON_URL: "string; verified native origin frozen before module import; browser VITE_SHADOWS_URL or http://127.0.0.1:4318"
   client: "openapi-fetch client<paths>; fetch looked up per call"
-  subscribeUrl: "(threadId: string, after: number) -> string"
-  projectEventsUrl: "(projectId: string, after: number) -> string"
+
+event_urls:
+  subscribeUrl: "threads.ts; (threadId: string, after: number) -> string"
+  projectEventsUrl: "projects.ts; (projectId: string, after: number) -> string"
 
 threads_and_turns:
   listHarnesses: "() -> Promise<HarnessInfo[]>"
@@ -170,7 +174,7 @@ design:
       Promise<DesignChange>"
 
 errors:
-  # error.ts
+  # transport/index.ts
   toApiError: "(response: Response, body: unknown) -> ApiError"
   unwrap: "<T>(pending: Promise<Answer<T>>) -> Promise<T>"
   unwrapEmpty: "<T>(pending: Promise<Answer<T>>) -> Promise<void>"
@@ -194,7 +198,7 @@ saved_answers:
       undefined>) -> Promise<void>; cancels reads of that exact key, then setQueryData"
 
 query_keys:
-  # queries.ts: each returns queryOptions unless it is a key or a constant
+  # Domain files: each returns queryOptions unless it is a key or a constant
   projectsQuery: "const; ['projects']; retry 2; polled every 10 s only after a first answer"
   harnessesQuery: "const; ['harnesses']"
   threadsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'threads']; polled 10 s"
@@ -267,7 +271,7 @@ obligations:
       failure is an `http` problem carrying the JSON text of that body.
     tested_by: none
     note: >
-      error.test.ts covers only bodies that are plain text or empty. A JSON body without
+      transport/error.test.ts covers only bodies that are plain text or empty. A JSON body without
       `code` or `message` takes the `http` branch of toApiError, which no test reaches.
 
   - rule: >
@@ -376,7 +380,7 @@ obligations:
       does not flash "Connecting".
     tested_by: unknown
     note: >
-      The rule is stated in queries.ts; no test in web/src/api checks it, and app-level tests
+      The rule is stated in projects.ts; no test in web/src/api checks it, and app-level tests
       were not inspected.
 
 
@@ -391,7 +395,7 @@ agreements:
       Both call `answered`, so the failure classification is written once.
     tested_by: none
     note: >
-      error.test.ts exercises only unwrap. The agreement holds by construction, not by test.
+      transport/error.test.ts exercises only unwrap. The agreement holds by construction, not by test.
 
   - between: [startTurn, queueMessage]
     must: >
@@ -470,20 +474,20 @@ not_the_caller's:
     Build a stream URL by hand. Use `subscribeUrl` or `projectEventsUrl`, which read
     DAEMON_URL and encode the cursor.
   - >
-    Add a route here before a screen calls it. The header of client.ts makes that rule.
+    Add a route before a screen calls it. Each domain exposes only operations its callers need.
   - >
     Write a mutation's answer into the cache with `setQueryData` directly. Use `writeSaved`, so
     a read sent before the mutation cannot bring the old state back. A cache filled from the
     stream, or seeded before any read, is not a mutation's answer and keeps `setQueryData`.
   - >
-    Rename a query key in `queries.ts` without finding every invalidation that matches it
+    Rename a query key in its domain file without finding every invalidation that matches it
     in src/stream and src/app; those matches are by prefix, so a rename stops them silently.
 
 
 # ── tests ────────────────────────────────────────────────────────────────────
 
 tests:
-  # client.test.ts
+  # requests.test.ts (domain operations, read off a stubbed fetch)
   - name: startTurn sends the settings, the caller's command id and its tab
     checks: >
       Two startTurn calls send bodies with the caller's command ids, the settings spread in,
@@ -534,7 +538,7 @@ tests:
       getVision, getPart and getOutcome request the full daemon URL for their route, which
       shows they go through the one client. Responses are minimal stubs.
 
-  # error.test.ts
+  # transport/error.test.ts
   - name: maps the daemon's ErrorBody to a daemon problem carrying its code
     checks: >
       A 500 ErrorBody gives problem { kind 'daemon', status 500, code } and the message is the
@@ -601,7 +605,7 @@ extensions:
   setAgentExtension: "PUT /api/aylul/agents/{slug}/extensions/{kind}/{id} with caller command_id and enabled; resolves AgentItem; no automatic mutation retry"
 
 image_attachments:
-  source: "client.ts; Attachment is an alias from schema.d.ts"
+  source: "threads.ts; Attachment is an alias from schema.d.ts"
   upload: "uploadAttachment sends FormData via bodySerializer; no manual Content-Type boundary; caller owns command id"
   read: "attachmentUrl is the sole URL builder for image elements; Core serves the bytes"
   send: "startTurn and queueMessage preserve ordered attachment ids; sendQueuedNow acts on the saved queue record"
@@ -609,3 +613,167 @@ image_attachments:
     - "uploadAttachment sends multipart and attachmentUrl encodes byte-route ids"
     - "Send waits for uploads and sends image-only ids in selection order"
     - "queue preserves ordered image ids and Send now uses the saved queued images"
+
+agreement_cache:
+  owner: agreements.ts
+  keys: "agreementKeys preserves list, version prefix and exact version arrays including undefined"
+  queries: "agreementsQuery and agreementQuery share their keys with stream refresh"
+  saveAgreementAnswer: "Cancels the exact in-flight version read with writeSaved before caching a mutation answer"
+
+extension_cache:
+  owner: extensions.ts
+  keys: "extensionKeys preserves library, all-agent prefix and per-agent arrays"
+  saveAgentExtensionAnswer: "writeSaved cancels the agent's exact read before merging the saved plugin or skill; other items and agents are preserved"
+
+person_cache:
+  owner: person.ts
+  keys: "personKeys.record preserves ['person']"
+  savePersonAnswer: "writeSaved cancels the exact person read before storing the server's whole-record answer; savePerson request fields are unchanged"
+
+session_cache:
+  owner: sessions.ts
+  keys: "sessionKeys choices and commands preserve ['threads', threadId, 'session'/'commands']"
+  reads: "sessionQuery opens once with no retry or focus refetch; commandsQuery is disabled and never stale"
+  frames: "replaceChoices ignores intermediate opening frames; replaceCommands stores the supplied stream list; reopenSession clears commands then resets the session"
+  saveSessionAnswer: "writeSaved cancels the exact in-flight session read before storing model, effort or mode mutation answers"
+
+profile_cache:
+  owner: aylul-profiles.ts
+  keys: "profileKeys owns unchanged provider presets, providers, agents, agent thread and environment arrays"
+
+workflow_cache:
+  owner: workflows.ts
+  keys: "workflowKeys preserves workflows, map, list with archived object, versions and plan identities; callers import workflows.ts"
+  savePlanAnswer: "writeSaved cancels the exact plan read before caching a binding edit's authoritative plan answer"
+
+design_cache:
+  owner: design.ts
+  keys: "designKeys owns design prefixes, details, proposals, hierarchy pages and structure-preview; arrays preserve null pagination and existing values"
+  queries: "Design queries are defined beside designKeys and imported directly by callers; designPageQuery appends the existing cursor to the supplied branch key"
+  saveStandardsAnswer: "writeSaved cancels the exact standards read, retains a newer cached additions version and uses the saved snapshot only when the cache is absent"
+
+thread_cache:
+  owner: threads.ts
+  keys: "threadKeys preserves project thread lists, detail, entries, queue and operations arrays; callers import threads.ts"
+  saved_answers: "saveThreadHarnessAnswer replaces the matching list item; saveRemovedThreadAnswer writes detail then filters the live list; both use writeSaved for exact read cancellation"
+
+project_cache:
+  owner: projects.ts
+  keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery polling and retries are unchanged"
+  saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedGrantAnswer use writeSaved to cancel exact reads before replacing, filtering or merging server answers"
+
+code_cache:
+  owner: code.ts
+  keys: "codeKeys preserves settings, per-project status and link arrays; status polling intervals remain unchanged"
+  saved_answers: "saveCodeSettingsAnswer stores Core's answer and saveUnlinkedCodeAnswer filters one link through writeSaved, cancelling the exact prior read"
+
+directory_cache:
+  owner: directories.ts
+  keys: "directoryKeys.children preserves ['fs', 'dirs', path] including null roots; dirsQuery is exposed by directories.ts"
+  refresh: "New folder creation invalidates the same parent identity the folder browser reads; no automatic retry"
+
+native_activity_cache:
+  owner: native-activity.ts
+  keys: "nativeActivityKeys.state preserves ['desktop-local-activity']"
+  nativeActivityQuery: "The desktop bridge supplies the typed read function; API owns query identity and options without importing native infrastructure; retry false and visible-panel polling are unchanged"
+
+usage_cache:
+  owner: usage.ts
+  keys: "usageKeys owns the unchanged ['aylul-usage'] prefix and ['aylul-usage', from, to] report array; intervals and retry behavior are unchanged"
+
+harness_cache:
+  owner: harnesses.ts
+  keys: "harnessKeys.list preserves ['harnesses']; harnessesQuery retains normal focus refetching and is exposed by harnesses.ts"
+
+design_pagination:
+  useDesignPages: "Accumulate a branch only while its first-page revision agrees; invalidate and drop extra pages on mismatch."
+  usePartPages: "Part pagination shared by design views and agreement participants; uses partsQuery key without its final cursor."
+  keys: "designPageQuery appends the unchanged cursor or null; part and outcome query identities retain their exact values."
+
+stream_invalidation:
+  workflows: "invalidateWorkflows refreshes the unchanged workflows prefix; invalidateProjectWorkflows retains map, list-prefix and project-plan predicate matching."
+  design: "invalidateDesign refreshes the unchanged project design prefix."
+  agreements: "invalidateAgreementVersions refreshes version prefixes; invalidateAgreements also refreshes the list."
+  projects: "invalidateProjects matches the exact existing projectsQuery identity."
+  threads: "invalidateEntries, invalidateOperations and invalidateQueue use their existing keys; invalidateThreadLists retains project and agent list matching."
+  consumer: "stream/ dispatchRefresh maps classified targets to these owner methods."
+  tested_by: "pins project refresh for %s; pins writer-thread refresh for %s; pins conversation refresh for %s; reads the thread lists again on a retitle: live at once, replayed at the caught-up"
+
+threads_operations:
+  owner: threads.ts
+  operations: "uploadAttachment attachmentUrl listThreads getThread removeThread createThread listEntries listOperations startTurn queueMessage listQueued unqueueMessage sendQueuedNow setThreadHarness forkThread stopTurn subscribeUrl"
+  types: "PlanningThread ThreadEntry Attachment Operation InvocationView Focus Queued QueuedMessage SentNow CreateThread; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+sessions_operations:
+  owner: sessions.ts
+  operations: "openSession changeModel changeEffort changeMode readContext"
+  types: "Choice SessionChoices AccountLimits TurnSettings ContextBreakdown; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+projects_operations:
+  owner: projects.ts
+  operations: "listProjects createProject setProjectModes removeProject getInstructions saveInstructions listGrants issueGrant revokeGrant projectEventsUrl"
+  types: "Project CreateProject InstructionsVersion Grant IssuedGrant; generated schema aliases"
+  daemon_url: "re-exports the transport's DAEMON_URL for the daemon-status screen, which names the origin the projects probe reached; the value is still held by transport/index.ts"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+code_operations:
+  owner: code.ts
+  operations: "getCodeStatus listCodeLinks putCodeLink removeCodeLink getCodeSettings setActiveLimit"
+  types: "ProjectStatus IndexState ProjectLink CodeSettings; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+workflows_operations:
+  owner: workflows.ts
+  operations: "listPlans getPlanVersions archivePlan unarchivePlan getPlan getPlanMap approvePlan editBindings"
+  types: "PlanOp Plan PlanTask PlanLink LinkedTask PlanMap MapPlan PlanListing PlanVersions VersionLine WrittenBy Approved; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+agreements_operations:
+  owner: agreements.ts
+  operations: "listAgreements getAgreement startAgreement editAgreement reviewAgreement agreeAgreement"
+  types: "AgreementVersion AgreementContent AgreementReview AgreementBinding; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+design_operations:
+  owner: design.ts
+  operations: "getStandards saveStandardsAdditions getStage"
+  types: "EffectiveStandards StandardsAdditions StandardsAdditionsVersion StageView; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+harnesses_operations:
+  owner: harnesses.ts
+  operations: "listHarnesses"
+  types: "HarnessInfo; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+aylul_profiles_transport:
+  owner: aylul-profiles.ts
+  transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"
+
+person_transport:
+  owner: person.ts
+  transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"
+
+extensions_transport:
+  owner: extensions.ts
+  transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"
+
+usage_transport:
+  owner: usage.ts
+  transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"
+
+directories_operations:
+  owner: directories.ts
+  operations: "listDirs createDir"
+  types: "DirectoryListing DirectoryEntry; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"
+
+transport_boundary:
+  owner: transport/index.ts
+  public_errors: "error.ts exposes ApiError, Problem and ErrorCode; request unwrapping stays private to API domains"
+  origin_setup: "daemon-origin.ts accepts native readiness configuration without loading the transport; transport/index.ts freezes DAEMON_URL on import"
+  callers: "Features import domain entries under api/*; public_entry refuses imports under api/transport/ (fixture: rejects a feature import of the API transport)"
+  error_import: "error.ts re-exports from the transport, so importing ApiError evaluates the transport and freezes DAEMON_URL; a start-up entry may import it only as a type"
+  startup: "startup_api rejects static transport reachability from main.tsx and the desktop startup entries"

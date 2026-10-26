@@ -1,6 +1,8 @@
+import type { ApprovalsStore } from './store.ts';
 import type { HookEvent, HookReply } from '../protocol.ts';
 import { oneLine, trimStep } from '../sessions/steps.ts';
 import { isNarrowRule, proposeRule } from '../agents/rules.ts';
+import { diffLines, fingerprint, planAllowRule, settingsFor } from '../agents/settings-file.ts';
 
 export type Pending = {
   id: string;
@@ -20,7 +22,7 @@ export type ApprovalsDeps = {
   newId: () => string;
   /** Writes the rule if the file still matches the fingerprint `seen` the person previewed. */
   writeRule: (project: string, rule: string, seen: string) => { ruleId: string; backupPath: string };
-  record: (item: Pending, outcome: Outcome) => void;
+  store: ApprovalsStore;
   requestHoldMs: number;
   refusalHoldMs: number;
 };
@@ -35,9 +37,19 @@ const RETRY: HookReply = { output: { hookSpecificOutput: { hookEventName: 'Permi
 /** Requests and refusals waiting for the person. Only the person's answer allows anything. */
 export class Approvals {
   #items = new Map<string, Item>();
+  #rulePreviews = new Map<string, { rule: string; before: string }>();
   #d: ApprovalsDeps;
 
   constructor(deps: ApprovalsDeps) { this.#d = deps; }
+
+  #record(item: Pending, outcome: Outcome): void {
+    this.#d.store.recordDecision(item, outcome, this.#d.now().toISOString());
+  }
+
+  /** A step after a terminal answer shows the person allowed it there. */
+  observeStep(sessionId: string, tool: string, target: string): void {
+    this.#d.store.markTerminalAllowed(sessionId, tool, target);
+  }
 
   pending(): Pending[] {
     return [...this.#items.values()]
@@ -48,15 +60,15 @@ export class Approvals {
   request(event: HookEvent, closed: AbortSignal): Promise<HookReply> {
     const item = this.#item('request', event, null);
     return this.#hold(item, closed, this.#d.requestHoldMs,
-      () => { this.#items.delete(item.id); this.#d.record(item, 'timed_out'); },
-      () => { this.#items.delete(item.id); this.#d.record(item, 'answered_in_terminal'); });
+      () => { this.#items.delete(item.id); this.#record(item, 'timed_out'); },
+      () => { this.#items.delete(item.id); this.#record(item, 'answered_in_terminal'); });
   }
 
   refusal(event: HookEvent, closed: AbortSignal): Promise<HookReply> {
     // No root, no rule: it could not be written to the settings file Claude Code reads.
     const rule = event.project_dir ? proposeRule(event.tool_name ?? '', event.tool_input ?? {}, event.project_dir) : null;
     const item = this.#item('refusal', event, rule);
-    const list = () => this.#d.record(item, 'listed');
+    const list = () => this.#record(item, 'listed');
     return this.#hold(item, closed, this.#d.refusalHoldMs, list, list);
   }
 
@@ -65,11 +77,33 @@ export class Approvals {
     if (!item || item.kind !== 'request' || !item.reply) throw new Error('not_pending');
     const reply = item.reply;
     this.#items.delete(id);
-    this.#d.record(item, behavior === 'allow' ? 'allowed' : 'denied');
+    this.#record(item, behavior === 'allow' ? 'allowed' : 'denied');
     reply(behavior === 'allow' ? ALLOW : DENY);
   }
 
-  approveRule(id: string, rule: string, seen: string): { backupPath: string } {
+  previewRule(id: string, value: unknown): { path: string; lines: string[]; before: string } {
+    const item = this.#items.get(id);
+    if (!item || item.kind !== 'refusal') throw new Error('not_pending');
+    if (!item.project) throw new Error('project_unknown');
+    if (typeof value !== 'string' || !value) throw new Error('bad_params');
+    const rule = value.trim();
+    if (!isNarrowRule(rule)) throw new Error('rule_too_broad');
+    const plan = planAllowRule(settingsFor(item.project), rule);
+    const preview = { path: plan.path, lines: diffLines(plan), before: fingerprint(plan.before) };
+    this.#rulePreviews.set(item.id, { rule, before: preview.before });
+    return preview;
+  }
+
+  approvePreview(id: string, rule: string, before: string): { backupPath: string } {
+    const preview = this.#rulePreviews.get(id);
+    if (!preview || preview.rule !== rule || preview.before !== before) throw new Error('preview_mismatch');
+    const result = this.#approveRule(id, rule, before);
+    this.#rulePreviews.delete(id);
+    return result;
+  }
+
+  // Private so that every write passes the preview admission above.
+  #approveRule(id: string, rule: string, seen: string): { backupPath: string } {
     const item = this.#items.get(id);
     if (!item || item.kind !== 'refusal') throw new Error('not_pending');
     if (!isNarrowRule(rule)) throw new Error('rule_too_broad');
@@ -78,7 +112,7 @@ export class Approvals {
     const written = this.#d.writeRule(item.project, rule.trim(), seen);
     const reply = item.reply;
     this.#items.delete(id);
-    this.#d.record(item, 'rule_written');
+    this.#record(item, 'rule_written');
     reply?.(RETRY);
     return { backupPath: written.backupPath };
   }
@@ -88,8 +122,9 @@ export class Approvals {
     if (!item || item.kind !== 'refusal') throw new Error('not_pending');
     const reply = item.reply;
     this.#items.delete(id);
-    this.#d.record(item, 'dismissed');
+    this.#record(item, 'dismissed');
     reply?.({});
+    this.#rulePreviews.delete(id);
   }
 
   #item(kind: Pending['kind'], event: HookEvent, proposedRule: string | null): Item {

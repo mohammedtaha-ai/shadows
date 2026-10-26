@@ -1,0 +1,30 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { createFrameLoop } from "./scheduler.ts";
+import { fakeFrames } from "./fixtures/test-fakes.ts";
+test("one loop is owned across double starts stop and dispose", () => {
+  const clock = fakeFrames(),
+    deltas: number[] = [];
+  const loop = createFrameLoop(clock, (dt) => deltas.push(dt));
+  loop.start();
+  loop.start();
+  assert.equal(clock.pending, 1);
+  clock.tick(100);
+  clock.tick(116);
+  assert.equal(clock.pending, 1);
+  loop.stop();
+  assert.equal(clock.pending, 0);
+  loop.invalidate();
+  loop.invalidate();
+  assert.equal(clock.pending, 1);
+  clock.tick(999);
+  assert.equal(deltas.at(-1), 0);
+  assert.equal(clock.pending, 0);
+  loop.start();
+  clock.tick(10000);
+  assert.equal(deltas.at(-1), 0);
+  loop.dispose();
+  loop.start();
+  loop.invalidate();
+  assert.equal(clock.pending, 0);
+});

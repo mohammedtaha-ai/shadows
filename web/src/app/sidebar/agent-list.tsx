@@ -6,11 +6,11 @@ import { Link, useSearch, useParams } from '@tanstack/react-router'
 import { Bot, ChevronRight, Plus, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { type Agent, agentsQuery, providersQuery } from '@/api/aylul-profiles'
-import { threadQuery } from '@/api/queries'
+import { threadQuery } from '@/api/threads'
 import { ErrorLine } from '../error-line'
 import { ThreadList } from './thread-list'
-import { colorOf } from '../agents/character-colors'
-import { useOpenSettings } from '../settings/use-settings'
+import { colorOf } from '@/app/agents'
+import { useOpenSettings } from '@/app/navigation'
 
 export function AgentList() {
   const agents = useQuery(agentsQuery)

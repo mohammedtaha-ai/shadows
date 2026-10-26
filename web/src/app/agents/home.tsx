@@ -6,7 +6,7 @@ import { Bot, Server } from 'lucide-react'
 import { agentsQuery, providersQuery } from '@/api/aylul-profiles'
 import { buttonVariants } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
-import { useOpenSettings } from '../settings/use-settings'
+import { useOpenSettings } from '@/app/navigation'
 
 export function AylulHome() {
   const providers = useQuery(providersQuery)

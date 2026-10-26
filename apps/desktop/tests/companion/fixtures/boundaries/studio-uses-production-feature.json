@@ -1,0 +1,9 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "import '../features/companion/Canvas';",
+    "src/features/companion/Canvas.tsx": "import './renderer/scene';",
+    "src/features/companion/renderer/scene.ts": "export const scene = 1;",
+    "src/features/companion/studio/ok.tsx": "import '../Canvas';"
+  },
+  "expected": []
+}

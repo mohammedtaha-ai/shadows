@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Operation } from '@/api/client'
-import type { DurableEvent } from '@/stream/frames'
+import type { Operation } from '@/api/threads'
+import type { DurableEvent } from '@/stream'
 import {
   type TurnAction,
   type TurnState,

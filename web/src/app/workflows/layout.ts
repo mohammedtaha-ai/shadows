@@ -8,7 +8,7 @@
 
 import dagre from '@dagrejs/dagre'
 import { type Edge, type Node, type NodeHandle, Position } from '@xyflow/react'
-import type { Plan, PlanLink, PlanTask } from '@/api/client'
+import type { Plan, PlanLink, PlanTask } from '@/api/workflows'
 import { type LinkedNode, type MissingNode, linkedLayout, parentName } from './linked-layout'
 
 export type LinkKind = PlanLink['kind']

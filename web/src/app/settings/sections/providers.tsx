@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { providersQuery, providerPresetsQuery } from '@/api/aylul-profiles'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../../error-line'
-import { ProviderForm } from '../../agents/provider-form'
-import { ProviderPicker } from '../../agents/provider-picker'
-import { presetOf, providerTitle, presetGroups, type PresetGroup } from '../../agents/provider-presets'
+import { ProviderForm } from '@/app/agents'
+import { ProviderPicker } from '@/app/agents'
+import { presetOf, providerTitle, presetGroups, type PresetGroup } from '@/app/agents'
 
 export function ProvidersSection() {
   const providers = useQuery(providersQuery)
