@@ -296,6 +296,13 @@ components:
     # Shows only reconnecting and failed; connecting and live show nothing.
 
 hooks:
+  useSessionSettings:
+    signature: "(choices: SessionChoices | null, busy: boolean, threadId: string | null, changed: () => void) => { settings: TurnSettings | null; note: string | null; choose: (next: TurnSettings) => void; switching: boolean; error: Error | null; resetError: () => void }"
+    # Owns held settings, their note, mode replay, model refusal and effort changes.
+    # choose routes a saved mode change to Core and other choices to local settings.
+    # switching holds Send and the menus while any settings mutation is pending.
+    # changed drops the pending send identity; resetError clears only the effort error
+    # when submitting, preserving mode-error precedence. Busy defers model/effort writes.
   useConversation:
     signature: "(threadId: string, onShowHere?: (show: PlanShowFrame) => void, projectId?: string) => ConversationView"
     # Mount once per thread. Folds the stream into the turn and reply reducers, the
@@ -1222,6 +1229,20 @@ tests:
   - name: "picking model from the menu opens the model picker"
     checks: "A listed 'model' command, picked, opens the model menu and clears the text."
 
+  # use-session-settings.test.tsx
+  - name: "choosing a value closes its menu, so it never covers Send"
+    checks: "After choosing Auto, the mode menu item is gone and the Auto button shows."
+  - name: "a model without auto moves the mode and the bar says so"
+    checks: "Model change to fake-small: note text shown and mode back to Accept edits."
+  - name: "picking a model sets it on the session at once, so its efforts show before Send"
+    checks: "PUT model; Send and effort disabled while changing; no turn starts."
+  - name: "a picked model ends at the effort its answer reports, not an earlier report"
+    checks: "Bodies hold only the model put; a later effort report does not set effort."
+  - name: "an effort the harness refuses goes back to the session’s, on the error line"
+    checks: "422 on effort: error line shows; the menu holds high; one PUT only."
+  - name: "a model the harness refuses goes back to the session’s, with its words"
+    checks: "422 on model: error shows; fake-large is restored in the menu."
+
   # composer-bar.test.tsx
   - name: "says it is connecting, then builds every menu from the session"
     checks: "Connecting text until the session answers; Accept edits and high menu items exist."
@@ -1229,22 +1250,10 @@ tests:
     checks: "options frames during opening are ignored; the answer's max effort holds."
   - name: "a failed opening shows the message and a retry, never an endless spinner"
     checks: "502 shows its message and Retry; Retry opens again (tries reaches 2)."
-  - name: "choosing a value closes its menu, so it never covers Send"
-    checks: "After choosing Auto, the mode menu item is gone and the Auto button shows."
   - name: "sends the chosen model, mode and effort"
     checks: "Turn body carries model fake-large, mode auto, effort high, prompt hi."
-  - name: "a model without auto moves the mode and the bar says so"
-    checks: "Model change to fake-small: note text shown and mode back to Accept edits."
-  - name: "picking a model sets it on the session at once, so its efforts show before Send"
-    checks: "PUT model; Send and effort disabled while changing; no turn starts."
-  - name: "a picked model ends at the effort its answer reports, not an earlier report"
-    checks: "Bodies hold only the model put; a later effort report does not set effort."
   - name: "picking an effort sets it on the session at once"
     checks: "PUT effort max; Send then carries effort max."
-  - name: "an effort the harness refuses goes back to the session’s, on the error line"
-    checks: "422 on effort: error line shows; the menu holds high; one PUT only."
-  - name: "a model the harness refuses goes back to the session’s, with its words"
-    checks: "422 on model: error shows; fake-large is restored in the menu."
   - name: "the mode menu says plainly what Accept edits allows"
     checks: "Mode menu item text carries the description for Accept edits and Auto."
   - name: "a fresh fork shows the CLI locked before any turn"

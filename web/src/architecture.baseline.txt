@@ -13,9 +13,9 @@ cache_write :: stream/use-project-events.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #2
 dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #1
-dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #2
-dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #3
 dependency :: app/conversation/draft.test.tsx :: router.tsx #1
+dependency :: app/conversation/use-session-settings.test.tsx :: router.tsx #1
+dependency :: app/conversation/use-session-settings.test.tsx :: router.tsx #2
 dependency :: app/design/roadmap-view.test.tsx :: router.tsx #1
 dependency :: app/design/roadmap-view.test.tsx :: router.tsx #2
 dependency :: app/design/vision-editor.test.tsx :: router.tsx #1

@@ -17,7 +17,7 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-33 · W-9a: session-setting changes leave the composer
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
   (W-9 enters in four packets: a, session settings; b, attachments; c, send, queue and stop;
   d, `draft.tsx` and `carried-send.ts`)
