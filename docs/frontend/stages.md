@@ -14,6 +14,34 @@ and OS acceptance.
 
 ## Tasks
 
+### F-29 · W-5: navigation and native infrastructure depend on nothing above them
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-5--remove-the-navigation-and-native-upward-dependencies
+  and section 6 (allowed directions)
+- Read: the plan's sections 2 and 6; `web/src/app/settings/use-settings.ts`;
+  `web/src/desktop/contract.yaml` (with `bootstrap.tsx`, `navigation.ts`, `companion-send.ts`);
+  `web/src/app/desktop/contract.yaml`; `web/src/main.tsx` and `web/src/router.tsx`;
+  `web/src/architecture.test.ts`; `web/src/architecture.baseline.txt`
+- Touch: a new `web/src/app/navigation/` (entry, `contract.yaml`, tests) for opening and
+  closing settings; `web/src/app/settings/use-settings.ts` and its callers
+  (`app/agents/agent-extensions.tsx`, `agent-settings.tsx`, `home.tsx`,
+  `app/conversation/composer.tsx`, `app/sidebar/agent-list.tsx`, `sidebar.tsx`,
+  `app/settings/sections/agents.tsx`, `settings-dialog.tsx`) and their tests;
+  `web/src/desktop/bootstrap.tsx`, `navigation.ts`, `companion-send.ts`, their tests,
+  `contract.yaml`; `web/src/main.tsx` (start-up composition); `web/src/app/desktop/`
+  (the orchestration that moves up from `desktop/`, its tests, `contract.yaml`);
+  `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md`; this task's `Status:`
+- Needs: F-26, F-17
+- Done when: no file in `app/agents/`, `app/conversation/` or `app/sidebar/` imports
+  `app/settings/`; nothing in `web/src/desktop/` imports `app/` or `router.tsx`: what native
+  start-up and navigation need from the UI and the router arrives as an argument wired in
+  start-up composition; the `dependency` and `public_entry` baseline entries for
+  `use-settings.ts`, `desktop/bootstrap.tsx → app/desktop/connection-settings.tsx` and
+  `desktop/navigation.ts → router.tsx` are gone and no count goes up; readiness ordering and
+  the applied-navigation acknowledgement tests pass unchanged; the touched areas' tests, the
+  architecture and codemap tests, `npm run typecheck` and `npm run lint` pass. Navigation
+  extraction and native composition are separate commits.
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)

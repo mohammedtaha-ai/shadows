@@ -216,3 +216,30 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   in its domain's store, and sidecar RPC method names equal to the native allowlist and the main
   wrappers, with adversarial fixtures and a shrinking baseline; from `apps/desktop/sidecar/`:
   `npm run typecheck` and `npm test` pass
+
+### N-17 · D-7b: `DesktopApp` holds D-0's nine owners by name
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-7b--complete-the-d-0-owner-inventory
+  and #decision-d-0
+- Read: the plan's D-0 and section 6 ("Native target"); `apps/desktop/src-tauri/src/app.rs`;
+  `src/contract.yaml`; `src/presence/contract.yaml` (with `watcher.rs`, `workflows.rs`);
+  `src/windows/contract.yaml` (with `mod.rs`, `main_policy.rs`, `placement.rs`);
+  `tests/architecture/README.md` and `main.rs`
+- Touch: `apps/desktop/src-tauri/src/app.rs`, `src/lib.rs`, `src/contract.yaml`;
+  `src/presence/` (`mod.rs`, `watcher.rs`, `workflows.rs`, their tests, `contract.yaml`);
+  `src/windows/` (`mod.rs`, `main_policy.rs`, a new private main-window module if one earns
+  it, their tests, `contract.yaml`); commands that reach the watcher or the main window
+  (`src/commands/`, its `contract.yaml`); `tests/architecture/` (`main.rs`, `README.md`,
+  baseline); `docs/aylul/codebase/README.md`; this task's `Status:`
+- Needs: N-14
+- Done when: `DesktopApp`'s private fields are exactly `core_connection`, `companion`,
+  `companion_window`, `main_window`, `navigation`, `desktop_preferences`, `account`,
+  `activity`, `app_paths`; the Companion owner (Presence today) owns its watcher, so the
+  watcher is no field of `DesktopApp` and its stop runs through the Companion owner; the
+  MainWindow owner holds main-window construction and opening (`windows::open_main`,
+  `main_policy::build`) and no command or window reaches them another way; the architecture
+  test asserts each field name against its owner type from a table in
+  `tests/architecture/README.md`, not a count, with a fixture that renames or adds a field and
+  fails; window labels, CSP, navigation guards, events, start-up and shutdown order are
+  unchanged and their tests pass; no baseline count goes up; the crate's tests, the
+  architecture test, clippy and fmt pass
