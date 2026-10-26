@@ -34,7 +34,8 @@ impl MainWindow {
     }
 
     // Foreground activation is reserved for explicit tray, shortcut and launch actions.
-    pub fn open(&self, app: &tauri::AppHandle) -> Result<(), tauri::Error> {
+    // Opening reads only the live "main" window, so it needs no managed-state lookup.
+    pub fn open(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
         let w = app
             .get_webview_window("main")
             .expect("main exists for app lifetime");
@@ -75,23 +76,20 @@ impl MainWindow {
 }
 
 pub fn open_main(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
-    app.state::<Arc<crate::app::DesktopApp>>()
-        .main_window()
-        .open(app)
+    MainWindow::open(app)
 }
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let desktop = app.state::<Arc<crate::app::DesktopApp>>();
+    let desktop = app
+        .state::<std::sync::Arc<crate::app::DesktopApp>>()
+        .inner()
+        .clone();
     let w = desktop.main_window().build(app)?;
     let h = w.clone();
     w.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
-            match h
-                .state::<std::sync::Arc<crate::app::DesktopApp>>()
-                .preferences()
-                .close_action(false)
-            {
+            match desktop.preferences().close_action(false) {
                 crate::desktop_preferences::CloseAction::Hide => {
                     let _ = h.hide();
                 }
