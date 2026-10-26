@@ -73,6 +73,15 @@ jobs:
       - name: Test frontend interactions and generated native permissions
         run: npm test
 
+      - name: Typecheck companion tests and fixtures
+        run: npm run typecheck:tests
+
+      - name: Test companion units and source boundaries
+        run: npm run test:companion:unit
+
+      - name: Test companion production bundle boundaries
+        run: npm run test:companion:production
+
       - name: Hook format
         run: cargo fmt --manifest-path hook/Cargo.toml --check
 
@@ -98,3 +107,33 @@ jobs:
         env:
           AYLUL_HOOK_EXE: ${{ github.workspace }}\apps\desktop\hook\target\release\aylul-hook.exe
         run: npm test
+
+  # RECORD_PURPLE and EXPORT_COLORS generate review artifacts on demand.
+  # Native acceptance scripts need an interactive Windows desktop and stay opt-in.
+  companion-browser:
+    name: Companion browser suite
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright Chrome
+        # playwright.config.ts selects the Chrome channel.
+        run: npx playwright install --with-deps chrome
+
+      - name: Test companion in the browser
+        run: npm run test:companion:browser

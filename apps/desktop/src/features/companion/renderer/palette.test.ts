@@ -10,7 +10,7 @@ const keys = [
   'extrusion', 'hoodLit', 'hoodMid', 'hoodFold', 'hoodBase', 'hoodBounce', 'seamLine',
   'wing', 'bevelTop', 'bevelMid', 'bevelBottom', 'voidCore', 'voidDeep', 'voidRim',
   'pawLit', 'pawMid', 'pawDark', 'maskLit', 'maskMid', 'maskDark', 'brow', 'floor',
-];
+] as const;
 
 // Independent RGB-to-HSL measurement of the returned 8-bit colours.
 function measure(hex: string) {
@@ -52,7 +52,7 @@ test('a derived tone keeps lightness and saturation', () => {
   const baseEntry = table.colors.find(entry => entry.id === table.base)!;
   for (const entry of table.colors.filter(entry => entry.id !== table.base)) {
     const delta = measure(entry.swatch).hue - measure(baseEntry.swatch).hue;
-    for (const [key, tone] of Object.entries(paletteFor(entry.id))) {
+    for (const [key, tone] of Object.entries(paletteFor(entry.id)) as [keyof ReturnType<typeof paletteFor>, string][]) {
       if (entry.tones && key in entry.tones) continue;
       const base = measure(paletteFor(table.base)[key]);
       const actual = measure(tone);

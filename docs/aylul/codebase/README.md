@@ -9,6 +9,7 @@ Mobile and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
+| `.github/workflows/aylul.yml` | Desktop automated gate | Desktop job runs test typechecking (`apps/desktop/tsconfig.test.json`), top-level Node tests, companion unit/source-boundary and production-boundary suites plus native/hook/sidecar checks; separate Windows companion browser job installs Chrome; `RECORD_PURPLE`, `EXPORT_COLORS` and native acceptance scripts stay opt-in; shared-main native parity runs in the root web CI job |
 | `apps/desktop/src-tauri/tests/architecture/` | Shrinking native ownership ratchet | `docs/aylul/native/plans/2026-10-25-desktop-architecture.md` D-0; exact baseline, accessor-owner fixtures and guard/grant/wrapper surface parity; scanner behavior in its README |
 | `apps/desktop/src-tauri/src/presence/appearance_tests.rs` | Opaque companion appearance regressions | Presence contract |
 | `apps/desktop/src-tauri/src/presence/core_client/` | The companion's only Core HTTP client: blocking binding reads and submission writes, async observer reads and SSE | Presence contract; the architecture ratchet refuses `reqwest` elsewhere in the companion |

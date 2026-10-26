@@ -296,7 +296,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   fmt pass
 
 ### N-20 · D-11: the AYLUL gate runs every desktop suite
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-11--close-automated-gate-coverage
 - Read: the plan's D-11 and section 5 (the gate table); `.github/workflows/aylul.yml`;
   `.github/workflows/ci.yml` (the `web` job); `apps/desktop/package.json` scripts;
