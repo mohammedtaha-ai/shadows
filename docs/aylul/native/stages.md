@@ -319,3 +319,25 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   workflow names them in a comment; the web job in `ci.yml` still runs the shared-main parity
   tests (`web/src/desktop/native-parity.test.ts`), checked, not changed; from
   `apps/desktop/`: each new script passes locally
+
+### N-21 · D-12: the integrated structure is verified before the PR
+- Status: open
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-12--verify-the-integrated-structure
+- Read: the plan's D-12, section 5 and section 8 item 4; `.github/workflows/aylul.yml`;
+  `.github/workflows/ci.yml`; `docs/evidence/README.md`; the ratchet READMEs
+  (`apps/desktop/src-tauri/tests/architecture/README.md`, `docs/frontend/codebase/README.md`)
+- Touch: a new `docs/evidence/2026-10-26-desktop-architecture-gate.md`; documentation drift
+  only, where a stage, contract or code map no longer says what the final tree does
+  (`docs/aylul/**/stages.md`, `docs/frontend/stages.md`, `contract.yaml` files under
+  `apps/desktop/` and `web/src/`, `docs/aylul/codebase/README.md`,
+  `docs/frontend/codebase/README.md`); this task's `Status:`
+- Needs: N-17, N-18, N-19, N-20, U-4, C-7, F-29 to F-32
+- Done when: every step of the three gates passes on the final tree, run once over the existing
+  build cache in place (never `cargo clean`): Core (`ci.yml` steps 1–6 of CLAUDE.md, the branch changes
+  `crates/core-code`), AYLUL (`aylul.yml` both jobs, except the hook `--release` build, which
+  only CI runs) and web (`ci.yml` `web` job); every shrinking baseline equals what its check
+  finds now (native owner ratchet, command parity, web architecture, companion boundaries),
+  with the counts recorded; the evidence file names the commit, each command and its result,
+  the baseline counts, and the acceptance not covered here (section 8 item 4: real DPI
+  transitions, monitor removal, suspend/resume, resource measurements, sign-in launch; a real
+  provider run) as open, for Mohammed; a failing gate step is reported, not fixed
