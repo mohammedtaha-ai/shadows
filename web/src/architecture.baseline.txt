@@ -21,7 +21,6 @@ dependency :: app/design/roadmap-view.test.tsx :: router.tsx #2
 dependency :: app/design/vision-editor.test.tsx :: router.tsx #1
 dependency :: app/desktop/companion-binding.test.tsx :: app/settings/sections/character.tsx #1
 dependency :: app/project-settings/project-settings.test.tsx :: router.tsx #1
-entry :: agreements :: app/agreements/index.ts #1
 entry :: conversation :: app/conversation/index.ts #1
 entry :: project-settings :: app/project-settings/index.ts #1
 entry :: settings :: app/settings/index.ts #1
@@ -46,8 +45,6 @@ public_entry :: app/shell.tsx :: app/settings/person-theme.tsx #1
 public_entry :: app/shell.tsx :: app/settings/settings-dialog.tsx #1
 public_entry :: app/shell.tsx :: app/sidebar/sidebar.tsx #1
 public_entry :: app/shell.tsx :: stream/use-project-events.ts #1
-public_entry :: app/workflows/inspect-panel.tsx :: app/agreements/binding-editor.tsx #1
-public_entry :: app/workflows/plan-frames.ts :: stream/thread-stream.ts #1
 public_entry :: main.tsx :: desktop/navigation.ts #1
 public_entry :: router.tsx :: app/agents/home.tsx #1
 public_entry :: router.tsx :: app/agreements/agreements-page.tsx #1

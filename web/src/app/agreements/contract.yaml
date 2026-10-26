@@ -268,3 +268,5 @@ binding_plan_cache: "api/workflows.ts owns saved plans and workflow refresh iden
 design_cache_identity: "Binding adoption refresh uses api/design.designKeys"
 
 pagination_owner: "PartyPicker imports usePartPages from api/design.ts; agreement UI depends on no design editor hook."
+
+feature_entry: "index.ts exposes BindingEditor."

@@ -572,3 +572,5 @@ tests:
       only' shows with no Approve button.
 
 feature_entry: "index.ts exposes HeldThreadStream, PlanGraph, usePlan, isPlanEvent, refetchPlans, stateLabel."
+
+feature_imports: "Cross-feature production imports use declared public entries."

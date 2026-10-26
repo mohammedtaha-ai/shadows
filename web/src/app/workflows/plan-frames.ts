@@ -13,7 +13,7 @@ import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { createContext, useContext, useEffect } from 'react'
 import { subscribeUrl } from '@/api/client'
 import { workflowsKey } from '@/api/queries'
-import { ThreadStream } from '@/stream/thread-stream'
+import { ThreadStream } from '@/stream'
 
 /** The durable events after which a plan, its neighbours or its list read differently. */
 const PLAN_KINDS: ReadonlySet<string> = new Set([
