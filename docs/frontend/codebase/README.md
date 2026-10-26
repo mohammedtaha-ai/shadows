@@ -213,6 +213,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/usage.ts` | Turns harness-reported context figures into readable figures | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-commands.ts` | Keeps each thread's slash-command list in the cache | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-conversation.ts` | Binds an open conversation to its stream, entries, turns | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-images.ts` | Own selected image uploads | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/pending-images.tsx` | Present selected image previews | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session-settings.ts` | Own session-setting changes | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session.ts` | Harness session state the conversation screen reads | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/conversation/contract.yaml` |

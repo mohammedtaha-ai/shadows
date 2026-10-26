@@ -45,7 +45,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck`, `npm run lint` and `npm run build` pass
 
 ### F-34 · W-9b: the attachment lifecycle leaves the composer
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
   (packet b of four; F-33 was packet a)
 - Read: the plan's W-9 and section 4 (the `conversation/composer.tsx` and `carried-send.ts`
