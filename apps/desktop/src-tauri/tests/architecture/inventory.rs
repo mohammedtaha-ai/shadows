@@ -305,13 +305,16 @@ fn string(expr: &syn::Expr) -> Option<String> {
         None
     }
 }
-fn value(expr: &syn::Expr, label: &str, command: &str) -> Option<String> {
+
+type Bindings = BTreeMap<String, String>;
+
+// A name means only what the caller passed for it; an unbound name makes the guard unsupported.
+fn value(expr: &syn::Expr, label: &str, bindings: &Bindings) -> Option<String> {
     string(expr).or_else(|| match expr {
-        syn::Expr::Path(path) if path.path.is_ident("label") => Some(label.into()),
-        syn::Expr::Path(path) if path.path.is_ident("command") || path.path.is_ident("name") => {
-            Some(command.into())
-        }
+        syn::Expr::Path(path) => bindings.get(&path.path.get_ident()?.to_string()).cloned(),
         syn::Expr::MethodCall(call) if call.method == "label" => Some(label.into()),
+        syn::Expr::Reference(v) => value(&v.expr, label, bindings),
+        syn::Expr::Paren(v) => value(&v.expr, label, bindings),
         _ => None,
     })
 }
@@ -333,46 +336,79 @@ fn pattern(pat: &syn::Pat, text: &str) -> Option<bool> {
         _ => None,
     }
 }
-fn boolean(
-    expr: &syn::Expr,
+
+// Paths resolve from the calling module, so a same-named function elsewhere is never read instead.
+fn resolve(module: &str, path: &syn::Path) -> String {
+    let mut parts: Vec<_> = module.split("::").map(str::to_owned).collect();
+    for segment in &path.segments {
+        match segment.ident.to_string().as_str() {
+            "crate" => parts.clear(),
+            "super" => {
+                parts.pop();
+            }
+            "self" => {}
+            name => parts.push(name.into()),
+        }
+    }
+    parts.join("::")
+}
+
+// Parameters bind positionally to the caller's arguments that evaluate to a label or a literal.
+fn bind(
+    function: &syn::ItemFn,
+    args: &syn::punctuated::Punctuated<syn::Expr, syn::Token![,]>,
     label: &str,
-    command: &str,
-    functions: &BTreeMap<String, syn::ItemFn>,
-) -> Option<bool> {
+    bindings: &Bindings,
+) -> Bindings {
+    let mut bound = Bindings::new();
+    for (input, arg) in function.sig.inputs.iter().zip(args) {
+        if let syn::FnArg::Typed(typed) = input {
+            if let (syn::Pat::Ident(name), Some(text)) =
+                (typed.pat.as_ref(), value(arg, label, bindings))
+            {
+                bound.insert(name.ident.to_string(), text);
+            }
+        }
+    }
+    bound
+}
+
+struct Scope<'a> {
+    module: &'a str,
+    label: &'a str,
+    bindings: &'a Bindings,
+    functions: &'a BTreeMap<String, syn::ItemFn>,
+    depth: usize,
+}
+
+fn boolean(expr: &syn::Expr, scope: &Scope) -> Option<bool> {
+    let (label, bindings) = (scope.label, scope.bindings);
     match expr {
         syn::Expr::Lit(syn::ExprLit {
             lit: syn::Lit::Bool(v),
             ..
         }) => Some(v.value),
-        syn::Expr::Unary(v) if matches!(v.op, syn::UnOp::Not(_)) => {
-            Some(!boolean(&v.expr, label, command, functions)?)
-        }
-        syn::Expr::Paren(v) => boolean(&v.expr, label, command, functions),
+        syn::Expr::Unary(v) if matches!(v.op, syn::UnOp::Not(_)) => Some(!boolean(&v.expr, scope)?),
+        syn::Expr::Paren(v) => boolean(&v.expr, scope),
         syn::Expr::Binary(v) => match v.op {
             syn::BinOp::Eq(_) => {
-                Some(value(&v.left, label, command)? == value(&v.right, label, command)?)
+                Some(value(&v.left, label, bindings)? == value(&v.right, label, bindings)?)
             }
             syn::BinOp::Ne(_) => {
-                Some(value(&v.left, label, command)? != value(&v.right, label, command)?)
+                Some(value(&v.left, label, bindings)? != value(&v.right, label, bindings)?)
             }
-            syn::BinOp::Or(_) => Some(
-                boolean(&v.left, label, command, functions)?
-                    || boolean(&v.right, label, command, functions)?,
-            ),
-            syn::BinOp::And(_) => Some(
-                boolean(&v.left, label, command, functions)?
-                    && boolean(&v.right, label, command, functions)?,
-            ),
+            syn::BinOp::Or(_) => Some(boolean(&v.left, scope)? || boolean(&v.right, scope)?),
+            syn::BinOp::And(_) => Some(boolean(&v.left, scope)? && boolean(&v.right, scope)?),
             _ => None,
         },
         syn::Expr::Match(v) => {
-            let input = value(&v.expr, label, command)?;
+            let input = value(&v.expr, label, bindings)?;
             for arm in &v.arms {
                 if arm.guard.is_some() {
                     return None;
                 }
                 if pattern(&arm.pat, &input)? {
-                    return boolean(&arm.body, label, command, functions);
+                    return boolean(&arm.body, scope);
                 }
             }
             None
@@ -386,23 +422,26 @@ fn boolean(
             })
             .parse2(v.mac.tokens.clone())
             .ok()?;
-            pattern(&pat, &value(&expr, label, command)?)
+            pattern(&pat, &value(&expr, label, bindings)?)
         }
         syn::Expr::Call(v) => {
             let syn::Expr::Path(path) = v.func.as_ref() else {
                 return None;
             };
-            let name = path.path.segments.last()?.ident.to_string();
-            if name != "allowed_caller" {
+            if scope.depth > 8 {
                 return None;
             }
-            let command = value(v.args.last()?, label, command)?;
-            let function = functions.get("commands::companion::allowed_caller")?;
+            let target = resolve(scope.module, &path.path);
+            let function = scope.functions.get(&target)?;
+            let bound = bind(function, &v.args, label, bindings);
             boolean(
                 expression(function.block.stmts.first()?)?,
-                label,
-                &command,
-                functions,
+                &Scope {
+                    module: target.rsplit_once("::")?.0,
+                    bindings: &bound,
+                    depth: scope.depth + 1,
+                    ..*scope
+                },
             )
         }
         _ => None,
@@ -427,22 +466,15 @@ fn result_ok(expr: &syn::Expr) -> Option<bool> {
 }
 
 // Admission comes from the first executed statement, never the helper's policy table alone.
-fn admission(
-    function: &syn::ItemFn,
-    module: &str,
-    label: &str,
-    command: &str,
-    functions: &BTreeMap<String, syn::ItemFn>,
-    depth: usize,
-) -> Option<bool> {
-    if depth > 8 {
+fn admission(function: &syn::ItemFn, scope: &Scope) -> Option<bool> {
+    if scope.depth > 8 {
         return None;
     }
     let Some(first) = function.block.stmts.first().and_then(expression) else {
         return Some(true);
     };
     if let syn::Expr::If(v) = first {
-        let condition = boolean(&v.cond, label, command, functions)?;
+        let condition = boolean(&v.cond, scope)?;
         let then = result_ok(expression(v.then_branch.stmts.last()?)?)?;
         let otherwise = v
             .else_branch
@@ -458,33 +490,19 @@ fn admission(
         let syn::Expr::Path(path) = call.func.as_ref() else {
             return None;
         };
-        let mut parts: Vec<_> = module.split("::").map(str::to_owned).collect();
-        for segment in &path.path.segments {
-            match segment.ident.to_string().as_str() {
-                "crate" => parts.clear(),
-                "super" => {
-                    parts.pop();
-                }
-                "self" => {}
-                name => parts.push(name.into()),
-            }
-        }
-        let target = parts.join("::");
-        let Some(helper) = functions.get(&target) else {
+        let target = resolve(scope.module, &path.path);
+        let Some(helper) = scope.functions.get(&target) else {
             return Some(true);
         };
-        let command = call
-            .args
-            .iter()
-            .find_map(string)
-            .unwrap_or_else(|| command.into());
+        let bound = bind(helper, &call.args, scope.label, scope.bindings);
         return admission(
             helper,
-            target.rsplit_once("::")?.0,
-            label,
-            &command,
-            functions,
-            depth + 1,
+            &Scope {
+                module: target.rsplit_once("::")?.0,
+                bindings: &bound,
+                depth: scope.depth + 1,
+                ..*scope
+            },
         );
     }
     Some(true)
@@ -609,14 +627,14 @@ pub(super) fn surface_check(
         let mut admitted = BTreeSet::new();
         let mut known = true;
         for label in universe {
-            match admission(
-                function,
-                path.rsplit_once("::").unwrap().0,
-                &label,
-                command,
-                &functions,
-                0,
-            ) {
+            let scope = Scope {
+                module: path.rsplit_once("::").unwrap().0,
+                label: &label,
+                bindings: &Bindings::new(),
+                functions: &functions,
+                depth: 0,
+            };
+            match admission(function, &scope) {
                 Some(true) => {
                     admitted.insert(label);
                 }

@@ -1018,3 +1018,55 @@ fn deny_only_capability_does_not_satisfy_wrapper_grants() {
         "{found:#?}"
     );
 }
+
+#[test]
+fn a_guard_expression_outside_the_evaluator_is_reported_not_read_as_unguarded() {
+    for body in [
+        r#"if window.label().starts_with("m") { return Err("denied"); } Ok(())"#,
+        r#"if window.label() != key { return Err("denied"); } Ok(())"#,
+    ] {
+        let found = surface_fixture(body, "main", "main");
+        assert!(
+            found.contains("command_guard :: one :: unsupported first guard"),
+            "{found:#?}"
+        );
+    }
+}
+
+#[test]
+fn a_same_named_policy_in_another_module_is_not_read_for_the_called_helper() {
+    let lib = "fn run() { app.invoke_handler(tauri::generate_handler![commands::one]); }";
+    let permissions = BTreeMap::from([(
+        "actions.toml".into(),
+        "[[permission]]\nidentifier='actions'\ncommands.allow=['one']".into(),
+    )]);
+    let capabilities = BTreeMap::from([(
+        "main.json".into(),
+        r#"{"windows":["main"],"permissions":["actions"]}"#.into(),
+    )]);
+    let wrappers = BTreeMap::from([("one".into(), ["main".into()].into())]);
+    let sources = BTreeMap::from([
+        (
+            "commands/mod.rs".into(),
+            r#"#[tauri::command] fn one(window: Window) { other::guard(&window, "one")?; Ok(()) }"#
+                .into(),
+        ),
+        (
+            "commands/companion.rs".into(),
+            r#"fn allowed_caller(label: &str, command: &str) -> bool { match command { "one" => label == "main", _ => false } }"#.into(),
+        ),
+        (
+            "commands/other.rs".into(),
+            r#"fn allowed_caller(label: &str, command: &str) -> bool { true }
+            fn guard(window: &Window, name: &str) -> Result<(), String> {
+                if !allowed_caller(window.label(), name) { return Err("denied"); } Ok(())
+            }"#
+            .into(),
+        ),
+    ]);
+    let found = inventory::surface_check(lib, &sources, &permissions, &capabilities, &wrappers);
+    assert!(
+        found.contains("command_guard_grant :: one :: guard=any grant=main"),
+        "{found:#?}"
+    );
+}

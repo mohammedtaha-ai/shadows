@@ -89,38 +89,51 @@ never as grants. Permission identifiers resolve through source TOML; local JSON
 capabilities map those allows to their window labels. External plugin permissions
 are outside the application command inventory.
 
-Native admission follows the command's first statement, then its called helper
-and actual policy-key argument. The bounded `syn` evaluator supports early-return
-label checks, Result-valued helper branches, `allowed_caller` matches, boolean
-comparisons and `matches!` label alternatives. Policy-table rows alone confer no
-admission. A missing or late guard means any window granted the command can call
-it; that is compared as unrestricted admission, not a standalone violation.
-Unsupported guard expressions produce `command_guard` findings. Label candidates
-include source literals, capability labels, wrapper surfaces and an unknown-label
-sentinel, so a guard-only extra label or unrestricted admission cannot disappear.
+Native admission follows the command's first statement into the helper it calls.
+Call paths resolve from the calling module, so a same-named function elsewhere is
+never read in its place, and each helper parameter binds positionally to the
+caller's literal or `label()` argument; an unbound name is unsupported. The bounded
+`syn` evaluator supports early-return label checks, Result-valued helper branches,
+boolean predicate helpers, `match` on the bound policy key, boolean comparisons and
+`matches!` label alternatives. Policy-table rows alone confer no admission. A
+missing or late guard means any window granted the command can call it; that is
+compared as unrestricted admission, not a standalone violation. Unsupported guard
+expressions produce `command_guard` findings. Label candidates include source
+literals, capability labels, wrapper surfaces and an unknown-label sentinel, so a
+guard-only extra label or unrestricted admission cannot disappear.
 
 The architecture test runs `node ../tests/native-acl.test.mjs --wrapper-inventory`
 to parse TypeScript text with the installed TypeScript compiler (shared web
 installation preferred, desktop fallback). CI already installs these dependencies.
 The two roots are `web/src/desktop/` (main) and `apps/desktop/src/platform/`
-(companion). Test/spec files are excluded. Imported `invoke`/`nativeCall` aliases,
-namespace `invoke`, generic calls and literal arguments are recognized; comments,
-strings and unrelated functions are not calls. Dynamic command arguments fail,
-except the `nativeCall(command, args)` bridge's forwarding call. This is bounded
-AST analysis, not TypeScript type checking or runtime IPC acceptance; new bridge
-forms need explicit scanner coverage.
+(companion); `.ts` and `.tsx` files are read, test/spec files are excluded.
+Callers are `invoke` imported from `@tauri-apps/api/core` (named, aliased or through
+a namespace) and `nativeCall` imported from whichever relative path resolves to the
+`native.ts` bridge. Every use of a caller must be a direct call with a literal
+command: a caller stored, passed as a value or re-exported, a string constant, a
+template or any other dynamic argument fails, except the bridge's own
+`invoke(command, args)` forwarding call. Comments, strings and unrelated functions
+are not calls. This is bounded AST analysis, not TypeScript type checking or runtime
+IPC acceptance; a new bridge form needs explicit scanner coverage.
 
-Exact N-19 baseline reasons (product files remain unchanged):
-- `command_grant_wrapper :: set_companion_paused`: the companion platform exports a pause wrapper while only main has an allow grant.
-- `command_grant_wrapper :: set_companion_visible`: the companion platform exports a visibility wrapper while only main has an allow grant.
-- `command_guard_wrapper :: set_companion_paused`: the companion platform exports a pause wrapper while the executed native guard admits only main.
-- `command_guard_wrapper :: set_companion_visible`: the companion platform exports a visibility wrapper while the executed native guard admits only main.
+Exact N-19 baseline reasons (product files remain unchanged). Both companion
+wrappers are dead: `apps/desktop/src/platform/companion.ts` exports
+`setCompanionVisible` and `setCompanionPaused`, but no companion source imports
+them, the platform contract itself calls them main-only, and the native guard and
+`companion.json` refuse the companion as intended. The live caller is main's
+`web/src/desktop/native.ts`.
+- `command_grant_wrapper :: set_companion_paused`: the companion platform exports an unused pause wrapper; only main has an allow grant.
+- `command_grant_wrapper :: set_companion_visible`: the companion platform exports an unused visibility wrapper; only main has an allow grant.
+- `command_guard_wrapper :: set_companion_paused`: the companion platform exports an unused pause wrapper; the native guard admits only main.
+- `command_guard_wrapper :: set_companion_visible`: the companion platform exports an unused visibility wrapper; the native guard admits only main.
 
 Negative fixtures assert the exact finding for every pairwise disagreement,
 granted commands without wrappers, wrappers without grants, deny-only grants,
-removed/late guards, and the actual helper policy key (including guard-only labels).
-Node fixtures exercise wrapper aliases, namespaces, generic calls, ignored test
-sources, comment/string decoys and nonliteral-command rejection.
+removed/late guards, unsupported guard expressions, the actual helper policy key
+(including guard-only labels) and module-resolved helpers. Node fixtures exercise
+wrapper aliases, namespaces, generic calls, relative bridge imports from `.tsx`,
+ignored test sources, comment/string decoys, and the refusal of nonliteral commands
+and of callers used indirectly or re-exported.
 
 `fixtures.rs` supplies in-memory sources to the same scanner/comparator:
 forbidden/allowed edges, cycles, import aliases, qualified paths, reexports,
