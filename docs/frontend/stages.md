@@ -99,6 +99,37 @@ settings dialog, PR #40) at `1a2b601`.
   `web/`: `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
   `npm run typecheck`, `npm run lint` and `npm run build` pass
 
+### F-36 · W-9d: the draft's first send and image uploads get their own owners
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
+  (packet d, the last; F-33 to F-35 were a to c)
+- Read: the plan's W-9 and section 4 (the `draft.tsx` and `carried-send.ts` rows);
+  `web/src/app/conversation/contract.yaml`; `draft.tsx`; `carried-send.ts`; their callers
+  `composer.tsx`, `conversation.tsx`, `use-send.ts`, `use-images.ts`, `pending-images.tsx`;
+  the `conversation` rows of `docs/frontend/codebase/README.md`
+- Touch: `web/src/app/conversation/carried-send.ts`; a new `upload-images.ts` (the
+  `PendingImage` type, `uploadImages` and `retryImageUpload`, moved as they are);
+  `draft.tsx`; a new `first-send.ts` (today's `useFirstSend`: create the thread, open its
+  session, start the first turn, and hand a failed turn to the thread page); a new
+  `draft-session.ts` (today's `draftSession` and `UNOPENED`: the choices a draft offers before
+  a session exists); the import lines only of `composer.tsx`, `conversation.tsx`, `use-send.ts`,
+  `use-images.ts` and `pending-images.tsx`; `web/src/app/conversation/contract.yaml`;
+  `docs/frontend/codebase/README.md` (the new files' rows and the changed jobs of
+  `draft.tsx` and `carried-send.ts`); this task's `Status:`
+- Needs: F-35 (done)
+- Done when: `carried-send.ts` holds only the failed first-send handoff (`CarriedSend`,
+  `carrySend`, `useCarriedSend`) and imports no API module; `upload-images.ts` owns uploading;
+  `draft.tsx` holds the draft routes and the draft page and makes no API call itself
+  (`createThread`, `openSession`, `changeModel`, `startTurn`, `uploadImages` move to
+  `first-send.ts`). Behaviour is unchanged: a failed create stays in the draft and retries with
+  the same command id; a turn that fails after the thread exists goes to the thread with its
+  text, images, error, plan and a replayable attempt (a `COMMAND_CONFLICT` gives a fresh one);
+  a person who left the draft while it sent is not pulled back; an upload keeps its command id
+  across the handoff and is never uploaded twice. Every test file and
+  `architecture.baseline.txt` are unchanged. From `web/`: `npx vitest run src/app/conversation
+  src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
+  `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
