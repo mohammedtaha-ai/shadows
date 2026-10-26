@@ -35,7 +35,7 @@ shapes:
     label: "'METHOD /path'"
 
 
-# ── external types (owned by web/src/api/schema.d.ts, re-exported by api/client) ─
+# ── external types (owned by web/src/api/schema.d.ts, re-exported by api/agreements) ─
 
 external:
   AgreementVersion: "agreement_id, version, revision, state, writer, content, issues"

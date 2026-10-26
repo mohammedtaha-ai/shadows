@@ -1,9 +1,9 @@
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
+import { writeSaved } from './saved-answer'
+import type { components } from './schema'
 import type { TurnSettings } from './sessions'
 import { client, DAEMON_URL, unwrap, unwrapEmpty } from './transport'
-import type { components } from './schema'
-import { queryOptions, type QueryClient } from '@tanstack/react-query'
 
-import { writeSaved } from './saved-answer'
 export const threadKeys = {
   list: (projectId: string) => ['projects', projectId, 'threads'],
   detail: (threadId: string) => ['threads', threadId, 'detail'],
@@ -11,7 +11,6 @@ export const threadKeys = {
   queue: (threadId: string) => ['threads', threadId, 'queue'] as const,
   operations: (threadId: string) => ['threads', threadId, 'operations'] as const,
 }
-
 
 /** A project's planning threads, oldest first. A thread's own stream
  * refreshes the list on its `ThreadRetitled`, but the harness titles a thread
@@ -25,7 +24,6 @@ export function threadsQuery(projectId: string) {
   })
 }
 
-
 /** Historical conversation links still read a thread omitted from the live list. */
 export function threadQuery(threadId: string) {
   return queryOptions({
@@ -34,7 +32,6 @@ export function threadQuery(threadId: string) {
   })
 }
 
-
 /** A thread's entries (`GET /api/threads/{id}/entries`). A durable
  * `ThreadEntryAppended` carries only `{ordinal, kind}`, so the stream hook
  * invalidates this key and the entries are fetched again (ruling 51). */
@@ -42,11 +39,9 @@ export function threadEntriesKey(threadId: string) {
   return threadKeys.entries(threadId)
 }
 
-
 export function entriesQuery(threadId: string) {
   return queryOptions({ queryKey: threadEntriesKey(threadId), queryFn: () => listEntries(threadId) })
 }
-
 
 /** A thread's waiting messages (spec §20); the stream's queue events invalidate it. */
 export function queuedQuery(threadId: string) {
@@ -56,14 +51,12 @@ export function queuedQuery(threadId: string) {
   })
 }
 
-
 /** A thread's operations, newest first: on opening a thread, whether a turn is
  * running and which. The stream's durable operation events carry it on from
  * there; the stream hook invalidates this key at each `caught-up`. */
 export function threadOperationsKey(threadId: string) {
   return threadKeys.operations(threadId)
 }
-
 
 export function operationsQuery(threadId: string) {
   return queryOptions({
@@ -99,7 +92,6 @@ export function invalidateThreadLists(client: QueryClient): void {
     return (key[0] === 'projects' || key[0] === 'aylul-agent') && key[2] === 'threads'
   } })
 }
-
 
 export type PlanningThread = components['schemas']['PlanningThread']
 

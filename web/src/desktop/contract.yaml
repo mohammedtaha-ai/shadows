@@ -47,6 +47,6 @@ companion_send:
   noteCompanionSend: Capture selected-agent generation, validate the existing thread profile and attempt native targeting; report a fixed independent issue without throwing into ordinary Send/Queue.
   useCompanionSendProblem: Read the current thread's binding issue from an in-memory external store.
 
-startup_entry: "startup.ts exposes readiness ordering, loadNativeGate (a deferred import of bootstrap.tsx, so the browser page never loads the native gate) and the connection calls and types used by the pre-readiness ConnectionSettings screen; its static graph cannot reach api/client.ts."
+startup_entry: "startup.ts exposes readiness ordering, loadNativeGate (a deferred import of bootstrap.tsx, so the browser page never loads the native gate) and the connection calls and types used by the pre-readiness ConnectionSettings screen; its static graph cannot reach api/transport/index.ts."
 
 feature_entry: "index.ts exposes noteCompanionSend, useCompanionSendProblem, isDesktop, aylulMessage, answerRequest, approveRule, dismissRefusal, previewRule, AylulState, Pending, connectCompanion, setCompanionVisible, setCompanionPaused, CompanionState, retryConnection, connectBinding, useCompanionBinding, selectCompanionAgent, setCompanionPreviews, BindingView, Plan, installHooks, previewHooks, getState, AuthAction, AuthView, getDesktopPreferences, setDesktopPreferences, DesktopPreferences, authAction, cancelLogin, refreshCompanionAppearance, hideToTray, connectNavigation."

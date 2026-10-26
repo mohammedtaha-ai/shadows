@@ -43,7 +43,7 @@ shapes:
 # ── external types ───────────────────────────────────────────────────────────────
 
 external:
-  Project: "web/src/api/client; id, name, slug, directory, allowed_modes"
+  Project: "web/src/api/projects; id, name, slug, directory, allowed_modes"
   CreateProject: "name, slug, directory, command_id"
   DirectoryEntry: "name, path, hidden"
   DirectoryListing: "path, parent, entries"

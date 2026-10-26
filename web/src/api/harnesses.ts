@@ -1,11 +1,10 @@
-import { client, unwrap } from './transport'
-import type { components } from './schema'
 import { queryOptions } from '@tanstack/react-query'
+import type { components } from './schema'
+import { client, unwrap } from './transport'
 
 export const harnessKeys = { list: () => ['harnesses'] }
 // Harness capabilities can change, so reads retain normal focus refetching.
 export const harnessesQuery = queryOptions({ queryKey: harnessKeys.list(), queryFn: listHarnesses })
-
 
 export type HarnessInfo = components['schemas']['HarnessInfo']
 

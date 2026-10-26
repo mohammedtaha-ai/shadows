@@ -1,9 +1,8 @@
-import { client, unwrap } from './transport'
-import type { components } from './schema'
 // A thread's harness session in the cache: its choices and its slash commands.
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-
 import { writeSaved } from './saved-answer'
+import type { components } from './schema'
+import { client, unwrap } from './transport'
 
 export const sessionKeys = {
   choices: (threadId: string) => ['threads', threadId, 'session'] as const,
@@ -42,7 +41,6 @@ export function reopenSession(client: QueryClient, threadId: string) {
 export function saveSessionAnswer(client: QueryClient, threadId: string, choices: SessionChoices) {
   return writeSaved(client, sessionKeys.choices(threadId), choices)
 }
-
 
 export type Choice = components['schemas']['Choice']
 

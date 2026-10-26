@@ -1,14 +1,13 @@
-import { client, unwrap, unwrapEmpty } from './transport'
-import type { components } from './schema'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-
 import { writeSaved } from './saved-answer'
+import type { components } from './schema'
+import { client, unwrap, unwrapEmpty } from './transport'
+
 export const codeKeys = {
   settings: () => ['code', 'settings'],
   status: (projectId: string) => ['projects', projectId, 'code', 'status'],
   links: (projectId: string) => ['projects', projectId, 'code', 'links'],
 }
-
 
 /** How a project's code index stands (§15.5). The index changes on its own
  * as files do, so it is polled while shown: every 2 s while it indexes, so
@@ -21,7 +20,6 @@ export function codeStatusQuery(projectId: string) {
   })
 }
 
-
 /** The projects whose index this one reads, by slug (§15.6). */
 export function codeLinksQuery(projectId: string) {
   return queryOptions({
@@ -29,7 +27,6 @@ export function codeLinksQuery(projectId: string) {
     queryFn: () => listCodeLinks(projectId),
   })
 }
-
 
 /** The code index's settings, global to the daemon (§15.6). */
 export const codeSettingsQuery = queryOptions({
@@ -42,7 +39,6 @@ export function saveCodeSettingsAnswer(client: QueryClient, settings: CodeSettin
 export function saveUnlinkedCodeAnswer(client: QueryClient, projectId: string, linked: string) {
   return writeSaved<ProjectLink[]>(client, codeKeys.links(projectId), links => links?.filter(value => value.linked !== linked))
 }
-
 
 export type ProjectStatus = components['schemas']['ProjectStatus']
 

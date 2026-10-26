@@ -34,7 +34,7 @@ refresh_pinning:
 #
 # Declared here, consumed by the graph components. Wire types (Plan, PlanTask,
 # PlanLink, LinkedTask, WrittenBy, PlanMap, MapPlan, PlanListing) come from
-# '@/api/client' and are owned by web/src/api/schema.d.ts. Not restated.
+# '@/api/workflows' and are owned by web/src/api/schema.d.ts. Not restated.
 
 TaskData:
   task: PlanTask

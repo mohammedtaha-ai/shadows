@@ -119,31 +119,31 @@ shapes:
 
 enums:
   SessionChoices:
-    source: "web/src/api/client.ts (SessionChoices: current, modes, models, efforts, capabilities)"
+    source: "web/src/api/sessions.ts (SessionChoices: current, modes, models, efforts, capabilities)"
     values: []
   TurnSettings:
-    source: "web/src/api/client.ts (TurnSettings: mode, model, effort)"
+    source: "web/src/api/sessions.ts (TurnSettings: mode, model, effort)"
     values: []
   Choice:
-    source: "web/src/api/client.ts (Choice: id, label, description, enabled, reason)"
+    source: "web/src/api/sessions.ts (Choice: id, label, description, enabled, reason)"
     values: []
   Attempt:
     source: web/src/api/command-id.ts
     values: []
   Plan:
-    source: web/src/api/client.ts
+    source: web/src/api/workflows.ts
     values: []
   PlanTask:
-    source: web/src/api/client.ts
+    source: web/src/api/workflows.ts
     values: []
   ThreadEntry:
-    source: "web/src/api/client.ts (fields incl. kind, ordinal, body, card, refs, operation_id, attachments)"
+    source: "web/src/api/threads.ts (fields incl. kind, ordinal, body, card, refs, operation_id, attachments)"
     values: []
   Operation:
-    source: "web/src/api/client.ts (fields incl. status_kind, cancel_requested_at, invocation)"
+    source: "web/src/api/threads.ts (fields incl. status_kind, cancel_requested_at, invocation)"
     values: []
   PlanningThread:
-    source: web/src/api/client.ts
+    source: web/src/api/threads.ts
     values: []
   SubagentCard:
     source: web/src/stream/frames.ts (readSubagentCard)
@@ -1055,13 +1055,13 @@ open_questions:
       Does the app's QueryClient garbage-collect `sessionKeys.commands` entries? `useCommands` has no fetch,
       so
       a thread's `/` list with no mounted observer is collected after the default gcTime and comes
-      back empty until the stream resends it. Inspect the QueryClient defaults (api/queries or the
+      back empty until the stream resends it. Inspect the QueryClient defaults (the
       app root) and whether the stream resends commands on reopen.
 
   - >
       Do vision, map and roadmap approvals refresh their card's status? `onSuccess` invalidates
       `['projects', projectId, 'design']`. The card reads `visionProposalsQuery` (and its map and
-      roadmap twins). Inspect web/src/api/queries.ts for those keys' prefix. The success tests pass,
+      roadmap twins). Inspect web/src/api/design.ts for those keys' prefix. The success tests pass,
       so some other path refetches; find it.
 
   - >

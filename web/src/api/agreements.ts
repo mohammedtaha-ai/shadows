@@ -1,8 +1,7 @@
-import { client, unwrap } from './transport'
-import type { components } from './schema'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-
 import { writeSaved } from './saved-answer'
+import type { components } from './schema'
+import { client, unwrap } from './transport'
 
 export const agreementKeys = {
   list: (projectId: string) => ['projects', projectId, 'agreements'],
@@ -28,7 +27,6 @@ export function invalidateAgreements(client: QueryClient, projectId: string): vo
   void client.invalidateQueries({ queryKey: agreementKeys.list(projectId) })
   invalidateAgreementVersions(client, projectId)
 }
-
 
 export type AgreementVersion = components['schemas']['AgreementVersion']
 

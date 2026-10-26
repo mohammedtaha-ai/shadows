@@ -39,9 +39,9 @@ shapes:
 
 external:
   Desktop: "Native-only Local activity link and Hide to tray; failures shown locally"
-  Project: "web/src/api/client; id, slug, name, directory"
-  PlanningThread: "web/src/api/client; id, project_id, title, removed_at"
-  PlanListing: "web/src/api/client; id, plan_id, plan_state, title, state, version"
+  Project: "web/src/api/projects; id, slug, name, directory"
+  PlanningThread: "web/src/api/threads; id, project_id, title, removed_at"
+  PlanListing: "web/src/api/workflows; id, plan_id, plan_state, title, state, version"
   Agent: "web/src/api/aylul-profiles; slug, name, provider, default_model"
 
 

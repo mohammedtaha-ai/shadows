@@ -487,7 +487,7 @@ not_the_caller's:
 # ── tests ────────────────────────────────────────────────────────────────────
 
 tests:
-  # transport/client.test.ts
+  # requests.test.ts (domain operations, read off a stubbed fetch)
   - name: startTurn sends the settings, the caller's command id and its tab
     checks: >
       Two startTurn calls send bodies with the caller's command ids, the settings spread in,
@@ -715,6 +715,7 @@ projects_operations:
   owner: projects.ts
   operations: "listProjects createProject setProjectModes removeProject getInstructions saveInstructions listGrants issueGrant revokeGrant projectEventsUrl"
   types: "Project CreateProject InstructionsVersion Grant IssuedGrant; generated schema aliases"
+  daemon_url: "re-exports the transport's DAEMON_URL for the daemon-status screen, which names the origin the projects probe reached; the value is still held by transport/index.ts"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 code_operations:
@@ -773,5 +774,6 @@ transport_boundary:
   owner: transport/index.ts
   public_errors: "error.ts exposes ApiError, Problem and ErrorCode; request unwrapping stays private to API domains"
   origin_setup: "daemon-origin.ts accepts native readiness configuration without loading the transport; transport/index.ts freezes DAEMON_URL on import"
-  callers: "Features import domain entries under api/*; public_entry refuses imports under api/transport/"
+  callers: "Features import domain entries under api/*; public_entry refuses imports under api/transport/ (fixture: rejects a feature import of the API transport)"
+  error_import: "error.ts re-exports from the transport, so importing ApiError evaluates the transport and freezes DAEMON_URL; a start-up entry may import it only as a type"
   startup: "startup_api rejects static transport reachability from main.tsx and the desktop startup entries"

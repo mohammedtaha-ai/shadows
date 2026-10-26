@@ -1,10 +1,9 @@
-import { client, unwrap } from './transport'
 // The project design workspace's server state, from HTTP call to cache.
 import { queryOptions, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-
+import { useState } from 'react'
 import { writeSaved } from './saved-answer'
 import type { components } from './schema'
-import { useState } from 'react'
+import { client, unwrap } from './transport'
 
 export type VisionContent = components['schemas']['VisionContent']
 export type VisionView = components['schemas']['VisionView']
@@ -95,16 +94,13 @@ export const designKeys = {
   preview: (projectId: string) => ['projects', projectId, 'design', 'structure-preview'],
 }
 
-
 export function standardsQuery(projectId: string) {
   return queryOptions({ queryKey: designKeys.standards(projectId), queryFn: () => getStandards(projectId) })
 }
 
-
 export function stageQuery(projectId: string) {
   return queryOptions({ queryKey: designKeys.stage(projectId), queryFn: () => getStage(projectId) })
 }
-
 
 export function visionQuery(projectId: string) {
   return queryOptions({
@@ -113,24 +109,20 @@ export function visionQuery(projectId: string) {
   })
 }
 
-
 export function visionProposalsQuery(projectId: string) {
   return queryOptions({ queryKey: designKeys.visionProposals(projectId),
     queryFn: () => listVisionProposals(projectId) })
 }
-
 
 export function mapProposalsQuery(projectId: string) {
   return queryOptions({queryKey:designKeys.mapProposals(projectId),
     queryFn:() => listMapProposals(projectId)})
 }
 
-
 export function roadmapProposalsQuery(projectId: string) {
   return queryOptions({queryKey:designKeys.roadmapProposals(projectId),
     queryFn:() => listRoadmapProposals(projectId)})
 }
-
 
 export function partQuery(projectId: string, partId: string) {
   return queryOptions({ queryKey: designKeys.part(projectId, partId), queryFn: () => getPart(projectId, partId) })
@@ -188,7 +180,6 @@ export function usePartPages(projectId: string, parent?: string) {
 export function invalidateDesign(client: QueryClient, projectId: string): void {
   void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
 }
-
 
 export type EffectiveStandards = components['schemas']['EffectiveStandards']
 

@@ -155,6 +155,9 @@ export const fixtures: Fixture[] = [
   { name: 'allows a declared public edge in the approved graph', rule: 'public_entry', count: 0, overrides: { agents: { entries: ['app/agents/index.ts'] } }, sources: {
     'app/settings/view.ts': "import { value } from '../agents'", 'app/agents/index.ts': 'export const value = 1',
   } },
+  { name: 'rejects a feature import of the API transport', rule: 'public_entry', sources: {
+    'app/settings/view.ts': "import { client } from '@/api/transport'; void client", 'api/transport/index.ts': 'export const client = 1',
+  } },
   { name: 'does not confuse a shadowed window with the global object', rule: 'server_access', count: 0, sources: {
     'app/agents/view.ts': "function load(window: { fetch: () => void }) { window.fetch() }",
   } },

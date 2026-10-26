@@ -36,7 +36,7 @@ shapes:
 # ── external types ───────────────────────────────────────────────────────────────
 
 external:
-  Project: "web/src/api/client; id, slug, name, directory, allowed_modes"
+  Project: "web/src/api/projects; id, slug, name, directory, allowed_modes"
   ProjectLink: "project, linked, created_at"
   ProjectStatus: "state (ready | indexing | inactive | no_directory | directory_missing),
     files, skipped, updated_at"

@@ -1,15 +1,14 @@
-import { client, DAEMON_URL, unwrap } from './transport'
-import type { components } from './schema'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-
 import { writeSaved } from './saved-answer'
+import type { components } from './schema'
+import { client, DAEMON_URL, unwrap } from './transport'
+
 export const projectKeys = {
   all: () => ['projects'],
   project: (projectId: string) => ['projects', projectId],
   instructions: (projectId: string) => ['projects', projectId, 'instructions'],
   grants: (projectId: string) => ['projects', projectId, 'grants'],
 }
-
 
 /** The project list, which the app shell also reads as "is the daemon there".
  *
@@ -27,7 +26,6 @@ export const projectsQuery = queryOptions({
   refetchInterval: (query) => (query.state.data === undefined ? false : 10_000),
 })
 
-
 /** A project's current Planner instructions (spec §13.8). */
 export function instructionsQuery(projectId: string) {
   return queryOptions({
@@ -35,7 +33,6 @@ export function instructionsQuery(projectId: string) {
     queryFn: () => getInstructions(projectId),
   })
 }
-
 
 /** A project's grants for external agents (spec §13.7). No thread's stream
  * carries them, so the list is polled every 10 s while shown. */
@@ -65,7 +62,6 @@ export function saveRevokedGrantAnswer(client: QueryClient, projectId: string, r
 export function invalidateProjects(client: QueryClient): void {
   void client.invalidateQueries({ queryKey: projectsQuery.queryKey, exact: true })
 }
-
 
 export type Project = components['schemas']['Project']
 

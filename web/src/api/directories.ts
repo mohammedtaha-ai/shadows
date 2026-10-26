@@ -1,9 +1,8 @@
-import { client, unwrap } from './transport'
-import type { components } from './schema'
 import { queryOptions } from '@tanstack/react-query'
+import type { components } from './schema'
+import { client, unwrap } from './transport'
 
 export const directoryKeys = { children: (path: string | null) => ['fs', 'dirs', path] }
-
 
 /** One directory's subdirectories; `null` lists the roots. Not retried: a
  * path that does not exist is an answer, shown as it is. */
@@ -14,7 +13,6 @@ export function dirsQuery(path: string | null) {
     retry: false,
   })
 }
-
 
 export type DirectoryListing = components['schemas']['DirectoryListing']
 

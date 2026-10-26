@@ -1,7 +1,9 @@
-// Shared HTTP transport; domain modules own request operations.
+// The one transport to the daemon: the generated client, the origin it is
+// bound to, and how a failed call becomes one typed error. Domain modules own
+// the operations; nothing outside `api/` imports this module.
 import createClient from 'openapi-fetch'
 import { daemonOrigin } from '../daemon-origin'
-import type { paths } from '../schema'
+import type { components, paths } from '../schema'
 
 /** The daemon's origin, without a trailing slash. */
 export const DAEMON_URL = daemonOrigin()
@@ -10,9 +12,6 @@ export const DAEMON_URL = daemonOrigin()
 // openapi-fetch does by default), so a test that stubs it is heard however
 // early this module was imported.
 export const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
-
-
-import type { components } from '../schema'
 
 export type ErrorCode = components['schemas']['ErrorCode']
 type ErrorBody = components['schemas']['ErrorBody']

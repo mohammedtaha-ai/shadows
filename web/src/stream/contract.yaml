@@ -111,9 +111,9 @@ shapes:
 
 
 externally_owned:
-  SessionChoices: "imported from @/api/client, which re-exports schema.d.ts; not redefined here"
-  AccountLimits: "imported from @/api/client (schema.d.ts); toLimits maps it to Limits"
-  Choice: "imported from @/api/client (schema.d.ts); isChoice checks its shape"
+  SessionChoices: "imported from @/api/sessions, which re-exports schema.d.ts; not redefined here"
+  AccountLimits: "imported from @/api/sessions (schema.d.ts); toLimits maps it to Limits"
+  Choice: "imported from @/api/sessions (schema.d.ts); isChoice checks its shape"
   EventSource: "the browser's; the only one of these that is not in this folder"
 
 
@@ -184,15 +184,15 @@ agreements:
     holds: true
     why: >
       The API method matches key[0] 'projects' or 'aylul-agent' and key[2] 'threads', the shapes
-      threadsQuery (src/api/queries.ts) and agentThreadsQuery (src/api/aylul-profiles.ts) build.
+      threadsQuery (src/api/threads.ts) and agentThreadsQuery (src/api/aylul-profiles.ts) build.
     tested_by: "reads the thread lists again on a retitle: live at once, replayed at the caught-up"
 
-  - between: [use-project-events design invalidation, design keys in src/api/queries.ts]
+  - between: [use-project-events design invalidation, design keys in src/api/design.ts]
     must: >
       invalidate the ['projects', id, 'design'] prefix that every design query key begins with
     holds: true
     why: >
-      Each design query in queries.ts starts with ['projects', projectId, 'design'].
+      Each design query in design.ts starts with ['projects', projectId, 'design'].
     tested_by: >
       "independent tabs refresh every design slice, deduplicate and resume after disconnect"
     note: >
@@ -209,7 +209,7 @@ agreements:
 
   - between: [threadEntriesKey, threadOperationsKey]
     must: >
-      be the keys the thread hook invalidates, by the same function queries.ts exports
+      be the keys the thread hook invalidates, by the same function threads.ts exports
     holds: true
     why: >
       The dispatcher calls api/threads invalidation methods using those same key factories.
@@ -472,12 +472,6 @@ open_questions:
   - >
     `plan-show` is delivered as a notice whenever it arrives, with no replay check, although the
     frame's comment says it is live only. Confirm the daemon's subscribe handler never replays it.
-
-  - >
-    Agreement keys: use-project-events.ts invalidates ['projects', id, 'agreements'] and
-    ['projects', id, 'agreement']. Those keys are literal in src/app/agreements/*.tsx and not in
-    src/api/queries.ts. Confirmed only by grep of those files; their bodies were not read. A
-    rename there silently stops the refetch.
 
   - >
     ThreadRetitled invalidates the thread lists but not threadQuery's detail key. conversation.tsx

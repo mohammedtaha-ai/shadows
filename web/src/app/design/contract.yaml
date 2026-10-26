@@ -30,7 +30,7 @@ source: web/src/app/design
 # Declared here. View and Content types (PartView, PartContent, OutcomeView,
 # OutcomeContent, VisionView, VisionItem, VisionContent, Part, Outcome,
 # EffectiveStandards, StandardsAdditions, StructureWritten, DesignEdit) come from
-# '@/api/design' and '@/api/client'. Not restated.
+# '@/api/design'. Not restated.
 
 DesignEditorConfig:
   # Generic over View (a detail read) and Content (the editable fields).
