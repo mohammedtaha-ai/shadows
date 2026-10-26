@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
 import { projectKeys, projectsQuery, instructionsQuery, grantsQuery, saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer, saveRevokedGrantAnswer } from './projects'
-import type { Project, Grant, InstructionsVersion } from './client'
+import type { Project, Grant, InstructionsVersion } from './projects'
 it.each(['modes', 'remove', 'instructions', 'revoke'])('%s answers survive a stale in-flight read', async kind => {
   const client = new QueryClient()
   const project = { id: 'p', name: 'saved' } as Project

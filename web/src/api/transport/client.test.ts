@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeChoices, threadFixture } from '@/test/contract-fixtures'
-import { setProjectModes } from '../client'
+import { setProjectModes } from '../projects'
 import { openSession } from '../sessions'
 import { attachmentUrl, uploadAttachment, forkThread, setThreadHarness, startTurn } from '../threads'
 

@@ -6,9 +6,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { type InstructionsVersion, saveInstructions } from '@/api/client'
+import { type InstructionsVersion, saveInstructions } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { instructionsQuery } from '@/api/queries'
+import { instructionsQuery } from '@/api/projects'
 import { saveInstructionsAnswer } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'

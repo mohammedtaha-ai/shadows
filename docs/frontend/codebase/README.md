@@ -152,7 +152,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/directories.ts` | Directory query identities | `web/src/api/contract.yaml` |
 | `web/src/api/harnesses.ts` | Harness query identity | `web/src/api/contract.yaml` |
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
-| `web/src/api/projects.ts` | Project settings query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/projects.ts` | Project server state | `web/src/api/contract.yaml` |
 | `web/src/api/sessions.ts` | Harness session server state | `web/src/api/contract.yaml` |
 | `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
 | `web/src/api/workflows.ts` | Workflow query cache ownership | `web/src/api/contract.yaml` |

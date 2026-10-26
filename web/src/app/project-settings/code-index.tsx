@@ -7,15 +7,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, X } from 'lucide-react'
 import { useRef } from 'react'
-import {
-  type Project,
-  type ProjectLink,
-  type ProjectStatus,
-  putCodeLink,
-  removeCodeLink,
-} from '@/api/client'
+import { type ProjectLink, type ProjectStatus, putCodeLink, removeCodeLink } from '@/api/client'
+import { type Project } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { codeLinksQuery, codeStatusQuery, projectsQuery } from '@/api/queries'
+import { codeLinksQuery, codeStatusQuery } from '@/api/queries'
+import { projectsQuery } from '@/api/projects'
 import { saveUnlinkedCodeAnswer } from '@/api/code'
 import { Button } from '@/components/ui/button'
 import {

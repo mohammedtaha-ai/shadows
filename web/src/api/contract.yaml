@@ -708,3 +708,9 @@ sessions_operations:
   operations: "openSession changeModel changeEffort changeMode readContext"
   types: "Choice SessionChoices AccountLimits TurnSettings ContextBreakdown; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+projects_operations:
+  owner: projects.ts
+  operations: "listProjects createProject setProjectModes removeProject getInstructions saveInstructions listGrants issueGrant revokeGrant projectEventsUrl"
+  types: "Project CreateProject InstructionsVersion Grant IssuedGrant; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

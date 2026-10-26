@@ -5,7 +5,6 @@ export { workflowsKey, planMapQuery, plansQuery, planVersionsQuery, planQuery } 
 export { standardsQuery, stageQuery, visionQuery, visionProposalsQuery, mapProposalsQuery, roadmapProposalsQuery, partQuery, outcomeQuery, outcomesQuery, partsQuery } from './design'
 
 
-export { projectsQuery, instructionsQuery, grantsQuery } from './projects'
 
 export { codeStatusQuery, codeLinksQuery, codeSettingsQuery } from './code'
 

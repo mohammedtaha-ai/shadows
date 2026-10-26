@@ -7,7 +7,7 @@
 
 import { notifyManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { type Project, setProjectModes } from '@/api/client'
+import { type Project, setProjectModes } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery } from '@/api/queries'
 import { saveProjectAnswer } from '@/api/projects'

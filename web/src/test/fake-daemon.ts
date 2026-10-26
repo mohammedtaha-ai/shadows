@@ -3,7 +3,8 @@
 // (`w1`), instructions or grant unless a test gives it one, for `startApp`.
 // Each answer is the contract fixture unless the test overrides it. Test-only.
 
-import type { Grant, EffectiveStandards, StandardsAdditions, InstructionsVersion, Plan, PlanListing, Project } from '@/api/client'
+import type { EffectiveStandards, StandardsAdditions, Plan, PlanListing } from '@/api/client'
+import type { Grant, InstructionsVersion, Project } from '@/api/projects'
 import type { Operation, ThreadEntry } from '@/api/threads'
 import type { Answer } from '@/app/test-app'
 import {

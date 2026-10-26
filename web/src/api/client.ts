@@ -1,10 +1,9 @@
 // Domain HTTP operations pending migration to their owners.
-import { client, DAEMON_URL, unwrap, unwrapEmpty } from './transport'
+import { client, unwrap, unwrapEmpty } from './transport'
 export { client, DAEMON_URL } from './transport'
 import type { components } from './schema'
 
 type Schemas = components['schemas']
-export type Project = Schemas['Project']
 export type AgreementVersion = Schemas['AgreementVersion']
 export type AgreementContent = Schemas['AgreementContent']
 export type AgreementReview = Schemas['AgreementReview']
@@ -12,7 +11,6 @@ export type AgreementBinding = Schemas['AgreementBinding']
 export type PlanOp = Schemas['PlanOp']
 export type DirectoryListing = Schemas['DirectoryListing']
 export type DirectoryEntry = Schemas['DirectoryEntry']
-export type CreateProject = Schemas['CreateProject']
 export type HarnessInfo = Schemas['HarnessInfo']
 export type Plan = Schemas['Plan']
 export type PlanTask = Schemas['PlanTask']
@@ -25,13 +23,10 @@ export type PlanVersions = Schemas['PlanVersions']
 export type VersionLine = Schemas['VersionLine']
 export type WrittenBy = Schemas['WrittenBy']
 export type Approved = Schemas['Approved']
-export type InstructionsVersion = Schemas['InstructionsVersion']
 export type EffectiveStandards = Schemas['EffectiveStandards']
 export type StandardsAdditions = Schemas['StandardsAdditions']
 export type StandardsAdditionsVersion = Schemas['StandardsAdditionsVersion']
 export type StageView = Schemas['StageView']
-export type Grant = Schemas['Grant']
-export type IssuedGrant = Schemas['IssuedGrantBody']
 export type ProjectStatus = Schemas['ProjectStatus']
 export type IndexState = Schemas['IndexState']
 export type ProjectLink = Schemas['ProjectLink']
@@ -41,43 +36,6 @@ export type CodeSettings = Schemas['CodeSettings']
  * latest reported limits (spec §12.10). */
 export function listHarnesses(): Promise<HarnessInfo[]> {
   return unwrap(client.GET('/api/harnesses'))
-}
-
-/** Every project, oldest first. Also the reachability probe: it is the
- * cheapest call that proves the daemon answers this origin. */
-export function listProjects(): Promise<Project[]> {
-  return unwrap(client.GET('/api/projects'))
-}
-
-/** Creates a project owning an existing directory. Replaying the same
- * `command_id` with the same body answers the first result. */
-export function createProject(body: CreateProject): Promise<Project> {
-  return unwrap(client.POST('/api/projects', { body }))
-}
-
-/** Sets the modes a project allows, per harness kind (spec §12.5). */
-export function setProjectModes(
-  projectId: string,
-  commandId: string,
-  allowedModes: Record<string, string[]>,
-): Promise<Project> {
-  return unwrap(
-    client.PATCH('/api/projects/{id}', {
-      params: { path: { id: projectId } },
-      body: { command_id: commandId, allowed_modes: allowedModes },
-    }),
-  )
-}
-
-/** Removes a project that holds no conversation (spec §4.2): it is listed
- * nowhere again, its code index, links and grants go, its folder is not
- * touched and its slug stays taken. Refused `PROJECT_HAS_THREADS` otherwise. */
-export function removeProject(projectId: string, commandId: string): Promise<Project> {
-  return unwrap(
-    client.DELETE('/api/projects/{id}', {
-      params: { path: { id: projectId }, query: { command_id: commandId } },
-    }),
-  )
 }
 
 /** How a project's code index stands (§15.5). Asking does not make it active. */
@@ -194,14 +152,6 @@ export function approvePlan(
   )
 }
 
-/** The project's current instructions, or `null` before the first save
- * (spec §13.8). */
-export function getInstructions(projectId: string): Promise<InstructionsVersion | null> {
-  return unwrap(
-    client.GET('/api/projects/{id}/planner-instructions', { params: { path: { id: projectId } } }),
-  )
-}
-
 /** Compiled-in standards with this project's latest additions (§23.2). */
 export function getStandards(projectId: string): Promise<EffectiveStandards> {
   return unwrap(client.GET('/api/projects/{id}/standards', { params: { path: { id: projectId } } }))
@@ -220,48 +170,6 @@ export function getStage(projectId: string): Promise<StageView> {
   return unwrap(client.GET('/api/projects/{id}/stage', { params: { path: { id: projectId } } }))
 }
 
-/** Saves the project's instructions as its next version (spec §13.8). */
-export function saveInstructions(
-  projectId: string,
-  commandId: string,
-  body: string,
-): Promise<InstructionsVersion> {
-  return unwrap(
-    client.PUT('/api/projects/{id}/planner-instructions', {
-      params: { path: { id: projectId } },
-      body: { command_id: commandId, body },
-    }),
-  )
-}
-
-/** A project's grants for external agents, revoked ones included, newest
- * first (spec §13.7). */
-export function listGrants(projectId: string): Promise<Grant[]> {
-  return unwrap(
-    client.GET('/api/projects/{id}/mcp-grants', { params: { path: { id: projectId } } }),
-  )
-}
-
-/** Connect: issues a grant bound to the project. Its `command` and `token`
- * are in this answer only, and `null` when the command is a replay. */
-export function issueGrant(projectId: string, commandId: string): Promise<IssuedGrant> {
-  return unwrap(
-    client.POST('/api/projects/{id}/mcp-grants', {
-      params: { path: { id: projectId } },
-      body: { command_id: commandId },
-    }),
-  )
-}
-
-/** Revokes a project grant; Shadows refuses its token from then on. */
-export function revokeGrant(grantId: string, commandId: string): Promise<Grant> {
-  return unwrap(
-    client.DELETE('/api/mcp-grants/{id}', {
-      params: { path: { id: grantId }, query: { command_id: commandId } },
-    }),
-  )
-}
-
 /** One directory's subdirectories, or with no path the roots (drives). */
 export function listDirs(path: string | null): Promise<DirectoryListing> {
   return unwrap(
@@ -272,13 +180,6 @@ export function listDirs(path: string | null): Promise<DirectoryListing> {
 /** Creates one directory named `name` inside `parent`. */
 export function createDir(parent: string, name: string): Promise<DirectoryEntry> {
   return unwrap(client.POST('/api/fs/dirs', { body: { parent, name } }))
-}
-
-/** Plan notifications of one project, resumed by the existing journal cursor. */
-export function projectEventsUrl(projectId: string, after: number): string {
-  const url = new URL(`/api/projects/${encodeURIComponent(projectId)}/events`, DAEMON_URL)
-  url.searchParams.set('after', String(after))
-  return url.toString()
 }
 
 export function listAgreements(projectId: string): Promise<AgreementVersion[]> {

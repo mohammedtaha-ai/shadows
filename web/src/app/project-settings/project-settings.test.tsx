@@ -6,7 +6,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { grantsQuery } from '@/api/queries'
+import { grantsQuery } from '@/api/projects'
 import { grantFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, typeInto, until } from '../test-app'
