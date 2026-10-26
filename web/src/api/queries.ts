@@ -6,7 +6,6 @@ export { standardsQuery, stageQuery, visionQuery, visionProposalsQuery, mapPropo
 
 
 
-export { codeStatusQuery, codeLinksQuery, codeSettingsQuery } from './code'
 
 export { dirsQuery } from './directories'
 

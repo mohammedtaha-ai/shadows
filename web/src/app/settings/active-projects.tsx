@@ -3,9 +3,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useRef, useState } from 'react'
-import { type CodeSettings, setActiveLimit } from '@/api/client'
+import { type CodeSettings, setActiveLimit } from '@/api/code'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { codeSettingsQuery } from '@/api/queries'
+import { codeSettingsQuery } from '@/api/code'
 import { saveCodeSettingsAnswer } from '@/api/code'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

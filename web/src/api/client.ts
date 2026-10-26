@@ -1,5 +1,5 @@
 // Domain HTTP operations pending migration to their owners.
-import { client, unwrap, unwrapEmpty } from './transport'
+import { client, unwrap } from './transport'
 export { client, DAEMON_URL } from './transport'
 import type { components } from './schema'
 
@@ -27,70 +27,11 @@ export type EffectiveStandards = Schemas['EffectiveStandards']
 export type StandardsAdditions = Schemas['StandardsAdditions']
 export type StandardsAdditionsVersion = Schemas['StandardsAdditionsVersion']
 export type StageView = Schemas['StageView']
-export type ProjectStatus = Schemas['ProjectStatus']
-export type IndexState = Schemas['IndexState']
-export type ProjectLink = Schemas['ProjectLink']
-export type CodeSettings = Schemas['CodeSettings']
 
 /** The CLIs a conversation can run on, with what each remembers and its
  * latest reported limits (spec §12.10). */
 export function listHarnesses(): Promise<HarnessInfo[]> {
   return unwrap(client.GET('/api/harnesses'))
-}
-
-/** How a project's code index stands (§15.5). Asking does not make it active. */
-export function getCodeStatus(projectId: string): Promise<ProjectStatus> {
-  return unwrap(
-    client.GET('/api/projects/{id}/code/status', { params: { path: { id: projectId } } }),
-  )
-}
-
-/** The projects whose index this one reads, by slug (§15.6). */
-export function listCodeLinks(projectId: string): Promise<ProjectLink[]> {
-  return unwrap(
-    client.GET('/api/projects/{id}/code/links', { params: { path: { id: projectId } } }),
-  )
-}
-
-/** Lets the project read `linkedId`'s index, one way (§15.6). */
-export function putCodeLink(
-  projectId: string,
-  linkedId: string,
-  commandId: string,
-): Promise<ProjectLink> {
-  return unwrap(
-    client.PUT('/api/projects/{id}/code/links/{linked}', {
-      params: { path: { id: projectId, linked: linkedId } },
-      body: { command_id: commandId },
-    }),
-  )
-}
-
-/** Removes the link: the project no longer reads `linkedId`'s index. */
-export function removeCodeLink(
-  projectId: string,
-  linkedId: string,
-  commandId: string,
-): Promise<void> {
-  return unwrapEmpty(
-    client.DELETE('/api/projects/{id}/code/links/{linked}', {
-      params: { path: { id: projectId, linked: linkedId }, query: { command_id: commandId } },
-    }),
-  )
-}
-
-/** The code index's settings: how many projects are active at once (§15.6). */
-export function getCodeSettings(): Promise<CodeSettings> {
-  return unwrap(client.GET('/api/code/settings'))
-}
-
-/** Sets how many projects are active at once, 1 to 20 (§15.6). */
-export function setActiveLimit(commandId: string, activeLimit: number): Promise<CodeSettings> {
-  return unwrap(
-    client.PUT('/api/code/settings', {
-      body: { command_id: commandId, active_limit: activeLimit },
-    }),
-  )
 }
 
 /** Each project's plan by its latest version, or archived ones too (§16.2). */

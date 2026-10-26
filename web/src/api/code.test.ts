@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
 import { codeKeys, codeSettingsQuery, codeStatusQuery, codeLinksQuery, saveCodeSettingsAnswer, saveUnlinkedCodeAnswer } from './code'
-import type { ProjectLink } from './client'
+import type { ProjectLink } from './code'
 it.each(['settings', 'unlink'])('%s saved answers survive stale reads', async kind => {
   const client = new QueryClient()
   const key = kind === 'settings' ? codeKeys.settings() : codeKeys.links('p')

@@ -714,3 +714,9 @@ projects_operations:
   operations: "listProjects createProject setProjectModes removeProject getInstructions saveInstructions listGrants issueGrant revokeGrant projectEventsUrl"
   types: "Project CreateProject InstructionsVersion Grant IssuedGrant; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+code_operations:
+  owner: code.ts
+  operations: "getCodeStatus listCodeLinks putCodeLink removeCodeLink getCodeSettings setActiveLimit"
+  types: "ProjectStatus IndexState ProjectLink CodeSettings; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

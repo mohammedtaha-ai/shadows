@@ -6,7 +6,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ProjectLink } from '@/api/client'
+import type { ProjectLink } from '@/api/code'
 import type { Project } from '@/api/projects'
 import { codeStatusFixture, projectFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
