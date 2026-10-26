@@ -100,7 +100,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck`, `npm run lint` and `npm run build` pass
 
 ### F-36 · W-9d: the draft's first send and image uploads get their own owners
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
   (packet d, the last; F-33 to F-35 were a to c)
 - Read: the plan's W-9 and section 4 (the `draft.tsx` and `carried-send.ts` rows);

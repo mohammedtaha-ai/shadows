@@ -329,6 +329,7 @@ hooks:
     signature: "(threadId: string) => SessionView"
     # One POST /session, held as a query: never on a timer or on focus.
   useCarriedSend:
+    source: carried-send.ts
     signature: "(threadId: string) => CarriedSend | null"
     # Reads what carrySend left, once, on the first render.
   useCommands:
@@ -423,14 +424,23 @@ pure:
     signature: "() => (tree: HastNode) => void"
     # Runs after Streamdown's plugins. Gives each block its own direction.
 
+draft_owners:
+  draft.tsx: "DraftRoute, AgentDraftRoute and Draft render the draft routes and page; queries read API-owned state; first-send.ts owns mutations"
+  draft-session.ts: "draftSession offers provisional choices before a session exists; UNOPENED is its private placeholder"
+  first-send.ts: "useFirstSend owns thread creation, companion targeting, list invalidation, session opening, optional model change, staged uploads, first turn and navigation; DRAFT_TITLE is private; a type-only Attempt re-export keeps the handoff free of API imports"
+  carried-send.ts: "CarriedSend, carrySend and useCarriedSend own the one-time failed first-send handoff"
+  upload-images.ts: "PendingImage, uploadImages and retryImageUpload own upload identity, shared in-flight promises, ordered answers and explicit retry"
+
 queries_and_mutations:
   # The session and command keys and cache updates (sessionKeys, replaceChoices,
   # reopenSession, replaceCommands, clearCommands) are api/sessions.ts's; the
   # conversation imports them from there (api/contract.yaml session_cache).
   carrySend:
+    source: carried-send.ts
     signature: "(threadId: string, send: CarriedSend) => void"
     # Module-level map: a draft that failed after its thread existed hands its text here.
   useFirstSend:
+    source: first-send.ts
     signature: "(projectId: string, harness: string, planId?: string, profile?: string) =>
       (commandId: string, text: string, chosen: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>"
     private: true
@@ -1442,10 +1452,10 @@ provider_models: Agent drafts project provider model objects into picker choices
 
 
 image_attachments:
-  owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns previews and image controls; PendingImage in carried-send.ts carries file identity, upload command, answer, error and in-flight promise"
+  owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns previews and image controls; PendingImage in upload-images.ts carries file identity, upload command, answer, error and in-flight promise"
   useImages: "(choices, threadId, inFlight, changed, refuse, initialImages?) => { images, imageReason, filePicker, add, pick, retry, remove, drop, imagesChanged }; changed clears the pending send on add/remove; refuse delivers Core capability refusal to the composer error line"
   PendingImages: "({ images, threadId, inFlight, onRetry, onRemove }) => JSX.Element | null; owns ImagePreview and its object URL cleanup"
-  uploadImages: "carried-send.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
+  uploadImages: "upload-images.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
   intake: "Paste intercepts only image clipboard files in clipboard order; other paste keeps browser behavior. Paste, drop, Add photos and Ctrl+U hand files or picking to useImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
   validation: "Core alone accepts content, media type and size. No frontend type list or size limit. Session capabilities disable intake with image_reason. Draft capability is provisional until the first opened session answers."
   previews: "Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"

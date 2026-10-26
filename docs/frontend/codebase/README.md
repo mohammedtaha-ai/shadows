@@ -179,14 +179,17 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agreements/index.ts` | Expose app/agreements public capabilities | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/conversation/approved-by.tsx` | Attribution line linking to the approving conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/bidi.ts` | Text direction for each block of a reply | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/carried-send.ts` | Carries a failed first message to its thread page | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/carried-send.ts` | Store the failed first-send handoff | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/cli-picker.tsx` | Chooses the CLI a conversation runs on | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer-bar.tsx` | Flat row of composer menus under the message box | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer.tsx` | Compose the message writing surface | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/context-ring.tsx` | Context-usage ring with its two popover levels | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/conversation.tsx` | Open conversation pane, assembled from its parts | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/deleted-conversation.tsx` | Readable history of a removed conversation | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/draft.tsx` | New conversation before its first message is sent | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/draft.tsx` | Render the draft conversation routes | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/draft-session.ts` | Offer choices before a draft session exists | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/first-send.ts` | Orchestrate the draft's first send | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/upload-images.ts` | Upload selected images with replayable commands | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/entry.tsx` | Renders one durable thread entry by its kind | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/focus-chip.tsx` | Chip naming the task a turn points at | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/map-proposal-card.tsx` | Card for an immutable map proposal, with approval state | `web/src/app/conversation/contract.yaml` |

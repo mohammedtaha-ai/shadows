@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import type { SessionChoices } from '@/api/sessions'
-import { uploadImages, retryImageUpload, type PendingImage } from './carried-send'
+import { uploadImages, retryImageUpload, type PendingImage } from './upload-images'
 
 export function useImages(
   choices: SessionChoices | null,

@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { attachmentUrl } from '@/api/threads'
-import type { PendingImage } from './carried-send'
+import type { PendingImage } from './upload-images'
 
 export function PendingImages({ images, threadId, inFlight, onRetry, onRemove }: {
   images: PendingImage[]
