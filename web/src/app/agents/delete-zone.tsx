@@ -25,7 +25,7 @@ export function DeleteZone({ title, summary, consequence, action, pending, error
   const [open, setOpen] = useState(false)
   const confirmation = <ConfirmPanel
     question={action} description={consequence} error={error}
-    confirmLabel={title} pending={pending} pendingLabel="Deleting..." confirmType="button"
+    confirmLabel={title} pending={pending} pendingLabel="Deleting..."
     onCancel={() => setOpen(false)} onConfirm={onConfirm}
     presentation={inline
       ? { kind: 'inline', ariaLabel: action, className: 'grid gap-4', heading: true }

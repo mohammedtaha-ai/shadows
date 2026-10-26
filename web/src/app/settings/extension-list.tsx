@@ -31,7 +31,7 @@ export function ExtensionList({ kind, items }: { kind: ExtensionKind; items: Ite
     </div>
     {confirming?.kind === kind && confirming.id === item.id && <ConfirmPanel
       question={<>Remove {item.name} from the library and from every agent?</>}
-      error={remove.error} confirmLabel="Remove" pending={remove.isPending} confirmType="button"
+      error={remove.error} confirmLabel="Remove" pending={remove.isPending}
       cancelDisabledWhilePending onCancel={() => setConfirming(null)} onConfirm={() => {
         if (locked.current) return
         locked.current = true; remove.mutate({ kind, id: item.id })

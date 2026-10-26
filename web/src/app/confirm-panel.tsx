@@ -9,7 +9,7 @@ type Presentation =
 
 export function ConfirmPanel({
   question, description, error, confirmLabel, pending, pendingLabel = confirmLabel,
-  cancelDisabledWhilePending = false, onCancel, onConfirm, presentation, confirmType,
+  cancelDisabledWhilePending = false, onCancel, onConfirm, presentation,
 }: {
   question: ReactNode
   description?: ReactNode
@@ -21,14 +21,13 @@ export function ConfirmPanel({
   onCancel?: () => void
   onConfirm: () => void
   presentation: Presentation
-  confirmType?: 'button'
 }) {
   const cancel = onCancel
     ? <Button type="button" variant="outline" disabled={cancelDisabledWhilePending && pending} onClick={onCancel}>Cancel</Button>
     : <DialogClose render={<Button type="button" variant="outline" disabled={cancelDisabledWhilePending && pending} />}>Cancel</DialogClose>
   const buttons = <>
     {cancel}
-    <Button type={confirmType} variant="destructive" onClick={onConfirm} disabled={pending}>
+    <Button type="button" variant="destructive" onClick={onConfirm} disabled={pending}>
       {pending ? pendingLabel : confirmLabel}
     </Button>
   </>
