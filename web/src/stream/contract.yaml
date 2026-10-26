@@ -29,11 +29,12 @@ refresh_pinning:
 connection_registry:
   owner: thread-registry.ts
   scope: "One connection per QueryClient/thread or QueryClient/project; construction happens only here."
-  lifetime: "Subscribing acquires a reference; the last subscriber leaving closes the transport and cancels reconnect. Rendering alone opens nothing."
+  lifetime: "Subscribing acquires a reference; the last subscriber leaving closes the transport and cancels reconnect. A repeated departure is ignored and never closes a channel opened after it. Rendering alone opens nothing."
   delivery: "All durable, notice and state listeners share the transport cursor; reconnect resumes after its last applied sequence. A late subscriber reconciles immediately if already live."
   tested_by:
     - shares a thread across sibling subscribers, delivers to both, resumes and closes at the last departure
     - shares writer watchers with a sibling conversation stream until the last watcher leaves
+    - a repeated departure never closes a channel opened after it
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────
@@ -202,7 +203,7 @@ agreements:
       refetch the same plan views for the same event
     holds: true
     why: >
-      refreshSubscriber dispatches classified targets immediately while live, or deduplicates
+      The shared refresh dispatches classified targets immediately while live, or deduplicates
       them until caught-up and dispatches the same targets.
     tested_by: preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
 
@@ -656,9 +657,12 @@ refresh_policy:
   union: "All five plan kinds refresh all workflows plus the source project's design and agreement versions, on every path."
   scope: "Project subscriptions supply their project id; writer subscriptions use the plan's project_id and conversations supply the route project id. Payload project_id is a fallback."
   replay: "Plan targets are deduplicated until caught-up. Project design/agreement notices still refresh during replay. Thread caught-up refreshes entries, operations and workflows; writer caught-up refreshes workflows."
+  sharing: "Holders of one thread or project share one refresh per QueryClient (holdThreadRefresh, holdProjectRefresh): each event and caught-up dispatches once however many views hold it. Thread scope is the union of holders: writer-only while every holder is a writer, the first supplied project id. A holder joining a live stream dispatches only the baseline targets it adds."
   tested_by:
     - pins project refresh for %s
     - pins writer-thread refresh for %s
     - pins conversation refresh for %s
     - classifies the full plan refresh union for %s
     - preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
+    - refreshes once per event however many views share a stream, and a late view on a live stream refetches nothing it already watches
+    - a conversation joining a live writer stream reads its entries and operations once

@@ -4,6 +4,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, it, vi } from 'vitest'
 import { FakeSource } from './fake-event-source'
+import { subscribeThreadStream } from './thread-registry'
 import { useThreadStream } from './use-thread-stream'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -46,4 +47,23 @@ it('shares a thread across sibling subscribers, delivers to both, resumes and cl
     act(() => vi.runOnlyPendingTimers())
     expect(sources).toHaveLength(2)
   } finally { client.clear(); vi.unstubAllGlobals(); vi.useRealTimers() }
+})
+
+it('a repeated departure never closes a channel opened after it', () => {
+  const sources: FakeSource[] = []
+  vi.stubGlobal('EventSource', class extends FakeSource {
+    constructor(url: string) { super(url); sources.push(this) }
+  })
+  const client = new QueryClient()
+  try {
+    const leave = subscribeThreadStream(client, 't1', {})
+    leave()
+    const stay = subscribeThreadStream(client, 't1', {})
+    leave()
+    expect(sources.map(s => s.closed)).toEqual([true, false])
+    const again = subscribeThreadStream(client, 't1', {})
+    expect(sources).toHaveLength(2)
+    again(); stay()
+    expect(sources.every(s => s.closed)).toBe(true)
+  } finally { client.clear(); vi.unstubAllGlobals() }
 })

@@ -5,7 +5,7 @@ import { invalidateAgreements, invalidateAgreementVersions } from '@/api/agreeme
 import { invalidateProjects } from '@/api/projects'
 import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '@/api/threads'
 import type { DurableEvent } from './frames'
-import type { StreamSubscriber } from './thread-registry'
+import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
 
 export type RefreshTarget =
   | { kind: 'workflows' | 'projects' | 'thread-lists' }
@@ -59,18 +59,21 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
   }
 }
 
-/** Replayed notifications reconcile once at caught-up; transient UI listeners still see every event. */
-export function refreshSubscriber(
-  client: QueryClient,
-  scope: { projectId?: string; threadId?: string; plansOnly?: boolean },
-): StreamSubscriber {
-  const pending = new Map<string, RefreshTarget>()
-  const baseline: RefreshTarget[] = scope.threadId === undefined
+interface RefreshScope { projectId?: string; threadId?: string; plansOnly?: boolean }
+
+function baseline(scope: RefreshScope): RefreshTarget[] {
+  return scope.threadId === undefined
     ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }]
     : scope.plansOnly ? [{ kind: 'workflows' }]
     : [{ kind: 'workflows' }, { kind: 'entries', threadId: scope.threadId }, { kind: 'operations', threadId: scope.threadId }]
+}
+
+/** Replayed notifications reconcile once at caught-up; transient UI listeners still see every event. */
+function refreshSubscriber(client: QueryClient, current: () => RefreshScope): StreamSubscriber {
+  const pending = new Map<string, RefreshTarget>()
   return {
     onDurable: (event, live) => {
+      const scope = current()
       let targets = classifyRefresh({ ...event, projectId: scope.projectId, threadId: scope.threadId ?? null })
       const plan = targets.some(target => target.kind === 'workflows')
       if (scope.plansOnly && !plan) return
@@ -87,10 +90,69 @@ export function refreshSubscriber(
       }
     },
     onCaughtUp: () => {
-      const targets = new Map(baseline.map(target => [JSON.stringify(target), target]))
+      const targets = new Map(baseline(current()).map(target => [JSON.stringify(target), target]))
       for (const [key, target] of pending) targets.set(key, target)
       dispatchRefresh(client, [...targets.values()])
       pending.clear()
     },
   }
+}
+
+interface SharedRefresh { members: RefreshScope[]; live: boolean; release: () => void }
+
+// Many views watch one stream (every plan card of a conversation, every view of
+// a project); refreshing per view would refetch the same queries once per view.
+const refreshes = new WeakMap<QueryClient, Map<string, SharedRefresh>>()
+
+function hold(
+  client: QueryClient, key: string, member: RefreshScope,
+  effective: (members: readonly RefreshScope[]) => RefreshScope,
+  subscribe: (subscriber: StreamSubscriber) => () => void,
+): () => void {
+  let scope = refreshes.get(client)
+  if (!scope) { scope = new Map(); refreshes.set(client, scope) }
+  let shared = scope.get(key)
+  if (shared) {
+    const before = new Set(baseline(effective(shared.members)).map(target => JSON.stringify(target)))
+    shared.members.push(member)
+    // A live stream sends no caught-up to a joiner; only what it adds is unwatched so far.
+    if (shared.live) {
+      dispatchRefresh(client, baseline(effective(shared.members)).filter(target => !before.has(JSON.stringify(target))))
+    }
+  } else {
+    const created: SharedRefresh = { members: [member], live: false, release: () => {} }
+    const subscriber = refreshSubscriber(client, () => effective(created.members))
+    scope.set(key, created)
+    created.release = subscribe({ ...subscriber, onState: state => { created.live = state.connection === 'live' } })
+    shared = created
+  }
+  const held = shared
+  const map = scope
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    held.members.splice(held.members.indexOf(member), 1)
+    if (held.members.length === 0) {
+      if (map.get(key) === held) map.delete(key)
+      held.release()
+    }
+  }
+}
+
+/** Keeps a thread's views fresh while held; holders of one thread share one refresh. */
+export function holdThreadRefresh(
+  client: QueryClient, threadId: string, member: { projectId?: string; plansOnly?: boolean },
+): () => void {
+  return hold(client, `thread:${threadId}`, { ...member }, members => ({
+    threadId,
+    projectId: members.find(held => held.projectId !== undefined)?.projectId,
+    plansOnly: members.every(held => held.plansOnly === true),
+  }), subscriber => subscribeThreadStream(client, threadId, subscriber))
+}
+
+/** Keeps a project's views fresh while held; holders of one project share one refresh. */
+export function holdProjectRefresh(client: QueryClient, projectId: string): () => void {
+  return hold(client, `project:${projectId}`, {}, () => ({ projectId }),
+    subscriber => subscribeProjectStream(client, projectId, subscriber))
 }

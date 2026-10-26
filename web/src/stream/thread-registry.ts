@@ -49,10 +49,11 @@ function subscribe(
   // A late watcher still needs to reconcile its initial read with the live feed.
   else if (held.stream.getState().connection === 'live') subscriber.onCaughtUp?.()
   return () => {
-    held.subscribers.delete(subscriber)
+    if (!held.subscribers.delete(subscriber)) return
     if (held.subscribers.size === 0) {
       held.stream.close()
-      scope.delete(key)
+      // A later subscriber may already hold a fresh channel under this key.
+      if (scope.get(key) === held) scope.delete(key)
     }
   }
 }
@@ -73,16 +74,14 @@ export function threadBinding(client: QueryClient, threadId: string) {
   }
   const durable = new Set<NonNullable<StreamSubscriber['onDurable']>>()
   const notices = new Set<NonNullable<StreamSubscriber['onNotice']>>()
-  const caughtUp = new Set<() => void>()
   return {
-    durable, notices, caughtUp,
+    durable, notices,
     getState: () => state,
     retry: () => channels.get(client)?.get(`thread:${threadId}`)?.stream.retry(),
     subscribe: (changed: () => void) => subscribeThreadStream(client, threadId, {
       onState: next => { state = next; changed() },
       onDurable: (event, live, current) => { for (const listener of durable) listener(event, live, current) },
       onNotice: notice => { for (const listener of notices) listener(notice) },
-      onCaughtUp: () => { for (const listener of caughtUp) listener() },
     }),
   }
 }

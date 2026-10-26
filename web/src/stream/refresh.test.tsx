@@ -73,3 +73,58 @@ it('preserves project and writer delivery with overlapping sequences, batching r
     expect(seen).toEqual([7, 8, 9])
   } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
 })
+
+it('refreshes once per event however many views share a stream, and a late view on a live stream refetches nothing it already watches', async () => {
+  const client = new QueryClient()
+  const sources: FakeSource[] = []
+  vi.stubGlobal('EventSource', class extends FakeSource {
+    constructor(url: string) { super(url); sources.push(this) }
+  })
+  const invalidate = vi.spyOn(client, 'invalidateQueries')
+  const calls = (head: string) => invalidate.mock.calls.filter(([filters]) => filters?.queryKey?.[0] === head).length
+  const root = createRoot(document.createElement('div'))
+  function Card() { usePlanEvents('t1', 'p1'); return null }
+  function View() { useProjectEvents('p1'); return null }
+  const render = (cards: number) => root.render(<QueryClientProvider client={client}>
+    {Array.from({ length: cards }, (_, i) => <Card key={i} />)}<View /><View />
+  </QueryClientProvider>)
+  try {
+    act(() => render(3))
+    const project = sources.find(s => s.url.includes('/projects/'))!
+    const thread = sources.find(s => s.param('thread_id') === 't1')!
+    act(() => { thread.caughtUp(0); project.caughtUp(0) })
+    invalidate.mockClear()
+    act(() => thread.durable(1, 'WorkflowEdited'))
+    expect(calls('workflows')).toBe(1)
+    invalidate.mockClear()
+    act(() => project.durable(1, 'ProjectDesignChanged'))
+    expect(calls('projects')).toBe(1)
+    invalidate.mockClear()
+    act(() => render(6))
+    expect(invalidate).not.toHaveBeenCalled()
+  } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
+})
+
+it('a conversation joining a live writer stream reads its entries and operations once', () => {
+  const client = new QueryClient()
+  const sources: FakeSource[] = []
+  vi.stubGlobal('EventSource', class extends FakeSource {
+    constructor(url: string) { super(url); sources.push(this) }
+  })
+  const invalidate = vi.spyOn(client, 'invalidateQueries')
+  const heads = () => invalidate.mock.calls.map(([filters]) => (filters?.queryKey ?? []).join('/'))
+  const root = createRoot(document.createElement('div'))
+  function Card() { usePlanEvents('t1', 'p1'); return null }
+  function Conversation() { useThreadStream('t1', undefined, undefined, 'p1'); return null }
+  const render = (conversation: boolean) => root.render(<QueryClientProvider client={client}>
+    <Card />{conversation && <Conversation />}
+  </QueryClientProvider>)
+  try {
+    act(() => render(false))
+    act(() => sources[0].caughtUp(0))
+    invalidate.mockClear()
+    act(() => render(true))
+    expect(sources).toHaveLength(1)
+    expect(heads()).toEqual(['threads/t1/entries', 'threads/t1/operations'])
+  } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
+})

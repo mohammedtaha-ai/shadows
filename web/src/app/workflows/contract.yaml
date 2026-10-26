@@ -118,9 +118,10 @@ frames:
   usePlanFrames:
     signature: "(threadId: string | undefined, projectId?: string) -> void"
     note: >
-      Subscribes through stream/thread-registry.ts, sharing the conversation's
-      connection in the QueryClient. The registry closes it when the last subscriber
-      leaves.
+      Holds the thread's shared refresh through stream/usePlanEvents, sharing the
+      conversation's connection and refresh in the QueryClient: many plan cards
+      refetch once per event. The registry closes the connection when the last
+      holder leaves.
 
 plan_data:
   usePlan:

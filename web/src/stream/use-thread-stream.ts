@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
-import { refreshSubscriber } from './refresh'
+import { holdThreadRefresh } from './refresh'
 import type { DurableEvent } from './frames'
 import { type Notice, type StreamState } from './thread-stream'
 import { threadBinding } from './thread-registry'
@@ -36,13 +36,12 @@ export function useThreadStream(
 
   const { stream, listeners, noticeListeners } = useMemo(() => {
     const stream = threadBinding(queryClient, threadId)
-    const listeners = stream.durable
-    const noticeListeners = stream.notices
-    const refresh = refreshSubscriber(queryClient, { threadId, projectId })
-    stream.caughtUp.add(() => refresh.onCaughtUp?.())
-    stream.durable.add((event, live, state) => refresh.onDurable?.(event, live, state))
-    return { stream, listeners, noticeListeners }
-  }, [threadId, queryClient, projectId])
+    return { stream, listeners: stream.durable, noticeListeners: stream.notices }
+  }, [threadId, queryClient])
+
+  // Held before the store subscribes, so queries are refreshed before any
+  // listener below hears the same event.
+  useEffect(() => holdThreadRefresh(queryClient, threadId, { projectId }), [queryClient, threadId, projectId])
 
   useEffect(() => {
     if (onNotice === undefined) return
