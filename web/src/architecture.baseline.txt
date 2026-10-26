@@ -28,8 +28,6 @@ entry :: new-project :: app/new-project/index.ts #1
 entry :: project-settings :: app/project-settings/index.ts #1
 entry :: settings :: app/settings/index.ts #1
 entry :: sidebar :: app/sidebar/index.ts #1
-public_entry :: app/agents/agent-settings.tsx :: desktop/presence.ts #1
-public_entry :: app/agents/agent-settings.tsx :: desktop/runtime.ts #1
 public_entry :: app/agents/aylul.test.tsx :: desktop/presence.ts #1
 public_entry :: app/agreements/party-picker.tsx :: app/design/use-part-pages.ts #1
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #1
