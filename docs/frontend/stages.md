@@ -362,13 +362,33 @@ settings dialog, PR #40) at `1a2b601`.
 - Needs: F-17 and W-7 (W-8 needs F-17; W-9 needs F-17 and W-7; W-12 needs F-26)
 - Done when: each new file's job is named without "and"; typecheck, lint, tests and build pass
 
-### F-21 · No `§` and no history in comments
+### F-21 · No `§` and no history in the conversation's comments
 - Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
-- Read: root `AGENTS.md` "Code structure"; docs/frontend/AGENTS.md "Where things are" rule 0
-- Touch: web/src (hand-written files)
+  (first of two packets; F-44 takes every other folder)
+- Read: root `CLAUDE.md` "Code structure" rule 5; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: hand-written `.ts`/`.tsx` files under `web/src/app/conversation/` (comments only); this
+  task's `Status:`
 - Needs: none
-- Done when: no hand-written comment cites `§` or history; lint and tests pass
+- Done when: no comment under `web/src/app/conversation/` cites `§`, a spec section or history
+  ("used to", "no longer", "before", "was moved", a task id); each such comment is reworded to
+  say why, or deleted when it says nothing the code does not; no code, test name, string or
+  assertion changes. From `web/`: `npx vitest run src/app/conversation`, `npm run typecheck`
+  and `npm run lint` pass
+
+### F-44 · No `§` and no history in the other folders' comments
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
+  (second of two packets; F-21 takes `app/conversation/`)
+- Read: root `CLAUDE.md` "Code structure" rule 5; docs/frontend/AGENTS.md "Where things are" rule 0
+- Touch: hand-written `.ts`/`.tsx` files under `web/src/` outside `web/src/app/conversation/`
+  (comments only), including the header of `web/src/test/fake-event-source.ts`, which says
+  nothing outside a test imports it although `test/test-app.tsx` does; this task's `Status:`
+- Needs: none
+- Done when: no comment under `web/src/` outside `app/conversation/` cites `§`, a spec section or
+  history; each such comment is reworded to say why, or deleted when it says nothing the code
+  does not; no code, test name, string or assertion changes. From `web/`: `npx vitest run`,
+  `npm run typecheck` and `npm run lint` pass
 
 ### F-22 · Keep the summary ring after breakdown removal
 - Status: blocked
