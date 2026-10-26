@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import type { PendingImage } from './upload-images'
-import type { Attempt } from './first-send'
+import type { Attempt } from '@/api/command-id'
 
 export interface CarriedSend {
   readonly images?: PendingImage[]

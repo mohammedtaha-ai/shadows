@@ -1,4 +1,4 @@
-// Own the draft's first send and its failed-turn handoff (spec §13.11).
+// Orchestrate the draft's first send.
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -12,8 +12,6 @@ import {noteCompanionSend} from '@/desktop'
 import { tabId } from '@/stream'
 import { carrySend } from './carried-send'
 import { uploadImages, type PendingImage } from './upload-images'
-
-export type { Attempt } from '@/api/command-id'
 
 /** Required by the API; the first message retitles the thread at once, and
  * the harness after it (spec §4). */

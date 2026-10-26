@@ -425,11 +425,11 @@ pure:
     # Runs after Streamdown's plugins. Gives each block its own direction.
 
 draft_owners:
-  draft.tsx: "DraftRoute, AgentDraftRoute and Draft render the draft routes and page; queries read API-owned state; first-send.ts owns mutations"
-  draft-session.ts: "draftSession offers provisional choices before a session exists; UNOPENED is its private placeholder"
-  first-send.ts: "useFirstSend owns thread creation, companion targeting, list invalidation, session opening, optional model change, staged uploads, first turn and navigation; DRAFT_TITLE is private; a type-only Attempt re-export keeps the handoff free of API imports"
-  carried-send.ts: "CarriedSend, carrySend and useCarriedSend own the one-time failed first-send handoff"
-  upload-images.ts: "PendingImage, uploadImages and retryImageUpload own upload identity, shared in-flight promises, ordered answers and explicit retry"
+  draft.tsx: "Render draft conversation routes; DraftRoute, AgentDraftRoute, Draft read API-owned query state; first-send.ts owns mutations"
+  draft-session.ts: "Offer provisional draft choices; draftSession uses the private UNOPENED placeholder before a session exists"
+  first-send.ts: "Orchestrate the draft first send; useFirstSend owns thread creation, companion targeting, list invalidation, session opening, optional model change, image capability checking, staged uploads, first turn, navigation; DRAFT_TITLE is private; only draft.tsx imports this module"
+  carried-send.ts: "Store the one-time failed first-send handoff; CarriedSend, carrySend, useCarriedSend retain the message; Attempt comes directly from api/command-id through a type-only import; no runtime API call"
+  upload-images.ts: "Upload selected images with replayable commands; PendingImage, uploadImages, retryImageUpload own upload identity, shared in-flight promises, ordered answers, explicit retry"
 
 queries_and_mutations:
   # The session and command keys and cache updates (sessionKeys, replaceChoices,
