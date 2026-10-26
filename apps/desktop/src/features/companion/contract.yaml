@@ -47,7 +47,7 @@ obligations:
   - rule: The entries export only what presence and studio consume; no test checks the export lists.
     tested_by: none
     test: none
-  - rule: Character and scene tones resolve from the frame colour; omitted or unknown colour retains every recorded purple pixel. Each frame shares its palette with the drawing passes; accessory crystal callers that omit the optional palette keep the base tones.
+  - rule: Character and scene tones resolve from the frame colour; omitted or unknown colour draws every recorded purple frame (4x4 block means, each channel within 24 of the reference, so rasterizer differences pass). Each frame shares its palette with the drawing passes; accessory crystal callers that omit the optional palette keep the base tones.
     tested_by: apps/desktop/tests/companion/renderer.spec.ts
     test: purple draws today's pixels
   - rule: Recolouring preserves transparency and visible coverage while blocked rose and success gold remain state signals.
