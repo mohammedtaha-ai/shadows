@@ -153,7 +153,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck`, `npm run lint` and `npm run build` pass
 
 ### F-38 · W-10b: the three proposal cards share one approval lifecycle
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
   (packet b of four; F-37 was a)
 - Read: the plan's W-10 and its "Proposal status/approval lifecycle" row;

@@ -200,6 +200,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/plan-side-panel.tsx` | Plan version shown beside the conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/reply-text.tsx` | Renders the Planner's markdown in the reply voice | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/reply.ts` | Transient streamed reply text with its lifetime | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/proposal-approval.tsx` | Render proposal status, attribution, approval control, errors | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/roadmap-proposal-card.tsx` | Card for an immutable roadmap proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/session-commands.ts` | Reads the /model, /effort commands as picker choices | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/slash-filter.ts` | Decides which / menu entries a composer text lists | `web/src/app/conversation/contract.yaml` |
@@ -222,6 +223,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/use-send.ts` | Deliver the composed message | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-stop.ts` | Stop the running turn | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session.ts` | Harness session state the conversation screen reads | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-proposal-approval.ts` | Own the proposal approval lifecycle | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/waiting-messages.tsx` | Queued messages waiting to be sent or removed | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/index.ts` | Declare lazy route surfaces | `web/src/app/conversation/contract.yaml` |

@@ -259,6 +259,9 @@ components:
     # Waivers are shown as consent; the button label names them when present.
   RoadmapProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
+  ProposalApproval:
+    signature: "(props: { approval: ProposalApprovalState; buttonLabel: string; textClass: string }) => JSX.Element"
+    # Fragment preserves each card's status, attribution, button and error order.
   ApprovedBy:
     signature: "(props: { by: Plan['approved_by'] | null | undefined; projectId: string }) =>
       JSX.Element | null"
@@ -1482,6 +1485,15 @@ image_attachments:
     - "the draft keeps staged images when its opened session refuses images"
 
 session_cache_owner: "api/sessions.ts owns session/command identities, frame updates, resets and saved mutation answers; feature hooks project presentation state"
+
+proposal_approval:
+  owner: "useProposalApproval in use-proposal-approval.ts owns the live proposal read, command attempt, approval mutation and status text for all three cards"
+  signature: "<T extends VisionProposal | MapProposal | RoadmapProposal>({ projectId, proposalId: string | null, proposalsQuery: UseQueryOptions<T[], Error, T[], string[]>, approveProposal, approvedSuffix?: (live: T) => string }) => ProposalApprovalState"
+  result: "projectId, status, approved, approvedBy, canApprove, isPending, queryError, approvalError, submit"
+  rendering: "ProposalApproval in proposal-approval.tsx takes the result, buttonLabel and textClass; renders status, ApprovedBy, Approve, query error and approval error with no wrapper"
+  content: "Each card owns its snapshot parser, title and domain content; vision supplies its live approved item suffix, map supplies its waiver button label"
+  replay: "Unchanged approval retries reuse attemptFor({ projectId, proposalId }); success drops the attempt and invalidates designKeys.all(projectId); refusal keeps the attempt and invalidates that card's proposals query"
+  status: "Approved with the supplied suffix, Superseded, Outdated — ask the Planner to propose again, Pending, Loading status…, Status unavailable, in that order; approval requires readable live Pending without outdated"
 
 design_cache_identity: "Proposal approval refresh uses api/design.designKeys"
 
