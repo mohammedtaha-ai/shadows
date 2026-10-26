@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
 import { designKeys, partsQuery, outcomesQuery, visionQuery, designPageQuery, standardsQuery, saveStandardsAnswer } from './design'
-import type { EffectiveStandards } from './client'
+import type { EffectiveStandards } from './design'
 it('design queries retain null cursors and detail identities', () => {
   expect(visionQuery('p').queryKey).toEqual(['projects', 'p', 'design', 'vision'])
   expect(partsQuery('p').queryKey).toEqual(['projects', 'p', 'design', 'parts', null, null])

@@ -1,9 +1,9 @@
 // One job: the project's standards (§23.2): Shadows' base, read only, and the project's additions, edited and saved as a new version.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { type EffectiveStandards, type StandardsAdditions, saveStandardsAdditions } from '@/api/client'
+import { type EffectiveStandards, type StandardsAdditions, saveStandardsAdditions } from '@/api/design'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { standardsQuery, stageQuery } from '@/api/queries'
+import { standardsQuery, stageQuery } from '@/api/design'
 import { saveStandardsAnswer } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'

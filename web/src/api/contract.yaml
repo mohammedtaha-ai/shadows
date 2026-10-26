@@ -732,3 +732,9 @@ agreements_operations:
   operations: "listAgreements getAgreement startAgreement editAgreement reviewAgreement agreeAgreement"
   types: "AgreementVersion AgreementContent AgreementReview AgreementBinding; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+design_operations:
+  owner: design.ts
+  operations: "getStandards saveStandardsAdditions getStage"
+  types: "EffectiveStandards StandardsAdditions StandardsAdditionsVersion StageView; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

@@ -1,7 +1,7 @@
+import { client, unwrap } from './transport'
 // The project design workspace's server state, from HTTP call to cache.
 import { queryOptions, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { client, getStage, getStandards, type EffectiveStandards } from './client'
-import { unwrap } from './error'
+
 import { writeSaved } from './saved-answer'
 import type { components } from './schema'
 import { useState } from 'react'
@@ -187,4 +187,31 @@ export function usePartPages(projectId: string, parent?: string) {
 
 export function invalidateDesign(client: QueryClient, projectId: string): void {
   void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
+}
+
+
+export type EffectiveStandards = components['schemas']['EffectiveStandards']
+
+export type StandardsAdditions = components['schemas']['StandardsAdditions']
+
+export type StandardsAdditionsVersion = components['schemas']['StandardsAdditionsVersion']
+
+export type StageView = components['schemas']['StageView']
+
+/** Compiled-in standards with this project's latest additions. */
+export function getStandards(projectId: string): Promise<EffectiveStandards> {
+  return unwrap(client.GET('/api/projects/{id}/standards', { params: { path: { id: projectId } } }))
+}
+
+/** Saves project additions as a new version; retries carry the caller's command id. */
+export function saveStandardsAdditions(projectId: string, commandId: string,
+  content: StandardsAdditions): Promise<StandardsAdditionsVersion> {
+  return unwrap(client.PUT('/api/projects/{id}/standards/additions', {
+    params: { path: { id: projectId } }, body: { command_id: commandId, content },
+  }))
+}
+
+/** The stage computed by the design service. */
+export function getStage(projectId: string): Promise<StageView> {
+  return unwrap(client.GET('/api/projects/{id}/stage', { params: { path: { id: projectId } } }))
 }

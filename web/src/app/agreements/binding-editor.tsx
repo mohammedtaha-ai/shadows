@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { operations as documentOperations } from './agreement-document'
 import { agreementKeys, agreementsQuery, agreementQuery } from '@/api/agreements'
-import { partQuery } from '@/api/queries'
+import { partQuery } from '@/api/design'
 import { workflowKeys, savePlanAnswer } from '@/api/workflows'
 import { designKeys } from '@/api/design'
 export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {

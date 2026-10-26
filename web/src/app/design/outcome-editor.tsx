@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Outcome, OutcomeContent, OutcomeView } from '@/api/design'
-import { outcomeQuery, outcomesQuery } from '@/api/queries'
+import { outcomeQuery, outcomesQuery } from '@/api/design'
 import { plansQuery } from '@/api/workflows'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'

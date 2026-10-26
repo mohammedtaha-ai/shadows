@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Part, PartContent, PartView } from '@/api/design'
-import { partQuery, partsQuery, visionQuery } from '@/api/queries'
+import { partQuery, partsQuery, visionQuery } from '@/api/design'
 import { plansQuery } from '@/api/workflows'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'

@@ -143,7 +143,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/aylul-profiles.ts` | AYLUL configuration server state: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
 | `web/src/api/client.ts` | Domain operations pending migration | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
-| `web/src/api/design.ts` | Project design workspace server state | `web/src/api/contract.yaml` |
+| `web/src/api/design.ts` | Project design server state | `web/src/api/contract.yaml` |
 | `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | Domain query entry points | `web/src/api/contract.yaml` |
