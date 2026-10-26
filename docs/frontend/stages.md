@@ -206,6 +206,41 @@ settings dialog, PR #40) at `1a2b601`.
   src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
   `npm run build` pass
 
+### F-40 · W-10d: screens ask for a desktop capability, never for the platform
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
+  ("Desktop capabilities", first half). Registering the desktop-only settings sections and
+  sidebar entries from `app/desktop/` in one place is F-41, not this task.
+- Read: the plan's "Desktop capabilities" paragraph; `web/src/desktop/runtime.ts`,
+  `web/src/desktop/index.ts`, `web/src/desktop/startup.ts`, `web/src/desktop/contract.yaml`;
+  every file outside `web/src/desktop/` that calls `isDesktop()`; how
+  `app/agents/aylul.test.tsx` and `app/settings/settings-dialog.test.tsx` mock
+  `@/desktop/runtime`; `web/src/architecture.test.ts` and `architecture.fixtures.ts`
+- Touch: a new `web/src/desktop/capabilities.ts` (what this build of the app can do natively);
+  `web/src/desktop/index.ts`, `web/src/desktop/startup.ts`, `web/src/desktop/contract.yaml`;
+  the files outside `desktop/` that call `isDesktop()` today: `main.tsx`, `router.tsx`,
+  `app/settings/sections.ts`, `app/settings/sections/{general,account,agents}.tsx`,
+  `app/sidebar/sidebar.tsx`, `app/agents/agent-settings.tsx`, `app/desktop/activity.tsx`, and
+  the contracts of their modules; `web/src/architecture.test.ts` and
+  `web/src/architecture.fixtures.ts` (one rule with a failing fixture);
+  `docs/frontend/codebase/README.md` (the new file's row); this task's `Status:`
+- Needs: F-39 (done)
+- Rulings: the capabilities have one field per native feature: `localCore`, `companion`,
+  `trayNavigation`, `accountLogin`, and `hashRouting` (the native shell loads the app from a
+  custom scheme, so the router needs hash history). The browser build gets every field `false`.
+  They are read from `isDesktop()` in `desktop/runtime.ts` at call time, not frozen in a module
+  constant, because the platform never changes while the app runs and the existing tests switch
+  the mocked `isDesktop` between cases. Each caller asks for the field that names what it shows;
+  where a screen shows a desktop-only thing, the contract names which capability gates it.
+- Done when: no file outside `web/src/desktop/` imports or calls `isDesktop`; the architecture
+  rule refuses it, proven by a fixture that fails without the rule, and needs no baseline entry;
+  `isDesktop` is exported from `desktop/runtime.ts` only (the tests mock it there), not from
+  `desktop/index.ts` or `desktop/startup.ts`. Browser and desktop show exactly what they show today. Every
+  test file and `architecture.baseline.txt` are unchanged. From `web/`:
+  `npx vitest run src/desktop src/app/desktop src/app/settings src/app/sidebar src/app/agents
+  src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
+  `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
