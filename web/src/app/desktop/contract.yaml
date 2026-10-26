@@ -13,7 +13,7 @@ components:
   Activity: Desktop-only local sessions and approval controls.
   CharacterSection: Companion switches followed by companion agent settings in the shared settings dialog.
   CoreSection: Native Core connection settings in the shared settings dialog.
-  DesktopSidebarActions: Local activity and Hide to tray in one conditional row, followed by the native error line without an extra wrapper.
+  DesktopSidebarActions: Desktop sidebar action row with native failure feedback, without an extra wrapper.
   SessionsPanel: Show session state/project; preview hook settings before confirmed installation.
   ApprovalsPanel: Show project/session; allow once, deny, preview exact rule, approve or dismiss.
   RulePreviewGuard: Invalidate edited or stale previews; approve only the captured rule and settings fingerprint.
