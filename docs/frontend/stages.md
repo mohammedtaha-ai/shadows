@@ -276,6 +276,30 @@ settings dialog, PR #40) at `1a2b601`.
   src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
   `npm run build` pass
 
+### F-42 · W-12b: the composer's image tests leave `composer-bar.test.tsx`
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-12--put-test-infrastructure-under-its-owner
+  ("oversized composer test file"; the harness move is a separate packet).
+- Read: `web/src/app/conversation/composer-bar.test.tsx` (678 lines); `use-images.ts`,
+  `upload-images.ts`, `pending-images.tsx`; `web/src/architecture.test.ts` (`compare` and the
+  relocation test); `web/src/architecture.baseline.txt`
+- Touch: `web/src/app/conversation/composer-bar.test.tsx`; a new
+  `web/src/app/conversation/composer-images.test.tsx` (every test of attaching, uploading,
+  removing, sending and queueing images, with the helpers only they use); a new
+  `web/src/test/composer.ts` only if both files need the same helper (`start`, `ready`,
+  `textarea`, `turnStarts`), never a copy of it; `web/src/architecture.baseline.txt` (the
+  `dependency :: ... router.tsx` and `server_access :: ... global:fetch` entries move one-for-one
+  to the file that now holds them, none added); `web/src/app/conversation/contract.yaml`
+  (`tested_by` paths); `docs/frontend/codebase/README.md` if a new file needs a row; this task's
+  `Status:`
+- Needs: F-36 (done)
+- Done when: `composer-bar.test.tsx` holds the composer bar's menus, settings, send and command-id
+  tests; `composer-images.test.tsx` holds the image tests; every test keeps its name, body and
+  assertions, and the two files together run the same 29 test cases (counting `it.each` rows) as
+  before; no other test file changes; the baseline's entry count is unchanged. From `web/`:
+  `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
+  `npm run typecheck` and `npm run lint` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
