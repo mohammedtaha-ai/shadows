@@ -1,4 +1,3 @@
-// One job: one version's writer and reason as one line (§16.3, §16.8).
 
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'

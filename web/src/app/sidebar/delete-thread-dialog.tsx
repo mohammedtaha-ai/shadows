@@ -1,4 +1,3 @@
-// One job: confirming a conversation's removal as an idempotent command (§16.8).
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'

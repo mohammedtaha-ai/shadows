@@ -1,9 +1,7 @@
-// One job: drawing the plan graph's nodes — the start and each task (§13.11).
-//
 // Each node fills the fixed box `layout.ts` sized for it; the rows here have
 // the fixed heights that sizing assumed. Every text element carries
 // `dir="auto"`, so an Arabic title, goal or path reads right to left inside
-// its row (Review Focus 3).
+// its row.
 
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import type { StartNode, TaskNode as TaskNodeType } from './layout'

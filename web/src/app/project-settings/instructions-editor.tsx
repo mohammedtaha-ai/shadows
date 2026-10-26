@@ -1,6 +1,3 @@
-// One job: the project's Planner instructions (§13.8) as text the person
-// edits and saves.
-//
 // Each save is a new version on the daemon; nothing earlier is overwritten. A
 // running Planner hears of the change before its next turn, never mid-turn.
 

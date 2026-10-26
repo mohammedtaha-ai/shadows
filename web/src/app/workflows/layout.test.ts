@@ -1,5 +1,3 @@
-// The plan graph's automatic layout (§13.11): left to right, and never two
-// boxes on top of each other, however many tasks the Planner writes.
 
 import { describe, expect, it } from 'vitest'
 import type { PlanLink } from '@/api/workflows'

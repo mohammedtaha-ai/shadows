@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 //
-// The code index section of project settings over a faked daemon (§15.6,
-// §13.11): linking another project by its id, and unlinking it, each one
-// command, with the list following.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'

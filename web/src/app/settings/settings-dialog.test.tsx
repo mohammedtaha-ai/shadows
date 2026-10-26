@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 //
-// The global Settings page over a faked daemon (§15.6, §13.11): reached from
-// the sidebar, it saves the active limit as one command and refuses a number
-// out of range before sending it.
 
 import { codeKeys } from '@/api/code'
 import { act } from 'react'

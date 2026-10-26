@@ -1,7 +1,6 @@
-// One job: this tab's id (§13.9) — made once per page load, sent with every
-// turn, so a live `plan-show` frame can say which tab it is for.
+// Send a page-load id with every turn so live `plan-show` frames target the sending tab.
 //
-// Transport state (§2.10): never stored, not even in `sessionStorage`, so a
+// Transport state: never stored, not even in `sessionStorage`, so a
 // reload is a new tab and a duplicated tab never shares its original's id.
 
 let id: string | null = null

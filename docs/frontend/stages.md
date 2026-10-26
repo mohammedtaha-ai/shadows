@@ -377,7 +377,7 @@ settings dialog, PR #40) at `1a2b601`.
   and `npm run lint` pass
 
 ### F-44 · No `§` and no history in the other folders' comments
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
   (second of two packets; F-21 takes `app/conversation/`)
 - Read: root `CLAUDE.md` "Code structure" rule 5; docs/frontend/AGENTS.md "Where things are" rule 0

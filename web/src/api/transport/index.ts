@@ -22,7 +22,7 @@ export type Problem =
    * the answer because this page's origin is not in `--allow-origin`. A
    * browser reports both identically, so the client cannot tell them apart. */
   | { kind: 'unreachable' }
-  /** The daemon answered with its own `ErrorBody` (spec §3.4). Match on `code`.
+  /** The daemon answered with its own `ErrorBody`. Match on `code`.
    * `currentRevision` and `problems` are present only for the codes that
    * carry them (`REVISION_CONFLICT`, `WORKFLOW_VALIDATION_FAILED`). */
   | {

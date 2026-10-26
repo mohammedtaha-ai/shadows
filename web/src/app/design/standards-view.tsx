@@ -1,4 +1,4 @@
-// One job: the project's standards (§23.2): Shadows' base, read only, and the project's additions, edited and saved as a new version.
+// Only project additions are editable; the base standards remain read-only.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { type EffectiveStandards, type StandardsAdditions, saveStandardsAdditions } from '@/api/design'

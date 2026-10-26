@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-// Deleting the open conversation through the real app's confirmation flow (§16.8).
 
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'

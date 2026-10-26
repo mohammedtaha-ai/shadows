@@ -1,5 +1,4 @@
-// One job: one agent's environment variables (AYLUL spec section 10, per agent):
-// their names, and adding, replacing or removing a value never shown again.
+// Environment values are write-only; only their names can be shown again.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useRef, useState } from 'react'

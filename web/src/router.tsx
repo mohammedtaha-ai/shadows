@@ -102,7 +102,6 @@ const agreementsRoute = createRoute({
   component: AgreementsPage,
 })
 
-// The daemon's own settings, for every project at once (§13.11).
 const appSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',

@@ -1,6 +1,3 @@
-// One job: removing the project (spec §4.2), the danger zone at the foot of
-// its settings.
-//
 // Only a project with no live conversation can go: with any, Remove is off
 // and points to Delete in the sidebar. The daemon checks
 // again, and a conversation started elsewhere in the meantime comes back as

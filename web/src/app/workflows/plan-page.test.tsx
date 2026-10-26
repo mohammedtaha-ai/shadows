@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 //
-// The Workflows page over a faked daemon (§13.11): the graph, the list above
-// Approve, an approval that meets a changed plan (Review Focus 4), an
-// approved version, and Arabic text (Review Focus 3).
 
 import type { FitViewOptions } from '@xyflow/react'
 import { act } from 'react'

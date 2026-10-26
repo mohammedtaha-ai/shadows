@@ -1,5 +1,3 @@
-// One job: drawing one link of the plan graph — `needs` solid,
-// `completes_after` dashed, each with its label (§13.11).
 
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getSmoothStepPath } from '@xyflow/react'
 import type { PlanEdge } from './layout'

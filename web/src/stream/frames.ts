@@ -37,8 +37,7 @@ export interface TurnEnd {
   stopReason: string | null
 }
 
-/** Any other harness line, by label. Transient. The daemon no longer sends
- * it since the harness runs over ACP; a stream that does is still read. */
+/** Accept transient operational labels from streams that supply them. */
 export interface Meta {
   op: string
   label: string
@@ -50,8 +49,7 @@ export interface LimitWindow {
   resetsAt: number
 }
 
-/** The account's limits as the harness last reported them (spec §12.8). A
- * window it did not report is `null`, never estimated. */
+/** Unreported account limit windows stay `null` so the UI never estimates them. */
 export interface Limits {
   fiveHour: LimitWindow | null
   sevenDay: LimitWindow | null
@@ -73,11 +71,9 @@ export interface OptionsFrame {
   choices: SessionChoices
 }
 
-/** Where the Planner put a shown plan (§13.9). */
 export type PlanPlace = 'inline' | 'side' | 'page'
 
-/** The Planner showed a plan (§13.9). Transient and live only: it is never
- * replayed, and only the tab named `targetTab` acts on it. */
+/** Live-only navigation targets the sending tab so other tabs keep their current view. */
 export interface PlanShowFrame {
   threadId: string
   /** The tab that sent the turn; `null` when it named none. */
@@ -88,8 +84,7 @@ export interface PlanShowFrame {
   place: PlanPlace
 }
 
-/** One subagent as the conversation shows it (§22.2): the `card` of its
- * `Subagent` entry (§23.8), and the whole of each `subagent` frame. */
+/** Durable entries and transient frames share this card shape so either can render it. */
 export interface SubagentCard {
   id: string
   title: string

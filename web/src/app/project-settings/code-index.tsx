@@ -1,8 +1,5 @@
-// One job: the project's code index (§15.6) — how its index stands, the
-// projects whose code it reads, and linking or unlinking one.
-//
 // A link answers slugs only, so each row is joined with the project list for
-// its name, folder and id; the routes that change a link take ids (§15.7).
+// its name, folder and id; the routes that change a link take ids.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, X } from 'lucide-react'

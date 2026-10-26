@@ -1,5 +1,3 @@
-// One job: how many projects the code index keeps active (§15.6), as a
-// number the person edits and saves.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useRef, useState } from 'react'

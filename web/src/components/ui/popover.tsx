@@ -1,7 +1,4 @@
-// shadcn/ui's Popover on Base UI's Popover, in the base-nova style of the
-// other components here. Written by hand from that registry's shape because
-// the registry was out of reach when it was added; only the parts this app
-// uses are here.
+// Keep only the popover parts the app uses so the wrapper follows actual UI needs.
 
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { cn } from "cn"

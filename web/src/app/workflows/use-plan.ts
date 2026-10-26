@@ -14,7 +14,6 @@ export function usePlan(workflowId: string): UseQueryResult<Plan> {
   return plan
 }
 
-/** The conversation that wrote `plan`, when a Planner did (§16.3). */
 export function writerThread(target: WrittenBy | Plan | undefined): string | undefined {
   if (target === undefined) return undefined
   const writer = 'written_by' in target ? target.written_by : target

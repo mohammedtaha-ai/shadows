@@ -1,7 +1,5 @@
 // @vitest-environment happy-dom
 //
-// Project settings' allowed modes (spec §12.5): a per-harness checklist that
-// changes the project's set as one command, and says when none is left.
 
 import { notifyManager } from '@tanstack/react-query'
 import { act } from 'react'

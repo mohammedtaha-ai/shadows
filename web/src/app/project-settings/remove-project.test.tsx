@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 //
-// Removing a project from its settings over a faked daemon (spec §4.2,
-// §13.11): refused in the page while it has conversations; otherwise
-// confirmed, sent as one command, and the person lands home.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'

@@ -26,7 +26,6 @@ export const projectsQuery = queryOptions({
   refetchInterval: (query) => (query.state.data === undefined ? false : 10_000),
 })
 
-/** A project's current Planner instructions (spec §13.8). */
 export function instructionsQuery(projectId: string) {
   return queryOptions({
     queryKey: projectKeys.instructions(projectId),
@@ -34,8 +33,7 @@ export function instructionsQuery(projectId: string) {
   })
 }
 
-/** A project's grants for external agents (spec §13.7). No thread's stream
- * carries them, so the list is polled every 10 s while shown. */
+/** Poll grants every 10 s while shown because no thread stream carries their changes. */
 export function grantsQuery(projectId: string) {
   return queryOptions({
     queryKey: projectKeys.grants(projectId),

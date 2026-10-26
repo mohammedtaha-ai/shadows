@@ -16,7 +16,7 @@ const PAGE_PADDING = 0.15
 /** The Controls' fit button: the whole plan, however small that makes it. */
 export const WHOLE_PLAN: FitViewOptions = { minZoom: MIN_ZOOM, maxZoom: 1, padding: PAGE_PADDING }
 
-/** The first view: readable text, the page's or a card's (W2) own minimum. */
+/** Each surface sets its initial minimum zoom to keep text readable. */
 export function firstFit(compact: boolean, focusTask: number | undefined): FitViewOptions {
   return {
     nodes: focusTask === undefined ? undefined : [{ id: taskNodeId(focusTask) }],

@@ -1,4 +1,3 @@
-// One job: the vision as five lists of items (§23.3), edited one item at a time.
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
