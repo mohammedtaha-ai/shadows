@@ -3,6 +3,8 @@ version: 1
 status: current
 source: web/src/app/desktop
 responsibility: Present retained native person actions in the shared dashboard.
+public_api:
+  entry: web/src/app/desktop/index.ts exports ConnectionSettings for startup composition.
 components:
   ConnectionSettings: Revisioned native Core state above a closed Advanced configuration disclosure; save or explicit Retry; fixed native errors. No HTTP consumer, including at bootstrap.
   CompanionSettings: Explicit live agent selection with provider titles (Core preset/region/label) and model IDs; independent preview preference; stale replies ignored; explicit Local Core retry also restarts the native observer.

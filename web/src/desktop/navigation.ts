@@ -1,6 +1,5 @@
 import {listen} from '@tauri-apps/api/event'
 import {nativeCall} from './native'
-import {router} from '../router'
 export type MainDestination=
   | {kind:'companionSettings'}
   | {kind:'agentDraft';agent:string}
@@ -17,14 +16,10 @@ export function parseNavigation(raw:unknown):PendingNavigation{
   if(!valid)throw Error('navigation_invalid')
   return value
 }
-export async function navigateDestination(destination:MainDestination):Promise<void>{
-  switch(destination.kind){
-    case 'companionSettings':await router.navigate({to:'/settings',hash:'companion-settings'});return
-    case 'agentDraft':await router.navigate({to:'/aylul/agents/$slug/new',params:{slug:destination.agent}});return
-    case 'conversation':await router.navigate({to:'/projects/$projectId/threads/$threadId',params:{projectId:destination.projectId,threadId:destination.threadId}});return
-  }
-}
-export async function connectNavigation():Promise<()=>void>{
+export async function connectNavigation(
+  navigateDestination:(destination:MainDestination)=>Promise<void>,
+  waitUntilReady:()=>Promise<void>,
+):Promise<()=>void>{
   let disposed=false,revision=0,pending:PendingNavigation|null=null,running=false
   async function drain(){
     if(running)return
@@ -46,7 +41,7 @@ export async function connectNavigation():Promise<()=>void>{
     void drain().catch(()=>{/* Pending request remains native-owned until a successful acknowledgement. */})
   }
   const off=await listen<unknown>('main-navigation',event=>accept(event.payload))
-  try{await router.load();accept(await nativeCall('navigation_snapshot'))}
+  try{await waitUntilReady();accept(await nativeCall('navigation_snapshot'))}
   catch(error){disposed=true;off();throw error}
   return ()=>{disposed=true;off()}
 }

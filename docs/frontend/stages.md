@@ -15,7 +15,7 @@ and OS acceptance.
 ## Tasks
 
 ### F-29 · W-5: navigation and native infrastructure depend on nothing above them
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-5--remove-the-navigation-and-native-upward-dependencies
   and section 6 (allowed directions)
 - Read: the plan's sections 2 and 6; `web/src/app/settings/use-settings.ts`;
