@@ -307,4 +307,4 @@ feature_imports: "Cross-feature production imports use declared public entries."
 feature_entry: "index.ts exposes storedWorkspace, Sidebar."
 
 desktop_capabilities:
-  Sidebar: localCore gates Local activity; tray independently gates Hide to tray; the action row exists when either capability is available.
+  Sidebar: Renders desktop-ui's DesktopSidebarActions before the footer; desktop-ui owns capability checks, the conditional action row and its following error line.

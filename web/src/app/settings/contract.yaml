@@ -5,7 +5,7 @@
 # changes while the field is untouched. The save's success clears that edit without
 # checking for a newer one, so an edit typed while the save was in flight is lost.
 #
-# A new section is one entry in the SettingsDialog content map.
+# Shared sections use the SettingsDialog content map; desktop-ui registers machine content.
 
 name: web-settings
 version: 1
@@ -65,10 +65,6 @@ components:
     note: You card works in browser and desktop; native state/actions mount only in desktop.
   YouCard:
     signature: "() => JSX.Element"
-  CharacterSection:
-    signature: "() => JSX.Element"
-  CoreSection:
-    signature: "() => JSX.Element"
   ProvidersSection:
     signature: "() => JSX.Element"
     note: Provider list titles use Core presets plus region and label; Edit waits for presets to load.
@@ -90,7 +86,8 @@ functions:
   accountView:
     signature: "(auth: AuthView | null, busy: boolean, loggingIn: boolean) => { message: string; actions: AccountAction[] }"
   visibleSections:
-    signature: "() => typeof SECTIONS"
+    signature: "() => (typeof SECTIONS[number] | ReturnType<typeof visibleDesktopSettingsSections>[number])[]"
+    note: Lists settings-owned sections followed by desktop-ui's visible registrations; SectionId unites settings ids with desktop-ui's DesktopSectionId.
   readSettingsSearch:
     signature: "(search: Record<string, unknown>) => { settings?: SectionId; agent?: string }"
 
@@ -230,7 +227,7 @@ feature_imports: "Cross-feature production imports use declared public entries."
 feature_entry: "index.ts exposes readSettingsSearch, SettingsDialog, PersonTheme."
 
 desktop_capabilities:
-  visibleSections: Character requires companion; Local Core requires localCore; other sections remain available in both runtimes.
+  visibleSections: Appends desktop-ui's visible section registrations; settings-owned sections remain available in both runtimes. SettingsDialog reads desktop content from those registrations.
   GeneralSection: windowPreferences gates DesktopPreferencesControls for system startup and close-to-tray preferences.
   AccountSection: accountLogin gates the native account card; the You card remains available in both runtimes.
   AgentsSection: companion gates the bound-agent Companion badge.

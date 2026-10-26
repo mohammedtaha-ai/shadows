@@ -4,15 +4,17 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { type SectionId, visibleSections } from './sections'
 import { GeneralSection } from './sections/general'
 import { AccountSection } from './sections/account'
-import { CharacterSection } from './sections/character'
-import { CoreSection } from './sections/core'
+import { desktopSettingsSections } from '@/app/desktop'
 import { ProvidersSection } from './sections/providers'
 import { AgentsSection } from './sections/agents'
 import { UsageSection } from './sections/usage'
 import { PluginsSection } from './sections/plugins'
 import { useCloseSettings, useOpenSettings } from '@/app/navigation'
 
-const CONTENT: Partial<Record<SectionId, ComponentType>> = { general: GeneralSection, account: AccountSection, character: CharacterSection, core: CoreSection, providers: ProvidersSection, agents: AgentsSection, usage: UsageSection, plugins: PluginsSection }
+const CONTENT: Partial<Record<SectionId, ComponentType>> = {
+  general: GeneralSection, account: AccountSection, providers: ProvidersSection, agents: AgentsSection, usage: UsageSection, plugins: PluginsSection,
+  ...Object.fromEntries(desktopSettingsSections.map(section => [section.id, section.content])),
+}
 
 export function SettingsDialog() {
   const { settings } = useSearch({ from: '__root__' })

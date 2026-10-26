@@ -1,10 +1,8 @@
 // One job: the left pane — the app's name, its projects, whether the daemon
 // answers, and the way to the global settings.
 
-import {useState} from 'react'
-import { Link, useSearch } from '@tanstack/react-router'
-import {capabilities} from '@/desktop'
-import {hideToTray} from '@/desktop'
+import { useSearch } from '@tanstack/react-router'
+import { DesktopSidebarActions } from '@/app/desktop'
 import { Plus, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConnectionIndicator } from '../daemon-status'
@@ -16,7 +14,6 @@ import { ProjectList } from './project-list'
 import { useOpenSettings } from '@/app/navigation'
 
 export function Sidebar() {
-  const [nativeError,setNativeError]=useState<string|null>(null)
   const openNewProject = useOpenNewProject()
   const { workspace, switchTo } = useWorkspace()
   const openSettings = useOpenSettings()
@@ -40,11 +37,7 @@ export function Sidebar() {
       <nav aria-label={workspace === 'aylul' ? 'Agents and conversations' : 'Projects and conversations'} className="flex-1 overflow-y-auto px-2 pb-3">
         {workspace === 'aylul' ? <AgentList /> : <ProjectList />}
       </nav>
-      {(capabilities.localCore||capabilities.tray)&&<div className="flex gap-3 px-4 py-2 text-xs">
-        {capabilities.localCore&&<Link to="/aylul/activity">Local activity</Link>}
-        {capabilities.tray&&<button onClick={()=>{void hideToTray().catch(()=>setNativeError('Unable to hide the window. Please retry.'))}}>Hide to tray</button>}
-      </div>}
-      {nativeError&&<p role="alert" className="px-4 text-xs">{nativeError}</p>}
+      <DesktopSidebarActions />
       <footer className="flex items-center justify-between gap-3 border-t border-sidebar-border px-4 py-3">
         <div className="min-w-0">
           <ConnectionIndicator />

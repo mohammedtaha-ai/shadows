@@ -4,7 +4,7 @@ import {createRoot,type Root} from 'react-dom/client'
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query'
 import {beforeEach,afterEach,it,expect,vi} from 'vitest'
 import fixture from '../../test/native-presence.json'
-import {CharacterSection} from '../settings/sections/character'
+import {CharacterSection} from './settings-sections'
 import {CHARACTER_COLORS} from '../agents/character-colors'
 const {invoke,listen}=vi.hoisted(()=>({invoke:vi.fn(),listen:vi.fn()}))
 vi.mock('@tauri-apps/api/core',()=>({invoke}))

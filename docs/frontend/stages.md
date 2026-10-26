@@ -245,7 +245,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run build` pass
 
 ### F-41 · W-10e: desktop-only settings sections and sidebar actions register from `app/desktop/`
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
   ("Desktop capabilities", second half; F-40 was the first).
 - Read: the plan's "Desktop capabilities" paragraph; `web/src/app/settings/sections.ts`,
