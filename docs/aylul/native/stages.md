@@ -303,7 +303,9 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   `apps/desktop/tsconfig.json`; `apps/desktop/playwright.config.ts`
 - Touch: `.github/workflows/aylul.yml`; `apps/desktop/package.json` (scripts, and
   `@types/node` as a dev dependency with its `package-lock.json` change); a new
-  `apps/desktop/tsconfig.test.json`; `apps/desktop/AGENTS.md` and `docs/aylul/ui/AGENTS.md`
+  `apps/desktop/tsconfig.test.json`; the test files `tsconfig.test.json` includes (co-located
+  `*.test.ts`, their `fixtures/`, `tests/companion/*.test.ts`), for type fixes in the test code
+  only; `apps/desktop/AGENTS.md` and `docs/aylul/ui/AGENTS.md`
   only where they name the desktop checks; `docs/aylul/codebase/README.md` (its gate row); this
   task's `Status:`
 - Needs: U-4, C-7
