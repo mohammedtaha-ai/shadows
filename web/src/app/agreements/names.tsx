@@ -1,6 +1,6 @@
 // Names for the stable ids an agreement stores: a part, and who wrote a version.
 import { useQuery } from '@tanstack/react-query'
-import type { AgreementVersion } from '@/api/client'
+import type { AgreementVersion } from '@/api/agreements'
 import { partQuery } from '@/api/queries'
 import { threadQuery } from '@/api/threads'
 

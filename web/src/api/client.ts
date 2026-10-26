@@ -4,10 +4,6 @@ export { client, DAEMON_URL } from './transport'
 import type { components } from './schema'
 
 type Schemas = components['schemas']
-export type AgreementVersion = Schemas['AgreementVersion']
-export type AgreementContent = Schemas['AgreementContent']
-export type AgreementReview = Schemas['AgreementReview']
-export type AgreementBinding = Schemas['AgreementBinding']
 export type DirectoryListing = Schemas['DirectoryListing']
 export type DirectoryEntry = Schemas['DirectoryEntry']
 export type HarnessInfo = Schemas['HarnessInfo']
@@ -50,36 +46,4 @@ export function listDirs(path: string | null): Promise<DirectoryListing> {
 /** Creates one directory named `name` inside `parent`. */
 export function createDir(parent: string, name: string): Promise<DirectoryEntry> {
   return unwrap(client.POST('/api/fs/dirs', { body: { parent, name } }))
-}
-
-export function listAgreements(projectId: string): Promise<AgreementVersion[]> {
-  return unwrap(client.GET('/api/projects/{id}/agreements', { params: { path: { id: projectId } } }))
-}
-export function getAgreement(projectId: string, agreement: string, version?: number): Promise<AgreementVersion> {
-  return unwrap(client.GET('/api/projects/{id}/agreements/{agreement}', {
-    params: { path: { id: projectId, agreement }, query: { version } },
-  }))
-}
-export function startAgreement(projectId: string, command_id: string, content?: AgreementContent,
-  agreement_id?: string, reason?: string): Promise<AgreementVersion> {
-  return unwrap(client.POST('/api/projects/{id}/agreements', {
-    params: { path: { id: projectId } }, body: { command_id, content, agreement_id, reason },
-  }))
-}
-export function editAgreement(projectId: string, agreement: string, command_id: string,
-  version: number, expected_revision: number, content: AgreementContent): Promise<AgreementVersion> {
-  return unwrap(client.PUT('/api/projects/{id}/agreements/{agreement}', {
-    params: { path: { id: projectId, agreement } }, body: { command_id, version, expected_revision, content },
-  }))
-}
-export function reviewAgreement(projectId: string, agreement: string): Promise<AgreementReview> {
-  return unwrap(client.GET('/api/projects/{id}/agreements/{agreement}/review', {
-    params: { path: { id: projectId, agreement } },
-  }))
-}
-export function agreeAgreement(projectId: string, agreement: string, command_id: string,
-  expected_revision: number, review_id: string): Promise<AgreementVersion> {
-  return unwrap(client.POST('/api/projects/{id}/agreements/{agreement}/agree', {
-    params: { path: { id: projectId, agreement } }, body: { command_id, expected_revision, review_id },
-  }))
 }

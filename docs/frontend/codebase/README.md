@@ -147,7 +147,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | Domain query entry points | `web/src/api/contract.yaml` |
-| `web/src/api/agreements.ts` | Agreement query identities with saved answers | `web/src/api/contract.yaml` |
+| `web/src/api/agreements.ts` | Agreement server state | `web/src/api/contract.yaml` |
 | `web/src/api/code.ts` | Code index server state | `web/src/api/contract.yaml` |
 | `web/src/api/directories.ts` | Directory query identities | `web/src/api/contract.yaml` |
 | `web/src/api/harnesses.ts` | Harness query identity | `web/src/api/contract.yaml` |

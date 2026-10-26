@@ -1,6 +1,6 @@
 // Browse arbitrary nesting when declaring stable participant identities.
 import { useState } from 'react'
-import type { AgreementContent } from '@/api/client'
+import type { AgreementContent } from '@/api/agreements'
 import { Button } from '@/components/ui/button'
 import { usePartPages } from '@/api/design'
 import { ErrorLine } from '../error-line'

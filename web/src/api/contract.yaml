@@ -726,3 +726,9 @@ workflows_operations:
   operations: "listPlans getPlanVersions archivePlan unarchivePlan getPlan getPlanMap approvePlan editBindings"
   types: "PlanOp Plan PlanTask PlanLink LinkedTask PlanMap MapPlan PlanListing PlanVersions VersionLine WrittenBy Approved; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+agreements_operations:
+  owner: agreements.ts
+  operations: "listAgreements getAgreement startAgreement editAgreement reviewAgreement agreeAgreement"
+  types: "AgreementVersion AgreementContent AgreementReview AgreementBinding; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

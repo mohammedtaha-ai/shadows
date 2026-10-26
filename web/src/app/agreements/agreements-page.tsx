@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
-import { startAgreement } from '@/api/client'
+import { startAgreement } from '@/api/agreements'
 import { agreementKeys, agreementsQuery, agreementQuery, saveAgreementAnswer } from '@/api/agreements'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
