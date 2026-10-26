@@ -299,7 +299,8 @@ function scan(sources: Sources, owners: Owner[]): string[] {
   for (const edge of runtime.filter(edge => edge.static)) {
     staticGraph.set(edge.from, [...(staticGraph.get(edge.from) ?? []), edge.to])
   }
-  for (const entry of owners.flatMap(item => item.entries).filter(entry => entry.endsWith('/startup.ts'))) {
+  // main.tsx is checked too: its static imports evaluate before any start-up step runs.
+  for (const entry of ['main.tsx', ...owners.flatMap(item => item.entries).filter(entry => entry.endsWith('/startup.ts'))]) {
     if (reaches(entry, 'api/client.ts', new Set(), staticGraph)) add('startup_api', entry, 'api/client.ts')
   }
   for (const edge of runtime) {

@@ -1,10 +1,10 @@
 import './index.css'
-import {bootApplication,isDesktop} from './desktop/startup'
+import {bootApplication,isDesktop,loadNativeGate} from './desktop/startup'
 
 const root=document.getElementById('root')
 if(!root)throw new Error('index.html has no #root')
 void bootApplication(isDesktop(),async ()=>{
-  const desktop=await import('./desktop/startup')
+  const desktop=await loadNativeGate()
   const {ConnectionSettings}=await import('./app/desktop/startup')
   await desktop.prepareDesktop(<ConnectionSettings/>)
   desktop.externalLinks()

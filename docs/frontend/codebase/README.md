@@ -69,12 +69,14 @@ boundaries do not exempt their sources from the other architecture rules.
 | `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared` |
 | `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
 | `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, workflows, navigation` |
-| `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
+| `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
 | `test-support` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
-import graphs cannot reach `api/client.ts`. Route modules listed beside an
-`index.ts` remain separate lazy imports declared by that entry.
+import graphs, and `main.tsx`'s, cannot reach `api/client.ts`. Route modules listed
+beside an `index.ts` remain separate lazy imports declared by that entry.
+`app/workflows/plan-state.ts` is a second workflows entry so the sidebar's plan
+labels do not statically pull the plan graph into the shell's chunk.
 
 Named exemption **test fixture imports**: a `*.test.ts` / `*.test.tsx` source
 may import `test-support` entries for fixtures. Test support may import its own

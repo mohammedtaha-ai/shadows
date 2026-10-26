@@ -5,7 +5,7 @@ import {createRoot,type Root} from 'react-dom/client'
 import {CompanionControls} from './companion-controls'
 import {ApprovalsPanel} from './approvals-panel'
 import {SessionsPanel} from './sessions-panel'
-import type {AylulState} from '../../desktop/activity-api'
+import type {AylulState} from '@/desktop'
 const {invoke,listen}=vi.hoisted(()=>({invoke:vi.fn(),listen:vi.fn()}))
 vi.mock('./companion-settings',()=>({CompanionSettings:()=>null}))
 vi.mock('@tauri-apps/api/core',()=>({invoke}))

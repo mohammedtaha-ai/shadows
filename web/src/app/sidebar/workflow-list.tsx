@@ -9,7 +9,7 @@ import type { PlanListing } from '@/api/client'
 import { plansQuery } from '@/api/queries'
 import { useProjectEvents } from '@/stream'
 import { ErrorLine } from '../error-line'
-import { stateLabel } from '@/app/workflows'
+import { stateLabel } from '@/app/workflows/plan-state'
 
 export function WorkflowList({ projectId, selected }: { projectId: string; selected?: string }) {
   useProjectEvents(projectId)

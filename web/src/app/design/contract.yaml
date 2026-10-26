@@ -54,7 +54,6 @@ ViewBasis:
   revision: int
   plans: "string[]"
 
-
 DraftState:
   # Standards editor draft (not exported). Rule parts are edited as comma text.
   parts: "{ name: string; owns: string }[]"

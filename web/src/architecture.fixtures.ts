@@ -19,6 +19,12 @@ export const fixtures: Fixture[] = [
       'api/client.ts': 'export const value = 1',
     },
   })),
+  { name: 'rejects API initialization through main.tsx static imports', rule: 'startup_api', sources: {
+      'main.tsx': "import { value } from './app-root'; void value",
+      'app-root.tsx': "export { value } from '@/api/client'",
+      'api/client.ts': 'export const value = 1',
+    },
+  },
   { name: 'allows deferred and type-only API references from startup', rule: 'startup_api', count: 0,
     overrides: { desktop: { entries: ['desktop/startup.ts'] } }, sources: {
       'desktop/startup.ts': "import type { Shape } from '@/api/client'; export const load = () => import('@/api/client')",

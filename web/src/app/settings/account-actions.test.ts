@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AuthView } from '@/desktop/auth'
+import type { AuthView } from '@/desktop'
 import { accountView } from './account-actions'
 
 const auth = (state: AuthView['state'], hasEnrollment = true): AuthView => ({ state, hasEnrollment, principal: null, providerLogout: null })

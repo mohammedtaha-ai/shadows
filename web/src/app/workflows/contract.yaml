@@ -571,7 +571,7 @@ tests:
       change reason. Archive sends a UUID command id, and afterward 'Archived · read
       only' shows with no Approve button.
 
-feature_entry: "index.ts exposes HeldThreadStream, PlanGraph, usePlan, isPlanEvent, refetchPlans, stateLabel."
+feature_entry: "index.ts exposes HeldThreadStream, PlanGraph, usePlan, isPlanEvent, refetchPlans. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph."
 
 feature_imports: "Cross-feature production imports use declared public entries."
 

@@ -3,7 +3,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AccountSection } from './sections/account'
-import type { AuthView } from '@/desktop/auth'
+import type { AuthView } from '@/desktop'
 vi.mock('./you-card', () => ({ YouCard: () => null }))
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }))
