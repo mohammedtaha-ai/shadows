@@ -744,3 +744,7 @@ harnesses_operations:
   operations: "listHarnesses"
   types: "HarnessInfo; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+aylul_profiles_transport:
+  owner: aylul-profiles.ts
+  transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"

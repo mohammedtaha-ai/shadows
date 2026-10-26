@@ -1,7 +1,6 @@
 // AYLUL configuration calls over the shared generated transport.
 import { queryOptions } from '@tanstack/react-query'
-import { client } from './client'
-import { unwrap, unwrapEmpty } from './error'
+import { client, unwrap, unwrapEmpty } from './transport'
 import type { components } from './schema'
 
 export type Provider = components['schemas']['Provider']
