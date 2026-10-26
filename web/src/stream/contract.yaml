@@ -158,12 +158,10 @@ thread_stream:
 
 hooks:
   useThreadStream:
-    "(threadId: string, onDurable?: DurableListener, onNotice?: NoticeListener)
+    "(threadId: string, onDurable?: DurableListener, onNotice?: NoticeListener, projectId?: string)
       -> StreamState & { retry: () => void }"
   useProjectEvents: "(projectId: string | undefined) -> void"
-  watchProject:
-    signature: "(queryClient: QueryClient, projectId: string) -> () => void"
-    private: true
+  usePlanEvents: "(threadId: string | undefined, projectId?: string) -> void"
 
 pure:
   tabId: "() -> string; this page load's random id, in memory only"
@@ -179,12 +177,12 @@ test_only:
 # ── agreements ───────────────────────────────────────────────────────────────
 
 agreements:
-  - between: [useThreadStream invalidation predicate isThreadList, threadsQuery key, agentThreadsQuery key]
+  - between: [api/threads.invalidateThreadLists, threadsQuery key, agentThreadsQuery key]
     must: >
       match the same thread-list keys: ['projects', id, 'threads'] and ['aylul-agent', slug, 'threads']
     holds: true
     why: >
-      isThreadList matches key[0] 'projects' or 'aylul-agent' and key[2] 'threads', the shapes
+      The API method matches key[0] 'projects' or 'aylul-agent' and key[2] 'threads', the shapes
       threadsQuery (src/api/queries.ts) and agentThreadsQuery (src/api/aylul-profiles.ts) build.
     tested_by: "reads the thread lists again on a retitle: live at once, replayed at the caught-up"
 
@@ -204,18 +202,16 @@ agreements:
       refetch the same plan views for the same event
     holds: true
     why: >
-      Live, the event calls refetch(planId, workflowId) at once. Not live, it is parked in
-      `pending`, and caught-up calls the same refetch for each parked entry.
-    tested_by: none
-    note: >
-      No test in src/stream emits a Workflow* or Plan* event. Holds by reading only.
+      refreshSubscriber dispatches classified targets immediately while live, or deduplicates
+      them until caught-up and dispatches the same targets.
+    tested_by: preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
 
   - between: [threadEntriesKey, threadOperationsKey]
     must: >
       be the keys the thread hook invalidates, by the same function queries.ts exports
     holds: true
     why: >
-      use-thread-stream.ts calls the same two functions that define those keys.
+      The dispatcher calls api/threads invalidation methods using those same key factories.
     tested_by: "refetches entries at each caught-up, per live entry and live turn end, never per
         replayed one"
 
@@ -365,11 +361,7 @@ obligations:
       Plan events (WorkflowDraftStarted, WorkflowEdited, WorkflowFrozen, PlanArchived,
       PlanUnarchived) refetch the plan views when live, and are parked and flushed at caught-up
       when not.
-    tested_by: unknown
-    note: >
-      Neither use-project-events.test.tsx nor thread-stream.test.ts emits these kinds.
-      web/src/app/workflows/plan-map.test.tsx emits PlanDependenciesChanged and
-      WorkflowDraftStarted, but its test names were not read.
+    tested_by: preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
 
   - rule: >
       AgreementChanged refetches the agreement views and returns before the design branch.
@@ -424,8 +416,8 @@ obligations:
 
 not_the_caller's:
   - >
-    Open an EventSource yourself, or build the stream URL by hand. Use ThreadStream or
-    useThreadStream, which hold the cursor and close the source.
+    Open an EventSource yourself, or build the stream URL by hand. Use the registry through
+    useThreadStream, usePlanEvents or useProjectEvents, which retain the cursor and close the source.
   - >
     Call close() to cancel work. close() ends only this connection.
   - >
@@ -656,4 +648,17 @@ design_cache_identity: "Project design refresh uses api/design.designKeys shared
 
 thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
 
-feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, ThreadStream."
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
+
+refresh_policy:
+  classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."
+  dispatcher: "dispatchRefresh maps targets to API owners' invalidation methods, without building query keys."
+  union: "All five plan kinds refresh all workflows plus the source project's design and agreement versions, on every path."
+  scope: "Project subscriptions supply their project id; writer subscriptions use the plan's project_id and conversations supply the route project id. Payload project_id is a fallback."
+  replay: "Plan targets are deduplicated until caught-up. Project design/agreement notices still refresh during replay. Thread caught-up refreshes entries, operations and workflows; writer caught-up refreshes workflows."
+  tested_by:
+    - pins project refresh for %s
+    - pins writer-thread refresh for %s
+    - pins conversation refresh for %s
+    - classifies the full plan refresh union for %s
+    - preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive

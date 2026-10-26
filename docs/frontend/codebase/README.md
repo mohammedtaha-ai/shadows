@@ -329,8 +329,10 @@ it is that folder's `contract.yaml`.
 | `web/src/stream/tab-id.ts` | This tab's id, sent with every turn | `web/src/stream/contract.yaml` |
 | `web/src/stream/thread-stream.ts` | Client side of one thread's replay, then live feed | `web/src/stream/contract.yaml` |
 | `web/src/stream/thread-registry.ts` | Share resumable connections within a cache scope | `web/src/stream/contract.yaml` |
+| `web/src/stream/refresh.ts` | Classify event refresh targets for API dispatch | `web/src/stream/contract.yaml` |
+| `web/src/stream/use-plan-events.ts` | Subscribe to writer-thread plan refresh | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-project-events.ts` | Refetches project plan views on journal notices | `web/src/stream/contract.yaml` |
-| `web/src/stream/use-thread-stream.ts` | Binds a thread stream to a component's lifetime | `web/src/stream/contract.yaml` |
+| `web/src/stream/use-thread-stream.ts` | Bind a registry subscription to a component | `web/src/stream/contract.yaml` |
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
 | `web/src/test/contract-fixtures.ts` | Sample daemon values typed against `schema.d.ts` | `web/src/test/fake-daemon.ts` |
 | `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon | `web/src/test/contract-fixtures.ts` |

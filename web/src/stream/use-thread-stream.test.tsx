@@ -125,7 +125,8 @@ describe('useThreadStream', () => {
     expect(entries()).toBe(3)
     act(() => current().caughtUp(8))
     expect([entries(), operations()]).toEqual([4, 3])
-    expect(invalidate).toHaveBeenCalledTimes(7)
+    // Each caught-up also reconciles workflows for the conversation's plan views.
+    expect(invalidate).toHaveBeenCalledTimes(9)
   })
 
   it('hands every durable event to its caller once, saying whether it was live', () => {

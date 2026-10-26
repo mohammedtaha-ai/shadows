@@ -59,3 +59,7 @@ export function saveRevokedGrantAnswer(client: QueryClient, projectId: string, r
   return writeSaved<Grant[]>(client, projectKeys.grants(projectId), grants =>
     grants?.map(value => value.id === revoked.id ? revoked : value))
 }
+
+export function invalidateProjects(client: QueryClient): void {
+  void client.invalidateQueries({ queryKey: projectsQuery.queryKey, exact: true })
+}

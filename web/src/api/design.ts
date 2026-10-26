@@ -184,3 +184,7 @@ export function useDesignPages<T>(baseKey: readonly unknown[], load: (after?: st
 export function usePartPages(projectId: string, parent?: string) {
   return useDesignPages(partsQuery(projectId, parent).queryKey.slice(0, -1), after => getParts(projectId, parent, after))
 }
+
+export function invalidateDesign(client: QueryClient, projectId: string): void {
+  void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
+}

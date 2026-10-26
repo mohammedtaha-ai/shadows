@@ -686,3 +686,12 @@ design_pagination:
   useDesignPages: "Accumulate a branch only while its first-page revision agrees; invalidate and drop extra pages on mismatch."
   usePartPages: "Part pagination shared by design views and agreement participants; uses partsQuery key without its final cursor."
   keys: "designPageQuery appends the unchanged cursor or null; part and outcome query identities retain their exact values."
+
+stream_invalidation:
+  workflows: "invalidateWorkflows refreshes the unchanged workflows prefix; invalidateProjectWorkflows retains map, list-prefix and project-plan predicate matching."
+  design: "invalidateDesign refreshes the unchanged project design prefix."
+  agreements: "invalidateAgreementVersions refreshes version prefixes; invalidateAgreements also refreshes the list."
+  projects: "invalidateProjects matches the exact existing projectsQuery identity."
+  threads: "invalidateEntries, invalidateOperations and invalidateQueue use their existing keys; invalidateThreadLists retains project and agent list matching."
+  consumer: "stream/ dispatchRefresh maps classified targets to these owner methods."
+  tested_by: "pins project refresh for %s; pins writer-thread refresh for %s; pins conversation refresh for %s; reads the thread lists again on a retitle: live at once, replayed at the caught-up"

@@ -50,3 +50,16 @@ export function planQuery(workflowId: string) {
 export function savePlanAnswer(client: QueryClient, plan: Plan) {
   return writeSaved(client, workflowKeys.plan(plan.id), plan)
 }
+
+export function invalidateWorkflows(client: QueryClient): void {
+  void client.invalidateQueries({ queryKey: workflowKeys.all() })
+}
+
+export function invalidateProjectWorkflows(client: QueryClient, projectId: string): void {
+  void client.invalidateQueries({ queryKey: workflowKeys.map(projectId) })
+  void client.invalidateQueries({ queryKey: workflowKeys.list(projectId, false).slice(0, 3) })
+  void client.invalidateQueries({ queryKey: workflowKeys.plans(), predicate: query => {
+    const data = query.state.data
+    return typeof data === 'object' && data !== null && 'project_id' in data && data.project_id === projectId
+  } })
+}

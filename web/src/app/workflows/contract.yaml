@@ -27,7 +27,7 @@ status: current
 source: web/src/app/workflows
 
 refresh_pinning:
-  writer: "pins writer-thread refresh for %s covers all five plan kinds; WorkflowDraftStarted, WorkflowEdited and WorkflowFrozen refresh the entire workflows family; archive/unarchive currently do not."
+  writer: "pins writer-thread refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────
@@ -115,10 +115,8 @@ camera:
       refits a focused or clicked task whenever the canvas size changes.
 
 frames:
-  isPlanEvent: "(kind: string) -> boolean"
-  refetchPlans: "(queryClient: QueryClient) -> void"
   usePlanFrames:
-    signature: "(threadId: string | undefined) -> void"
+    signature: "(threadId: string | undefined, projectId?: string) -> void"
     note: >
       Subscribes through stream/thread-registry.ts, sharing the conversation's
       connection in the QueryClient. The registry closes it when the last subscriber
@@ -312,10 +310,7 @@ obligations:
   - rule: >
       One ThreadStream is shared by every watcher of a thread, and it closes when the
       last watcher unmounts.
-    tested_by: none
-    note: >
-      Only the project stream's sharing is tested (plan-map.test.tsx, sidebar test),
-      not usePlanFrames' own map.
+    tested_by: shares writer watchers with a sibling conversation stream until the last watcher leaves
 
   - rule: >
       An enclosing conversation and its plan cards share the registry connection
@@ -437,15 +432,14 @@ gaps:
 
 open_questions:
   - >
+      Does the daemon deliver archive and unarchive on the writer-thread feed?
+      The client handles both kinds there; fixture tests establish its reaction,
+      not which events the daemon emits.
+  - >
       Can plan.links name a local task number that is absent from plan.tasks? If so,
       taskNode shows its 'needs' text while layoutPlan draws no edge, because the
       filter in layoutPlan drops that link. Answering needs the daemon's plan
       projection (crates/shadows-core/src/plans), not read here.
-  - >
-      Does the thread stream carry PlanArchived and PlanUnarchived? PLAN_KINDS in
-      plan-frames.ts omits them. A writer-thread watcher therefore refetches on
-      archive only if the project stream reaches it. Answering needs the thread
-      stream's event list (web/src/stream).
   - >
       Does the daemon accept an archive or unarchive command id it has already
       committed, and answer with the same result? Answering needs the Plans archive
@@ -573,7 +567,7 @@ tests:
       change reason. Archive sends a UUID command id, and afterward 'Archived · read
       only' shows with no Approve button.
 
-feature_entry: "index.ts exposes PlanGraph, usePlan, isPlanEvent, refetchPlans. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph."
+feature_entry: "index.ts exposes PlanGraph and usePlan. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph."
 
 feature_imports: "Cross-feature production imports use declared public entries."
 

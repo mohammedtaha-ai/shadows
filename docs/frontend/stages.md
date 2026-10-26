@@ -15,7 +15,7 @@ and OS acceptance.
 ## Tasks
 
 ### F-31 · W-7: stream refresh has one owner
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-7--give-stream-refresh-one-owner
   and section 3 ("Highest-priority ownership problems" 1)
 - Read: the plan's sections 3 and 6 (`stream` row); `web/src/stream/contract.yaml` (with

@@ -17,3 +17,12 @@ export function agreementQuery(projectId: string, id: string | undefined, versio
 export function saveAgreementAnswer(client: QueryClient, projectId: string, id: string | undefined, version: number | undefined, saved: AgreementVersion) {
   return writeSaved(client, agreementKeys.version(projectId, id, version), saved)
 }
+
+export function invalidateAgreementVersions(client: QueryClient, projectId: string): void {
+  void client.invalidateQueries({ queryKey: agreementKeys.versions(projectId) })
+}
+
+export function invalidateAgreements(client: QueryClient, projectId: string): void {
+  void client.invalidateQueries({ queryKey: agreementKeys.list(projectId) })
+  invalidateAgreementVersions(client, projectId)
+}

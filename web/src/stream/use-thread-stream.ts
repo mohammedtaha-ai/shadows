@@ -2,22 +2,10 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
-import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
+import { refreshSubscriber } from './refresh'
 import type { DurableEvent } from './frames'
 import { type Notice, type StreamState } from './thread-stream'
 import { threadBinding } from './thread-registry'
-
-/** Every project's thread list: a title lives there, and the stream names
- * the thread, not its project. */
-const isThreadList = (key: readonly unknown[]) => (key[0] === 'projects' || key[0] === 'aylul-agent') && key[2] === 'threads'
-
-/** Operation events after which the operation is over. */
-const TERMINAL_KINDS: ReadonlySet<string> = new Set([
-  'OperationCompleted',
-  'OperationFailed',
-  'OperationCancelled',
-  'OperationInterrupted',
-])
 
 export type DurableListener = (event: DurableEvent, live: boolean, state: StreamState) => void
 export type NoticeListener = (notice: Notice) => void
@@ -42,6 +30,7 @@ export function useThreadStream(
   threadId: string,
   onDurable?: DurableListener,
   onNotice?: NoticeListener,
+  projectId?: string,
 ): StreamState & { retry: () => void } {
   const queryClient = useQueryClient()
 
@@ -49,33 +38,11 @@ export function useThreadStream(
     const stream = threadBinding(queryClient, threadId)
     const listeners = stream.durable
     const noticeListeners = stream.notices
-    const refetch = (key: readonly unknown[]) => void queryClient.invalidateQueries({ queryKey: key })
-    const refetchTitles = () =>
-      void queryClient.invalidateQueries({ predicate: (query) => isThreadList(query.queryKey) })
-    // Whether the replay under way held a `ThreadRetitled`.
-    const replay = { retitled: false }
-    stream.caughtUp.add(() => {
-      refetch(threadEntriesKey(threadId))
-      refetch(threadOperationsKey(threadId))
-      if (replay.retitled) refetchTitles()
-      replay.retitled = false
-    })
-    // Only while live. During any replay — the first, or the one after a
-    // reconnect, when `caughtUp` is already true — the `caught-up` that
-    // ends it refetches once for the lot.
-    stream.durable.add((event, live) => {
-      if (live && (event.kind === 'ThreadEntryAppended' || TERMINAL_KINDS.has(event.kind))) {
-        refetch(threadEntriesKey(threadId))
-      }
-      // A turn's ending settles its invocation's observed values (spec §12.8).
-      if (live && TERMINAL_KINDS.has(event.kind)) refetch(threadOperationsKey(threadId))
-      if (event.kind === 'ThreadRetitled') {
-        if (live) refetchTitles()
-        else replay.retitled = true
-      }
-    })
+    const refresh = refreshSubscriber(queryClient, { threadId, projectId })
+    stream.caughtUp.add(() => refresh.onCaughtUp?.())
+    stream.durable.add((event, live, state) => refresh.onDurable?.(event, live, state))
     return { stream, listeners, noticeListeners }
-  }, [threadId, queryClient])
+  }, [threadId, queryClient, projectId])
 
   useEffect(() => {
     if (onNotice === undefined) return

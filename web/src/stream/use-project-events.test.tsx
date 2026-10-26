@@ -17,6 +17,7 @@ it.each(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchiv
     ['workflows', 'map', 'p1'], ['workflows', 'list', 'p1', { archived: false }],
     ['workflows', 'list', 'p1', { archived: true }], ['workflows', 'versions', 'plan1'],
     ['workflows', 'plan', 'w1'], ['workflows', 'plan', 'w0'], ['workflows', 'plan', 'neighbour'],
+    ['workflows', 'map', 'p2'], ['workflows', 'plan', 'foreign'],
   ]
   const sources: FakeSource[] = []
   vi.stubGlobal('EventSource', class extends FakeSource {

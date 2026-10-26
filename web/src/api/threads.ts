@@ -77,3 +77,22 @@ export async function saveRemovedThreadAnswer(client: QueryClient, thread: Plann
   await writeSaved<PlanningThread[]>(client, threadKeys.list(thread.project_id), threads =>
     threads?.filter(value => value.id !== thread.id))
 }
+
+export function invalidateEntries(client: QueryClient, threadId: string): void {
+  void client.invalidateQueries({ queryKey: threadKeys.entries(threadId) })
+}
+
+export function invalidateOperations(client: QueryClient, threadId: string): void {
+  void client.invalidateQueries({ queryKey: threadKeys.operations(threadId) })
+}
+
+export function invalidateQueue(client: QueryClient, threadId: string): void {
+  void client.invalidateQueries({ queryKey: threadKeys.queue(threadId) })
+}
+
+export function invalidateThreadLists(client: QueryClient): void {
+  void client.invalidateQueries({ predicate: query => {
+    const key = query.queryKey
+    return (key[0] === 'projects' || key[0] === 'aylul-agent') && key[2] === 'threads'
+  } })
+}

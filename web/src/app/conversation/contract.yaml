@@ -30,7 +30,7 @@ status: current
 source: web/src/app/conversation
 
 refresh_pinning:
-  conversation: "pins conversation refresh for %s covers all five plan kinds; WorkflowDraftStarted, WorkflowEdited and WorkflowFrozen refresh the entire workflows family; archive/unarchive currently do not."
+  conversation: "pins conversation refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────
@@ -297,7 +297,7 @@ components:
 
 hooks:
   useConversation:
-    signature: "(threadId: string, onShowHere?: (show: PlanShowFrame) => void) => ConversationView"
+    signature: "(threadId: string, onShowHere?: (show: PlanShowFrame) => void, projectId?: string) => ConversationView"
     # Mount once per thread. Folds the stream into the turn and reply reducers, the
     # entries, the operations snapshot, usage, commands and plan refetches. `onShowHere`
     # hears only a live plan-show naming this tab and this thread.
@@ -1454,3 +1454,5 @@ feature_imports: "Cross-feature production imports use declared public entries."
 route_entries: "conversation.tsx, draft.tsx remain separate public lazy route modules declared by index.ts."
 
 stream_lifetime: "The conversation and plan cards subscribe independently through stream/; its registry shares their thread connection and closes it after the last subscriber leaves."
+
+refresh_owner: "stream/ classifies plan events and dispatches API-owned invalidations; the conversation supplies its project id and retains queue refresh, turn/reply projection and notice handling."

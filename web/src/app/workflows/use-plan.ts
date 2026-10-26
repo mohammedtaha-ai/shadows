@@ -6,11 +6,11 @@ import { planQuery } from '@/api/queries'
 import { usePlanFrames } from './plan-frames'
 
 /** Plan version `workflowId`, refetched whenever its thread's stream carries
- * a `WorkflowEdited`, `WorkflowFrozen` or `WorkflowDraftStarted`. Used by the
+ * a plan change, including archive or unarchive. Used by the
  * Workflows page and by the conversation's plan cards and side panel. */
 export function usePlan(workflowId: string): UseQueryResult<Plan> {
   const plan = useQuery(planQuery(workflowId))
-  usePlanFrames(writerThread(plan.data?.written_by))
+  usePlanFrames(writerThread(plan.data?.written_by), plan.data?.project_id)
   return plan
 }
 
