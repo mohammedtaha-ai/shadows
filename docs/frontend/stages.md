@@ -15,7 +15,7 @@ and OS acceptance.
 ## Tasks
 
 ### F-32 · W-8: one transport, and every API domain has its own operations
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-8--split-the-api-transport-from-domain-operations
   and section 4 (`api/client.ts` row)
 - Read: the plan's sections 4 and 6; `web/src/api/contract.yaml`; `web/src/api/client.ts`;

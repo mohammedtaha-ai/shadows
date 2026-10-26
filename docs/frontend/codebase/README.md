@@ -141,15 +141,13 @@ it is that folder's `contract.yaml`.
 | `web/src/desktop/bootstrap.tsx` | Native startup gate with injected connection UI | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.test.tsx` | Readiness ordering fixtures | `web/src/desktop/contract.yaml` |
 | `web/src/api/aylul-profiles.ts` | AYLUL configuration server state: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
-| `web/src/api/client.ts` | Domain operations pending migration | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | Project design server state | `web/src/api/contract.yaml` |
 | `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
-| `web/src/api/queries.ts` | Domain query entry points | `web/src/api/contract.yaml` |
 | `web/src/api/agreements.ts` | Agreement server state | `web/src/api/contract.yaml` |
 | `web/src/api/code.ts` | Code index server state | `web/src/api/contract.yaml` |
-| `web/src/api/directories.ts` | Directory query identities | `web/src/api/contract.yaml` |
+| `web/src/api/directories.ts` | Filesystem directory server state | `web/src/api/contract.yaml` |
 | `web/src/api/harnesses.ts` | Harness capabilities server state | `web/src/api/contract.yaml` |
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
 | `web/src/api/projects.ts` | Project server state | `web/src/api/contract.yaml` |
@@ -157,7 +155,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
 | `web/src/api/workflows.ts` | Workflow server state | `web/src/api/contract.yaml` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
-| `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
+| `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/contract.yaml` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/agent-settings.tsx` | Agent editing form | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/delete-zone.tsx` | Danger zone confirming the deletion of a provider or agent | `web/src/app/agents/contract.yaml` |

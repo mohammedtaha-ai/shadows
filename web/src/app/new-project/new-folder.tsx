@@ -4,7 +4,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FolderPlus } from 'lucide-react'
 import { useState } from 'react'
-import { createDir } from '@/api/client'
+import { createDir } from '@/api/directories'
 import { directoryKeys } from '@/api/directories'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
