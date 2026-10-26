@@ -179,6 +179,33 @@ settings dialog, PR #40) at `1a2b601`.
   src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
   `npm run build` pass
 
+### F-39 · W-10c: the four delete and remove confirmations share one confirmation panel
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
+  (packet c of four; F-37 and F-38 were a and b). The plan's rule holds: shared confirmation UI
+  never centralizes command identities or pending state.
+- Read: the plan's W-10 and its risks line on shared confirmation UI;
+  `web/src/app/agents/delete-zone.tsx`, `web/src/app/sidebar/delete-thread-dialog.tsx`,
+  `web/src/app/project-settings/remove-project.tsx`, `web/src/app/settings/extension-list.tsx`
+  and their tests; `web/src/components/ui/dialog.tsx`; the `shared` module row and the
+  `error-line.tsx` row of `docs/frontend/codebase/README.md`
+- Touch: a new `web/src/app/confirm-panel.tsx` (rendering a confirmation: its question, what it
+  will do, the error line, Cancel and the destructive confirm button with its pending label; as
+  a dialog body or as an inline group); the four files above; their module contracts
+  (`agents`, `sidebar`, `project-settings`, `settings`); `docs/frontend/codebase/README.md` (the
+  `shared` module row and the new file's row); this task's `Status:`
+- Needs: F-38 (done)
+- Done when: all four confirmations render through `ConfirmPanel`; it holds no mutation, no
+  command attempt, no query and no open state; each caller keeps its own mutation, attempt,
+  invalidations, navigation, open state and lock (extension list's `locked` ref and per-item
+  attempts, the thread dialog's close guard while pending, remove-project's attempt kept outside
+  the unmounting dialog). The rendered text, roles, labels, button variants, disabled rules and
+  pending labels ("Deleting...", "Deleting…", "Removing…") of each confirmation are unchanged.
+  Every test file and `architecture.baseline.txt` are unchanged. From `web/`:
+  `npx vitest run src/app/agents src/app/sidebar src/app/project-settings src/app/settings
+  src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
+  `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
