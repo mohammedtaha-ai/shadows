@@ -175,7 +175,7 @@ No CSS variable reaches the drawing: Canvas takes colours as strings at draw tim
   swatch's hue difference, keeping its saturation and lightness, and an entry may override single
   tones after review. The web client and the companion renderer both import this file (two
   packages, one file; neither copies it). The tone names and the derivation are in the desktop
-  UI plan (`docs/aylul/ui/plans/2026-10-21-character-colour.md`, U-2).
+  UI plan (`docs/aylul/ui/plans/2026-10-21-character-colour.md` at `ca618f89`, U-2).
 - **Adding a colour** is one new entry `{ id, label, swatch }` in the table plus its id in the
   table's order test (`character-colors.test.ts`); every other test iterates the table. No
   backend, native, web component or renderer code changes.

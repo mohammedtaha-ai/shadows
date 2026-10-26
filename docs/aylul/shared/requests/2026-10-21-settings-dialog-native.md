@@ -6,7 +6,7 @@
 - Delivered: PR #40, merged at `1a2b601`. N-6, N-7, U-1, U-3 are in `docs/aylul/native/stages.md`
   and `docs/aylul/ui/stages.md` at `1a2b601`; F-12, F-14 in `docs/frontend/stages.md` at `1a2b601`.
 - Serves: docs/frontend/specs/2026-10-20-settings-dialog-design.md (Character colour; General),
-  docs/aylul/ui/plans/2026-10-21-character-colour.md (U-1, U-3), docs/frontend/stages.md (F-12, F-14 at `1a2b601`)
+  `docs/aylul/ui/plans/2026-10-21-character-colour.md` at `ca618f89` (U-1, U-3), docs/frontend/stages.md (F-12, F-14 at `1a2b601`)
 
 ## Need
 
