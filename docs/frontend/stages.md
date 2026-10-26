@@ -72,7 +72,7 @@ settings dialog, PR #40) at `1a2b601`.
   src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and `npm run build` pass
 
 ### F-35 · W-9c: delivering a message and stopping a turn leave the composer
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
   (packet c of four; F-33 and F-34 were a and b)
 - Read: the plan's W-9 and section 4 (the `conversation/composer.tsx` row);

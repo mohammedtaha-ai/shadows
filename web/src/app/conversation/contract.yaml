@@ -196,8 +196,8 @@ components:
       known: boolean; commands?: readonly SlashCommand[]; agentProfile?: string; ring?: ReactNode; onStarted: (operationId:
       string) => void; pointed: PointedTask | null; onPointed: (done: PointedTask) => void }) =>
       JSX.Element"
-    # Send, queue (while a turn runs) and Stop. Send waits for `known` and for the
-    # session to hold the chosen model before it can act.
+    # Composes useSend, useStop, useImages and useSessionSettings with the prompt
+    # and slash menu. Send waits for known and the session to hold the chosen model.
   ComposerBar:
     signature: "(props: { harness: string; harnessLabel: string; session: SessionView; settings:
       TurnSettings | null; onSettings: (next: TurnSettings) => void; changingModel: boolean;
@@ -296,6 +296,23 @@ components:
     # Shows only reconnecting and failed; connecting and live show nothing.
 
 hooks:
+  useSend:
+    signature: "({ to: SendTo; threadId: string | null; running: Turn | null; initialAttempt?: Attempt | null; imagesChanged: () => void; dropImages: (sent: PendingImage[]) => void; clearPrompt: () => void; clearContinuedPlan: () => void; onPointed: (done: PointedTask) => void; onStarted: (operationId: string) => void }) => { deliver: ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>) => void; clearAttempt: () => void; sending: boolean; inFlight: boolean; error: Error | null }"
+    # Owns the pending attempt, send/queue mutations and their choice. deliver takes
+    # the message values; it reads neither prompt state nor the slash menu.
+    # clearAttempt is stable so the composer, images and settings share one reset.
+    # Thread delivery awaits uploads, then companion targeting, then start/queue.
+    # Draft delivery calls to.draft. Unchanged retries reuse the command; conflict
+    # drops it. focusOf uses the task id in the attempt and the request alike.
+    # Send success drops sent images, resets the attempt, clears continued plan and
+    # prompt, clears the pointed task, then calls onStarted. Queue success drops
+    # images, clears prompt and attempt, then refreshes the queue; focus/plan remain.
+    # inFlight is computed once for image intake and the composer controls;
+    # sending preserves the settings hook's busy input independently of queuing.
+  useStop:
+    signature: "(running: Turn | null) => { stop: (operationId: string) => void; isPending: boolean; error: Error | null; label: 'Stop' | 'Stopping…' | 'Stop again' }"
+    # Owns the stop mutation. Stopping persists until running clears; a failed stop
+    # offers Stop again. Only a pending request disables the button.
   useSessionSettings:
     signature: "(choices: SessionChoices | null, busy: boolean, threadId: string | null, changed: () => void) => { settings: TurnSettings | null; note: string | null; choose: (next: TurnSettings) => void; switching: boolean; error: Error | null; resetError: () => void }"
     # Owns held settings, their note, mode replay, model refusal and effort changes.
@@ -1048,10 +1065,10 @@ gaps:
 
 open_questions:
   - >
-      Should a queued message clear the focus chip? `Composer`'s queue `onSuccess` does not call
+      Should a queued message clear the focus chip? `useSend`'s queue `onSuccess` does not call
       `onPointed`, while a sent turn does. The queued message stores its focus (WaitingMessages'
       rows carry it), so the chip staying means the next message carries it too. Intent is not
-      stated in code; decide, then align composer.tsx.
+      stated in code; decide, then align use-send.ts.
 
   - >
       Does the daemon retitle a draft's thread on its first start? `useFirstSend` creates the thread

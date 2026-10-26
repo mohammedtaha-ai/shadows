@@ -182,7 +182,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/carried-send.ts` | Carries a failed first message to its thread page | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/cli-picker.tsx` | Chooses the CLI a conversation runs on | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer-bar.tsx` | Flat row of composer menus under the message box | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/composer.tsx` | Message box that sends to the Planner, with Stop | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/composer.tsx` | Compose the message writing surface | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/context-ring.tsx` | Context-usage ring with its two popover levels | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/conversation.tsx` | Open conversation pane, assembled from its parts | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/deleted-conversation.tsx` | Readable history of a removed conversation | `web/src/app/conversation/contract.yaml` |
@@ -216,6 +216,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/use-images.ts` | Own selected image uploads | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/pending-images.tsx` | Present selected image previews | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session-settings.ts` | Own session-setting changes | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-send.ts` | Deliver the composed message | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-stop.ts` | Stop the running turn | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session.ts` | Harness session state the conversation screen reads | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/waiting-messages.tsx` | Queued messages waiting to be sent or removed | `web/src/app/conversation/contract.yaml` |

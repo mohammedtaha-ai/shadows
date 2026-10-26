@@ -1,22 +1,15 @@
-// One job: writing to the Planner — the prompt and the settings it runs with,
-// Send, and Stop while a turn runs.
+// Compose the message box, its pickers and the delivery controls.
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { ArrowUp, Square } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type TurnSettings } from '@/api/sessions'
-import { type Focus, queueMessage, startTurn, stopTurn } from '@/api/threads'
-import { type Attempt, attemptFor } from '@/api/command-id'
-import { ApiError } from '@/api/error'
-import { queuedQuery } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import type { SlashCommand } from '@/stream'
-import {noteCompanionSend,useCompanionSendProblem} from '@/desktop'
-import { tabId } from '@/stream'
+import { useCompanionSendProblem } from '@/desktop'
 import { ErrorLine } from '../error-line'
 import { useOpenSettings } from '@/app/navigation'
-import { uploadImages, type CarriedSend, type PendingImage } from './carried-send'
+import { type CarriedSend, type PendingImage } from './carried-send'
 import { AYLUL_HARNESS } from './cli-picker'
 import { ComposerBar } from './composer-bar'
 import { FocusChip, type PointedTask } from './focus-chip'
@@ -26,6 +19,8 @@ import { SlashMenu } from './slash-menu'
 import { effortsKnown, sendable, withModel } from './turn-settings'
 import { useSessionSettings } from './use-session-settings'
 import { useImages } from './use-images'
+import { useSend } from './use-send'
+import { useStop } from './use-stop'
 import { PendingImages } from './pending-images'
 import type { Turn } from './turn-state'
 import { type SessionView } from './use-session'
@@ -37,15 +32,6 @@ export type SendTo =
   | { draft: (commandId: string, text: string, settings: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>; planId?: string; selectableModels?: boolean }
 
 const NONE: readonly SlashCommand[] = []
-
-interface Send {
-  images: PendingImage[]
-  commandId: string
-  text: string
-  settings: TurnSettings
-  pointed: PointedTask | null
-  planId: string | undefined
-}
 
 export function Composer({
   to,
@@ -119,56 +105,14 @@ export function Composer({
   const [continuedPlan, setContinuedPlan] = useState(carried?.planId)
   const planId = 'draft' in to ? to.planId : continuedPlan
 
-  // The command id belongs to a pending send: made when Send is
-  // pressed with no pending send, reused by a retry of that same send, and
-  // dropped when it succeeds or when the prompt or a setting changes, so a
-  // changed request is a new command rather than a COMMAND_CONFLICT.
-  const pending = useRef<Attempt | null>(carried?.attempt ?? null)
-
-  const send = useMutation({
-    mutationFn: async ({ commandId, text, settings, pointed, planId, images }: Send) =>{
-      if('draft' in to)return to.draft(commandId,text,settings,images,imagesChanged)
-      const attachments = await uploadImages(to.threadId, images, imagesChanged)
-      await noteCompanionSend(to.threadId)
-      return startTurn(to.threadId,commandId,text,settings,{
-        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),attachments,
-      })
-    },
-    onError: error => {
-      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT') pending.current = null
-    },
-    onSuccess: (operationId, { pointed, images: sent }) => {
-      dropImages(sent)
-      pending.current = null
-      setContinuedPlan(undefined)
-      setPrompt('')
-      if (pointed !== null) onPointed(pointed)
-      onStarted(operationId)
-    },
-  })
-
-  // While a turn runs Enter queues the message with the settings the menus
-  // hold; it is sent when the turn ends or by Send now.
-  const queryClient = useQueryClient()
-  const queue = useMutation({
-    mutationFn: async ({commandId,text,settings,pointed,planId,images}:Send)=>{
-      const attachments = await uploadImages(threadId as string, images, imagesChanged)
-      await noteCompanionSend(threadId as string)
-      return queueMessage(threadId as string,commandId,text,settings,{
-        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),attachments,
-      })
-    },
-    // Keep the complete message until Core accepts it, so a refusal cannot
-    // lose its text while the images remain selected.
-    onSuccess: (_answer, { images: sent }) => {
-      dropImages(sent)
-      setPrompt('')
-      pending.current = null
-      void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId as string).queryKey })
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT') pending.current = null
-    },
+  // Image callbacks run on delivery, after the selection hook has been composed.
+  const { deliver, clearAttempt, sending, inFlight, error: sendError } = useSend({
+    to, threadId, running, initialAttempt: carried?.attempt,
+    imagesChanged: () => imagesChanged(),
+    dropImages: sent => dropImages(sent),
+    clearPrompt: () => setPrompt(''),
+    clearContinuedPlan: () => setContinuedPlan(undefined),
+    onPointed, onStarted,
   })
 
   // The `/` menu: open while the whole text is `/name`; Escape closes
@@ -194,7 +138,7 @@ export function Composer({
       return
     }
     const text = `/${command.name} `
-    pending.current = null
+    clearAttempt()
     setPrompt(text)
     setHint(command.hint === null ? null : { text, hint: command.hint })
   }
@@ -216,27 +160,12 @@ export function Composer({
   }
 
   const choices = session.state === 'ready' ? session.choices : null
-  const inFlight = send.isPending || queue.isPending
   const { images, imageReason, filePicker, add: addImages, pick: pickPhotos, retry, remove, drop: dropImages, imagesChanged } = useImages(
-    choices, threadId, inFlight, () => { pending.current = null }, setCarriedError, carried?.images,
+    choices, threadId, inFlight, clearAttempt, setCarriedError, carried?.images,
   )
-  const busy = send.isPending || running !== null
-  const { settings, note, choose, switching, error: settingsError, resetError: resetSettingsError } = useSessionSettings(choices, busy, threadId, () => {
-    pending.current = null
-  })
-  const stop = useMutation({ mutationFn: stopTurn })
-
-  // "Stopping" until the durable ending arrives and `running` clears: the
-  // stop call answering is not the turn ending. A stop this client saw fail
-  // (PROCESS_TERMINATION_FAILED: the tree may still be running) offers Stop
-  // again, even though the request is durable — asking again is safe, and a
-  // button stuck on "Stopping…" over a live tree could never be retried. Only
-  // a stop in flight disables it; a "Stopping…" learned from the daemon (after
-  // a reload, say) stays pressable for the same reason.
-  const mine = running !== null && stop.variables === running.id
-  const failed = mine && stop.isError
-  const stopping = running !== null && !failed && (running.stopRequested || mine)
-  const stopLabel = failed ? 'Stop again' : stopping ? 'Stopping…' : 'Stop'
+  const busy = sending || running !== null
+  const { settings, note, choose, switching, error: settingsError, resetError: resetSettingsError } = useSessionSettings(choices, busy, threadId, clearAttempt)
+  const { stop, isPending: stopping, error: stopError, label: stopLabel } = useStop(running)
 
   // Send waits until the session holds the chosen model: only then are the
   // efforts it runs with that model's.
@@ -252,20 +181,14 @@ export function Composer({
     const command = sessionCommand(prompt, choices)
     if (command !== null) return act(command)
     const text = prompt.trim()
-    if ((text === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || settings === null || send.isPending || queue.isPending) return
+    if ((text === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || settings === null || inFlight) return
     setSlashFromMenu(false)
-    // The focus is part of the command: pointing elsewhere is a new one.
     setCarriedError(null)
     resetSettingsError()
-    pending.current = attemptFor(pending.current, { text, settings, ...(images.length === 0 ? {} : { attachments: images.map(image => image.key) }), focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
-    const args = { commandId: pending.current.commandId, text, settings, pointed, planId, images: [...images] }
-    if (running !== null && threadId !== null) {
-      queue.mutate(args)
-    } else send.mutate(args)
+    deliver({ text, settings, pointed, planId, images })
   }
 
-
-  const error = send.error ?? queue.error ?? stop.error ?? settingsError ?? carriedError
+  const error = sendError ?? stopError ?? settingsError ?? carriedError
 
   return (
     <div className="border-t border-border bg-background/95 px-6 pt-3 pb-4 backdrop-blur-md">
@@ -294,7 +217,7 @@ export function Composer({
             <textarea
               ref={messageBox}
               value={prompt}
-              disabled={send.isPending || queue.isPending}
+              disabled={inFlight}
               onPaste={e => {
                 const files = Array.from(e.clipboardData.files).filter(file => file.type.startsWith('image/'))
                 if (files.length === 0) return
@@ -302,7 +225,7 @@ export function Composer({
                 addImages(files)
               }}
               onChange={(e) => {
-                pending.current = null
+                clearAttempt()
                 setSlashFromMenu(false)
                 setPrompt(e.target.value)
                 // Any change reopens a dismissed menu if the text still qualifies.
@@ -357,7 +280,7 @@ export function Composer({
           {running === null ? (
             <Button
               onClick={submit}
-              disabled={(prompt.trim() === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || send.isPending || queue.isPending}
+              disabled={(prompt.trim() === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || inFlight}
               size="icon"
               aria-label="Send"
               className="rounded-lg shadow-2xs transition-transform active:scale-95"
@@ -367,8 +290,8 @@ export function Composer({
           ) : (
             <Button
               variant="outline"
-              onClick={() => stop.mutate(running.id)}
-              disabled={stop.isPending}
+              onClick={() => stop(running.id)}
+              disabled={stopping}
               className="border-destructive-border text-destructive-foreground shadow-2xs transition-all hover:bg-destructive/10 hover:text-destructive-foreground"
             >
               <Square className="size-3 fill-current" />
@@ -409,10 +332,4 @@ export function Composer({
       </div>
     </div>
   )
-}
-
-/** What the turn sends: the task's id, never its number. */
-function focusOf(pointed: PointedTask | null): Focus | null {
-  if (pointed === null) return null
-  return { workflow_id: pointed.workflowId, task_id: pointed.task.id, revision: pointed.revision }
 }
