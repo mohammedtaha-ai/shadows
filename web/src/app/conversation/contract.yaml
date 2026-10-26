@@ -958,14 +958,14 @@ agreements:
       Both use toolText with the same fallback to the title.
     tested_by: "Copy on a tool line copies its title (§23.8)"
 
-  - between: [useFirstSend (draft), Composer submit (thread page)]
+  - between: [useFirstSend (draft), useSend (thread page)]
     must: >
       fingerprint a retried first send the same way, so the thread page's retry replays the
       draft's command and is not a new turn
     holds: true
     why: >
       The draft's catch builds its attempt from the same text, settings, plan and stable image keys; the thread
-      page's composer takes it as `carried.attempt`.
+      page's composer passes `carried.attempt` to useSend as `initialAttempt`.
     tested_by: "carries the selected plan and command into a failed first-send retry"
 
   - between: [useFirstSend, useSession]
@@ -994,8 +994,8 @@ agreements:
 
 not_the_caller's:
   - >
-      Mint a CommandId for a send or a queue. Use the composer's pending attempt through
-      `attemptFor`, so a retry replays and a changed request is new.
+      Mint a CommandId for a send or a queue. Call useSend's deliver method, which owns the
+      pending attempt through `attemptFor`, so a retry replays and a changed request is new.
   - >
       Send `/model` or `/effort` to the harness as text. Use the pickers; `sessionCommand` is the
       only path that reads them.
