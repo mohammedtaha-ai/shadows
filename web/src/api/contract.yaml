@@ -752,3 +752,7 @@ aylul_profiles_transport:
 person_transport:
   owner: person.ts
   transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"
+
+extensions_transport:
+  owner: extensions.ts
+  transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"

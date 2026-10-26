@@ -1,7 +1,6 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { writeSaved } from './saved-answer'
-import { client } from './client'
-import { unwrap, unwrapEmpty } from './error'
+import { client, unwrap, unwrapEmpty } from './transport'
 import type { components } from './schema'
 
 export type ExtensionKind = components['schemas']['ExtensionKind']
