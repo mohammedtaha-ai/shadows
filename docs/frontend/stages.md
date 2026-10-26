@@ -28,7 +28,8 @@ and OS acceptance.
   `app/conversation/composer.tsx`, `app/sidebar/agent-list.tsx`, `sidebar.tsx`,
   `app/settings/sections/agents.tsx`, `settings-dialog.tsx`) and their tests;
   `web/src/desktop/bootstrap.tsx`, `navigation.ts`, `companion-send.ts`, their tests,
-  `contract.yaml`; `web/src/main.tsx` (start-up composition); `web/src/app/desktop/`
+  `contract.yaml`; the callers of `companion-send.ts` (`app/conversation/draft.tsx`,
+  `composer.tsx`, `companion-send.test.tsx`, `app/conversation/contract.yaml`); `web/src/main.tsx` (start-up composition); `web/src/app/desktop/`
   (the orchestration that moves up from `desktop/`, its tests, `contract.yaml`);
   `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md`; this task's `Status:`
 - Needs: F-26, F-17
