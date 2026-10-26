@@ -61,8 +61,8 @@ pub fn run() {
         .setup(|app| {
             use tauri::Manager;
             let desktop = app::DesktopApp::start(app)?;
-            app.manage(desktop);
-            windows::setup(app)
+            app.manage(desktop.clone());
+            desktop.setup_windows(app)
         })
         .build(tauri::generate_context!())
         .expect("NYLRA native runtime failed")

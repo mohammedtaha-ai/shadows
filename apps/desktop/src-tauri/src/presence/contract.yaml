@@ -14,7 +14,7 @@ public_api:
   publish: On the UI thread, reject obsolete epochs, bindings and runtimes before presenting or republishing; acknowledge only after publication. Registration availability is supplied by composition.
   editor_context: Supply scope, context and agent only when a second scope/context read still matches.
   open_main_from_companion: Validate the captured destination on a blocking worker, then ask the injected Navigation to publish the pending request and restore main on the UI thread.
-  WindowActions: Explicit native surface dependency containing UI dispatch, visibility, show, present and republish callbacks; native application-handle lifetime stays in the composition adapter and workflows perform no managed-state lookup.
+  WindowActions: Explicit native surface dependency containing UI dispatch, visibility, show, present and republish callbacks; native application-handle and explicit companion Handle lifetimes stay in the composition adapter, including the captured selection-show callback; workflows perform no managed-state lookup.
   Submission/Sent: Public companion submission request and result values, reexported from the private send module.
   CompanionAppearance: Opaque agent character colour copied without validation; absent when unbound or unavailable.
   core_client: The companion's one private Core HTTP client. Blocking reads and writes for binding, navigation and submission; async snapshots, metadata checks and SSE for observation. No other companion module builds a Core request.

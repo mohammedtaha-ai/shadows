@@ -5,6 +5,8 @@ use std::{future::Future, pin::Pin, sync::Arc};
 
 type UiAction = Box<dyn FnOnce(&tauri::AppHandle) -> Result<(), String> + Send>;
 type UiResult = Pin<Box<dyn Future<Output = Result<(), String>> + Send>>;
+type ShowForSelection = Arc<dyn Fn(&tauri::AppHandle, u64) -> Result<(), String> + Send + Sync>;
+
 type Present =
     Arc<dyn Fn(companion::SurfacePresence, Option<companion::SurfaceAppearance>) + Send + Sync>;
 
@@ -12,7 +14,7 @@ type Present =
 pub struct WindowActions {
     pub on_ui: Arc<dyn Fn(UiAction) -> UiResult + Send + Sync>,
     pub visibility_token: Arc<dyn Fn() -> u64 + Send + Sync>,
-    pub show_for_selection: fn(&tauri::AppHandle, u64) -> Result<(), String>,
+    pub show_for_selection: ShowForSelection,
     pub republish: Arc<dyn Fn() + Send + Sync>,
     pub present: Present,
 }
@@ -53,7 +55,7 @@ impl Presence {
             .map_err(|_| "companion_core_unavailable")?
             .map_err(str::to_owned)?;
         if result.agent.is_some() && result.generation != before {
-            let show = window.show_for_selection;
+            let show = window.show_for_selection.clone();
             (window.on_ui)(Box::new(move |app| show(app, token))).await?;
         }
         Ok(result)

@@ -245,7 +245,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   architecture test, clippy and fmt pass
 
 ### N-18 · D-7c: window code does no service lookup
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-7c--window-code-does-no-service-lookup
   and #decision-d-0
 - Read: the plan's D-0 ("`AppHandle` is for window and event work only"); `apps/desktop/src-tauri/src/app.rs`;

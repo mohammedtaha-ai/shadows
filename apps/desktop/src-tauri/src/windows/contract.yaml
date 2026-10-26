@@ -9,7 +9,8 @@ responsibility: >
 public_api:
   MainWindow::new: Retain the configured-origin callback and main webview directory/browser arguments supplied by composition.
   MainWindow::build: Load the shared local dashboard with the configured endpoint in response CSP; reject remote navigation and new windows.
-  setup: Build main, preference-driven close handler, left-click open, Open/Show-or-Hide-AYLUL/Quit menu and Ctrl+Alt+Shift+F12; start the separately owned companion without propagating its failure.
+  CompanionActions: Composition-supplied tray attachment, visibility toggle and companion setup callbacks; retain no companion owner dependency.
+  setup: Receive MainWindow, a live close-policy callback and CompanionActions; build main, preference-driven close handler, left-click open, Open/Show-or-Hide-AYLUL/Quit menu and Ctrl+Alt+Shift+F12; start the separately owned companion without propagating its failure.
   MainWindow::open: Unminimize/show; fit inner size to physical work area accounting for frame; recover inaccessible origin; focus after deliberate user action.
   open_main: Delegate opening to MainWindow::open without a managed-state lookup; retain the Navigation entry point.
   recover_origin: Leave a usable title bar unchanged; otherwise clamp origin within the first available work area.
@@ -18,7 +19,7 @@ external_types:
   - tauri::WebviewWindow
   - tauri::Monitor
 obligations:
-  - rule: MainWindow owns construction and opening. Main response policy resolves no managed state; configured-origin reads and webview options arrive from composition. Setup resolves DesktopApp once for main construction and close policy; opening resolves none.
+  - rule: MainWindow owns construction and opening. Main response policy resolves no managed state; configured-origin reads and webview options arrive from composition. Setup receives its main owner and callbacks from composition; close policy is read when CloseRequested arrives. No window code resolves managed state.
     tested_by: native_architecture_ratchet
   - rule: Off-screen and one-pixel-sliver windows recover a usable title bar.
     tested_by: lost_window_and_one_pixel_sliver_recover_a_usable_title_bar

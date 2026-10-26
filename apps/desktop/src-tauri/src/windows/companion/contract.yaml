@@ -10,7 +10,10 @@ public_api:
   Store::set_editor_context: Install the editor context callback once during native assembly.
   input::set_input: Explicit companion-only open grants focus; close restores compact bounds without opening main.
   input::open_bounds/closed_origin: Physical editor geometry preserves the character anchor at the monitor scale.
-  Store: Application-owned native model, retained origin, visibility-intent counter and optional tray item.
+  Store: Composition-owned private native state; shared internals retain one model, origin, visibility-intent counter and tray item across queued callbacks.
+  Store::handle: Return an opaque public Handle sharing that state without exposing storage to commands.
+  Store::set_webview_options: Install companion data directory and browser arguments supplied by composition once.
+  Handle: Explicit surface dependency passed to window functions and retained by UI, page-load, timeout and reconstruction callbacks.
   visibility_token/show_for_selection: Capture the visibility intent before agent validation; show on the UI thread only if no later visibility action occurred.
   setup_companion: Build or reconstruct a hidden transparent 240px logical window; report construction failure without terminating main.
   snapshot: Return revisioned visibility/render permission plus the window-owned surface DTO.
@@ -26,7 +29,7 @@ external_types:
   - tauri::WebviewWindow
   - tauri::Monitor
 obligations:
-  - rule: Surface model, placement and paths use their DesktopApp accessors at existing UI dispatch points; editor context arrives through an injected callback, with no Presence or Watcher lookup in window code.
+  - rule: Surface model and placement use the explicit Handle at existing UI dispatch points; paths arrive as composition-supplied webview options and editor context through an injected callback. Window code names no DesktopApp and performs no managed-state lookup.
     tested_by: native_architecture_ratchet
   - rule: Command answers and companion-state events serialize the same CompanionState; unbound, bound, previewing and failed states pin field order, nulls, omitted appearance, opaque colour and full-u64 preview expiry to exact bytes.
     tested_by: companion_surface_wire_is_pinned

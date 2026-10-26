@@ -46,9 +46,12 @@ impl DesktopApp {
         }));
         let navigation = Arc::new(navigation::Navigation::default());
         let dispatch = app.handle().clone();
-        let visibility = app.handle().clone();
         let republisher = app.handle().clone();
         let presenter = app.handle().clone();
+        let visibility_store = companion.handle();
+        let selection_store = companion.handle();
+        let republish_store = companion.handle();
+        let presentation_store = companion.handle();
         presence.attach_workflows(
             navigation.clone(),
             presence::WindowActions {
@@ -56,18 +59,28 @@ impl DesktopApp {
                     Box::pin(windows::companion::on_ui(dispatch.clone(), action))
                 }),
                 visibility_token: Arc::new(move || {
-                    windows::companion::visibility_token(&visibility)
+                    windows::companion::visibility_token(&visibility_store)
                 }),
-                show_for_selection: windows::companion::show_for_selection,
-                republish: Arc::new(move || windows::companion::republish(&republisher)),
+                show_for_selection: Arc::new(move |app, token| {
+                    windows::companion::show_for_selection(app, &selection_store, token)
+                }),
+                republish: Arc::new(move || {
+                    windows::companion::republish(&republisher, &republish_store)
+                }),
                 present: Arc::new(move |projection, appearance| {
-                    windows::companion::present(&presenter, projection, appearance)
+                    windows::companion::present(
+                        &presenter,
+                        &presentation_store,
+                        projection,
+                        appearance,
+                    )
                 }),
             },
         );
         let binding_presence = Arc::downgrade(&presence);
         let binding_connection = std::sync::Arc::downgrade(&connection);
         let emitter = app.handle().clone();
+        let binding_store = companion.handle();
         presence.set_notifier(std::sync::Arc::new(move |view| {
             if let Some(presence) = binding_presence.upgrade() {
                 presence.sync_watcher(
@@ -79,8 +92,9 @@ impl DesktopApp {
             }
             let _ = emitter.emit_to("main", "companion-binding", view);
             let owner = emitter.clone();
+            let store = binding_store.clone();
             let _ = emitter.run_on_main_thread(move || {
-                let _ = windows::companion::input::refresh(&owner);
+                let _ = windows::companion::input::refresh(&owner, &store);
             });
         }));
         let binding = std::sync::Arc::downgrade(&presence);
@@ -121,6 +135,41 @@ impl DesktopApp {
         }))
     }
 
+    pub fn setup_windows(
+        self: &Arc<Self>,
+        app: &mut tauri::App,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.companion_window.set_webview_options(
+            self.paths().webview("companion"),
+            self.paths().browser_args("companion"),
+        );
+        let close_owner = self.clone();
+        let toggle_store = self.companion();
+        let attach_store = self.companion();
+        let setup_store = self.companion();
+        let handle = app.handle().clone();
+        windows::setup(
+            app,
+            self.main_window(),
+            Arc::new(move || close_owner.preferences().close_action(false)),
+            windows::CompanionActions {
+                attach_toggle: Box::new(move |item| {
+                    windows::companion::attach_toggle(&handle, &attach_store, item)
+                }),
+                toggle: Arc::new(move |app| {
+                    let _ = windows::companion::set_visible(
+                        app,
+                        &toggle_store,
+                        !windows::companion::snapshot(&toggle_store).visible,
+                    );
+                }),
+                setup: Box::new(move |app| {
+                    let _ = windows::companion::setup_companion(app, &setup_store);
+                }),
+            },
+        )
+    }
+
     pub fn preferences(&self) -> &desktop_preferences::DesktopPreferences {
         &self.desktop_preferences
     }
@@ -129,8 +178,8 @@ impl DesktopApp {
         &self.account
     }
 
-    pub fn companion(&self) -> &windows::companion::Store {
-        &self.companion_window
+    pub fn companion(&self) -> windows::companion::Handle {
+        self.companion_window.handle()
     }
 
     pub fn main_window(&self) -> &windows::MainWindow {

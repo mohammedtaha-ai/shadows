@@ -79,17 +79,24 @@ pub fn open_main(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     MainWindow::open(app)
 }
 
-pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let desktop = app
-        .state::<std::sync::Arc<crate::app::DesktopApp>>()
-        .inner()
-        .clone();
-    let w = desktop.main_window().build(app)?;
+pub struct CompanionActions {
+    pub attach_toggle: Box<dyn FnOnce(tauri::menu::MenuItem<tauri::Wry>)>,
+    pub toggle: Arc<dyn Fn(&tauri::AppHandle) + Send + Sync>,
+    pub setup: Box<dyn FnOnce(&tauri::AppHandle)>,
+}
+
+pub fn setup(
+    app: &mut tauri::App,
+    main: &MainWindow,
+    close_action: Arc<dyn Fn() -> crate::desktop_preferences::CloseAction + Send + Sync>,
+    actions: CompanionActions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let w = main.build(app)?;
     let h = w.clone();
     w.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
-            match desktop.preferences().close_action(false) {
+            match close_action() {
                 crate::desktop_preferences::CloseAction::Hide => {
                     let _ = h.hide();
                 }
@@ -101,7 +108,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let quit = tauri::menu::MenuItem::with_id(app, "quit", "Quit NYLRA", true, None::<&str>)?;
     let toggle =
         tauri::menu::MenuItem::with_id(app, "companion-toggle", "Show AYLUL", true, None::<&str>)?;
-    companion::attach_toggle(app.handle(), toggle.clone());
+    (actions.attach_toggle)(toggle.clone());
     let menu = tauri::menu::Menu::with_items(app, &[&show, &toggle, &quit])?;
     // Neutral application icon, not substitute character artwork.
     let mut pixels = vec![0u8; 16 * 16 * 4];
@@ -123,19 +130,19 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 let _ = open_main(tray.app_handle());
             }
         })
-        .on_menu_event(|app, event| match event.id().as_ref() {
+        .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => {
                 let _ = open_main(app);
             }
             "quit" => app.exit(0),
             "companion-toggle" => {
-                let _ = companion::set_visible(app, !companion::snapshot(app).visible);
+                (actions.toggle)(app);
             }
             _ => (),
         })
         .build(app)?;
     app.global_shortcut().register("Ctrl+Alt+Shift+F12")?;
     open_main(app.handle())?;
-    let _ = companion::setup_companion(app.handle());
+    (actions.setup)(app.handle());
     Ok(())
 }

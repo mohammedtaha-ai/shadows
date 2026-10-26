@@ -31,7 +31,7 @@ public_api:
 external_types:
   - tauri::WebviewWindow
 obligations:
-  - rule: Commands with native owners inject Arc<DesktopApp> and call typed accessors; companion selection/show, retarget/readiness, refresh and open-main each call one Presence method without looking up Navigation or the observer.
+  - rule: Commands with native owners inject Arc<DesktopApp> and call typed accessors; surface commands pass the opaque companion Handle into the unchanged UI dispatcher instead of letting window code resolve state; companion selection/show, retarget/readiness, refresh and open-main each call one Presence method without looking up Navigation or the observer.
     tested_by: native_architecture_ratchet
   - rule: All 27 registered commands have build metadata and generated allow/deny permissions; companion_send and companion_input are granted only to companion and guarded by the native caller matrix.
     tested_by: [native_architecture_ratchet, companion_callers_are_restricted_for_every_operation, 'integration: companion submission and editor commands have generated metadata and companion-only grants in apps/desktop/tests/native-acl.test.mjs']
