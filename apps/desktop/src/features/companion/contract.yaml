@@ -28,10 +28,25 @@ exports:
     file: apps/desktop/src/features/companion/renderer/character.ts
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
+  - name: createMotion
+    file: apps/desktop/src/features/companion/animation/model.ts
+  - name: readFrame
+    file: apps/desktop/src/features/companion/animation/model.ts
+entries:
+  - file: apps/desktop/src/features/companion/renderer/index.ts
+    exposes: renderCharacter (studio) and renderScene (presence canvas); no other renderer module.
+  - file: apps/desktop/src/features/companion/animation/index.ts
+    exposes: the motion, frame loop, viewport and message operations presence uses, of which studio takes createMotion and readFrame; no test support.
 obligations:
-  - rule: Renderer and animation entries expose only drawing, motion, frame scheduling, viewport and message operations consumed by presence or studio; production cannot reach studio, co-located unit tests or animation test support.
+  - rule: Modules reachable from the production companion entry import no studio module, co-located unit test or test fixture, including animation/fixtures/test-fakes.ts.
     tested_by: apps/desktop/tests/companion/boundaries.test.ts
     test: companion import boundaries match the exact shrinking baseline
+  - rule: The companion bundle holds no studio module, co-located unit test or test fixture.
+    tested_by: apps/desktop/tests/companion/production.test.ts
+    test: production includes companion and excludes studio modules and remote assets
+  - rule: The entries export only what presence and studio consume; no test checks the export lists.
+    tested_by: none
+    test: none
   - rule: Character and scene tones resolve from the frame colour; omitted or unknown colour retains every recorded purple pixel. Each frame shares its palette with the drawing passes; accessory crystal callers that omit the optional palette keep the base tones.
     tested_by: apps/desktop/tests/companion/renderer.spec.ts
     test: purple draws today's pixels
