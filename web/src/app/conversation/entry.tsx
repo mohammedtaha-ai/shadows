@@ -3,7 +3,8 @@
 
 import { CircleCheck, ShieldX, Wrench } from 'lucide-react'
 import { Suspense, lazy } from 'react'
-import { attachmentUrl, type Plan, type PlanTask, type ThreadEntry } from '@/api/client'
+import { type Plan, type PlanTask } from '@/api/client'
+import { attachmentUrl, type ThreadEntry } from '@/api/threads'
 import { type HarnessPolicy, modeLabel } from '../mode-policy'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'

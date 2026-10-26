@@ -301,7 +301,7 @@ function scan(sources: Sources, owners: Owner[]): string[] {
   }
   // main.tsx is checked too: its static imports evaluate before any start-up step runs.
   for (const entry of ['main.tsx', ...owners.flatMap(item => item.entries).filter(entry => entry.endsWith('/startup.ts'))]) {
-    if (reaches(entry, 'api/client.ts', new Set(), staticGraph)) add('startup_api', entry, 'api/client.ts')
+    if (reaches(entry, 'api/transport/index.ts', new Set(), staticGraph)) add('startup_api', entry, 'api/transport/index.ts')
   }
   for (const edge of runtime) {
     if (reaches(edge.to, edge.from)) add('runtime_cycle', edge.from, edge.to)

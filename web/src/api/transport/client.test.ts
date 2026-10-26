@@ -3,7 +3,8 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeChoices, threadFixture } from '@/test/contract-fixtures'
-import { attachmentUrl, uploadAttachment, forkThread, openSession, setProjectModes, setThreadHarness, startTurn } from './client'
+import { openSession, setProjectModes } from '../client'
+import { attachmentUrl, uploadAttachment, forkThread, setThreadHarness, startTurn } from '../threads'
 
 afterEach(() => vi.unstubAllGlobals())
 

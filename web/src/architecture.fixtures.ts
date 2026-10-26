@@ -15,20 +15,20 @@ export const fixtures: Fixture[] = [
     overrides: { [entry === 'desktop/startup.ts' ? 'desktop' : 'desktop-ui']: { entries: [entry] } },
     sources: {
       [entry]: "export { value } from '@/desktop/unsafe'",
-      'desktop/unsafe.ts': "import { value } from '@/api/client'; export { value }",
-      'api/client.ts': 'export const value = 1',
+      'desktop/unsafe.ts': "import { value } from '@/api/transport/index'; export { value }",
+      'api/transport/index.ts': 'export const value = 1',
     },
   })),
   { name: 'rejects API initialization through main.tsx static imports', rule: 'startup_api', sources: {
       'main.tsx': "import { value } from './app-root'; void value",
-      'app-root.tsx': "export { value } from '@/api/client'",
-      'api/client.ts': 'export const value = 1',
+      'app-root.tsx': "export { value } from '@/api/transport/index'",
+      'api/transport/index.ts': 'export const value = 1',
     },
   },
   { name: 'allows deferred and type-only API references from startup', rule: 'startup_api', count: 0,
     overrides: { desktop: { entries: ['desktop/startup.ts'] } }, sources: {
-      'desktop/startup.ts': "import type { Shape } from '@/api/client'; export const load = () => import('@/api/client')",
-      'api/client.ts': 'export interface Shape {}',
+      'desktop/startup.ts': "import type { Shape } from '@/api/transport/index'; export const load = () => import('@/api/transport/index')",
+      'api/transport/index.ts': 'export interface Shape {}',
     },
   },
   ...[

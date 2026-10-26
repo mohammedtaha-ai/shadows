@@ -7,7 +7,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ThreadEntry } from '@/api/client'
+import type { ThreadEntry } from '@/api/threads'
 import {
   completedOperation,
   entryOfKind,

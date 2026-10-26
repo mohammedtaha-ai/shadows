@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { projectEventsUrl, subscribeUrl } from '@/api/client'
+import { projectEventsUrl } from '@/api/client'
+import { subscribeUrl } from '@/api/threads'
 import type { DurableEvent } from './frames'
 import { ThreadStream, type Notice, type StreamState } from './thread-stream'
 

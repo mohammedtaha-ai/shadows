@@ -13,9 +13,9 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 
 What the code keeps true. Each one was checked by reading the code that enforces it.
 
-- Feature HTTP calls go through `web/src/api/`. `client.ts` is the only file that
+- Feature HTTP calls go through `web/src/api/`. `transport/index.ts` is the only file that
   calls `fetch` and the only one that creates the `openapi-fetch` client; every other
-  API module uses this shared client.
+  API domain module uses this shared client.
 - `web/src/api/schema.d.ts` is generated from the daemon's `api/openapi.json` by
   `npm run gen:api`. It is committed, its header says not to edit it, and CI fails
   on any difference after regeneration. A protocol change is made in the daemon and
@@ -47,8 +47,7 @@ as YAML and identify their mapped source folder.
 
 The table maps today's folders onto the plan's section 6: `shared` covers the
 root feedback/policy files; `navigation` owns the settings actions, and feedback
-remains a target path. `api/*` exposes the unsplit API until W-8 establishes
-domain entries. `workflows` has its own row because its directory owns workflow presentation. These migration
+remains a target path. `api/*` exposes domain entries while keeping `api/transport/` private. `workflows` has its own row because its directory owns workflow presentation. These migration
 boundaries do not exempt their sources from the other architecture rules.
 
 | Owner | Sources | Entry | Contract | Allowed dependencies |
@@ -73,7 +72,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `test-support` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
-import graphs, and `main.tsx`'s, cannot reach `api/client.ts`. Route modules listed
+import graphs, and `main.tsx`'s, cannot reach `api/transport/index.ts`. Route modules listed
 beside an `index.ts` remain separate lazy imports declared by that entry.
 `app/workflows/plan-state.ts` is a second workflows entry so the sidebar's plan
 labels do not statically pull the plan graph into the shell's chunk.
@@ -142,10 +141,11 @@ it is that folder's `contract.yaml`.
 | `web/src/desktop/bootstrap.tsx` | Native startup gate with injected connection UI | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.test.tsx` | Readiness ordering fixtures | `web/src/desktop/contract.yaml` |
 | `web/src/api/aylul-profiles.ts` | AYLUL configuration server state: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
-| `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
+| `web/src/api/client.ts` | Domain operations pending migration | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | Project design workspace server state | `web/src/api/contract.yaml` |
-| `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
+| `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
+| `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | Domain query entry points | `web/src/api/contract.yaml` |
 | `web/src/api/agreements.ts` | Agreement query identities with saved answers | `web/src/api/contract.yaml` |
 | `web/src/api/code.ts` | Code index query cache ownership | `web/src/api/contract.yaml` |
@@ -154,7 +154,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
 | `web/src/api/projects.ts` | Project settings query cache ownership | `web/src/api/contract.yaml` |
 | `web/src/api/sessions.ts` | Harness session cache lifecycle | `web/src/api/contract.yaml` |
-| `web/src/api/threads.ts` | Thread query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
 | `web/src/api/workflows.ts` | Workflow query cache ownership | `web/src/api/contract.yaml` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |

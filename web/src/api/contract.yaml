@@ -11,7 +11,7 @@
 # body, and a success with no body becomes an error (see gaps). `unwrapEmpty` is
 # for a route whose success is an empty response.
 #
-# Trap: client.ts never makes a command id. Every mutating function takes one
+# Trap: Domain operations never make a command id. Every mutating function takes one
 # from its caller, and a retry must pass the same one. `command-id.ts` makes the
 # key a form reuses, and only it does. `changeModel` and `changeEffort` carry no
 # command id by design: they write nothing durable.
@@ -50,18 +50,19 @@ shapes:
 externally_owned:
   schema: "web/src/api/schema.d.ts, generated from api/openapi.json; not described here"
   aliases: >
-    client.ts and design.ts re-export `Schemas['X']` / `components['schemas']['X']`
+    Domain files re-export `Schemas['X']` / `components['schemas']['X']`
     under the same name. Each alias is that schema's type; none is redefined here.
   ErrorCode: "schema.d.ts components.schemas.ErrorCode; the daemon's error codes"
 
 
 # ── functions ────────────────────────────────────────────────────────────────
 #
-# Every function in client.ts is one HTTP call that resolves to its body through
+# Every domain operation is one HTTP call that resolves to its body through
 # `unwrap` (or `unwrapEmpty`). The client adds no retry, no cache and no
 # validation of arguments; the daemon owns those rules.
 
 client_core:
+  owner: transport/index.ts
   DAEMON_URL: "string; verified native origin frozen before module import; browser VITE_SHADOWS_URL or http://127.0.0.1:4318"
   client: "openapi-fetch client<paths>; fetch looked up per call"
   subscribeUrl: "(threadId: string, after: number) -> string"
@@ -171,7 +172,7 @@ design:
       Promise<DesignChange>"
 
 errors:
-  # error.ts
+  # transport/index.ts
   toApiError: "(response: Response, body: unknown) -> ApiError"
   unwrap: "<T>(pending: Promise<Answer<T>>) -> Promise<T>"
   unwrapEmpty: "<T>(pending: Promise<Answer<T>>) -> Promise<void>"
@@ -695,3 +696,9 @@ stream_invalidation:
   threads: "invalidateEntries, invalidateOperations and invalidateQueue use their existing keys; invalidateThreadLists retains project and agent list matching."
   consumer: "stream/ dispatchRefresh maps classified targets to these owner methods."
   tested_by: "pins project refresh for %s; pins writer-thread refresh for %s; pins conversation refresh for %s; reads the thread lists again on a retitle: live at once, replayed at the caught-up"
+
+threads_operations:
+  owner: threads.ts
+  operations: "uploadAttachment attachmentUrl listThreads getThread removeThread createThread listEntries listOperations startTurn queueMessage listQueued unqueueMessage sendQueuedNow setThreadHarness forkThread stopTurn subscribeUrl"
+  types: "PlanningThread ThreadEntry Attachment Operation InvocationView Focus Queued QueuedMessage SentNow; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

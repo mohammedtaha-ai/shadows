@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Lock } from 'lucide-react'
 import { useRef } from 'react'
-import { setThreadHarness } from '@/api/client'
+import { setThreadHarness } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery } from '@/api/queries'
 import { reopenSession } from '@/api/sessions'

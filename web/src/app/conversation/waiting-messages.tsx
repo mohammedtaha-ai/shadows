@@ -3,9 +3,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
-import { attachmentUrl, sendQueuedNow, unqueueMessage } from '@/api/client'
+import { attachmentUrl, sendQueuedNow, unqueueMessage } from '@/api/threads'
 import { ApiError } from '@/api/error'
-import { queuedQuery } from '@/api/queries'
+import { queuedQuery } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 

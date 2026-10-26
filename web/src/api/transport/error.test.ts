@@ -1,7 +1,7 @@
 import createClient from 'openapi-fetch'
 import { describe, expect, it } from 'vitest'
-import { ApiError, unwrap } from './error'
-import type { paths } from './schema'
+import { ApiError, unwrap } from './index'
+import type { paths } from '../schema'
 
 /** A client whose every request gets `answer` — through openapi-fetch's own
  * parsing, so the test covers what the app actually receives. */

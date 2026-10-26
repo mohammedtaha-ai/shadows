@@ -6,18 +6,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { MessageSquarePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  type Choice,
-  type SessionChoices,
-  type TurnSettings,
-  createThread,
-  changeModel,
-  openSession,
-  startTurn,
-} from '@/api/client'
+import { type Choice, type SessionChoices, type TurnSettings, changeModel, openSession } from '@/api/client'
+import { createThread, startTurn } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
-import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
+import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery } from '@/api/queries'
+import { threadsQuery } from '@/api/threads'
 import {noteCompanionSend} from '@/desktop'
 import { tabId } from '@/stream'
 import { agentsQuery, providersQuery, agentThreadsQuery, type Provider } from '@/api/aylul-profiles'

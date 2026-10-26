@@ -1,7 +1,8 @@
 // Names for the stable ids an agreement stores: a part, and who wrote a version.
 import { useQuery } from '@tanstack/react-query'
 import type { AgreementVersion } from '@/api/client'
-import { partQuery, threadQuery } from '@/api/queries'
+import { partQuery } from '@/api/queries'
+import { threadQuery } from '@/api/threads'
 
 export function PartName({ projectId, id }: { projectId: string; id: string }) {
   const part = useQuery(partQuery(projectId, id))

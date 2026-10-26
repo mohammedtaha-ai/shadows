@@ -1,7 +1,7 @@
 // One job: the proposed content, its live state, and the person's approval (§23.5).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
-import type { ThreadEntry } from '@/api/client'
+import type { ThreadEntry } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { approveVisionProposal, type VisionProposal } from '@/api/design'
 import { visionProposalsQuery } from '@/api/queries'

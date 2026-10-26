@@ -5,21 +5,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { ArrowUp, Square } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import {
-  type Focus,
-  type SessionChoices,
-  type TurnSettings,
-  changeEffort,
-  changeModel,
-  changeMode,
-  queueMessage,
-  startTurn,
-  stopTurn,
-  attachmentUrl,
-} from '@/api/client'
+import { type SessionChoices, type TurnSettings, changeEffort, changeModel, changeMode } from '@/api/client'
+import { type Focus, queueMessage, startTurn, stopTurn, attachmentUrl } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
-import { queuedQuery } from '@/api/queries'
+import { queuedQuery } from '@/api/threads'
 import { saveSessionAnswer } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
 import type { SlashCommand } from '@/stream'

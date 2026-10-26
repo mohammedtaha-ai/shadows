@@ -2,7 +2,7 @@
 // the figures a person reads (spec §12.8). Nothing it did not report is
 // estimated: a figure that is missing is `null` here and "no figures" there.
 
-import type { Operation } from '@/api/client'
+import type { Operation } from '@/api/threads'
 
 /** The session's context use as last reported; either may be missing. */
 export interface ContextFigures {

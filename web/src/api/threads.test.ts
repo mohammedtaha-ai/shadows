@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
 import { threadKeys, threadsQuery, threadQuery, entriesQuery, queuedQuery, operationsQuery, saveThreadHarnessAnswer, saveRemovedThreadAnswer } from './threads'
-import type { PlanningThread } from './client'
+import type { PlanningThread } from './threads'
 it.each(['harness', 'remove'])('%s answers survive stale list and detail reads', async kind => {
   const client = new QueryClient()
   const old = { id: 't', project_id: 'p', harness: 'old' } as PlanningThread

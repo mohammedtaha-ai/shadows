@@ -3,7 +3,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useReducer, useState } from 'react'
-import { entriesQuery, operationsQuery } from '@/api/queries'
+import { entriesQuery, operationsQuery } from '@/api/threads'
 import { replaceChoices, replaceCommands } from '@/api/sessions'
 import { invalidateQueue } from '@/api/threads'
 import type { Limits, PlanShowFrame, UsageFrame } from '@/stream'

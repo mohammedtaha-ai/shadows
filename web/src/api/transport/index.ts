@@ -1,0 +1,125 @@
+// Shared HTTP transport; domain modules own request operations.
+import createClient from 'openapi-fetch'
+import { daemonOrigin } from '../daemon-origin'
+import type { paths } from '../schema'
+
+/** The daemon's origin, without a trailing slash. */
+export const DAEMON_URL = daemonOrigin()
+
+// `fetch` is looked up on each call rather than captured once here (what
+// openapi-fetch does by default), so a test that stubs it is heard however
+// early this module was imported.
+export const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
+
+
+import type { components } from '../schema'
+
+export type ErrorCode = components['schemas']['ErrorCode']
+type ErrorBody = components['schemas']['ErrorBody']
+
+/** Why a call failed, in the terms a screen needs to say what to do next. */
+export type Problem =
+  /** No HTTP answer at all: the daemon is not running, or the browser refused
+   * the answer because this page's origin is not in `--allow-origin`. A
+   * browser reports both identically, so the client cannot tell them apart. */
+  | { kind: 'unreachable' }
+  /** The daemon answered with its own `ErrorBody` (spec §3.4). Match on `code`.
+   * `currentRevision` and `problems` are present only for the codes that
+   * carry them (`REVISION_CONFLICT`, `WORKFLOW_VALIDATION_FAILED`). */
+  | {
+      kind: 'daemon'
+      status: number
+      code: ErrorCode
+      currentRevision?: number
+      problems?: string[]
+    }
+  /** An HTTP failure that is not an `ErrorBody`. The daemon answers every
+   * error it makes with one; this is a route it does not have (an empty 404
+   * or 405), or something between the two that answered instead. */
+  | { kind: 'http'; status: number; body: string }
+
+export class ApiError extends Error {
+  readonly problem: Problem
+
+  constructor(problem: Problem, message: string, options?: { cause?: unknown }) {
+    super(message, options)
+    this.name = 'ApiError'
+    this.problem = problem
+  }
+}
+
+/** The failure a non-2xx answer stands for. `body` is what openapi-fetch
+ * parsed: JSON when it could, the raw text otherwise, `undefined` when empty. */
+export function toApiError(response: Response, body: unknown): ApiError {
+  if (isErrorBody(body)) {
+    return new ApiError(
+      {
+        kind: 'daemon',
+        status: response.status,
+        code: body.code,
+        ...(body.current_revision != null && { currentRevision: body.current_revision }),
+        ...(body.problems != null && { problems: body.problems }),
+      },
+      body.message,
+    )
+  }
+  const text = typeof body === 'string' ? body : body === undefined ? '' : JSON.stringify(body)
+  return new ApiError(
+    { kind: 'http', status: response.status, body: text },
+    text === '' ? `HTTP ${response.status}` : `HTTP ${response.status}: ${text}`,
+  )
+}
+
+/** What an openapi-fetch call resolves to, reduced to what `unwrap` reads. */
+type Answer<T> = { data?: T; error?: unknown; response: Response }
+
+/** The body of a successful call, or the `ApiError` its failure stands for.
+ * For a route that answers with a body; one whose success is an empty `204`
+ * goes through `unwrapEmpty`. */
+export async function unwrap<T>(pending: Promise<Answer<T>>): Promise<T> {
+  const answer = await answered(pending)
+  if (answer.data === undefined) {
+    throw toApiError(answer.response, 'a success with no body')
+  }
+  return answer.data
+}
+
+/** Nothing, or the `ApiError` the failure stands for: for a route whose
+ * success is an empty `204`, such as removing a code link. */
+export async function unwrapEmpty<T>(pending: Promise<Answer<T>>): Promise<void> {
+  await answered(pending)
+}
+
+/** The answer when it is a success; the `ApiError` otherwise. */
+async function answered<T>(pending: Promise<Answer<T>>): Promise<Answer<T>> {
+  let answer: Answer<T>
+  try {
+    answer = await pending
+  } catch (cause) {
+    // `fetch` rejects with a TypeError, and only a TypeError, when no HTTP
+    // answer arrived. Anything else thrown here is a bug and stays loud.
+    if (cause instanceof TypeError) {
+      throw new ApiError({ kind: 'unreachable' }, 'The daemon is not reachable', { cause })
+    }
+    throw cause
+  }
+  // Read `ok`, not `error`: openapi-fetch leaves `error` undefined for a
+  // failure with an empty body.
+  if (!answer.response.ok) {
+    throw toApiError(answer.response, answer.error)
+  }
+  return answer
+}
+
+/** `code` is trusted to be an `ErrorCode`: the type is generated from this
+ * daemon's own document, and CI fails when the two drift. */
+function isErrorBody(body: unknown): body is ErrorBody {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    'code' in body &&
+    typeof body.code === 'string' &&
+    'message' in body &&
+    typeof body.message === 'string'
+  )
+}

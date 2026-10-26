@@ -1,7 +1,7 @@
 // Immutable map proposal content with live person-approval state.
 import {useMutation,useQuery,useQueryClient} from '@tanstack/react-query'
 import {useRef} from 'react'
-import type {ThreadEntry} from '@/api/client'
+import type { ThreadEntry } from '@/api/threads'
 import {type Attempt,attemptFor} from '@/api/command-id'
 import {approveMapProposal,type MapProposal} from '@/api/design'
 import {mapProposalsQuery} from '@/api/queries'
