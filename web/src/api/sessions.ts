@@ -1,6 +1,8 @@
+import { client, unwrap } from './transport'
+import type { components } from './schema'
 // A thread's harness session in the cache: its choices and its slash commands.
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-import { openSession, type SessionChoices } from './client'
+
 import { writeSaved } from './saved-answer'
 
 export const sessionKeys = {
@@ -39,4 +41,61 @@ export function reopenSession(client: QueryClient, threadId: string) {
 }
 export function saveSessionAnswer(client: QueryClient, threadId: string, choices: SessionChoices) {
   return writeSaved(client, sessionKeys.choices(threadId), choices)
+}
+
+
+export type Choice = components['schemas']['Choice']
+
+export type SessionChoices = components['schemas']['SessionChoices']
+
+export type AccountLimits = components['schemas']['AccountLimits']
+
+export type TurnSettings = components['schemas']['TurnSettings']
+
+export type ContextBreakdown = components['schemas']['ContextBreakdown']
+
+/** Opens the thread's harness session if it is not open; answers what it
+ * offers now. Idempotent: an open session answers what it holds. */
+export function openSession(threadId: string): Promise<SessionChoices> {
+  return unwrap(client.POST('/api/threads/{id}/session', { params: { path: { id: threadId } } }))
+}
+
+/** Sets the thread's session to `model` at once, opening it if needed;
+ * answers what it offers now, the new model's efforts included.
+ * The change writes nothing durable, so it carries no command id; an opening
+ * it causes issues the thread's MCP grant, as any opening does. */
+export function changeModel(threadId: string, model: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/model', {
+      params: { path: { id: threadId } },
+      body: { model },
+    }),
+  )
+}
+
+/** Sets the thread's session to `effort` at once, opening it if needed;
+ * answers what it offers now. Like a model change, it writes
+ * nothing durable and carries no command id. */
+export function changeEffort(threadId: string, effort: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/effort', {
+      params: { path: { id: threadId } },
+      body: { effort },
+    }),
+  )
+}
+
+export function changeMode(threadId: string, commandId: string, mode: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/mode', {
+      params: { path: { id: threadId } },
+      body: { command_id: commandId, mode },
+    }),
+  )
+}
+
+/** The session's context breakdown, read on demand, or none with the reason
+ *. */
+export function readContext(threadId: string): Promise<ContextBreakdown> {
+  return unwrap(client.GET('/api/threads/{id}/context', { params: { path: { id: threadId } } }))
 }

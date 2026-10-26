@@ -153,7 +153,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/harnesses.ts` | Harness query identity | `web/src/api/contract.yaml` |
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
 | `web/src/api/projects.ts` | Project settings query cache ownership | `web/src/api/contract.yaml` |
-| `web/src/api/sessions.ts` | Harness session cache lifecycle | `web/src/api/contract.yaml` |
+| `web/src/api/sessions.ts` | Harness session server state | `web/src/api/contract.yaml` |
 | `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
 | `web/src/api/workflows.ts` | Workflow query cache ownership | `web/src/api/contract.yaml` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |

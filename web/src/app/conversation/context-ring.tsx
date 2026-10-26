@@ -9,7 +9,7 @@
 
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { readContext } from '@/api/client'
+import { readContext } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { LimitWindow, Limits } from '@/stream'

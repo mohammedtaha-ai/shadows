@@ -1,4 +1,4 @@
-import type { TurnSettings } from './client'
+import type { TurnSettings } from './sessions'
 import { client, DAEMON_URL, unwrap, unwrapEmpty } from './transport'
 import type { components } from './schema'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'

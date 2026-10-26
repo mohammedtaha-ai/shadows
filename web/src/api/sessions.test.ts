@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
 import { sessionKeys, sessionQuery, saveSessionAnswer, replaceChoices, replaceCommands, clearCommands } from './sessions'
-import type { SessionChoices } from './client'
+import type { SessionChoices } from './sessions'
 it('session mutation answers survive late reads and frames during opening are ignored', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const saved = { current: { model: 'saved' } } as SessionChoices

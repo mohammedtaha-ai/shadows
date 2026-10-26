@@ -12,7 +12,7 @@
 // connection and nothing else: a client leaving never cancels work (spec §8.4
 // case 7), and this module has no way to ask for that.
 
-import type { SessionChoices } from '@/api/client'
+import type { SessionChoices } from '@/api/sessions'
 import {
   type DurableEvent,
   FrameError,

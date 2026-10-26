@@ -3,7 +3,7 @@
 // session without telling Shadows, and the pickers would show a model the
 // session no longer runs, so the composer sets them through the pickers.
 
-import type { Choice, SessionChoices } from '@/api/client'
+import type { Choice, SessionChoices } from '@/api/sessions'
 
 export type SessionCommand =
   /** Open that picker: the command named no choice. */

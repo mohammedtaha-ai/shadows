@@ -14,11 +14,6 @@ export type DirectoryListing = Schemas['DirectoryListing']
 export type DirectoryEntry = Schemas['DirectoryEntry']
 export type CreateProject = Schemas['CreateProject']
 export type HarnessInfo = Schemas['HarnessInfo']
-export type Choice = Schemas['Choice']
-export type SessionChoices = Schemas['SessionChoices']
-export type AccountLimits = Schemas['AccountLimits']
-export type TurnSettings = Schemas['TurnSettings']
-export type ContextBreakdown = Schemas['ContextBreakdown']
 export type Plan = Schemas['Plan']
 export type PlanTask = Schemas['PlanTask']
 export type PlanLink = Schemas['Link']
@@ -46,52 +41,6 @@ export type CodeSettings = Schemas['CodeSettings']
  * latest reported limits (spec §12.10). */
 export function listHarnesses(): Promise<HarnessInfo[]> {
   return unwrap(client.GET('/api/harnesses'))
-}
-
-/** Opens the thread's harness session if it is not open; answers what it
- * offers now. Idempotent: an open session answers what it holds (spec §12.2). */
-export function openSession(threadId: string): Promise<SessionChoices> {
-  return unwrap(client.POST('/api/threads/{id}/session', { params: { path: { id: threadId } } }))
-}
-
-/** Sets the thread's session to `model` at once, opening it if needed;
- * answers what it offers now, the new model's efforts included (spec §12.7).
- * The change writes nothing durable, so it carries no command id; an opening
- * it causes issues the thread's MCP grant, as any opening does (spec §13.7). */
-export function changeModel(threadId: string, model: string): Promise<SessionChoices> {
-  return unwrap(
-    client.PUT('/api/threads/{id}/session/model', {
-      params: { path: { id: threadId } },
-      body: { model },
-    }),
-  )
-}
-
-/** Sets the thread's session to `effort` at once, opening it if needed;
- * answers what it offers now (spec §12.7). Like a model change, it writes
- * nothing durable and carries no command id. */
-export function changeEffort(threadId: string, effort: string): Promise<SessionChoices> {
-  return unwrap(
-    client.PUT('/api/threads/{id}/session/effort', {
-      params: { path: { id: threadId } },
-      body: { effort },
-    }),
-  )
-}
-
-export function changeMode(threadId: string, commandId: string, mode: string): Promise<SessionChoices> {
-  return unwrap(
-    client.PUT('/api/threads/{id}/session/mode', {
-      params: { path: { id: threadId } },
-      body: { command_id: commandId, mode },
-    }),
-  )
-}
-
-/** The session's context breakdown, read on demand, or none with the reason
- * (spec §12.8). */
-export function readContext(threadId: string): Promise<ContextBreakdown> {
-  return unwrap(client.GET('/api/threads/{id}/context', { params: { path: { id: threadId } } }))
 }
 
 /** Every project, oldest first. Also the reachability probe: it is the

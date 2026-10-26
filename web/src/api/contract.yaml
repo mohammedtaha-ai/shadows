@@ -702,3 +702,9 @@ threads_operations:
   operations: "uploadAttachment attachmentUrl listThreads getThread removeThread createThread listEntries listOperations startTurn queueMessage listQueued unqueueMessage sendQueuedNow setThreadHarness forkThread stopTurn subscribeUrl"
   types: "PlanningThread ThreadEntry Attachment Operation InvocationView Focus Queued QueuedMessage SentNow; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+sessions_operations:
+  owner: sessions.ts
+  operations: "openSession changeModel changeEffort changeMode readContext"
+  types: "Choice SessionChoices AccountLimits TurnSettings ContextBreakdown; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

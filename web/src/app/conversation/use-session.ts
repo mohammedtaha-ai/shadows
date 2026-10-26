@@ -7,7 +7,7 @@
 // presses Retry. An `options` frame replaces what it holds (`replaceChoices`).
 
 import { useQuery } from '@tanstack/react-query'
-import type { SessionChoices } from '@/api/client'
+import type { SessionChoices } from '@/api/sessions'
 import { sessionQuery } from '@/api/sessions'
 
 export type SessionView =
