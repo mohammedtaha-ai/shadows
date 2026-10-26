@@ -44,6 +44,35 @@ settings dialog, PR #40) at `1a2b601`.
   `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
   `npm run typecheck`, `npm run lint` and `npm run build` pass
 
+### F-34 · W-9b: the attachment lifecycle leaves the composer
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
+  (packet b of four; F-33 was packet a)
+- Read: the plan's W-9 and section 4 (the `conversation/composer.tsx` and `carried-send.ts`
+  rows); `web/src/app/conversation/contract.yaml`; `composer.tsx`; `carried-send.ts`;
+  `use-session-settings.ts` (the shape packet a gave its hook); the `conversation` rows of
+  `docs/frontend/codebase/README.md`
+- Touch: `web/src/app/conversation/composer.tsx`; a new `use-images.ts` (the selected images:
+  list, Core's image reason, add, pick, retry, remove, and dropping those a send took) and its
+  test `use-images.test.tsx`; a new `pending-images.tsx` (the image list with its previews,
+  status lines and Retry/Remove buttons, today's `ImagePreview` included); `composer-bar.test.tsx`
+  only to move out the tests that exercise attachments alone;
+  `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the new files'
+  rows); `web/src/architecture.baseline.txt` only if a moved test carries an existing entry with
+  it (one-to-one); this task's `Status:`
+- Needs: F-33 (done)
+- Done when: `composer.tsx` keeps no image state, no `uploadImages`/`retryImageUpload` call
+  outside the send and queue mutations, no `imageReason` computation and no `ImagePreview`; the
+  paste, drop, Ctrl+U and file-input handlers in the composer only hand files to the hook.
+  `carried-send.ts` is unchanged (packet d). Behaviour is unchanged: uploads start on selection
+  in a thread and on Send in a draft, a selection change still drops the pending send attempt,
+  Core's image refusal still shows its reason on the error line, removing an uploading image
+  still keeps its late answer out of the send, switching conversations still revokes local
+  previews, and Send/queue still wait for uploads and send ids in selection order. The tests
+  that pinned attachments alone move with assertions unchanged; tests that also cover send or
+  queue stay. From `web/`: `npx vitest run src/app/conversation src/architecture.test.ts
+  src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
