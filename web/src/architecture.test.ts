@@ -256,19 +256,31 @@ function scan(sources: Sources, owners: Owner[]): string[] {
       return /^@\/desktop(?:\/|$)/.test(literal.text) ||
         (resolved !== undefined && relative(resolved.resolvedFileName).startsWith('desktop/'))
     }
+    const exportsPlatform = (symbol: ts.Symbol, seen = new Set<ts.Symbol>()): boolean => {
+      if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
+      if (seen.has(symbol)) return false
+      seen.add(symbol)
+      if (symbol.name === 'isDesktop') return true
+      return Boolean(symbol.flags & ts.SymbolFlags.Module) && checker.getExportsOfModule(symbol).some(item => exportsPlatform(item, seen))
+    }
     const visit = (node: ts.Node) => {
       if (platformRestricted) {
-        if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier) && desktopImport(node.moduleSpecifier)) {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
           const bindings = node.importClause?.namedBindings
           if (bindings && ts.isNamedImports(bindings)) {
             for (const item of bindings.elements) {
-              if ((item.propertyName ?? item.name).text === 'isDesktop') add('desktop_platform', file, 'import isDesktop')
+              if ((desktopImport(node.moduleSpecifier) && (item.propertyName ?? item.name).text === 'isDesktop') || calledName(item.name) === 'isDesktop') add('desktop_platform', file, 'import isDesktop')
             }
           }
         }
-        if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier) && desktopImport(node.moduleSpecifier) && node.exportClause && ts.isNamedExports(node.exportClause)) {
-          for (const item of node.exportClause.elements) {
-            if ((item.propertyName ?? item.name).text === 'isDesktop') add('desktop_platform', file, 'export isDesktop')
+        if (ts.isExportDeclaration(node)) {
+          if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+            for (const item of node.exportClause.elements) {
+              if (calledName(item.name) === 'isDesktop') add('desktop_platform', file, 'export isDesktop')
+            }
+          } else if (node.moduleSpecifier) {
+            const symbol = checker.getSymbolAtLocation(node.moduleSpecifier)
+            if (symbol && exportsPlatform(symbol)) add('desktop_platform', file, 'export isDesktop')
           }
         }
         if (ts.isCallExpression(node) && (calledName(node.expression) === 'isDesktop' || (ts.isIdentifier(node.expression) && node.expression.text === 'isDesktop'))) {

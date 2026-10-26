@@ -14,7 +14,8 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 What the code keeps true. Each one was checked by reading the code that enforces it.
 
 - Production files outside `web/src/desktop/` ask for native capabilities; the architecture
-  checker refuses their `isDesktop` imports and calls. Platform detection stays in `desktop/`.
+  checker refuses their `isDesktop` imports, re-exports or calls, including relative paths
+  through aliased barrels. Platform detection stays in `desktop/`.
 - Feature HTTP calls go through `web/src/api/`. `transport/index.ts` is the only file that
   calls `fetch` and the only one that creates the `openapi-fetch` client; every other
   API domain module uses this shared client.
