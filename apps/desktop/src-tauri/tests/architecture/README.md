@@ -100,7 +100,7 @@ has construction/state exemptions; neither inline nor file-backed tests do.
 The inventory's test-only filtering does not exempt tests from ownership rules.
 
 `desktop_registers_one_private_composition_root` checks that the native sources
-register one managed value, start `DesktopApp` once and retain nine private fields.
+register one managed value, start `DesktopApp` once and retain the exact private owner names and types below.
 The N-10 fixtures prove that window root lookups still count as managed-state
 and owner-edge violations, accessor calls retain owner edges/private access/cycles,
 and nested owners cannot inherit composition exemptions.
@@ -108,3 +108,21 @@ and nested owners cannot inherit composition exemptions.
 Accessor return-type checks cover private Stores independently of the
 service-construction inventory. Preference fixtures cover command accessor
 privacy and OS-adapter construction through the owner's reexport.
+
+## DesktopApp owner inventory
+
+The composition assertion compares every private field and its complete Rust type
+against this table. Arc wrappers are part of the stored type. Renamed, extra and
+mistyped fields are rejected by an adversarial in-memory source fixture.
+
+| Field | Type path |
+| --- | --- |
+| `core_connection` | `Arc<core_connection::Connection>` |
+| `companion` | `Arc<presence::Presence>` |
+| `companion_window` | `windows::companion::Store` |
+| `main_window` | `windows::MainWindow` |
+| `navigation` | `Arc<navigation::Navigation>` |
+| `desktop_preferences` | `desktop_preferences::DesktopPreferences` |
+| `account` | `Arc<auth::AuthController>` |
+| `activity` | `Arc<sidecar::SidecarState>` |
+| `app_paths` | `app_paths::AppPaths` |

@@ -2,9 +2,12 @@ name: native-companion-binding
 version: 1
 status: current
 source: apps/desktop/src-tauri/src/presence
-responsibility: Operate the bound companion conversation through its injected observer, native surface actions and navigation.
+responsibility: Operate the bound companion conversation through its owned observer, injected native surface actions and navigation.
 public_api:
-  attach_workflows: Install the observer, Navigation and native WindowActions once during composition; the publication callback retains only a weak Presence reference.
+  start_watcher: Start and retain the private observer once with the publication callback supplied by composition; the callback retains only a weak Presence reference.
+  sync_watcher: Forward binding and verified connection updates to the owned observer without changing notification order.
+  stop: Stop the owned observer before composition stops activity.
+  attach_workflows: Install Navigation and native WindowActions once during composition.
   select_companion_agent: Capture request, generation and visibility intent before blocking validation; show the companion on the UI thread only after a changed nonempty selection.
   target_companion_thread: Capture the ordered retarget request; await exact observer readiness for at most two seconds and recheck generation before replying.
   refresh_appearance: Forward the current binding to the owned observer's acknowledged metadata refresh.
@@ -33,6 +36,8 @@ public_api:
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
 obligations:
+  - rule: Presence starts, synchronizes and stops its observer; DesktopApp retains no observer field.
+    tested_by: [companion_owns_observer_start_sync_and_stop, desktop_registers_one_private_composition_root]
   - rule: Selection/show, retarget/readiness, publication admission and open-main coordination belong to Presence; commands call one owner method and composition only wires callbacks and dependencies.
     tested_by: [native_architecture_ratchet, latest_explicit_retarget_wins_and_old_generation_is_rejected, appearance_refresh_waits_for_recheck_and_publication, appearance_refresh_cannot_publish_a_superseded_binding, click_destination_is_closed_and_does_not_create_a_thread]
   - rule: Every companion Core request goes through core_client; reqwest elsewhere in the companion fails the architecture ratchet.

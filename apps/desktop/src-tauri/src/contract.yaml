@@ -4,9 +4,9 @@ status: current
 source: apps/desktop/src-tauri/src/app.rs
 responsibility: Assemble the nine native lifetime owners behind one managed DesktopApp.
 public_api:
-  DesktopApp::start: Build existing owners and wire their notifiers inside Tauri setup; inject observer, navigation and native window actions into Presence; forward editor-context reads and UI-dispatched publications to that owner; return one Arc for managed registration before window setup.
-  DesktopApp::preferences/auth/companion/presence/navigation/connection/paths/sidecar: Typed borrows of private owned values; preferences exposes DesktopPreferences with its private store and injected OS adapter. The observer has no public accessor, so callers reach it only through Presence.
-  DesktopApp::stop: Stop the presence watcher before stopping the sidecar on application exit.
+  DesktopApp::start: Build existing owners and wire their notifiers inside Tauri setup; hand the observer publication callback to Presence for startup; inject navigation and native window actions; inject configured-origin reads and main webview options into MainWindow; forward editor-context reads and UI-dispatched publications to that owner; return one Arc for managed registration before window setup.
+  DesktopApp::preferences/auth/companion/main_window/presence/navigation/connection/paths/sidecar: Typed borrows of private owned values; preferences exposes DesktopPreferences with its private store and injected OS adapter. The nine fields are core_connection, companion, companion_window, main_window, navigation, desktop_preferences, account, activity and app_paths. Accessors return each existing owner type; the observer is held only by Presence.
+  DesktopApp::stop: Stop through Presence before stopping the sidecar on application exit.
 obligations:
   - rule: Composition wires editor context and publication callbacks; Presence owns their consistency checks and projection mapping. Window code resolves neither Presence nor Watcher.
     tested_by: native_architecture_ratchet

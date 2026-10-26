@@ -81,6 +81,43 @@ fn fixture() -> (Api, tempfile::TempDir, Arc<Presence>) {
     let presence = Presence::new(root.path().to_path_buf(), connection);
     (api, root, presence)
 }
+#[tokio::test]
+async fn companion_owns_observer_start_sync_and_stop() {
+    let (_api, _root, presence) = fixture();
+    let (sender, mut updates) = tokio::sync::mpsc::unbounded_channel();
+    presence.start_watcher(Arc::new(move |update| {
+        let _ = sender.send(update);
+    }));
+    let initial = tokio::time::timeout(std::time::Duration::from_secs(2), updates.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(initial.is_current());
+    presence.sync_watcher(presence.view(), None);
+    assert!(
+        !initial.is_current(),
+        "sync replaces the owned observer epoch"
+    );
+    let synchronized = tokio::time::timeout(std::time::Duration::from_secs(2), updates.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(synchronized.is_current());
+    presence.stop();
+    assert!(
+        !synchronized.is_current(),
+        "stop invalidates pending observer publications"
+    );
+    let stopped = tokio::time::timeout(std::time::Duration::from_secs(2), updates.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(stopped.is_current());
+    assert_eq!(
+        stopped.projection.status,
+        "Core unavailable. Retry local Core in Settings."
+    );
+}
 #[test]
 fn binding_changes_clear_target_and_persist_without_content() {
     let (_api, root, presence) = fixture();

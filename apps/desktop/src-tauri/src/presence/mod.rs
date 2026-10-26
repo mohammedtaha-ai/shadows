@@ -37,6 +37,7 @@ pub struct Presence {
     inner: Mutex<Model>,
     notifier: Mutex<Option<Notify>>,
     workflows: OnceLock<workflows::Dependencies>,
+    watcher: OnceLock<Arc<watcher::PresenceWatcher>>,
 }
 impl Presence {
     pub fn new(root: PathBuf, connection: Arc<Connection>) -> Arc<Self> {
@@ -66,6 +67,7 @@ impl Presence {
             }),
             notifier: Mutex::new(None),
             workflows: OnceLock::new(),
+            watcher: OnceLock::new(),
         })
     }
     pub fn set_notifier(&self, notify: Notify) {

@@ -67,9 +67,8 @@ managed_state :: windows/companion/mod.rs :: state:: < std::sync::Arc < crate::a
 managed_state :: windows/companion/mod.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #7
 managed_state :: windows/companion/mod.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #8
 managed_state :: windows/companion/mod.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #9
-managed_state :: windows/main_policy.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #1
-managed_state :: windows/main_policy.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #2
-managed_state :: windows/main_policy.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #3
+managed_state :: windows/mod.rs :: state:: < Arc < crate::app::DesktopApp > > #1
+managed_state :: windows/mod.rs :: state:: < Arc < crate::app::DesktopApp > > #2
 managed_state :: windows/mod.rs :: state:: < std::sync::Arc < crate::app::DesktopApp > > #1
 owner_cycle :: windows/companion/mod.rs :: CompanionWindow -> MainWindow (cycle edge)
 owner_cycle :: windows/mod.rs :: MainWindow -> CompanionWindow (cycle edge)
@@ -129,18 +128,13 @@ owner_edge :: windows/companion/mod.rs :: app::DesktopApp #9
 owner_edge :: windows/companion/mod.rs :: app_paths::AppPaths #1
 owner_edge :: windows/companion/mod.rs :: app_paths::AppPaths #2
 owner_edge :: windows/companion/mod.rs :: windows::main_policy::reject_html_fallback #1
-owner_edge :: windows/main_policy.rs :: app::DesktopApp #1
-owner_edge :: windows/main_policy.rs :: app::DesktopApp #2
-owner_edge :: windows/main_policy.rs :: app::DesktopApp #3
-owner_edge :: windows/main_policy.rs :: app_paths::AppPaths #1
-owner_edge :: windows/main_policy.rs :: app_paths::AppPaths #2
-owner_edge :: windows/main_policy.rs :: core_connection::Connection #1
 owner_edge :: windows/mod.rs :: app::DesktopApp #1
+owner_edge :: windows/mod.rs :: app::DesktopApp #2
+owner_edge :: windows/mod.rs :: app::DesktopApp #3
 owner_edge :: windows/mod.rs :: windows::companion::attach_toggle #1
 owner_edge :: windows/mod.rs :: windows::companion::set_visible #1
 owner_edge :: windows/mod.rs :: windows::companion::setup_companion #1
 owner_edge :: windows/mod.rs :: windows::companion::snapshot #1
-private_access :: app.rs :: presence::watcher::PresenceWatcher::new #1
 private_access :: app.rs :: windows::companion::input::refresh #1
 private_access :: commands/companion.rs :: windows::companion::input::set_input #1
 private_access :: commands/companion.rs :: windows::companion::state::CompanionState #1

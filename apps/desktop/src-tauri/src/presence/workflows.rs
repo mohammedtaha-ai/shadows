@@ -1,5 +1,5 @@
 //! Companion coordination across the observer, native surface and main navigation.
-use super::{watcher::PresenceWatcher, BindingView, Presence, RefreshAppearanceReply};
+use super::{BindingView, Presence, RefreshAppearanceReply};
 use crate::{navigation::Navigation, windows::companion};
 use std::{future::Future, pin::Pin, sync::Arc};
 
@@ -18,26 +18,16 @@ pub struct WindowActions {
 }
 
 pub(super) struct Dependencies {
-    watcher: Arc<PresenceWatcher>,
     navigation: Arc<Navigation>,
     window: WindowActions,
 }
 
 impl Presence {
-    pub fn attach_workflows(
-        &self,
-        watcher: Arc<PresenceWatcher>,
-        navigation: Arc<Navigation>,
-        window: WindowActions,
-    ) {
-        // The observer's publication callback must be wired to this owner first.
+    pub fn attach_workflows(&self, navigation: Arc<Navigation>, window: WindowActions) {
+        // Publication uses these dependencies on the UI thread.
         assert!(
             self.workflows
-                .set(Dependencies {
-                    watcher,
-                    navigation,
-                    window
-                })
+                .set(Dependencies { navigation, window })
                 .is_ok(),
             "companion workflows are wired once"
         );
@@ -83,8 +73,7 @@ impl Presence {
                 .await
                 .map_err(|_| "companion_core_unavailable")?
                 .map_err(str::to_owned)?;
-        self.workflows()
-            .watcher
+        self.watcher()
             .wait_ready(&result, std::time::Duration::from_secs(2))
             .await
             .map_err(str::to_owned)?;
@@ -95,10 +84,7 @@ impl Presence {
     }
 
     pub async fn refresh_appearance(&self) -> Result<RefreshAppearanceReply, &'static str> {
-        self.workflows()
-            .watcher
-            .refresh_appearance(&self.view())
-            .await
+        self.watcher().refresh_appearance(&self.view()).await
     }
 
     pub async fn open_main_from_companion(self: &Arc<Self>) -> Result<(), String> {

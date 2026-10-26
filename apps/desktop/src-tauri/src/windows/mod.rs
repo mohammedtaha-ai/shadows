@@ -1,50 +1,88 @@
+use std::{path::PathBuf, sync::Arc};
 use tauri::Manager;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 pub mod companion;
 mod main_policy;
 mod placement;
 
-// Foreground activation is reserved for explicit tray, shortcut and launch actions.
-pub fn open_main(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
-    let w = app
-        .get_webview_window("main")
-        .expect("main exists for app lifetime");
-    w.unminimize()?;
-    w.show()?;
-    // A display change can strand a previously placed window. Recover only if it
-    // no longer intersects a current monitor. Physical cases still need evidence.
-    let pos = w.outer_position()?;
-    let mut size = w.outer_size()?;
-    let monitors = w.available_monitors()?;
-    if let Some(monitor) = w.current_monitor()?.or(w.primary_monitor()?) {
-        let area = monitor.work_area();
-        let inner = w.inner_size()?;
-        let fitted = placement::fit_inner(
-            (inner.width, inner.height),
-            (size.width, size.height),
-            (area.size.width, area.size.height),
-        );
-        if fitted != (inner.width, inner.height) {
-            w.set_size(tauri::PhysicalSize::new(fitted.0, fitted.1))?;
-            size = w.outer_size()?;
+pub struct MainWindow {
+    configured_origin: Arc<dyn Fn() -> Option<String> + Send + Sync>,
+    data_directory: Option<PathBuf>,
+    browser_args: Option<String>,
+}
+
+impl MainWindow {
+    pub fn new(
+        configured_origin: Arc<dyn Fn() -> Option<String> + Send + Sync>,
+        data_directory: Option<PathBuf>,
+        browser_args: Option<String>,
+    ) -> Self {
+        Self {
+            configured_origin,
+            data_directory,
+            browser_args,
         }
     }
-    let areas: Vec<_> = monitors
-        .iter()
-        .map(|m| {
-            let a = m.work_area();
-            (a.position.x, a.position.y, a.size.width, a.size.height)
-        })
-        .collect();
-    if let Some((x, y)) = placement::recover_origin((pos.x, pos.y, size.width, size.height), &areas)
-    {
-        w.set_position(tauri::PhysicalPosition::new(x, y))?;
+
+    fn build(&self, app: &tauri::App) -> Result<tauri::WebviewWindow, tauri::Error> {
+        main_policy::build(
+            app,
+            self.configured_origin.clone(),
+            self.data_directory.clone(),
+            self.browser_args.as_deref(),
+        )
     }
-    w.set_focus()
+
+    // Foreground activation is reserved for explicit tray, shortcut and launch actions.
+    pub fn open(&self, app: &tauri::AppHandle) -> Result<(), tauri::Error> {
+        let w = app
+            .get_webview_window("main")
+            .expect("main exists for app lifetime");
+        w.unminimize()?;
+        w.show()?;
+        // A display change can strand a previously placed window. Recover only if it
+        // no longer intersects a current monitor. Physical cases still need evidence.
+        let pos = w.outer_position()?;
+        let mut size = w.outer_size()?;
+        let monitors = w.available_monitors()?;
+        if let Some(monitor) = w.current_monitor()?.or(w.primary_monitor()?) {
+            let area = monitor.work_area();
+            let inner = w.inner_size()?;
+            let fitted = placement::fit_inner(
+                (inner.width, inner.height),
+                (size.width, size.height),
+                (area.size.width, area.size.height),
+            );
+            if fitted != (inner.width, inner.height) {
+                w.set_size(tauri::PhysicalSize::new(fitted.0, fitted.1))?;
+                size = w.outer_size()?;
+            }
+        }
+        let areas: Vec<_> = monitors
+            .iter()
+            .map(|m| {
+                let a = m.work_area();
+                (a.position.x, a.position.y, a.size.width, a.size.height)
+            })
+            .collect();
+        if let Some((x, y)) =
+            placement::recover_origin((pos.x, pos.y, size.width, size.height), &areas)
+        {
+            w.set_position(tauri::PhysicalPosition::new(x, y))?;
+        }
+        w.set_focus()
+    }
+}
+
+pub fn open_main(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
+    app.state::<Arc<crate::app::DesktopApp>>()
+        .main_window()
+        .open(app)
 }
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let w = main_policy::build(app)?;
+    let desktop = app.state::<Arc<crate::app::DesktopApp>>();
+    let w = desktop.main_window().build(app)?;
     let h = w.clone();
     w.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {

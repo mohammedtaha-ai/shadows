@@ -117,10 +117,32 @@ pub struct PresenceWatcher {
     ready: watch::Receiver<Readiness>,
     last: Mutex<Option<(BindingView, ReadyConnection)>>,
 }
-impl PresenceWatcher {
-    pub fn new(notify: Notify) -> Arc<Self> {
-        Self::start(notify, Timing::default())
+impl super::Presence {
+    pub fn start_watcher(&self, notify: Notify) {
+        assert!(
+            self.watcher
+                .set(PresenceWatcher::start(notify, Timing::default()))
+                .is_ok(),
+            "companion observer is started once"
+        );
     }
+
+    pub(super) fn watcher(&self) -> &PresenceWatcher {
+        self.watcher
+            .get()
+            .expect("companion observer is started before use")
+    }
+
+    pub fn sync_watcher(&self, binding: BindingView, connection: Option<ReadyConnection>) {
+        self.watcher().sync(binding, connection);
+    }
+
+    pub fn stop(&self) {
+        self.watcher().stop();
+    }
+}
+
+impl PresenceWatcher {
     #[cfg(test)]
     pub fn with_timing(notify: Notify, timing: Timing) -> Arc<Self> {
         Self::start(notify, timing)

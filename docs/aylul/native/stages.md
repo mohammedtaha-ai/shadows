@@ -218,7 +218,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   `npm run typecheck` and `npm test` pass
 
 ### N-17 · D-7b: `DesktopApp` holds D-0's nine owners by name
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-7b--complete-the-d-0-owner-inventory
   and #decision-d-0
 - Read: the plan's D-0 and section 6 ("Native target"); `apps/desktop/src-tauri/src/app.rs`;

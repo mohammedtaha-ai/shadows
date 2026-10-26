@@ -3,7 +3,8 @@ mod fixtures;
 mod inventory;
 mod scanner;
 
-use std::collections::BTreeSet;
+use quote::ToTokens;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 type Findings = BTreeSet<String>;
@@ -81,7 +82,28 @@ fn desktop_registers_one_private_composition_root() {
     }
     assert_eq!(registration.managed, 1, "register only the desktop root");
     assert_eq!(registration.starts, 1, "construct the desktop root once");
-    let app = syn::parse_file(&sources["app.rs"]).unwrap();
+    assert_desktop_owners(&sources["app.rs"]);
+}
+
+fn expected_desktop_owners() -> BTreeMap<String, String> {
+    include_str!("README.md")
+        .lines()
+        .filter_map(|line| {
+            let columns: Vec<_> = line.split('|').map(str::trim).collect();
+            if columns.len() == 4 && columns[1].starts_with('`') && columns[2].starts_with('`') {
+                Some((
+                    columns[1].trim_matches('`').to_owned(),
+                    columns[2].trim_matches('`').to_owned(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn assert_desktop_owners(source: &str) {
+    let app = syn::parse_file(source).unwrap();
     let fields = app
         .items
         .iter()
@@ -90,11 +112,53 @@ fn desktop_registers_one_private_composition_root() {
             _ => None,
         })
         .expect("DesktopApp owns native lifetime");
-    assert_eq!(fields.len(), 9, "retain the nine existing native values");
     assert!(
         fields
             .iter()
             .all(|field| matches!(field.vis, syn::Visibility::Inherited)),
         "owners are exposed through typed accessors"
     );
+    let actual: BTreeMap<_, _> = fields
+        .iter()
+        .map(|field| {
+            (
+                field
+                    .ident
+                    .as_ref()
+                    .expect("owners have field names")
+                    .to_string(),
+                field.ty.to_token_stream().to_string().replace(' ', ""),
+            )
+        })
+        .collect();
+    let expected = expected_desktop_owners();
+    assert_eq!(
+        expected.len(),
+        9,
+        "the owner table declares D-0's nine owners"
+    );
+    assert_eq!(
+        actual, expected,
+        "DesktopApp fields must equal the documented owner identities"
+    );
+}
+
+#[test]
+fn composition_inventory_rejects_renamed_extra_and_wrong_type_fields() {
+    let fields = expected_desktop_owners()
+        .iter()
+        .map(|(name, ty)| format!("{name}: {ty},"))
+        .collect::<String>();
+    let valid = format!("struct DesktopApp {{ {fields} }}");
+    assert_desktop_owners(&valid);
+    for invalid in [
+        valid.replace("core_connection:", "connection:"),
+        format!("struct DesktopApp {{ {fields} watcher: usize }}"),
+        valid.replace("main_window: windows::MainWindow", "main_window: usize"),
+    ] {
+        assert!(
+            std::panic::catch_unwind(|| assert_desktop_owners(&invalid)).is_err(),
+            "a renamed, extra or mistyped owner must fail: {invalid}"
+        );
+    }
 }

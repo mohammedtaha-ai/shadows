@@ -15,8 +15,8 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/presence/send.rs` | Captured companion submission admission | Presence contract; a newer selection owns binding publication |
 | `apps/desktop/src-tauri/src/presence/send_fixture.rs` | Scripted submission HTTP server | Presence contract; test-only |
 | `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission admission regressions | Presence contract |
-| `apps/desktop/src-tauri/src/presence/` | Operate the configuration-scoped companion conversation | Colocated `contract.yaml` |
-| `apps/desktop/src-tauri/src/presence/workflows.rs` | Coordinate companion actions through injected observer, native surface operations and Navigation | Presence contract; selection/show, retarget/readiness, publication admission and open-main workflows |
+| `apps/desktop/src-tauri/src/presence/` | Operate the configuration-scoped companion conversation with its owned observer | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/presence/workflows.rs` | Coordinate companion actions through the owned observer, injected native surface operations and Navigation | Presence contract; selection/show, retarget/readiness, publication admission and open-main workflows |
 | `apps/desktop/src-tauri/src/navigation.rs` | Deliver closed pending main navigation before opening main | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
 | `apps/desktop/src-tauri/src/core_connection/` | Verified local Core lifecycle | Colocated `contract.yaml` |
@@ -24,7 +24,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/desktop_preferences/tests.rs` | Desktop preference failure regressions | Desktop preferences contract |
 | `apps/desktop/src-tauri/src/commands/preferences.rs` | Main-only desktop preference IPC | Commands contract |
 | `apps/desktop/tests/desktop-preferences.mjs` | Native preference lifecycle acceptance | Desktop preferences contract |
-| `apps/desktop/src-tauri/src/windows/main_policy.rs` | Shared main response policy | Windows contract |
+| `apps/desktop/src-tauri/src/windows/main_policy.rs` | Main response policy with composition-supplied origin and webview options | Windows contract |
 | `web/src/desktop/` | Shared dashboard native boundary | Colocated `contract.yaml` |
 | `web/src/app/desktop/` | Native account/activity/character settings | Colocated `contract.yaml` |
 | `apps/desktop/src/studio.tsx` | Separate development character studio | Character studio contract; absent from production inputs |
@@ -42,7 +42,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/studio/` | Development-only scenes, controlled simulations and PNG export | Colocated `contract.yaml`; excluded from parent scope |
 | `apps/desktop/src-tauri/src/lib.rs` | Register native lifetime adapters | Composition contract |
 | `apps/desktop/src-tauri/src/app.rs` | Assemble the nine native owners | `src-tauri/src/contract.yaml` |
-| `apps/desktop/src-tauri/src/windows/` | Main/tray lifecycle and physical placement | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/windows/` | MainWindow construction/opening with native tray lifecycle and physical placement | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit editor focus with physical bounds | Companion window contract |
 | `apps/desktop/src-tauri/src/windows/companion/surface.rs` | Window-owned presentation DTOs | Companion window contract; producers map outside window code |
 | `apps/desktop/src-tauri/src/windows/companion/state.rs` | Revisioned companion surface state | Companion window contract; exact unbound, bound, previewing and failed payloads cover command answers and events |
