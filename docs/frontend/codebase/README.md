@@ -326,3 +326,4 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/index.ts` | Expose app/workflows public capabilities | `web/src/app/workflows/contract.yaml` |
 | `web/src/desktop/index.ts` | Expose desktop public capabilities | `web/src/desktop/contract.yaml` |
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
+| `web/src/app/agents/index.ts` | Expose app/agents public capabilities | `web/src/app/agents/contract.yaml` |

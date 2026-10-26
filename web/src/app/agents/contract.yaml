@@ -144,3 +144,5 @@ provider_models: Provider models carry id and per-model context_window; the agen
 extension_cache_owner: "api/extensions.ts owns saved switch merges and cancels stale reads before writing"
 
 profile_query_owner: "api/aylul-profiles.ts owns provider and agent query factories"
+
+feature_entry: "index.ts exposes providerTitle, colorOf, ColorDot."

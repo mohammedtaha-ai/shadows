@@ -1,12 +1,12 @@
-import { providerTitle } from '../agents/provider-presets'
-import { colorOf } from '../agents/character-colors'
-import { ColorDot } from '../agents/color-swatches'
+import { providerTitle } from '@/app/agents'
+import { colorOf } from '@/app/agents'
+import { ColorDot } from '@/app/agents'
 import {useEffect,useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {agentsQuery,providersQuery,providerPresetsQuery} from '@/api/aylul-profiles'
-import {noteCompanionSend} from '../../desktop/companion-send'
-import {retryConnection} from '../../desktop/native'
-import {connectBinding,useCompanionBinding,selectCompanionAgent,setCompanionPreviews,type BindingView} from '../../desktop/presence'
+import {noteCompanionSend} from '@/desktop'
+import {retryConnection} from '@/desktop'
+import {connectBinding,useCompanionBinding,selectCompanionAgent,setCompanionPreviews,type BindingView} from '@/desktop'
 export function CompanionSettings(){
   const agents=useQuery(agentsQuery),providers=useQuery(providersQuery),presets=useQuery(providerPresetsQuery)
   const [binding,setBinding]=useState<BindingView|null>(null),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false)
