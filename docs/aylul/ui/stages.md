@@ -29,7 +29,8 @@ Finished work (the text input, the shared dashboard, U-W1 to U-W3, H-2) is in th
   `companion-state.test.ts` moved from `tests/companion/native-state.test.ts`, `contract.yaml`);
   `features/companion/renderer/palette.ts`'s test moved from `tests/companion/palette.test.ts`
   to `features/companion/renderer/palette.test.ts` (palette is this side's by the 2026-10-21
-  ruling); `apps/desktop/package.json` scripts for the paths this task moves;
+  ruling) and the `tested_by` paths that name it in `features/companion/contract.yaml`;
+  `apps/desktop/package.json` scripts for the paths this task moves;
   `apps/desktop/tsconfig*.json` and `vite.config.*` only to keep co-located tests out of the
   production bundle; `tests/companion/production.test.ts`; `docs/aylul/codebase/README.md` (its
   rows); `apps/desktop/src-tauri/tests/architecture/baseline.txt` and `README.md` only to remove
