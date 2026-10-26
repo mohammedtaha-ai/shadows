@@ -11,7 +11,7 @@ import {
   ReactFlow,
 } from '@xyflow/react'
 import { type CSSProperties, useMemo, useRef, useState } from 'react'
-import type { Plan, PlanTask } from '@/api/client'
+import type { Plan, PlanTask } from '@/api/workflows'
 import { type PlanNode, layoutPlan } from './layout'
 import { type CanvasSize, MIN_ZOOM, WHOLE_PLAN, firstFit, useCamera, useCanvasSize } from './plan-camera'
 import { LinkEdge } from './plan-edge'

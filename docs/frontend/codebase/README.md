@@ -155,7 +155,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/projects.ts` | Project server state | `web/src/api/contract.yaml` |
 | `web/src/api/sessions.ts` | Harness session server state | `web/src/api/contract.yaml` |
 | `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
-| `web/src/api/workflows.ts` | Workflow query cache ownership | `web/src/api/contract.yaml` |
+| `web/src/api/workflows.ts` | Workflow server state | `web/src/api/contract.yaml` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |

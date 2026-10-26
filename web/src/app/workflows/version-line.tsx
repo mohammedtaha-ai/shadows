@@ -2,7 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import type { HarnessInfo, WrittenBy } from '@/api/client'
+import type { HarnessInfo } from '@/api/client'
+import type { WrittenBy } from '@/api/workflows'
 import { harnessesQuery } from '@/api/queries'
 
 function cliLabel(harness: string | null | undefined, harnesses?: HarnessInfo[]): string | null {

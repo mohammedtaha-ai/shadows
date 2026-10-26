@@ -720,3 +720,9 @@ code_operations:
   operations: "getCodeStatus listCodeLinks putCodeLink removeCodeLink getCodeSettings setActiveLimit"
   types: "ProjectStatus IndexState ProjectLink CodeSettings; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+workflows_operations:
+  owner: workflows.ts
+  operations: "listPlans getPlanVersions archivePlan unarchivePlan getPlan getPlanMap approvePlan editBindings"
+  types: "PlanOp Plan PlanTask PlanLink LinkedTask PlanMap MapPlan PlanListing PlanVersions VersionLine WrittenBy Approved; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

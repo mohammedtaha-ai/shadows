@@ -1,6 +1,6 @@
 // One job: how a plan version's state reads to a person.
 
-import type { Plan } from '@/api/client'
+import type { Plan } from '@/api/workflows'
 
 /** "Draft v2", or "Approved v1": the client shows `Frozen` as Approved. */
 export function stateLabel(plan: Pick<Plan, 'state' | 'version'>): string {

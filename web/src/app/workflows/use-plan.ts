@@ -1,8 +1,8 @@
 // One job: one plan version as a component reads it, kept current.
 
 import { type UseQueryResult, useQuery } from '@tanstack/react-query'
-import type { Plan, WrittenBy } from '@/api/client'
-import { planQuery } from '@/api/queries'
+import type { Plan, WrittenBy } from '@/api/workflows'
+import { planQuery } from '@/api/workflows'
 import { usePlanFrames } from './plan-frames'
 
 /** Plan version `workflowId`, refetched whenever its thread's stream carries

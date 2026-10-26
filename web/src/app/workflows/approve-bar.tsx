@@ -4,10 +4,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck } from 'lucide-react'
 import { useRef } from 'react'
-import { type Plan, approvePlan } from '@/api/client'
+import { type Plan, approvePlan } from '@/api/workflows'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
-import { workflowsKey } from '@/api/queries'
+import { workflowsKey } from '@/api/workflows'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 

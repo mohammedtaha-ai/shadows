@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
-import { type Plan, type PlanOp, editBindings, getPlan } from '@/api/client'
+import { type Plan, type PlanOp, editBindings, getPlan } from '@/api/workflows'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { operations as documentOperations } from './agreement-document'

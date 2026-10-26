@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
 import { workflowKeys, planQuery, plansQuery, planVersionsQuery, planMapQuery, savePlanAnswer } from './workflows'
-import type { Plan } from './client'
+import type { Plan } from './workflows'
 it('workflow reads and refresh keys preserve their arrays', () => {
   expect(workflowKeys.all()).toEqual(['workflows'])
   expect(workflowKeys.plans()).toEqual(['workflows', 'plan'])

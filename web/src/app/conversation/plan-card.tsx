@@ -4,7 +4,7 @@
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { Plan, PlanTask } from '@/api/client'
+import type { Plan, PlanTask } from '@/api/workflows'
 import type { ThreadEntry } from '@/api/threads'
 import { ErrorLine } from '../error-line'
 import { PlanGraph } from '@/app/workflows'

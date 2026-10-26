@@ -7,7 +7,7 @@
 import type { FitViewOptions } from '@xyflow/react'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Plan, PlanVersions } from '@/api/client'
+import type { Plan, PlanVersions } from '@/api/workflows'
 import { answers } from '@/test/fake-daemon'
 import { planFixture, planListing, planTask } from '@/test/contract-fixtures'
 import { FakeResizeObserver, resize } from '@/test/fake-resize-observer'

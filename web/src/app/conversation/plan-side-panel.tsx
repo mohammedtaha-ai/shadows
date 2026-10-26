@@ -2,7 +2,7 @@
 // only by a live `plan-show` for this tab.
 
 import { X } from 'lucide-react'
-import type { Plan, PlanTask } from '@/api/client'
+import type { Plan, PlanTask } from '@/api/workflows'
 import { ErrorLine } from '../error-line'
 import { PlanGraph } from '@/app/workflows'
 import { usePlan } from '@/app/workflows'
