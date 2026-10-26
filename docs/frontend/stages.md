@@ -226,8 +226,10 @@ settings dialog, PR #40) at `1a2b601`.
   `docs/frontend/codebase/README.md` (the new file's row); this task's `Status:`
 - Needs: F-39 (done)
 - Rulings: the capabilities have one field per native feature: `localCore`, `companion`,
-  `trayNavigation`, `accountLogin`, and `hashRouting` (the native shell loads the app from a
-  custom scheme, so the router needs hash history). The browser build gets every field `false`.
+  `tray` (the tray menu's navigation and hiding the window to it), `accountLogin`,
+  `windowPreferences` (starting with the system and closing to the tray, set in General), and
+  `hashRouting` (the native shell loads the app from a custom scheme, so the router needs hash
+  history). The browser build gets every field `false`.
   They are read from `isDesktop()` in `desktop/runtime.ts` at call time, not frozen in a module
   constant, because the platform never changes while the app runs and the existing tests switch
   the mocked `isDesktop` between cases. Each caller asks for the field that names what it shows;
