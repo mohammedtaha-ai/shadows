@@ -1455,6 +1455,7 @@ provider_models: Agent drafts project provider model objects into picker choices
 
 
 image_attachments:
+  tested_by: [web/src/app/conversation/composer-images.test.tsx]
   owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns previews and image controls; PendingImage in upload-images.ts carries file identity, upload command, answer, error and in-flight promise"
   useImages: "(choices, threadId, inFlight, changed, refuse, initialImages?) => { images, imageReason, filePicker, add, pick, retry, remove, drop, imagesChanged }; changed clears the pending send on add/remove; refuse delivers Core capability refusal to the composer error line"
   PendingImages: "({ images, threadId, inFlight, onRetry, onRemove }) => JSX.Element | null; owns ImagePreview and its object URL cleanup"

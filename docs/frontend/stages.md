@@ -277,7 +277,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run build` pass
 
 ### F-42 · W-12b: the composer's image tests leave `composer-bar.test.tsx`
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-12--put-test-infrastructure-under-its-owner
   ("oversized composer test file"; the harness move is a separate packet).
 - Read: `web/src/app/conversation/composer-bar.test.tsx` (678 lines); `use-images.ts`,

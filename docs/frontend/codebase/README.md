@@ -347,6 +347,7 @@ it is that folder's `contract.yaml`.
 | `web/src/stream/use-project-events.ts` | Refetches project plan views on journal notices | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-thread-stream.ts` | Bind a registry subscription to a component | `web/src/stream/contract.yaml` |
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
+| `web/src/test/composer.ts` | Shared session-ready composer fixtures | `web/src/app/conversation/contract.yaml` |
 | `web/src/test/contract-fixtures.ts` | Sample daemon values typed against `schema.d.ts` | `web/src/test/fake-daemon.ts` |
 | `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon | `web/src/test/contract-fixtures.ts` |
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
