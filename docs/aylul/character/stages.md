@@ -32,7 +32,9 @@ acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-accep
   `composer.test.ts` beside `composer-model.ts`, `desktop-gesture.test.ts` beside
   `desktop-gesture.ts`, and `tests/companion/fakes.ts` beside the tests that use it, named as
   test support; `contract.yaml`, `studio/contract.yaml`); `apps/desktop/tests/companion/` (the
-  boundary baseline entries this task removes); `apps/desktop/package.json`
+  boundary baseline entries this task removes, and in `boundaries.test.ts` only the baseline
+  self-test, so it still proves new, stale and duplicate entries fail when today's baseline is
+  empty); `apps/desktop/package.json`
   (`test:companion:unit` paths this task moves); `docs/aylul/codebase/README.md` (its rows);
   this task's `Status:`
 - Needs: U-4
