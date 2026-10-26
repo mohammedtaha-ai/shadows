@@ -1,5 +1,5 @@
-import { useNavigate } from '@tanstack/react-router'
-import type { SectionId } from './sections'
+import { useNavigate, type RegisteredRouter, type InferFullSearchSchema } from '@tanstack/react-router'
+type SectionId = NonNullable<InferFullSearchSchema<RegisteredRouter['routeTree']>['settings']>
 
 export function useOpenSettings(): (section: SectionId, agent?: string) => void {
   const navigate = useNavigate()

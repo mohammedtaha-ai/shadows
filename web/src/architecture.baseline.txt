@@ -12,14 +12,10 @@ cache_write :: app/settings/plugins.test.tsx :: setQueryData #2
 cache_write :: stream/use-project-events.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #2
-dependency :: app/agents/agent-extensions.tsx :: app/settings/use-settings.ts #1
-dependency :: app/agents/agent-settings.tsx :: app/settings/use-settings.ts #1
-dependency :: app/agents/home.tsx :: app/settings/use-settings.ts #1
 dependency :: app/agreements/party-picker.tsx :: app/design/use-part-pages.ts #1
 dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #1
 dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #2
 dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #3
-dependency :: app/conversation/composer.tsx :: app/settings/use-settings.ts #1
 dependency :: app/conversation/draft.test.tsx :: router.tsx #1
 dependency :: app/design/roadmap-view.test.tsx :: router.tsx #1
 dependency :: app/design/roadmap-view.test.tsx :: router.tsx #2
@@ -40,12 +36,9 @@ entry :: settings :: app/settings/index.ts #1
 entry :: sidebar :: app/sidebar/index.ts #1
 entry :: stream :: stream/index.ts #1
 entry :: workflows :: app/workflows/index.ts #1
-public_entry :: app/agents/agent-extensions.tsx :: app/settings/use-settings.ts #1
-public_entry :: app/agents/agent-settings.tsx :: app/settings/use-settings.ts #1
 public_entry :: app/agents/agent-settings.tsx :: desktop/presence.ts #1
 public_entry :: app/agents/agent-settings.tsx :: desktop/runtime.ts #1
 public_entry :: app/agents/aylul.test.tsx :: desktop/presence.ts #1
-public_entry :: app/agents/home.tsx :: app/settings/use-settings.ts #1
 public_entry :: app/agreements/party-picker.tsx :: app/design/use-part-pages.ts #1
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #1
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #2
@@ -53,7 +46,6 @@ public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-se
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #4
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #5
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/presence.ts #1
-public_entry :: app/conversation/composer.tsx :: app/settings/use-settings.ts #1
 public_entry :: app/conversation/composer.tsx :: desktop/companion-send.ts #1
 public_entry :: app/conversation/composer.tsx :: stream/frames.ts #1
 public_entry :: app/conversation/composer.tsx :: stream/tab-id.ts #1
@@ -128,9 +120,7 @@ public_entry :: app/shell.tsx :: app/settings/settings-dialog.tsx #1
 public_entry :: app/shell.tsx :: app/sidebar/sidebar.tsx #1
 public_entry :: app/shell.tsx :: stream/use-project-events.ts #1
 public_entry :: app/sidebar/agent-list.tsx :: app/agents/character-colors.ts #1
-public_entry :: app/sidebar/agent-list.tsx :: app/settings/use-settings.ts #1
 public_entry :: app/sidebar/sidebar.tsx :: app/new-project/open-new-project.ts #1
-public_entry :: app/sidebar/sidebar.tsx :: app/settings/use-settings.ts #1
 public_entry :: app/sidebar/sidebar.tsx :: desktop/native.ts #1
 public_entry :: app/sidebar/sidebar.tsx :: desktop/runtime.ts #1
 public_entry :: app/sidebar/workflow-list.tsx :: app/workflows/plan-state.ts #1

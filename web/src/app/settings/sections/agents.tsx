@@ -8,7 +8,7 @@ import { isDesktop } from '@/desktop/runtime'
 import { useCompanionBinding } from '@/desktop/presence'
 import { AgentForm, DeleteAgent } from '../../agents/agent-settings'
 import { ErrorLine } from '../../error-line'
-import { useOpenSettings } from '../use-settings'
+import { useOpenSettings } from '@/app/navigation'
 
 export function AgentsSection() {
   const binding = useCompanionBinding()

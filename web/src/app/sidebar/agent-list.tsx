@@ -10,7 +10,7 @@ import { threadQuery } from '@/api/queries'
 import { ErrorLine } from '../error-line'
 import { ThreadList } from './thread-list'
 import { colorOf } from '../agents/character-colors'
-import { useOpenSettings } from '../settings/use-settings'
+import { useOpenSettings } from '@/app/navigation'
 
 export function AgentList() {
   const agents = useQuery(agentsQuery)

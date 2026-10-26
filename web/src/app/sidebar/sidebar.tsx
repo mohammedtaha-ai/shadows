@@ -13,7 +13,7 @@ import { AgentList } from './agent-list'
 import { WorkspaceSwitcher } from './workspace-switcher'
 import { useWorkspace } from './workspace'
 import { ProjectList } from './project-list'
-import { useOpenSettings } from '../settings/use-settings'
+import { useOpenSettings } from '@/app/navigation'
 
 export function Sidebar() {
   const [nativeError,setNativeError]=useState<string|null>(null)

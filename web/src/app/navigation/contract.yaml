@@ -1,0 +1,11 @@
+name: web-navigation
+version: 1
+status: current
+source: web/src/app/navigation
+responsibility: Navigate application destinations over the current route.
+public_api:
+  useOpenSettings: Open a settings section; retain the agent only for Agents.
+  useCloseSettings: Clear settings and agent search keys over the current route.
+obligations:
+  - rule: Settings actions preserve unrelated URL search values and use the current route.
+    tested_by: web/src/app/navigation/index.test.ts

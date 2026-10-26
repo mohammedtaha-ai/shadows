@@ -4,7 +4,7 @@ import { agentExtensionsQuery, setAgentExtension, saveAgentExtensionAnswer, type
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
-import { useOpenSettings } from '../settings/use-settings'
+import { useOpenSettings } from '@/app/navigation'
 
 export function AgentExtensions({ slug }: { slug: string }) {
   const state = useQuery(agentExtensionsQuery(slug))

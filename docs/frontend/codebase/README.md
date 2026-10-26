@@ -46,29 +46,29 @@ check does not invent contracts for those modules. Existing contracts must parse
 as YAML and identify their mapped source folder.
 
 The table maps today's folders onto the plan's section 6: `shared` covers the
-root feedback/policy files; the navigation/feedback folders are target paths,
-with navigation extraction assigned to W-5. `api/*` exposes the unsplit API
+root feedback/policy files; navigation owns settings actions, while feedback remains a target path. `api/*` exposes the unsplit API
 until W-8 establishes domain entries. `workflows`
 has its own row because its directory owns workflow presentation. These migration
 boundaries do not exempt their sources from the other architecture rules.
 
 | Owner | Sources | Entry | Contract | Allowed dependencies |
 |---|---|---|---|---|
-| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, new-project, project-settings, settings, sidebar, workflows` |
+| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, new-project, project-settings, settings, sidebar, workflows, navigation` |
+| `navigation` | `app/navigation/**` | `app/navigation/index.ts` | `app/navigation/contract.yaml` | `-` |
 | `api` | `api/**` | `api/*` | `api/contract.yaml` | `-` |
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
 | `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `-` | `api, ui` |
-| `agents` | `app/agents/**` | `app/agents/index.ts` | `app/agents/contract.yaml` | `api, ui, shared, desktop` |
+| `agents` | `app/agents/**` | `app/agents/index.ts` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts` | `app/agreements/contract.yaml` | `api, ui, shared` |
-| `conversation` | `app/conversation/**` | `app/conversation/index.ts` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui` |
+| `conversation` | `app/conversation/**` | `app/conversation/index.ts` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
 | `design` | `app/design/**` | `app/design/index.ts` | `app/design/contract.yaml` | `api, ui, shared, workflows` |
 | `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
 | `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
 | `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts` | `app/project-settings/contract.yaml` | `api, ui, shared` |
-| `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui` |
-| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, settings, workflows` |
+| `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
+| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, workflows, navigation` |
 | `workflows` | `app/workflows/**` | `app/workflows/index.ts` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
 | `test-support` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
@@ -99,6 +99,7 @@ above. `codemap.test.ts` checks that each one exists.
 - `web/src/app/design`
 - `web/src/app/new-project`
 - `web/src/app/project-settings`
+- `web/src/app/navigation`
 - `web/src/app/settings`
 - `web/src/app/agents`
 - `web/src/app/sidebar`
@@ -247,7 +248,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/settings-dialog.tsx` | URL-selected settings dialog | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections.ts` | Settings section availability | `web/src/app/settings/contract.yaml` |
-| `web/src/app/settings/use-settings.ts` | Settings URL navigation hooks | `web/src/app/settings/contract.yaml` |
+| `web/src/app/navigation/index.ts` | Settings URL navigation hooks | `web/src/app/navigation/contract.yaml` |
 | `web/src/app/settings/sections/general.tsx` | General settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/account.tsx` | Account state controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/character.tsx` | Character settings content | `web/src/app/settings/contract.yaml` |
