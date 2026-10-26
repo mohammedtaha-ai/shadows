@@ -29,6 +29,9 @@ version: 1
 status: current
 source: web/src/app/conversation
 
+refresh_pinning:
+  conversation: "pins conversation refresh for %s covers all five plan kinds; WorkflowDraftStarted, WorkflowEdited and WorkflowFrozen refresh the entire workflows family; archive/unarchive currently do not."
+
 
 # ── shapes ───────────────────────────────────────────────────────────────────
 

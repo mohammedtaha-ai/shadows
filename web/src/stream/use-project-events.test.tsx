@@ -10,6 +10,29 @@ import { until } from '@/app/test-app'
 import { startApp, typeInto } from '@/app/test-app'
 import { answers } from '@/test/fake-daemon'
 
+it.each(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])('pins project refresh for %s', async kind => {
+  const client = new QueryClient()
+  const keys = [
+    ['projects', 'p1', 'design', 'vision'], ['projects', 'p1', 'agreement', 'a1', 1],
+    ['workflows', 'map', 'p1'], ['workflows', 'list', 'p1', { archived: false }],
+    ['workflows', 'list', 'p1', { archived: true }], ['workflows', 'versions', 'plan1'],
+    ['workflows', 'plan', 'w1'], ['workflows', 'plan', 'w0'], ['workflows', 'plan', 'neighbour'],
+  ]
+  const sources: FakeSource[] = []
+  vi.stubGlobal('EventSource', class extends FakeSource {
+    constructor(url: string) { super(url); sources.push(this) }
+  })
+  const root = createRoot(document.createElement('div'))
+  function Watcher() { useProjectEvents('p1'); return null }
+  try {
+    act(() => root.render(<QueryClientProvider client={client}><Watcher /></QueryClientProvider>))
+    act(() => sources[0].caughtUp(0))
+    for (const queryKey of keys) await client.fetchQuery({ queryKey, staleTime: Infinity, queryFn: async () => ({ project_id: 'p1', plan_id: 'plan1' }) })
+    act(() => sources[0].durable(1, kind, null, { plan_id: 'plan1', workflow_id: 'w1' }))
+    expect(keys.map(key => client.getQueryState(key)?.isInvalidated)).toEqual(keys.map(() => true))
+  } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
+})
+
 it('independent tabs refresh every design slice, deduplicate and resume after disconnect', async () => {
   const sources: FakeSource[] = []
   vi.stubGlobal('EventSource', class extends FakeSource {

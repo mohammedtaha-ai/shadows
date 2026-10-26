@@ -26,6 +26,9 @@ version: 1
 status: current
 source: web/src/app/workflows
 
+refresh_pinning:
+  writer: "pins writer-thread refresh for %s covers all five plan kinds; WorkflowDraftStarted, WorkflowEdited and WorkflowFrozen refresh the entire workflows family; archive/unarchive currently do not."
+
 
 # ── shapes ───────────────────────────────────────────────────────────────────
 #

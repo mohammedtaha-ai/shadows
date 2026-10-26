@@ -23,6 +23,9 @@ version: 1
 status: current
 source: web/src/stream
 
+refresh_pinning:
+  project: "pins project refresh for %s covers all five plan event kinds: design, agreement versions, project maps/lists, plan versions, sibling versions and project neighbours."
+
 
 # ── shapes ───────────────────────────────────────────────────────────────────
 
