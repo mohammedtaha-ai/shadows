@@ -243,3 +243,28 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   fails; window labels, CSP, navigation guards, events, start-up and shutdown order are
   unchanged and their tests pass; no baseline count goes up; the crate's tests, the
   architecture test, clippy and fmt pass
+
+### N-18 · D-7c: window code does no service lookup
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-7c--window-code-does-no-service-lookup
+  and #decision-d-0
+- Read: the plan's D-0 ("`AppHandle` is for window and event work only"); `apps/desktop/src-tauri/src/app.rs`;
+  `src/windows/contract.yaml` (with `mod.rs`, `main_policy.rs`, `companion/`);
+  `src/presence/contract.yaml` (`WindowActions`); `tests/architecture/README.md` and `baseline.txt`
+- Touch: `apps/desktop/src-tauri/src/windows/` (`mod.rs`, `main_policy.rs`, `companion/`, their
+  tests, `contract.yaml`); `src/app.rs`, `src/lib.rs`, `src/contract.yaml`; the owners whose
+  methods window code calls today, only to take an argument or expose a callback
+  (`src/presence/`, `src/desktop_preferences/`, `src/app_paths.rs`, their `contract.yaml`);
+  commands that call window functions whose signature changes (`src/commands/`, its
+  `contract.yaml`); `tests/architecture/` (baseline); `docs/aylul/codebase/README.md`; this
+  task's `Status:`
+- Needs: N-17
+- Done when: no file under `src/windows/` calls `state::<…>()`/`try_state::<…>()` or names
+  `DesktopApp`; what window code needs (preferences, paths, the companion store, editor
+  context, close policy) arrives as an argument or a callback wired in `DesktopApp::start` or
+  `windows::setup`'s caller; the `MainWindow ↔ CompanionWindow` owner cycle is gone (one
+  direction stays, or a callback replaces it); every `managed_state` and `owner_edge
+  app::DesktopApp` entry for `windows/` and both `owner_cycle` entries leave the baseline and
+  none is added anywhere; window labels, focus, hiding, fitting, toggle shortcut, close policy,
+  render denial and event order are unchanged and their tests pass; the crate's tests, the
+  architecture test, clippy and fmt pass
