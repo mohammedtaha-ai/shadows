@@ -244,6 +244,38 @@ settings dialog, PR #40) at `1a2b601`.
   src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
   `npm run build` pass
 
+### F-41 · W-10e: desktop-only settings sections and sidebar actions register from `app/desktop/`
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
+  ("Desktop capabilities", second half; F-40 was the first).
+- Read: the plan's "Desktop capabilities" paragraph; `web/src/app/settings/sections.ts`,
+  `settings-dialog.tsx`, `sections/character.tsx`, `sections/core.tsx`;
+  `web/src/app/sidebar/sidebar.tsx`; `web/src/app/desktop/index.ts` and its contract;
+  `web/src/desktop/capabilities.ts`; the `settings`, `sidebar` and `desktop-ui` module rows of
+  `docs/frontend/codebase/README.md`; `app/desktop/companion-binding.test.tsx`,
+  `app/settings/core.test.tsx`, `app/settings/settings-dialog.test.tsx`
+- Touch: a new `web/src/app/desktop/settings-sections.tsx` (the desktop-only settings sections:
+  their ids, labels, group, the capability that shows each, and their content, which moves here
+  from `settings/sections/character.tsx` and `settings/sections/core.tsx`, both deleted); a new
+  `web/src/app/desktop/sidebar-actions.tsx` (the sidebar's "Local activity" and "Hide to tray"
+  row and its error line, moved from `sidebar.tsx`); `web/src/app/desktop/index.ts`;
+  `web/src/app/settings/sections.ts`, `settings-dialog.tsx`; `web/src/app/sidebar/sidebar.tsx`;
+  the import line only of `app/desktop/companion-binding.test.tsx` and `app/settings/core.test.tsx`;
+  `web/src/architecture.baseline.txt` (removing the entries the move fixes, adding none); the
+  `settings`, `sidebar` and `desktop-ui` contracts; `docs/frontend/codebase/README.md` (the new
+  files' rows, the deleted files' rows, and `desktop-ui` added to the `sidebar` row's
+  dependencies); this task's `Status:`
+- Needs: F-40 (done)
+- Done when: `settings` lists only its own sections and appends the ones `app/desktop/` registers;
+  the sidebar renders one component from `app/desktop/` for its desktop actions; no file in
+  `settings/` or `sidebar/` reads a capability for a desktop-only section or action. The section
+  ids, the router's settings search, the nav order ("This machine", "AYLUL character", "Local
+  Core") and every rendered DOM in browser and desktop are unchanged. No test file changes except
+  the two import lines named above; the baseline only shrinks. From `web/`:
+  `npx vitest run src/desktop src/app/desktop src/app/settings src/app/sidebar
+  src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
+  `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
