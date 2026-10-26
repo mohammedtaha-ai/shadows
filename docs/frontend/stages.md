@@ -295,8 +295,8 @@ settings dialog, PR #40) at `1a2b601`.
 - Needs: F-36 (done)
 - Done when: `composer-bar.test.tsx` holds the composer bar's menus, settings, send and command-id
   tests; `composer-images.test.tsx` holds the image tests; every test keeps its name, body and
-  assertions, and the two files together run the same 29 test cases (counting `it.each` rows) as
-  before; no other test file changes; the baseline's entry count is unchanged. From `web/`:
+  assertions, and the two files together run the same 33 test cases (29 declarations, one
+  `it.each` with four rows) as before; no other test file changes; the baseline's entry count is unchanged. From `web/`:
   `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
   `npm run typecheck` and `npm run lint` pass
 
