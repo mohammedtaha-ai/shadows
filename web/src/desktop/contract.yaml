@@ -26,6 +26,10 @@ obligations:
     tested_by: web/src/desktop/bootstrap.test.tsx
   - rule: A failed launch waits for explicit Retry.
     tested_by: web/src/desktop/bootstrap.test.tsx
+  - rule: prepareDesktop renders the connection controls it is given while waiting, and fixes the verified origin before the application mounts.
+    tested_by: web/src/desktop/bootstrap-composition.test.tsx
+  - rule: connectNavigation reads the snapshot only after the given readiness resolves, acknowledges a revision only after the given navigation has applied it, and newer events win over a delayed snapshot.
+    tested_by: web/src/desktop/native-parity.test.ts
 
 binding:
   BindingView: Native revision/generation/configurationId/agent/target/previews; actual Rust fixture owns IPC parity.

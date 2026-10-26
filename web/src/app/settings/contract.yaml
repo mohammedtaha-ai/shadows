@@ -83,12 +83,6 @@ private_helpers:
     # The form. `edited` is null until the person types; it then holds their text.
     private: true
 
-hooks:
-  useOpenSettings:
-    signature: "() => (section: SectionId, agent?: string) => void"
-  useCloseSettings:
-    signature: "() => () => void"
-
 functions:
   usageRange:
     signature: "(period: UsagePeriod, now: Date) => { from: string; to: string }"

@@ -46,9 +46,9 @@ check does not invent contracts for those modules. Existing contracts must parse
 as YAML and identify their mapped source folder.
 
 The table maps today's folders onto the plan's section 6: `shared` covers the
-root feedback/policy files; navigation owns settings actions, while feedback remains a target path. `api/*` exposes the unsplit API
-until W-8 establishes domain entries. `workflows`
-has its own row because its directory owns workflow presentation. These migration
+root feedback/policy files; `navigation` owns the settings actions, and feedback
+remains a target path. `api/*` exposes the unsplit API until W-8 establishes
+domain entries. `workflows` has its own row because its directory owns workflow presentation. These migration
 boundaries do not exempt their sources from the other architecture rules.
 
 | Owner | Sources | Entry | Contract | Allowed dependencies |
