@@ -223,3 +223,5 @@ person_cache_owner: "Both person forms pass saved whole records through api/pers
 code_cache_owner: "api/code.ts owns saved active-project settings answers"
 
 usage_query_identity: "Usage cache inspection and feature reads use api/usage.usageKeys"
+
+feature_imports: "Cross-feature production imports use declared public entries."

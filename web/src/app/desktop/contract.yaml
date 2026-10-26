@@ -40,6 +40,7 @@ activity_query_owner: "api/native-activity.ts owns activity query identity and p
 
 startup_entry: "startup.ts exports only ConnectionSettings before native readiness; its static graph cannot reach api/client.ts."
 
-feature_entry: "index.ts exposes UseWithCompanion."
 
 feature_imports: "Cross-feature production imports use declared public entries."
+
+feature_entry: "index.ts exposes UseWithCompanion, CompanionControls, CompanionSettings, ConnectionSettings."

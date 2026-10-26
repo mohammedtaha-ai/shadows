@@ -1,4 +1,4 @@
-import type { AuthAction, AuthView } from '@/desktop/auth'
+import type { AuthAction, AuthView } from '@/desktop'
 
 type AccountAction = { action: AuthAction | 'cancel'; label: string; confirm?: string; danger?: boolean }
 

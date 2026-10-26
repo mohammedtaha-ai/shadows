@@ -1,7 +1,7 @@
 import { ActiveProjects } from '../active-projects'
 import { GeneralPreferences } from '../general-preferences'
 import { DesktopPreferencesControls } from '../desktop-preferences'
-import { isDesktop } from '@/desktop/runtime'
+import { isDesktop } from '@/desktop'
 
 export function GeneralSection() {
   return (

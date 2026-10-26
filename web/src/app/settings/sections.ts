@@ -1,4 +1,4 @@
-import { isDesktop } from '@/desktop/runtime'
+import { isDesktop } from '@/desktop'
 
 export type SectionId = 'account' | 'general' | 'providers' | 'agents' | 'plugins' | 'usage' | 'character' | 'core'
 

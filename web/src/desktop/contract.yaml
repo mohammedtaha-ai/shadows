@@ -49,4 +49,4 @@ companion_send:
 
 startup_entry: "startup.ts exposes native boot plus the connection calls and types used by the pre-readiness ConnectionSettings screen; its static graph cannot reach api/client.ts."
 
-feature_entry: "index.ts exposes companion targeting, native presentation and activity operations to mounted features."
+feature_entry: "index.ts exposes noteCompanionSend, useCompanionSendProblem, isDesktop, aylulMessage, answerRequest, approveRule, dismissRefusal, previewRule, AylulState, Pending, connectCompanion, setCompanionVisible, setCompanionPaused, CompanionState, retryConnection, connectBinding, useCompanionBinding, selectCompanionAgent, setCompanionPreviews, BindingView, Plan, installHooks, previewHooks, getState, AuthAction, AuthView, getDesktopPreferences, setDesktopPreferences, DesktopPreferences, authAction, cancelLogin."

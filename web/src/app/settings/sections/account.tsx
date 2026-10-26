@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { authAction, cancelLogin, type AuthAction, type AuthView } from '@/desktop/auth'
+import { authAction, cancelLogin, type AuthAction, type AuthView } from '@/desktop'
 import { Button } from '@/components/ui/button'
 import { accountView } from '../account-actions'
-import { isDesktop } from '@/desktop/runtime'
+import { isDesktop } from '@/desktop'
 import { YouCard } from '../you-card'
 
 export function AccountSection() {
