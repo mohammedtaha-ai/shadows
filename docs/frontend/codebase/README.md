@@ -221,9 +221,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/roadmap-view.tsx` | Navigator for outcomes, without derived completion | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/standards-view.tsx` | Standards page: read-only base, editable additions | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/use-design-editor.ts` | Save lifecycle shared by the design editors | `web/src/app/design/contract.yaml` |
-| `web/src/app/design/use-design-pages.ts` | Collects hierarchy pages while revisions agree | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/use-outcome-pages.ts` | Outcome hierarchy pages from the daemon | `web/src/app/design/contract.yaml` |
-| `web/src/app/design/use-part-pages.ts` | Part hierarchy pages from the daemon | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/vision-editor.tsx` | Vision as five item lists, edited one item at a time | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/vision-fields.ts` | Display names of the vision fields | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/workspace-page.tsx` | Design workspace page, opening on Vision | `web/src/app/design/contract.yaml` |

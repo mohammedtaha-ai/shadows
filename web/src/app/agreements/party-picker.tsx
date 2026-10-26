@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import type { AgreementContent } from '@/api/client'
 import { Button } from '@/components/ui/button'
-import { usePartPages } from '../design/use-part-pages'
+import { usePartPages } from '@/api/design'
 import { ErrorLine } from '../error-line'
 import { PartName } from './names'
 type Party = AgreementContent['parties'][number]

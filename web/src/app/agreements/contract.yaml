@@ -266,3 +266,5 @@ cache_owner: "api/agreements.ts owns query identities and saved answers; the edi
 binding_plan_cache: "api/workflows.ts owns saved plans and workflow refresh identities"
 
 design_cache_identity: "Binding adoption refresh uses api/design.designKeys"
+
+pagination_owner: "PartyPicker imports usePartPages from api/design.ts; agreement UI depends on no design editor hook."

@@ -7,7 +7,7 @@ import { partQuery, stageQuery, mapProposalsQuery, threadsQuery } from '@/api/qu
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { PartEditor } from './part-editor'
-import { usePartPages } from './use-part-pages'
+import { usePartPages } from '@/api/design'
 import { MapPartDetails } from './map-part-details'
 import { CreateStructure } from './create-structure'
 

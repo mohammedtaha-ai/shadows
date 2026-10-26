@@ -5,7 +5,7 @@ import type { Part, PartContent, PartView } from '@/api/design'
 import { partQuery, partsQuery, plansQuery, visionQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
-import { usePartPages } from './use-part-pages'
+import { usePartPages } from '@/api/design'
 import { type DesignEditorConfig, useDesignEditor } from './use-design-editor'
 import { MapPartDetails } from './map-part-details'
 

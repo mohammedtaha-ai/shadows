@@ -12,7 +12,6 @@ cache_write :: app/settings/plugins.test.tsx :: setQueryData #2
 cache_write :: stream/use-project-events.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #2
-dependency :: app/agreements/party-picker.tsx :: app/design/use-part-pages.ts #1
 dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #1
 dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #2
 dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #3
@@ -29,7 +28,6 @@ entry :: project-settings :: app/project-settings/index.ts #1
 entry :: settings :: app/settings/index.ts #1
 entry :: sidebar :: app/sidebar/index.ts #1
 public_entry :: app/agents/aylul.test.tsx :: desktop/presence.ts #1
-public_entry :: app/agreements/party-picker.tsx :: app/design/use-part-pages.ts #1
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #1
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #2
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #3

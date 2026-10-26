@@ -681,3 +681,8 @@ usage_cache:
 harness_cache:
   owner: harnesses.ts
   keys: "harnessKeys.list preserves ['harnesses']; harnessesQuery retains normal focus refetching and is re-exported by queries.ts"
+
+design_pagination:
+  useDesignPages: "Accumulate a branch only while its first-page revision agrees; invalidate and drop extra pages on mismatch."
+  usePartPages: "Part pagination shared by design views and agreement participants; uses partsQuery key without its final cursor."
+  keys: "designPageQuery appends the unchanged cursor or null; part and outcome query identities retain their exact values."

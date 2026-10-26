@@ -1,9 +1,10 @@
 // The project design workspace's server state, from HTTP call to cache.
-import { queryOptions, type QueryClient } from '@tanstack/react-query'
+import { queryOptions, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { client, getStage, getStandards, type EffectiveStandards } from './client'
 import { unwrap } from './error'
 import { writeSaved } from './saved-answer'
 import type { components } from './schema'
+import { useState } from 'react'
 
 export type VisionContent = components['schemas']['VisionContent']
 export type VisionView = components['schemas']['VisionView']
@@ -153,4 +154,33 @@ export function saveStandardsAnswer(client: QueryClient, projectId: string, save
   // A journal refresh can already hold a newer saved version.
   return writeSaved<EffectiveStandards>(client, designKeys.standards(projectId), current =>
     (current?.additions?.number ?? 0) > version.number ? current : { ...(current ?? saved), additions: version })
+}
+
+// Accumulate hierarchy pages only while their workspace revisions agree.
+interface Page<T> { revision: number; items: T[]; next?: string | null }
+export function useDesignPages<T>(baseKey: readonly unknown[], load: (after?: string) => Promise<Page<T>>) {
+  const client = useQueryClient()
+  const queryKey = designPageQuery(baseKey, load).queryKey
+  const first = useQuery(designPageQuery(baseKey, load))
+  const [extra, setExtra] = useState<{ revision: number; pages: Page<T>[] } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const pages = first.data === undefined ? [] : [first.data, ...(extra?.revision === first.data.revision ? extra.pages : [])]
+  const next = pages.at(-1)?.next
+  const more = async () => {
+    if (!next || !first.data) return
+    setLoading(true); setError(null)
+    try {
+      const page = await client.fetchQuery({ ...designPageQuery(baseKey, load, next), staleTime: 0 })
+      if (page.revision !== first.data.revision) {
+        setExtra(null); await client.invalidateQueries({ queryKey })
+      } else setExtra({ revision: page.revision, pages: [...(extra?.revision === page.revision ? extra.pages : []), page] })
+    } catch (e) { setError(e instanceof Error ? e : new Error(String(e))); void client.invalidateQueries({ queryKey }) }
+    finally { setLoading(false) }
+  }
+  return { items: pages.flatMap(page => page.items), next, more, loading, pending: first.isPending, error: first.error ?? error }
+}
+
+export function usePartPages(projectId: string, parent?: string) {
+  return useDesignPages(partsQuery(projectId, parent).queryKey.slice(0, -1), after => getParts(projectId, parent, after))
 }

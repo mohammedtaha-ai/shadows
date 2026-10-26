@@ -6,7 +6,7 @@ import { type Part } from '@/api/design'
 import { partQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
-import { usePartPages } from './use-part-pages'
+import { usePartPages } from '@/api/design'
 interface ChoiceProps { projectId: string; selected: string[]; change: (ids: string[]) => void }
 export function PartReferences(props: ChoiceProps) {
   return <section className="space-y-2" aria-label="Referenced parts"><h4 className="text-sm">Referenced parts</h4>
