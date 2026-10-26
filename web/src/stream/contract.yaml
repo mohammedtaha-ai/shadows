@@ -453,6 +453,12 @@ gaps:
       as an untargeted frame, and use-conversation.ts drops it quietly, because null never
       equals the tab id. The test sends explicit nulls only.
 
+  - at: web/src/test/fake-event-source.ts header
+    gap: >
+      The header says nothing outside a *.test.ts imports FakeSource, but
+      web/src/test/test-app.tsx imports it for its sources array. Test support may import
+      other test support, and the architecture check rejects production reachability to
+      either file. The header's importer claim remains inaccurate.
 
 
 # ── open_questions ───────────────────────────────────────────────────────────
