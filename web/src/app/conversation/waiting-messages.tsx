@@ -1,5 +1,3 @@
-// One job: a conversation's waiting messages (§20), each with Send now (Send
-// when no turn runs) and Remove, and the reason a send failed.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'

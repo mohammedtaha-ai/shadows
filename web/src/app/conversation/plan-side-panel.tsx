@@ -1,5 +1,4 @@
-// One job: a plan version in a panel beside the conversation (§13.9), opened
-// only by a live `plan-show` for this tab.
+// Only a live plan-show for this tab may open the panel; replays must not move the reader.
 
 import { X } from 'lucide-react'
 import type { Plan, PlanTask } from '@/api/workflows'

@@ -1,6 +1,4 @@
-// One job: the `/` list each conversation's harness last sent (spec §21.3),
-// kept per thread in the query cache (`api/sessions.ts`). Only the stream
-// fills it; nothing fetches it, so it is never stale and never refetched.
+// Only the stream supplies commands, so keep its list per thread without fetching it.
 
 import { useQuery } from '@tanstack/react-query'
 import type { SlashCommand } from '@/stream'

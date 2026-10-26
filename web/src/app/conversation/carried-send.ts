@@ -1,6 +1,4 @@
-// One job: carrying a draft's first message to its thread's page when the
-// thread was made and the turn failed (spec §13.11), so the page shows the
-// text and the error, and a retry reuses the turn's command id.
+// Keep the failed first message and its command id together so a retry can replay it.
 
 import { useEffect, useState } from 'react'
 import type { PendingImage } from './upload-images'

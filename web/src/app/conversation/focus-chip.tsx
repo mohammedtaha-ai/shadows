@@ -1,5 +1,3 @@
-// One job: the task a person points at (§13.9) — the chip above the composer
-// that says which, and the `focus` the next turn carries for it.
 
 import { Crosshair, X } from 'lucide-react'
 import type { PlanTask } from '@/api/workflows'

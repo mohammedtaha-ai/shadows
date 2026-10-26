@@ -1,6 +1,3 @@
-// One job: the conversation header's choice of CLI (spec §12.6) —
-// changeable until the conversation's first turn, shown with a lock after —
-// and the menu a draft picks its CLI from.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Lock } from 'lucide-react'

@@ -1,5 +1,3 @@
-// One job: how a subagent's numbers and model read on its card and panel
-// (spec §22.4).
 
 import type { SubagentCard } from '@/stream'
 

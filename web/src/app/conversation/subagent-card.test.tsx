@@ -1,7 +1,5 @@
 // @vitest-environment happy-dom
 //
-// Subagent cards (§22.4) over a faked daemon: drawn from a `Subagent` entry
-// (§23.8) and from a live `subagent` frame; a click opens the side panel.
 
 import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'

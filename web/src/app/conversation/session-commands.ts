@@ -1,7 +1,4 @@
-// One job: reading `/model` and `/effort` as the model and effort pickers'
-// choices (spec §21.4). Sent to the harness as text they would change its
-// session without telling Shadows, and the pickers would show a model the
-// session no longer runs, so the composer sets them through the pickers.
+// Route /model and /effort through the pickers so session changes stay visible to Shadows.
 
 import type { Choice, SessionChoices } from '@/api/sessions'
 

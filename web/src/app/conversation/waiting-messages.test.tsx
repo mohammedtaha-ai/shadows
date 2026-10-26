@@ -1,7 +1,5 @@
 // @vitest-environment happy-dom
 //
-// Writing while a turn runs (§20): Enter queues, and a waiting message offers
-// Send now and Remove.
 
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'

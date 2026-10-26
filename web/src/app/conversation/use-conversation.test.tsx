@@ -64,8 +64,7 @@ describe('useConversation', () => {
     client.clear()
   })
 
-  // Each delta used to reach the reply through an effect, one nested render
-  // per delta: a long reply passed React's update depth limit and threw.
+  // A long reply must not trigger nested renders per delta and exceed React's update depth.
   it('streams a long reply without exceeding the update depth', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } })
     client.setQueryData(threadEntriesKey('t1'), [])

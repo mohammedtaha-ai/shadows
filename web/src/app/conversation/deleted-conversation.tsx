@@ -1,4 +1,3 @@
-// One job: a removed conversation's readable history (§16.8).
 
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -13,7 +12,6 @@ export function DeletedConversation({ thread, projectId }: { thread: PlanningThr
   const entries = useQuery(entriesQuery(thread.id))
   const operations = useQuery(operationsQuery(thread.id))
   const error = entries.error ?? operations.error
-  // A subagent's card still opens what it did (§22.4).
   const [agent, setAgent] = useState<string | null>(null)
   const card =
     entries.data?.map((e) => subagentOf(e)).find((c) => c !== null && c.id === agent) ?? null

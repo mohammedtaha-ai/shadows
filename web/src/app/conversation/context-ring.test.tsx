@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 //
-// The context ring (spec §12.8): it opens at once with the figures the client
-// holds or says it has none, never waits, and reads the breakdown only when
-// its second level is opened.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'

@@ -1,12 +1,9 @@
-// One job: how a tool call reads in the conversation — its title, or for
-// Shadows' own tools a sentence (§13.11), a subagent's card (§22), or no line
-// at all. Entries are told apart by their kind (§23.8), never by their text.
+// Distinguish entries by kind rather than text so tool output cannot masquerade as a card.
 
 import type { ThreadEntry } from '@/api/threads'
 import { type SubagentCard, readSubagentCard } from '@/stream'
 
-/** What each of Shadows' tools (`mcp__shadows__<name>`, §13.6) did, said as a
- * person would. `plan_show` says nothing: the card it wrote is the entry. */
+/** Suppress plan_show's tool line because its plan card already represents the result. */
 const SENTENCES: Readonly<Record<string, string | null>> = {
   workflow_list: 'Listed the plans',
   workflow_get: 'Read the plan',
@@ -17,8 +14,6 @@ const SENTENCES: Readonly<Record<string, string | null>> = {
   plan_show: null,
 }
 
-/** A tool call is a `ToolCall` entry whose body is its title (§23.8); its
- * title, or `null` for any other entry. */
 export function toolTitle(entry: ThreadEntry): string | null {
   return entry.kind === 'ToolCall' ? entry.body : null
 }
@@ -31,8 +26,6 @@ export function toolText(title: string): string | null {
   return SENTENCES[name] ?? null
 }
 
-/** A subagent is a `Subagent` entry carrying its card (§22.2, §23.8); its
- * card, or `null` for any other entry or a card this client cannot read. */
 export function subagentOf(entry: ThreadEntry): SubagentCard | null {
   if (entry.kind !== 'Subagent' || entry.card === null) return null
   try {

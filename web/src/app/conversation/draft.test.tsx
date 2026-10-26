@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 //
-// A new conversation's draft (§13.11): nothing exists until the first message,
-// which creates the thread, starts its turn with the chosen mode, and replaces
-// the draft's URL with the thread's.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'

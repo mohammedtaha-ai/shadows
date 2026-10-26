@@ -1,11 +1,4 @@
-// One job: the context ring at the end of the composer bar and the two levels
-// it opens (spec §12.8): the summary from figures the client already holds,
-// and the breakdown, read from the daemon only when asked for.
-//
-// It never waits: it opens at once, on hover or click, with the last figures
-// and when they were observed, or says there are none. The breakdown is the
-// one thing fetched, only when Details is pressed, never on a timer, and
-// while it is on its way the level says "Reading…" — a word, not a spinner.
+// Use cached figures so the ring opens immediately; fetch the breakdown only on request.
 
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'

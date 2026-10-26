@@ -1,9 +1,5 @@
 // @vitest-environment happy-dom
 //
-// The plan inside the conversation (§13.9, §13.11) over a faked daemon: a
-// `PlanView` card draws its version's graph; clicking a task points the next
-// turn at it; a live `plan-show` frame moves only the tab that sent the turn,
-// and a replayed card moves nothing; Shadows' own tool calls read as sentences.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'

@@ -1,11 +1,7 @@
-// One job: which model, mode and effort the next turn runs with, given what
-// the harness session offers (spec §12.4). Pure: the composer holds the
-// value, and every rule about how it follows the session is here.
-//
 // The session's choices carry the efforts of the model it holds now, and
 // nothing about another's. So after the person picks another model, its
 // efforts are unknown until the session reports that model: the composer sets
-// it on the session at once (spec §12.7) and its answer carries them; until
+// it on the session at once and its answer carries them; until
 // then the effort menu is disabled, the effort stays and Send waits.
 
 import type { Choice, SessionChoices, TurnSettings } from '@/api/sessions'
@@ -27,8 +23,7 @@ export function effortsKnown(c: SessionChoices, model: string): boolean {
   return c.current.model === model
 }
 
-/** The line that says a model change moved the mode (spec §12.4), or `null`
- * when `next` reports the mode the person had. */
+/** Explain a model-imposed mode change so it does not look like a lost user choice. */
 export function modeNote(prev: TurnSettings, next: SessionChoices): string | null {
   if (next.current.mode === prev.mode) return null
   const model = labelOf(next.models, next.current.model)
@@ -48,7 +43,7 @@ export function sendable(c: SessionChoices, s: TurnSettings): boolean {
  *
  * When the session now holds the model the person chose, the effort moves to
  * one that model offers. When that model is new to the session, the effort is
- * the one the session reports for it (§12.4); and if it reports another mode
+ * the one the session reports for it; and if it reports another mode
  * than the person's, the model moved the mode: the settings take the
  * session's and the note says so. `busy` (a send or a turn in flight) holds
  * both back, because a turn start sets the model before the effort and mode,
@@ -62,12 +57,8 @@ export function afterOptions(
   let settings = s
   let note: string | null = null
   if (next.current.model === s.model) {
-    // A picked model the session moved to brings its own effort: the one
-    // remembered for it, or the adapter's (§12.4). Keeping the person's
-    // previous effort would set it back at once over the remembered one.
-    // The first report of the move may still carry the previous effort
-    // (evidence EFFORT_DEFAULT_PROBE §3): the composer settles it from the
-    // model route's answer.
+    // Keep the model's remembered effort rather than overwrite it with another model's.
+    // An initial report can carry a stale effort; the model route's answer settles it.
     const moved = prev.current.model !== next.current.model && !busy
     settings = { ...settings, effort: offeredEffort(next, moved ? next.current.effort : s.effort) }
     if (moved) {

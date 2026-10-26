@@ -1,6 +1,3 @@
-// One job: the actions under one message (spec §12.9, §12.11) — copy its
-// text, and on the last message of an idle conversation, fork from it.
-//
 // Shown on hover and on keyboard focus, so a reader is not distracted by a
 // row of buttons under every message. A refused fork's reason is not hidden
 // with them.

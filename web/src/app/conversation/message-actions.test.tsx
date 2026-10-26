@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 //
-// What a person can do with a message (spec §12.9, §12.11): copy any of them,
-// fork from the last one while nothing runs; and how a refused permission and
-// a tool call read in the conversation.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'

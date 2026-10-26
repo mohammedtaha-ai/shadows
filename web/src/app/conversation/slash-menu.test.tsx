@@ -1,7 +1,5 @@
 // @vitest-environment happy-dom
 //
-// The composer's `/` menu (§21.4) over a faked daemon: the harness's list
-// arrives as a `commands` frame; the menu opens, filters, picks and closes.
 
 import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'

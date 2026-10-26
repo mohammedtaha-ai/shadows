@@ -33,7 +33,7 @@ import { WaitingMessages } from './waiting-messages'
 
 const route = getRouteApi('/projects/$projectId/threads/$threadId')
 
-/** A thread made before threads named their CLI runs on Claude Code (spec §12.6). */
+/** Threads without a CLI use Claude Code. */
 export const DEFAULT_HARNESS = 'claude-code'
 
 /** The route's component. Keyed by thread, so switching conversations starts
@@ -83,7 +83,6 @@ function Conversation({
   const [side, setSide] = useState<SideShown | null>(null)
   const [pointed, setPointed] = useState<PointedTask | null>(null)
   // Only a live `plan-show` for this tab arrives here (see `useConversation`).
-  // The subagent whose panel is open (§22.4), by card id: one panel at a time.
   const [agent, setAgent] = useState<string | null>(null)
   const showHere = (show: PlanShowFrame) => {
     if (show.place === 'side') {
@@ -100,8 +99,7 @@ function Conversation({
   const onPointAt = (plan: Plan, task: PlanTask) =>
     setPointed({ workflowId: plan.id, revision: plan.revision, task })
   const c = useConversation(threadId, showHere, projectId)
-  // Opened as soon as the conversation shows, so the menus are ready before
-  // the first message (spec §12.2).
+  // Open the session with the conversation so its menus are ready for the first message.
   const session = useSession(threadId)
   const carried = useCarriedSend(threadId)
   const harness = thread?.harness ?? DEFAULT_HARNESS
@@ -142,8 +140,7 @@ function Conversation({
               harness={harness}
               label={label}
               assistant={project?.assistant === true}
-              // A fork is locked from birth (spec §12.9): its session is a fork
-              // of its source's, which no other harness could continue.
+              // A fork keeps its source's harness because another harness cannot continue that session.
               locked={c.latest !== null || thread?.forked_from_thread != null}
             />
             <StatusBadge running={c.running} latest={c.latest} />

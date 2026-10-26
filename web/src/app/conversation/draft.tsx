@@ -1,6 +1,4 @@
-// One job: a new conversation before its first message (spec §13.11, §16.8) — the
-// empty conversation with its composer, where nothing exists on the daemon
-// until Send makes the thread and starts its first turn.
+// Defer thread creation until Send so an abandoned draft leaves nothing on the daemon.
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'

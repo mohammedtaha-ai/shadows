@@ -1,5 +1,3 @@
-// One job: what one subagent did, in a panel beside the conversation (spec
-// §22.4) — what it was asked, its steps in order, and its report.
 
 import { Wrench, X } from 'lucide-react'
 import type { SubagentCard } from '@/stream'

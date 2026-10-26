@@ -1,5 +1,3 @@
-// One job: a `PlanView` entry as a card (§13.9) — the real graph of the
-// version it shows, live, with the way to its page.
 
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'

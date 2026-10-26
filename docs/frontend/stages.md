@@ -363,7 +363,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: each new file's job is named without "and"; typecheck, lint, tests and build pass
 
 ### F-21 · No `§` and no history in the conversation's comments
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#web-tasks-masadas-side-docsfrontendstagesmd
   (first of two packets; F-44 takes every other folder)
 - Read: root `CLAUDE.md` "Code structure" rule 5; docs/frontend/AGENTS.md "Where things are" rule 0

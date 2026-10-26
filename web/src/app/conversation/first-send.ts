@@ -13,8 +13,7 @@ import { tabId } from '@/stream'
 import { carrySend } from './carried-send'
 import { uploadImages, type PendingImage } from './upload-images'
 
-/** Required by the API; the first message retitles the thread at once, and
- * the harness after it (spec §4). */
+/** The API requires a title; the first message and harness supply its meaningful replacements. */
 const DRAFT_TITLE = 'New conversation'
 
 /** Send from a draft: create the thread, open its session for the model it

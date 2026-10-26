@@ -47,7 +47,6 @@ export function Messages({
   onPointAt: (plan: Plan, task: PlanTask) => void
   /** The running turns' subagent cards as the stream last sent them. */
   subagents: readonly SubagentCard[]
-  /** A subagent's card was clicked (§22.4). */
   onOpenSubagent: (id: string) => void
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
@@ -197,9 +196,7 @@ export function Messages({
   )
 }
 
-/** The cards drawn after the running turn's reply (§22.4): a subagent's
- * entry the reply hides (it hides each entry of its turn until the turn's
- * text is in the list), then each live card no entry holds yet. */
+/** Keep subagent cards visible while their durable entries are hidden by the streamed reply. */
 function runningCards(
   entries: readonly ThreadEntry[],
   reply: ShownReply | null,
@@ -216,10 +213,7 @@ function runningCards(
   return [...hidden, ...live.filter((card) => !written.has(card.id))]
 }
 
-/** Where Fork shows, and the entry it forks from. The daemon forks only from
- * the thread's last entry (spec §12.9), which may be a line that shows nothing
- * (the tool call behind a plan card): Fork then sits on the last entry shown
- * and forks from the real last one, which holds the same conversation. */
+/** The daemon requires the real last entry, even if hidden; show Fork on the last visible entry. */
 function forkAnchor(
   entries: readonly ThreadEntry[],
   shown: readonly ThreadEntry[],
@@ -231,8 +225,7 @@ function forkAnchor(
   return after.every(silent) ? { shownId: lastShown.id, entryId: last.id } : null
 }
 
-/** For each turn whose answering model is not the one asked for, its note,
- * by the id of the turn's last entry shown (spec §12.11). */
+/** Attach a model substitution note to the turn's last visible entry so it appears only once. */
 function answeredNotes(
   entries: readonly ThreadEntry[],
   operations: readonly Operation[],
