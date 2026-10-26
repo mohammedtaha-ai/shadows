@@ -46,3 +46,5 @@ presence_projection:
 companion_send:
   noteCompanionSend: Capture selected-agent generation, validate the existing thread profile and attempt native targeting; report a fixed independent issue without throwing into ordinary Send/Queue.
   useCompanionSendProblem: Read the current thread's binding issue from an in-memory external store.
+
+startup_entry: "startup.ts exports only bootApplication, isDesktop, prepareDesktop and externalLinks; its static graph cannot reach api/client.ts."

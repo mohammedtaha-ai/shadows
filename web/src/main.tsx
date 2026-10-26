@@ -1,11 +1,11 @@
 import './index.css'
-import {bootApplication,isDesktop} from './desktop/runtime'
+import {bootApplication,isDesktop} from './desktop/startup'
 
 const root=document.getElementById('root')
 if(!root)throw new Error('index.html has no #root')
 void bootApplication(isDesktop(),async ()=>{
-  const desktop=await import('./desktop/bootstrap')
-  const {ConnectionSettings}=await import('./app/desktop')
+  const desktop=await import('./desktop/startup')
+  const {ConnectionSettings}=await import('./app/desktop/startup')
   await desktop.prepareDesktop(<ConnectionSettings/>)
   desktop.externalLinks()
 },async ()=>{

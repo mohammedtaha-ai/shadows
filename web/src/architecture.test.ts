@@ -14,7 +14,7 @@ interface Owner {
   contract: string
   allowed: string[]
 }
-interface Edge { from: string; to: string; runtime: boolean }
+interface Edge { from: string; to: string; runtime: boolean; static: boolean }
 const src = import.meta.dirname.replaceAll('\\', '/')
 const web = path.dirname(src)
 const map = readFileSync(path.resolve(web, '../docs/frontend/codebase/README.md'), 'utf8')
@@ -232,7 +232,7 @@ function scan(sources: Sources, owners: Owner[]): string[] {
     if (memberships.length !== 1) add('map', file, `owner count ${memberships.length}`)
     const from = owner(file)
     const tree = program.getSourceFile(absolute(file))!
-    const edge = (literal: ts.StringLiteralLike, runtime: boolean) => {
+    const edge = (literal: ts.StringLiteralLike, runtime: boolean, isStatic = true) => {
       const specifier = literal.text
       const resolved = ts.resolveModuleName(specifier, absolute(file), options, host).resolvedModule
       if (!resolved) {
@@ -241,7 +241,7 @@ function scan(sources: Sources, owners: Owner[]): string[] {
       }
       const to = relative(resolved.resolvedFileName)
       if (!(to in sources)) return
-      edges.push({ from: file, to, runtime })
+      edges.push({ from: file, to, runtime, static: isStatic })
       const target = owner(to)
       if (!from || !target || from.name === target.name) return
       // Named exemption: tests may consume test infrastructure, without bypassing other rules.
@@ -261,7 +261,7 @@ function scan(sources: Sources, owners: Owner[]): string[] {
         edge(node.moduleSpecifier, !allTypes)
       }
       if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteralLike(node.argument.literal)) edge(node.argument.literal, false)
-      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) edge(node.arguments[0], true)
+      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) edge(node.arguments[0], true, false)
       if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
         const source = origin(node.expression)
         const binding = (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'bind') || (ts.isElementAccessExpression(node.expression) && ts.isStringLiteralLike(node.expression.argumentExpression) && node.expression.argumentExpression.text === 'bind')
@@ -288,11 +288,19 @@ function scan(sources: Sources, owners: Owner[]): string[] {
   const runtime = edges.filter(edge => edge.runtime)
   const adjacency = new Map<string, string[]>()
   for (const edge of runtime) adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge.to])
-  const reaches = (start: string, goal: string, visited = new Set<string>()): boolean => {
+  const reaches = (start: string, goal: string, visited = new Set<string>(), graph = adjacency): boolean => {
     if (start === goal) return true
     if (visited.has(start)) return false
     visited.add(start)
-    return (adjacency.get(start) ?? []).some(next => reaches(next, goal, visited))
+    return (graph.get(start) ?? []).some(next => reaches(next, goal, visited, graph))
+  }
+  // Startup must set the verified origin before the API client captures it.
+  const staticGraph = new Map<string, string[]>()
+  for (const edge of runtime.filter(edge => edge.static)) {
+    staticGraph.set(edge.from, [...(staticGraph.get(edge.from) ?? []), edge.to])
+  }
+  for (const entry of owners.flatMap(item => item.entries).filter(entry => entry.endsWith('/startup.ts'))) {
+    if (reaches(entry, 'api/client.ts', new Set(), staticGraph)) add('startup_api', entry, 'api/client.ts')
   }
   for (const edge of runtime) {
     if (reaches(edge.to, edge.from)) add('runtime_cycle', edge.from, edge.to)

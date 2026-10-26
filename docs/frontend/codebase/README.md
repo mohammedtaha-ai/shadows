@@ -57,14 +57,14 @@ boundaries do not exempt their sources from the other architecture rules.
 | `navigation` | `app/navigation/**` | `app/navigation/index.ts` | `app/navigation/contract.yaml` | `-` |
 | `api` | `api/**` | `api/*` | `api/contract.yaml` | `-` |
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
-| `desktop` | `desktop/**` | `desktop/index.ts` | `desktop/contract.yaml` | `api` |
+| `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
 | `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `-` | `api, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
 | `design` | `app/design/**` | `app/design/index.ts` | `app/design/contract.yaml` | `api, ui, shared, workflows` |
-| `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
+| `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts, app/desktop/startup.ts` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
 | `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
 | `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts` | `app/project-settings/contract.yaml` | `api, ui, shared` |
 | `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
@@ -319,3 +319,6 @@ it is that folder's `contract.yaml`.
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
 | `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
 | `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |
+
+| `web/src/desktop/startup.ts` | Expose native bootstrap before API initialization | `web/src/desktop/contract.yaml` |
+| `web/src/app/desktop/startup.ts` | Expose connection controls before API initialization | `web/src/app/desktop/contract.yaml` |

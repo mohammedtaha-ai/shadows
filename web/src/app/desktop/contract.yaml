@@ -37,3 +37,5 @@ gaps:
 profile_fixture_identity: "Companion fixtures use api/aylul-profiles profileKeys for mocked Core reads"
 
 activity_query_owner: "api/native-activity.ts owns activity query identity and polling options; useActivity supplies desktop/activity-api.getState as the native transport"
+
+startup_entry: "startup.ts exports only ConnectionSettings before native readiness; its static graph cannot reach api/client.ts."

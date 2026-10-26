@@ -9,6 +9,22 @@ interface Fixture {
 const target = { 'app/agents/private.ts': 'export interface Shape {}; export const value = 1' }
 
 export const fixtures: Fixture[] = [
+  ...['desktop/startup.ts', 'app/desktop/startup.ts'].map(entry => ({
+    name: `rejects API initialization through ${entry}`,
+    rule: 'startup_api',
+    overrides: { [entry === 'desktop/startup.ts' ? 'desktop' : 'desktop-ui']: { entries: [entry] } },
+    sources: {
+      [entry]: "export { value } from '@/desktop/unsafe'",
+      'desktop/unsafe.ts': "import { value } from '@/api/client'; export { value }",
+      'api/client.ts': 'export const value = 1',
+    },
+  })),
+  { name: 'allows deferred and type-only API references from startup', rule: 'startup_api', count: 0,
+    overrides: { desktop: { entries: ['desktop/startup.ts'] } }, sources: {
+      'desktop/startup.ts': "import type { Shape } from '@/api/client'; export const load = () => import('@/api/client')",
+      'api/client.ts': 'export interface Shape {}',
+    },
+  },
   ...[
     ['alias import', "import { value } from '@/app/agents/private'"],
     ['relative import', "import { value } from '../agents/private'"],

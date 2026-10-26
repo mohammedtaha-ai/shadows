@@ -124,9 +124,7 @@ public_entry :: app/sidebar/workflow-list.tsx :: app/workflows/plan-state.ts #1
 public_entry :: app/sidebar/workflow-list.tsx :: stream/use-project-events.ts #1
 public_entry :: app/workflows/inspect-panel.tsx :: app/agreements/binding-editor.tsx #1
 public_entry :: app/workflows/plan-frames.ts :: stream/thread-stream.ts #1
-public_entry :: main.tsx :: desktop/bootstrap.tsx #1
 public_entry :: main.tsx :: desktop/navigation.ts #1
-public_entry :: main.tsx :: desktop/runtime.ts #1
 public_entry :: router.tsx :: app/agents/home.tsx #1
 public_entry :: router.tsx :: app/agreements/agreements-page.tsx #1
 public_entry :: router.tsx :: app/conversation/conversation.tsx #1
