@@ -756,3 +756,7 @@ person_transport:
 extensions_transport:
   owner: extensions.ts
   transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"
+
+usage_transport:
+  owner: usage.ts
+  transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"

@@ -1,6 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { client } from './client'
-import { unwrap } from './error'
+import { client, unwrap } from './transport'
 import type { components } from './schema'
 
 export type UsageReport = components['schemas']['UsageReport']
