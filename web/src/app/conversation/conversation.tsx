@@ -82,8 +82,8 @@ function Conversation({
   const navigate = useNavigate()
   const [side, setSide] = useState<SideShown | null>(null)
   const [pointed, setPointed] = useState<PointedTask | null>(null)
-  // Only a live `plan-show` for this tab arrives here (see `useConversation`).
   const [agent, setAgent] = useState<string | null>(null)
+  // Only a live `plan-show` for this tab arrives here (see `useConversation`).
   const showHere = (show: PlanShowFrame) => {
     if (show.place === 'side') {
       setAgent(null)

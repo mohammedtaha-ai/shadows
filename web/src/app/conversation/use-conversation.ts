@@ -83,10 +83,8 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
 
   const running = runningTurn(turns)
   const runningText = running === null ? undefined : stream.streaming[running.id]
-  // The reply follows the streamed text during render, not from an effect: an
-  // effect made each delta a second, nested update, and a long turn passed
-  // React's update depth limit (react.dev: "storing information from
-  // previous renders").
+  // Follow streamed text during render: an effect would add a nested update
+  // for every delta and can exceed React's update depth on a long reply.
   const streamed = { op: running?.id ?? null, text: runningText }
   const [applied, setApplied] = useState<typeof streamed>({ op: null, text: undefined })
   if (applied.op !== streamed.op || applied.text !== streamed.text) {
