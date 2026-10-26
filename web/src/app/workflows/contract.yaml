@@ -571,4 +571,4 @@ tests:
       change reason. Archive sends a UUID command id, and afterward 'Archived · read
       only' shows with no Approve button.
 
-feature_entry: "index.ts exposes HeldThreadStream, PlanGraph, usePlan, isPlanEvent, refetchPlans."
+feature_entry: "index.ts exposes HeldThreadStream, PlanGraph, usePlan, isPlanEvent, refetchPlans, stateLabel."

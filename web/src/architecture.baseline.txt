@@ -23,7 +23,6 @@ dependency :: app/desktop/companion-binding.test.tsx :: app/settings/sections/ch
 dependency :: app/project-settings/project-settings.test.tsx :: router.tsx #1
 entry :: agreements :: app/agreements/index.ts #1
 entry :: conversation :: app/conversation/index.ts #1
-entry :: new-project :: app/new-project/index.ts #1
 entry :: project-settings :: app/project-settings/index.ts #1
 entry :: settings :: app/settings/index.ts #1
 entry :: sidebar :: app/sidebar/index.ts #1
@@ -47,12 +46,6 @@ public_entry :: app/shell.tsx :: app/settings/person-theme.tsx #1
 public_entry :: app/shell.tsx :: app/settings/settings-dialog.tsx #1
 public_entry :: app/shell.tsx :: app/sidebar/sidebar.tsx #1
 public_entry :: app/shell.tsx :: stream/use-project-events.ts #1
-public_entry :: app/sidebar/agent-list.tsx :: app/agents/character-colors.ts #1
-public_entry :: app/sidebar/sidebar.tsx :: app/new-project/open-new-project.ts #1
-public_entry :: app/sidebar/sidebar.tsx :: desktop/native.ts #1
-public_entry :: app/sidebar/sidebar.tsx :: desktop/runtime.ts #1
-public_entry :: app/sidebar/workflow-list.tsx :: app/workflows/plan-state.ts #1
-public_entry :: app/sidebar/workflow-list.tsx :: stream/use-project-events.ts #1
 public_entry :: app/workflows/inspect-panel.tsx :: app/agreements/binding-editor.tsx #1
 public_entry :: app/workflows/plan-frames.ts :: stream/thread-stream.ts #1
 public_entry :: main.tsx :: desktop/navigation.ts #1

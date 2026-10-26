@@ -9,7 +9,7 @@ import { type Agent, agentsQuery, providersQuery } from '@/api/aylul-profiles'
 import { threadQuery } from '@/api/queries'
 import { ErrorLine } from '../error-line'
 import { ThreadList } from './thread-list'
-import { colorOf } from '../agents/character-colors'
+import { colorOf } from '@/app/agents'
 import { useOpenSettings } from '@/app/navigation'
 
 export function AgentList() {

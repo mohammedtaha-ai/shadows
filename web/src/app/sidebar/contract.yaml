@@ -300,3 +300,5 @@ tests:
 agent_refresh_owner: "Conversation removal uses api/aylul-profiles profileKeys for agent thread refresh"
 
 removed_thread_cache_owner: "api/threads.ts owns removed-thread detail and live-list cache writes"
+
+feature_imports: "Cross-feature production imports use declared public entries."

@@ -7,9 +7,9 @@ import { ChevronDown, ChevronRight, Map, Workflow } from 'lucide-react'
 import { useState } from 'react'
 import type { PlanListing } from '@/api/client'
 import { plansQuery } from '@/api/queries'
-import { useProjectEvents } from '@/stream/use-project-events'
+import { useProjectEvents } from '@/stream'
 import { ErrorLine } from '../error-line'
-import { stateLabel } from '../workflows/plan-state'
+import { stateLabel } from '@/app/workflows'
 
 export function WorkflowList({ projectId, selected }: { projectId: string; selected?: string }) {
   useProjectEvents(projectId)
