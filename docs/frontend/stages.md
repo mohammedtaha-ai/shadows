@@ -71,6 +71,34 @@ settings dialog, PR #40) at `1a2b601`.
   queue tests) and pass through the composer. From `web/`: `npx vitest run src/app/conversation src/architecture.test.ts
   src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and `npm run build` pass
 
+### F-35 · W-9c: delivering a message and stopping a turn leave the composer
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
+  (packet c of four; F-33 and F-34 were a and b)
+- Read: the plan's W-9 and section 4 (the `conversation/composer.tsx` row);
+  `web/src/app/conversation/contract.yaml`; `composer.tsx`; `use-session-settings.ts` and
+  `use-images.ts` (the shape packets a and b gave their hooks); `carried-send.ts` (read only);
+  the `conversation` rows of `docs/frontend/codebase/README.md`
+- Touch: `web/src/app/conversation/composer.tsx`; a new `use-send.ts` (delivering the message:
+  the pending command attempt, the send mutation for a thread or a draft, the queue mutation
+  while a turn runs, and the choice between them); a new `use-stop.ts` (stopping the running
+  turn: its mutation and the Stop / Stopping… / Stop again label);
+  `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the new files'
+  rows); this task's `Status:`
+- Needs: F-34 (done)
+- Done when: `composer.tsx` keeps no `useMutation`, no `startTurn`, `queueMessage`, `stopTurn`,
+  `uploadImages` or `noteCompanionSend` call, and no `pending` attempt ref of its own; it keeps
+  the prompt text, the slash menu, `act`, `ready` and the markup, and calls the send hook to
+  deliver. `carried-send.ts` and `draft.tsx` are unchanged (packet d). Behaviour is unchanged:
+  the same requests in the same order; a retried Send reuses the same command id and a changed
+  prompt, setting, image or focus makes a new one; a `COMMAND_CONFLICT` drops the attempt; a
+  draft's Send still goes through `to.draft`; Enter while a turn runs queues and a queued
+  success refreshes the queue; a success clears the prompt, drops the sent images, clears the
+  pointed task and the continued plan; Stop reads Stopping… until `running` clears and offers
+  Stop again after a failed stop. `composer-bar.test.tsx` and the baseline are unchanged. From
+  `web/`: `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
+  `npm run typecheck`, `npm run lint` and `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
