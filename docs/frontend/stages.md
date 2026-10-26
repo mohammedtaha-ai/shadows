@@ -152,6 +152,33 @@ settings dialog, PR #40) at `1a2b601`.
   `npx vitest run src/app/design src/app/workflows src/architecture.test.ts src/codemap.test.ts`,
   `npm run typecheck`, `npm run lint` and `npm run build` pass
 
+### F-38 · W-10b: the three proposal cards share one approval lifecycle
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
+  (packet b of four; F-37 was a)
+- Read: the plan's W-10 and its "Proposal status/approval lifecycle" row;
+  `web/src/app/conversation/vision-proposal-card.tsx`, `map-proposal-card.tsx`,
+  `roadmap-proposal-card.tsx`, `approved-by.tsx`; their tests; the proposal-card sections,
+  agreements and checks of `web/src/app/conversation/contract.yaml`
+- Touch: the three card files; a new `web/src/app/conversation/use-proposal-approval.ts` (the
+  live proposal read, the approval mutation with its command attempt and cache invalidations,
+  and the status text) and a new `proposal-approval.tsx` (the status line, Approved by, the
+  Approve button and the two error lines); `web/src/app/conversation/contract.yaml`;
+  `docs/frontend/codebase/README.md` (the new files' rows); this task's `Status:`
+- Needs: W-4 and F-37 (done)
+- Done when: no card holds `useMutation`, `attemptFor`, a proposals `useQuery` or the status
+  ladder; each card keeps only its snapshot parser, its title and its content (vision field and
+  old text; map changed fields, part tree and waivers; roadmap current outcome, move line and
+  outcome tree) and renders the shared approval part with its own button label. Behaviour and
+  output are unchanged: the same approve request with the same command attempt (reused on retry,
+  dropped on success), success invalidates `designKeys.all(projectId)`, error invalidates that
+  card's proposals query, the status texts and their order (Approved, vision's "Approved · item",
+  Superseded, Outdated…, Pending, Loading status…, Status unavailable), no Approve while loading,
+  outdated or on a read error, and each card's text classes. Every test file and
+  `architecture.baseline.txt` are unchanged. From `web/`: `npx vitest run src/app/conversation
+  src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
+  `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
