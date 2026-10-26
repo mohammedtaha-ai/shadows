@@ -52,6 +52,7 @@ components:
     signature: "({ slug: string }) => JSX.Element"
   DeleteZone:
     signature: "({ title, summary, consequence, action, pending, error, onConfirm, inline?, compact? }) => JSX.Element"
+    note: ConfirmPanel renders the confirmation; DeleteZone owns open state, the danger zone and its trigger. Mutations and command attempts remain with its callers.
     # The danger zone shared by both forms; inline=true keeps confirmation inside
     # Settings. Its error line shows a refusal such as PROVIDER_IN_USE.
   Field:

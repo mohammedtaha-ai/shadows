@@ -95,6 +95,7 @@ private_helpers:
     private: true
   ConfirmRemove:
     private: true
+    note: ConfirmPanel renders the dialog body; ConfirmRemove owns the mutation, invalidations and navigation. RemoveProject keeps open state and the command attempt outside the unmounting dialog.
 
 
 # ── obligations ──────────────────────────────────────────────────────────────────

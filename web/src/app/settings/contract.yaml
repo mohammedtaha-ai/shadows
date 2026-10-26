@@ -39,6 +39,7 @@ components:
     signature: "({ kind: ExtensionKind, onDone: () => void }) => JSX.Element"
   ExtensionList:
     signature: "({ kind: ExtensionKind, items: Item[] }) => JSX.Element"
+    note: ConfirmPanel renders the inline confirmation; ExtensionList owns the selected item, mutation, per-item command attempts, invalidations and locked ref.
   UsageSection:
     signature: "() => JSX.Element"
     note: A captured range per opening/period selection; no old rows during a new pending range.

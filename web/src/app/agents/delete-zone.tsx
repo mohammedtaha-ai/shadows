@@ -4,10 +4,8 @@
 import { Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
-import { ErrorLine } from '../error-line'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { ConfirmPanel } from '../confirm-panel'
 
 export function DeleteZone({ title, summary, consequence, action, pending, error, onConfirm, inline = false, compact = false }: {
   /** "Delete provider". */
@@ -25,15 +23,14 @@ export function DeleteZone({ title, summary, consequence, action, pending, error
   onConfirm: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const confirmation = <div className="grid gap-4" role={inline ? 'group' : undefined} aria-label={inline ? action : undefined}>
-    {inline ? <><h3 className="font-medium">{action}</h3><p className="text-sm text-muted-foreground">{consequence}</p></> :
-      <DialogHeader><DialogTitle>{action}</DialogTitle><DialogDescription>{consequence}</DialogDescription></DialogHeader>}
-    {error !== null && <ErrorLine error={error} />}
-    <DialogFooter>
-      <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-      <Button type="button" variant="destructive" onClick={onConfirm} disabled={pending}>{pending ? 'Deleting...' : title}</Button>
-    </DialogFooter>
-  </div>
+  const confirmation = <ConfirmPanel
+    question={action} description={consequence} error={error}
+    confirmLabel={title} pending={pending} pendingLabel="Deleting..." confirmType="button"
+    onCancel={() => setOpen(false)} onConfirm={onConfirm}
+    presentation={inline
+      ? { kind: 'inline', ariaLabel: action, className: 'grid gap-4', heading: true }
+      : { kind: 'dialog', className: 'grid gap-4' }}
+  />
   return (
     <section className={compact ? 'space-y-3' : 'space-y-3 rounded-md border border-destructive-border p-4'}>
       <div className="flex items-start justify-between gap-4">

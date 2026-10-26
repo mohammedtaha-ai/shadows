@@ -180,7 +180,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run build` pass
 
 ### F-39 · W-10c: the four delete and remove confirmations share one confirmation panel
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
   (packet c of four; F-37 and F-38 were a and b). The plan's rule holds: shared confirmation UI
   never centralizes command identities or pending state.

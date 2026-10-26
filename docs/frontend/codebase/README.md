@@ -58,7 +58,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts, app/confirm-panel.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts, app/confirm-panel.tsx` | `-` | `api, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
@@ -245,6 +245,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/workspace-plans.tsx` | Project plan list, with its archive filter | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
+| `web/src/app/confirm-panel.tsx` | Confirmation presentation using caller-supplied props | `web/src/app/error-line.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
 | `web/src/app/mode-policy.ts` | Shadows' mode policy per harness, for display | `web/src/app/error-line.tsx` |
 | `web/src/app/new-project/folder-browser.tsx` | Browses one daemon directory to pick a folder | `web/src/app/new-project/contract.yaml` |

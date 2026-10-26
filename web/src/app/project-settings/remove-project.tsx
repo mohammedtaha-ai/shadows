@@ -16,16 +16,8 @@ import { projectsQuery } from '@/api/projects'
 import { threadsQuery } from '@/api/threads'
 import { saveRemovedProjectAnswer } from '@/api/projects'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { ErrorLine } from '../error-line'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { ConfirmPanel } from '../confirm-panel'
 
 export function RemoveProject({ project }: { project: Project }) {
   const threads = useQuery(threadsQuery(project.id)).data
@@ -105,24 +97,15 @@ function ConfirmRemove({
   }
 
   return (
-    <div className="grid gap-4">
-      <DialogHeader>
-        <DialogTitle>
-          Remove <span dir="auto">{project.name}</span>?
-        </DialogTitle>
-        <DialogDescription>
-          The project is hidden from Shadows, and its code index and links are dropped. Its folder
-          on disk is not touched. Its slug, <code className="font-mono">{project.slug}</code>,
-          stays taken.
-        </DialogDescription>
-      </DialogHeader>
-      {remove.error !== null && <ErrorLine error={remove.error} />}
-      <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-        <Button variant="destructive" onClick={confirm} disabled={remove.isPending}>
-          {remove.isPending ? 'Removing…' : 'Remove project'}
-        </Button>
-      </DialogFooter>
-    </div>
+    <ConfirmPanel
+      question={<>Remove <span dir="auto">{project.name}</span>?</>}
+      description={<>
+        The project is hidden from Shadows, and its code index and links are dropped. Its folder
+        on disk is not touched. Its slug, <code className="font-mono">{project.slug}</code>,
+        stays taken.
+      </>}
+      error={remove.error} confirmLabel="Remove project" pending={remove.isPending} pendingLabel="Removing…"
+      onConfirm={confirm} presentation={{ kind: 'dialog', className: 'grid gap-4' }}
+    />
   )
 }

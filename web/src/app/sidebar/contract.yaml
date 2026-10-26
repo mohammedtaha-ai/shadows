@@ -73,6 +73,7 @@ components:
     signature: "({ projectId: string, selected?: string }) => JSX.Element"
     # Starts the project's live stream (useProjectEvents) and lists its plans.
   DeleteThreadDialog:
+    note: ConfirmPanel renders the dialog body; this caller owns the mutation, command attempt, cache invalidations, navigation and pending close guard.
     signature: >-
       ({ thread: PlanningThread, open: boolean, onOpenChange: (open: boolean) => void,
       isCurrent: boolean }) => JSX.Element
