@@ -14,6 +14,31 @@ and OS acceptance.
 
 ## Tasks
 
+### F-30 · W-6: features meet only through their declared entries
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-6--declare-feature-entries-and-close-private-imports
+  and sections 2 (cross-feature edges, cycles) and 6 (module table)
+- Read: the plan's sections 2 and 6; `docs/frontend/codebase/README.md` (the module table);
+  `web/src/architecture.test.ts` (`entry`, `public_entry`, `runtime_cycle` rules);
+  `web/src/architecture.baseline.txt`; `web/src/router.tsx`; `web/src/app/shell.tsx`
+- Touch: each feature's entry `index.ts` the module table declares (`app/agents`,
+  `agreements`, `conversation`, `design`, `new-project`, `project-settings`, `settings`,
+  `sidebar`, `workflows`, `desktop` and `stream/index.ts`) and each feature's
+  `contract.yaml`; every file a `public_entry` baseline entry names as the importer, and its
+  tests; `web/src/router.tsx`, `app/shell.tsx`, `app/home.tsx`, `main.tsx`; the shared
+  part-query pagination moving from design UI to `web/src/api/` (its design domain file and
+  `api/contract.yaml`); `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md`;
+  this task's `Status:`
+- Needs: F-29
+- Done when: every `entry` and production `public_entry` baseline entry is gone: each
+  declared entry exists and every cross-feature import names it (a test file may keep an
+  entry only where it reaches another feature's internal on purpose, each named in the
+  commit); agreements imports no design editor hook (pagination lives in `api/`); no
+  `runtime_cycle` entry is added; route lazy-loading is unchanged (the route chunks `npm run
+  build` lists before and after are the same, compared in the final message); no other
+  baseline count goes up; the touched areas' tests, the architecture and codemap tests,
+  `npm run typecheck` and `npm run lint` pass. One importing area per commit.
+
 ### F-29 · W-5: navigation and native infrastructure depend on nothing above them
 - Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-5--remove-the-navigation-and-native-upward-dependencies
