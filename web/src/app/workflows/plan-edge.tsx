@@ -1,4 +1,3 @@
-
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getSmoothStepPath } from '@xyflow/react'
 import type { PlanEdge } from './layout'
 

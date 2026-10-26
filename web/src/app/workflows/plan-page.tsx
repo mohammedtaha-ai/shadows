@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
 import { Archive, ChevronDown, Lock } from 'lucide-react'
@@ -56,7 +55,7 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
       ) : p.state === 'Frozen' ? (
         <p className="flex items-center gap-2 border-b border-border/80 bg-accent-softer/80 px-6 py-2 text-xs text-secondary-foreground">
           <Lock className="size-3.5 text-accent-line" aria-hidden />
-          {/* Editing reuses an existing next version instead of creating another. */}
+          {/* A frozen version is not edited in place: the first edit makes the next draft, later ones reuse it. */}
           Approved v{p.version} ·{' '}
           {p.next == null
             ? `editing creates draft v${p.version + 1}`

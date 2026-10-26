@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-//
 
 import { notifyManager } from '@tanstack/react-query'
 import { act } from 'react'

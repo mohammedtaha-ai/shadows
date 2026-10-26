@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-//
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'

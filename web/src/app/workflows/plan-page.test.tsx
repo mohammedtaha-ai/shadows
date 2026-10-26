@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-//
 
 import type { FitViewOptions } from '@xyflow/react'
 import { act } from 'react'

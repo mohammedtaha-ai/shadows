@@ -15,7 +15,8 @@ export interface HarnessPolicy {
   }[]
   /** Every new conversation's mode; one that asks before a tool runs. */
   readonly initial: string | null
-  /** The mode offered as an alternative when a permission is refused. */
+  /** The allowed mode that asks nothing: the one that would have let a refused
+   * permission through. */
   readonly unattended: string | null
 }
 
