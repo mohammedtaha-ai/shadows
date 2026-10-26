@@ -236,7 +236,8 @@ settings dialog, PR #40) at `1a2b601`.
   rule refuses it, proven by a fixture that fails without the rule, and needs no baseline entry;
   `isDesktop` is exported from `desktop/runtime.ts` only (the tests mock it there), not from
   `desktop/index.ts` or `desktop/startup.ts`. Browser and desktop show exactly what they show today. Every
-  test file and `architecture.baseline.txt` are unchanged. From `web/`:
+  test file other than `architecture.test.ts` (which gains the rule and keeps its existing
+  checks) and `architecture.baseline.txt` are unchanged. From `web/`:
   `npx vitest run src/desktop src/app/desktop src/app/settings src/app/sidebar src/app/agents
   src/architecture.test.ts src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and
   `npm run build` pass
