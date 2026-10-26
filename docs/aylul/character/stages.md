@@ -18,7 +18,7 @@ acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-accep
 `0187365`.
 
 ### C-7 · D-10 (Character part): companion modules have entries and their unit tests sit with them
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-10--enforce-ts-entry-boundaries-and-place-unit-tests-with-owners
   and section 6 ("TS modules and entries")
 - Read: the plan's section 6 ("TS modules and entries"); `apps/desktop/src/features/companion/contract.yaml`

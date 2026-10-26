@@ -1,7 +1,7 @@
 import React from "react";
 import type { CharacterFrame, CompanionSettings } from "../types.ts";
 import { DIRECTIONS } from "../catalog.ts";
-import { renderCharacter } from "../renderer/character.ts";
+import { renderCharacter } from "../renderer/index.ts";
 function Still({
   frame,
   settings,

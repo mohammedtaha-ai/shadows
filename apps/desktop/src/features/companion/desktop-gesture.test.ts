@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {createDesktopGesture} from '../../src/features/companion/desktop-gesture.ts';
+import {createDesktopGesture} from './desktop-gesture.ts';
 const event=(x=20,button=0)=>({pointerId:1,button,x,y:20});
 test('eight pixel drag consumes panel click and next gesture survives lost up',async()=>{
   let dragCalls=0,openCalls=0;let resolve:()=>void=()=>{};

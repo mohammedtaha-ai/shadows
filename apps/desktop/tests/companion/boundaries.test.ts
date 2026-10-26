@@ -209,10 +209,18 @@ for (const name of readdirSync(fixtures).filter(name => name.endsWith('.json')).
 }
 
 test('baseline rejects new, stale and duplicate entries', () => {
-  assert.ok(baseline.length > 0);
-  assert.deepEqual(compare(actual, baseline.slice(1)), { new: [baseline[0]], stale: [] });
-  assert.deepEqual(compare(actual, [...baseline, 'studio-entry :: gone #1']), { new: [], stale: ['studio-entry :: gone #1'] });
-  assert.throws(() => compare(actual, [...baseline, baseline[0]]), /Baseline entries must be unique/);
+  const violating: Fixture = JSON.parse(readFileSync(join(fixtures, 'tauri-import.json'), 'utf8'));
+  const allowed: Fixture = JSON.parse(readFileSync(join(fixtures, 'allowed-entries-and-decoys.json'), 'utf8'));
+  const findings = inspect(violating.sources);
+  const clean = inspect(allowed.sources);
+  assert.deepEqual(findings, violating.expected);
+  assert.equal(findings.length, 1);
+  assert.deepEqual(clean, allowed.expected);
+  assert.equal(clean.length, 0);
+  assert.deepEqual(compare(findings, findings), { new: [], stale: [] });
+  assert.deepEqual(compare(findings, clean), { new: findings, stale: [] });
+  assert.deepEqual(compare(clean, findings), { new: [], stale: findings });
+  assert.throws(() => compare(findings, [...findings, ...findings]), /Baseline entries must be unique/);
 });
 
 test('a source file resolves only with its exact case', () => {

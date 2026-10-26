@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { seededRandom } from "./fakes.ts";
+import { seededRandom } from "./fixtures/test-fakes.ts";
 import {
   createMotion,
   advanceMotion,
   pokeMotion,
   readFrame,
-} from "../../src/features/companion/animation/model.ts";
-import { DEFAULT_SETTINGS } from "../../src/features/companion/catalog.ts";
-import type { MotionInput } from "../../src/features/companion/types.ts";
+} from "./model.ts";
+import { DEFAULT_SETTINGS } from "../catalog.ts";
+import type { MotionInput } from "../types.ts";
 const input: MotionInput = {
   viewport: { width: 400, height: 360, dpr: 1 },
   presentation: { expression: "idle", statusText: "Idle", message: null },

@@ -4,7 +4,7 @@ import {
   createMessageSlot,
   receiveMessage,
   visibleMessage,
-} from "../../src/features/companion/animation/messages.ts";
+} from "./messages.ts";
 test("same ID does not extend expiry and same text new ID does", () => {
   const slot = createMessageSlot();
   receiveMessage(slot, { id: "a", text: "hello" }, 0);

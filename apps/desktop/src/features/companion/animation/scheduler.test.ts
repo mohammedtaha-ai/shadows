@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createFrameLoop } from "../../src/features/companion/animation/scheduler.ts";
-import { fakeFrames } from "./fakes.ts";
+import { createFrameLoop } from "./scheduler.ts";
+import { fakeFrames } from "./fixtures/test-fakes.ts";
 test("one loop is owned across double starts stop and dispose", () => {
   const clock = fakeFrames(),
     deltas: number[] = [];

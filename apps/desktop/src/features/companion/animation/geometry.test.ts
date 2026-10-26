@@ -5,7 +5,7 @@ import {
   fitCharacter,
   localPointer,
   normalizeViewport,
-} from "../../src/features/companion/animation/geometry.ts";
+} from "./geometry.ts";
 test("zero size and invalid viewport stay finite", () => {
   assert.deepEqual(normalizeViewport({ width: NaN, height: -1, dpr: 0 }), {
     width: 0,

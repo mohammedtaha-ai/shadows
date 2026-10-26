@@ -29,6 +29,9 @@ exports:
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
 obligations:
+  - rule: Renderer and animation entries expose only drawing, motion, frame scheduling, viewport and message operations consumed by presence or studio; production cannot reach studio, co-located unit tests or animation test support.
+    tested_by: apps/desktop/tests/companion/boundaries.test.ts
+    test: companion import boundaries match the exact shrinking baseline
   - rule: Character and scene tones resolve from the frame colour; omitted or unknown colour retains every recorded purple pixel. Each frame shares its palette with the drawing passes; accessory crystal callers that omit the optional palette keep the base tones.
     tested_by: apps/desktop/tests/companion/renderer.spec.ts
     test: purple draws today's pixels
@@ -78,7 +81,7 @@ obligations:
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: desktop entry draws transparent character without account or studio
   - rule: An eight pixel drag consumes the panel click and lost mouse-up does not strand the next gesture.
-    tested_by: apps/desktop/tests/companion/desktop-gesture.test.ts
+    tested_by: apps/desktop/src/features/companion/desktop-gesture.test.ts
     test: eight pixel drag consumes panel click and next gesture survives lost up
   - rule: Explicit native denial cancels all draws even if document visibility remains visible.
     tested_by: apps/desktop/tests/companion/native-visibility.spec.ts
@@ -87,13 +90,13 @@ obligations:
     tested_by: apps/desktop/tests/companion/native-visibility.spec.ts
     test: initialization reports ready without a draw under denied permission
   - rule: Perching uses scene-aware scale and position so the hands meet the mock top with hood headroom.
-    tested_by: apps/desktop/tests/companion/model.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/model.test.ts
     test: perch hands meet the mock top without clipping the hood
   - rule: A live browser DPR change updates backing pixels while motion remains paused.
     tested_by: apps/desktop/tests/companion/presence.spec.ts
     test: live DPR change resizes backing pixels while paused
   - rule: Locked direction updates remain visible on a still frame without advancing motion.
-    tested_by: apps/desktop/tests/companion/model.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/model.test.ts
     test: locked direction is visible on a still redraw without advancing motion
   - rule: Poking cannot replace owner messages or report work outcomes.
     tested_by: apps/desktop/tests/companion/presence.spec.ts
@@ -105,13 +108,13 @@ obligations:
     tested_by: apps/desktop/tests/companion/presence.spec.ts
     test: hidden document cancels frames until restored
   - rule: Frame cadence preserves elapsed simulation and each model owns its random state.
-    tested_by: apps/desktop/tests/companion/model.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/model.test.ts
     test: motion cadence is stable at 30 60 and 120 Hz and inputs unchanged
   - rule: One frame owner cancels callbacks on pause and disposal.
-    tested_by: apps/desktop/tests/companion/scheduler.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/scheduler.test.ts
     test: one loop is owned across double starts stop and dispose
   - rule: Repeated message IDs cannot extend their lifetime.
-    tested_by: apps/desktop/tests/companion/messages.test.ts
+    tested_by: apps/desktop/src/features/companion/animation/messages.test.ts
     test: same ID does not extend expiry and same text new ID does
   - rule: All nine expressions and ten outfits draw with a real Canvas context and no global engine.
     tested_by: apps/desktop/tests/companion/renderer.spec.ts

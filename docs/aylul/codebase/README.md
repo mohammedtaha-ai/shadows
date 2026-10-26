@@ -36,6 +36,16 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/app/` | Independent companion entry | Colocated `contract.yaml` |
 | `apps/desktop/src/platform/` | Typed companion-only invocation wrappers | Colocated `contract.yaml` |
 | `apps/desktop/src/platform/companion-state.test.ts` | Companion projection validation regressions | Platform contract; co-located unit test |
+| `apps/desktop/src/features/companion/renderer/index.ts` | Public character and scene drawing entry | Companion contract; explicit current-consumer exports |
+| `apps/desktop/src/features/companion/animation/index.ts` | Public motion, scheduling, viewport and message entry | Companion contract; explicit current-consumer exports |
+| `apps/desktop/src/features/companion/animation/geometry.test.ts` | Co-located viewport geometry regressions | Companion contract |
+| `apps/desktop/src/features/companion/animation/messages.test.ts` | Co-located message lifetime regressions | Companion contract |
+| `apps/desktop/src/features/companion/animation/model.test.ts` | Co-located motion model regressions | Companion contract |
+| `apps/desktop/src/features/companion/animation/scheduler.test.ts` | Co-located frame scheduling regressions | Companion contract |
+| `apps/desktop/src/features/companion/animation/fixtures/test-fakes.ts` | Deterministic animation test support | Companion contract; excluded from production reachability and bundle |
+| `apps/desktop/src/features/companion/composer.test.ts` | Co-located draft and retry regressions | Companion contract |
+| `apps/desktop/src/features/companion/desktop-gesture.test.ts` | Co-located desktop gesture regressions | Companion contract |
+| `apps/desktop/tests/companion/fakes.ts` | Native composer browser test support | Companion contract; remains beside browser tests |
 | `apps/desktop/src/features/companion/renderer/palette.test.ts` | Character colour palette regressions | Companion contract; co-located unit test |
 | `apps/desktop/tests/companion/boundaries.test.ts` | Parser-backed companion import ratchet | Desktop architecture section 6; exact per-import baseline and adversarial fixtures in `fixtures/boundaries/`; production reachability starts at `src/app/companion.tsx` |
 | `apps/desktop/src/features/companion/CompanionComposer.tsx` | Compact scoped text submission | Companion contract; unavailable Retry retains pending identity |

@@ -13,7 +13,7 @@ import type {
 import { DEFAULT_SETTINGS, normalizeSettings } from "../catalog.ts";
 import { CompanionCanvas } from "../CompanionCanvas";
 import { SpeechBubble } from "../SpeechBubble";
-import { createMotion, readFrame } from "../animation/model.ts";
+import { createMotion, readFrame } from "../animation/index.ts";
 import { createTones, type ToneController } from "../audio.ts";
 import { SceneControls } from "./SceneControls";
 import { PreviewGrid } from "./PreviewGrid";
