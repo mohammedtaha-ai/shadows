@@ -1,0 +1,9 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "import '../../scripts/bridge.ts'; import data from '../../assets/table.json';"
+  },
+  "files": ["scripts/bridge.ts", "assets/table.json"],
+  "expected": [
+    "outside-source :: src/app/companion.tsx :: scripts/bridge.ts #1"
+  ]
+}

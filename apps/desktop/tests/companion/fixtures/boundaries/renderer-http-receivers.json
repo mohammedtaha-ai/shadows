@@ -1,0 +1,11 @@
+{
+  "sources": {
+    "src/features/companion/renderer/bad.ts": "(window).fetch('/a'); self.globalThis.fetch('/b'); const key = 'fetch'; globalThis[key]('/c'); const { fetch: request } = window;"
+  },
+  "expected": [
+    "renderer-http :: src/features/companion/renderer/bad.ts :: (window).fetch #1",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: fetch #1",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: globalThis[key] #1",
+    "renderer-http :: src/features/companion/renderer/bad.ts :: self.globalThis.fetch #1"
+  ]
+}

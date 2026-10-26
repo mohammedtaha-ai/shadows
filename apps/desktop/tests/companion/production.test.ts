@@ -1,6 +1,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { build } from "vite";
+const isTestModule = (id: string) =>
+  /\/(?:tests|__tests__|fixtures|__fixtures__)\//.test(id) || /\.(?:test|spec)\.[cm]?[jt]sx?(?:\?|$)/.test(id);
+test("the bundle check recognises tests and fixtures by their module id", () => {
+  for (const id of [
+    "E:/repo/apps/desktop/src/platform/companion-state.test.ts",
+    "E:/repo/apps/desktop/src/features/companion/renderer/palette.test.ts?import",
+    "E:/repo/apps/desktop/src/features/companion/Canvas.spec.tsx",
+    "E:/repo/apps/desktop/tests/companion/fixtures/scene/index.tsx",
+    "E:/repo/apps/desktop/src/features/companion/__fixtures__/scene.ts",
+  ]) assert.ok(isTestModule(id), id);
+  for (const id of [
+    "E:/repo/apps/desktop/src/features/companion/renderer/palette.ts",
+    "E:/repo/apps/desktop/src/features/companion/latest.ts",
+    "E:/repo/apps/desktop/src/features/companion/contest.tsx",
+  ]) assert.ok(!isTestModule(id), id);
+});
 test("production includes companion and excludes studio modules and remote assets", async () => {
   const ids: string[] = [];
   const resources: string[] = [];
@@ -53,7 +69,7 @@ test("production includes companion and excludes studio modules and remote asset
     "development studio must not be bundled",
   );
   assert.ok(
-    !ids.some((id) => id.includes("/tests/") || /\.test\.[cm]?[jt]sx?(?:\?|$)/.test(id) || /\/(?:__)?fixtures(?:__)?\//.test(id)),
+    !ids.some(isTestModule),
     "co-located tests and test fixtures must not be bundled",
   );
   assert.ok(

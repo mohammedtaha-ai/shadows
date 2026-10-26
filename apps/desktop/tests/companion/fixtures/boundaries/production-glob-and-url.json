@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "const scenes = import.meta.glob('../features/companion/studio/*.tsx'); new Worker(new URL('../features/companion/studio/worker.ts', import.meta.url));",
+    "src/features/companion/studio/worker.ts": "export const work = 1;"
+  },
+  "expected": [
+    "dynamic-import :: src/app/companion.tsx :: import.meta.glob('../features/companion/studio/*.tsx') #1",
+    "production-import :: src/app/companion.tsx :: src/features/companion/studio/worker.ts #1"
+  ]
+}

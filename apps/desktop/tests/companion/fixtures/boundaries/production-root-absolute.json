@@ -1,0 +1,9 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "import '/src/features/companion/studio/scene.tsx';",
+    "src/features/companion/studio/scene.tsx": "export const scene = 1;"
+  },
+  "expected": [
+    "production-import :: src/app/companion.tsx :: src/features/companion/studio/scene.tsx #1"
+  ]
+}
