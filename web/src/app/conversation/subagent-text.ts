@@ -1,7 +1,7 @@
 // One job: how a subagent's numbers and model read on its card and panel
 // (spec §22.4).
 
-import type { SubagentCard } from '@/stream/frames'
+import type { SubagentCard } from '@/stream'
 
 /** `13665` → `14s`, `252000` → `4m 12s`. */
 export function duration(ms: number): string {

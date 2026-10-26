@@ -3,7 +3,7 @@
 
 import { CircleAlert, LoaderCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { Connection } from '@/stream/thread-stream'
+import type { Connection } from '@/stream'
 
 export function StreamBanner({
   connection,

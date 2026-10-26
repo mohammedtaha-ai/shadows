@@ -1,1 +1,1 @@
-export {ConnectionSettings} from './connection-settings'
+export { UseWithCompanion } from './companion-settings'

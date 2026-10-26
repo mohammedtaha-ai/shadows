@@ -8,7 +8,7 @@ import { visionProposalsQuery } from '@/api/queries'
 import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
-import { VISION_FIELDS } from '../design/vision-fields'
+import { VISION_FIELDS } from '@/app/design'
 import { ApprovedBy } from './approved-by'
 
 type Snapshot = Pick<VisionProposal, 'id' | 'action' | 'field' | 'item_id' | 'text' | 'old_text'>

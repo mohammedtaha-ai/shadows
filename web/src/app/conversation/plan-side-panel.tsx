@@ -4,8 +4,8 @@
 import { X } from 'lucide-react'
 import type { Plan, PlanTask } from '@/api/client'
 import { ErrorLine } from '../error-line'
-import { PlanGraph } from '../workflows/plan-graph'
-import { usePlan } from '../workflows/use-plan'
+import { PlanGraph } from '@/app/workflows'
+import { usePlan } from '@/app/workflows'
 import { PlanHeading } from './plan-card'
 
 /** What the Planner asked this tab to show beside the conversation. */

@@ -1,7 +1,7 @@
 // One job: which `/` entries a composer text lists (spec §21.4). `null` when
 // the menu does not apply: the whole text must be `/` and no whitespace.
 
-import type { SlashCommand } from '@/stream/frames'
+import type { SlashCommand } from '@/stream'
 
 export function slashMatches(
   commands: readonly SlashCommand[],

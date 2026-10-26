@@ -48,3 +48,5 @@ companion_send:
   useCompanionSendProblem: Read the current thread's binding issue from an in-memory external store.
 
 startup_entry: "startup.ts exports only bootApplication, isDesktop, prepareDesktop and externalLinks; its static graph cannot reach api/client.ts."
+
+feature_entry: "index.ts exposes noteCompanionSend, useCompanionSendProblem."

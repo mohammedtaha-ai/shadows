@@ -2,7 +2,7 @@
 // §22.4) — what it was asked, its steps in order, and its report.
 
 import { Wrench, X } from 'lucide-react'
-import type { SubagentCard } from '@/stream/frames'
+import type { SubagentCard } from '@/stream'
 import { ReplyText } from './entry'
 import { modelName, numbers } from './subagent-text'
 

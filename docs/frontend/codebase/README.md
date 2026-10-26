@@ -322,3 +322,7 @@ it is that folder's `contract.yaml`.
 
 | `web/src/desktop/startup.ts` | Expose native bootstrap before API initialization | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/startup.ts` | Expose connection controls before API initialization | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
+| `web/src/app/workflows/index.ts` | Expose app/workflows public capabilities | `web/src/app/workflows/contract.yaml` |
+| `web/src/desktop/index.ts` | Expose desktop public capabilities | `web/src/desktop/contract.yaml` |
+| `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |

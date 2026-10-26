@@ -10,7 +10,7 @@
 // does not restart a turn the snapshot already saw end.
 
 import type { Operation } from '@/api/client'
-import type { DurableEvent } from '@/stream/frames'
+import type { DurableEvent } from '@/stream'
 
 export type Status = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Cancelled' | 'Interrupted'
 

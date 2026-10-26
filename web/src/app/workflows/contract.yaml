@@ -570,3 +570,5 @@ tests:
       The version line shows 'v2 · from Web fixes · opus-5-5 · Claude Code' and the
       change reason. Archive sends a UUID command id, and afterward 'Archived · read
       only' shows with no Approve button.
+
+feature_entry: "index.ts exposes HeldThreadStream, PlanGraph, usePlan, isPlanEvent, refetchPlans."

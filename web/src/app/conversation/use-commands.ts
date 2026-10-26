@@ -3,7 +3,7 @@
 // fills it; nothing fetches it, so it is never stale and never refetched.
 
 import { useQuery } from '@tanstack/react-query'
-import type { SlashCommand } from '@/stream/frames'
+import type { SlashCommand } from '@/stream'
 import { commandsQuery } from '@/api/sessions'
 
 const NONE: readonly SlashCommand[] = []

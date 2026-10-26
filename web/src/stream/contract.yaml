@@ -643,3 +643,5 @@ workflow_refresh_identity: "api/workflows.workflowKeys owns the plan prefix used
 design_cache_identity: "Project design refresh uses api/design.designKeys shared with feature queries"
 
 thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
+
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, DurableEvent, UsageFrame, useThreadStream."

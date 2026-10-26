@@ -8,7 +8,7 @@ import {mapProposalsQuery} from '@/api/queries'
 import { designKeys } from '@/api/design'
 import {Button} from '@/components/ui/button'
 import {ErrorLine} from '../error-line'
-import {MapPartDetails} from '../design/map-part-details'
+import {MapPartDetails} from '@/app/design'
 import {ApprovedBy} from './approved-by'
 
 function snapshot(entry:ThreadEntry): MapProposal | null {

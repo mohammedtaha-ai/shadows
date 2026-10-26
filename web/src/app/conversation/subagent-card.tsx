@@ -3,7 +3,7 @@
 // conversation.
 
 import { Bot, ChevronRight, CircleCheck, CircleStop, CircleX, LoaderCircle } from 'lucide-react'
-import type { SubagentCard } from '@/stream/frames'
+import type { SubagentCard } from '@/stream'
 import { modelName, numbers } from './subagent-text'
 
 const STATE = {
