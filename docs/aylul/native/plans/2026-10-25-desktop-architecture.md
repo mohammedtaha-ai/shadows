@@ -752,7 +752,7 @@ These are **proposed task packets**, not authorized implementation. Every source
 
 ### D-10 · Enforce TS entry boundaries and place unit tests with owners
 
-A coordinating item. Its files belong to the UI side (`docs/aylul/ui/`: `platform/`, companion tests) and the Character side (`docs/aylul/character/`: companion renderer and animation); each side enters its own packet in its own `stages.md`, and D-11 waits for both. It is not dispatched as one native task.
+A coordinating item. Its files belong to the UI side (`docs/aylul/ui/`: `platform/`, companion tests) and the Character side (`docs/aylul/character/`: companion renderer and animation); each side enters its own packet in its own `stages.md`, and D-11 waits for both. It is not dispatched as one native task. Entered 2026-10-26 as U-4 (UI) and C-7 (Character, after U-4).
 
 - **Touch:** companion/platform module entries; internal imports; pure unit-test locations; package scripts; contracts/map.
 - **Needs:** D-1; D-5 interface stability.
