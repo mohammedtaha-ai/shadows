@@ -25,7 +25,8 @@ and OS acceptance.
   domain files beside the existing ones: threads, sessions, projects, code index, workflows,
   agreements, filesystem; `queries.ts`; their tests; `contract.yaml`); every file that imports
   `api/client.ts` or `api/queries.ts` (the import line and the names it uses only), and their
-  tests; `web/src/architecture.test.ts` only to point `startup_api` at the transport's new path;
+  tests; `web/src/architecture.test.ts` and `architecture.fixtures.ts` only to point `startup_api`
+  and its fixtures at the transport's new path;
   `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md` (the `api` row and
   map rows); this task's `Status:`
 - Needs: F-17, F-30
