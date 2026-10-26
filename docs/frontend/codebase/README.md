@@ -30,8 +30,8 @@ What the code keeps true. Each one was checked by reading the code that enforces
   Nothing in it imports from `app/`, `api/`, or `stream/`.
 - `web/src/api/` and `web/src/stream/` import nothing from `web/src/app/`. Data flows
   up from them into the features, never back down.
-- Test-only code never reaches the product. `web/src/test/`, `web/src/app/test-app.tsx`
-  and `web/src/stream/fake-event-source.ts` are imported only by `*.test.ts(x)` files.
+- Test-only code never reaches the product. `web/src/test/` holds the harness and doubles;
+  tests and test-support files import them. The architecture check rejects production reachability.
 - Feature folders reach shared code by path (`@/api/…`, `@/components/ui/…`); the
   shared pieces at the root of `web/src/app/` (`error-line.tsx`, `copy-button.tsx`,
   `daemon-status.tsx`, `mode-policy.ts`) are imported by the feature folders that need them.
@@ -72,7 +72,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
 | `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, workflows, navigation, desktop-ui` |
 | `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
-| `test-support` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
+| `test-support` | `test/**, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
 import graphs, and `main.tsx`'s, cannot reach `api/transport/index.ts`. Route modules listed
@@ -310,7 +310,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/sidebar/workspace-switcher.tsx` | Sidebar title as the workspace menu | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workspace.ts` | Which workspace the sidebar shows, the page deciding before the stored choice | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/index.ts` | Expose app/sidebar public capabilities | `web/src/app/sidebar/contract.yaml` |
-| `web/src/app/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
 | `web/src/app/workflows/approve-bar.tsx` | Approval control for a Draft plan, with refusals | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/inspect-panel.tsx` | Panel showing one task beside the graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/layout.ts` | Places a plan's graph with dagre | `web/src/app/workflows/contract.yaml` |
@@ -337,7 +336,6 @@ it is that folder's `contract.yaml`.
 | `web/src/env.d.ts` | Declares the build-time environment variables | `web/src/main.tsx` |
 | `web/src/main.tsx` | Composes native callbacks before app mounting | `web/src/router.tsx` |
 | `web/src/router.tsx` | The app's routes, each open thing a URL | `web/src/main.tsx` |
-| `web/src/stream/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/frames.ts` | Typed reading of each subscribe frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/tab-id.ts` | This tab's id, sent with every turn | `web/src/stream/contract.yaml` |
 | `web/src/stream/thread-stream.ts` | Client side of one thread's replay, then live feed | `web/src/stream/contract.yaml` |
@@ -350,6 +348,8 @@ it is that folder's `contract.yaml`.
 | `web/src/test/composer.ts` | Shared session-ready composer fixtures | `web/src/app/conversation/contract.yaml` |
 | `web/src/test/contract-fixtures.ts` | Sample daemon values typed against `schema.d.ts` | `web/src/test/fake-daemon.ts` |
 | `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon | `web/src/test/contract-fixtures.ts` |
+| `web/src/test/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
+| `web/src/test/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
 | `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
 | `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |

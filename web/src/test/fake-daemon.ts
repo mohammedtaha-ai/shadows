@@ -7,7 +7,7 @@ import type { EffectiveStandards, StandardsAdditions } from '@/api/design'
 import type { Plan, PlanListing } from '@/api/workflows'
 import type { Grant, InstructionsVersion, Project } from '@/api/projects'
 import type { Operation, ThreadEntry } from '@/api/threads'
-import type { Answer } from '@/app/test-app'
+import type { Answer } from '@/test/test-app'
 import {
   agentEntry,
   claudeHarness,

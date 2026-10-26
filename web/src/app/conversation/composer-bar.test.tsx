@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { completedOperation, fakeChoices, projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { composer, start, ready, textarea, turnStarts } from '@/test/composer'
-import { choose, menuItem, typeInto, until } from '../test-app'
+import { choose, menuItem, typeInto, until } from '@/test/test-app'
 
 it('Add shows Core image refusal and omits project Plugins, folders and connectors', async () => {
   const app = await start('/projects/p1/threads/t1', answers({ session: { ...fakeChoices, capabilities: { image: false, image_reason: 'Images refused by fixture harness' } } }))

@@ -6,7 +6,7 @@ import { act } from 'react'
 import type { PlanMap } from '@/api/workflows'
 import { answers } from '@/test/fake-daemon'
 import { planFixture, planListing, planTask, planVersionsFixture, projectFixture } from '@/test/contract-fixtures'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 let app: TestApp | undefined
 afterEach(() => { app?.unmount(); app = undefined; vi.unstubAllGlobals() })

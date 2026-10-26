@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 import { agreementKeys } from '@/api/agreements'
 import { answers } from '@/test/fake-daemon'
 let open: TestApp | null = null

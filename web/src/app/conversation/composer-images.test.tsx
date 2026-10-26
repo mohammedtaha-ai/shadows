@@ -7,7 +7,7 @@ import { expect, it, vi } from 'vitest'
 import { fakeChoices, userEntry, runningOperation, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { start, ready, textarea, turnStarts } from '@/test/composer'
-import { type TestApp, choose, typeInto, until } from '../test-app'
+import { type TestApp, choose, typeInto, until } from '@/test/test-app'
 
 function imageFile(name = 'screen.png') {
   return new File(['fixture bytes'], name, { type: 'image/png' })

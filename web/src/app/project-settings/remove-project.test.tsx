@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { Project } from '@/api/projects'
 import { projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 const PAGE = '/projects/p1/settings'
 

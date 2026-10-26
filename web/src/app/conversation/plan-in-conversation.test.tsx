@@ -17,7 +17,7 @@ import {
   userEntry,
 } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 
 const CONVERSATION = '/projects/p1/threads/t1'
 const PANEL = 'aside[aria-label="Plan beside the conversation"]'

@@ -5,7 +5,7 @@ import { answers } from '@/test/fake-daemon'
 import { planFixture } from '@/test/contract-fixtures'
 import type { DesignEdit } from '@/api/design'
 import { designKeys } from '@/api/design'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })

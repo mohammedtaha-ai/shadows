@@ -2,7 +2,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { planFixture, planViewEntry, visionProposalEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null; vi.restoreAllMocks() })

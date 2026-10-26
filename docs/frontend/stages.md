@@ -301,7 +301,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck` and `npm run lint` pass
 
 ### F-43 · W-12a: the test harness and the fake event source live in `test/`
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-12--put-test-infrastructure-under-its-owner
   (the harness move; F-42 split the composer test file).
 - Read: `web/src/app/test-app.tsx`, `web/src/stream/fake-event-source.ts`, the `web/src/test/`

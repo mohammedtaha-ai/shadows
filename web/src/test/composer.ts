@@ -3,7 +3,7 @@
 import { afterEach, vi } from 'vitest'
 import { fakeChoices } from './contract-fixtures'
 import { answers } from './fake-daemon'
-import { type TestApp, startApp } from '@/app/test-app'
+import { type TestApp, startApp } from '@/test/test-app'
 
 export const composer = { open: null as TestApp | null }
 afterEach(() => {

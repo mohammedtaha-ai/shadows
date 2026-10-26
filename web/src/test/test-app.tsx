@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { expect, vi } from 'vitest'
-import { FakeSource } from '@/stream/fake-event-source'
+import { FakeSource } from '@/test/fake-event-source'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 

@@ -6,7 +6,7 @@ import { afterEach, expect, it } from 'vitest'
 import type { PlanningThread } from '@/api/threads'
 import { planFixture, planListing, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, choose, startApp, until } from '../test-app'
+import { type TestApp, choose, startApp, until } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => {

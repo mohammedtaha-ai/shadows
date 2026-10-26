@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { threadEntriesKey, threadOperationsKey } from '@/api/threads'
 import { projectKeys } from '@/api/projects'
 import { threadKeys } from '@/api/threads'
-import { FakeSource } from './fake-event-source'
+import { FakeSource } from '@/test/fake-event-source'
 import { useThreadStream } from './use-thread-stream'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })

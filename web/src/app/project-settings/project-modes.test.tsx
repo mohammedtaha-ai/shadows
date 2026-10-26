@@ -10,7 +10,7 @@ import type { Project } from '@/api/projects'
 import { projectsQuery } from '@/api/projects'
 import { projectWithModes } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 let open: TestApp | null = null
 afterEach(() => {

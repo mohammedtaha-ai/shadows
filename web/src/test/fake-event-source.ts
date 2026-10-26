@@ -1,7 +1,7 @@
 // One job: an EventSource a test drives by hand, frame by frame. Test-only;
 // nothing outside a `*.test.ts` imports it.
 
-import type { EventSourceLike } from './thread-stream'
+import type { EventSourceLike } from '@/stream/thread-stream'
 
 export class FakeSource implements EventSourceLike {
   readonly url: string

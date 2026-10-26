@@ -7,7 +7,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { choice, fakeChoices, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
+import { type TestApp, choose, menuItem, startApp, typeInto, until } from '@/test/test-app'
 
 let open: TestApp | null = null
 afterEach(() => {

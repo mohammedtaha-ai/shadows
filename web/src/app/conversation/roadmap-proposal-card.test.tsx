@@ -4,7 +4,7 @@ import {afterEach,expect,it} from 'vitest'
 import type {RoadmapProposal} from '@/api/design'
 import {agentEntry} from '@/test/contract-fixtures'
 import {answers} from '@/test/fake-daemon'
-import {type TestApp,startApp,until} from '../test-app'
+import {type TestApp,startApp,until} from '@/test/test-app'
 import {RoadmapProposalCard} from './roadmap-proposal-card'
 
 let app: TestApp | null = null

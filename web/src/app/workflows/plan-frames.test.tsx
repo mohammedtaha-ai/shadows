@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, it, vi } from 'vitest'
-import { FakeSource } from '@/stream/fake-event-source'
+import { FakeSource } from '@/test/fake-event-source'
 import { usePlanFrames } from './plan-frames'
 import { useThreadStream } from '@/stream'
 

@@ -8,7 +8,7 @@ import { codeKeys } from '@/api/code'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 
 const fixture = vi.hoisted(() => ({ desktop: false }))
 vi.mock('@/desktop/runtime', () => ({ isDesktop: () => fixture.desktop }))

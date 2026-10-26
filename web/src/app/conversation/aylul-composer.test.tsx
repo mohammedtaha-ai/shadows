@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { claudeHarness, projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, menuItem, startApp, until } from '../test-app'
+import { type TestApp, menuItem, startApp, until } from '@/test/test-app'
 import { act } from 'react'
 
 const aylulHarness = { ...claudeHarness, kind: 'aylul', label: 'AYLUL' }

@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { VisionProposal } from '@/api/design'
 import { visionProposalEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 import { VisionProposalCard } from './vision-proposal-card'
 
 let app: TestApp | null = null

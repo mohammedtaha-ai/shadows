@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { completedOperation, invocationFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import type { Limits } from '@/stream'
-import { startApp, until } from '../test-app'
+import { startApp, until } from '@/test/test-app'
 import { ContextRing } from './context-ring'
 import type { ContextFigures } from './usage'
 

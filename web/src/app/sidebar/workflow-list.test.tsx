@@ -8,7 +8,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { planFixture, planListing } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 const PAGE = '/projects/p1/workflows/w1'
 

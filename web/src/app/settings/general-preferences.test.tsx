@@ -6,7 +6,7 @@ import { afterEach, expect, it } from 'vitest'
 import { personQuery, type Person } from '@/api/person'
 import { answers } from '@/test/fake-daemon'
 import { GeneralPreferences } from './general-preferences'
-import { startApp, until, type TestApp, type Answer } from '../test-app'
+import { startApp, until, type TestApp, type Answer } from '@/test/test-app'
 
 const person: Person = { name: 'Mohammed', aylul_calls_me: 'Abu Taha', language: 'en', theme: 'system', updated_at: null }
 let app: TestApp | null = null

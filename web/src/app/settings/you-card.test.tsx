@@ -3,7 +3,7 @@ import { personKeys } from '@/api/person'
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers } from '@/test/fake-daemon'
-import { startApp, typeInto, until, type TestApp } from '../test-app'
+import { startApp, typeInto, until, type TestApp } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })

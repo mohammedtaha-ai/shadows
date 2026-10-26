@@ -11,7 +11,7 @@ import type { Plan, PlanVersions } from '@/api/workflows'
 import { answers } from '@/test/fake-daemon'
 import { planFixture, planListing, planTask } from '@/test/contract-fixtures'
 import { FakeResizeObserver, resize } from '@/test/fake-resize-observer'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 // Every fit the graph asks React Flow for, which does the rest unchanged.
 const fits = vi.hoisted(() => [] as (FitViewOptions | undefined)[])

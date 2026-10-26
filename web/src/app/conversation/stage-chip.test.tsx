@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { projectFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 let open: TestApp | null = null
 afterEach(() => {

@@ -10,7 +10,7 @@ import type { ProjectLink } from '@/api/code'
 import type { Project } from '@/api/projects'
 import { codeStatusFixture, projectFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, choose, startApp, until } from '../test-app'
+import { type TestApp, choose, startApp, until } from '@/test/test-app'
 
 let open: TestApp | null = null
 afterEach(() => {

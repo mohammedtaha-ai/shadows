@@ -3,7 +3,7 @@ import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import type { VisionView } from '@/api/design'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 let open: TestApp | null = null
 afterEach(() => { open?.unmount(); open = null })
 const initial = (): VisionView => ({ revision: 1, content: {

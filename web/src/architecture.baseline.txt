@@ -28,6 +28,6 @@ public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-se
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #5
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/presence.ts #1
 public_entry :: app/desktop/companion-binding.test.tsx :: app/agents/character-colors.ts #1
-public_entry :: stream/fake-event-source.ts :: stream/thread-stream.ts #1
+public_entry :: test/fake-event-source.ts :: stream/thread-stream.ts #1
 server_access :: app/conversation/composer-images.test.tsx :: global:fetch #1
 server_access :: app/conversation/draft.test.tsx :: global:fetch #1

@@ -7,7 +7,7 @@ import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { runningOperation } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
+import { type TestApp, choose, menuItem, startApp, typeInto, until } from '@/test/test-app'
 
 const COMMANDS = [
   { name: 'compact', description: 'Clear history', hint: null },
