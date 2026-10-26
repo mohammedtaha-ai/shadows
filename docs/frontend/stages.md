@@ -131,7 +131,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run build` pass
 
 ### F-37 · W-10a: the project plan list words a frozen plan as the plan page does
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
   (W-10 enters in four packets: a, plan-state wording; b, one proposal approval lifecycle for the
   vision, map and roadmap cards; c, one confirmation component for the four delete/remove

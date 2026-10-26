@@ -348,6 +348,11 @@ obligations:
       The Workspace plans list lets archived plans appear when Include archived is ticked.
     tested_by: none
 
+  - rule: >
+      The Workspace plans list uses stateLabel for version wording, showing Approved for
+      frozen versions and Draft otherwise, with the archived suffix kept.
+    tested_by: workspace plans show Approved for frozen versions and preserve draft and archive labels
+
 
 # ── agreements ───────────────────────────────────────────────────────────────
 
@@ -355,11 +360,11 @@ agreements:
   - between: [WorkspacePlans (workspace-plans.tsx), stateLabel (workflows/plan-state.ts)]
     must: >
       show a frozen version with the same word, Approved
-    holds: false
+    holds: true
     why: >
-      stateLabel shows a Frozen version as Approved. WorkspacePlans prints the raw
-      state ('Frozen') next to the version number.
-    tested_by: none
+      WorkspacePlans calls the public stateLabel entry for each version, so frozen
+      versions read Approved with the same version wording as the plan page.
+    tested_by: workspace plans show Approved for frozen versions and preserve draft and archive labels
 
   - between: [VisionEditor's dirty rule, useDesignEditor's dirty rule]
     must: >
@@ -386,8 +391,6 @@ not_the_caller's:
   - >
       Compute a part's file count outside fileCount, or count folders as files. The
       preview is the only count the confirmation shows.
-  - >
-      Print a frozen plan's state as Frozen. Use stateLabel from web/src/app/workflows.
 
 
 # ── gaps ─────────────────────────────────────────────────────────────────────
@@ -409,11 +412,6 @@ gaps:
       the array unchanged. A blank line or a trailing newline therefore sends an empty
       acceptance item. PartEditor's contentOp removes blank lines from folders and
       rules, so the two editors disagree on the same input.
-
-  - at: WorkspacePlans
-    gap: >
-      Each row prints the raw state: `v{version} · {state}` shows 'Frozen' where every
-      other surface, through stateLabel, shows 'Approved'.
 
   - at: fileCount
     gap: >
@@ -498,6 +496,10 @@ tests:
       A lost create response is followed by a design invalidation. The second press sends
       a body equal to the first, with expected_revision 0.
   # roadmap-view.test.tsx
+  - name: workspace plans show Approved for frozen versions and preserve draft and archive labels
+    checks: >
+      The workspace plan list shows Approved v1 for a frozen version, Draft v2 for a
+      draft version, and Approved v1 · Archived for an archived frozen plan, with no Frozen text.
   - name: roadmap_navigation_keeps_old_plans_accessible
     checks: >
       The outcome page never shows Done or Completed. The plans tab lists the linked and
