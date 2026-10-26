@@ -264,7 +264,10 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   context, close policy) arrives as an argument or a callback wired in `DesktopApp::start` or
   `windows::setup`'s caller; the `MainWindow ↔ CompanionWindow` owner cycle is gone (one
   direction stays, or a callback replaces it); every `managed_state` and `owner_edge
-  app::DesktopApp` entry for `windows/` and both `owner_cycle` entries leave the baseline and
-  none is added anywhere; window labels, focus, hiding, fitting, toggle shortcut, close policy,
+  app::DesktopApp` entry for `windows/` and both `owner_cycle` entries leave the baseline;
+  the only entries added are `managed_state … tauri::State` for a command that now takes
+  `tauri::State<Arc<DesktopApp>>` (D-0's command entry) in place of a window lookup it
+  reached before, each named in the commit; no other entry is added and the `managed_state`
+  total falls; window labels, focus, hiding, fitting, toggle shortcut, close policy,
   render denial and event order are unchanged and their tests pass; the crate's tests, the
   architecture test, clippy and fmt pass
