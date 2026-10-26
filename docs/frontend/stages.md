@@ -16,6 +16,33 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
+### F-33 · W-9a: session-setting changes leave the composer
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-9--split-conversation-behavior-by-job
+  (W-9 enters in four packets: a, session settings; b, attachments; c, send, queue and stop;
+  d, `draft.tsx` and `carried-send.ts`)
+- Read: the plan's W-9 and section 4 (the `conversation/composer.tsx` row);
+  `web/src/app/conversation/contract.yaml`; `web/src/app/conversation/composer.tsx`;
+  `turn-settings.ts`; the `conversation` rows of `docs/frontend/codebase/README.md`
+- Touch: `web/src/app/conversation/composer.tsx`; a new
+  `web/src/app/conversation/use-session-settings.ts` and its test
+  `use-session-settings.test.tsx`; `composer-bar.test.tsx` only to move out the tests that
+  exercise settings switching alone; `web/src/app/conversation/contract.yaml`;
+  `docs/frontend/codebase/README.md` (the new file's row); `web/src/architecture.baseline.txt`
+  only if a moved test carries an existing entry with it (one-to-one); this task's `Status:`
+- Needs: F-17, F-31 (done)
+- Done when: `use-session-settings.ts` owns the whole job of changing the session's settings:
+  the held turn settings and their note (today's `useTurnSettings`), the mode switch with its
+  replay attempt, the model switch with its refusal, the effort switch, and one `switching`
+  flag the composer reads for `ready`. `composer.tsx` keeps no `changeMode`, `changeModel` or
+  `changeEffort` call and no settings state of its own. Behaviour is unchanged: the same
+  requests in the same order, a model refusal still shows "The session kept …", a lost mode
+  answer still replays with the same command id, nothing is switched while a turn runs, and
+  Send still waits for the switch. The tests that pinned this move with it, assertions
+  unchanged, and the rest of `composer-bar.test.tsx` passes unchanged. From `web/`:
+  `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
+  `npm run typecheck`, `npm run lint` and `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
