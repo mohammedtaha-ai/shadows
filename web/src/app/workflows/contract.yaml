@@ -13,8 +13,7 @@
 # number; a `TaskParent` object is never drawn by layoutPlan's own edge pass.
 #
 # Trap: the client never says `Frozen`. `stateLabel` shows a frozen version as
-# Approved. Several surfaces must agree on that word; one in the design folder does
-# not (see gaps).
+# Approved. Every surface that shows a version's state reads it through `stateLabel`.
 #
 # Trap: a plan refetches from two streams. `usePlanFrames` watches the writer
 # thread's stream here (one shared connection per thread). The project stream,
