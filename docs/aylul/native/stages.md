@@ -271,3 +271,26 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   total falls; window labels, focus, hiding, fitting, toggle shortcut, close policy,
   render denial and event order are unchanged and their tests pass; the crate's tests, the
   architecture test, clippy and fmt pass
+
+### N-19 · D-2b: command parity covers guards, grants and wrappers
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-2b--command-parity-covers-guards-wrappers-and-surface-policy
+  and section 6 ("Ratchet design" rule 7)
+- Read: the plan's section 6; `apps/desktop/src-tauri/tests/architecture/README.md`,
+  `inventory.rs`, `fixtures.rs`; `src-tauri/build.rs`; `src-tauri/capabilities/main.json`,
+  `companion.json`; `src-tauri/permissions/`; `src-tauri/src/commands/` (each command's caller
+  guard); `apps/desktop/tests/native-acl.test.mjs`; the wrappers `web/src/desktop/*.ts` and
+  `apps/desktop/src/platform/`, read only
+- Touch: `apps/desktop/src-tauri/tests/architecture/` (`inventory.rs`, `fixtures.rs`,
+  `main.rs`, `README.md`, `baseline.txt`); `apps/desktop/tests/native-acl.test.mjs`;
+  `docs/aylul/codebase/README.md` (its row); this task's `Status:`
+- Needs: N-18
+- Done when: for every registered command the architecture test derives, beyond its name,
+  (1) which window labels its native guard admits, (2) which capability grants it to which
+  window, and (3) which surface's TypeScript wrapper calls it (`web/src/desktop/` for main,
+  `apps/desktop/src/platform/` for companion), all read as text; a command whose guard,
+  grant and wrapper surface disagree fails, as does a granted command with no wrapper or a
+  wrapper with no grant; a negative fixture proves each of these failures; a disagreement
+  that exists today goes in the exact baseline with its reason, not into the rule; no product
+  code changes; the architecture test, `node --test tests/native-acl.test.mjs`, clippy and
+  fmt pass
