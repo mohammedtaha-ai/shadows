@@ -1,9 +1,9 @@
-import {isDesktop} from '@/desktop'
+import {capabilities} from '@/desktop'
 import {SessionsPanel} from './sessions-panel'
 import {ApprovalsPanel} from './approvals-panel'
 import {useActivity} from './use-activity'
 export function Activity(){
-  return isDesktop()?<LocalActivity/>:<p className="p-8">Local activity is available in the desktop app.</p>
+  return capabilities.localCore?<LocalActivity/>:<p className="p-8">Local activity is available in the desktop app.</p>
 }
 function LocalActivity(){
   const {state,refresh}=useActivity()

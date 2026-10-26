@@ -250,7 +250,31 @@ function scan(sources: Sources, owners: Owner[]): string[] {
       if (!target.entries.some(entry => matches(to, entry))) add('public_entry', file, to)
       if (!from.allowed.includes(target.name)) add('dependency', file, to)
     }
+    const platformRestricted = !file.startsWith('desktop/') && !/\.test\.tsx?$/.test(file)
+    const desktopImport = (literal: ts.StringLiteralLike) => {
+      const resolved = ts.resolveModuleName(literal.text, absolute(file), options, host).resolvedModule
+      return /^@\/desktop(?:\/|$)/.test(literal.text) ||
+        (resolved !== undefined && relative(resolved.resolvedFileName).startsWith('desktop/'))
+    }
     const visit = (node: ts.Node) => {
+      if (platformRestricted) {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier) && desktopImport(node.moduleSpecifier)) {
+          const bindings = node.importClause?.namedBindings
+          if (bindings && ts.isNamedImports(bindings)) {
+            for (const item of bindings.elements) {
+              if ((item.propertyName ?? item.name).text === 'isDesktop') add('desktop_platform', file, 'import isDesktop')
+            }
+          }
+        }
+        if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier) && desktopImport(node.moduleSpecifier) && node.exportClause && ts.isNamedExports(node.exportClause)) {
+          for (const item of node.exportClause.elements) {
+            if ((item.propertyName ?? item.name).text === 'isDesktop') add('desktop_platform', file, 'export isDesktop')
+          }
+        }
+        if (ts.isCallExpression(node) && (calledName(node.expression) === 'isDesktop' || (ts.isIdentifier(node.expression) && node.expression.text === 'isDesktop'))) {
+          add('desktop_platform', file, 'call isDesktop')
+        }
+      }
       if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
         const clause = node.importClause
         const allTypes = clause?.isTypeOnly || (!clause?.name && clause?.namedBindings && ts.isNamedImports(clause.namedBindings) && clause.namedBindings.elements.length > 0 && clause.namedBindings.elements.every(item => item.isTypeOnly))

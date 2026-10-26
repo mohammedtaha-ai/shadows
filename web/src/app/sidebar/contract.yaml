@@ -305,3 +305,6 @@ removed_thread_cache_owner: "api/threads.ts owns removed-thread detail and live-
 feature_imports: "Cross-feature production imports use declared public entries."
 
 feature_entry: "index.ts exposes storedWorkspace, Sidebar."
+
+desktop_capabilities:
+  Sidebar: localCore gates Local activity; tray independently gates Hide to tray; the action row exists when either capability is available.

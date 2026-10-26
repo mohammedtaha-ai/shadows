@@ -207,7 +207,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run build` pass
 
 ### F-40 · W-10d: screens ask for a desktop capability, never for the platform
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-10--consolidate-repeated-presentation-behavior
   ("Desktop capabilities", first half). Registering the desktop-only settings sections and
   sidebar entries from `app/desktop/` in one place is F-41, not this task.

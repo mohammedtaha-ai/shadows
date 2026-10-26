@@ -16,7 +16,7 @@ import { Field, Select } from './form-field'
 import { providerTitle } from './provider-presets'
 import { colorOf } from './character-colors'
 import { ColorSwatches } from './color-swatches'
-import { isDesktop } from '@/desktop'
+import { capabilities } from '@/desktop'
 import { useCompanionBinding, refreshCompanionAppearance } from '@/desktop'
 import { useOpenSettings } from '@/app/navigation'
 
@@ -51,7 +51,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
     onSuccess: async () => {
       pending.current = null
       setEdited(null)
-      if(isDesktop() && slug !== null && binding?.agent === slug){
+      if(capabilities.companion && slug !== null && binding?.agent === slug){
         try { await refreshCompanionAppearance() } catch { /* Native polling will refresh later. */ }
       }
       await queryClient.invalidateQueries({ queryKey: agentsQuery.queryKey })
@@ -101,7 +101,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-xs text-muted-foreground">Character colour</legend>
           <ColorSwatches value={colorOf(value.character_color).id} disabled={save.isPending} onChange={id => setEdited({ ...value, character_color: id })} />
-          <p className="text-xs text-muted-foreground">{!isDesktop()
+          <p className="text-xs text-muted-foreground">{!capabilities.companion
             ? 'AYLUL wears this colour on the desktop when this agent is the companion agent.'
             : slug !== null && binding?.agent === slug ? 'AYLUL wears this colour now.'
               : 'AYLUL wears this colour when this agent is the companion agent.'}</p>

@@ -151,3 +151,6 @@ feature_entry: "index.ts exposes providerTitle, colorOf, ColorDot, AgentForm, De
 feature_imports: "Cross-feature production imports use declared public entries."
 
 route_entries: "home.tsx remain separate public lazy route modules declared by index.ts."
+
+desktop_capabilities:
+  AgentFields: companion gates the saved bound-agent appearance refresh and the hint that its colour is currently worn by the companion.

@@ -9,6 +9,30 @@ interface Fixture {
 const target = { 'app/agents/private.ts': 'export interface Shape {}; export const value = 1' }
 
 export const fixtures: Fixture[] = [
+  ...[
+    ['public entry import', "import { isDesktop } from '@/desktop'"],
+    ['startup import', "import { isDesktop } from '@/desktop/startup'"],
+    ['runtime import alias', "import { isDesktop as platform } from '@/desktop/runtime'"],
+    ['relative runtime import', "import { isDesktop } from '../../desktop/runtime'"],
+    ['namespace call', "import * as native from '@/desktop/runtime'; native.isDesktop()"],
+    ['aliased call', "import * as native from '@/desktop/runtime'; const platform = native.isDesktop; platform()"],
+    ['local call', 'declare function isDesktop(): boolean; isDesktop()'],
+  ].map(([name, source]) => ({
+    name: `rejects desktop platform ${name} outside desktop`, rule: 'desktop_platform',
+    sources: {
+      'desktop/runtime.ts': 'export function isDesktop() { return true }',
+      'desktop/index.ts': "export { isDesktop } from './runtime'",
+      'desktop/startup.ts': "export { isDesktop } from './runtime'",
+      'app/settings/view.ts': source!,
+    },
+  })),
+  { name: 'allows desktop platform detection in its owner and tests', rule: 'desktop_platform', count: 0,
+    sources: {
+      'desktop/runtime.ts': 'export function isDesktop() { return true }',
+      'desktop/capabilities.ts': "import { isDesktop } from './runtime'; export const enabled = () => isDesktop()",
+      'app/settings/view.test.ts': "import { isDesktop } from '@/desktop/runtime'; isDesktop()",
+    },
+  },
   ...['desktop/startup.ts', 'app/desktop/startup.ts'].map(entry => ({
     name: `rejects API initialization through ${entry}`,
     rule: 'startup_api',

@@ -10,7 +10,7 @@
 import {
   createRootRoute, createRoute, createRouter, createHashHistory, lazyRouteComponent, redirect,
 } from '@tanstack/react-router'
-import {isDesktop} from '@/desktop'
+import {capabilities} from '@/desktop'
 import { Home } from './app/home'
 import { storedWorkspace } from '@/app/sidebar'
 import { PagePending } from './app/page-pending'
@@ -114,7 +114,7 @@ const agentDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/a
 
 const activityRoute=createRoute({getParentRoute:()=>rootRoute,path:'/aylul/activity',component:Activity})
 export const router = createRouter({
-  ...(isDesktop()?{history:createHashHistory()}:{}),
+  ...(capabilities.hashRouting?{history:createHashHistory()}:{}),
   defaultPendingComponent: PagePending,
   defaultPendingMs: 150,
   routeTree: rootRoute.addChildren([

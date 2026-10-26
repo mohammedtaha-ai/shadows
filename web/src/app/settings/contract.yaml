@@ -228,3 +228,9 @@ usage_query_identity: "Usage cache inspection and feature reads use api/usage.us
 feature_imports: "Cross-feature production imports use declared public entries."
 
 feature_entry: "index.ts exposes readSettingsSearch, SettingsDialog, PersonTheme."
+
+desktop_capabilities:
+  visibleSections: Character requires companion; Local Core requires localCore; other sections remain available in both runtimes.
+  GeneralSection: windowPreferences gates DesktopPreferencesControls for system startup and close-to-tray preferences.
+  AccountSection: accountLogin gates the native account card; the You card remains available in both runtimes.
+  AgentsSection: companion gates the bound-agent Companion badge.

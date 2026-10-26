@@ -13,6 +13,8 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 
 What the code keeps true. Each one was checked by reading the code that enforces it.
 
+- Production files outside `web/src/desktop/` ask for native capabilities; the architecture
+  checker refuses their `isDesktop` imports and calls. Platform detection stays in `desktop/`.
 - Feature HTTP calls go through `web/src/api/`. `transport/index.ts` is the only file that
   calls `fetch` and the only one that creates the `openapi-fetch` client; every other
   API domain module uses this shared client.
@@ -135,6 +137,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app-root.tsx` | Shared dashboard mounting, owns the app's one QueryClient | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/connection-settings.tsx` | Local Core connection form | `web/src/app/desktop/contract.yaml` |
 | `web/src/desktop/runtime.ts` | Readiness ordering | `web/src/desktop/contract.yaml` |
+| `web/src/desktop/capabilities.ts` | Read native feature availability at call time | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/native.ts` | Desktop invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/index.ts` | Exposes native connection presentation | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/startup.ts` | Expose connection controls before API initialization | `web/src/app/desktop/contract.yaml` |
