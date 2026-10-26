@@ -28,12 +28,17 @@ and OS acceptance.
   tests; `web/src/router.tsx`, `app/shell.tsx`, `app/home.tsx`, `main.tsx`; the shared
   part-query pagination moving from design UI to `web/src/api/` (its design domain file and
   `api/contract.yaml`); `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md`;
-  this task's `Status:`
+  the start-up entries `web/src/desktop/startup.ts` and `web/src/app/desktop/startup.ts` (each
+  a second declared entry in the module table); `web/src/architecture.test.ts` and its
+  fixtures, only for the start-up entry check; this task's `Status:`
 - Needs: F-29
 - Done when: every `entry` and production `public_entry` baseline entry is gone: each
   declared entry exists and every cross-feature import names it (a test file may keep an
   entry only where it reaches another feature's internal on purpose, each named in the
-  commit); agreements imports no design editor hook (pagination lives in `api/`); no
+  commit); agreements imports no design editor hook (pagination lives in `api/`); what native start-up loads
+  before the verified origin is set comes only through the two start-up entries, and the
+  architecture test fails if a start-up entry statically reaches `api/client.ts` (with a
+  fixture that proves it); no
   `runtime_cycle` entry is added; route lazy-loading is unchanged (the route chunks `npm run
   build` lists before and after are the same, compared in the final message); no other
   baseline count goes up; the touched areas' tests, the architecture and codemap tests,
