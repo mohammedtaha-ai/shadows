@@ -26,6 +26,15 @@ source: web/src/stream
 refresh_pinning:
   project: "pins project refresh for %s covers all five plan event kinds: design, agreement versions, project maps/lists, plan versions, sibling versions and project neighbours."
 
+connection_registry:
+  owner: thread-registry.ts
+  scope: "One connection per QueryClient/thread or QueryClient/project; construction happens only here."
+  lifetime: "Subscribing acquires a reference; the last subscriber leaving closes the transport and cancels reconnect. Rendering alone opens nothing."
+  delivery: "All durable, notice and state listeners share the transport cursor; reconnect resumes after its last applied sequence. A late subscriber reconciles immediately if already live."
+  tested_by:
+    - shares a thread across sibling subscribers, delivers to both, resumes and closes at the last departure
+    - shares writer watchers with a sibling conversation stream until the last watcher leaves
+
 
 # ── shapes ───────────────────────────────────────────────────────────────────
 

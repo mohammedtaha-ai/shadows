@@ -10,7 +10,6 @@ import { harnessesQuery, projectsQuery, threadQuery, threadsQuery } from '@/api/
 import { type PlanShowFrame, type SubagentCard, toLimits } from '@/stream'
 import {UseWithCompanion} from '@/app/desktop'
 import { ErrorLine } from '../error-line'
-import { HeldThreadStream } from '@/app/workflows'
 import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { Composer } from './composer'
@@ -119,9 +118,6 @@ function Conversation({
   }
 
   return (
-    // This conversation's stream carries its plans' changes: its cards and
-    // panel open no stream of their own.
-    <HeldThreadStream value={threadId}>
       <div className="flex h-full min-h-0">
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
@@ -209,7 +205,6 @@ function Conversation({
           <SubagentPanel key={agentCard.id} card={agentCard} onClose={() => setAgent(null)} />
         )}
       </div>
-    </HeldThreadStream>
   )
 }
 

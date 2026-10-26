@@ -120,10 +120,9 @@ frames:
   usePlanFrames:
     signature: "(threadId: string | undefined) -> void"
     note: >
-      Opens one ThreadStream per thread for all watchers in the QueryClient. The
-      stream closes when its last watcher unmounts. A thread that an enclosing screen
-      holds through HeldThreadStream is not opened a second time.
-  HeldThreadStream: "React context: string | null"
+      Subscribes through stream/thread-registry.ts, sharing the conversation's
+      connection in the QueryClient. The registry closes it when the last subscriber
+      leaves.
 
 plan_data:
   usePlan:
@@ -319,9 +318,9 @@ obligations:
       not usePlanFrames' own map.
 
   - rule: >
-      An enclosing screen that holds its thread's stream (HeldThreadStream) receives
-      plan events through it, and no second stream opens for that thread.
-    tested_by: none
+      An enclosing conversation and its plan cards share the registry connection
+      for their writer thread.
+    tested_by: shares writer watchers with a sibling conversation stream until the last watcher leaves
 
   - rule: >
       writerThread returns a thread only when a Planner wrote the version; an external
@@ -574,7 +573,7 @@ tests:
       change reason. Archive sends a UUID command id, and afterward 'Archived · read
       only' shows with no Approve button.
 
-feature_entry: "index.ts exposes HeldThreadStream, PlanGraph, usePlan, isPlanEvent, refetchPlans. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph."
+feature_entry: "index.ts exposes PlanGraph, usePlan, isPlanEvent, refetchPlans. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph."
 
 feature_imports: "Cross-feature production imports use declared public entries."
 

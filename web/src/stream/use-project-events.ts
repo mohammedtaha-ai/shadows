@@ -2,39 +2,22 @@
 
 import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { projectEventsUrl } from '@/api/client'
 import { planMapQuery, planQuery, planVersionsQuery, plansQuery, projectsQuery } from '@/api/queries'
 import { designKeys } from '@/api/design'
 import { workflowKeys } from '@/api/workflows'
 import { agreementKeys } from '@/api/agreements'
-import { ThreadStream } from './thread-stream'
+import { subscribeProjectStream } from './thread-registry'
 
 const PLAN_EVENTS = new Set([
   'WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived',
 ])
 const REACH_EVENTS = new Set(['PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked', 'ProjectRemoved'])
 
-interface ProjectWatch { references: number; close: () => void }
-const watches = new WeakMap<QueryClient, Map<string, ProjectWatch>>()
-
-/** Visible views of the same project share one connection per query client.
- * The last view leaving closes it. ThreadStream owns reconnect and cursors. */
 export function useProjectEvents(projectId: string | undefined): void {
   const queryClient = useQueryClient()
   useEffect(() => {
     if (projectId === undefined) return
-    let projects = watches.get(queryClient)
-    if (!projects) { projects = new Map(); watches.set(queryClient, projects) }
-    let watch = projects.get(projectId)
-    if (!watch) {
-      watch = { references: 0, close: watchProject(queryClient, projectId) }
-      projects.set(projectId, watch)
-    }
-    watch.references++
-    return () => {
-      watch.references--
-      if (watch.references === 0) { watch.close(); projects.delete(projectId) }
-    }
+    return watchProject(queryClient, projectId)
   }, [projectId, queryClient])
 }
 
@@ -62,9 +45,8 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
         },
       })
     }
-    const stream = new ThreadStream({
-      url: (after) => projectEventsUrl(projectId, after),
-      onDurable: (event) => {
+    return subscribeProjectStream(queryClient, projectId, {
+      onDurable: (event, live) => {
         if (event.kind === 'AgreementChanged') {
           void queryClient.invalidateQueries({ queryKey: agreementKeys.list(projectId) })
           void queryClient.invalidateQueries({ queryKey: agreementKeys.versions(projectId) })
@@ -75,7 +57,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
           return
         }
         if (REACH_EVENTS.has(event.kind)) {
-          if (stream.getState().connection === 'live') invalidateProject()
+          if (live) invalidateProject()
           if (event.kind === 'ProjectRemoved') {
             void queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey, exact: true })
           }
@@ -86,7 +68,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
         if (typeof payload !== 'object' || payload === null ||
           !('plan_id' in payload) || typeof payload.plan_id !== 'string' ||
           !('workflow_id' in payload) || typeof payload.workflow_id !== 'string') return
-        if (stream.getState().connection === 'live') refetch(payload.plan_id, payload.workflow_id)
+        if (live) refetch(payload.plan_id, payload.workflow_id)
         else pending.set(payload.workflow_id, payload.plan_id)
       },
       onCaughtUp: () => {
@@ -99,6 +81,4 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
         pending.clear()
       },
     })
-    stream.start()
-    return () => stream.close()
 }

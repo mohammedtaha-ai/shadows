@@ -328,6 +328,7 @@ it is that folder's `contract.yaml`.
 | `web/src/stream/frames.ts` | Typed reading of each subscribe frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/tab-id.ts` | This tab's id, sent with every turn | `web/src/stream/contract.yaml` |
 | `web/src/stream/thread-stream.ts` | Client side of one thread's replay, then live feed | `web/src/stream/contract.yaml` |
+| `web/src/stream/thread-registry.ts` | Share resumable connections within a cache scope | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-project-events.ts` | Refetches project plan views on journal notices | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-thread-stream.ts` | Binds a thread stream to a component's lifetime | `web/src/stream/contract.yaml` |
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |

@@ -1452,3 +1452,5 @@ thread_cache_owner: "Harness mutation answers update thread lists through api/th
 feature_imports: "Cross-feature production imports use declared public entries."
 
 route_entries: "conversation.tsx, draft.tsx remain separate public lazy route modules declared by index.ts."
+
+stream_lifetime: "The conversation and plan cards subscribe independently through stream/; its registry shares their thread connection and closes it after the last subscriber leaves."
