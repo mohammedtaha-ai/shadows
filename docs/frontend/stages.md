@@ -37,7 +37,8 @@ settings dialog, PR #40) at `1a2b601`.
   flag the composer reads for `ready`. `composer.tsx` keeps no `changeMode`, `changeModel` or
   `changeEffort` call and no settings state of its own. Behaviour is unchanged: the same
   requests in the same order, a model refusal still shows "The session kept …", a lost mode
-  answer still replays with the same command id, nothing is switched while a turn runs, and
+  answer still replays with the same command id, the model and effort are not switched while a
+  turn runs (a mode choice goes to Core at once, as before), and
   Send still waits for the switch. The tests that pinned this move with it, assertions
   unchanged, and the rest of `composer-bar.test.tsx` passes unchanged. From `web/`:
   `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
