@@ -294,3 +294,26 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   that exists today goes in the exact baseline with its reason, not into the rule; no product
   code changes; the architecture test, `node --test tests/native-acl.test.mjs`, clippy and
   fmt pass
+
+### N-20 · D-11: the AYLUL gate runs every desktop suite
+- Status: todo
+- Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-11--close-automated-gate-coverage
+- Read: the plan's D-11 and section 5 (the gate table); `.github/workflows/aylul.yml`;
+  `.github/workflows/ci.yml` (the `web` job); `apps/desktop/package.json` scripts;
+  `apps/desktop/tsconfig.json`; `apps/desktop/playwright.config.ts`
+- Touch: `.github/workflows/aylul.yml`; `apps/desktop/package.json` (scripts, and
+  `@types/node` as a dev dependency with its `package-lock.json` change); a new
+  `apps/desktop/tsconfig.test.json`; `apps/desktop/AGENTS.md` and `docs/aylul/ui/AGENTS.md`
+  only where they name the desktop checks; `docs/aylul/codebase/README.md` (its gate row); this
+  task's `Status:`
+- Needs: U-4, C-7
+- Done when: the `desktop` job runs `npm run test:companion:unit` and
+  `npm run test:companion:production`; a separate job named for the browser suite installs its
+  browser and runs `npm run test:companion:browser`; the co-located companion tests, the
+  boundary and contracts tests and their fixtures are type-checked by a script
+  (`typecheck:tests`, `tsc -p tsconfig.test.json`) that the `desktop` job runs and that fails on
+  a type error (proved once by hand, the result in the commit message); the opt-in cases
+  (`RECORD_PURPLE`, `EXPORT_COLORS`, the native acceptance scripts) stay out of CI and the
+  workflow names them in a comment; the web job in `ci.yml` still runs the shared-main parity
+  tests (`web/src/desktop/native-parity.test.ts`), checked, not changed; from
+  `apps/desktop/`: each new script passes locally

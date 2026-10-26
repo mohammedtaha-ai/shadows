@@ -14,6 +14,33 @@ and OS acceptance.
 
 ## Tasks
 
+### F-32 · W-8: one transport, and every API domain has its own operations
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-8--split-the-api-transport-from-domain-operations
+  and section 4 (`api/client.ts` row)
+- Read: the plan's sections 4 and 6; `web/src/api/contract.yaml`; `web/src/api/client.ts`;
+  `web/src/api/queries.ts`; the module table's `api` row in `docs/frontend/codebase/README.md`;
+  `web/src/architecture.test.ts` (`public_entry`, `startup_api`)
+- Touch: `web/src/api/` (`client.ts` split into a transport under `web/src/api/transport/` and
+  domain files beside the existing ones: threads, sessions, projects, code index, workflows,
+  agreements, filesystem; `queries.ts`; their tests; `contract.yaml`); every file that imports
+  `api/client.ts` or `api/queries.ts` (the import line and the names it uses only), and their
+  tests; `web/src/architecture.test.ts` only to point `startup_api` at the transport's new path;
+  `web/src/architecture.baseline.txt`; `docs/frontend/codebase/README.md` (the `api` row and
+  map rows); this task's `Status:`
+- Needs: F-17, F-30
+- Done when: exactly one module under `api/transport/` builds the generated client, holds the
+  daemon origin and maps errors, and no file outside `api/` imports it (the module table's
+  `api` entries stay `api/*`, so the existing `public_entry` rule refuses such an import);
+  each domain's operations, query identities and types live in its own `api/<domain>.ts`;
+  `api/client.ts` and `api/queries.ts` are gone or hold nothing but one domain; request paths,
+  methods, bodies, headers, error mapping and query key values are unchanged (pinned by the
+  existing `client.test.ts`, `error.test.ts` and key tests, moved with their code);
+  `api/schema.d.ts` is untouched; the start-up check still proves native start-up never
+  reaches the transport; no baseline count goes up; the touched areas' tests, the architecture
+  and codemap tests, `npm run typecheck`, `npm run lint` and `npm run build` pass. One domain
+  per commit.
+
 ### F-31 · W-7: stream refresh has one owner
 - Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-7--give-stream-refresh-one-owner
