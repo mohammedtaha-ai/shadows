@@ -83,6 +83,45 @@ approving a regenerated inventory. Tests have no blanket exemption.
 The command inventory has no baseline exceptions. All 27 registered commands
 have build metadata and generated permissions.
 
+N-19 also compares each registered command's native admission, local capability
+allow grants, and wrapper surfaces pairwise. `deny` names count only as metadata,
+never as grants. Permission identifiers resolve through source TOML; local JSON
+capabilities map those allows to their window labels. External plugin permissions
+are outside the application command inventory.
+
+Native admission follows the command's first statement, then its called helper
+and actual policy-key argument. The bounded `syn` evaluator supports early-return
+label checks, Result-valued helper branches, `allowed_caller` matches, boolean
+comparisons and `matches!` label alternatives. Policy-table rows alone confer no
+admission. A missing or late guard means any window granted the command can call
+it; that is compared as unrestricted admission, not a standalone violation.
+Unsupported guard expressions produce `command_guard` findings. Label candidates
+include source literals, capability labels, wrapper surfaces and an unknown-label
+sentinel, so a guard-only extra label or unrestricted admission cannot disappear.
+
+The architecture test runs `node ../tests/native-acl.test.mjs --wrapper-inventory`
+to parse TypeScript text with the installed TypeScript compiler (shared web
+installation preferred, desktop fallback). CI already installs these dependencies.
+The two roots are `web/src/desktop/` (main) and `apps/desktop/src/platform/`
+(companion). Test/spec files are excluded. Imported `invoke`/`nativeCall` aliases,
+namespace `invoke`, generic calls and literal arguments are recognized; comments,
+strings and unrelated functions are not calls. Dynamic command arguments fail,
+except the `nativeCall(command, args)` bridge's forwarding call. This is bounded
+AST analysis, not TypeScript type checking or runtime IPC acceptance; new bridge
+forms need explicit scanner coverage.
+
+Exact N-19 baseline reasons (product files remain unchanged):
+- `command_grant_wrapper :: set_companion_paused`: the companion platform exports a pause wrapper while only main has an allow grant.
+- `command_grant_wrapper :: set_companion_visible`: the companion platform exports a visibility wrapper while only main has an allow grant.
+- `command_guard_wrapper :: set_companion_paused`: the companion platform exports a pause wrapper while the executed native guard admits only main.
+- `command_guard_wrapper :: set_companion_visible`: the companion platform exports a visibility wrapper while the executed native guard admits only main.
+
+Negative fixtures assert the exact finding for every pairwise disagreement,
+granted commands without wrappers, wrappers without grants, deny-only grants,
+removed/late guards, and the actual helper policy key (including guard-only labels).
+Node fixtures exercise wrapper aliases, namespaces, generic calls, ignored test
+sources, comment/string decoys and nonliteral-command rejection.
+
 `fixtures.rs` supplies in-memory sources to the same scanner/comparator:
 forbidden/allowed edges, cycles, import aliases, qualified paths, reexports,
 type aliases, foreign globs, `#[path]`, managed state (`state`, `try_state`, UFCS,

@@ -273,7 +273,7 @@ The desktop restructure ([plan](plans/2026-10-25-desktop-architecture.md), D-0 d
   architecture test, clippy and fmt pass
 
 ### N-19 · D-2b: command parity covers guards, grants and wrappers
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-2b--command-parity-covers-guards-wrappers-and-surface-policy
   and section 6 ("Ratchet design" rule 7)
 - Read: the plan's section 6; `apps/desktop/src-tauri/tests/architecture/README.md`,

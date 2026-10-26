@@ -877,3 +877,144 @@ fn unused_handler_lists_cannot_fill_a_registration_omission() {
     assert!(inventory::check(lib, build, &permissions)
         .contains("command_inventory :: lib.rs :: missing two"));
 }
+
+fn surface_fixture(body: &str, grant: &str, wrapper: &str) -> Findings {
+    let lib = "fn run() { app.invoke_handler(tauri::generate_handler![commands::one]); }";
+    let sources = BTreeMap::from([(
+        "commands/mod.rs".into(),
+        format!("#[tauri::command] fn one(window: Window) {{ {body} }}"),
+    )]);
+    let permissions = BTreeMap::from([("actions.toml".into(), "[[permission]]\nidentifier='actions'\ncommands.allow=['one']\n[[permission]]\nidentifier='deny-one'\ncommands.deny=['one']".into())]);
+    let capabilities = if grant.is_empty() {
+        BTreeMap::new()
+    } else {
+        BTreeMap::from([(
+            "surface.json".into(),
+            format!(r#"{{"windows":["{grant}"],"permissions":["actions"]}}"#),
+        )])
+    };
+    let wrappers = if wrapper.is_empty() {
+        BTreeMap::new()
+    } else {
+        BTreeMap::from([("one".into(), [wrapper.into()].into())])
+    };
+    inventory::surface_check(lib, &sources, &permissions, &capabilities, &wrappers)
+}
+
+#[test]
+fn command_surface_parity_checks_each_pair_and_missing_counterparts() {
+    let guarded = r#"if window.label() != "main" { return Err("denied"); } Ok(())"#;
+    assert!(surface_fixture(guarded, "main", "main").is_empty());
+    for (grant, wrapper, expected) in [
+        (
+            "companion",
+            "main",
+            "command_guard_grant :: one :: guard=main grant=companion",
+        ),
+        (
+            "main",
+            "companion",
+            "command_guard_wrapper :: one :: guard=main wrapper=companion",
+        ),
+        (
+            "main",
+            "companion",
+            "command_grant_wrapper :: one :: grant=main wrapper=companion",
+        ),
+        (
+            "main",
+            "",
+            "command_grant_wrapper :: one :: grant=main wrapper=none",
+        ),
+        (
+            "",
+            "main",
+            "command_grant_wrapper :: one :: grant=none wrapper=main",
+        ),
+    ] {
+        let found = surface_fixture(guarded, grant, wrapper);
+        assert!(found.contains(expected), "missing {expected}: {found:#?}");
+    }
+}
+
+#[test]
+fn a_removed_or_late_guard_is_any_window_even_if_the_policy_table_remains() {
+    for body in ["Ok(())", r#"work(); guard(&window, "one")?; Ok(())"#] {
+        let found = surface_fixture(body, "main", "main");
+        assert!(
+            found.contains("command_guard_grant :: one :: guard=any grant=main"),
+            "{found:#?}"
+        );
+        assert!(
+            found.contains("command_guard_wrapper :: one :: guard=any wrapper=main"),
+            "{found:#?}"
+        );
+        assert!(
+            !found.iter().any(|v| v.starts_with("command_guard ::")),
+            "unguarded admission is known: {found:#?}"
+        );
+    }
+}
+
+#[test]
+fn guard_calls_use_the_called_helper_and_literal_policy_key() {
+    let lib = "fn run() { app.invoke_handler(tauri::generate_handler![commands::one]); }";
+    let permissions = BTreeMap::from([(
+        "actions.toml".into(),
+        "[[permission]]\nidentifier='actions'\ncommands.allow=['one']".into(),
+    )]);
+    let capabilities = BTreeMap::from([(
+        "main.json".into(),
+        r#"{"windows":["main"],"permissions":["actions"]}"#.into(),
+    )]);
+    let wrappers = BTreeMap::from([("one".into(), ["main".into()].into())]);
+    let policy = r#"fn allowed_caller(label: &str, command: &str) -> bool {
+        match command { "one" => label == "main", "other" => matches!(label, "companion" | "extra"), _ => false }
+    }
+    fn guard(window: &Window, name: &str) -> Result<(), String> {
+        if !allowed_caller(window.label(), name) { return Err("denied"); } Ok(())
+    }"#;
+    for (key, expected) in [
+        ("one", None),
+        (
+            "other",
+            Some("command_guard_grant :: one :: guard=companion,extra grant=main"),
+        ),
+    ] {
+        let sources = BTreeMap::from([
+            (
+                "commands/mod.rs".into(),
+                format!(
+                    r#"#[tauri::command] fn one(window: Window) {{ companion::guard(&window, "{key}")?; Ok(()) }}"#
+                ),
+            ),
+            ("commands/companion.rs".into(), policy.into()),
+        ]);
+        let found = inventory::surface_check(lib, &sources, &permissions, &capabilities, &wrappers);
+        if let Some(expected) = expected {
+            assert!(found.contains(expected), "{found:#?}");
+        } else {
+            assert!(found.is_empty(), "{found:#?}");
+        }
+    }
+}
+
+#[test]
+fn deny_only_capability_does_not_satisfy_wrapper_grants() {
+    let lib = "fn run() { app.invoke_handler(tauri::generate_handler![commands::one]); }";
+    let sources = BTreeMap::from([("commands/mod.rs".into(), r#"#[tauri::command] fn one(window: Window) { if window.label() != "main" { return Err("denied"); } Ok(()) }"#.into())]);
+    let permissions = BTreeMap::from([(
+        "deny.toml".into(),
+        "[[permission]]\nidentifier='deny-one'\ncommands.deny=['one']".into(),
+    )]);
+    let capabilities = BTreeMap::from([(
+        "main.json".into(),
+        r#"{"windows":["main"],"permissions":["deny-one"]}"#.into(),
+    )]);
+    let wrappers = BTreeMap::from([("one".into(), ["main".into()].into())]);
+    let found = inventory::surface_check(lib, &sources, &permissions, &capabilities, &wrappers);
+    assert!(
+        found.contains("command_grant_wrapper :: one :: grant=none wrapper=main"),
+        "{found:#?}"
+    );
+}

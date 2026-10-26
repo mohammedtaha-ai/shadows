@@ -1,3 +1,7 @@
+command_grant_wrapper :: set_companion_paused :: grant=main wrapper=companion,main
+command_grant_wrapper :: set_companion_visible :: grant=main wrapper=companion,main
+command_guard_wrapper :: set_companion_paused :: guard=main wrapper=companion,main
+command_guard_wrapper :: set_companion_visible :: guard=main wrapper=companion,main
 construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #1
 construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #2
 construction :: auth/acceptance.rs :: auth::service::AuthService::from_environment #3

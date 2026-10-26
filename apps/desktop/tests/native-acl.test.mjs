@@ -1,8 +1,111 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
 
-test('companion submission and editor commands have generated metadata and companion-only grants',()=>{
+const inventoryMode=process.argv.includes('--wrapper-inventory');
+const aclTest=inventoryMode?()=>{}:test;
+const require=createRequire(import.meta.url);
+let ts;
+try { ts=require('../../../web/node_modules/typescript'); }
+catch { ts=require('../node_modules/typescript'); }
+
+// Parse calls rather than string occurrences so types, comments and test data cannot grant coverage.
+function wrapperCalls(sources) {
+ const commands=new Map();
+ for(const [file,text] of Object.entries(sources)) {
+  if(/\.(test|spec)\.tsx?$/.test(file))continue;
+  const ast=ts.createSourceFile(file,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+  assert.equal(ast.parseDiagnostics.length,0,`${file}: TypeScript must parse`);
+  const callers=new Set(),namespaces=new Set();
+  for(const statement of ast.statements) {
+   if(!ts.isImportDeclaration(statement)||!ts.isStringLiteral(statement.moduleSpecifier))continue;
+   const module=statement.moduleSpecifier.text;
+   const bindings=statement.importClause?.namedBindings;
+   if(bindings&&ts.isNamedImports(bindings))for(const spec of bindings.elements) {
+    const name=(spec.propertyName??spec.name).text;
+    if((module==='@tauri-apps/api/core'&&name==='invoke')||
+       (/^\.\/native(?:\.ts)?$/.test(module)&&name==='nativeCall'))callers.add(spec.name.text);
+   }
+   if(module==='@tauri-apps/api/core'&&bindings&&ts.isNamespaceImport(bindings))namespaces.add(bindings.name.text);
+  }
+  const bridge=/(^|[/\\])native\.ts$/.test(file)&&ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='nativeCall'&&
+   n.parameters[0]?.name.getText(ast)==='command');
+  if(bridge)callers.add('nativeCall');
+  const visit=node=>{
+   if(ts.isCallExpression(node)) {
+    const callee=node.expression;
+    const native=(ts.isIdentifier(callee)&&callers.has(callee.text))||
+     (ts.isPropertyAccessExpression(callee)&&ts.isIdentifier(callee.expression)&&
+      namespaces.has(callee.expression.text)&&callee.name.text==='invoke');
+    if(native) {
+     const argument=node.arguments[0];
+     if(argument&&(ts.isStringLiteral(argument)||ts.isNoSubstitutionTemplateLiteral(argument))) {
+      const files=commands.get(argument.text)??new Set();files.add(file);commands.set(argument.text,files);
+     } else {
+      let enclosing=node.parent;
+      while(enclosing&&!ts.isFunctionDeclaration(enclosing))enclosing=enclosing.parent;
+      assert.ok(bridge&&enclosing===bridge&&argument&&ts.isIdentifier(argument)&&argument.text==='command',
+       `${file}: native wrapper command must be a literal`);
+     }
+    }
+   }
+   ts.forEachChild(node,visit);
+  };
+  visit(ast);
+ }
+ return commands;
+}
+function wrapperInventory() {
+ const result={};
+ for(const [surface,root] of [
+  ['main',new URL('../../../web/src/desktop/',import.meta.url)],
+  ['companion',new URL('../src/platform/',import.meta.url)],
+ ]) {
+  const sources={};
+  const walk=directory=>{
+   for(const entry of readdirSync(directory,{withFileTypes:true})) {
+    const url=new URL(entry.name+(entry.isDirectory()?'/':''),directory);
+    if(entry.isDirectory())walk(url);
+    else if(entry.name.endsWith('.ts'))sources[fileURLToPath(url)]=readFileSync(url,'utf8');
+   }
+  };
+  walk(root);
+  for(const command of wrapperCalls(sources).keys())(result[command]??=[]).push(surface);
+ }
+ return result;
+}
+if(inventoryMode)process.stdout.write(JSON.stringify(wrapperInventory()));
+
+aclTest('wrapper inventory resolves imported aliases and namespace calls without counting comments or tests',()=>{
+ const sources={
+  'main.ts':`import {invoke as call} from '@tauri-apps/api/core';
+   import {nativeCall as native} from './native';
+   import * as core from '@tauri-apps/api/core';
+   // call('comment');
+   const text="call('string')";
+   call<{ok:true}>('one');native('two');core.invoke('three');`,
+  'ignored.test.ts':`import {invoke} from '@tauri-apps/api/core';invoke('test_only');`,
+ };
+ assert.deepEqual([...wrapperCalls(sources).keys()].sort(),['one','three','two']);
+ assert.deepEqual([...wrapperCalls({'main.ts':`function invoke(){};invoke('unrelated');`}).keys()],[]);
+ assert.throws(()=>wrapperCalls({'main.ts':`import {invoke} from '@tauri-apps/api/core';invoke(command);`}),
+  /main\.ts: native wrapper command must be a literal/);
+});
+
+aclTest('deny metadata never contributes a generated capability grant',()=>{
+ const permissions={'deny-one':{commands:{deny:['one']}}};
+ const capabilities={main:{local:true,windows:['main'],permissions:['deny-one']}};
+ assert.deepEqual(grantedCommands(permissions,capabilities,'main'),[]);
+});
+function grantedCommands(permissions,capabilities,label) {
+ return Object.values(capabilities).filter(c=>c.local&&c.windows.includes(label))
+  .flatMap(c=>c.permissions.flatMap(p=>permissions[typeof p==='string'?p:p.identifier]?.commands.allow??[]));
+}
+
+
+aclTest('companion submission and editor commands have generated metadata and companion-only grants',()=>{
  const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
  const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));
  const capabilities=JSON.parse(readFileSync(new URL('capabilities.json',root),'utf8'));
@@ -19,7 +122,7 @@ test('companion submission and editor commands have generated metadata and compa
  }
 });
 
-test('generated native permissions grant sidecar access only to main',()=>{
+aclTest('generated native permissions grant sidecar access only to main',()=>{
  const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
  const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));
  const capabilities=JSON.parse(readFileSync(new URL('capabilities.json',root),'utf8'));
@@ -41,7 +144,7 @@ test('generated native permissions grant sidecar access only to main',()=>{
  assert.ok(permissions['allow-aylul-call']?.commands.allow.includes('aylul_call'),'command metadata must be generated');
 });
 
- test('appearance refresh is granted only to main',()=>{
+ aclTest('appearance refresh is granted only to main',()=>{
  const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
  const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));
  const capabilities=JSON.parse(readFileSync(new URL('capabilities.json',root),'utf8'));
@@ -53,7 +156,7 @@ test('generated native permissions grant sidecar access only to main',()=>{
  assert.ok(permissions['allow-refresh-companion-appearance']?.commands.allow.includes('refresh_companion_appearance'));
  });
 
-test('desktop preferences are granted only to main',()=>{
+aclTest('desktop preferences are granted only to main',()=>{
  const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
  const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));
  const capabilities=JSON.parse(readFileSync(new URL('capabilities.json',root),'utf8'));
