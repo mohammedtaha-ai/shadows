@@ -53,13 +53,11 @@ settings dialog, PR #40) at `1a2b601`.
   `use-session-settings.ts` (the shape packet a gave its hook); the `conversation` rows of
   `docs/frontend/codebase/README.md`
 - Touch: `web/src/app/conversation/composer.tsx`; a new `use-images.ts` (the selected images:
-  list, Core's image reason, add, pick, retry, remove, and dropping those a send took) and its
-  test `use-images.test.tsx`; a new `pending-images.tsx` (the image list with its previews,
-  status lines and Retry/Remove buttons, today's `ImagePreview` included); `composer-bar.test.tsx`
-  only to move out the tests that exercise attachments alone;
+  list, Core's image reason, add, pick, retry, remove, and dropping those a send took); a new
+  `pending-images.tsx` (the image list with its previews,
+  status lines and Retry/Remove buttons, today's `ImagePreview` included);
   `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the new files'
-  rows); `web/src/architecture.baseline.txt` only if a moved test carries an existing entry with
-  it (one-to-one); this task's `Status:`
+  rows); this task's `Status:`
 - Needs: F-33 (done)
 - Done when: `composer.tsx` keeps no image state, no `uploadImages`/`retryImageUpload` call
   outside the send and queue mutations, no `imageReason` computation and no `ImagePreview`; the
@@ -68,9 +66,9 @@ settings dialog, PR #40) at `1a2b601`.
   in a thread and on Send in a draft, a selection change still drops the pending send attempt,
   Core's image refusal still shows its reason on the error line, removing an uploading image
   still keeps its late answer out of the send, switching conversations still revokes local
-  previews, and Send/queue still wait for uploads and send ids in selection order. The tests
-  that pinned attachments alone move with assertions unchanged; tests that also cover send or
-  queue stay. From `web/`: `npx vitest run src/app/conversation src/architecture.test.ts
+  previews, and Send/queue still wait for uploads and send ids in selection order. The attachment
+  tests stay in `composer-bar.test.tsx` unchanged (they share its upload stub with the send and
+  queue tests) and pass through the composer. From `web/`: `npx vitest run src/app/conversation src/architecture.test.ts
   src/codemap.test.ts`, `npm run typecheck`, `npm run lint` and `npm run build` pass
 
 ### F-28 · Each settings form saves only the fields it changed
