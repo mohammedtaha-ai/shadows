@@ -150,7 +150,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/agreements.ts` | Agreement server state | `web/src/api/contract.yaml` |
 | `web/src/api/code.ts` | Code index server state | `web/src/api/contract.yaml` |
 | `web/src/api/directories.ts` | Directory query identities | `web/src/api/contract.yaml` |
-| `web/src/api/harnesses.ts` | Harness query identity | `web/src/api/contract.yaml` |
+| `web/src/api/harnesses.ts` | Harness capabilities server state | `web/src/api/contract.yaml` |
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
 | `web/src/api/projects.ts` | Project server state | `web/src/api/contract.yaml` |
 | `web/src/api/sessions.ts` | Harness session server state | `web/src/api/contract.yaml` |

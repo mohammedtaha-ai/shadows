@@ -10,7 +10,7 @@ import { type Choice, type SessionChoices, type TurnSettings, changeModel, openS
 import { createThread, startTurn } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
-import { harnessesQuery } from '@/api/queries'
+import { harnessesQuery } from '@/api/harnesses'
 import { planVersionsQuery, plansQuery } from '@/api/workflows'
 import { projectsQuery } from '@/api/projects'
 import { threadsQuery } from '@/api/threads'

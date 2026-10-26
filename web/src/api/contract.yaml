@@ -738,3 +738,9 @@ design_operations:
   operations: "getStandards saveStandardsAdditions getStage"
   types: "EffectiveStandards StandardsAdditions StandardsAdditionsVersion StageView; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
+
+harnesses_operations:
+  owner: harnesses.ts
+  operations: "listHarnesses"
+  types: "HarnessInfo; generated schema aliases"
+  transport: "transport/index.ts owns the shared generated client and error mapping"

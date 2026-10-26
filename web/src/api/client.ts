@@ -6,13 +6,6 @@ import type { components } from './schema'
 type Schemas = components['schemas']
 export type DirectoryListing = Schemas['DirectoryListing']
 export type DirectoryEntry = Schemas['DirectoryEntry']
-export type HarnessInfo = Schemas['HarnessInfo']
-
-/** The CLIs a conversation can run on, with what each remembers and its
- * latest reported limits (spec §12.10). */
-export function listHarnesses(): Promise<HarnessInfo[]> {
-  return unwrap(client.GET('/api/harnesses'))
-}
 
 /** One directory's subdirectories, or with no path the roots (drives). */
 export function listDirs(path: string | null): Promise<DirectoryListing> {

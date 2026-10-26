@@ -6,5 +6,3 @@
 
 
 export { dirsQuery } from './directories'
-
-export { harnessesQuery } from './harnesses'
