@@ -300,6 +300,29 @@ settings dialog, PR #40) at `1a2b601`.
   `npx vitest run src/app/conversation src/architecture.test.ts src/codemap.test.ts`,
   `npm run typecheck` and `npm run lint` pass
 
+### F-43 · W-12a: the test harness and the fake event source live in `test/`
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-12--put-test-infrastructure-under-its-owner
+  (the harness move; F-42 split the composer test file).
+- Read: `web/src/app/test-app.tsx`, `web/src/stream/fake-event-source.ts`, the `web/src/test/`
+  files; the `test-support` module row and the "Test-only code never reaches the product" lines
+  of `docs/frontend/codebase/README.md`; the FakeSource note in `web/src/stream/contract.yaml`;
+  `web/src/architecture.test.ts` (`compare`, the fixture-import and production-test checks);
+  `web/src/architecture.baseline.txt`
+- Touch: `web/src/app/test-app.tsx` → `web/src/test/test-app.tsx`;
+  `web/src/stream/fake-event-source.ts` → `web/src/test/fake-event-source.ts`; the import line of
+  every file that imports either (tests, `web/src/test/*`); `web/src/architecture.baseline.txt`
+  (the `public_entry :: stream/fake-event-source.ts :: ...` entry moves one-for-one to the new
+  path; none added); `docs/frontend/codebase/README.md` (the `test-support` row's paths and
+  entries, the two file rows, the "Test-only code" lines); `web/src/stream/contract.yaml` and
+  any contract that names either old path; this task's `Status:`
+- Needs: F-42 (done)
+- Done when: no file under `app/` or `stream/` is a test harness or test double; both files are
+  moved with `git mv` and their contents change only in import paths; every other file changes
+  only in import lines; the production-reachability check stays clean; the baseline's entry
+  count is unchanged. From `web/`: `npx vitest run`, `npm run typecheck`, `npm run lint` and
+  `npm run build` pass
+
 ### F-28 · Each settings form saves only the fields it changed
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
