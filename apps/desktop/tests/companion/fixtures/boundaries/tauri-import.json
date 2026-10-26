@@ -1,0 +1,8 @@
+{
+  "sources": {
+    "src/app/bad.tsx": "export { invoke } from '@tauri-apps/api/core';"
+  },
+  "expected": [
+    "tauri-import :: src/app/bad.tsx :: @tauri-apps/api/core #1"
+  ]
+}

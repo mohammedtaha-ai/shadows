@@ -9,8 +9,6 @@ const nativeTransport:CompanionTransport={
 export function connectCompanion(onState:(state:CompanionState)=>void,onError:(reason:string)=>void,ready=false,transport=nativeTransport):()=>void {
   return connectState(transport,onState,onError,ready);
 }
-export async function setCompanionVisible(visible:boolean):Promise<CompanionState>{return acceptState(null,await invoke('set_companion_visible',{visible}));}
-export async function setCompanionPaused(paused:boolean):Promise<CompanionState>{return acceptState(null,await invoke('set_companion_paused',{paused}));}
 export async function setCompanionInput(open:boolean):Promise<CompanionState>{return acceptState(null,await invoke('companion_input',{open}));}
 export async function sendFromCompanion(text:string,commandId:string,context:string):Promise<{threadId:string;operationId:string}>{
  const value=await invoke<{threadId:string;operationId:string}>('companion_send',{submission:{text,commandId,context}});

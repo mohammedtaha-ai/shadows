@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import table from '../../../../assets/aylul/character-colors.json' with { type: 'json' };
-import { paletteFor, rgba } from '../../src/features/companion/renderer/palette.ts';
+import table from '../../../../../../assets/aylul/character-colors.json' with { type: 'json' };
+import { paletteFor, rgba } from './palette.ts';
 
 const keys = [
   'glow', 'glowSoft', 'glowPale', 'glowMist', 'rimLeft', 'spark', 'sparkDeep',

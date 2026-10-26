@@ -53,8 +53,8 @@ test("production includes companion and excludes studio modules and remote asset
     "development studio must not be bundled",
   );
   assert.ok(
-    !ids.some((id) => id.includes("/tests/")),
-    "test fixture must not be bundled",
+    !ids.some((id) => id.includes("/tests/") || /\.test\.[cm]?[jt]sx?(?:\?|$)/.test(id) || /\/(?:__)?fixtures(?:__)?\//.test(id)),
+    "co-located tests and test fixtures must not be bundled",
   );
   assert.ok(
     resources.every(

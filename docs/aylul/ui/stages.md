@@ -16,7 +16,7 @@ Finished work (the text input, the shared dashboard, U-W1 to U-W3, H-2) is in th
 ## Tasks
 
 ### U-4 · D-10 (UI part): companion import boundaries are checked and UI unit tests sit with their owners
-- Status: todo
+- Status: done
 - Plan: docs/aylul/native/plans/2026-10-25-desktop-architecture.md#d-10--enforce-ts-entry-boundaries-and-place-unit-tests-with-owners
   and section 6 ("TS modules and entries")
 - Read: the plan's section 6 ("TS modules and entries", "Ratchet design"); `apps/desktop/src/platform/contract.yaml`;

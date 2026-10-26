@@ -1,0 +1,9 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "void import('../../tests/companion/fixtures/scene');",
+    "tests/companion/fixtures/scene/index.tsx": "export const scene = 1;"
+  },
+  "expected": [
+    "production-import :: src/app/companion.tsx :: tests/companion/fixtures/scene/index.tsx #1"
+  ]
+}

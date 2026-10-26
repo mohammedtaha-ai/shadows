@@ -1,0 +1,8 @@
+{
+  "sources": {
+    "src/app/companion.tsx": "const name = \"./hidden\"; void import(name);"
+  },
+  "expected": [
+    "dynamic-import :: src/app/companion.tsx :: import(name) #1"
+  ]
+}

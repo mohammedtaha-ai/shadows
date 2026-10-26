@@ -1,0 +1,11 @@
+{
+  "sources": {
+    "src/features/companion/studio/bad.tsx": "import '../renderer/../renderer/draw.tsx'; import '../animation';",
+    "src/features/companion/renderer/draw.tsx": "export const draw = 1;",
+    "src/features/companion/animation/index.tsx": "export const motion = 1;"
+  },
+  "expected": [
+    "studio-entry :: src/features/companion/studio/bad.tsx :: src/features/companion/animation/index.tsx -> src/features/companion/animation/index.tsx #1",
+    "studio-entry :: src/features/companion/studio/bad.tsx :: src/features/companion/renderer/draw.tsx -> src/features/companion/renderer/draw.tsx #1"
+  ]
+}

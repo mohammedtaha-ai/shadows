@@ -1,0 +1,3 @@
+studio-entry :: src/features/companion/studio/CompanionStudio.tsx :: src/features/companion/animation/model.ts -> src/features/companion/animation/model.ts #1
+studio-entry :: src/features/companion/studio/PreviewGrid.tsx :: src/features/companion/renderer/character.ts -> src/features/companion/renderer/character.ts #1
+studio-entry :: src/features/companion/studio/export.ts :: src/features/companion/renderer/character.ts -> src/features/companion/renderer/character.ts #1

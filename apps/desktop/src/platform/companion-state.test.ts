@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {acceptState, connectState} from '../../src/platform/companion-state.ts';
+import {acceptState, connectState} from './companion-state.ts';
 const composer={open:false,revision:0,scope:null,context:null,agent:null};
 const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple'};
 test('composer view is validated and never optional',()=>{

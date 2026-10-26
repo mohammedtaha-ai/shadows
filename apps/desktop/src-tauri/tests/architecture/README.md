@@ -116,17 +116,6 @@ template or any other dynamic argument fails, except the bridge's own
 are not calls. This is bounded AST analysis, not TypeScript type checking or runtime
 IPC acceptance; a new bridge form needs explicit scanner coverage.
 
-Exact N-19 baseline reasons (product files remain unchanged). Both companion
-wrappers are dead: `apps/desktop/src/platform/companion.ts` exports
-`setCompanionVisible` and `setCompanionPaused`, but no companion source imports
-them, the platform contract itself calls them main-only, and the native guard and
-`companion.json` refuse the companion as intended. The live caller is main's
-`web/src/desktop/native.ts`.
-- `command_grant_wrapper :: set_companion_paused`: the companion platform exports an unused pause wrapper; only main has an allow grant.
-- `command_grant_wrapper :: set_companion_visible`: the companion platform exports an unused visibility wrapper; only main has an allow grant.
-- `command_guard_wrapper :: set_companion_paused`: the companion platform exports an unused pause wrapper; the native guard admits only main.
-- `command_guard_wrapper :: set_companion_visible`: the companion platform exports an unused visibility wrapper; the native guard admits only main.
-
 Negative fixtures assert the exact finding for every pairwise disagreement,
 granted commands without wrappers, wrappers without grants, deny-only grants,
 removed/late guards, unsupported guard expressions, the actual helper policy key

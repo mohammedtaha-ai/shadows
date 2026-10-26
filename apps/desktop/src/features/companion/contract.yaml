@@ -39,10 +39,10 @@ obligations:
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: the companion window draws the state's colour
   - rule: The base palette preserves today's exact tones; unknown or missing colour IDs resolve to the same cached base palette.
-    tested_by: apps/desktop/tests/companion/palette.test.ts
+    tested_by: apps/desktop/src/features/companion/renderer/palette.test.ts
     test: an unknown or missing id draws purple
   - rule: Each colour derives a complete cached palette by rotating the base hue while preserving saturation and lightness, with explicit tone overrides taking precedence.
-    tested_by: apps/desktop/tests/companion/palette.test.ts
+    tested_by: apps/desktop/src/features/companion/renderer/palette.test.ts
     test: a derived tone keeps lightness and saturation
   - rule: An in-flight send keeps the textarea focusable but read-only so Escape can close the editor without changing or cancelling the submission.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
