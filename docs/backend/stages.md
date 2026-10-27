@@ -65,16 +65,20 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
 - Read: CLAUDE.md "Rules"; `crates/shadows-core/tests/sessions.rs` (`Fixture`: `_tmp` is
   declared before `storage`); the `tempfile` crate's `TempDir` drop, which ignores a failed
   removal
-- Touch: test code only: every struct, tuple or binding in `crates/*/tests/**` and
-  `crates/shadows-http/src/aylul_env_tests.rs` that holds a `tempfile::TempDir` together with
-  something that keeps a file inside it open (the SQLite `Storage`, an `AppCore`, a served app,
-  a process); this task's `Status:`
+- Touch: `crates/core-db/src/lib.rs` (one method, `Storage::close`, that closes the read
+  pool and the write connection and awaits both, so no file inside the database's folder stays
+  open) and `crates/core-db/contract.yaml`; test code: every struct, tuple or binding in
+  `crates/*/tests/**` and `crates/shadows-http/src/aylul_env_tests.rs` that holds a
+  `tempfile::TempDir` together with something that keeps a file inside it open (the SQLite
+  `Storage`, an `AppCore`, a served app, a process); this task's `Status:`
 - Needs: none
 - Why: Rust drops fields in declaration order. A `TempDir` dropped while a SQLite file inside it
   is still open cannot be removed on Windows, and the failure is silent: on 2026-10-27 the
   user's Temp held 9,488 `.tmp*` folders since 2026-10-23, 5,337 of them with `s.sqlite3`.
-- Done when: in each such holder the `TempDir` is dropped last (declared last, or dropped
-  explicitly after what holds files open is closed); production code is unchanged; a measured
+- Measured on 2026-10-27: declaring `_tmp` last in `sessions.rs` still left 12 folders per run,
+  because dropping a SQLx SQLite connection only signals its worker to close.
+- Done when: each such holder awaits `Storage::close` (or ends its process) before its
+  `TempDir` drops; no other production code changes; a measured
   run proves it: count `.tmp*` folders in `%TEMP%` before and after
   `cargo test -p shadows-core --test sessions` and after `cargo test -p shadows` and the touched
   packages, and the count does not grow; `cargo fmt --all --check` and
