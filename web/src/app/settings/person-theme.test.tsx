@@ -26,9 +26,7 @@ it('theme follows the shared person', async () => {
   const a = app = await startApp('/?settings=general', answers({ person: { ...person, theme: 'dark' } }))
   await until(() => document.documentElement.dataset.theme === 'dark')
   expect(document.documentElement.classList.contains('dark')).toBe(true)
-  const select = document.querySelector<HTMLSelectElement>('select[aria-label="Theme"]')!
-  act(() => { select.value = 'light'; select.dispatchEvent(new Event('change', { bubbles: true })) })
-  act(() => a.button('Save preferences')!.click())
+  act(() => a.button('Light')!.click())
   await until(() => document.documentElement.dataset.theme === 'light')
   expect(document.documentElement.classList.contains('dark')).toBe(false)
   expect(a.path()).toBe('/')

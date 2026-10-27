@@ -121,9 +121,8 @@ it.each(['desktop_preferences_load_failed', 'desktop_preferences_autostart_faile
 })
 it('a failed Core save does not disable or invoke native switches', async () => {
   await render(); await until(() => !launch().disabled)
-  const theme = host.querySelector<HTMLSelectElement>('[aria-label="Theme"]')!
-  act(() => { theme.value = 'dark'; theme.dispatchEvent(new Event('change', { bubbles: true })) })
-  coreFail = true; act(() => button('Save preferences').click())
+  coreFail = true
+  act(() => host.querySelector<HTMLButtonElement>('button[aria-label="Dark"]')!.click())
   await until(() => host.textContent?.includes('Core save failed.') === true)
   expect(launch().disabled).toBe(false); expect(tray().disabled).toBe(false)
   expect(invoke.mock.calls).toEqual([['desktop_preferences', undefined]])
