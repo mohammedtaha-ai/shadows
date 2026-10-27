@@ -75,7 +75,7 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
   `crates/*/tests/**` and the `crates/shadows-http/src/*_tests.rs` modules that holds a
   `tempfile::TempDir` together with something that keeps a file inside it open (the SQLite
   `Storage`, an `AppCore`, a served app, a process); `crates/shadows/tests/architecture/scanner.rs`
-  and its README, which admit the new test fixture; this task's `Status:`
+  and its README (`close` joins the foundation operations in `POOL_METHODS`); this task's `Status:`
 - Needs: none
 - Why: Rust drops fields in declaration order. A `TempDir` dropped while a SQLite file inside it
   is still open cannot be removed on Windows, and the failure is silent: on 2026-10-27 the
