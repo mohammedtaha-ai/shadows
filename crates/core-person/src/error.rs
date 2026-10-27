@@ -3,6 +3,8 @@ use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PersonError {
+    #[error("invalid profile: person patch has no fields")]
+    EmptyPatch,
     #[error("invalid profile: invalid person name")]
     InvalidName,
     #[error("invalid profile: person name is too long")]

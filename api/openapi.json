@@ -3117,7 +3117,7 @@
       "PersonCommand": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PersonInput"
+            "$ref": "#/components/schemas/PersonPatch"
           },
           {
             "properties": {
@@ -3132,7 +3132,7 @@
           }
         ]
       },
-      "PersonInput": {
+      "PersonPatch": {
         "properties": {
           "aylul_calls_me": {
             "type": [
@@ -3156,9 +3156,6 @@
             "$ref": "#/components/schemas/Theme"
           }
         },
-        "required": [
-          "theme"
-        ],
         "type": "object"
       },
       "Plan": {
@@ -7415,7 +7412,7 @@
           "aylul"
         ]
       },
-      "put": {
+      "patch": {
         "operationId": "set_person",
         "requestBody": {
           "content": {

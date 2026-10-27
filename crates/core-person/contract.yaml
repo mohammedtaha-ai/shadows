@@ -22,15 +22,15 @@ shapes:
     storage: Arc<Storage> # Private to person; shares the existing pool.
   Person:
     updated_at: Null before the first write
-  PersonInput:
-    note: Replaces the complete person record
+  PersonPatch:
+    note: Sent names and language are absent, null to clear, or a value; theme is absent or a non-null value.
   Theme:
     note: Dark, light or system; defaults to system before the first write
 
 functions:
   new: "(storage: Arc<Storage>) -> PersonSettings"
   person: Read the person record or its defaults without a write.
-  set_person: Validate and replace the record under one command.
+  update_person: Validate only sent fields and merge them into the stored row inside one write transaction; refuse an empty patch.
   normalize_name: private; trim a name, refuse controls and line breaks, and make empty null.
   language_tag: private; a short tag shape, not a list.
 
@@ -41,5 +41,11 @@ obligations:
     tested_by: [person_names_are_checked]
   - rule: Language is a short tag shape, not a list; theme is dark, light or system.
     tested_by: [language_tag_shape_is_checked, theme_values_are_checked]
-  - rule: Person replay requires the same normalized input and writes nothing on replay or conflict.
-    tested_by: [person_replay_with_other_input_conflicts]
+  - rule: Person replay requires the same normalized patch as sent and writes nothing on replay or conflict.
+    tested_by: [person_replay_with_other_input_conflicts, independent_patches_preserve_other_fields]
+  - rule: Absent fields keep their stored values; null clears names or language, never theme.
+    tested_by: [patch_distinguishes_absent_null_and_value, independent_patches_preserve_other_fields, concurrent_patches_preserve_each_others_fields]
+  - rule: Only sent fields are validated.
+    tested_by: [unsent_fields_are_not_validated]
+  - rule: Empty patches are refused without writing.
+    tested_by: [independent_patches_preserve_other_fields]

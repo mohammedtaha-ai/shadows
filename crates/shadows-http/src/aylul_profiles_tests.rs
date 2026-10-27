@@ -361,7 +361,7 @@ async fn me_round_trips() {
     );
     let input = json!({"command_id":"person","name":"  Alex  ","aylul_calls_me":"Lex",
         "language":"en","theme":"dark"});
-    let (status, p) = call(&w, "PUT", "/api/me", input.clone()).await;
+    let (status, p) = call(&w, "PATCH", "/api/me", input.clone()).await;
     assert_eq!(status, 200);
     assert_eq!(p["name"], "Alex");
     assert_eq!(p["aylul_calls_me"], "Lex");
@@ -371,7 +371,7 @@ async fn me_round_trips() {
     assert_eq!(call(&w, "GET", "/api/me", Value::Null).await.1, p);
     let mut changed = input.clone();
     changed["theme"] = "light".into();
-    assert_eq!(call(&w, "PUT", "/api/me", changed).await.0, 409);
+    assert_eq!(call(&w, "PATCH", "/api/me", changed).await.0, 409);
     for (field, value) in [
         ("theme", "other"),
         ("name", "bad\nname"),
@@ -380,9 +380,105 @@ async fn me_round_trips() {
         let mut bad = input.clone();
         bad["command_id"] = field.into();
         bad[field] = value.into();
-        assert_eq!(call(&w, "PUT", "/api/me", bad).await.0, 400);
+        assert_eq!(call(&w, "PATCH", "/api/me", bad).await.0, 400);
     }
 
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn me_partial_updates_preserve_fields_and_refuse_empty_patches() {
+    let w = world(false, false).await;
+    let seed = json!({"command_id":"seed", "name":"Alex", "aylul_calls_me":"Lex", "language":"en", "theme":"dark"});
+    assert_eq!(call(&w, "PATCH", "/api/me", seed.clone()).await.0, 200);
+    let name_patch = json!({"command_id":"name", "name":"  Alex Smith  "});
+    assert_eq!(
+        call(&w, "PATCH", "/api/me", name_patch.clone()).await.0,
+        200
+    );
+    let (status, updated) = call(
+        &w,
+        "PATCH",
+        "/api/me",
+        json!({"command_id":"theme", "theme":"light"}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(updated["name"], "Alex Smith");
+    assert_eq!(updated["aylul_calls_me"], "Lex");
+    assert_eq!(updated["language"], "en");
+    assert_eq!(updated["theme"], "light");
+    assert_eq!(call(&w, "PATCH", "/api/me", name_patch).await.1, updated);
+    for changed in [
+        json!({"command_id":"name", "name":"Alex Smith", "language":"en"}),
+        json!({"command_id":"name", "theme":"light"}),
+    ] {
+        let (status, body) = call(&w, "PATCH", "/api/me", changed).await;
+        assert_eq!(status, 409);
+        assert_eq!(body["code"], "COMMAND_CONFLICT");
+    }
+    let (status, empty) = call(&w, "PATCH", "/api/me", json!({"command_id":"empty"})).await;
+    assert_eq!(status, 400);
+    assert_eq!(empty["code"], "PROFILE_INVALID");
+    assert_eq!(
+        empty["message"],
+        "invalid profile: person patch has no fields"
+    );
+    assert_eq!(call(&w, "GET", "/api/me", Value::Null).await.1, updated);
+    for (field, value, message) in [
+        (
+            "name",
+            "bad\nname".to_owned(),
+            "invalid profile: invalid person name",
+        ),
+        (
+            "aylul_calls_me",
+            "a".repeat(65),
+            "invalid profile: person name is too long",
+        ),
+        (
+            "language",
+            "bad_tag".to_owned(),
+            "invalid profile: invalid language tag",
+        ),
+    ] {
+        let (status, body) = call(
+            &w,
+            "PATCH",
+            "/api/me",
+            json!({"command_id":field, field:value}),
+        )
+        .await;
+        assert_eq!(status, 400);
+        assert_eq!(body["message"], message);
+    }
+    assert_eq!(
+        call(
+            &w,
+            "PATCH",
+            "/api/me",
+            json!({"command_id":"null-theme", "theme":null})
+        )
+        .await
+        .0,
+        400
+    );
+    let (status, cleared) = call(
+        &w,
+        "PATCH",
+        "/api/me",
+        json!({"command_id":"clear", "name":null,"aylul_calls_me":null,"language":null}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    for field in ["name", "aylul_calls_me", "language"] {
+        assert!(cleared[field].is_null());
+    }
+    assert_eq!(cleared["theme"], "light");
+    assert_eq!(call(&w, "PUT", "/api/me", seed).await.0, 405);
     w.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

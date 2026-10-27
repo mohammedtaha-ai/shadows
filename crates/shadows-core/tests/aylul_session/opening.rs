@@ -430,7 +430,7 @@ async fn opening_names_the_person() {
         .unwrap();
         w.core
             .person()
-            .set_person(format!("person-{i}"), input)
+            .update_person(format!("person-{i}"), input)
             .await
             .unwrap();
         let report = reply(&w, &w.thread, "fake-large", "high").await;
@@ -442,7 +442,7 @@ async fn opening_names_the_person() {
         .unwrap();
         w.core
             .person()
-            .set_person(format!("live-person-{i}"), changed)
+            .update_person(format!("live-person-{i}"), changed)
             .await
             .unwrap();
         let retained = reply(&w, &w.thread, "fake-large", "high").await;
@@ -464,7 +464,7 @@ async fn opening_without_person_appends_nothing() {
     .unwrap();
     w.core
         .person()
-        .set_person("empty-person".into(), empty)
+        .update_person("empty-person".into(), empty)
         .await
         .unwrap();
     let report = reply(&w, &w.thread, "fake-large", "high").await;

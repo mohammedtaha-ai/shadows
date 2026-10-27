@@ -1,5 +1,5 @@
 //! SQL for the one person row.
-use super::{Person, PersonInput, Theme};
+use super::{Person, PersonPatch, Theme};
 use core_db::{CommandContext, Storage, StorageError};
 use sqlx::Row;
 use std::sync::Arc;
@@ -40,7 +40,7 @@ impl PersonStore {
     pub(super) async fn save(
         &self,
         command: CommandContext,
-        input: PersonInput,
+        input: PersonPatch,
     ) -> Result<(), StorageError> {
         self.storage
             .write_txn(move |conn| {
@@ -52,7 +52,25 @@ impl PersonStore {
                     {
                         return Ok(());
                     }
-                    let theme = match input.theme {
+                    // Merge against the current row under the writer lock to preserve unsent fields.
+                    let row = sqlx::query(
+                        "SELECT name,aylul_calls_me,language,theme FROM aylul_person WHERE id=1",
+                    )
+                    .fetch_optional(&mut *conn)
+                    .await?;
+                    let stored = match row {
+                        Some(row) => Person {
+                            name: row.get("name"),
+                            aylul_calls_me: row.get("aylul_calls_me"),
+                            language: row.get("language"),
+                            theme: serde_json::from_value(serde_json::Value::String(
+                                row.get("theme"),
+                            ))?,
+                            updated_at: None,
+                        },
+                        None => Person::default(),
+                    };
+                    let theme = match input.theme.unwrap_or(stored.theme) {
                         Theme::Dark => "dark",
                         Theme::Light => "light",
                         Theme::System => "system",
@@ -63,9 +81,9 @@ impl PersonStore {
                 aylul_calls_me=excluded.aylul_calls_me, language=excluded.language,
                 theme=excluded.theme, updated_at=excluded.updated_at",
                     )
-                    .bind(input.name)
-                    .bind(input.aylul_calls_me)
-                    .bind(input.language)
+                    .bind(input.name.unwrap_or(stored.name))
+                    .bind(input.aylul_calls_me.unwrap_or(stored.aylul_calls_me))
+                    .bind(input.language.unwrap_or(stored.language))
                     .bind(theme)
                     .bind(Storage::now())
                     .execute(&mut *conn)

@@ -28,7 +28,7 @@ A-22 (product workspaces) is deferred on 2026-10-28: its trigger is in
 ## Tasks
 
 ### B-13 · The person record takes a partial update
-- Status: todo
+- Status: done
 - Read: the accepted request `docs/shared/requests/2026-10-26-partial-person-update.md`;
   `crates/shadows-core/src/app.rs` (`PersonSettings` owns the person record);
   `crates/core-person/contract.yaml`
