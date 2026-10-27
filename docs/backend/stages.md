@@ -38,7 +38,9 @@ A-22 (product workspaces) is deferred on 2026-10-28: its trigger is in
   or a value; `theme` absent or a value), `store/mod.rs` (read the row, apply the patch and
   write it inside the one write transaction), `error.rs` (the no-field refusal), and
   `contract.yaml`; `crates/core-person/tests/person.rs`; the person type re-export in
-  `crates/shadows-core/src/lib.rs`; `crates/shadows-http/src/aylul_person.rs`
+  `crates/shadows-core/src/lib.rs` and the `PersonError` mapping in `crates/shadows-core/src/error.rs`
+  (the no-field refusal is a `ProfileInvalid`, a 400); the `set_person` calls in
+  `crates/shadows-core/tests/aylul_session/opening.rs`; `crates/shadows-http/src/aylul_person.rs`
   (`PUT /api/me` becomes `PATCH /api/me`) and its line in `crates/shadows-http/src/lib.rs`;
   `crates/shadows-http/src/aylul_profiles_tests.rs` (the person tests);
   `crates/shadows/tests/openapi.rs` if it names the route; `api/openapi.json` by
