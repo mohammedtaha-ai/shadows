@@ -54,6 +54,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 
 | Task | What it removes | Status | Why |
 |---|---|---|---|
+| Product workspaces (A-22) | `runtime/` and `code-intelligence/` as their own workspaces, each with its own lockfile, `target/` and CI job | planned | Deferred 2026-10-28: nothing new lives there yet, and a second build cache costs more than it protects. Starts at the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own. [Plan](./backend/plans/2026-10-21-architecture.md#a-22--split-the-repository-by-product) |
 | Remove mx | Its disabled hook scripts, `mx*` skills, permission lines, the `mxai-knowledge` MCP server and the mx block in the global `CLAUDE.md` | idea | [vision §1](./vision.md#1-the-problem) (memory tools did not help) |
 
 ## Adding to this list

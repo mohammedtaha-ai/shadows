@@ -22,6 +22,9 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
 A-7b (the breakdown route goes) and B-12 (test fixtures close their database before their
 folder goes) shipped in PR #45 (`5a0af4ff`); their entries are in this file at `29ddfd88`.
 
+A-22 (product workspaces) is deferred on 2026-10-28: its trigger is in
+[docs/future.md](../future.md) "Housekeeping"; its entry is in this file at `3dc2437f`.
+
 ## Tasks
 
 ### A-8b · The binary has one start and no second surface
@@ -31,14 +34,6 @@ folder goes) shipped in PR #45 (`5a0af4ff`); their entries are in this file at `
 - Touch: crates/shadows/src/, crates/shadows-http/src/ (the moved route), Core methods they need
 - Needs: controller names each product-host operation's owner and exact paths; integration-spec amendment if ownership changes
 - Done when: `cargo test -p shadows` passes; the binary holds only configuration, tracing, binding and signals
-
-### A-22 · Split the repository into workspaces
-- Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#a-22--split-the-repository-by-product
-- Read: the plan section; CLAUDE.md "Workspaces"
-- Touch: runtime/ and code-intelligence/ (new), Cargo.toml, CLAUDE.md, AGENTS.md, docs/codebase/README.md, the codemap test, .github/workflows/ci.yml
-- Needs: controller records all path/dev dependencies, test binary lookups, feature changes and native consumers; separate delivery branch
-- Done when: each workspace's applicable gate passes from its own root and affected native consumers compile; Core retains its OpenAPI gate
 
 ### B-A2 · Prepare Core's scoped context contract
 - Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)

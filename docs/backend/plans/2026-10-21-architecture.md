@@ -568,6 +568,7 @@ SQL ownership, adapter access and map coverage across every extracted crate.
 ## Phase 5 · Workspaces
 
 ### A-22 · Split the repository by product
+Deferred (2026-10-28) until the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own; the trigger is in `docs/future.md`.
 Separate delivery after A-19c. Its controller preparation must enumerate every
 path dependency, dev-dependency, test binary lookup, lockfile, feature and native
 consumer before authorizing a move. Keeping all Core crates in the root workspace
@@ -656,7 +657,8 @@ are corrected. A-0's list (c) is empty.
 4. **Adapters and cleanup:** A-20/A-21 and A-23 can be separate scoped commits
    once their owners stabilize. Coordinate F-18/F-19 through shared requests;
    do not combine competing edits to `web/src/api/` just because task IDs differ.
-5. **Product workspaces:** A-22 is a later delivery with its own gate changes.
+5. **Product workspaces:** A-22 is deferred until its trigger in `docs/future.md`; it is a
+   later delivery with its own gate changes.
    **Runtime replacement:** Phase 6 has its own accepted design and evidence.
 
 Use short delivery branches and one task per commit. Before each PR, run that
