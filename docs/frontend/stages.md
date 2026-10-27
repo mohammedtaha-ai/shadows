@@ -50,7 +50,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: one plan-refresh owner, one ProposalCard, one confirm pattern; web tests pass
 
 ### F-22 · The context ring shows the summary only
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-7b--remove-the-breakdown-route-after-agreement
 - Read: the accepted request `docs/shared/requests/2026-10-27-summary-only-context-ring.md`;
   harness controls §12.8; `web/src/app/conversation/context-ring.tsx` and its test;

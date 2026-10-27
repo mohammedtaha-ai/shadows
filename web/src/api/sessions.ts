@@ -50,7 +50,6 @@ export type AccountLimits = components['schemas']['AccountLimits']
 
 export type TurnSettings = components['schemas']['TurnSettings']
 
-export type ContextBreakdown = components['schemas']['ContextBreakdown']
 
 /** Opens the thread's harness session if it is not open; answers what it
  * offers now. Idempotent: an open session answers what it holds. */
@@ -90,10 +89,4 @@ export function changeMode(threadId: string, commandId: string, mode: string): P
       body: { command_id: commandId, mode },
     }),
   )
-}
-
-/** The session's context breakdown, read on demand, or none with the reason
- *. */
-export function readContext(threadId: string): Promise<ContextBreakdown> {
-  return unwrap(client.GET('/api/threads/{id}/context', { params: { path: { id: threadId } } }))
 }

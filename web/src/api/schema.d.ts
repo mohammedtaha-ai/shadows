@@ -1170,28 +1170,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/threads/{id}/context": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The context breakdown of the thread's session, read on demand. It is fetched only on an open,
-         *     idle session that has answered a
-         *     turn, within five seconds; otherwise it says why it has none. Nothing is
-         *     written: no operation, no entry.
-         */
-        get: operations["thread_context"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/threads/{id}/entries": {
         parameters: {
             query?: never;
@@ -1747,22 +1725,6 @@ export interface components {
              * @description How many projects are active at once: 1 to 20, default 5.
              */
             active_limit: number;
-        };
-        /**
-         * @description The context breakdown read on demand: the categories, or none
-         *     with the reason.
-         */
-        ContextBreakdown: {
-            categories: components["schemas"]["ContextCategory"][] | null;
-            reason: string | null;
-        };
-        /** @description One category of the context breakdown. */
-        ContextCategory: {
-            name: string;
-            /** Format: double */
-            percent: number;
-            /** Format: int64 */
-            tokens: number;
         };
         ContractHead: {
             header: string;
@@ -6979,46 +6941,6 @@ export interface operations {
                 };
             };
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    thread_context: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The thread */
-                id: components["schemas"]["ThreadId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContextBreakdown"];
-                };
-            };
-            /** @description INVALID_COMMAND: no such thread */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
                 headers: {
                     [name: string]: unknown;
                 };

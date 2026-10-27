@@ -40,8 +40,6 @@ export interface Overrides {
   start?: Answer
   /** `POST /api/threads/t1/fork` */
   fork?: Answer
-  /** `GET /api/threads/t1/context` */
-  context?: Answer
   /** `GET /api/projects/p1/workflows`; none by default. */
   plans?: PlanListing[]
   /** `GET /api/workflows/w1`; `planFixture()` by default. */
@@ -140,7 +138,6 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     },
     'POST /api/threads/t1/fork':
       o.fork ?? (() => Response.json({ ...threadFixture, id: 't9' }, { status: 201 })),
-    'GET /api/threads/t1/context': o.context ?? { categories: null, reason: 'No turn has run yet' },
     'GET /api/projects/p1/workflows': (request: Request) => {
       const url = new URL(request.url)
       const all = o.plans ?? []

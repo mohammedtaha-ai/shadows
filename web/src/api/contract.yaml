@@ -78,7 +78,6 @@ threads_and_turns:
   changeModel: "(threadId: string, model: string) -> Promise<SessionChoices>"
   changeEffort: "(threadId: string, effort: string) -> Promise<SessionChoices>"
   changeMode: "(threadId: string, commandId: string, mode: string) -> Promise<SessionChoices>; saves the mode and returns Core's choices"
-  readContext: "(threadId: string) -> Promise<ContextBreakdown>"
   listThreads: "(projectId: string) -> Promise<PlanningThread[]>"
   getThread: "(threadId: string) -> Promise<PlanningThread>"
   createThread: "(projectId: string, body: CreateThread) -> Promise<PlanningThread>"
@@ -707,8 +706,8 @@ threads_operations:
 
 sessions_operations:
   owner: sessions.ts
-  operations: "openSession changeModel changeEffort changeMode readContext"
-  types: "Choice SessionChoices AccountLimits TurnSettings ContextBreakdown; generated schema aliases"
+  operations: "openSession changeModel changeEffort changeMode"
+  types: "Choice SessionChoices AccountLimits TurnSettings; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 projects_operations:

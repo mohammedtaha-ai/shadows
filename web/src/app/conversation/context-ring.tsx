@@ -1,16 +1,12 @@
-// Use cached figures so the ring opens immediately; fetch the breakdown only on request.
+// Opens from the figures already held, with no daemon request; the full breakdown is the /context slash command.
 
-import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { readContext } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { LimitWindow, Limits } from '@/stream'
-import { ErrorLine } from '../error-line'
 import { type ContextFigures, contextShown, formatTokens, resetIn } from './usage'
 
 export function ContextRing({
-  threadId,
   usage,
   limits,
 }: {
@@ -19,7 +15,6 @@ export function ContextRing({
   limits: Limits | null
 }) {
   const shown = usage === null ? null : contextShown(usage.contextUsed, usage.contextWindow)
-  const breakdown = useMutation({ mutationFn: () => readContext(threadId) })
   // Reset times count from the moment the ring opened (Unix seconds).
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
 
@@ -54,30 +49,9 @@ export function ContextRing({
             <p className="text-faint-foreground">updated {clock(limits.observedAt)}</p>
           </section>
         )}
-        <div className="border-t border-border pt-2">
-          <Button variant="ghost" size="xs" onClick={() => breakdown.mutate()}>
-            Details
-          </Button>
-          {breakdown.isPending && <p className="px-2 text-muted-foreground">Reading…</p>}
-          {breakdown.error !== null && <ErrorLine error={breakdown.error} />}
-          {breakdown.data?.categories != null && (
-            <ul className="space-y-0.5 px-2 pt-1">
-              {breakdown.data.categories.map((c) => (
-                <li key={c.name} className="flex justify-between gap-3">
-                  <span>{c.name}</span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {formatTokens(c.tokens)} · {c.percent}%
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {breakdown.data !== undefined && breakdown.data.categories === null && (
-            <p className="px-2 pt-1 text-muted-foreground">
-              {breakdown.data.reason ?? 'No breakdown.'}
-            </p>
-          )}
-        </div>
+        <p className="border-t border-border pt-2 text-muted-foreground">
+          Type /context in the conversation for the full breakdown.
+        </p>
       </PopoverContent>
     </Popover>
   )

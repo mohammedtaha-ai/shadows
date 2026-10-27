@@ -278,7 +278,7 @@ components:
   ContextRing:
     signature: "(props: { threadId: string; usage: ContextFigures | null; limits: Limits | null })
       => JSX.Element"
-    # Opens at once. The breakdown is the only daemon read, and only on Details.
+    # Opens at once from the figures held and makes no daemon request; one muted line points to the /context slash command.
   DeletedConversation:
     signature: "(props: { thread: PlanningThread; projectId: string }) => JSX.Element"
     # Read-only history; never opens a session.
@@ -884,11 +884,11 @@ obligations:
       form is not tested. See the gap at modelName.
 
   - rule: >
-      The context ring opens at once with the figures held, or says there are none. The breakdown
-      is read only when Details is pressed.
+      The context ring opens at once with the figures held, or says there are none, and makes no
+      daemon request. The full breakdown is the /context slash command, which the composer sends.
     tested_by:
       - "opens at once with no figures and never shows a spinner"
-      - "opening the second level fetches the breakdown, or says why there is none"
+      - "opens with no daemon request and points to /context for the full breakdown"
 
   - rule: >
       The context summary shows context use, the five-hour and weekly limits with resets, and when
@@ -1060,12 +1060,6 @@ gaps:
     gap: >
       Remove takes a new crypto.randomUUID() per press. A retry after a lost response carries
       a new command id, so the daemon cannot recognize it as the same request.
-
-  - at: ContextRing
-    gap: >
-      The breakdown mutation's data is kept after the popover closes. Reopening shows the last
-      breakdown with no time, while the summary figures are live. The person cannot tell which is
-      current.
 
   - at: carrySend
     gap: >
@@ -1302,8 +1296,8 @@ tests:
     checks: "No figures yet text; no busy state; no fetch calls on open."
   - name: "shows the summary level: context, five-hour and weekly with resets, and when observed"
     checks: "Context figures, both limit bars with reset text and 'updated' appear on open."
-  - name: "opening the second level fetches the breakdown, or says why there is none"
-    checks: "Details fetches once and shows categories; a null breakdown shows its reason."
+  - name: "opens with no daemon request and points to /context for the full breakdown"
+    checks: "No request is made on open; the /context line shows and there is no Details button."
   - name: "a reply whose observed model differs from the requested one says both"
     checks: "'Asked for fake-small · answered by fake-large-answering' line shows (messages.tsx)."
   - name: "a reply answered by the model asked for says nothing more"
