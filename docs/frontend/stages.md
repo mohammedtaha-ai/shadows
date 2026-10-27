@@ -5,14 +5,13 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Left: F-22 is done on the delivery branch `context-ring-summary` with the backend's A-7b;
-the branch waits for its PR. F-28 waits on its Core
-request; F-18 and F-19's remaining `turn-state` part are the
+Left: F-28 waits on its Core request; F-18 and F-19's remaining `turn-state` part are the
 [web architecture plan](plans/2026-10-25-web-architecture.md)'s W-11, blocked by domain until
 Core supplies the facts. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
 
-Finished work: F-20, F-21 and F-33 to F-44 (W-9, W-10, W-12 and W-13, PR #44) are in this
+Finished work: F-22 (the context ring shows the summary only, PR #45) is in this file at
+`29ddfd88`; F-20, F-21 and F-33 to F-44 (W-9, W-10, W-12 and W-13, PR #44) are in this
 file at `4d5c022d`; F-16, F-17, F-26, F-27 and F-29 to F-32 (W-1 to W-8, PR #43) at
 `ca618f89`; F-1 and F-23 to F-25 (PR #41) at `c7e7bac4`; F-2 to F-12, F-14 and F-15 (the
 settings dialog, PR #40) at `1a2b601`.
@@ -48,26 +47,3 @@ settings dialog, PR #40) at `1a2b601`.
 - Touch: web/src/stream/, web/src/app/workflows/plan-frames.ts, the three proposal cards, the four confirm patterns, web/src/app/conversation/turn-state.ts
 - Needs: a shared request if `turn-state` needs a field Core does not send
 - Done when: one plan-refresh owner, one ProposalCard, one confirm pattern; web tests pass
-
-### F-22 · The context ring shows the summary only
-- Status: done
-- Plan: docs/backend/plans/2026-10-21-architecture.md#a-7b--remove-the-breakdown-route-after-agreement
-- Read: the accepted request `docs/shared/requests/2026-10-27-summary-only-context-ring.md`;
-  harness controls §12.8; `web/src/app/conversation/context-ring.tsx` and its test;
-  `web/src/api/sessions.ts`; the ring's lines in `web/src/app/conversation/contract.yaml`
-- Touch: `web/src/app/conversation/context-ring.tsx` (the Details button, the breakdown mutation
-  and the second level go; one muted line says to type `/context` in the conversation for the
-  full breakdown); `context-ring.test.tsx` (the second-level test becomes: the ring makes no
-  daemon request when opened, and shows the `/context` line); `web/src/app/conversation/conversation.tsx`
-  (the one line that renders the ring stops passing `threadId`, which the ring no longer reads);
-  `web/src/api/sessions.ts`
-  (`readContext`, `ContextBreakdown`); `web/src/api/schema.d.ts` by `npm run gen:api` only;
-  `web/src/test/fake-daemon.ts` (the `context` answer); `web/src/api/contract.yaml` and
-  `web/src/app/conversation/contract.yaml` (the breakdown lines, its test row and the stale-data
-  gap); `docs/frontend/codebase/README.md` if a row names the breakdown; this task's `Status:`
-- Needs: A-7b on the same branch (its regenerated OpenAPI); the accepted request above
-- Done when: the ring opens with the summary only and makes no request; a test proves it and
-  that typing `/context` still sends it as a slash command, which rests on A-2's generic
-  slash-command path (`session-commands.test.ts`, `slash-menu.test.tsx`) with no `/context` test of its own; the
-  schema has no `/api/threads/{id}/context`; from `web/`: `npx vitest run`, `npm run typecheck`,
-  `npm run lint` and `npm run build` pass
