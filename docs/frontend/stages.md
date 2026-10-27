@@ -67,6 +67,7 @@ settings dialog, PR #40) at `1a2b601`.
   gap); `docs/frontend/codebase/README.md` if a row names the breakdown; this task's `Status:`
 - Needs: A-7b on the same branch (its regenerated OpenAPI); the accepted request above
 - Done when: the ring opens with the summary only and makes no request; a test proves it and
-  that typing `/context` still sends it as a slash command (the existing composer path); the
+  that typing `/context` still sends it as a slash command, which rests on A-2's generic
+  slash-command path (`session-commands.test.ts`, `slash-menu.test.tsx`) with no `/context` test of its own; the
   schema has no `/api/threads/{id}/context`; from `web/`: `npx vitest run`, `npm run typecheck`,
   `npm run lint` and `npm run build` pass

@@ -19,6 +19,9 @@ whole-branch review run once before each delivery PR.
 A-6 is settled with no code change (Mohammed confirmed the approval-authority spec's §24.2
 on 2026-10-27); its entry is in this file at `4d5c022d`.
 
+A-7b and B-12 are done on the delivery branch `context-ring-summary` with the web's F-22;
+the branch waits for its PR.
+
 ## Tasks
 
 ### A-7b · Remove the breakdown route after agreement
@@ -49,7 +52,11 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
   - `api/openapi.json` by `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` only;
   - `crates/core-harness/contract.yaml`, `crates/core-turns/contract.yaml` where they name the
     breakdown, `docs/codebase/README.md`; §12.8 of the harness controls spec (the summary-only
-    ring, the OPEN block closed by the 2026-10-22 control run); this task's `Status:`
+    ring, the OPEN block closed by the 2026-10-22 control run) and its §12.10 route table,
+    §12.11 ring line and §12.13 checklist line that name the breakdown;
+    `crates/core-harness/src/schema_descriptions/context.txt` (deleted: only
+    `ContextBreakdown` read it); the session-hold comment in `crates/core-turns/src/lib.rs`;
+    the application-core spec's example that names `ContextBreakdown`; this task's `Status:`
 - Keep: `/context` typed as a turn (`crates/core-turns/tests/prompt.rs`,
   `crates/shadows/tests/planner_mcp.rs` stay green unchanged); `fake-acp`'s `/context` answer;
   the usage summary and harness limits.
@@ -71,7 +78,7 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
   close is the existing `StorageError::Unavailable`), `crates/core-db/src/error.rs` (a closed
   pool maps to `Unavailable`) and `crates/core-db/contract.yaml`;
   `crates/shadows-core/src/app.rs` (`AppCore::shut_down` closes storage last, after Code and
-  Turns have stopped and only when Turns stopped cleanly) and the AppCore contract line; test code: every struct, tuple or binding in
+  Turns have stopped and only when Turns stopped cleanly) and the Shutdown bullet of `docs/superpowers/specs/2026-09-26-application-core-design.md`; test code: every struct, tuple or binding in
   `crates/*/tests/**` and the `crates/shadows-http/src/*_tests.rs` modules that holds a
   `tempfile::TempDir` together with something that keeps a file inside it open (the SQLite
   `Storage`, an `AppCore`, a served app, a process); `crates/shadows/tests/architecture/scanner.rs`

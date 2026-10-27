@@ -557,7 +557,6 @@ source with "(fork)":
 | `GET /api/projects/{id}` | carries the allowed modes per harness |
 | `PATCH /api/projects/{id}` | new: `{ command_id, allowed_modes }` |
 | `POST /api/threads/{id}/fork` | new, §12.9 |
-| `GET /api/threads/{id}/context` | new: the context breakdown read on demand (§12.8); answers the categories, or none with the reason |
 | thread snapshot, operation events | carry the invocation's requested and observed values |
 | entries | a new kind, `PermissionRefused` |
 | SSE | new transient frames: `usage` (context and limits), `options` (the session's choices changed) |
@@ -592,7 +591,7 @@ Matches the mockup agreed on 2026-09-24:
   Skills settings of the conversation's AYLUL agent; in a project conversation it is
   absent until Shadows has its own plugins. Add folder and Connectors are not shown until
   they are designed.
-- **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
+- **Context ring** (`context-ring.tsx`): §12.8's summary; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.
 - **Allowed modes:** a per-harness checklist in Project settings (§13.11).
@@ -642,8 +641,8 @@ Phase B
     a fork's cannot be changed at all
 [ ] a new conversation starts at Accept edits and at the last model and effort used
 [ ] the ring shows figures or "no figures yet" and never spins; limits show their observed time
-[ ] the ring's second level shows the breakdown, or says why it has none; §12.8's OPEN
-    block is closed by reading the transcript after a /context
+[ ] the ring shows only the summary and makes no request; `/context` typed in the
+    conversation answers the breakdown as a message
 [ ] a model the account cannot use is refused with the harness's message;
     a model with no effort (Haiku 4.5) runs with none
 [ ] copy works on every message; fork from the last message opens a thread whose next turn

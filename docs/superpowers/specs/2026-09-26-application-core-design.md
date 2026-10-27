@@ -294,7 +294,7 @@ are created when their callers exist.
 - A request or response shape that is part of the HTTP contract stays in
   `shadows-http`. A shape a service computes moves to that service's `model.rs`,
   with the same name, fields and derives, so `api/openapi.json` does not change.
-  `HarnessInfo` and `ContextBreakdown` are examples.
+  `HarnessInfo` is an example.
 
 ## 14.6 Boundaries
 
