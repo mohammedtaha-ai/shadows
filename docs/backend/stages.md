@@ -65,9 +65,12 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
 - Read: CLAUDE.md "Rules"; `crates/shadows-core/tests/sessions.rs` (`Fixture`: `_tmp` is
   declared before `storage`); the `tempfile` crate's `TempDir` drop, which ignores a failed
   removal
-- Touch: `crates/core-db/src/lib.rs` (one method, `Storage::close`, that closes the read
-  pool and the write connection and awaits both, so no file inside the database's folder stays
-  open) and `crates/core-db/contract.yaml`; test code: every struct, tuple or binding in
+- Touch: `crates/core-db/src/lib.rs` (`Storage::close`, which closes the read pool and the
+  write connection and awaits both, so no file inside the database's folder stays open; the
+  writer is held as `Mutex<Option<SqliteConnection>>` so it can be taken, and a write after
+  close is the existing `StorageError::Unavailable`) and `crates/core-db/contract.yaml`;
+  `crates/shadows-core/src/app.rs` (`AppCore::shut_down` closes storage last, after Code and
+  Turns have stopped and only when Turns stopped cleanly) and the AppCore contract line; test code: every struct, tuple or binding in
   `crates/*/tests/**` and `crates/shadows-http/src/aylul_env_tests.rs` that holds a
   `tempfile::TempDir` together with something that keeps a file inside it open (the SQLite
   `Storage`, an `AppCore`, a served app, a process); this task's `Status:`
