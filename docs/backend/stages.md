@@ -68,12 +68,14 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
 - Touch: `crates/core-db/src/lib.rs` (`Storage::close`, which closes the read pool and the
   write connection and awaits both, so no file inside the database's folder stays open; the
   writer is held as `Mutex<Option<SqliteConnection>>` so it can be taken, and a write after
-  close is the existing `StorageError::Unavailable`) and `crates/core-db/contract.yaml`;
+  close is the existing `StorageError::Unavailable`), `crates/core-db/src/error.rs` (a closed
+  pool maps to `Unavailable`) and `crates/core-db/contract.yaml`;
   `crates/shadows-core/src/app.rs` (`AppCore::shut_down` closes storage last, after Code and
   Turns have stopped and only when Turns stopped cleanly) and the AppCore contract line; test code: every struct, tuple or binding in
-  `crates/*/tests/**` and `crates/shadows-http/src/aylul_env_tests.rs` that holds a
+  `crates/*/tests/**` and the `crates/shadows-http/src/*_tests.rs` modules that holds a
   `tempfile::TempDir` together with something that keeps a file inside it open (the SQLite
-  `Storage`, an `AppCore`, a served app, a process); this task's `Status:`
+  `Storage`, an `AppCore`, a served app, a process); `crates/shadows/tests/architecture/scanner.rs`
+  and its README, which admit the new test fixture; this task's `Status:`
 - Needs: none
 - Why: Rust drops fields in declaration order. A `TempDir` dropped while a SQLite file inside it
   is still open cannot be removed on Windows, and the failure is silent: on 2026-10-27 the
