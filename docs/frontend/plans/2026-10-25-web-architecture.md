@@ -1,8 +1,7 @@
 # Web architecture
 
-Status: analysis done, decisions below taken by Mohammed on 2026-10-25. The
-tasks (W-1 to W-13) go into [`../stages.md`](../stages.md) once the plan is
-reviewed. The analysis that follows was written read-only by Codex from
+Status: W-1 to W-10, W-12 and W-13 shipped (PR #43, PR #44). Only W-11 remains, blocked
+until Core supplies the facts it names. Decisions below taken by Mohammed on 2026-10-25. The analysis that follows was written read-only by Codex from
 `fix/flaky-tests` at `24a64289`.
 
 ## Decisions

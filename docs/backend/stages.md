@@ -16,19 +16,10 @@ test, contract and map paths and records the affected test commands. A blocked
 task is not a builder assignment. Per-task checks are focused; the full gate and
 whole-branch review run once before each delivery PR.
 
-## Tasks
+A-6 is settled with no code change (Mohammed confirmed the approval-authority spec's §24.2
+on 2026-10-27); its entry is in this file at `4d5c022d`.
 
-### A-6 · The Planner approve tools match the spec
-- Status: done (2026-10-27: Mohammed confirmed §24.2 of the approval-authority spec, decided
-  2026-10-12: the Planner approves at the person's request through its four approve tools;
-  creating structure and a first map with a waiver stay the person's button. The spec, the
-  `THREAD_TOOLS` list in `core-grants`, the map approval refusal and the `workflow.rs` header
-  already agree, from PR #27; nothing to change)
-- Plan: docs/backend/plans/2026-10-21-architecture.md#a-6--the-planner-approve-tools-match-the-spec
-- Read: §13.2 of its owner spec; crates/shadows-mcp/src/server.rs
-- Touch: the wrong side only (spec or code), plus `Grants::tools_for`
-- Needs: Mohammed's ruling (given)
-- Done when: the MCP tool-list tests pass against the ruling
+## Tasks
 
 ### A-7b · Remove the breakdown route after agreement
 - Status: todo
