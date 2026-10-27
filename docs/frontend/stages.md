@@ -19,14 +19,16 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-28 · Each settings form saves only the fields it changed
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
 - Read: `docs/shared/requests/2026-10-26-partial-person-update.md`; `web/src/api/person.ts`;
   `web/src/app/settings/contract.yaml`
 - Touch: `web/src/api/person.ts` and its tests; `web/src/app/settings/you-card.tsx`,
   `general-preferences.tsx`, their tests, `contract.yaml`; `web/src/api/schema.d.ts` through
   `npm run gen:api` only
-- Needs: the partial person update request accepted and built in Core; F-17
+- Needs: B-13 on the same branch (`PATCH /api/me` in the regenerated OpenAPI); F-17. General
+  preferences already saves at once on each theme pick (`1e43ea5f`); keep that, sending only the
+  picked field
 - Done when: the You card sends only names, General preferences only language and theme;
   a test saves both forms close together and both changes survive; `npm test -- settings`,
   the architecture and codemap tests, `npm run typecheck` and `npm run lint` pass

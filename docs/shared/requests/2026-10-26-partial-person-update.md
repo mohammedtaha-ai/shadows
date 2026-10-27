@@ -1,6 +1,6 @@
 # Partial person update
 
-- Status: asked
+- Status: accepted
 - Asked by: Masada, 2026-10-26
 - Screen: [docs/frontend/plans/2026-10-25-web-architecture.md](../../frontend/plans/2026-10-25-web-architecture.md) "Decisions" (3); the settings dialog's You card and General preferences
 
@@ -31,12 +31,18 @@ fields is a `CommandConflict`.
 
 ## Backend answer
 
-<Hamoud: as asked / with a change / not possible, and why. Name the service
-and contract it touches.>
+As asked, as `PATCH /api/me`; `PUT /api/me` goes, since the web is its only caller. Task B-13 in
+`docs/backend/stages.md`. The owner is `PersonSettings` (`crates/core-person`, its
+`contract.yaml`): `set_person` becomes `update_person`, which reads the stored row, applies
+the sent fields and writes it back inside one write transaction, so two updates close together
+each keep the other's fields. A sent `null` clears a name or the language; `theme` cannot be
+null. The fingerprint is the fields as sent.
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Accepted. Task F-28 in `docs/frontend/stages.md`, on the same delivery branch as B-13.
 
 ## Ruling
+
+Mohammed accepted the request on 2026-10-28.
 
