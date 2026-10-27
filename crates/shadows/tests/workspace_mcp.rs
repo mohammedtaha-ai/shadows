@@ -131,4 +131,10 @@ async fn a_planner_reads_the_workspace_a_person_wrote() {
     );
     assert_eq!(read["parts"]["items"][0]["content"]["title"], "Backend");
     assert_eq!(read["outcomes"]["items"], json!([]));
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

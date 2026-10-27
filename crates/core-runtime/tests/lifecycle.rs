@@ -39,6 +39,8 @@ async fn startup_failure_keeps_its_storage_cause_without_committing_identity_or_
     .unwrap();
     assert_eq!(rows, (0, 0));
     assert_eq!(*storage.watch_committed().borrow(), 0);
+
+    storage.close().await.unwrap();
 }
 
 async fn fixture() -> (tempfile::TempDir, Arc<Storage>, Runtime) {
@@ -77,6 +79,8 @@ async fn registration_persists_identity_and_journal_together() {
         RuntimeInstanceId::from_recorded(row.0),
         runtime.instance_id().clone()
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -112,6 +116,8 @@ async fn stop_and_journal_roll_back_together() {
         .unwrap();
     assert_eq!(count, 1);
     assert_eq!(*storage.watch_committed().borrow(), 1);
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -161,4 +167,6 @@ async fn stopped_runtime_refuses_work_and_duplicate_stop_without_another_event()
     let payload: serde_json::Value = serde_json::from_str(&events[1].1).unwrap();
     assert_eq!(payload["stop_kind"], "Graceful");
     assert_eq!(*storage.watch_committed().borrow(), 2);
+
+    storage.close().await.unwrap();
 }

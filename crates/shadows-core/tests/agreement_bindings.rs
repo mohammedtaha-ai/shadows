@@ -172,6 +172,8 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
         .is_err()
     );
     db.close().await;
+
+    storage.close().await.unwrap();
 }
 
 #[test]

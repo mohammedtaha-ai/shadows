@@ -32,8 +32,6 @@ pub struct SessionsConfig {
     pub cancel_wait: Duration,
     /// How long an adapter has to start and open its session.
     pub setup_wait: Duration,
-    /// How long the on-demand context breakdown waits for `/context`.
-    pub context_wait: Duration,
     /// Shadows' `/mcp`, as the daemon bound it; `None` in tests that need no MCP.
     pub mcp_url: Option<String>,
     /// AYLUL's profile; `None` when the daemon has no `aylul` section.
@@ -47,7 +45,6 @@ impl Default for SessionsConfig {
             idle_after: Duration::from_secs(15 * 60),
             cancel_wait: Duration::from_secs(10),
             setup_wait: Duration::from_secs(20),
-            context_wait: Duration::from_secs(5),
             mcp_url: None,
             aylul: None,
         }
@@ -79,8 +76,7 @@ pub enum OpenError {
 /// A turn cannot take the thread's session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum LeaseError {
-    /// Another user of the session — a turn, or a `/context` read that did
-    /// not finish in time — holds it.
+    /// A turn or setting change holds the session.
     #[error("the thread's session is in use")]
     Busy,
     /// The adapter this session ran on is gone.
@@ -93,7 +89,7 @@ pub enum LeaseError {
 ///
 /// A resumed session keeps its id across adapters, so each opening also
 /// carries a `generation`: a turn that outlives its adapter must not give its
-/// events to, mark, or terminate the adapter that replaced it.
+/// events to or terminate the adapter that replaced it.
 #[derive(Clone)]
 pub struct OpenSession {
     pub session_id: String,
@@ -243,19 +239,14 @@ impl Sessions {
         item.events.take()
     }
 
-    /// Takes the session's events for a turn: whoever holds them has the
-    /// session to itself. A `/context` read gives them back
-    /// within `context_wait` plus, when it had to cancel, `cancel_wait`; a
-    /// turn waits that long before it is `Busy`.
+    /// Takes the session's events exclusively for a turn or setting change.
+    /// Waits for a concurrent holder to finish cancellation and return them.
     pub async fn lease_events(
         &self,
         thread: &ThreadId,
         opened: &OpenSession,
     ) -> Result<mpsc::UnboundedReceiver<HarnessEvent>, LeaseError> {
-        let deadline = Instant::now()
-            + self.config.context_wait
-            + self.config.cancel_wait
-            + Duration::from_secs(1);
+        let deadline = Instant::now() + self.config.cancel_wait + Duration::from_secs(1);
         let slot = self.slot(thread).await;
         loop {
             {
@@ -284,13 +275,6 @@ impl Sessions {
         if let Some(item) = same_adapter(&mut *self.slot(thread).await.lock().await, opened) {
             item.events = Some(rx);
             item.last_used = Instant::now();
-        }
-    }
-
-    /// Records that a Planner turn has answered in `opened`'s adapter.
-    pub async fn mark_answered(&self, thread: &ThreadId, opened: &OpenSession) {
-        if let Some(item) = same_adapter(&mut *self.slot(thread).await.lock().await, opened) {
-            item.answered = true;
         }
     }
 

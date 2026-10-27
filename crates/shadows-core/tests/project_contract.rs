@@ -114,4 +114,6 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
         created,
         "a removed thread's operation must still count"
     );
+
+    storage.close().await.unwrap();
 }

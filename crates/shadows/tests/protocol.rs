@@ -27,18 +27,27 @@ use tower::ServiceExt;
 
 use shadows_core::testing::acp;
 
+#[path = "fixtures/process_directory.rs"]
+mod process_directory;
+
 struct Fixture {
-    _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     app: Router,
     stopping: tokio::sync::watch::Sender<bool>,
     runtime: RuntimeInstanceId,
     sessions: Arc<Harness>,
+    _tmp: Option<tempfile::TempDir>,
 }
 
 async fn fixture() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let mut fixture = fixture_in(tmp.path()).await;
+    fixture._tmp = Some(tmp);
+    fixture
+}
+
+async fn fixture_in(root: &std::path::Path) -> Fixture {
+    let storage = Arc::new(Storage::open(&root.join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
         .unwrap();
@@ -63,7 +72,7 @@ async fn fixture() -> Fixture {
         shutdown,
     });
     Fixture {
-        _tmp: tmp,
+        _tmp: None,
         storage,
         app,
         stopping,
@@ -115,6 +124,9 @@ async fn the_daemon_serves_no_page() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    f.sessions.close_all().await.unwrap();
+    f.storage.close().await.unwrap();
 }
 
 /// The command id is the idempotency key. A replay with the same
@@ -148,6 +160,9 @@ async fn project_routes_create_list_replay_and_conflict() {
         .map(|p| p["id"].as_str().unwrap())
         .collect();
     assert_eq!(ids, [id.as_str()]);
+
+    f.sessions.close_all().await.unwrap();
+    f.storage.close().await.unwrap();
 }
 
 /// The id-bearing routes: a path segment must deserialize into its newtype,
@@ -268,6 +283,9 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
     assert_eq!(live_kinds, ["UserMessage", "AgentMessage"], "{seen}");
     assert!(appended[0].0 < appended[1].0, "{seen}");
     assert!(!seen.contains("event: entry"), "{seen}");
+
+    f.sessions.close_all().await.unwrap();
+    f.storage.close().await.unwrap();
 }
 
 /// Reads the open stream until `done` holds for everything read so far.
@@ -358,6 +376,9 @@ async fn a_threads_operations_are_listed_newest_first_with_their_status() {
         [(second.as_str(), "Running"), (first.as_str(), "Completed")],
         "{listed}"
     );
+
+    f.sessions.close_all().await.unwrap();
+    f.storage.close().await.unwrap();
 }
 
 /// Stopping an operation that does not exist reaches `get_operation`'s
@@ -373,6 +394,9 @@ async fn stopping_an_unknown_operation_is_not_found() {
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+
+    f.sessions.close_all().await.unwrap();
+    f.storage.close().await.unwrap();
 }
 
 /// Over HTTP, a Stop whose tree could not be terminated is a
@@ -381,7 +405,12 @@ async fn stopping_an_unknown_operation_is_not_found() {
 /// client would read as "Stopping" forever.
 #[tokio::test]
 async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
-    let f = fixture().await;
+    let Some(root) =
+        process_directory::run("a_stop_whose_termination_fails_answers_500_and_cancels_nothing")
+    else {
+        return;
+    };
+    let f = fixture_in(&root).await;
     let (_, project) = create_project(&f.app, "c1", "Demo").await;
     let (_, thread) = call(
         &f.app,
@@ -436,6 +465,8 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
             .status_kind,
         "Running"
     );
+
+    f.storage.close().await.unwrap();
 }
 
 /// Shutdown has no drain mode. A graceful HTTP shutdown still
@@ -483,6 +514,9 @@ async fn an_open_live_stream_does_not_hold_up_shutdown() {
         .await
         .expect("serve never returned: an open live stream held up shutdown")
         .unwrap();
+
+    f.sessions.close_all().await.unwrap();
+    f.storage.close().await.unwrap();
 }
 
 /// A refusal the schema makes is a 409 the client can act on, and
@@ -512,4 +546,7 @@ async fn a_refused_write_answers_its_own_code_without_database_text() {
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
     assert_eq!(body["code"], "INVALID_COMMAND");
     assert!(first["id"].is_string());
+
+    f.sessions.close_all().await.unwrap();
+    f.storage.close().await.unwrap();
 }

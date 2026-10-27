@@ -52,6 +52,8 @@ async fn reports_keep_exact_endpoints_cache_counts_and_historical_metadata() {
     assert_eq!(provider.provider_name, "Historical provider");
     assert_eq!(provider.cost, Some(0.2));
     assert_eq!(report.by_model[0].model, "model");
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -79,13 +81,15 @@ async fn a_partial_cost_group_is_unknown_and_a_refused_write_rolls_back() {
     assert_eq!(report.by_provider[0].requests, 2);
     assert_eq!(report.by_provider[0].cost, None);
     assert_eq!(report.by_provider[0].currency, None);
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
 async fn invalid_or_reversed_periods_keep_the_application_message() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let usage = Usage::new(storage);
+    let usage = Usage::new(storage.clone());
     for (from, to) in [
         ("bad", "2026-01-02T00:00:00Z"),
         ("2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z"),
@@ -94,4 +98,6 @@ async fn invalid_or_reversed_periods_keep_the_application_message() {
         assert!(matches!(error, UsageError::InvalidPeriod));
         assert_eq!(error.to_string(), "invalid profile: invalid usage period");
     }
+
+    storage.close().await.unwrap();
 }

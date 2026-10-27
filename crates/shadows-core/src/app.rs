@@ -164,6 +164,7 @@ pub struct CoreParts {
 /// `Threads` owns a private store; transaction-local callers use `Threads::*_in`
 /// over the shared connection; Turns composes removal with grants and live cleanup.
 pub struct AppCore {
+    storage: Arc<Storage>,
     secrets: Arc<Secrets>,
     providers: Arc<Providers>,
     agents: Arc<Agents>,
@@ -422,6 +423,7 @@ impl AppCore {
             agents,
             extensions,
             usage: Usage::new(storage.clone()),
+            storage,
             person,
             secrets,
             design,
@@ -523,14 +525,17 @@ impl AppCore {
 
     /// Stops Code's watchers and workers after their current file, then asks
     /// Turns to stop every running turn and close every adapter. The binary
-    /// owns the signals and transport.
+    /// owns the signals and transport. After Turns stops successfully, storage
+    /// closes last, including when the binary exits through `shadows serve`.
     pub async fn shut_down(
         &self,
         bound: Duration,
         second_signal: impl Future<Output = ()>,
     ) -> Result<StopKind, CoreError> {
         self.code.shut_down().await;
-        Ok(self.turns.shut_down(bound, second_signal).await?)
+        let stopped = self.turns.shut_down(bound, second_signal).await?;
+        self.storage.close().await?;
+        Ok(stopped)
     }
 }
 

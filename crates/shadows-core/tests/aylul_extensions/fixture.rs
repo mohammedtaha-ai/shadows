@@ -8,11 +8,11 @@ use shadows_core::{
 use std::sync::Arc;
 
 pub(super) struct World {
-    pub(super) _tmp: tempfile::TempDir,
     pub(super) storage: Arc<Storage>,
     pub(super) core: Arc<AppCore>,
     pub(super) sessions: Arc<Harness>,
     pub(super) thread: ThreadId,
+    pub(super) _tmp: tempfile::TempDir,
 }
 
 pub(super) async fn world() -> World {

@@ -37,6 +37,12 @@ async fn a_foreign_task_link_names_the_missing_project_link_as_invalid_command()
     assert!(text.starts_with("INVALID_COMMAND:"), "{text}");
     assert!(text.contains("project link"), "{text}");
     assert_eq!(plan::revision(&l.app, &source.workflow_id).await, 0);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -91,4 +97,10 @@ async fn a_linked_project_can_be_read_but_never_written_by_the_source_grant() {
             .await
             .starts_with("GRANT_SCOPE:")
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

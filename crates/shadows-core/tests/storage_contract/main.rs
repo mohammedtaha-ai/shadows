@@ -65,4 +65,6 @@ async fn project_failure_rolls_back_command_and_journal() {
         committed.has_changed().unwrap(),
         "recovery must commit and notify"
     );
+
+    storage.close().await.unwrap();
 }

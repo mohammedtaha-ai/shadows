@@ -505,47 +505,25 @@ daemon keeps the latest per harness with the time it was observed
 adapter drops a report that arrives before the session's first answer; the
 kept row is what covers that gap.
 
-**The ring never waits.** It shows the last figures the daemon holds and the
-time they were observed, opens at any moment, and says "no figures yet" when it
-has none. There is no loading state. (The adapter's context breakdown, read
-through a control request that the adapter's own source says can stall a
-session for tens of seconds, is why a ring elsewhere was seen spinning.)
+**The ring shows the summary only and never waits.** It shows the last figures
+Core holds and the time they were observed, opens at any moment, and says
+"no figures yet" when it has none. There is no loading state. The summary is
+context `used / size (percent)`, five-hour and weekly bars with reset times,
+and "updated <time>". No credit balance: that belongs to the claude.ai account
+and does not reach the CLI.
 
-**Two levels, as agreed on 2026-09-24:**
+**The breakdown is an ordinary conversation message.** The person types
+`/context` in the composer, and its answer arrives through the slash-command
+turn path as one message. The ring makes no breakdown request, and Core
+exposes no breakdown-read route or parsing surface.
 
-1. **Summary:** context `used / size (percent)`; five-hour and weekly bars with
-   reset times; "updated <time>". No credit balance: that belongs to the claude.ai
-   account and does not reach the CLI.
-2. **Breakdown:** messages, system tools, MCP tools, skills, memory files, system
-   prompt, custom agents, autocompact buffer, free space.
-
-**The breakdown is read on demand.** Sending `/context` as a prompt answers
-the breakdown as one markdown message, costs no model tokens, and takes 0.6 s
-on a session that has already answered once — but 17–23 s as a fresh session's
-first call (ACP_PROBE §5). So the breakdown is fetched only when the person opens
-the ring's second level (`GET /api/threads/{id}/context`), only on an open,
-idle session that has run a turn in this adapter, with a 5-second limit. It is
-parsed from the "Estimated usage by category" table, shown, and not stored.
-While a turn runs, before the session's first turn, or past the limit, the
-second level says why it has nothing, and the summary still shows. The
-`/context` exchange is not a Planner turn: it writes no Operation and no entry,
-and its chunks never reach the conversation.
-
-> **OPEN — does `/context` enter the conversation Claude remembers?** Half
-> answered by the context-meter probe (`docs/evidence/2026-10-21-context-meter-probe.md`).
-> The exchange **is written into the session transcript**: the `/context` line
-> and its `local-command-stdout` answer are written once per reading. The
-> figures also suggest that the model is sent it. On the same model, with two
-> readings between the turns, turn 2's input grew by 783 tokens over turn 1's
-> total, where an 11-token reply and a one-line prompt account for well under
-> 100. The two readings between them would account for the rest. That is an inference: the
-> probe's direct check (step 6, after a resume) timed out and gave no answer.
-> The dated evidence correction preserves this as inference; neither a key
-> expiry diagnosis nor later controller figures have inspected supporting logs.
-> **Trigger that closes this:** a control run, the same three turns on one
-> model in two sessions, one with readings between the turns and one without.
-> If turn 2's input differs by about the readings' size, the breakdown route is
-> removed and the ring ships with the summary only, as decided above.
+**CLOSED - does `/context` enter the conversation the model is sent?** Yes.
+The [2026-10-22 control run](../../evidence/2026-10-22-slash-context-probe.md)
+compares the same turns on one model in sessions with and without readings.
+Each reading enters what the model is sent: two readings added 892 input
+tokens to the next OpenRouter request (13,548 versus 12,656). This meets the
+control-run trigger. The summary-only ring and the person's explicit
+`/context` turn are the agreed behavior.
 
 Delivery: the thread snapshot carries each operation's invocation; the
 operation's terminal event carries the observed values; `GET /api/harnesses`
@@ -579,7 +557,6 @@ source with "(fork)":
 | `GET /api/projects/{id}` | carries the allowed modes per harness |
 | `PATCH /api/projects/{id}` | new: `{ command_id, allowed_modes }` |
 | `POST /api/threads/{id}/fork` | new, §12.9 |
-| `GET /api/threads/{id}/context` | new: the context breakdown read on demand (§12.8); answers the categories, or none with the reason |
 | thread snapshot, operation events | carry the invocation's requested and observed values |
 | entries | a new kind, `PermissionRefused` |
 | SSE | new transient frames: `usage` (context and limits), `options` (the session's choices changed) |
@@ -614,7 +591,7 @@ Matches the mockup agreed on 2026-09-24:
   Skills settings of the conversation's AYLUL agent; in a project conversation it is
   absent until Shadows has its own plugins. Add folder and Connectors are not shown until
   they are designed.
-- **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
+- **Context ring** (`context-ring.tsx`): §12.8's summary; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.
 - **Allowed modes:** a per-harness checklist in Project settings (§13.11).
@@ -664,8 +641,8 @@ Phase B
     a fork's cannot be changed at all
 [ ] a new conversation starts at Accept edits and at the last model and effort used
 [ ] the ring shows figures or "no figures yet" and never spins; limits show their observed time
-[ ] the ring's second level shows the breakdown, or says why it has none; §12.8's OPEN
-    block is closed by reading the transcript after a /context
+[ ] the ring shows only the summary and makes no request; `/context` typed in the
+    conversation answers the breakdown as a message
 [ ] a model the account cannot use is refused with the harness's message;
     a model with no effort (Haiku 4.5) runs with none
 [ ] copy works on every message; fork from the last message opens a thread whose next turn

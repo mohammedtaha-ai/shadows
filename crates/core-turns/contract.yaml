@@ -41,7 +41,7 @@
 # start; dropping `stop` between terminating the tree and writing `Cancelled`
 # leaves a dead turn `Running`. The HTTP routes run both in `detached`.
 # Trap: the early busy check is not redundant with the lease. The lease waits
-# (context_wait + cancel_wait + 1s) before answering Busy, and a turn whose
+# (cancel_wait + 1s) before answering Busy, and a turn whose
 # watcher gave the events back but whose ending is not yet recorded holds no
 # lease: only `Operations::thread_is_busy` refuses a start there before the session's
 # model is changed.
@@ -701,15 +701,14 @@ obligations:
     tested_by:
       - a_refused_start_gives_the_session_back
       - a_replay_found_by_the_transaction_gives_the_session_back
-      - a_turn_started_during_a_breakdown_read_keeps_its_output
-      - no_breakdown_before_the_first_turn_or_while_one_runs
+      - a_turn_started_during_a_session_hold_keeps_its_output
       - a_stop_while_pending_cancels_the_turn_before_its_prompt
     note: >
       The order itself is structural: `lease_events` takes the `OpenSession`
       `offer_for_model` answered. The first test fails when a refused start keeps the
       events (the next start waits out the lease and is THREAD_BUSY; tried on
       dc0255e). The second races two sends of one command behind a
-      `/context` read, so the later one's replay is found only by
+      fake `wait-for-release` prompt, so the later one's replay is found only by
       `start_turn`; it fails when that path keeps the events (tried on
       a6fa191).
 
@@ -926,9 +925,13 @@ tests:
       session opened; the next start runs to Completed.
   - name: a_replay_found_by_the_transaction_gives_the_session_back
     checks: >
-      Two sends of one command while a `/context` read holds the session both
-      answer 202 with one operation id and one operation is written; the next
-      start runs to Completed.
+      Two sends of one command while a fake `wait-for-release` prompt holds
+      the session both answer 202 with one operation id and one operation is
+      written; the next start runs to Completed.
+  - name: a_turn_started_during_a_session_hold_keeps_its_output
+    checks: >
+      A turn started while a fake wait-for-release prompt holds the events waits
+      for the session, completes with both of its messages and records no holder output.
   - name: a_replay_is_answered_while_the_daemon_is_stopping
     checks: >
       After the registry closes, the first body replays 202 with its
@@ -965,12 +968,6 @@ tests:
       selected plan context block after the person's text.
   - name: a_second_turn_while_one_is_running_is_thread_busy
     checks: A second `start_turn` at the store while the first is Pending is ThreadBusy.
-  - name: a_turn_started_during_a_breakdown_read_keeps_its_output
-    checks: >
-      A turn sent while `/context` holds the session runs after it and keeps
-      its own reply; no entry holds the breakdown.
-  - name: no_breakdown_before_the_first_turn_or_while_one_runs
-    checks: While `hang` runs, `/context` answers no categories, reason "running".
   - name: a_stop_while_pending_cancels_the_turn_before_its_prompt
     checks: >
       A Stop while Pending is NotLive; the turn then ends Cancelled with only

@@ -148,4 +148,9 @@ async fn live_agent_extension_isolation() {
     println!(
         "ACP 0.81.1 / Claude 2.1.303: A skill=true plugin=true; B neither; A disabled neither"
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

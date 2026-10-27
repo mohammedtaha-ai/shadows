@@ -16,10 +16,10 @@ use shadows_core::testing::Storage;
 use shadows_core::{ThreadEntryKind, ThreadId};
 
 struct Fixture {
-    _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     runtime: Runtime,
     project: Project,
+    _tmp: tempfile::TempDir,
 }
 
 fn ctx(id: &str, kind: &str) -> CommandContext {
@@ -136,6 +136,8 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
     .await
     .unwrap();
     assert_eq!(replay.harness, "claude-code");
+
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -153,6 +155,8 @@ async fn the_lock_holds_below_the_application() {
         .execute(fx.storage.reader())
         .await;
     assert!(raw.is_err(), "the trigger must refuse a raw update too");
+
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -181,6 +185,8 @@ async fn a_project_is_created_with_the_policy_modes_and_they_can_be_replaced() {
         Vec::<String>::new(),
         "every known harness is listed, with none allowed"
     );
+
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -228,4 +234,6 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
         .unwrap();
     assert_eq!(read[0].operation_id.as_deref(), Some(op.as_str()));
     assert!(read[1].operation_id.is_none());
+
+    fx.storage.close().await.unwrap();
 }

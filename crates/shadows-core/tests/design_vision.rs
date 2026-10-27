@@ -287,4 +287,6 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
     core.shut_down(std::time::Duration::from_secs(2), std::future::pending())
         .await
         .unwrap();
+
+    storage.close().await.unwrap();
 }

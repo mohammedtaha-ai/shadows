@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 //
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -27,29 +26,20 @@ afterEach(() => {
 function renderRing({
   usage,
   limits,
-  breakdown = () => Response.json({ categories: null, reason: 'No turn has run yet' }),
 }: {
   usage: ContextFigures | null
   limits: Limits | null
-  breakdown?: () => Response | Promise<Response>
 }) {
   const calls: string[] = []
   vi.stubGlobal('fetch', async (r: Request) => {
     const key = `${r.method} ${new URL(r.url).pathname}`
     calls.push(key)
-    return key === 'GET /api/threads/t1/context' ? breakdown() : new Response(null, { status: 404 })
+    return new Response(null, { status: 404 })
   })
   const container = document.createElement('div')
   document.body.append(container)
   const root: Root = createRoot(container)
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  act(() =>
-    root.render(
-      <QueryClientProvider client={client}>
-        <ContextRing threadId="t1" usage={usage} limits={limits} />
-      </QueryClientProvider>,
-    ),
-  )
+  act(() => root.render(<ContextRing usage={usage} limits={limits} />))
   mounted.push(() => {
     act(() => root.unmount())
     container.remove()
@@ -96,35 +86,12 @@ describe('the context ring', () => {
     }
   })
 
-  it('opening the second level fetches the breakdown, or says why there is none', async () => {
-    const r = renderRing({
-      usage: { contextUsed: 126800, contextWindow: 1_000_000 },
-      limits: null,
-      breakdown: () =>
-        Response.json({ categories: [{ name: 'Messages', tokens: 80300, percent: 8 }], reason: null }),
-    })
+  it('opens with no daemon request and points to /context for the full breakdown', () => {
+    const r = renderRing({ usage: { contextUsed: 126800, contextWindow: 1_000_000 }, limits: null })
     act(() => r.trigger().click())
-    act(() => r.button('Details')?.click())
-    await until(() => r.text().includes('Messages'))
-    expect(r.text()).toContain('80.3k')
-    expect(r.calls).toEqual(['GET /api/threads/t1/context'])
-    mounted.splice(0).forEach((unmount) => unmount())
-
-    let release!: () => void
-    const none = renderRing({
-      usage: null,
-      limits: null,
-      breakdown: () =>
-        new Promise<Response>((r) => {
-          release = () => r(Response.json({ categories: null, reason: 'A turn is running' }))
-        }),
-    })
-    act(() => none.trigger().click())
-    act(() => none.button('Details')?.click())
-    await until(() => none.text().includes('Reading…'))
-    act(() => release())
-    await until(() => none.text().includes('A turn is running'))
-    expect(none.text()).not.toContain('Reading…')
+    expect(r.text()).toContain('Type /context in the conversation for the full breakdown.')
+    expect(r.button('Details')).toBeUndefined()
+    expect(r.calls).toEqual([])
   })
 })
 

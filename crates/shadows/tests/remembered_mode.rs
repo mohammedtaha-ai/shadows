@@ -41,6 +41,11 @@ async fn picking_auto_without_sending_survives_reopen_and_core_restart() {
         open(&app, app.thread.as_str()).await["current"]["mode"],
         "auto"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn forbid_auto(app: &App) {
@@ -78,6 +83,11 @@ async fn disallowed_mode_is_refused_before_any_write() {
         "not even an opening grant is written"
     );
     assert_eq!(mode_rows(&app).await, 0);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn mode_rows(app: &App) -> i64 {
@@ -111,6 +121,11 @@ async fn disallowed_remembered_mode_falls_back_on_open() {
         0,
         "the disallowed preference is dropped"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -126,6 +141,11 @@ async fn a_new_conversation_including_a_draft_uses_its_own_default() {
         open(&app, app.thread.as_str()).await["current"]["mode"],
         "auto"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -143,6 +163,11 @@ async fn a_replay_with_another_mode_conflicts_and_equal_replay_keeps_later_choic
     assert_eq!(status, 200, "{answer}");
     assert_eq!(answer["current"]["mode"], "acceptEdits");
     assert_eq!(mode_rows(&app).await, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -181,6 +206,11 @@ async fn running_turn_keeps_its_mode_and_next_turn_uses_the_pick() {
             .await
             .unwrap();
     assert_eq!(modes, ["acceptEdits", "auto"]);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -211,6 +241,11 @@ async fn fork_copies_the_mode_and_removal_deletes_only_its_row() {
         open(&app, fork["id"].as_str().unwrap()).await["current"]["mode"],
         "auto"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -229,6 +264,11 @@ async fn a_turn_start_remembers_its_explicit_mode_in_its_transaction() {
         open(&app, app.thread.as_str()).await["current"]["mode"],
         "auto"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -260,4 +300,9 @@ async fn idle_choices_report_the_adapters_mode() {
         saved, "auto",
         "the adapter's mode does not overwrite the pick"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

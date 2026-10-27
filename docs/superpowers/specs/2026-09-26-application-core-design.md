@@ -235,7 +235,10 @@ are created when their callers exist.
   `Events` owns subscription and delivery, and emits nothing of its own.
 - **Shutdown.** `AppCore::shut_down()` first stops `Code`'s watchers and
   workers (§15.8), then stops every running turn and closes every adapter,
-  which is `planner::shut_down` today. The binary keeps what belongs to
+  which is `planner::shut_down` today. Only after Turns stops successfully,
+  it awaits Storage closure last; a Turns error leaves storage open. The binary
+  calls this same shutdown path, so `shadows serve` closes its database on exit.
+  The binary keeps what belongs to
   the process and the transport:
   - catching the signal;
   - the second Ctrl+C;
@@ -291,7 +294,7 @@ are created when their callers exist.
 - A request or response shape that is part of the HTTP contract stays in
   `shadows-http`. A shape a service computes moves to that service's `model.rs`,
   with the same name, fields and derives, so `api/openapi.json` does not change.
-  `HarnessInfo` and `ContextBreakdown` are examples.
+  `HarnessInfo` is an example.
 
 ## 14.6 Boundaries
 

@@ -83,6 +83,11 @@ async fn link_writes_rollback_with_the_callers_transaction() {
     assert!(result.is_err());
     assert_eq!(code.links(&ids[0]).await.unwrap().len(), 1);
     core.code().shut_down().await;
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -156,4 +161,9 @@ async fn link_reads_keep_the_callers_snapshot_and_replay_removed_projects() {
     assert_eq!(replay.created_at, first.created_at);
     assert!(code.links(&home.id).await.unwrap().is_empty());
     core.code().shut_down().await;
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

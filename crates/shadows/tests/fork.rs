@@ -86,6 +86,11 @@ async fn fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone()
     let listed: Vec<Value> =
         get_json(&app, &format!("/api/projects/{}/threads", app.project)).await;
     assert_eq!(listed.len(), 2);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A subagent card is its own kind with its card in a column; a fork
@@ -115,6 +120,11 @@ async fn a_fork_keeps_a_subagent_entry_and_its_card() {
     let copied = entries_json(&app, fork["id"].as_str().unwrap()).await;
     let last = copied.last().unwrap();
     assert_eq!((&last["kind"], &last["card"]), (&json!("Subagent"), &card));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -144,6 +154,11 @@ async fn the_forks_first_opening_forks_the_source_session() {
     assert_eq!(recorded, format!("fork-of-{src_session}"));
     let again = start_and_finish(&app, "report", default_settings()).await;
     assert_eq!(again.status_kind, "Completed", "the source runs on");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -164,6 +179,11 @@ async fn only_the_last_completed_entry_is_a_fork_point() {
         (s, b["code"].as_str()),
         (422, Some("FORK_POINT_NOT_SUPPORTED"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -176,6 +196,11 @@ async fn an_entry_of_another_thread_is_not_found() {
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (404, Some("INVALID_COMMAND")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -199,6 +224,11 @@ async fn a_stopped_last_turn_is_not_a_fork_point() {
         (s, b["code"].as_str()),
         (422, Some("FORK_POINT_NOT_SUPPORTED"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -211,6 +241,11 @@ async fn fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_for
     let _running = start_settled(&app, "hang").await;
     let (s, body) = fork_last_raw_with(&app, "f2").await;
     assert_eq!((s, body["code"].as_str()), (409, Some("THREAD_BUSY")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A fork's session is a fork of its source's, which no other
@@ -259,6 +294,11 @@ async fn a_fork_is_locked_to_its_sources_harness_from_birth() {
         .await
         .unwrap();
     assert_eq!(ctx.harness, "claude-code");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn wait_for_delta(

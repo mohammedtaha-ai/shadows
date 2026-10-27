@@ -20,6 +20,11 @@ async fn settings_env_base_url_fails_opening() {
         Err(CoreError::SecretNameReserved(name)) if name=="ANTHROPIC_BASE_URL")
     );
     assert_eq!(w.sessions.live_count().await, 0);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -31,6 +36,11 @@ async fn model_overrides_fails_opening() {
     assert!(matches!(error, CoreError::ProfileInvalid(_)));
     assert!(error.to_string().contains("modelOverrides"));
     assert_eq!(w.sessions.live_count().await, 0);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -62,6 +72,11 @@ async fn settings_json_keeps_other_keys() {
         std::fs::metadata(&path).unwrap().modified().unwrap(),
         modified
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -95,6 +110,11 @@ async fn concurrent_openings_keep_settings_valid() {
         value["availableModels"],
         json!(["fake-large", "fake-small"])
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -105,4 +125,9 @@ async fn non_object_settings_json_fails_named() {
     let error = w.core.harness().open_session(&w.thread).await.unwrap_err();
     assert!(error.to_string().contains("settings.json"));
     assert_eq!(std::fs::read(w.home.join("settings.json")).unwrap(), before);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -32,9 +32,6 @@ impl Harness {
     ) -> () {
         self.sessions.give_back_events(thread, opened, rx).await
     }
-    pub async fn mark_answered(&self, thread: &ThreadId, opened: &OpenSession) -> () {
-        self.sessions.mark_answered(thread, opened).await
-    }
     pub async fn touch(&self, thread: &ThreadId) -> () {
         self.sessions.touch(thread).await
     }

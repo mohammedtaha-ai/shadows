@@ -59,4 +59,10 @@ async fn agreement_mcp_exposes_proposals_without_person_approval() {
         .await
         .unwrap();
     assert!(client.list_all_tools().await.is_err());
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

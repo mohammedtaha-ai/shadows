@@ -924,54 +924,6 @@
         ],
         "type": "object"
       },
-      "ContextBreakdown": {
-        "description": "The context breakdown read on demand: the categories, or none\nwith the reason.",
-        "properties": {
-          "categories": {
-            "items": {
-              "$ref": "#/components/schemas/ContextCategory"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          },
-          "reason": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "categories",
-          "reason"
-        ],
-        "type": "object"
-      },
-      "ContextCategory": {
-        "description": "One category of the context breakdown.",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "percent": {
-            "format": "double",
-            "type": "number"
-          },
-          "tokens": {
-            "format": "int64",
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "name",
-          "tokens",
-          "percent"
-        ],
-        "type": "object"
-      },
       "ContractHead": {
         "properties": {
           "header": {
@@ -11012,58 +10964,6 @@
             "description": ""
           }
         },
-        "tags": [
-          "threads"
-        ]
-      }
-    },
-    "/api/threads/{id}/context": {
-      "get": {
-        "operationId": "thread_context",
-        "parameters": [
-          {
-            "description": "The thread",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ThreadId"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ContextBreakdown"
-                }
-              }
-            },
-            "description": ""
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no such thread"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "The context breakdown of the thread's session, read on demand. It is fetched only on an open,\nidle session that has answered a\nturn, within five seconds; otherwise it says why it has none. Nothing is\nwritten: no operation, no entry.",
         "tags": [
           "threads"
         ]

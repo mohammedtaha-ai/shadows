@@ -199,4 +199,6 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
             .behavior,
         "Credentials"
     );
+
+    storage.close().await.unwrap();
 }

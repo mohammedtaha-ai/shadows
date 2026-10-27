@@ -108,6 +108,12 @@ functions:
     reader:
       signature: "(&self) -> &SqlitePool"
       # Shared reader pool; callers begin a transaction when reads need one snapshot.
+    close:
+      signature: "Storage::close(&self) -> Result<(), StorageError>"
+      # Awaits reader pool and serialized writer closure. Repeated closure is a no-op;
+      # subsequent reads and writes report the existing Unavailable error.
+      # Releases the writer mutex before draining readers so a reader holder's
+      # write attempt can report Unavailable without blocking reader return.
     watch_committed:
       signature: "(&self) -> watch::Receiver<i64>"
       # Highest committed journal sequence; subscribe before reading the journal.
@@ -137,6 +143,12 @@ enums:
 
 
 obligations:
+  - rule: Closing storage releases database files before its directory is removed, and is idempotent.
+    tested_by: close_releases_the_database_and_is_idempotent
+  - rule: Closing storage never holds the writer mutex while awaiting borrowed readers.
+    tested_by: close_refuses_writes_while_waiting_for_a_borrowed_reader
+  - rule: Closing storage waits for an in-flight serialized transaction before closing readers.
+    tested_by: close_waits_for_an_in_flight_transaction_before_closing_readers
   - rule: A failed BEGIN does not poison later serialized writes.
     tested_by: write_txn_recovers_after_begin_times_out
   - rule: The embedded migration catalog preserves every base version, description and checksum.
@@ -184,6 +196,12 @@ obligations:
 
 
 tests:
+  - name: close_releases_the_database_and_is_idempotent
+    checks: Immediate directory removal succeeds after close twice; reads and writes report Unavailable.
+  - name: close_refuses_writes_while_waiting_for_a_borrowed_reader
+    checks: A borrowed reader delays close, but its write attempt returns Unavailable before reader return.
+  - name: close_waits_for_an_in_flight_transaction_before_closing_readers
+    checks: An in-flight write keeps close pending and readers open; transaction completion lets close finish.
   - name: embedded_migrations_match_the_base_catalog
     checks: All 37 versions, descriptions and SHA-384 checksums match the 0327292 Git catalog.
   - name: write_txn_recovers_after_begin_times_out

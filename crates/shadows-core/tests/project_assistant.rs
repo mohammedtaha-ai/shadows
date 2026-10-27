@@ -52,6 +52,8 @@ async fn ensure_assistant_is_idempotent() {
     assert!(!ordinary.assistant);
     let all = core.projects().list().await.unwrap();
     assert_eq!(all.iter().filter(|p| p.slug == "aylul").count(), 1);
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -91,4 +93,6 @@ async fn ensure_assistant_recreates_a_removed_assistant_project() {
         .ensure_assistant("aylul", "AYLUL", &home)
         .await;
     assert!(again.is_ok(), "{again:?}");
+
+    storage.close().await.unwrap();
 }

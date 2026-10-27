@@ -89,6 +89,11 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
         (after.revision, after.state, after.tasks.len()),
         (1, WorkflowState::Draft, 1)
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -128,6 +133,11 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
         ))
     }));
     app.sessions.close_all().await.unwrap();
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -220,4 +230,9 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
         "delete answered while Pending: {at_answer:?}"
     );
     assert_eq!(app.sessions.live_count().await, 0);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

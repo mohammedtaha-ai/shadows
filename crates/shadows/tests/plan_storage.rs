@@ -72,6 +72,11 @@ async fn a_new_draft_is_version_one_at_revision_zero() {
         started_events,
         vec![json!({ "workflow_id": started.workflow_id, "version": 1 })]
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -110,6 +115,11 @@ async fn start_draft_answers_the_existing_draft_unchanged() {
             .len(),
         1
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -162,6 +172,11 @@ async fn an_edit_moves_the_revision_once_and_records_one_event() {
         (1, outcome.summary, vec![1, 2])
     );
     assert!(plan.blockers.is_empty(), "{:?}", plan.blockers);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -202,6 +217,11 @@ async fn an_edit_on_a_stale_revision_is_refused_with_the_current_one_and_a_summa
         other => panic!("expected RevisionConflict, got {other:?}"),
     }
     assert_eq!(revision(&app, &v1).await, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -230,6 +250,11 @@ async fn a_replayed_edit_returns_its_own_outcome_after_a_later_edit() {
             .len(),
         2
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -239,6 +264,11 @@ async fn a_replayed_draft_start_answers_the_same_version_after_edits() {
     edit(&app, &first.workflow_id, 0, &[add(1)]).await;
     edit(&app, &first.workflow_id, 1, &[add(2)]).await;
     assert_eq!(draft(&app).await, first);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -285,6 +315,11 @@ async fn the_same_explicit_command_id_with_different_ops_is_a_command_conflict()
         ),
         "{conflict:?}"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -324,6 +359,11 @@ async fn an_invalid_edit_writes_nothing() {
             .await
             .is_empty()
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -351,6 +391,11 @@ async fn a_frozen_version_refuses_edits() {
         ),
         "{refused:?}"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -379,6 +424,11 @@ async fn approval_freezes_and_writes_a_plan_approved_entry() {
     assert_eq!(frozen.len(), 1);
     assert_eq!(frozen[0]["workflow_id"], json!(v1));
     assert_eq!(frozen[0]["frozen_at"], json!(plan.frozen_at));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -414,6 +464,11 @@ async fn a_replayed_approval_answers_its_own_outcome_after_v2_exists() {
         events_of(&app, &app.thread, "WorkflowFrozen").await.len(),
         1
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -437,6 +492,11 @@ async fn approval_with_blockers_is_refused_with_the_list() {
         }
         other => panic!("expected PlanInvalid, got {other:?}"),
     }
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -501,6 +561,11 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
         (listed[0].id.clone(), listed[0].version),
         (v2.workflow_id, 2)
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Task scope stays in scope_json, separate from its contract.
@@ -540,6 +605,11 @@ async fn reads_and_writes_are_stored_in_scope_json() {
         .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(plan.tasks[0].content, task(1, "مهمة"));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -569,6 +639,11 @@ async fn completes_after_links_keep_their_waiting_items() {
             .links,
         vec![link]
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[test]

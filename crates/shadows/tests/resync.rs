@@ -137,6 +137,8 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
         .unwrap()
         .is_empty()
     );
+
+    storage.close().await.unwrap();
 }
 
 /// A cursor from before any event returns the whole thread history.
@@ -160,6 +162,8 @@ async fn a_zero_cursor_replays_the_whole_thread() {
     assert_eq!(all.len(), 2, "thread creation and the entry");
     assert_eq!(all[0].kind, "PlanningThreadCreated");
     assert_eq!(all[1].kind, "ThreadEntryAppended");
+
+    storage.close().await.unwrap();
 }
 
 /// The handoff from replay to live delivery must leave no gap.
@@ -185,7 +189,7 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
         .await
         .unwrap();
     }
-    let live = Live::start(storage).await;
+    let live = Live::start(storage.clone()).await;
     let mut stream = live.open(&thread.id).await;
 
     // No await between the line above and this one: the replay task has not
@@ -211,6 +215,8 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
         3,
         "thread creation and both entries replay exactly once: {text}"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// Live publication after commit, seen from the stream: a durable
@@ -239,6 +245,8 @@ async fn a_durable_event_committed_after_the_handoff_arrives_live() {
 
     let text = stream.read_until(&format!("\"seq\":{seq}")).await;
     assert_eq!(durable_seqs(&text).last(), Some(&seq), "{text}");
+
+    storage.close().await.unwrap();
 }
 
 /// The handoff for durable events leaves no gap. The entry is committed
@@ -291,6 +299,8 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     let mut deduped = seqs.clone();
     deduped.dedup();
     assert_eq!(seqs, deduped, "no durable event is repeated: {text}");
+
+    storage.close().await.unwrap();
 }
 
 /// A client that reconnects with the last `seq` it applied
@@ -351,6 +361,8 @@ async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
         .map(|data| serde_json::from_str::<serde_json::Value>(data).unwrap())
         .unwrap();
     assert_eq!(caught_up["seq"], *missed.last().unwrap(), "{text}");
+
+    storage.close().await.unwrap();
 }
 
 /// A subscription names one thread. Another thread's transient items are not
@@ -370,7 +382,7 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     )
     .await
     .unwrap();
-    let live = Live::start(storage).await;
+    let live = Live::start(storage.clone()).await;
     let mut stream = live.open(&thread_a.id).await;
     stream.read_until("event: caught-up").await;
 
@@ -384,6 +396,8 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
         !text.contains("for-thread-b"),
         "thread B's item reached thread A: {text}"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// Event scope, seen from the client: an operation's
@@ -424,6 +438,8 @@ async fn operation_transitions_reach_their_threads_stream() {
         Some("OperationCompleted"),
         "the terminal transition arrives live as a durable event: {text}"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// Every `durable` event's `kind`, in the order the stream delivered them.

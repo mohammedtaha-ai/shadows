@@ -212,6 +212,11 @@ async fn part_moves_keep_identity_and_reject_cycles() {
     .await
     .unwrap();
     assert_eq!(count, 3);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    conn.close().await;
 }
 
 // Lost ordinal writes, invalid cursors or plan-content mutation must fail.
@@ -394,6 +399,10 @@ async fn part_order_is_stable_across_restart() {
         frozen
     );
     core.code().shut_down_for_test().await;
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
     drop(core);
     let reopened = core_at(&db).await;
     let page = reopened.design().parts(&p, None, None).await.unwrap();
@@ -467,6 +476,11 @@ async fn part_order_is_stable_across_restart() {
             .content(),
         frozen
     );
+
+    reopened
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 // Unbounded reads, missing page boundary or failed replay must fail.
@@ -559,4 +573,8 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
             .revision,
         2
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -59,6 +59,10 @@ async fn standards_without_additions_are_the_base() {
     let unknown = ProjectId::generate();
     assert!(core.standards().standards(&unknown).await.is_err());
     assert!(core.design().stage(&unknown).await.is_err());
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -130,6 +134,10 @@ async fn each_additions_save_is_a_new_version_and_a_replay_saves_nothing() {
             .await
             .is_err()
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -211,6 +219,10 @@ async fn additions_cannot_repeat_a_base_part_or_name_an_unknown_one() {
             .additions,
         None
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -285,4 +297,10 @@ async fn standards_saves_are_atomic_and_survive_restart() {
             .await
             .unwrap();
     assert_eq!(count, 3);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+    reopened.close().await.unwrap();
 }

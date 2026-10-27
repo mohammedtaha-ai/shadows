@@ -81,6 +81,11 @@ async fn provider_crud_and_key_never_echoed() {
         .0,
         204
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -95,6 +100,11 @@ async fn key_body_parse_error_does_not_echo() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!text.contains("synthetic-do-not-echo"));
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -129,6 +139,11 @@ async fn agent_crud_soft_delete() {
         204
     );
     assert!(w.core.agents().agent("work").await.unwrap().deleted);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -144,6 +159,11 @@ async fn provider_in_use_is_409() {
     .await;
     assert_eq!(status, 409);
     assert_eq!(body["code"], "PROVIDER_IN_USE");
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -175,6 +195,11 @@ async fn env_routes_are_per_agent() {
         "EXTRA"
     );
     assert_eq!(call(&w, "GET", "/api/aylul/env", Value::Null).await.0, 404);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -192,6 +217,11 @@ async fn reserved_name_is_409() {
         assert_eq!(status, 409);
         assert_eq!(body["code"], "SECRET_NAME_RESERVED");
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -208,6 +238,11 @@ async fn thread_create_with_profile() {
     .await;
     assert_eq!(status, 200);
     assert_eq!(t["profile"], "work");
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -236,6 +271,11 @@ async fn threads_listed_per_agent() {
             .1,
         json!([])
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -246,6 +286,11 @@ async fn provider_presets_route_lists_all() {
     assert_eq!(list.as_array().unwrap().len(), 7);
     assert_eq!(list[0]["id"], "minimax");
     assert_eq!(list[1]["region"], "china");
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -297,6 +342,11 @@ async fn provider_test_route_answers_outcome() {
         .0,
         400
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -332,6 +382,11 @@ async fn me_round_trips() {
         bad[field] = value.into();
         assert_eq!(call(&w, "PUT", "/api/me", bad).await.0, 400);
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -347,6 +402,11 @@ async fn reserved_test_path_has_no_mutation_aliases() {
         .await;
         assert_eq!(status, 405);
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -373,4 +433,9 @@ async fn usage_route_is_read_only() {
     ] {
         assert_eq!(call(&w, "GET", path, Value::Null).await.0, 400);
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -60,6 +60,8 @@ async fn event_provenance_round_trips_through_append_event() {
     assert_eq!(causation_kind.as_deref(), Some("Command"));
     assert_eq!(causation_ref.as_deref(), Some("cmd-1"));
     assert_eq!(correlation_id.as_deref(), Some("corr-1"));
+
+    storage.close().await.unwrap();
 }
 
 /// Live publication happens after commit. The committed-sequence
@@ -100,4 +102,6 @@ async fn the_committed_signal_moves_on_commit_and_never_on_rollback() {
             }
         }
     }
+
+    storage.close().await.unwrap();
 }

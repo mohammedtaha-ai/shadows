@@ -84,6 +84,8 @@ async fn saved_versions_replay_exactly_and_remain_scoped_to_the_project() {
         payloads,
         [r#"{"number":1}"#, r#"{"number":2}"#, r#"{"number":1}"#]
     );
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -116,6 +118,8 @@ async fn concurrent_saves_number_versions_inside_the_write() {
             .number,
         12
     );
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -149,4 +153,6 @@ async fn removal_hides_current_but_keeps_the_original_replay() {
             "project"
         )))
     ));
+
+    w.storage.close().await.unwrap();
 }

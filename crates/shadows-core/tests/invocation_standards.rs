@@ -122,4 +122,10 @@ async fn invocation_standards_preserve_pins_nulls_and_missing_results() {
         Err(StorageError::NotFound("invocation"))
     ));
     core.code().shut_down().await;
+
+    drop(conn);
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }

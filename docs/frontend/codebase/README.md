@@ -187,7 +187,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/cli-picker.tsx` | Chooses the CLI a conversation runs on | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer-bar.tsx` | Flat row of composer menus under the message box | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer.tsx` | Compose the message writing surface | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/context-ring.tsx` | Context-usage ring with its two popover levels | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/context-ring.tsx` | Shows the context-usage summary in a ring popover | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/conversation.tsx` | Open conversation pane, assembled from its parts | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/deleted-conversation.tsx` | Readable history of a removed conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/draft.tsx` | Render the draft conversation routes | `web/src/app/conversation/contract.yaml` |

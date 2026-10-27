@@ -31,20 +31,29 @@ use tower::ServiceExt;
 use shadows_core::testing::acp;
 use shadows_core::testing::turn;
 
+#[path = "fixtures/process_directory.rs"]
+mod process_directory;
+
 type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
 struct Fixture {
-    _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
     sessions: Arc<Harness>,
     thread: ThreadId,
     bus: Bus,
+    _tmp: Option<tempfile::TempDir>,
 }
 
 async fn fixture() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let mut fixture = fixture_in(tmp.path()).await;
+    fixture._tmp = Some(tmp);
+    fixture
+}
+
+async fn fixture_in(root: &std::path::Path) -> Fixture {
+    let storage = Arc::new(Storage::open(&root.join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage)
         .await
         .unwrap();
@@ -65,7 +74,7 @@ async fn fixture() -> Fixture {
         &ctx,
         "demo",
         "Demo",
-        &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
+        &shadows_core::testing::ProjectDirectory::resolve(root).unwrap(),
         &shadows_agent::policy::default_modes(),
     )
     .await
@@ -88,7 +97,7 @@ async fn fixture() -> Fixture {
     .unwrap();
     let sessions = acp::fake_sessions(runtime.storage_for_test().clone());
     Fixture {
-        _tmp: tmp,
+        _tmp: None,
         runtime,
         handles: Arc::new(LiveHandles::default()),
         sessions,
@@ -215,6 +224,9 @@ async fn a_shutdown_that_confirms_every_operation_records_graceful() {
     assert_eq!(f.operation(&running).await.status_kind, "Cancelled");
     assert_eq!(f.operation(&finished).await.status_kind, "Completed");
     assert!(!is_alive(pid), "Cancelled was written over a live process");
+
+    f.sessions.close_all().await.unwrap();
+    f.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// The prompt has answered but the
@@ -245,6 +257,9 @@ async fn a_turn_whose_outcome_is_still_being_written_is_terminal_before_graceful
         loaded.status_kind, "Completed",
         "Graceful was recorded before the turn's own ending was"
     );
+
+    f.sessions.close_all().await.unwrap();
+    f.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// During shutdown, a tree that could not be terminated is not
@@ -253,7 +268,12 @@ async fn a_turn_whose_outcome_is_still_being_written_is_terminal_before_graceful
 /// known to be alive.
 #[tokio::test]
 async fn a_termination_failure_during_shutdown_is_escalated_and_never_cancelled() {
-    let f = fixture().await;
+    let Some(root) = process_directory::run(
+        "a_termination_failure_during_shutdown_is_escalated_and_never_cancelled",
+    ) else {
+        return;
+    };
+    let f = fixture_in(&root).await;
     // `ignore-cancel`: the harness never confirms, so Stop must terminate.
     let op = f.start("ignore-cancel").await.unwrap();
     f.wait_for_status(&op, "Running").await;
@@ -277,6 +297,8 @@ async fn a_termination_failure_during_shutdown_is_escalated_and_never_cancelled(
         "termination failed, so the operation must not be Cancelled"
     );
     assert!(loaded.cancel_requested_at.is_some());
+
+    f.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// Work this runtime owns but holds no handle for — a `Pending` row whose
@@ -304,6 +326,9 @@ async fn unconfirmed_work_is_escalated_when_the_bound_runs_out() {
     assert_eq!(kind, StopKind::Escalated);
     assert_eq!(f.recorded_stop_kind().await.as_deref(), Some("Escalated"));
     assert_eq!(f.operation(&pending).await.status_kind, "Pending");
+
+    f.sessions.close_all().await.unwrap();
+    f.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// A second stop signal stops the waiting. The bound here is far
@@ -337,6 +362,9 @@ async fn a_second_stop_signal_escalates_at_once() {
     assert_eq!(kind, StopKind::Escalated);
     assert_eq!(f.recorded_stop_kind().await.as_deref(), Some("Escalated"));
     assert_eq!(f.operation(&pending).await.status_kind, "Pending");
+
+    f.sessions.close_all().await.unwrap();
+    f.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// A stopping runtime takes no new turn: refused with a typed error, with
@@ -418,4 +446,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
     .await
     .unwrap();
     assert!(entries.is_empty(), "a refused turn records no prompt");
+
+    f.sessions.close_all().await.unwrap();
+    f.runtime.storage_for_test().close().await.unwrap();
 }

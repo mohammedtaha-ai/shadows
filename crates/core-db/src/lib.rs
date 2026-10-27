@@ -34,7 +34,7 @@ const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 /// One serialized BEGIN IMMEDIATE writer plus a WAL reader pool.
 pub struct Storage {
     read: SqlitePool,
-    write: Mutex<SqliteConnection>,
+    write: Mutex<Option<SqliteConnection>>,
     committed: watch::Sender<i64>,
 }
 
@@ -69,13 +69,28 @@ impl Storage {
 
         Ok(Self {
             read,
-            write: Mutex::new(write),
+            write: Mutex::new(Some(write)),
             committed: watch::channel(highest.unwrap_or(0)).0,
         })
     }
 
     pub fn reader(&self) -> &SqlitePool {
         &self.read
+    }
+
+    /// Releases every database connection before its directory can be removed.
+    pub async fn close(&self) -> Result<(), StorageError> {
+        let result = {
+            let mut writer = self.write.lock().await;
+            match writer.take() {
+                Some(connection) => connection.close().await.map_err(StorageError::from),
+                None => Ok(()),
+            }
+        };
+        // Reader holders may still attempt writes before returning their connection.
+        // Release the writer lock so those attempts can observe closed storage.
+        self.read.close().await;
+        result
     }
 
     pub fn watch_committed(&self) -> watch::Receiver<i64> {
@@ -119,6 +134,10 @@ impl Storage {
         E: From<StorageError>,
     {
         let mut guard = self.write.lock().await;
+        let guard = guard
+            .as_mut()
+            .ok_or_else(|| StorageError::Unavailable("storage is closed".into()))
+            .map_err(E::from)?;
         // SQLx queues rollback when the guard is dropped, including cancellation.
         // Its worker also cleans up BEGIN if the waiting future disappears.
         let mut transaction = guard
@@ -129,7 +148,7 @@ impl Storage {
         match f(&mut transaction).await {
             Ok(v) => {
                 transaction.commit().await.map_err(StorageError::from)?;
-                self.publish_committed(&mut guard).await;
+                self.publish_committed(guard).await;
                 Ok(v)
             }
             Err(e) => {

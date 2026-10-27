@@ -98,4 +98,6 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0033 the person, 0034 usage, 0035 the extension library and its per-agent switches, \
          0036 the remembered conversation mode)"
     );
+
+    storage.close().await.unwrap();
 }

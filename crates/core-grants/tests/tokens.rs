@@ -6,10 +6,10 @@ use core_threads::{ThreadId, Threads};
 use std::sync::Arc;
 
 struct World {
-    _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     project: ProjectId,
     thread: ThreadId,
+    _tmp: tempfile::TempDir,
 }
 
 async fn world() -> World {
@@ -135,6 +135,8 @@ async fn a_token_is_stored_only_as_its_hash() {
             .unwrap(),
         None
     );
+
+    app.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -183,4 +185,6 @@ async fn a_revoked_grant_no_longer_resolves() {
         matches!(refused, Err(StorageError::NotFound(_))),
         "{refused:?}"
     );
+
+    app.storage.close().await.unwrap();
 }

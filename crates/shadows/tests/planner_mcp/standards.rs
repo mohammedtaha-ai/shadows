@@ -19,6 +19,12 @@ async fn every_turn_ends_with_the_stage_line() {
     let sent = blocks(&first);
     assert_eq!(sent.len(), 2, "{sent:?}");
     assert!(sent[1].starts_with(STAGE_IDEA), "{}", sent[1]);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -31,6 +37,12 @@ async fn a_session_opens_with_the_effective_standards() {
     assert!(append.contains("- backend (never waived):"));
     assert!(append.contains("- billing (project):"));
     assert!(append.contains("S1 ["));
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -44,6 +56,12 @@ async fn changed_standards_reach_the_next_turn_once() {
     assert!(sent[1].starts_with(STANDARDS) && sent[1].contains("billing"));
     assert!(sent[2].starts_with(STAGE_IDEA));
     assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -57,6 +75,12 @@ async fn additions_saved_after_session_open_reach_its_first_turn() {
     assert_eq!(sent.len(), 3, "{sent:?}");
     assert!(sent[1].starts_with(STANDARDS) && sent[1].contains("billing"));
     assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -69,6 +93,12 @@ async fn a_thread_from_before_the_standards_gets_them_once() {
         .unwrap();
     assert_eq!(blocks(&report(&l.app).await).len(), 3, "standards once");
     assert_eq!(blocks(&report(&l.app).await).len(), 2);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -134,4 +164,10 @@ async fn a_pending_turn_delivers_the_standards_version_it_recorded() {
     assert!(blocks(&next)[1].starts_with(STANDARDS));
     assert!(blocks(&next)[1].contains("shipping"));
     assert_eq!(blocks(&report(app).await).len(), 2);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

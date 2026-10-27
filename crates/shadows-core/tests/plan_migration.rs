@@ -55,6 +55,8 @@ async fn migration_0023_keeps_parts_and_starts_without_a_map() {
             .unwrap()
             .is_empty()
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -106,6 +108,8 @@ async fn migration_0022_turns_vision_text_into_items() {
     .await
     .unwrap();
     assert_eq!(row, (3, content));
+
+    storage.close().await.unwrap();
 }
 
 /// The database as migration `last` left it.
@@ -267,6 +271,8 @@ async fn migration_0012_moves_every_version_into_a_plan() {
     .await
     .expect_err("a frozen version's tasks are refused");
     assert!(insert.to_string().contains(FROZEN), "{insert}");
+
+    storage.close().await.unwrap();
 }
 
 /// Tool and subagent bodies become their own kinds; anything else,
@@ -339,4 +345,6 @@ async fn migration_0020_moves_tool_and_subagent_bodies_into_their_kinds() {
     );
     assert_eq!(rows[6], ("ToolCall".into(), "a]b".into(), None));
     assert_eq!(rows[7], ("ToolCall".into(), "]".into(), None));
+
+    storage.close().await.unwrap();
 }

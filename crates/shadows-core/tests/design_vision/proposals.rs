@@ -2,11 +2,11 @@ use super::*;
 use shadows_core::{Grant, ProposalStatus, SendTurn, VisionAction, VisionField, VisionPropose};
 
 struct Fixture {
-    _tmp: tempfile::TempDir,
     core: Arc<AppCore>,
     storage: Storage,
     p: ProjectId,
     grant: Grant,
+    _tmp: tempfile::TempDir,
 }
 
 impl Fixture {
@@ -92,6 +92,7 @@ impl Fixture {
             .shut_down(std::time::Duration::from_secs(3), std::future::pending())
             .await
             .unwrap();
+        self.storage.close().await.unwrap();
     }
 }
 

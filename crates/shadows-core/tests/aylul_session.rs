@@ -9,12 +9,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 struct World {
-    _tmp: tempfile::TempDir,
     home: std::path::PathBuf,
     storage: Arc<Storage>,
     core: Arc<AppCore>,
     sessions: Arc<Harness>,
     thread: ThreadId,
+    _tmp: tempfile::TempDir,
 }
 
 async fn world() -> World {

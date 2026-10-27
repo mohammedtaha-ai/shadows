@@ -17,7 +17,7 @@ async fn invalid_additions_write_nothing_and_command_identity_is_preserved() {
         )
         .await
         .unwrap();
-    let standards = Standards::new(storage);
+    let standards = Standards::new(storage.clone());
     let invalid = StandardsAdditions {
         parts: vec![AdditionalPart {
             name: "backend".into(),
@@ -51,4 +51,6 @@ async fn invalid_additions_write_nothing_and_command_identity_is_preserved() {
             .await,
         Err(StandardsError::Storage(StorageError::CommandConflict))
     ));
+
+    storage.close().await.unwrap();
 }

@@ -10,9 +10,9 @@ use tower::ServiceExt;
 use crate::AppState;
 
 pub(crate) struct World {
-    _tmp: tempfile::TempDir,
     pub(crate) core: Arc<AppCore>,
     router: axum::Router,
+    _tmp: tempfile::TempDir,
 }
 
 pub(crate) async fn world(configured: bool, key: bool) -> World {
@@ -99,6 +99,11 @@ async fn put_then_list_shows_name_only() {
         !text.contains("synthetic-http-fixture"),
         "list contains metadata only"
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -112,6 +117,11 @@ async fn put_response_has_no_value() {
         !text.contains("synthetic-http-fixture"),
         "write returns metadata only"
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -123,6 +133,11 @@ async fn bad_name_is_400() {
         serde_json::from_str::<Value>(&text).unwrap()["code"],
         "SECRET_NAME_INVALID"
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -144,6 +159,11 @@ async fn numeric_value_body_error_does_not_echo() {
             "the request body is not valid JSON for this route"
         );
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -155,6 +175,11 @@ async fn without_agent_list_is_404() {
         serde_json::from_str::<Value>(&text).unwrap()["code"],
         "AYLUL_PROFILE_NOT_FOUND"
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -180,6 +205,11 @@ async fn turn_without_key_is_aylul_key_missing() {
     let error: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(error["code"], "AYLUL_KEY_MISSING");
     assert!(error["message"].as_str().unwrap().contains("test-2"));
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -209,6 +239,16 @@ async fn delete_returns_204_and_no_key_is_503() {
         serde_json::from_str::<Value>(&text).unwrap()["code"],
         "SECRETS_UNAVAILABLE"
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    unavailable
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn agent_world(configured: bool, key: bool) -> World {

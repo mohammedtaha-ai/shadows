@@ -146,6 +146,8 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         .unwrap();
     let last_seq = durable.last().unwrap()["seq"].as_i64().unwrap();
     assert_eq!(caught_up["seq"], last_seq, "{text}");
+
+    storage.close().await.unwrap();
 }
 
 /// Every frame as `(event, data parsed as JSON)`. A frame whose data is not

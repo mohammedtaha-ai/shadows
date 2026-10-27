@@ -93,6 +93,11 @@ async fn the_first_message_titles_the_thread_once() {
     assert_eq!(events.len(), 1, "{events:?}");
     assert_eq!(events[0]["title"], first.as_str());
     assert_eq!(events[0]["source"], "first_message");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -122,6 +127,11 @@ async fn the_harness_title_replaces_the_first_message_sanitized_and_once() {
             ("Migration plan", "harness"),
         ]
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -147,6 +157,11 @@ async fn a_title_a_person_gave_is_never_replaced() {
         ("Mine".into(), "person".into())
     );
     assert!(retitled(&app).await.is_empty());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A stored plan title remains protected from automatic title writers.
@@ -186,6 +201,11 @@ async fn a_plan_thread_keeps_its_plan_title() {
     .unwrap();
     assert!(!changed);
     assert_eq!(title_of(&app, &thread).await, "Search");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -203,4 +223,9 @@ async fn a_thread_that_had_messages_before_migration_0010_keeps_its_title() {
         (title(&app).await, source(&app).await),
         ("T".into(), "client".into())
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

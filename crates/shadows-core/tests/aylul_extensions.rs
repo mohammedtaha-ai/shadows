@@ -51,6 +51,11 @@ async fn extension_enablement_is_per_agent() {
         .await
         .unwrap();
     assert!(w.core.extensions().agent_extensions("other").await.is_err());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -152,6 +157,11 @@ async fn extension_deletions_remove_enablement_atomically() {
         .await
         .unwrap();
     assert_eq!(count, 0);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[path = "aylul_extensions/home.rs"]

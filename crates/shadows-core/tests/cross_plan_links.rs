@@ -89,18 +89,24 @@ async fn cross_plan_links_persist_replay_and_reopen_without_duplicate_events() {
         .await
         .unwrap();
     assert_eq!(events, 2);
+
+    storage.close().await.unwrap();
     drop(storage);
-    let reopened = Storage::open(&temp.path().join("links.sqlite3"))
-        .await
-        .unwrap();
+    let reopened = std::sync::Arc::new(
+        Storage::open(&temp.path().join("links.sqlite3"))
+            .await
+            .unwrap(),
+    );
     assert_eq!(
-        shadows_core::AppCore::plans_for_tests(std::sync::Arc::new(reopened))
+        shadows_core::AppCore::plans_for_tests(reopened.clone())
             .get_plan_for_test(&source)
             .await
             .unwrap()
             .links,
         vec![link]
     );
+
+    reopened.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -212,6 +218,8 @@ async fn a_frozen_versions_cross_links_refuse_every_database_write() {
             .links,
         vec![link]
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -253,4 +261,6 @@ async fn a_failed_cross_link_batch_leaves_no_tasks_revision_or_event() {
         .await
         .unwrap();
     assert_eq!(events, 0);
+
+    storage.close().await.unwrap();
 }

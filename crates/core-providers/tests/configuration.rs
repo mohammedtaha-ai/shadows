@@ -65,6 +65,8 @@ async fn public_configuration_replays_and_keeps_keys_out_of_metadata() {
         .await
         .unwrap();
     assert!(!providers.provider(&first.slug).await.unwrap().key_set);
+
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -82,4 +84,6 @@ async fn invalid_configuration_writes_no_provider_or_command() {
         .await
         .unwrap();
     assert_eq!(commands, 0);
+
+    storage.close().await.unwrap();
 }

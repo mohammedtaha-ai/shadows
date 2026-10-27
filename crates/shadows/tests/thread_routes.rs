@@ -126,6 +126,11 @@ async fn a_deleted_conversation_is_gone_but_readable() {
     )
     .await;
     assert_eq!(project_status, 200);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -163,6 +168,11 @@ async fn a_thread_can_be_created_on_a_harness_and_changed_until_its_first_turn()
     )
     .await;
     assert_eq!((s4, b4["harness"].as_str()), (200, Some("claude-code")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -170,6 +180,11 @@ async fn a_thread_created_without_a_harness_runs_on_claude_code() {
     let app = test_app().await;
     let t = create_thread(&app, json!({ "command_id": "c9", "title": "x" })).await;
     assert_eq!(t["harness"], "claude-code");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -190,6 +205,11 @@ async fn changing_the_harness_closes_the_threads_adapter() {
     .await;
     assert_eq!(s, 200);
     assert_eq!(app.sessions.live_count().await, 0);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -222,6 +242,11 @@ async fn an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set() {
         (s3, b3["code"].as_str()),
         (422, Some("SETTING_NOT_OFFERED"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -243,6 +268,11 @@ async fn a_project_s_modes_can_be_replaced_and_a_replay_changes_nothing() {
     )
     .await;
     assert_eq!((s3, b3["code"].as_str()), (409, Some("COMMAND_CONFLICT")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -266,6 +296,11 @@ async fn a_turn_on_a_codex_thread_is_harness_unavailable() {
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (422, Some("HARNESS_UNAVAILABLE")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -333,4 +368,9 @@ async fn a_browser_may_send_patch_from_an_allowed_origin() {
     assert!(methods.contains("PATCH"), "{methods}");
     // Picking a model sends a PUT; the allowed list is one list.
     assert!(methods.contains("PUT"), "{methods}");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -59,6 +59,11 @@ async fn the_project_lists_each_plans_latest_version() {
     expected.sort();
     assert_eq!(rows, expected, "{listed}");
     assert!(listed[0]["title"].is_string() && listed[0]["plan_id"].is_string());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -82,6 +87,11 @@ async fn a_plan_read_lists_its_blockers_and_its_last_edit() {
         plan["last_edit"]["summary"],
         "3 changes: added T2, added T1, linked T2 → T1"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -110,6 +120,11 @@ async fn approving_a_stale_revision_is_refused_with_the_current_one() {
             .await
             .is_empty()
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -135,6 +150,11 @@ async fn approving_with_blockers_is_422_with_the_list() {
         "T1 has no acceptance item; T2 has no acceptance item"
     );
     assert!(body.get("current_revision").is_none(), "{body}");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -163,6 +183,11 @@ async fn a_replayed_approval_answers_the_first_result() {
     let plan: Value = get_json(&app, &format!("/api/workflows/{v1}")).await;
     assert_eq!(plan["state"], "Frozen");
     assert_eq!(plan["approved_by"]["agent"], "human");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -182,6 +207,11 @@ async fn approving_a_frozen_version_again_with_a_new_command_is_409_frozen() {
         events_of(&app, &app.thread, "WorkflowFrozen").await.len(),
         1
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// An archived plan leaves the list, is read only, and comes back.
@@ -366,4 +396,9 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
         .unwrap();
     let (status, _) = call(&app, "GET", &format!("/api/plans/{}", draft.plan_id), None).await;
     assert_eq!(status, 404);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

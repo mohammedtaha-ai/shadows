@@ -24,6 +24,9 @@ pub enum StorageError {
 
 impl From<sqlx::Error> for StorageError {
     fn from(error: sqlx::Error) -> Self {
+        if matches!(error, sqlx::Error::PoolClosed) {
+            return Self::Unavailable("storage is closed".into());
+        }
         use sqlx::error::ErrorKind;
         match error
             .as_database_error()

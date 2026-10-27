@@ -58,6 +58,11 @@ async fn folders_nest_only_under_their_parent() {
         .map_err(shadows_core::CoreError::from);
     assert!(result.is_err());
     assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -90,6 +95,11 @@ async fn a_folder_with_dot_dot_or_absolute_is_refused() {
             .folders,
         ["a/b"]
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -149,6 +159,11 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         ));
     }
     assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -236,6 +251,11 @@ async fn removed_links_and_metadata_edits_preserve_drift() {
             .iter()
             .any(|d| d.contains("was removed"))
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -264,6 +284,11 @@ async fn initial_files_cannot_escape_part_ownership() {
             .map_err(shadows_core::CoreError::from)
             .is_err()
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -320,6 +345,11 @@ async fn initial_files_cannot_also_be_directories() {
                 .is_empty()
         );
     }
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -356,4 +386,9 @@ async fn a_hand_part_create_before_the_first_map_is_stage_blocked() {
         .await
         .unwrap();
     assert_eq!(versions, 2);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }

@@ -8,7 +8,7 @@ mod app;
 mod plan;
 
 use app::{
-    App, create_thread, default_settings, get_json, http_start, post, start_settled, test_app,
+    App, create_thread, default_settings, http_start, post, start_settled, test_app, test_app_at,
     wait_terminal,
 };
 use plan::{add, draft, edit};
@@ -40,6 +40,11 @@ async fn turn_start_replays_after_the_move() {
         .await
         .unwrap();
     assert_eq!(ops.len(), 1, "one command, one turn");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -50,6 +55,11 @@ async fn stop_after_the_move_records_cancelled() {
     assert_eq!(status, 200, "{answer}");
     assert_eq!(answer["id"], op.as_str());
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -60,6 +70,11 @@ async fn a_second_start_while_busy_is_thread_busy() {
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
     stop(&app, op.as_str()).await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// The early busy check comes before the session: a thread whose turn
@@ -81,6 +96,11 @@ async fn a_busy_thread_is_refused_before_its_session_opens() {
     let (s, b) = http_start(&app, app.thread.as_str(), body).await;
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Harness availability is checked before any session work.
@@ -95,6 +115,11 @@ async fn an_unavailable_harness_opens_no_session() {
     let (s, b) = http_start(&app, t["id"].as_str().unwrap(), turn("t1", "hi")).await;
     assert_eq!((s, b["code"].as_str()), (422, Some("HARNESS_UNAVAILABLE")));
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A start refused after the lease gives the session's events back, so the
@@ -109,30 +134,58 @@ async fn a_refused_start_gives_the_session_back() {
     assert_eq!(app.sessions.live_count().await, 1, "the session was opened");
     let op = start_settled(&app, "hi").await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A replay found only by the transaction also gives the session back. Two
-/// sends of one command both pass the early replay check while a `/context`
-/// read holds the session; the first to lease it commits and runs, and the
+/// sends of one command both pass the early replay check while a fake prompt
+/// holds the session; the first to lease it commits and runs, and the
 /// other, leasing after that turn, is answered the first operation by
 /// `start_turn`. Were its events kept, the next turn would wait out the lease
 /// and be busy.
 #[tokio::test]
 async fn a_replay_found_by_the_transaction_gives_the_session_back() {
-    let app = test_app().await;
+    let tmp = tempfile::tempdir().unwrap();
+    let app = test_app_at(tmp.path()).await;
     wait_terminal(&app, &start_settled(&app, "hi").await).await;
     let thread = app.thread.as_str().to_string();
-    let path = format!("/api/threads/{thread}/context");
-    // The fake answers an adapter's first `/context` after a second.
-    let (breakdown, ((s1, first), (s2, again))) =
-        tokio::join!(get_json::<Value>(&app, &path), async {
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-            tokio::join!(
-                http_start(&app, &thread, turn("raced", "hi")),
-                http_start(&app, &thread, turn("raced", "hi")),
-            )
-        });
-    assert!(breakdown["categories"].is_array(), "{breakdown}");
+    let opened = app.sessions.open(&app.thread).await.unwrap();
+    let mut held = app
+        .sessions
+        .lease_events(&app.thread, &opened)
+        .await
+        .unwrap();
+    // Keep both starts behind the lease without a durable busy operation.
+    let holder = async {
+        let (answer, ()) = tokio::join!(
+            opened
+                .connection()
+                .prompt(&opened.session_id, "wait-for-release", &[]),
+            async {
+                while let Some(event) = held.recv().await {
+                    if matches!(event, shadows_agent::events::HarnessEvent::Chunk { .. }) {
+                        break;
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                std::fs::write(tmp.path().join("release"), "").unwrap();
+            }
+        );
+        answer.unwrap();
+        while held.try_recv().is_ok() {}
+        app.sessions
+            .give_back_events(&app.thread, &opened, held)
+            .await;
+    };
+    let ((), (s1, first), (s2, again)) = tokio::join!(
+        holder,
+        http_start(&app, &thread, turn("raced", "hi")),
+        http_start(&app, &thread, turn("raced", "hi")),
+    );
     assert_eq!((s1, s2), (202, 202), "{first} {again}");
     assert_eq!(first["operation_id"], again["operation_id"]);
     let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
@@ -143,6 +196,11 @@ async fn a_replay_found_by_the_transaction_gives_the_session_back() {
     wait_terminal(&app, &raced).await;
     let op = start_settled(&app, "hi").await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A replayed turn start matches a command an earlier daemon recorded only
@@ -199,4 +257,9 @@ async fn turn_command_fingerprints_do_not_move() {
     let mut expected = vec![pinned("pin-plain", plain), pinned("pin-focus", focused)];
     expected.sort();
     assert_eq!(recorded, expected);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -14,7 +14,7 @@ use core_secrets::Secrets;
 use core_threads::ThreadId;
 use shadows_agent::{claude::ClaudeAdapter, events::SlashCommand};
 
-async fn fixture() -> (tempfile::TempDir, Arc<Harness>) {
+async fn fixture() -> (tempfile::TempDir, Arc<Storage>, Arc<Harness>) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(
         Storage::open(&tmp.path().join("harness.sqlite3"))
@@ -51,10 +51,10 @@ async fn fixture() -> (tempfile::TempDir, Arc<Harness>) {
         owners,
         Instructions::new(storage.clone()),
         Grants::new(storage.clone(), String::new()),
-        Operations::new(storage),
+        Operations::new(storage.clone()),
         projects,
     );
-    (tmp, harness)
+    (tmp, storage, harness)
 }
 
 fn one(name: &str) -> SlashCommand {
@@ -67,7 +67,7 @@ fn one(name: &str) -> SlashCommand {
 
 #[tokio::test]
 async fn a_new_list_replaces_the_old_and_forget_drops_it() {
-    let (_tmp, harness) = fixture().await;
+    let (_tmp, storage, harness) = fixture().await;
     let thread = ThreadId::generate();
     let mut changed = harness.watch_commands();
     harness.report_commands_for_test(&thread, vec![one("a")]);
@@ -76,4 +76,6 @@ async fn a_new_list_replaces_the_old_and_forget_drops_it() {
     assert_eq!(changed.try_recv().unwrap().1, vec![one("a")]);
     harness.close_session(&thread).await.unwrap();
     assert_eq!(harness.commands_of(&thread), None);
+
+    storage.close().await.unwrap();
 }

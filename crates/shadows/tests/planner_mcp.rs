@@ -147,6 +147,12 @@ async fn a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval() {
     assert!(r["append"].as_str().unwrap().contains("roadmap_propose"));
     assert!(r["append"].as_str().unwrap().contains("roadmap_approve"));
     assert_eq!(r["allowed"], json!(["mcp__shadows__*"]));
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -178,6 +184,12 @@ async fn a_turn_edits_the_plan_through_mcp() {
         (edits[0].1.as_str(), edits[0].2.as_str()),
         ("Thread", l.app.thread.as_str())
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Conversation B carries on a plan conversation A wrote, with its
@@ -255,6 +267,12 @@ async fn a_second_conversation_carries_the_plan_on() {
         &plan_a.written_by,
         WrittenBy::Planner { thread_id, .. } if thread_id == &l.app.thread
     ));
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A call missing workflow_id is told which plan identity to supply.
@@ -263,6 +281,12 @@ async fn a_planner_without_a_workflow_id_is_told_to_list() {
     let l = listening_app().await;
     let response = reply(&l.app, "mcp workflow_get {}").await;
     assert!(response.contains("workflow_list"), "{response}");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -304,19 +328,25 @@ async fn reopening_after_idle_issues_a_new_grant_and_revokes_the_old() {
     .await;
     let read: Value = serde_json::from_str(&read).expect(&read);
     assert_eq!(read["title"], "Login");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
 async fn restart_revokes_every_internal_grant() {
     let dir = tempfile::tempdir().unwrap();
     let l = listening_at(dir.path(), acp::test_config()).await;
-    let storage = l.app.storage.clone();
     let held = report(&l.app).await["bearer_hash"].clone();
     let (project_grant, _) = issue_grant(&l.app, "project", &l.app.project, None).await;
     // A grant whose adapter died with its daemon: nothing closes it.
     issue_grant(&l.app, "thread", &l.app.project, Some(&l.app.thread)).await;
 
     shut_down_app(l.app).await;
+    let storage = std::sync::Arc::new(Storage::open(&dir.path().join("s.sqlite3")).await.unwrap());
     assert!(
         !live(&storage, &held).await,
         "stopping closes every adapter"
@@ -338,6 +368,8 @@ async fn restart_revokes_every_internal_grant() {
             .await
             .unwrap();
     assert_eq!(revoked, None, "a project grant is the person's");
+
+    storage.close().await.unwrap();
 }
 
 /// `serve` (not the in-process app) wires the address it bound into every
@@ -369,9 +401,9 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
     )
     .await;
     // Plan work needs an approved roadmap: seeded beside the daemon.
-    let seeded = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let seeded = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let id = shadows_core::ProjectId::from_literal(project["id"].as_str().unwrap());
-    shadows_core::AppCore::design_for_tests(std::sync::Arc::new(seeded))
+    shadows_core::AppCore::design_for_tests(seeded.clone())
         .seed_roadmap_for_tests(&id)
         .await
         .unwrap();
@@ -448,6 +480,8 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
     let r: Value = serde_json::from_str(&replies[0]).unwrap();
     assert_eq!(r["mcp"]["url"], format!("{}/mcp", daemon.base));
     assert!(replies[1].contains("workflow_id"), "{}", replies[1]);
+
+    seeded.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -488,6 +522,12 @@ async fn changed_instructions_reach_the_next_turn_once_as_a_context_block() {
         "a change never resumes the session"
     );
     assert_eq!(thread_grants(&l.app.storage).await.len(), 1);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -518,6 +558,12 @@ async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
     );
 
     assert_eq!(blocks(&report(&l.app).await).len(), 2);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -535,6 +581,12 @@ async fn a_new_threads_first_turn_has_only_the_stage_line() {
         append.ends_with(&format!("\n\n## Project instructions\n\n{body}")),
         "{append}"
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -555,6 +607,12 @@ async fn instructions_saved_after_the_session_opened_reach_its_first_turn() {
         "{sent:?}"
     );
     assert_eq!(blocks(&report(&l.app).await).len(), 2);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -610,6 +668,12 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
         )
     );
     assert!(sent[3].starts_with(STAGE_IDEA));
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -648,6 +712,12 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
     assert_eq!((versions.prompt, versions.instructions), recorded);
     assert_eq!(versions.standards, Some(1));
     assert_eq!(versions.additions, None);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -667,6 +737,12 @@ async fn context_skipped_by_a_command_reaches_the_next_turn() {
     assert!(sent[1].starts_with(CHANGED), "{}", sent[1]);
     assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
     assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -689,4 +765,10 @@ async fn changes_skipped_by_two_commands_reach_the_next_turn_once_and_current() 
     assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
     assert!(!sent[1].contains("Arabic"), "the stale text: {}", sent[1]);
     assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

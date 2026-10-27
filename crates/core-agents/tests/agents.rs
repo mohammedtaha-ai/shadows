@@ -7,10 +7,11 @@ use core_secrets::{SecretKey, Secrets};
 use std::sync::Arc;
 
 struct World {
-    _tmp: tempfile::TempDir,
+    storage: Arc<Storage>,
     agents: Arc<Agents>,
     secrets: Arc<Secrets>,
     providers: Arc<Providers>,
+    _tmp: tempfile::TempDir,
 }
 
 async fn seeded() -> World {
@@ -28,11 +29,12 @@ async fn seeded() -> World {
         storage.clone(),
         providers.clone(),
         secrets.clone(),
-        Projects::new(storage),
+        Projects::new(storage.clone()),
         Some(tmp.path().join("home")),
     );
     World {
         _tmp: tmp,
+        storage,
         agents,
         secrets,
         providers,
@@ -57,6 +59,8 @@ async fn agent_default_must_be_a_provider_model() {
         w.agents.create_agent("a".into(), input).await,
         Err(AgentsError::Invalid(_))
     ));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -71,6 +75,8 @@ async fn color_defaults_to_purple() {
         serde_json::to_value(a).unwrap()["character_color"],
         "purple"
     );
+
+    w.storage.close().await.unwrap();
 }
 
 async fn colored_agent(
@@ -105,6 +111,8 @@ async fn color_id_shape_is_checked() {
             Err(AgentsError::Invalid(_))
         ));
     }
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -115,6 +123,8 @@ async fn unknown_but_well_formed_color_is_kept() {
         serde_json::to_value(a).unwrap()["character_color"],
         "future-color-2"
     );
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -145,6 +155,8 @@ async fn update_without_color_keeps_it() {
         w.agents.update_agent("u".into(), "work", different).await,
         Err(AgentsError::Storage(core_db::StorageError::CommandConflict))
     ));
+
+    w.storage.close().await.unwrap();
 }
 
 fn provider(name: &str) -> ProviderInput {
@@ -165,6 +177,8 @@ async fn provider_in_use_cannot_be_deleted() {
         w.agents.delete_provider("d".into(), "provider").await,
         Err(AgentsError::ProviderInUse(_))
     ));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -185,6 +199,8 @@ async fn removing_an_agents_default_model_is_refused() {
             .await,
         Err(AgentsError::ProviderInUse(_))
     ));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -199,4 +215,6 @@ async fn delete_provider_removes_its_key() {
         .await
         .unwrap();
     assert!(!w.secrets.provider_key_set("provider").await.unwrap());
+
+    w.storage.close().await.unwrap();
 }

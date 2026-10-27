@@ -23,11 +23,11 @@ use shadows_core::testing::acp;
 use shadows_core::testing::turn;
 
 struct Fixture {
-    _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
     sessions: Arc<Harness>,
     bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
+    _tmp: tempfile::TempDir,
 }
 
 async fn fixture() -> (Fixture, ThreadId, ThreadId) {
@@ -164,6 +164,9 @@ async fn a_closed_adapter_resumes_the_session_the_first_turn_started() {
     let (how, own) = f.session_of_a_turn(&other).await;
     assert_eq!(how, "new");
     assert_ne!(own, session, "two threads share one session");
+
+    f.sessions.close_all().await.unwrap();
+    f.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// A first turn whose adapter had to be terminated never ended, so its
@@ -189,4 +192,7 @@ async fn a_first_turn_stopped_by_termination_records_no_session() {
 
     let (how, _) = f.session_of_a_turn(&thread).await;
     assert_eq!(how, "new");
+
+    f.sessions.close_all().await.unwrap();
+    f.runtime.storage_for_test().close().await.unwrap();
 }

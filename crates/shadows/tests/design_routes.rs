@@ -296,6 +296,11 @@ async fn standards_routes_read_the_base_and_save_additions() {
         let unknown = format!("/api/projects/{}/{suffix}", uuid::Uuid::new_v4());
         assert_eq!(app::call(&app, "GET", &unknown, None).await.0, 404);
     }
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -362,6 +367,11 @@ async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
             .len(),
         1
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -432,6 +442,11 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     assert_eq!(payload["changed_outcomes"].as_array().unwrap().len(), 2);
     assert_eq!(payload["changed_parts"], json!([part]));
     assert!(!payload.to_string().contains("قبول أول"));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -504,6 +519,11 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     let payload: Value = serde_json::from_str(&events[0].payload_json).unwrap();
     assert_eq!(payload["changed_parts"].as_array().unwrap().len(), 2);
     assert_eq!(payload["vision_changed"], false);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -565,4 +585,9 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     assert_eq!(payload["revision"], 1);
     assert_eq!(payload["vision_changed"], true);
     assert!(payload.get("content").is_none());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

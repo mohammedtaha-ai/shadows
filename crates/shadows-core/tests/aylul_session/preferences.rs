@@ -23,6 +23,11 @@ async fn aylul_choices_have_no_default_model() {
             .await
             .is_err()
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -65,4 +70,9 @@ async fn remembered_model_is_per_agent() {
         .await
         .unwrap();
     assert_eq!(choices.current.effort.as_deref(), Some("low"));
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

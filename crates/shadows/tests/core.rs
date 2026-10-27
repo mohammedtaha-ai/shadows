@@ -8,9 +8,7 @@ mod listening;
 #[path = "fixtures/plan.rs"]
 mod plan;
 
-use app::{
-    call, default_settings, patch, post, start_and_finish, start_on, test_app, wait_terminal,
-};
+use app::{call, default_settings, patch, post, start_and_finish, start_on, test_app};
 use listening::{listening_app, mcp_client, ok};
 use serde_json::json;
 use shadows_core::testing::CommandContext;
@@ -24,6 +22,11 @@ async fn the_router_is_built_from_the_core() {
     assert_eq!(list[0]["name"], "Demo");
     assert_eq!(list[0]["id"], app.project.as_str());
     assert_eq!(list.as_array().unwrap().len(), 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -36,7 +39,18 @@ async fn shut_down_through_the_core_cancels_and_records() {
         .await
         .unwrap();
     assert_eq!(kind, shadows_core::StopKind::Graceful);
-    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+    let path = app
+        .storage
+        .reader()
+        .connect_options()
+        .get_filename()
+        .to_owned();
+    let reopened = std::sync::Arc::new(shadows_core::testing::Storage::open(&path).await.unwrap());
+    let recorded = shadows_core::Turns::get_operation_for_test(&reopened, &op)
+        .await
+        .unwrap();
+    assert_eq!(recorded.status_kind, "Cancelled");
+    reopened.close().await.unwrap();
 }
 
 /// A grant revoked through the routes is refused by the bearer check on `/mcp`.
@@ -73,6 +87,12 @@ async fn revoked_grant_is_refused_after_the_move() {
         .unwrap();
     assert_eq!(response.status(), 401);
     assert_eq!(response.text().await.unwrap(), "");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Grant issue and revoke commands persist the principal, kind, schema version
@@ -122,6 +142,11 @@ async fn grant_command_fingerprints_do_not_move() {
     ];
     expected.sort();
     assert_eq!(recorded, expected);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A project create sent twice answers the first project, and two
@@ -150,6 +175,11 @@ async fn project_create_replays_after_the_move() {
     let (status, conflict) = post(&app, "/api/projects", other).await;
     assert_eq!(status, 409, "{conflict}");
     assert_eq!(conflict["code"], "COMMAND_CONFLICT");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Project, thread and instructions commands persist the principal, kind, schema
@@ -257,4 +287,9 @@ async fn project_thread_and_instructions_command_fingerprints_do_not_move() {
     ];
     expected.sort();
     assert_eq!(recorded, expected);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

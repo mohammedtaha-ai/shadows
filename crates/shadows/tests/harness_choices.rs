@@ -39,6 +39,11 @@ async fn opening_a_session_answers_the_harness_choices_after_the_policy() {
         "an open session answers what it holds"
     );
     assert_eq!(app.sessions.live_count().await, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -63,6 +68,11 @@ async fn a_mode_the_project_does_not_allow_is_listed_disabled_with_the_reason() 
             &json!("Not allowed in this project")
         )
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -77,6 +87,11 @@ async fn a_remembered_model_the_account_cannot_use_is_dropped() {
         (s, c["current"]["model"].as_str()),
         (200, Some("fake-large"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -94,6 +109,11 @@ async fn harnesses_lists_claude_runnable_and_codex_not() {
         (Some("codex"), Some(false))
     );
     assert!(h[1]["reason"].is_string());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -122,6 +142,11 @@ async fn a_new_session_starts_at_the_remembered_model_and_effort() {
         h[0]["remembered"],
         json!({ "model": "fake-small", "effort": "low" })
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -134,6 +159,11 @@ async fn a_remembered_model_the_harness_no_longer_offers_is_dropped() {
     let (s, c) = post(&app, &session_path(&app), json!({})).await;
     assert_eq!(s, 200);
     assert_eq!(c["current"]["model"], "fake-large"); // the fake's own default
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -152,6 +182,11 @@ async fn a_codex_thread_cannot_open_a_session() {
     let (s, b) = post(&app, &format!("/api/threads/{}/session", t.id), json!({})).await;
     assert_eq!((s, b["code"].as_str()), (422, Some("HARNESS_UNAVAILABLE")));
     assert_eq!(app.sessions.live_count().await, 0, "nothing was started");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -162,6 +197,11 @@ async fn a_change_to_the_offer_reaches_a_subscriber_as_an_options_frame() {
     let frame = app::next_frame_named(&mut sub, "options").await;
     assert_eq!(frame["thread_id"], app.thread.as_str());
     assert_eq!(names(&frame["choices"]["modes"]), ["acceptEdits", "auto"]);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 fn model_path(app: &app::App) -> String {
@@ -199,6 +239,11 @@ async fn picking_a_model_answers_that_models_efforts() {
     let h: Vec<Value> = get_json(&app, "/api/harnesses").await;
     assert!(h[0]["remembered"].is_null(), "only a turn is remembered");
     assert_eq!(app.sessions.live_count().await, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -211,6 +256,11 @@ async fn a_model_the_session_does_not_list_is_not_offered() {
         c["current"]["model"], "fake-large",
         "the session is unchanged"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -225,6 +275,11 @@ async fn a_model_the_harness_refuses_is_not_offered_in_its_words() {
     );
     let (_, c) = post(&app, &session_path(&app), json!({})).await;
     assert_eq!(c["current"]["model"], "fake-large");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -241,6 +296,11 @@ async fn a_running_turns_model_is_not_changed() {
         (s, c["current"]["model"].as_str()),
         (200, Some("fake-small"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -253,4 +313,9 @@ async fn an_unknown_thread_is_not_found() {
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (404, Some("INVALID_COMMAND")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

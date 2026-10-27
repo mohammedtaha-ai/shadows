@@ -126,6 +126,11 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
         .unwrap();
     let (_, removed) = next_frame(&mut body, &mut pending).await;
     assert_eq!(removed["kind"], "PlanDependenciesChanged");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -205,6 +210,11 @@ async fn design_stream_replays_resumes_and_keeps_projects_separate() {
             .await
             .is_err()
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -344,4 +354,9 @@ async fn a_project_stream_sends_another_conversations_plan_edit() {
         .0,
         404
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

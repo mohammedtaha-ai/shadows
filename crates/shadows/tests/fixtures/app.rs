@@ -41,8 +41,6 @@ use super::acp;
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
 pub struct App {
-    /// `None` when the test owns the directory (`test_app_at`).
-    _tmp: Option<tempfile::TempDir>,
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
@@ -60,6 +58,8 @@ pub struct App {
     pub thread: ThreadId,
     // Held: a dropped sender reads as a stopping daemon.
     _stopping: tokio::sync::watch::Sender<bool>,
+    /// `None` when the test owns the directory (`test_app_at`).
+    _tmp: Option<tempfile::TempDir>,
 }
 
 pub fn ctx(id: &str, kind: &str) -> CommandContext {
@@ -204,17 +204,10 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
 /// Stops the daemon as `serve` does on a signal, so the directory can be
 /// opened again by `test_app_at`.
 pub async fn shut_down_app(app: App) {
-    shadows_core::testing::PlannerTurn::shut_down(
-        app.runtime.clone(),
-        app.runtime.storage_for_test(),
-        shadows_core::AppCore::operations_for_tests(app.runtime.storage_for_test()),
-        app.handles.clone(),
-        app.sessions.clone(),
-        Duration::from_secs(5),
-        std::future::pending::<()>(),
-    )
-    .await
-    .unwrap();
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 pub async fn call(app: &App, method: &str, path: &str, body: Option<Value>) -> (u16, Value) {

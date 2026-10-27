@@ -43,6 +43,11 @@ async fn aylul_harness_only_in_the_aylul_project() {
             .await
             .is_err()
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 pub(super) async fn core(w: &World) -> Arc<shadows_core::AppCore> {
@@ -93,6 +98,11 @@ async fn aylul_thread_requires_a_live_agent() {
             .await
             .is_err()
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -115,6 +125,11 @@ async fn planner_thread_refuses_an_agent() {
             .await
             .is_err()
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -158,6 +173,11 @@ async fn threads_list_by_profile_only() {
         threads.iter().map(|t| &t.id).collect::<Vec<_>>(),
         vec![&last.id, &first.id]
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -215,6 +235,8 @@ async fn legacy_aylul_threads_map_to_aylul() {
     .await
     .unwrap();
     assert_eq!(t.profile.as_deref(), Some("aylul"));
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -276,4 +298,9 @@ async fn fork_keeps_profile() {
             .as_deref(),
         Some("work")
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

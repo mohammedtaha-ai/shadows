@@ -20,7 +20,7 @@ use shadows_core::testing::acp;
 
 const ALLOWED: &str = "http://localhost:5173";
 
-async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<bool>) {
+async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<bool>, Arc<Storage>) {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
@@ -32,7 +32,7 @@ async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<boo
             operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
-            storage,
+            storage: storage.clone(),
             runtime: Arc::new(runtime),
             handles: Arc::new(LiveHandles::default()),
             bus,
@@ -42,7 +42,7 @@ async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<boo
         allowed_origins: vec![ALLOWED.to_string()],
         shutdown,
     });
-    (app, stopping)
+    (app, stopping, storage)
 }
 
 fn preflight(origin: &str) -> Request<Body> {
@@ -66,7 +66,7 @@ fn header_of(response: &axum::response::Response, name: header::HeaderName) -> O
 #[tokio::test]
 async fn a_preflight_from_an_allowed_origin_is_answered() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(&tmp).await;
+    let (app, _stopping, storage) = app(&tmp).await;
 
     let response = app.oneshot(preflight(ALLOWED)).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -78,6 +78,8 @@ async fn a_preflight_from_an_allowed_origin_is_answered() {
     assert!(methods.contains("post"), "{methods}");
     let headers = header_of(&response, header::ACCESS_CONTROL_ALLOW_HEADERS).unwrap();
     assert!(headers.contains("content-type"), "{headers}");
+
+    storage.close().await.unwrap();
 }
 
 /// Revoking a grant is the router's one `DELETE`. A browser
@@ -86,7 +88,7 @@ async fn a_preflight_from_an_allowed_origin_is_answered() {
 #[tokio::test]
 async fn a_delete_from_an_allowed_origin_is_preflighted_and_sent() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(&tmp).await;
+    let (app, _stopping, storage) = app(&tmp).await;
 
     let preflight = Request::builder()
         .method("OPTIONS")
@@ -111,6 +113,8 @@ async fn a_delete_from_an_allowed_origin_is_preflighted_and_sent() {
     // Past the guard: an unknown grant, not a refused origin.
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
     assert_eq!(body["code"], "INVALID_COMMAND");
+
+    storage.close().await.unwrap();
 }
 
 /// The browser's decision rests on `Access-Control-Allow-Origin` alone: without
@@ -121,7 +125,7 @@ async fn a_delete_from_an_allowed_origin_is_preflighted_and_sent() {
 #[tokio::test]
 async fn a_preflight_from_any_other_origin_is_not_allowed() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(&tmp).await;
+    let (app, _stopping, storage) = app(&tmp).await;
 
     for origin in [
         "http://evil.example",
@@ -135,6 +139,8 @@ async fn a_preflight_from_any_other_origin_is_not_allowed() {
             "{origin}"
         );
     }
+
+    storage.close().await.unwrap();
 }
 
 /// The live stream is read cross-origin too; its response carries the allow
@@ -142,7 +148,7 @@ async fn a_preflight_from_any_other_origin_is_not_allowed() {
 #[tokio::test]
 async fn the_event_stream_is_readable_from_an_allowed_origin() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(&tmp).await;
+    let (app, _stopping, storage) = app(&tmp).await;
 
     let response = app
         .oneshot(
@@ -162,6 +168,8 @@ async fn the_event_stream_is_readable_from_an_allowed_origin() {
         header_of(&response, header::ACCESS_CONTROL_ALLOW_ORIGIN).as_deref(),
         Some(ALLOWED)
     );
+
+    storage.close().await.unwrap();
 }
 
 /// A browser matches its `Origin` header exactly, so an entry that could
@@ -210,7 +218,7 @@ async fn send(app: &Router, request: Request<Body>) -> (StatusCode, serde_json::
 #[tokio::test]
 async fn a_request_addressed_to_another_hostname_is_refused() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(&tmp).await;
+    let (app, _stopping, storage) = app(&tmp).await;
 
     for host in [
         "evil.example:4318",
@@ -245,6 +253,8 @@ async fn a_request_addressed_to_another_hostname_is_refused() {
         .await;
         assert_eq!(status, StatusCode::OK, "{host}: {body}");
     }
+
+    storage.close().await.unwrap();
 }
 
 /// CORS stops a page reading an answer, not the request running. A simple
@@ -254,7 +264,7 @@ async fn a_request_addressed_to_another_hostname_is_refused() {
 #[tokio::test]
 async fn a_page_on_another_site_cannot_make_the_daemon_act() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(&tmp).await;
+    let (app, _stopping, storage) = app(&tmp).await;
     let parent = tmp.path().to_str().unwrap().to_string();
     let listing = format!("/api/fs/dirs?path={}", encode(&parent));
     let create = |origin: Option<&str>| {
@@ -304,6 +314,8 @@ async fn a_page_on_another_site_cannot_make_the_daemon_act() {
     let (status, body) = send(&app, create(Some(ALLOWED))).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     assert!(tmp.path().join("made").is_dir());
+
+    storage.close().await.unwrap();
 }
 
 /// A query-string value, percent-encoded byte by byte.

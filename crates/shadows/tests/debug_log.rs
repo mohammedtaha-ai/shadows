@@ -45,7 +45,7 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
         "{name}"
     );
 
-    let (daemon, _stopping) = app_state(&tmp).await;
+    let (daemon, _stopping, storage) = app_state(&tmp).await;
     let thread = seed_thread(&daemon.runtime).await;
 
     // Through the router, as a client starts one: the turn outlives the
@@ -167,6 +167,8 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
         !text.contains('\u{1b}'),
         "the file is plain text, with no terminal colour codes"
     );
+
+    storage.close().await.unwrap();
 }
 
 async fn start(state: &Daemon, thread: &shadows_core::ThreadId, prompt: &str) -> OperationId {
@@ -192,7 +194,9 @@ struct Daemon {
     bus: Bus,
 }
 
-async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Sender<bool>) {
+async fn app_state(
+    tmp: &tempfile::TempDir,
+) -> (Daemon, tokio::sync::watch::Sender<bool>, Arc<Storage>) {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
@@ -208,7 +212,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
         core: AppCore::assemble(CoreParts {
             operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
-            storage,
+            storage: storage.clone(),
             runtime: runtime.clone(),
             sessions: sessions.clone(),
             handles: handles.clone(),
@@ -226,7 +230,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
         sessions,
         bus,
     };
-    (daemon, stopping)
+    (daemon, stopping, storage)
 }
 
 async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {

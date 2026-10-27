@@ -84,6 +84,8 @@ async fn a_removed_target_task_keeps_the_link_and_blocks_source_approval() {
             .await
             .is_err()
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -193,6 +195,8 @@ async fn a_cross_plan_cycle_names_its_tasks_and_blocks_approval_until_removed() 
         .approve_plan_for_test(&command("approve"), &source, 1)
         .await
         .unwrap();
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -285,6 +289,8 @@ async fn a_foreign_target_requires_an_outgoing_project_link_and_breaks_after_unl
             .await
             .is_err()
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -377,4 +383,6 @@ async fn an_unrelated_cycle_in_a_target_plan_does_not_block_this_dependency() {
         "unrelated work leaked into approval: {:?}",
         plan.blockers
     );
+
+    storage.close().await.unwrap();
 }

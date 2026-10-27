@@ -96,6 +96,9 @@ async fn migration_24_backfills_preexisting_approved_proposal_views() {
         assert_eq!(by.principal, "user:local");
         assert!(by.request.is_none());
     }
+
+    pool.close().await;
+    storage.close().await.unwrap();
 }
 
 /// Runs only on the externally prepared SQLite backup; never on the live DB.
@@ -124,6 +127,8 @@ async fn migrate_prepared_dev_copy_only() {
             .is_empty()
     );
     storage.reader().close().await;
+
+    storage.close().await.unwrap();
 }
 
 async fn old_rows(pool: &sqlx::SqlitePool) -> Vec<Vec<String>> {
@@ -326,6 +331,8 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
     assert_eq!(detail.plans, vec![PlanId::from_literal(PLAN)]);
     assert_eq!(old_rows(storage.reader()).await, before);
     storage.reader().close().await;
+
+    storage.close().await.unwrap();
     drop(storage);
 
     let reopened = std::sync::Arc::new(Storage::open(&path).await.unwrap());
@@ -373,4 +380,7 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
             .to_string()
             .contains("frozen plan version never changes")
     );
+
+    pool.close().await;
+    reopened.close().await.unwrap();
 }

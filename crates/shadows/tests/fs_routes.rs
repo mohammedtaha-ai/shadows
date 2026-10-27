@@ -19,7 +19,7 @@ use tower::ServiceExt;
 
 use shadows_core::testing::acp;
 
-async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
+async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>, Arc<Storage>) {
     let storage = Arc::new(Storage::open(&tmp.join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
@@ -31,7 +31,7 @@ async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
             operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
-            storage,
+            storage: storage.clone(),
             runtime: Arc::new(runtime),
             handles: Arc::new(LiveHandles::default()),
             bus,
@@ -41,7 +41,7 @@ async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
         allowed_origins: Vec::new(),
         shutdown,
     });
-    (app, stopping)
+    (app, stopping, storage)
 }
 
 async fn call(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
@@ -88,7 +88,7 @@ fn canonical(path: &Path) -> String {
 #[tokio::test]
 async fn a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(tmp.path()).await;
+    let (app, _stopping, storage) = app(tmp.path()).await;
     let root = tmp.path().join("browse");
     for dir in ["Zeta", "alpha", "beta", ".hidden"] {
         std::fs::create_dir_all(root.join(dir)).unwrap();
@@ -115,6 +115,8 @@ async fn a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_one
         assert_eq!(entry["path"], expected.as_str(), "{entry}");
         assert_eq!(entry["hidden"], name == ".hidden", "{entry}");
     }
+
+    storage.close().await.unwrap();
 }
 
 /// With no path, browsing starts at the roots: every answering drive on
@@ -122,7 +124,7 @@ async fn a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_one
 #[tokio::test]
 async fn with_no_path_the_listing_is_the_roots() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(tmp.path()).await;
+    let (app, _stopping, storage) = app(tmp.path()).await;
 
     let (status, listing) = call(&app, "GET", "/api/fs/dirs", None).await;
     assert_eq!(status, StatusCode::OK, "{listing}");
@@ -150,12 +152,14 @@ async fn with_no_path_the_listing_is_the_roots() {
     // A root's parent is null too, one level down.
     let (_, at_root) = call(&app, "GET", &listing_uri(Path::new(&root_of_temp)), None).await;
     assert_eq!(at_root["parent"], Value::Null, "{}", at_root["path"]);
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
 async fn a_listing_that_cannot_be_made_is_refused_with_a_stable_code() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(tmp.path()).await;
+    let (app, _stopping, storage) = app(tmp.path()).await;
     let file = tmp.path().join("a-file.txt");
     std::fs::write(&file, "x").unwrap();
 
@@ -175,12 +179,14 @@ async fn a_listing_that_cannot_be_made_is_refused_with_a_stable_code() {
         let (got, body) = call(&app, "GET", &listing_uri(path), None).await;
         assert_eq!((got, body["code"].as_str()), (status, Some(code)), "{body}");
     }
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
 async fn creating_a_directory_returns_it_and_a_second_time_is_a_conflict() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(tmp.path()).await;
+    let (app, _stopping, storage) = app(tmp.path()).await;
     let request = json!({ "parent": tmp.path(), "name": "new project" });
 
     let (status, created) = call(&app, "POST", "/api/fs/dirs", Some(request.clone())).await;
@@ -209,6 +215,8 @@ async fn creating_a_directory_returns_it_and_a_second_time_is_a_conflict() {
         (StatusCode::NOT_FOUND, Some("PATH_NOT_FOUND")),
         "{orphan}"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// A name must be exactly one new component that Windows would accept. Each
@@ -216,7 +224,7 @@ async fn creating_a_directory_returns_it_and_a_second_time_is_a_conflict() {
 #[tokio::test]
 async fn a_name_that_is_not_one_valid_component_is_refused() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(tmp.path()).await;
+    let (app, _stopping, storage) = app(tmp.path()).await;
     let parent = tmp.path().join("parent");
     std::fs::create_dir(&parent).unwrap();
 
@@ -257,6 +265,8 @@ async fn a_name_that_is_not_one_valid_component_is_refused() {
         0,
         "a refused name created something"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// Axum refuses a malformed request before any handler runs, and answers it in
@@ -265,7 +275,7 @@ async fn a_name_that_is_not_one_valid_component_is_refused() {
 #[tokio::test]
 async fn a_request_refused_before_its_handler_still_answers_an_error_body() {
     let tmp = tempfile::tempdir().unwrap();
-    let (app, _stopping) = app(tmp.path()).await;
+    let (app, _stopping, storage) = app(tmp.path()).await;
     let bad_json = Request::post("/api/fs/dirs")
         .header("content-type", "application/json")
         .body(Body::from("{\"parent\": 1}"))
@@ -291,4 +301,6 @@ async fn a_request_refused_before_its_handler_still_answers_an_error_body() {
             "{what}"
         );
     }
+
+    storage.close().await.unwrap();
 }

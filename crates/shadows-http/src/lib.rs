@@ -208,7 +208,6 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(harness::change_model))
         .routes(routes!(harness::change_effort))
         .routes(routes!(harness::change_mode))
-        .routes(routes!(harness::thread_context))
         .routes(routes!(
             thread::get_thread,
             thread::update_thread,

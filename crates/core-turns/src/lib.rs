@@ -263,8 +263,8 @@ impl Turns {
             .await?;
         self.sessions
             .require_images(&opened, !attachments.is_empty())?;
-        // The turn holds the session from here: a second start, or a `/context`
-        // read, cannot change or prompt it until this turn gives it back.
+        // The turn holds the session from here: a second start, or a model or
+        // effort change, cannot change or prompt it until this turn gives it back.
         let events =
             (self.sessions.lease_events(&thread_id, &opened).await).map_err(|e| match e {
                 LeaseError::Busy => TurnsError::ThreadBusy,

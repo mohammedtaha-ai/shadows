@@ -281,6 +281,11 @@ async fn outcome_spans_parts_without_copying_them() {
     let view = core.plans().design_outcome(&p, &o).await.unwrap();
     assert_eq!(view.parts, vec![b]);
     assert_eq!(view.plans, vec![v2.plan_id]);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }
 
 // Shared parent trees, lost ordering and stale moves fail here.
@@ -363,6 +368,10 @@ async fn outcome_hierarchy_is_independent_of_parts() {
         a
     );
     core.code().shut_down_for_test().await;
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
     drop(core);
     let (_, reopened) = fixture(&db).await;
     assert_eq!(
@@ -377,6 +386,10 @@ async fn outcome_hierarchy_is_independent_of_parts() {
             .collect::<Vec<_>>(),
         vec![c, a]
     );
+    reopened
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 // A plan state must never derive an outcome's completion or mutate Frozen bytes.
@@ -480,4 +493,9 @@ async fn plan_lifecycle_never_completes_outcomes() {
     .unwrap();
     assert_eq!(after_record, frozen_record);
     assert_eq!(after_tasks, frozen_tasks);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }

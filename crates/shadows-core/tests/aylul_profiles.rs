@@ -3,10 +3,10 @@ use shadows_core::{AgentInput, ProviderInput, SecretKey, testing};
 use std::sync::Arc;
 
 struct World {
-    _tmp: tempfile::TempDir,
     storage: Arc<testing::Storage>,
     secrets: Arc<shadows_core::Secrets>,
     app: Arc<shadows_core::AppCore>,
+    _tmp: tempfile::TempDir,
 }
 
 async fn world() -> World {

@@ -107,6 +107,11 @@ async fn one_command_writes_entry_operation_invocation_and_record_together() {
             .unwrap(),
         Some(("fake-small".into(), Some("high".into())))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -119,6 +124,11 @@ async fn the_invocation_is_frozen_below_the_application() {
             .execute(app.storage.reader())
             .await;
     assert!(raw.is_err(), "the trigger refuses a changed request");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -142,6 +152,11 @@ async fn a_replayed_turn_start_starts_nothing_and_returns_the_first_operation() 
         .await
         .unwrap();
     assert_eq!(ops.len(), 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -159,6 +174,11 @@ async fn the_same_command_id_with_another_body_is_a_conflict() {
             StorageError::CommandConflict
         ))
     ));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -172,6 +192,11 @@ async fn a_second_turn_while_one_is_running_is_thread_busy() {
             ..
         })
     ));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -223,6 +248,11 @@ async fn a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothin
         1,
         "only the running turn's prompt"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -246,6 +276,11 @@ async fn a_mode_the_project_no_longer_allows_is_refused() {
         (403, Some("MODE_NOT_ALLOWED"))
     );
     assert!(entries(&app).await.is_empty(), "nothing durable");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -268,6 +303,11 @@ async fn a_mode_outside_the_policy_is_not_offered() {
         (422, Some("SETTING_NOT_OFFERED"))
     );
     assert!(entries(&app).await.is_empty());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -290,6 +330,11 @@ async fn an_effort_the_model_does_not_offer_is_refused() {
         (422, Some("SETTING_NOT_OFFERED"))
     );
     assert!(entries(&app).await.is_empty());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn session_model(app: &App) -> String {
@@ -320,6 +365,11 @@ async fn a_refused_effort_leaves_the_session_on_its_model() {
         (422, Some("SETTING_NOT_OFFERED"))
     );
     assert_eq!(session_model(&app).await, "fake-large");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -344,6 +394,11 @@ async fn a_refused_mode_leaves_the_session_on_its_model() {
         (403, Some("MODE_NOT_ALLOWED"))
     );
     assert_eq!(session_model(&app).await, "fake-large");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -373,6 +428,11 @@ async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
         "{body}"
     );
     assert!(entries(&app).await.is_empty());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -409,6 +469,11 @@ async fn a_model_without_efforts_runs_with_none() {
             .requested_effort
             .is_none()
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -436,6 +501,11 @@ async fn auto_on_a_model_without_it_fails_at_prepare_with_the_harness_message() 
             .unwrap()
             .contains("auto mode is not available")
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -463,6 +533,11 @@ async fn a_replay_is_answered_even_after_the_mode_was_disallowed() {
             .count(),
         1
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -491,6 +566,11 @@ async fn a_replay_with_another_body_over_http_is_a_command_conflict() {
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (409, Some("COMMAND_CONFLICT")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -522,6 +602,11 @@ async fn a_replay_is_answered_while_the_daemon_is_stopping() {
     )
     .await;
     assert_eq!((s2, b2["code"].as_str()), (503, Some("RUNTIME_STOPPING")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -557,6 +642,11 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
             .all(|e| e.operation_id.as_deref() == Some(op.as_str())),
         "the prompt and every entry the turn wrote name the turn"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A Stop that lands while the committed turn is still `Pending` finds nothing
@@ -618,4 +708,9 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
     );
     let next = wait_terminal(&app, &app::start_settled(&app, "hi").await).await;
     assert_eq!(next.status_kind, "Completed", "the session was given back");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

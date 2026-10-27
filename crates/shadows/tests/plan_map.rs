@@ -70,6 +70,11 @@ async fn the_project_map_aggregates_task_links_with_foreign_plan_metadata() {
     let broken: Value = get_json(&app, &path).await;
     assert_eq!(broken["links"][0]["broken"], true);
     assert_eq!(broken["plans"].as_array().unwrap().len(), 2);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -125,4 +130,9 @@ async fn the_map_keeps_incoming_foreign_links_to_archived_plans() {
     assert_eq!(map["links"][0]["broken"], false);
     let own: Value = get_json(&app, &format!("/api/projects/{}/plan-map", app.project)).await;
     assert!(own["plans"].as_array().unwrap().is_empty());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

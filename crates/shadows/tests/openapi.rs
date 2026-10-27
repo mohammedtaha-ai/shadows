@@ -176,7 +176,6 @@ fn the_document_names_every_route() {
             "GET /api/subscribe",
             "GET /api/threads/{id}",
             "GET /api/threads/{id}/attachments/{attachment_id}",
-            "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
             "GET /api/threads/{id}/queue",
@@ -299,7 +298,7 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
             operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
-            storage,
+            storage: storage.clone(),
             runtime: Arc::new(runtime),
             handles: Arc::new(LiveHandles::default()),
             bus,
@@ -361,4 +360,6 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
             }
         }
     }
+
+    storage.close().await.unwrap();
 }

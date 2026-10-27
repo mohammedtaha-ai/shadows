@@ -7,9 +7,9 @@ use core_secrets::{SecretKey, Secrets, SecretsError};
 const VALUE: &str = "synthetic-fixture-value-9154";
 
 struct World {
-    tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     secrets: Arc<Secrets>,
+    tmp: tempfile::TempDir,
 }
 
 async fn world() -> World {
@@ -39,6 +39,8 @@ async fn stored_ciphertext_is_not_the_value() {
         .await
         .unwrap();
     assert!(bytes != VALUE.as_bytes());
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -52,6 +54,8 @@ async fn list_names_in_order_without_values() {
         ["API_KEY", "Z"]
     );
     assert!(!serde_json::to_string(&entries).unwrap().contains(VALUE));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -65,6 +69,8 @@ async fn replace_keeps_one_row() {
         pairs[0].1 == "synthetic-replacement",
         "replacement resolves"
     );
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -80,6 +86,8 @@ async fn remove_drops_the_row() {
         .remove_env("b".into(), "aylul", "API_KEY")
         .await
         .unwrap();
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -102,6 +110,8 @@ async fn replay_same_value_replays() {
         pairs[0].1 == "synthetic-replacement",
         "replacement resolves"
     );
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -116,6 +126,8 @@ async fn replay_other_value_conflicts() {
         result,
         Err(SecretsError::Storage(StorageError::CommandConflict))
     ));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -128,6 +140,8 @@ async fn moved_row_is_unreadable() {
         .unwrap();
     assert!(matches!(w.secrets.resolve_env("aylul").await,
         Err(SecretsError::Unreadable(name)) if name == "MOVED"));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -138,6 +152,8 @@ async fn other_master_key_lists_but_cannot_resolve() {
     assert_eq!(other.list_env("aylul").await.unwrap().len(), 1);
     assert!(matches!(other.resolve_env("aylul").await,
         Err(SecretsError::Unreadable(name)) if name == "API_KEY"));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -157,6 +173,8 @@ async fn lower_case_bad_and_reserved_names_are_refused() {
             Err(SecretsError::NameInvalid(_) | SecretsError::NameReserved(_))
         ));
     }
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -170,6 +188,8 @@ async fn empty_nul_and_oversized_values_are_refused() {
             Err(SecretsError::ValueInvalid(_))
         ));
     }
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -192,6 +212,8 @@ async fn no_key_refuses_every_method() {
         service.resolve_env("p").await,
         Err(SecretsError::Unavailable)
     ));
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -212,6 +234,8 @@ async fn value_absent_from_db_wal_shm_and_command_record() {
             assert!(!bytes.windows(VALUE.len()).any(|v| v == VALUE.as_bytes()));
         }
     }
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -228,4 +252,6 @@ async fn reserved_name_can_be_removed() {
         w.secrets.remove_env("r2".into(), "aylul", "bad").await,
         Err(SecretsError::NameInvalid(_))
     ));
+
+    w.storage.close().await.unwrap();
 }

@@ -12,13 +12,13 @@
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Adapter configuration uses ClaudeAdapter/ClaudeProfile constructors; options use Offered methods.
-# Context category parsing uses Category::parse; account reports use AccountLimits::from_report.
+# Account reports use AccountLimits::from_report.
 # Setups receives Grants from AppCore. Thread liveness and ownership are checked in the grant-issuing write.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns the harnesses and each thread's open session (spec §12.2–§12.4, §12.8,
 # §14.4): the harness list, opening a thread's session and answering its
 # choices, a person's model or effort change, the remembered model and
-# per-model effort applied to them, and the context breakdown read on demand.
+# per-model effort applied to them.
 # `Sessions` holds the live adapter per thread; `Turns` drives a turn on it
 # through Harness methods named under functions.harness_for_turns; Sessions is private.
 #
@@ -49,7 +49,7 @@
 # operation not yet ended but no live turn holding the events (a Pending
 # operation, or a turn whose watcher gave the events back before its ending
 # was recorded) holds no lease: only `thread_is_busy` refuses the change there.
-# Trap: the lease answers Busy only after (context_wait + cancel_wait + 1s);
+# Trap: the lease answers Busy only after (cancel_wait + 1s);
 # while a turn runs, the early check is what answers at once.
 # Trap: an opening issues the thread's MCP grant (`Setups::for_opening`, on
 # `Grants::issue_thread_grant_in`) and every close revokes it (`Setups::forget`).
@@ -79,7 +79,6 @@ modules:
   model.rs: public harness values with unchanged schema description metadata
   assistant.rs: per-agent opening configuration
   commands.rs: live slash command lists
-  context.rs: on-demand context breakdown
   extension_home.rs: enabled extension projection
   live.rs: adapter cache opening
   offers.rs: synchronous option offer dispatch
@@ -147,24 +146,12 @@ shapes:
     model: Option<String>
     # Per model, its last turn's effort. Unordered: read by key only.
     efforts: HashMap<String, String>
-  ContextBreakdown:
-    # Exactly one of the two is Some.
-    categories: Option<Vec<Category>>
-    # `NoBreakdown::reason`'s words.
-    reason: Option<String>
   SettingRefused:
     # A model not listed, or an effort the session's model does not offer.
     NotOffered: unit
     # The harness's own words.
     Harness: String
     Lease: LeaseError
-  NoBreakdown:
-    NotOpen: unit
-    NoTurnYet: unit
-    # A turn, or another read, holds the session's events.
-    Busy: unit
-    TimedOut: unit
-    Unreadable: unit
   Sessions:
     # One live adapter per thread, the offers it made, and the setups it
     # opened with. Built on the core's `Arc<Storage>`, so the grant rows
@@ -174,11 +161,10 @@ shapes:
   SessionsConfig:
     secrets: Option<Arc<Secrets>>
     aylul: Option<AylulConfig>
-    # Defaults: 15 min, 10 s, 20 s, 5 s, None.
+    # Defaults: 15 min, 10 s, 20 s, None.
     idle_after: Duration
     cancel_wait: Duration
     setup_wait: Duration
-    context_wait: Duration
     # Shadows' `/mcp` as bound; `None` issues no thread grant on opening.
     mcp_url: Option<String>
   OpenSession:
@@ -187,7 +173,7 @@ shapes:
     # "new", "resume" or "fork", decided from `turn_context`.
     how: "&'static str"
     # Private: the connection (read through `connection()`) and a generation,
-    # so a turn that outlives its adapter never gives its events to, marks,
+    # so a turn that outlives its adapter never gives its events to
     # or terminates the adapter that replaced it.
   OpenError:
     Secrets: core_secrets::SecretsError
@@ -199,7 +185,7 @@ shapes:
     # The project directory cannot be run in; words a client may show.
     Workspace: String
   LeaseError:
-    # A turn, or a `/context` read that did not finish in time, holds it.
+    # A turn or setting change holds the session.
     Busy: unit
     # The adapter this session ran on is gone.
     Closed: unit
@@ -279,12 +265,6 @@ functions:
       # Private: turn_context → harness_available (HarnessUnavailable) →
       # thread_is_busy (ThreadBusy) → Sessions::open. The one copy of the
       # order both changes keep.
-    context:
-      signature: "(&self, thread: &ThreadId) -> Result<ContextBreakdown, HarnessError>"
-      # turn_context (NotFound for an unknown thread), then
-      # Sessions::context; its refusals are a reason, not an error. No
-      # availability check: a thread whose harness cannot run has no session,
-      # and answers NotOpen.
   for_events:
     # `Events` delivers a thread's offers and usage through these three, so
     # no adapter reaches `Sessions` or the store for them (Task 10).
@@ -378,8 +358,6 @@ functions:
       signature: "(&self, thread, opened, settings: &TurnSettings) -> Result<(), String>"
       # Harness delegates to private Sessions: sets model, effort and mode, one call per value
       # that differs; `Err` names the refused setting in the harness's words.
-    mark_answered:
-      signature: "(&self, thread, opened)"
     touch:
       signature: "(&self, thread: &ThreadId)"
     terminate_adapter:
@@ -461,9 +439,6 @@ enums:
     values: []
   AccountLimits:
     source: shadows_agent::events::AccountLimits
-    values: []
-  Category:
-    source: shadows_agent::breakdown::Category
     values: []
 
 
@@ -609,8 +584,8 @@ obligations:
       - a_model_the_harness_refuses_is_not_offered_in_its_words
 
   - rule: >
-      No command. Opening a session, changing its model and reading its
-      breakdown record no command, write no entry or operation, and leave the
+      No command. Opening a session and changing its model record no
+      command, write no entry or operation, and leave the
       remembered model where the last turn put it. An opening that starts an
       adapter does write, when `mcp_url` is set (always, under `shadows
       serve`): the thread grant's `mcp_grant` row and `McpGrantIssued`, after
@@ -619,13 +594,12 @@ obligations:
     tested_by:
       - harness_calls_record_no_command
       - picking_a_model_answers_that_models_efforts
-      - the_breakdown_is_read_on_demand_and_leaves_no_trace
       - a_sessions_grant_reaches_a_subscriber_live
     note: >
-      The first counts `command_record` before and after all three calls; it
+      The first counts `command_record` before and after both calls; it
       passes on b4d614e, so no harness call carries a fingerprint the move
       could shift. The second asserts `remembered` is still null after two
-      model changes. The fourth is the write: POST session appends the
+      model changes. The third is the write: POST session appends the
       thread's `McpGrantIssued`. The revocation of a replaced grant has no
       test of its own here.
 
@@ -709,12 +683,9 @@ obligations:
       for a slow resume's opening.
 
   - rule: >
-      The breakdown is read only on an open, idle session that has answered a
-      turn in this adapter; otherwise it says why, and a turn sent during a
-      read waits for it and keeps its own output.
-    tested_by:
-      - no_breakdown_before_the_first_turn_or_while_one_runs
-      - a_turn_started_during_a_breakdown_read_keeps_its_output
+      The session's event lease is exclusive. A turn started while another
+      holder owns it waits for the give-back and collects only its own output.
+    tested_by: a_turn_started_during_a_session_hold_keeps_its_output
 
   - rule: >
       One pool. `Sessions` writes through the core's `Arc<Storage>`, never a
@@ -800,8 +771,7 @@ not_the_caller's:
       Check availability or busyness, or open the session, before
       `change_model` or `open_session`; they do, in the only safe order.
   - >
-      Map `SettingRefused`, `OpenError` or `NoBreakdown`; the service answers a
-      `HarnessError`, or a `ContextBreakdown` with its reason.
+      Map `SettingRefused` or `OpenError`; the service answers a `HarnessError`.
   - >
       Filter the offer by policy or the project's modes; `choices` does.
 
@@ -902,7 +872,7 @@ tests:
     checks: PUT model on a codex thread is 422 HARNESS_UNAVAILABLE, no session live.
   - name: harness_calls_record_no_command
     checks: >
-      Open, change model and read context each answer 200 and the command log
+      Open and change model each answer 200 and the command log
       does not grow.
   - name: a_codex_thread_cannot_open_a_session
     checks: POST session on a codex thread is 422 HARNESS_UNAVAILABLE, nothing started.
@@ -950,10 +920,6 @@ tests:
     checks: >
       The `_meta` fake-acp's `initialize` received is jetbrains.air version 1
       with capabilities ["recommendedValue"].
-  - name: the_breakdown_is_read_on_demand_and_leaves_no_trace
-    checks: >
-      After a turn, GET context answers categories, writes no entry and no
-      operation, and the next turn completes.
   - name: opening_a_session_answers_the_harness_choices_after_the_policy
     checks: >
       POST session lists the fake's models, efforts and policy modes in
@@ -971,14 +937,10 @@ tests:
       While one thread's slow resume opens, `terminate` on a second thread
       returns before that opening has finished; the opening then succeeds,
       one session live.
-  - name: no_breakdown_before_the_first_turn_or_while_one_runs
+  - name: a_turn_started_during_a_session_hold_keeps_its_output
     checks: >
-      GET context answers "open" before a session, "first" before a turn, and
-      "running" while `hang` runs.
-  - name: a_turn_started_during_a_breakdown_read_keeps_its_output
-    checks: >
-      A turn sent 200 ms into a `/context` read completes with its own reply;
-      no entry holds the breakdown.
+      A turn polled while a fake wait-for-release prompt holds the session stays
+      pending, then records both of its messages and none of the holder's output.
   - name: a_busy_thread_is_refused_before_its_session_opens
     checks: >
       Turns' side: with a Pending operation, a turn start is 409 THREAD_BUSY

@@ -1,15 +1,12 @@
 //! What the harness reports about a turn: the answering model and
 //! the context, written into the turn's invocation when it completes; the
-//! account limits, kept per harness; a `usage` frame as each report arrives;
-//! and the context breakdown, read on demand without leaving a trace.
-
-use serde_json::{Value, json};
+//! account limits, kept per harness; a `usage` frame as each report arrives.
 
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 
-use app::{entries, get_json, post, start_settled, test_app, wait_terminal};
+use app::{entries, start_settled, test_app, test_app_at, wait_terminal};
 
 #[tokio::test]
 async fn a_completed_turn_records_what_the_harness_reported() {
@@ -42,6 +39,11 @@ async fn a_completed_turn_records_what_the_harness_reported() {
         .unwrap();
     assert!((limits.seven_day.unwrap().utilization - 0.5).abs() < 1e-9);
     assert_eq!(limits.five_hour.unwrap().resets_at, 1790212200);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -59,6 +61,11 @@ async fn the_completed_event_carries_the_invocation() {
             break;
         }
     }
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -71,6 +78,11 @@ async fn a_turn_without_usage_leaves_the_observation_unavailable() {
     assert!(
         inv.context_used.is_none() && inv.context_window.is_none() && inv.observed_model.is_none()
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -85,82 +97,66 @@ async fn a_usage_frame_reaches_a_subscriber_of_the_thread() {
     let frame = app::next_frame_named(&mut sub, "usage").await;
     assert_eq!(frame["context_window"], 1_000_000);
     assert!(frame["limits"]["seven_day"].is_object(), "{frame}");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
+/// A turn waits for a session holder to finish, then collects only its own output.
 #[tokio::test]
-async fn the_breakdown_is_read_on_demand_and_leaves_no_trace() {
-    let app = test_app().await;
-    wait_terminal(&app, &start_settled(&app, "hi").await).await;
-    let before = entries(&app).await.len();
-    let b: Value = get_json(&app, &format!("/api/threads/{}/context", app.thread)).await;
-    assert_eq!(b["categories"][0]["name"], "Messages", "{b}");
-    assert_eq!(b["categories"][2]["tokens"], 923_900);
-    assert!(b["reason"].is_null());
-    assert_eq!(entries(&app).await.len(), before, "no entry");
-    let ops: Vec<Value> = get_json(&app, &format!("/api/threads/{}/operations", app.thread)).await;
-    assert_eq!(ops.len(), 1, "no operation");
-    let next = wait_terminal(&app, &start_settled(&app, "report").await).await;
-    assert_eq!(
-        next.status_kind, "Completed",
-        "the session still runs turns"
-    );
-}
+async fn a_turn_started_during_a_session_hold_keeps_its_output() {
+    use shadows_agent::events::HarnessEvent;
+    use std::time::Duration;
 
-/// A turn sent while a breakdown is being read waits for the read to give the
-/// session back, then runs with its own live output: its reply is its own
-/// entry, and the `/context` answer is in no entry at all.
-#[tokio::test]
-async fn a_turn_started_during_a_breakdown_read_keeps_its_output() {
-    let app = test_app().await;
+    let tmp = tempfile::tempdir().unwrap();
+    let app = test_app_at(tmp.path()).await;
     wait_terminal(&app, &start_settled(&app, "hi").await).await;
-    let path = format!("/api/threads/{}/context", app.thread);
-    // The fake answers an adapter's first `/context` after a second.
-    let (breakdown, op) = tokio::join!(get_json::<Value>(&app, &path), async {
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        start_settled(&app, "two-messages").await
-    });
-    assert!(breakdown["categories"].is_array(), "{breakdown}");
+    let harness = app.core.harness();
+    let opened = harness.open(&app.thread).await.unwrap();
+    let mut held = harness.lease_events(&app.thread, &opened).await.unwrap();
+    let start = start_settled(&app, "two-messages");
+    tokio::pin!(start);
+
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let (answer, ()) = tokio::join!(
+            opened
+                .connection()
+                .prompt(&opened.session_id, "wait-for-release", &[]),
+            async {
+                loop {
+                    let event = held.recv().await.expect("the holder's events stay open");
+                    if let HarnessEvent::Chunk { text, .. } = event {
+                        assert_eq!(text, "waiting");
+                        break;
+                    }
+                }
+                assert!(
+                    tokio::time::timeout(Duration::from_millis(200), &mut start)
+                        .await
+                        .is_err(),
+                    "the turn must wait while the holder owns the session"
+                );
+                std::fs::write(tmp.path().join("release"), "").unwrap();
+            }
+        );
+        answer.unwrap();
+        while held.try_recv().is_ok() {}
+        harness.give_back_events(&app.thread, &opened, held).await;
+    })
+    .await
+    .expect("the holder finishes and returns the session");
+
+    let op = start.await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
     let bodies: Vec<String> = entries(&app).await.into_iter().map(|e| e.body).collect();
+    assert!(bodies.iter().any(|b| b == "first"), "{bodies:?}");
     assert!(bodies.iter().any(|b| b == "second"), "{bodies:?}");
-    assert!(!bodies.iter().any(|b| b.contains("Category")), "{bodies:?}");
-}
+    assert!(!bodies.iter().any(|b| b == "waiting"), "{bodies:?}");
 
-#[tokio::test]
-async fn no_breakdown_before_the_first_turn_or_while_one_runs() {
-    let app = test_app().await;
-    let path = format!("/api/threads/{}/context", app.thread);
-    let b: Value = get_json(&app, &path).await;
-    assert!(b["categories"].is_null() && b["reason"].as_str().unwrap().contains("open"));
-    post(
-        &app,
-        &format!("/api/threads/{}/session", app.thread),
-        json!({}),
-    )
-    .await;
-    let b: Value = get_json(&app, &path).await;
-    assert!(b["categories"].is_null() && b["reason"].as_str().unwrap().contains("first"));
-    let _running = start_settled(&app, "hang").await;
-    let b2: Value = get_json(&app, &path).await;
-    assert!(
-        b2["categories"].is_null() && b2["reason"].as_str().unwrap().contains("running"),
-        "{b2}"
-    );
-}
-
-#[test]
-fn parse_reads_the_category_table_only() {
-    let md = "## Context Usage\n\n| Category | Tokens | Percentage |\n\
-              |---|---|---|\n\
-              | Messages | 3.8k | 0.4% |\n\
-              | Free space | 923.9k | 92.4% |\n\
-              \n\
-              ### MCP Tools\n\
-              | Tool | Server | Tokens |\n\
-              | x | y | 400 |\n";
-    let c = shadows_agent::breakdown::Category::parse(md).unwrap();
-    assert_eq!(c.len(), 2);
-    assert_eq!((c[1].name.as_str(), c[1].tokens), ("Free space", 923_900));
-    assert!((c[0].percent - 0.4).abs() < 1e-9);
-    assert!(shadows_agent::breakdown::Category::parse("no table").is_none());
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
