@@ -70,6 +70,8 @@ async fn commands_replay_only_with_identical_persistence_inputs() {
         })
         .await
         .unwrap();
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -122,6 +124,9 @@ async fn command_rollback_is_invisible_to_replay_and_the_write_observer() {
         .await
         .unwrap();
     assert_ne!(observer.version().await.unwrap(), before);
+
+    drop(observer);
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -207,4 +212,6 @@ async fn cancelled_write_rolls_back_command_and_event_before_recovery() {
         !committed.has_changed().unwrap(),
         "rolled-back events must never notify"
     );
+
+    storage.close().await.unwrap();
 }

@@ -69,4 +69,6 @@ async fn operations_tracks_thread_busy_and_recovery() {
     let report = operations.recover(&runtime_b).await.unwrap();
     assert_eq!(report.interrupted, vec![op_id]);
     assert!(!operations.thread_is_busy(&thread.id).await.unwrap());
+
+    storage.close().await.unwrap();
 }

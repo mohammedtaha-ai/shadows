@@ -88,6 +88,8 @@ async fn outgoing_and_incoming_views_name_the_related_plan_and_task() {
             .unwrap()
             .contains("T3")
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -187,6 +189,8 @@ async fn incoming_previews_obey_the_grants_one_way_project_reach() {
             .linked_tasks
             .is_empty()
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -307,4 +311,6 @@ async fn a_frozen_sources_preview_follows_the_targets_new_version() {
             .len(),
         1
     );
+
+    storage.close().await.unwrap();
 }

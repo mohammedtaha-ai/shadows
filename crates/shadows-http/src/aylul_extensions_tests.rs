@@ -83,4 +83,9 @@ async fn extension_routes_round_trip() {
         .0,
         StatusCode::NOT_FOUND
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -180,6 +180,10 @@ async fn indexing_follows_the_files() {
     );
     let near = core.code().definitions(me, None, "amm").await.unwrap();
     assert!(near.hits.is_empty() && near.suggestions == ["gamma"]);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -218,6 +222,10 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
     std::fs::write(dir.path().join("src/b.rs"), "fn two() {}\n").unwrap();
     eventually(|| defined("two")).await;
     core.code().shut_down_for_test().await;
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -247,4 +255,8 @@ async fn only_the_most_recent_projects_are_watched() {
         "the least recently used left"
     );
     core.code().shut_down_for_test().await;
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

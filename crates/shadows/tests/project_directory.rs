@@ -153,6 +153,8 @@ async fn a_turn_runs_in_its_projects_directory() {
         .unwrap_or_else(|| panic!("no agent reply in {entries}"));
     let reported: Value = serde_json::from_str(reply["body"].as_str().unwrap()).unwrap();
     assert_eq!(reported["cwd"], canonical.as_str(), "{reported}");
+
+    storage.close().await.unwrap();
 }
 
 /// A path the daemon cannot use is refused with a 4xx and a code
@@ -161,7 +163,7 @@ async fn a_turn_runs_in_its_projects_directory() {
 async fn an_unusable_directory_is_refused_with_a_stable_code() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (app, _stopping) = app(storage).await;
+    let (app, _stopping) = app(storage.clone()).await;
     let file = tmp.path().join("a-file.txt");
     std::fs::write(&file, "not a directory").unwrap();
 
@@ -193,6 +195,8 @@ async fn an_unusable_directory_is_refused_with_a_stable_code() {
 
     let (_, listed) = call(&app, "GET", "/api/projects", None).await;
     assert_eq!(listed, json!([]), "a refused request created a project");
+
+    storage.close().await.unwrap();
 }
 
 /// A project whose directory was deleted after it was created: the turn is
@@ -245,6 +249,8 @@ async fn a_turn_on_a_deleted_directory_is_refused_with_its_reason() {
     )
     .await;
     assert_eq!(entries, json!([]), "a refused turn wrote its prompt");
+
+    storage.close().await.unwrap();
 }
 
 /// A database written before `0003_project_directory.sql` holds projects with
@@ -312,6 +318,8 @@ async fn a_project_from_before_directories_has_its_turns_refused() {
         refused.is_err(),
         "a new project row was written without a directory"
     );
+
+    storage.close().await.unwrap();
 }
 
 const LEGACY_THREAD: &str = "00000000-0000-4000-8000-0000000000a2";

@@ -27,6 +27,11 @@ async fn provider_slug_rules() {
         .await
         .unwrap();
     assert_eq!(p.slug, "a".repeat(29));
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -91,6 +96,11 @@ async fn invalid_provider_input_is_refused() {
             .await
             .is_ok()
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -114,6 +124,11 @@ async fn provider_key_is_write_only() {
         .await
         .unwrap();
     assert!(!w.secrets.provider_key_set("provider").await.unwrap());
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -135,6 +150,11 @@ async fn replay_with_other_input_conflicts() {
             shadows_core::StorageError::CommandConflict
         ))
     ));
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -152,6 +172,11 @@ async fn preset_supplies_url_and_name() {
         .unwrap();
     assert_eq!(p.name, "MiniMax");
     assert_eq!(p.base_url, "https://api.minimax.io/anthropic");
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -176,6 +201,11 @@ async fn presets_list_in_fixed_order() {
             "moonshot-china"
         ]
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -188,6 +218,11 @@ async fn china_presets_use_china_hosts() {
         serde_json::to_value(&presets[1]).unwrap()["region"],
         "china"
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn refused(value: serde_json::Value) {
@@ -197,6 +232,10 @@ async fn refused(value: serde_json::Value) {
         w.app.providers().create_provider("bad".into(), input).await,
         Err(shadows_core::ProvidersError::InvalidProfile(_))
     ));
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -242,6 +281,11 @@ async fn label_is_trimmed_and_empty_is_null() {
     for label in ["x".repeat(65), "bad\nlabel".into()] {
         refused(serde_json::json!({"preset":"minimax","models":[{"id":"m"}],"label":label})).await;
     }
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -268,6 +312,11 @@ async fn model_window_defaults_and_is_bounded() {
             "models":[{"id":"m","context_window":size}]}))
         .await;
     }
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -332,6 +381,11 @@ async fn test_is_a_reserved_provider_slug() {
             .slug,
         "test"
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -362,6 +416,11 @@ async fn existing_test_provider_keeps_its_identity() {
     w.app
         .agents()
         .delete_provider("d".into(), "test")
+        .await
+        .unwrap();
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
         .unwrap();
 }

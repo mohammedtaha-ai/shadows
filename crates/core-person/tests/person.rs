@@ -56,6 +56,8 @@ async fn person_names_are_checked() {
             ));
         }
     }
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -97,6 +99,8 @@ async fn language_tag_shape_is_checked() {
             Err(PersonError::InvalidLanguage)
         ));
     }
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -115,6 +119,8 @@ async fn theme_values_are_checked() {
     let mut v = input();
     v["theme"] = "other".into();
     assert!(serde_json::from_value::<core_person::PersonInput>(v).is_err());
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -165,12 +171,15 @@ async fn person_replay_with_other_input_conflicts() {
         .await
         .unwrap();
     assert_eq!(count, 1);
+
+    drop(writes);
+    w.storage.close().await.unwrap();
 }
 
 struct World {
-    _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     person: PersonSettings,
+    _tmp: tempfile::TempDir,
 }
 
 async fn world() -> World {

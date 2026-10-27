@@ -77,6 +77,8 @@ async fn a_lost_runtimes_operations_become_interrupted() {
     );
     assert_eq!(rows[1].1, "Interrupted");
     assert_eq!(rows[1].2.as_deref(), Some("PreviousRuntimeEndedDuringRun"));
+
+    storage.close().await.unwrap();
 }
 
 /// An Escalated shutdown records `stopped_at` on purpose
@@ -113,6 +115,8 @@ async fn an_escalated_shutdowns_operations_are_not_stranded() {
             .await
             .unwrap();
     assert_eq!(status, "Interrupted");
+
+    storage.close().await.unwrap();
 }
 
 /// `Graceful` is a claim only written when true. Finding one
@@ -162,6 +166,8 @@ async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
     );
     let anomalies: Vec<&str> = report.anomalies.iter().map(|i| i.as_str()).collect();
     assert_eq!(anomalies, vec!["op-leaked"]);
+
+    storage.close().await.unwrap();
 }
 
 /// Storage refuses `Graceful`
@@ -204,6 +210,8 @@ async fn graceful_is_refused_while_the_runtime_owns_unfinished_work() {
         .stop_runtime(&idle, StopKind::Graceful)
         .await
         .expect("`idle` owns no unfinished work; `busy`'s Running row is not its own");
+
+    storage.close().await.unwrap();
 }
 
 /// The current runtime's own live work is never reconciled out from under it.
@@ -224,4 +232,6 @@ async fn the_current_runtimes_own_operations_are_left_alone() {
         .await
         .unwrap();
     assert_eq!(status, "Running");
+
+    storage.close().await.unwrap();
 }

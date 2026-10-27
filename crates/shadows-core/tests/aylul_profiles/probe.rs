@@ -46,6 +46,10 @@ async fn outcome(status: u16, body: &str) -> ProviderTestOutcome {
     let (url, handle) = peer(status, body.into(), "").await;
     let result = w.app.providers().test_provider(input(url)).await.unwrap();
     handle.await.unwrap();
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
     result
 }
 
@@ -78,6 +82,12 @@ async fn tested_key_is_not_stored_or_echoed() {
             .unwrap()
             .contains("test-key-not-real")
     );
+
+    drop(writes);
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -94,6 +104,11 @@ async fn probe_timeout_is_unreachable() {
     server.abort();
     assert_eq!(serde_json::to_value(r.reason).unwrap(), "unreachable");
     assert!(start.elapsed() < std::time::Duration::from_secs(15));
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -119,6 +134,11 @@ async fn unreachable_host_reads_unreachable() {
         serde_json::to_value(outcome(503, "").await.reason).unwrap(),
         "unreachable"
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -147,6 +167,11 @@ async fn redirect_is_not_followed() {
             .await
             .is_err()
     );
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -216,6 +241,12 @@ async fn saved_test_uses_the_stored_key() {
             .await
             .is_err()
     );
+
+    drop(writes);
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -237,6 +268,11 @@ async fn invalid_probe_input_is_refused() {
             Err(shadows_core::ProvidersError::InvalidProfile(_))
         ));
     }
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -265,6 +301,11 @@ async fn live_keys_list_models() {
         );
         assert!(r.ok && !r.models.is_empty(), "live model listing failed");
     }
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -296,6 +337,11 @@ async fn anthropic_pagination_stops_at_five_pages() {
     assert!(r.ok);
     assert_eq!(r.models.len(), 5);
     server.await.unwrap();
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -316,4 +362,9 @@ async fn oversized_body_without_content_length_is_unexpected() {
     let r = w.app.providers().test_provider(input(url)).await.unwrap();
     assert_eq!(serde_json::to_value(r.reason).unwrap(), "unexpected");
     server.await.unwrap();
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

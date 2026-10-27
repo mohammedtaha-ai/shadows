@@ -89,6 +89,11 @@ async fn a_plan_cannot_start_before_the_roadmap() {
         .await
         .map_err(shadows_core::CoreError::from)
         .unwrap();
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -135,6 +140,11 @@ async fn edit_and_approve_wait_for_the_roadmap() {
         .await
         .map_err(shadows_core::CoreError::from)
         .unwrap();
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -184,6 +194,11 @@ async fn a_plan_with_no_part_cannot_be_approved() {
         .map_err(shadows_core::CoreError::from)
         .unwrap();
     assert_eq!(view.plans, vec![tied.plan_id]);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -206,6 +221,11 @@ async fn a_start_with_an_unknown_part_links_nothing() {
             .plans
             .is_empty()
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -234,6 +254,11 @@ async fn hand_outcome_edits_wait_for_the_first_roadmap() {
         .await
         .map_err(shadows_core::CoreError::from)
         .unwrap();
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -265,4 +290,9 @@ async fn a_recorded_start_still_answers_before_the_roadmap() {
             .unwrap(),
         first
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }

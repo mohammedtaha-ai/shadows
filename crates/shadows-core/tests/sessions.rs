@@ -7,11 +7,11 @@ use shadows_core::{
 };
 
 struct Fixture {
-    _tmp: tempfile::TempDir,
     project_dir: PathBuf,
     storage: Arc<Storage>,
     sessions: Arc<Harness>,
     thread: ThreadId,
+    _tmp: tempfile::TempDir,
 }
 
 async fn fixture(config: SessionsConfig) -> Fixture {
@@ -101,6 +101,7 @@ async fn opening_twice_reuses_one_adapter_and_starts_in_accept_edits() {
     assert_eq!(report["mode"], "acceptEdits");
     assert_eq!(report["how"], "new");
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -112,6 +113,7 @@ async fn a_thread_with_a_recorded_session_resumes_it() {
     let s = fx.sessions.open(&fx.thread).await.unwrap();
     assert_eq!((s.session_id.as_str(), s.how), ("fake-77", "resume"));
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -136,6 +138,7 @@ async fn a_removed_thread_cannot_reuse_its_still_open_adapter() {
     // Between the removal commit and Stop/close, the cached adapter still exists.
     let refused = fx.sessions.open(&fx.thread).await;
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
     assert!(matches!(
         refused,
         Err(OpenError::Storage(shadows_core::StorageError::NotFound(
@@ -160,6 +163,7 @@ async fn an_idle_connection_is_closed_and_the_next_opening_resumes() {
     let again = fx.sessions.open(&fx.thread).await.unwrap();
     assert_eq!((again.session_id.as_str(), again.how), ("fake-5", "resume"));
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -189,6 +193,7 @@ async fn idle_close_before_first_turn_discards_the_unrecorded_session() {
     assert_eq!(again.how, "new");
     assert_eq!(prompt_text(&fx, &again, "hi").await, "hello from fake_acp");
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -199,6 +204,7 @@ async fn a_dead_connection_is_replaced_on_the_next_opening() {
     let again = fx.sessions.open(&fx.thread).await.unwrap();
     assert_eq!(prompt_text(&fx, &again, "hi").await, "hello from fake_acp");
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -210,6 +216,7 @@ async fn a_project_without_its_directory_does_not_start_an_adapter() {
         Err(OpenError::Workspace(reason)) if reason.contains("missing")
     ));
     assert_eq!(fx.sessions.live_count().await, 0);
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -227,6 +234,7 @@ async fn reaper_keeps_a_connection_while_its_turn_holds_events() {
         .give_back_events(&fx.thread, &opened, events)
         .await;
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -244,6 +252,7 @@ async fn a_harness_slower_than_setup_wait_fails_and_leaves_no_adapter() {
         Err(OpenError::Start(reason)) if reason.contains("timed out")
     ));
     assert_eq!(fx.sessions.live_count().await, 0);
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -257,6 +266,7 @@ async fn the_default_setup_wait_outlasts_a_slow_harness() {
     let s = fx.sessions.open(&fx.thread).await.unwrap();
     assert_eq!((s.session_id.as_str(), s.how), ("slow-2", "resume"));
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 async fn second_thread(fx: &Fixture) -> ThreadId {
@@ -314,6 +324,7 @@ async fn one_thread_opening_does_not_hold_another() {
     assert!(opening.await.unwrap().is_ok());
     assert_eq!(fx.sessions.live_count().await, 1);
     fx.sessions.close_all().await.unwrap();
+    fx.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -322,4 +333,5 @@ async fn terminate_removes_the_connection() {
     fx.sessions.open(&fx.thread).await.unwrap();
     fx.sessions.terminate(&fx.thread).await.unwrap();
     assert_eq!(fx.sessions.live_count().await, 0);
+    fx.storage.close().await.unwrap();
 }

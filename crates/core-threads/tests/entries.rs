@@ -102,6 +102,8 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
             .await
             .unwrap();
     assert_eq!(next, 201);
+
+    storage.close().await.unwrap();
 }
 
 /// Entries are read back in ordinal order, never in insertion order.
@@ -159,6 +161,8 @@ async fn entries_are_read_in_ordinal_order() {
         entries.iter().map(|e| e.ordinal).collect::<Vec<_>>(),
         vec![1, 2, 3]
     );
+
+    storage.close().await.unwrap();
 }
 
 /// References are part of ThreadEntry domain truth, not
@@ -214,6 +218,8 @@ async fn entry_refs_round_trip_through_storage() {
         .unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].refs, refs);
+
+    storage.close().await.unwrap();
 }
 
 /// Ordinal allocation and entry insertion are one transaction. If insertion
@@ -289,6 +295,8 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
         entry.ordinal, 1,
         "failed insertion must not consume an ordinal"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// A project's threads are listed in the
@@ -341,4 +349,6 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
         .map(|t| t.id)
         .collect();
     assert_eq!(listed, created);
+
+    storage.close().await.unwrap();
 }

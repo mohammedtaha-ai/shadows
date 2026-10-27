@@ -39,6 +39,11 @@ async fn a_completed_turn_records_what_the_harness_reported() {
         .unwrap();
     assert!((limits.seven_day.unwrap().utilization - 0.5).abs() < 1e-9);
     assert_eq!(limits.five_hour.unwrap().resets_at, 1790212200);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -56,6 +61,11 @@ async fn the_completed_event_carries_the_invocation() {
             break;
         }
     }
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -68,6 +78,11 @@ async fn a_turn_without_usage_leaves_the_observation_unavailable() {
     assert!(
         inv.context_used.is_none() && inv.context_window.is_none() && inv.observed_model.is_none()
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -82,6 +97,11 @@ async fn a_usage_frame_reaches_a_subscriber_of_the_thread() {
     let frame = app::next_frame_named(&mut sub, "usage").await;
     assert_eq!(frame["context_window"], 1_000_000);
     assert!(frame["limits"]["seven_day"].is_object(), "{frame}");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A turn waits for a session holder to finish, then collects only its own output.
@@ -134,4 +154,9 @@ async fn a_turn_started_during_a_session_hold_keeps_its_output() {
     assert!(bodies.iter().any(|b| b == "first"), "{bodies:?}");
     assert!(bodies.iter().any(|b| b == "second"), "{bodies:?}");
     assert!(!bodies.iter().any(|b| b == "waiting"), "{bodies:?}");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

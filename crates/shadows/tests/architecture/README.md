@@ -24,7 +24,7 @@ comparison. No mutation test edits the real product tree.
   struct fields, local bindings, clone wrappers and declared method returns.
   A known unrelated receiver is not a Storage call just because a name matches.
   An unresolved receiver with a Storage method name is a **review** finding.
-  The eight foundation operations in `POOL_METHODS` are exempt from the
+  The nine foundation operations in `POOL_METHODS` are exempt from the
   cross-service Storage-call rule, not from SQL ownership checking.
 - Literal SQL is scanned even when reached through an allowed pool/transaction
   operation. SELECT/FROM/JOIN, INSERT/REPLACE/INTO, UPDATE, DELETE, nested

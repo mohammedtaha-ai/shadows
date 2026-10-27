@@ -128,6 +128,11 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
         ErrorCode::GrantInvalid
     );
     http(&w, "GET", &root, Value::Null).await;
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -175,4 +180,9 @@ async fn plan_adapter_pairs_keep_their_authorization_boundaries() {
         refused.to_string(),
         "approval needs a Planner's conversation"
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

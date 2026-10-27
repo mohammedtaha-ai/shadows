@@ -108,6 +108,10 @@ functions:
     reader:
       signature: "(&self) -> &SqlitePool"
       # Shared reader pool; callers begin a transaction when reads need one snapshot.
+    close:
+      signature: "Storage::close(&self) -> Result<(), StorageError>"
+      # Awaits reader pool and serialized writer closure. Repeated closure is a no-op;
+      # subsequent reads and writes report the existing Unavailable error.
     watch_committed:
       signature: "(&self) -> watch::Receiver<i64>"
       # Highest committed journal sequence; subscribe before reading the journal.
@@ -137,6 +141,8 @@ enums:
 
 
 obligations:
+  - rule: Closing storage releases database files before its directory is removed, and is idempotent.
+    tested_by: close_releases_the_database_and_is_idempotent
   - rule: A failed BEGIN does not poison later serialized writes.
     tested_by: write_txn_recovers_after_begin_times_out
   - rule: The embedded migration catalog preserves every base version, description and checksum.
@@ -184,6 +190,8 @@ obligations:
 
 
 tests:
+  - name: close_releases_the_database_and_is_idempotent
+    checks: Immediate directory removal succeeds after close twice; reads and writes report Unavailable.
   - name: embedded_migrations_match_the_base_catalog
     checks: All 37 versions, descriptions and SHA-384 checksums match the 0327292 Git catalog.
   - name: write_txn_recovers_after_begin_times_out

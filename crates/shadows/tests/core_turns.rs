@@ -40,6 +40,11 @@ async fn turn_start_replays_after_the_move() {
         .await
         .unwrap();
     assert_eq!(ops.len(), 1, "one command, one turn");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -50,6 +55,11 @@ async fn stop_after_the_move_records_cancelled() {
     assert_eq!(status, 200, "{answer}");
     assert_eq!(answer["id"], op.as_str());
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -60,6 +70,11 @@ async fn a_second_start_while_busy_is_thread_busy() {
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
     stop(&app, op.as_str()).await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// The early busy check comes before the session: a thread whose turn
@@ -81,6 +96,11 @@ async fn a_busy_thread_is_refused_before_its_session_opens() {
     let (s, b) = http_start(&app, app.thread.as_str(), body).await;
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Harness availability is checked before any session work.
@@ -95,6 +115,11 @@ async fn an_unavailable_harness_opens_no_session() {
     let (s, b) = http_start(&app, t["id"].as_str().unwrap(), turn("t1", "hi")).await;
     assert_eq!((s, b["code"].as_str()), (422, Some("HARNESS_UNAVAILABLE")));
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A start refused after the lease gives the session's events back, so the
@@ -109,6 +134,11 @@ async fn a_refused_start_gives_the_session_back() {
     assert_eq!(app.sessions.live_count().await, 1, "the session was opened");
     let op = start_settled(&app, "hi").await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A replay found only by the transaction also gives the session back. Two
@@ -166,6 +196,11 @@ async fn a_replay_found_by_the_transaction_gives_the_session_back() {
     wait_terminal(&app, &raced).await;
     let op = start_settled(&app, "hi").await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A replayed turn start matches a command an earlier daemon recorded only
@@ -222,4 +257,9 @@ async fn turn_command_fingerprints_do_not_move() {
     let mut expected = vec![pinned("pin-plain", plain), pinned("pin-focus", focused)];
     expected.sort();
     assert_eq!(recorded, expected);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

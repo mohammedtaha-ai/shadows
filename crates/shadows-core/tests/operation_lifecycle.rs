@@ -76,6 +76,8 @@ async fn phase_one_persists_pending_before_anything_spawns() {
         "Pending must not claim a start time"
     );
     assert!(loaded.finished_at.is_none());
+
+    storage.close().await.unwrap();
 }
 
 /// The Pending -> Running transition is an exact CAS. It
@@ -134,6 +136,8 @@ async fn the_running_transition_is_an_exact_compare_and_swap() {
         "Pending",
         "the refused wrong-owner transition must leave the stored row unchanged"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// Prepare failure is not spawn failure: the process never existed.
@@ -177,6 +181,8 @@ async fn prepare_failure_and_spawn_failure_are_distinguishable() {
         .await
         .unwrap();
     assert_eq!(b.failure_stage.as_deref(), Some("Spawn"));
+
+    storage.close().await.unwrap();
 }
 
 /// Terminal states never transition again. A retry creates a new
@@ -215,6 +221,8 @@ async fn a_terminal_operation_never_transitions_again() {
         "Completed",
         "the refused post-terminal transition must leave the stored row unchanged"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// Every transition appends its durable event in the same transaction.
@@ -266,6 +274,8 @@ async fn every_transition_appends_its_event_atomically() {
         before + 3,
         "three transitions must append exactly three events to the whole journal"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// The request and the terminal state are two separate facts in two
@@ -293,6 +303,8 @@ async fn a_cancellation_request_does_not_make_an_operation_terminal() {
     );
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
+
+    storage.close().await.unwrap();
 }
 
 /// Terminal Cancelled is written only after termination is
@@ -313,6 +325,8 @@ async fn a_cancellation_request_for_an_unknown_operation_is_not_found() {
         matches!(answer, Err(StorageError::NotFound(_))),
         "{answer:?}"
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -357,6 +371,8 @@ async fn cancelled_is_written_after_confirmation_and_closes_the_operation() {
             "OperationCancelled"
         ]
     );
+
+    storage.close().await.unwrap();
 }
 
 /// A process that exited on its own before cancellation took
@@ -397,6 +413,8 @@ async fn a_natural_exit_wins_over_an_in_flight_cancellation() {
     // The late Cancelled must not overwrite it.
     let late = shadows_core::Turns::mark_operation_cancelled_for_test(&storage, &op).await;
     assert!(matches!(late, Err(StorageError::TransitionConflict { .. })));
+
+    storage.close().await.unwrap();
 }
 
 /// If termination cannot be confirmed, the request is
@@ -439,6 +457,8 @@ async fn unconfirmed_termination_leaves_the_operation_non_terminal() {
         after.cancel_requested_at.is_some(),
         "the request stays visible on the interrupted record"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// Every operation event carries its operation's
@@ -533,6 +553,8 @@ async fn every_operation_event_is_scoped_to_its_thread() {
             "{kind} must carry its operation's thread"
         );
     }
+
+    storage.close().await.unwrap();
 }
 
 /// Migration 0002 backfills missing thread ids on operation events. Clearing
@@ -554,6 +576,8 @@ async fn migration_backfills_the_thread_onto_existing_operation_events() {
         .execute(storage.reader())
         .await
         .unwrap();
+
+    storage.close().await.unwrap();
     drop(storage);
 
     let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
@@ -571,4 +595,6 @@ async fn migration_backfills_the_thread_onto_existing_operation_events() {
             .all(|t| t.as_deref() == Some(thread.as_str())),
         "every existing operation event was backfilled: {threads:?}"
     );
+
+    storage.close().await.unwrap();
 }

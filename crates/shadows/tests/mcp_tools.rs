@@ -32,6 +32,12 @@ async fn structure_writing_is_not_an_mcp_tool() {
     ] {
         assert!(tools.iter().all(|tool| !tool.name.contains("structure")));
     }
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A turn of the app's thread that hangs, once `LiveHandles` sees it running.
@@ -94,6 +100,12 @@ async fn a_thread_grant_reaches_every_plan_in_its_project() {
     assert_eq!(edited.len(), 2);
     assert!(edited.contains(&other.as_str()));
     assert!(edited.contains(&own.as_str()));
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -119,6 +131,12 @@ async fn a_project_grant_cannot_reach_another_project() {
     let listed = ok(&external, "workflow_list", json!({})).await;
     assert_eq!(listed, json!([]));
     assert_eq!(plan::revision(&l.app, &theirs).await, 0);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -141,6 +159,12 @@ async fn a_project_grant_must_name_a_plan_to_read_or_edit() {
         let text = refused(&external, tool, args).await;
         assert!(text.starts_with("GRANT_SCOPE: "), "{tool}: {text}");
     }
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -176,6 +200,12 @@ async fn parallel_edits_on_one_revision_conflict_and_the_loser_can_retry() {
         .unwrap();
     let numbers: Vec<u32> = plan.tasks.iter().map(|t| t.content.number).collect();
     assert_eq!(numbers, [1, 2]);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -190,6 +220,12 @@ async fn a_repeated_edit_returns_the_first_result() {
     assert_eq!(first["revision"], 1);
     let events = events_of(&l.app, &l.app.thread, "WorkflowEdited").await;
     assert_eq!(events.len(), 1);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -205,6 +241,12 @@ async fn editing_a_frozen_plan_is_refused() {
         "{text}"
     );
     assert_eq!(plan::revision(&l.app, &v1).await, 1);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -233,6 +275,12 @@ async fn a_draft_ref_replays_for_a_new_version_of_a_frozen_plan() {
 
     let again = ok(&external, "draft_start", start).await;
     assert_eq!(again, v2);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -278,6 +326,12 @@ async fn an_external_start_answers_an_existing_plan_draft() {
             .unwrap(),
         Some(serde_json::from_value(v2["workflow_id"].clone()).unwrap())
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn expire(app: &App, draft_ref: &str) {
@@ -339,6 +393,12 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     let text = refused(&external, "draft_start", late).await;
     assert!(text.starts_with("GRANT_SCOPE: "), "{text}");
     assert_eq!(count(&l.app, "planning_thread").await, threads);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -361,6 +421,12 @@ async fn draft_ref_replays_and_distinct_refs_make_distinct_plans() {
     let changed = json!({ "draft_ref": r1, "title": "Payments", "goal": "refund payments" });
     let text = refused(&external, "draft_start", changed).await;
     assert!(text.starts_with("COMMAND_CONFLICT: "), "{text}");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -406,6 +472,12 @@ async fn arabic_plan_round_trips_through_mcp() {
     )
     .await;
     assert_eq!(one["title"], "تسجيل الدخول");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -435,6 +507,12 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
             .unwrap(),
         Some(id)
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A Planner's plan_id and reason are part of its DraftStart identity.
@@ -474,6 +552,12 @@ async fn a_planner_draft_start_names_a_project_plan() {
     );
     let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
     assert_eq!(events.len(), 2, "v1 and v2 only");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A Planner edits only the latest version of a named Active plan.
@@ -517,4 +601,10 @@ async fn a_planner_edits_only_the_plan_latest_version() {
     assert!(stale.starts_with("GRANT_SCOPE: "), "{stale}");
     let started = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
     assert_eq!(started.len(), 3, "v1, v2 and v3 only");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

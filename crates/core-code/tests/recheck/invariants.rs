@@ -20,7 +20,7 @@ async fn hits_are_reloaded_when_indexing_finishes_before_the_stamp_check() {
         .await
         .unwrap()
         .id;
-    let code = Code::new(storage, projects);
+    let code = Code::new(storage.clone(), projects);
     let file = dir.path().join("a.rs");
     std::fs::write(&file, "fn one() {}\n").unwrap();
     code.scan_for_test(&project).await.unwrap();
@@ -50,4 +50,6 @@ async fn hits_are_reloaded_when_indexing_finishes_before_the_stamp_check() {
         .await
         .unwrap();
     assert_eq!(refreshed[0].line, 2);
+
+    storage.close().await.unwrap();
 }

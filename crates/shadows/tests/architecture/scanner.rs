@@ -10,8 +10,9 @@ mod sql;
 
 const CORE: &str = "crates/shadows-core/src/";
 const FOUNDATIONS: [&str; 3] = ["db", "command", "testing"];
-const POOL_METHODS: [&str; 8] = [
+const POOL_METHODS: [&str; 9] = [
     "reader",
+    "close",
     "write_txn",
     "write_txn_as",
     "watch_committed",

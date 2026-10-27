@@ -75,6 +75,7 @@ impl Daemon {
             0,
             "an adapter outlived the daemon"
         );
+        self.runtime.storage_for_test().close().await.unwrap();
     }
 }
 

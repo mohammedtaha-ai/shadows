@@ -35,6 +35,11 @@ async fn deleted_agent_slug_is_never_reused() {
         .await
         .unwrap();
     assert!(w.app.agents().agent("work").await.unwrap().deleted);
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -55,6 +60,11 @@ async fn delete_agent_removes_its_variables() {
         .await
         .unwrap();
     assert!(w.secrets.list_env("work").await.unwrap().is_empty());
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -74,4 +84,9 @@ async fn reserved_agent_variable_is_refused() {
             Err(shadows_core::SecretsError::NameReserved(_))
         ));
     }
+
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

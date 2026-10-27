@@ -103,6 +103,11 @@ async fn a_project_with_a_thread_is_not_removed() {
     assert!(slugs(&app).await.contains(&"demo".to_string()));
     assert_eq!(rows(&app, FILES, &demo).await, files);
     assert_eq!(rows(&app, LINKS, &demo).await, links);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -136,6 +141,11 @@ async fn a_project_without_threads_is_removed_with_its_index_links_and_grants() 
     assert!(app.core.grants().authorize(&token).await.unwrap().is_none());
     assert!(!app.core.code().active_for_test().await.contains(&gone));
     app.core.code().shut_down_for_test().await;
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -159,6 +169,11 @@ async fn a_replayed_remove_answers_the_same_project_and_changes_nothing() {
         (status, body["code"].as_str()),
         (409, Some("COMMAND_CONFLICT"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -197,4 +212,9 @@ async fn a_removed_project_is_not_found() {
         (status, body["code"].as_str()),
         (404, Some("INVALID_COMMAND"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

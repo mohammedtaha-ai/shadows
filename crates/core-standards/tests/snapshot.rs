@@ -91,4 +91,6 @@ async fn additions_reads_keep_the_snapshot_and_scope_versions_to_the_project() {
         first,
         "removal must not change an immutable replay result"
     );
+
+    storage.close().await.unwrap();
 }

@@ -244,5 +244,6 @@ async fn no_get_route_changes_state() {
             "GET wrote: {path}"
         );
     }
+    drop(observer);
     app::shut_down_app(a).await;
 }

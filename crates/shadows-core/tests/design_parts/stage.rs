@@ -79,6 +79,10 @@ async fn the_stage_walks_idea_vision_map_structure() {
         core.design().stage(&p).await.unwrap().stage,
         Stage::Structure
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -122,6 +126,10 @@ async fn stage_counts_a_trimmed_kind_and_no_other_case() {
         core.design().stage(&p).await.unwrap().missing,
         ["database", "api", "frontend"]
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -143,4 +151,8 @@ async fn an_added_part_is_mandatory_for_the_stage() {
         .await
         .unwrap();
     assert_eq!(core.design().stage(&p).await.unwrap().missing, ["billing"]);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

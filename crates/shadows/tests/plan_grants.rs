@@ -204,6 +204,11 @@ async fn a_draft_ref_binds_in_both_paths() {
     .await
     .unwrap();
     assert_eq!(replayed, scratch);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -235,6 +240,11 @@ async fn an_edit_by_a_revoked_grant_writes_nothing() {
         "{refused:?}"
     );
     assert_eq!(revision(&app, &v1).await, 0);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Storage holds a Planner to its own project; which of the project's
@@ -306,6 +316,11 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
         (last.1.as_str(), last.2.as_str()),
         ("Thread", app.thread.as_str())
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// `(kind, actor_kind, actor_id, thread_id)` of every event of `project`.
@@ -374,6 +389,11 @@ async fn an_external_start_from_scratch_creates_a_plan_and_no_thread() {
         (e.1.as_str(), e.2.as_str(), e.3.as_deref()),
         ("Grant", grant.as_str(), None)
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -452,6 +472,11 @@ async fn external_draft_starts_require_a_draft_ref() {
             .len(),
         1
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -470,4 +495,9 @@ async fn an_external_start_returns_an_existing_draft_without_a_ref() {
     )
     .await;
     assert_eq!(repeated.unwrap(), first);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

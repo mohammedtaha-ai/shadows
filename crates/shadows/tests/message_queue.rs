@@ -69,6 +69,11 @@ async fn waiting_messages_keep_their_order_and_a_removed_one_is_gone() {
             ..
         })
     ));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 fn queue_body(prompt: &str) -> Value {
@@ -97,6 +102,11 @@ async fn queueing_on_an_idle_thread_starts_a_turn_and_leaves_no_row() {
     assert!(answer["operation_id"].is_string());
     let (_, listed) = call(&app, "GET", &path, None).await;
     assert_eq!(listed, json!([]));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -114,6 +124,11 @@ async fn a_replayed_queue_on_an_idle_thread_answers_its_turn() {
     let (_, listed) = call(&app, "GET", &path, None).await;
     assert_eq!(listed, json!([]));
     release(&app).await;
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -137,6 +152,11 @@ async fn a_busy_thread_queues_and_remove_answers_gone_the_second_time() {
     assert_eq!(status, 404);
     assert_eq!(gone["code"], "QUEUED_MESSAGE_GONE");
     release(&app).await;
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn until_ops(app: &app::App, n: usize) -> Vec<shadows_core::Operation> {
@@ -173,6 +193,11 @@ async fn a_completed_turn_starts_the_next_waiting_message_exactly_once() {
     assert_eq!(sent, 1);
     let (_, listed) = call(&app, "GET", &path, None).await;
     assert_eq!(listed, json!([]));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -202,6 +227,11 @@ async fn send_now_steers_the_running_turn_after_its_streamed_text() {
     assert!(bodies[3].starts_with("steered: turn left\n\n[Shadows] Stage: idea."));
     let (_, listed) = call(&app, "GET", &path, None).await;
     assert_eq!(listed, json!([]));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -226,6 +256,11 @@ async fn send_now_after_stop_is_thread_busy_and_keeps_the_row() {
     let (_, listed) = call(&app, "GET", &path, None).await;
     assert_eq!(listed[0]["prompt"], "later");
     assert!(listed[0]["last_error"].is_null());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -251,6 +286,11 @@ async fn the_watcher_and_send_now_never_send_one_message_twice() {
         .filter(|e| e.body == "once")
         .count();
     assert_eq!(sent, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -272,4 +312,9 @@ async fn stop_leaves_the_queue_and_starts_nothing() {
     let (_, listed) = call(&app, "GET", &path, None).await;
     assert_eq!(listed[0]["prompt"], "waits");
     assert!(listed[0]["last_error"].is_null());
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

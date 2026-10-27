@@ -111,7 +111,7 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
     std::fs::create_dir(&stopped_dir).unwrap();
     std::fs::create_dir(&kept_dir).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage)
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
         .unwrap();
     let runtime = Arc::new(runtime);
@@ -171,4 +171,6 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
     std::fs::write(kept_dir.join("release"), b"").unwrap();
     let finished = wait_for_status(&runtime, &kept, "Completed").await;
     assert!(finished.outcome_json.is_some());
+
+    storage.close().await.unwrap();
 }

@@ -34,6 +34,11 @@ async fn opening_a_session_sends_its_commands_to_a_subscriber() {
     assert_eq!(names(&frame), ["compact", "superpowers:brainstorming"]);
     assert_eq!(frame["commands"][0]["hint"], Value::Null);
     assert_eq!(frame["commands"][1]["hint"], "[topic]");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -50,4 +55,9 @@ async fn a_stream_opened_after_the_list_gets_it_after_caught_up() {
     let mut later = app::subscribe(&app, &app.thread).await;
     let frame = app::next_frame_named(&mut later, "commands").await;
     assert_eq!(names(&frame), ["compact", "superpowers:brainstorming"]);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

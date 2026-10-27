@@ -95,6 +95,11 @@ async fn create_structure_writes_exactly_the_approved_files() {
     .await
     .unwrap();
     assert_eq!(count, 1);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -111,6 +116,11 @@ async fn a_directory_holding_only_git_is_accepted() {
             .await
             .unwrap();
         assert!(dir.join(".git").exists());
+
+        core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+            .await
+            .unwrap();
+        _storage.close().await.unwrap();
     }
 }
 
@@ -128,6 +138,11 @@ async fn a_non_empty_directory_refuses_and_writes_nothing() {
         .await
         .unwrap();
     assert_eq!(count, 0);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -142,6 +157,11 @@ async fn a_missing_or_file_directory_refuses() {
             core.design().create_structure("write".into(), &p).await,
             "project directory missing",
         );
+
+        core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+            .await
+            .unwrap();
+        _storage.close().await.unwrap();
     }
 }
 
@@ -181,6 +201,11 @@ async fn an_unapproved_map_or_missing_kind_refuses() {
         "missing part: billing",
     );
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -202,6 +227,11 @@ async fn a_second_call_refuses_and_a_replay_returns_the_result() {
             .unwrap(),
         result
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -233,6 +263,11 @@ async fn a_stopped_write_resumes() {
             .unwrap(),
         result
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -257,6 +292,11 @@ async fn a_foreign_or_changed_file_refuses_the_resume() {
         );
         assert!(dir.join("backend/contract.yaml.shadows-tmp").exists());
         assert!(!dir.join("backend/contract.yaml").exists());
+
+        core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+            .await
+            .unwrap();
+        _storage.close().await.unwrap();
     }
 }
 
@@ -286,6 +326,11 @@ async fn a_reserved_path_from_an_older_map_refuses() {
         "reserved path: backend/CONTRACT.yaml",
     );
     assert_eq!(std::fs::read_dir(dir).unwrap().count(), 0);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -300,6 +345,11 @@ async fn concurrent_calls_write_once() {
         if one.is_err() { one } else { two },
         "structure already written",
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -369,4 +419,9 @@ async fn a_recorded_file_with_a_temp_suffix_is_never_cleaned_up() {
             "approved starter"
         );
     }
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    _storage.close().await.unwrap();
 }

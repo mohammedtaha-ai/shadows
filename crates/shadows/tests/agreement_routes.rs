@@ -41,4 +41,9 @@ async fn agreement_routes_edit_incomplete_draft_and_preserve_revision_conflicts(
     assert_eq!(view.0, 200);
     assert_eq!(view.1["revision"], 1);
     assert_eq!(view.1["content"]["capability"], "تسجيل الدخول");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

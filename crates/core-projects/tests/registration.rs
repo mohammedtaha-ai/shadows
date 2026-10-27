@@ -8,7 +8,7 @@ use core_projects::{Projects, ProjectsError};
 async fn public_registration_normalizes_paths_and_modes_before_replay() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let projects = Projects::new(storage);
+    let projects = Projects::new(storage.clone());
     let raw = tmp.path().to_str().unwrap();
     let first = projects
         .create("create".into(), "demo", "Demo", raw)
@@ -43,4 +43,6 @@ async fn public_registration_normalizes_paths_and_modes_before_replay() {
         Err(ProjectsError::Directory(_))
     ));
     assert_eq!(projects.list().await.unwrap().len(), 1);
+
+    storage.close().await.unwrap();
 }

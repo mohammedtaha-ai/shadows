@@ -9,11 +9,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 struct World {
-    _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     core: Arc<AppCore>,
     sessions: Arc<Harness>,
     thread: ThreadId,
+    _tmp: tempfile::TempDir,
 }
 
 async fn world() -> World {
@@ -167,6 +167,11 @@ async fn usage_counts_cache_once() {
     assert_eq!(r["by_provider"][0]["tokens_in"], 60);
     assert_eq!(r["by_provider"][0]["tokens_out"], 4);
     assert_eq!(r["by_model"][0]["model"], "fake-large");
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -242,6 +247,11 @@ async fn usage_ends_atomically_once() {
         op
     );
     assert_eq!(report(&w).await["by_provider"][0]["requests"], 1);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -270,6 +280,11 @@ async fn usage_snapshot_survives_provider_changes() {
     let r = report(&w).await;
     assert_eq!(r["by_provider"][0]["provider_name"], "Test");
     assert_eq!(r["by_provider"][0]["label"], Value::Null);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -334,6 +349,11 @@ async fn usage_refusal_cancel_and_missing_are_honest() {
             .unwrap();
     assert!(unknown.is_none());
     assert_eq!(report(&w).await["by_provider"][0]["requests"], 4);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -362,6 +382,11 @@ async fn usage_costs_require_trusted_turn_delta() {
     send(&w, "turn-usage").await;
     // Resume has no trusted previous cumulative baseline.
     assert!(report(&w).await["by_provider"][0]["cost"].is_null());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
     let w = world().await;
     send(&w, "turn-usage").await;
     assert!(report(&w).await["by_provider"][0]["cost"].is_null());
@@ -371,6 +396,11 @@ async fn usage_costs_require_trusted_turn_delta() {
             .await
             .is_err()
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -418,4 +448,9 @@ async fn usage_periods_group_and_sort() {
             Err(UsageError::InvalidPeriod)
         ));
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

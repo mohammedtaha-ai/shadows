@@ -53,6 +53,12 @@ async fn a_request_without_a_token_is_401() {
         assert!(response.headers().get("www-authenticate").is_none());
         assert_eq!(response.text().await.unwrap(), "");
     }
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -67,6 +73,12 @@ async fn a_revoked_token_is_401() {
     let response = raw_post(&l, Some(&token), &[], INITIALIZE).await;
     assert_eq!(response.status(), 401);
     assert_eq!(response.text().await.unwrap(), "");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -80,6 +92,12 @@ async fn a_foreign_origin_is_403() {
     assert_eq!(body["code"], "ORIGIN_REFUSED");
     // The guard runs before the grant is looked at: no token, still 403.
     assert_eq!(raw_post(&l, None, &origin, INITIALIZE).await.status(), 403);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -147,6 +165,12 @@ async fn the_tool_list_depends_on_the_grant_kind() {
         .with_arguments(serde_json::Map::new());
     let error = planner.call_tool(params).await.unwrap_err();
     assert!(error.to_string().contains("tool not found"), "{error}");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Claude Code's fallback: `initialize` at 2025-11-25,
@@ -206,6 +230,12 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "workspace_get"
         ]
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Claude Code's first path: `server/discover` at
@@ -273,4 +303,10 @@ async fn the_discover_lifecycle_works_without_a_session() {
         .unwrap_or_else(|| panic!("{answer}"));
     let plan: Value = serde_json::from_str(text).unwrap();
     assert_eq!(plan["title"], "Login");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

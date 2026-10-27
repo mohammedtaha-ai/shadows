@@ -18,6 +18,11 @@ async fn opening_uses_agent_and_provider() {
     assert!(report["mcp"].is_null());
     assert!(report["options"].get("tools").is_none());
     assert_eq!(report["blocks"].as_array().unwrap().len(), 1);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -37,6 +42,11 @@ async fn two_agents_share_one_provider_key() {
     .await
     .unwrap();
     assert_eq!(rows, 1);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -69,6 +79,11 @@ async fn deleted_agent_with_live_adapter_is_not_found() {
             .as_deref(),
         Some("aylul")
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -105,6 +120,11 @@ async fn deleting_last_agent_is_not_found_not_unavailable() {
             .unwrap()["available"],
         false
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -120,6 +140,11 @@ async fn missing_provider_key_is_named() {
         Err(CoreError::AylulKeyMissing(provider)) if provider == "test-2")
     );
     assert_eq!(w.sessions.live_count().await, 0);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -139,6 +164,11 @@ async fn reserved_variable_row_fails_opening() {
         Err(CoreError::SecretNameReserved(name)) if name == "ANTHROPIC_BASE_URL")
     );
     assert_eq!(w.sessions.live_count().await, 0);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn provider_window(w: &World, size: u32) {
@@ -173,6 +203,11 @@ async fn opening_uses_the_default_models_window() {
         settings["availableModels"],
         json!(["fake-large", "fake-small"])
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -190,6 +225,11 @@ async fn auto_compact_window_is_capped_or_omitted() {
         assert_eq!(report["compact_window"], expected);
         w.sessions.terminate(&w.thread).await.unwrap();
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -207,6 +247,11 @@ async fn switching_model_uses_the_new_models_window() {
     let report = reply(&w, &w.thread, "fake-large", "high").await;
     assert_eq!(report["context_tokens"], "1000");
     assert!(report["compact_window"].is_null());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -222,6 +267,11 @@ async fn opening_and_turn_model_selection_use_the_same_window() {
     let report = reply(&w, &w.thread, "fake-large", "high").await;
     assert_eq!(report["context_tokens"], "1000");
     assert!(report["compact_window"].is_null());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -245,6 +295,11 @@ async fn a_refused_remembered_model_uses_the_fallback_models_window() {
     let report = reply(&w, &w.thread, "fake-large", "high").await;
     assert_eq!(report["context_tokens"], "321000");
     assert_eq!(report["compact_window"], "321000");
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -265,6 +320,11 @@ async fn a_leased_adapter_is_not_replaced_by_a_model_pick() {
         .await;
     let report = reply(&w, &w.thread, "fake-small", "high").await;
     assert_eq!(report["context_tokens"], "321000");
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// The connection notices its adapter's exit on its own reader task, so a
@@ -315,6 +375,11 @@ async fn model_replacement_keeps_turn_output_and_closes_the_current_adapter() {
     w.core.harness().open_session(&w.thread).await.unwrap();
     w.sessions.terminate(&w.thread).await.unwrap();
     assert_eq!(w.sessions.live_count().await, 0);
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -349,6 +414,11 @@ async fn a_failed_model_replacement_cannot_prompt_with_stale_process_limits() {
             .is_empty()
     );
     assert!(w.sessions.lease_events(&w.thread, &opened).await.is_err());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -379,6 +449,11 @@ async fn opening_names_the_person() {
         assert_eq!(retained["append"], report["append"]);
         w.sessions.terminate(&w.thread).await.unwrap();
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -394,4 +469,9 @@ async fn opening_without_person_appends_nothing() {
         .unwrap();
     let report = reply(&w, &w.thread, "fake-large", "high").await;
     assert!(report["append"].is_null());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

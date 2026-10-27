@@ -41,6 +41,31 @@ async fn database(path: &std::path::Path, changed_version: i64, suffix: &str) ->
     pool
 }
 
+// A refused open returns no Storage to close. The parent owns the directory
+// until the child process exits, which releases SQLx's worker connections.
+fn rejected_open_database(test: &str, filename: &str) -> Option<std::path::PathBuf> {
+    const DIRECTORY: &str = "SHADOWS_TEST_REJECTED_OPEN_DIRECTORY";
+    if let Some(directory) = std::env::var_os(DIRECTORY) {
+        return Some(std::path::PathBuf::from(directory).join(filename));
+    }
+    let temporary = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", test, "--nocapture"])
+        .env(DIRECTORY, temporary.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "rejected-open child failed: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    temporary
+        .close()
+        .expect("the exited child releases every database file");
+    None
+}
+
 async fn checksum(pool: &SqlitePool) -> Vec<u8> {
     sqlx::query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = 29")
         .fetch_one(pool)
@@ -79,6 +104,8 @@ async fn windows_profiles_database_reopens_without_reapplying_or_rewriting_migra
             .await
             .unwrap();
     assert_eq!(executions, 1);
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -97,12 +124,18 @@ async fn fresh_database_keeps_the_canonical_lf_migration_checksum() {
         checksum(storage.reader()).await.as_slice(),
         expected.as_ref()
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
 async fn changed_profiles_sql_still_refuses_startup() {
-    let temporary = tempfile::tempdir().unwrap();
-    let path = temporary.path().join("changed.sqlite3");
+    let Some(path) = rejected_open_database(
+        "changed_profiles_sql_still_refuses_startup",
+        "changed.sqlite3",
+    ) else {
+        return;
+    };
     let pool = database(&path, 29, "-- changed beyond line endings\r\n").await;
     let before = checksum(&pool).await;
     pool.close().await;
@@ -120,12 +153,18 @@ async fn changed_profiles_sql_still_refuses_startup() {
         .await
         .unwrap();
     assert_eq!(checksum(&pool).await, before);
+
+    pool.close().await;
 }
 
 #[tokio::test]
 async fn other_migrations_do_not_receive_the_profiles_compatibility_exception() {
-    let temporary = tempfile::tempdir().unwrap();
-    let path = temporary.path().join("other.sqlite3");
+    let Some(path) = rejected_open_database(
+        "other_migrations_do_not_receive_the_profiles_compatibility_exception",
+        "other.sqlite3",
+    ) else {
+        return;
+    };
     database(&path, 28, "").await.close().await;
     let error = Storage::open(&path)
         .await
@@ -188,6 +227,9 @@ async fn migration_marks_known_urls_with_their_preset() {
             ("minimax".into(), Some("minimax".into()), None)
         ]
     );
+
+    pool.close().await;
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -231,6 +273,9 @@ async fn migration_gives_models_the_provider_window() {
         {"id":"z","context_window":123456}, {"id":"a","context_window":123456},
         {"id":"b","context_window":123456}])
     );
+
+    pool.close().await;
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -278,4 +323,7 @@ async fn migration_colors_agents_purple() {
             .await
             .unwrap();
     assert_eq!(color, "purple");
+
+    pool.close().await;
+    storage.close().await.unwrap();
 }

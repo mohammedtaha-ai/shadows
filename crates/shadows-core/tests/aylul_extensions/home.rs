@@ -41,6 +41,11 @@ async fn opening_projects_only_enabled_extensions() {
             .join("home/profiles/other/skills/demo-skill")
             .exists()
     );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -100,6 +105,11 @@ async fn opening_removes_disabled_cached_extensions() {
     );
     assert_eq!(settings["enabledPlugins"]["unrelated@user-market"], true);
     assert!(cache.join("kept").exists());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -129,6 +139,11 @@ async fn extension_projection_is_atomic() {
     assert_eq!(w.sessions.live_count().await, 0);
     assert_eq!(std::fs::read(home.join("settings.json")).unwrap(), settings);
     assert!(!home.join("skills/collision").exists());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -198,4 +213,9 @@ async fn parallel_projection_preserves_settings() {
     w.sessions.terminate(&second).await.unwrap();
     w.core.harness().open_session(&w.thread).await.unwrap();
     assert!(!home.join("skills/parallel-skill").exists());
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

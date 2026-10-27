@@ -74,6 +74,8 @@ async fn owner_error_rolls_back_and_the_next_write_succeeds() {
         panic!("the next write must succeed: {error}");
     }
     assert!(outcome.is_ok(), "the next write must succeed");
+
+    storage.close().await.unwrap();
 }
 
 /// State and event commit together or not
@@ -125,6 +127,8 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
         (0, 0),
         "rollback must leave neither behind"
     );
+
+    storage.close().await.unwrap();
 }
 
 /// The measured writer policy, encoded as a regression test. Concurrent
@@ -177,6 +181,8 @@ async fn concurrent_read_then_write_transactions_all_succeed() {
         .await
         .unwrap();
     assert_eq!(count, 400);
+
+    storage.close().await.unwrap();
 }
 
 /// A panic must release the serialized writer and roll back its partial insert.
@@ -243,6 +249,8 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
         .await
         .unwrap();
     assert_eq!(after_row, 1, "the recovery write_txn must have committed");
+
+    storage.close().await.unwrap();
 }
 
 /// Reading then writing must wait for the external writer before pinning a
@@ -277,6 +285,7 @@ async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
     let release = tokio::spawn(async move {
         tokio::time::sleep(Duration::from_millis(200)).await;
         external.execute("COMMIT").await.unwrap();
+        external.close().await.unwrap();
     });
 
     storage
@@ -320,6 +329,8 @@ async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
         count, 2,
         "both the external writer's insert and ours must be present"
     );
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -343,4 +354,7 @@ async fn write_txn_recovers_after_begin_times_out() {
         .write_txn(|_| Box::pin(async { Ok(()) }))
         .await
         .expect("a failed BEGIN must not poison subsequent writes");
+
+    storage.close().await.unwrap();
+    external.close().await.unwrap();
 }

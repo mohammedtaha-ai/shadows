@@ -72,6 +72,11 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
             "PlanApproved"
         ]
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// The person's message keeps the task it was about.
@@ -120,6 +125,11 @@ async fn a_task_reference_round_trips() {
         .await
         .unwrap();
     assert_eq!(entries_on(&app, &thread_id).await[0].refs, refs[..1]);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A stored kind the enum does not name is a broken row, refused by name
@@ -153,4 +163,9 @@ async fn an_unknown_stored_kind_is_a_constraint_failure() {
         matches!(&error, StorageError::Constraint(m) if m == "unknown thread entry kind: Bogus"),
         "{error:?}"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

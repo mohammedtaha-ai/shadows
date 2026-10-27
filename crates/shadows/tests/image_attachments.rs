@@ -156,6 +156,11 @@ async fn upload_validates_content_type_size_and_replay() {
         digest,
         "b1ff9c8ea3a780bad09b346c423d2d0e46815926879b18e841d928376a946640"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -215,6 +220,11 @@ async fn text_and_two_images_reach_acp_in_exact_order() {
         (409, Some("COMMAND_CONFLICT"))
     );
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -237,6 +247,11 @@ async fn image_only_turn_and_attachment_replay_conflict() {
         (409, Some("COMMAND_CONFLICT"))
     );
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -277,6 +292,11 @@ async fn foreign_or_unknown_images_are_refused_before_writes() {
         assert_eq!(counts(&app).await, before);
     }
     assert_eq!(app.sessions.live_count().await, 0);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -353,6 +373,11 @@ async fn fork_keeps_references_and_removal_reclaims_unreferenced_bytes() {
         .await
         .unwrap();
     assert_eq!(count, 0);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -452,6 +477,11 @@ async fn queued_and_steered_messages_keep_images() {
             {"type":"text","text":""}, block(RED), {"type":"text","text":STAGE}
         ])
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -506,6 +536,12 @@ async fn a_harness_without_image_capability_refuses_with_its_reason() {
     assert_eq!(status, 422, "{refused}");
     assert_eq!(refused["message"], reason);
     assert_eq!(counts(&app).await, before);
+
+    drop(observer);
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -534,6 +570,11 @@ async fn accepted_types_are_decoded_by_content_and_the_size_boundary_is_inclusiv
     .await;
     assert_eq!(status, 200, "{answer}");
     assert_eq!(answer["byte_len"], 5_242_880);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -558,6 +599,11 @@ async fn a_truncated_later_gif_frame_is_refused_before_writes() {
     .await;
     assert_eq!(status, 422, "{answer}");
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -579,6 +625,11 @@ async fn a_truncated_later_png_frame_is_refused_before_writes() {
     .await;
     assert_eq!(status, 422, "{answer}");
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -602,6 +653,11 @@ async fn a_truncated_later_webp_frame_is_refused_before_writes() {
     .await;
     assert_eq!(status, 422, "{answer}");
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -621,6 +677,11 @@ async fn a_damaged_later_webp_frame_is_refused_before_writes() {
     .await;
     assert_eq!(status, 422, "{answer}");
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -648,6 +709,11 @@ async fn oversized_decoded_images_are_refused_before_writes() {
     .await;
     assert_eq!(status, 422, "{answer}");
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -672,6 +738,11 @@ async fn an_animation_with_excessive_total_decoded_bytes_is_refused() {
     .await;
     assert_eq!(status, 422, "{answer}");
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -705,4 +776,9 @@ async fn the_upload_body_limit_stops_an_unbounded_stream() {
             <= shadows_core::MAX_IMAGE_BYTES + 65536 + 4096
     );
     assert_eq!(counts(&app).await, before);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

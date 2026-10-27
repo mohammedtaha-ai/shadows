@@ -26,10 +26,12 @@ use tower::ServiceExt;
 
 use shadows_core::testing::acp;
 
+#[path = "fixtures/process_directory.rs"]
+mod process_directory;
+
 type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
 struct App {
-    _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
     sessions: Arc<Harness>,
@@ -38,6 +40,7 @@ struct App {
     thread: ThreadId,
     // Held: a dropped sender reads as a stopping daemon.
     _stopping: tokio::sync::watch::Sender<bool>,
+    _tmp: Option<tempfile::TempDir>,
 }
 
 async fn test_app() -> App {
@@ -50,7 +53,13 @@ async fn test_app_with_node(node: &str) -> App {
 
 async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let tmp = tempfile::tempdir().unwrap();
-    let db = tmp.path().join("s.sqlite3");
+    let mut app = test_app_in(tmp.path(), adapter).await;
+    app._tmp = Some(tmp);
+    app
+}
+
+async fn test_app_in(root: &std::path::Path, adapter: Arc<ClaudeAdapter>) -> App {
+    let db = root.join("s.sqlite3");
     let storage = Arc::new(shadows_core::testing::Storage::open(&db).await.unwrap());
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
         .await
@@ -72,7 +81,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         &ctx,
         "demo",
         "Demo",
-        &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
+        &shadows_core::testing::ProjectDirectory::resolve(root).unwrap(),
         &shadows_agent::policy::default_modes(),
     )
     .await
@@ -116,7 +125,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         shutdown,
     });
     App {
-        _tmp: tmp,
+        _tmp: None,
         runtime,
         handles,
         sessions,
@@ -253,6 +262,9 @@ async fn a_turn_streams_and_stores_one_entry_per_message() {
         !app.handles.contains(&op).await,
         "the registration outlived the turn"
     );
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 #[tokio::test]
@@ -273,6 +285,9 @@ async fn the_first_turn_records_the_session_and_the_next_resumes_it() {
         (r["how"].as_str(), r["session"].as_str()),
         (Some("resume"), Some(session.as_str()))
     );
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 #[tokio::test]
@@ -290,6 +305,9 @@ async fn stop_is_confirmed_by_the_harness_when_it_answers_cancelled() {
         1,
         "the adapter survives a confirmed cancel"
     );
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 #[tokio::test]
@@ -303,6 +321,9 @@ async fn stop_terminates_the_adapter_when_the_harness_does_not_confirm() {
     assert_eq!(app.sessions.live_count().await, 0);
     let next = start_prompt(&app, "hi").await; // a fresh adapter
     assert_eq!(wait_terminal(&app, &next).await.status_kind, "Completed");
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 #[tokio::test]
@@ -321,6 +342,9 @@ async fn an_adapter_that_exits_mid_turn_fails_the_turn() {
         0,
         "the dead adapter was kept"
     );
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 #[tokio::test]
@@ -329,6 +353,9 @@ async fn a_refused_stop_reason_fails_the_turn_naming_it() {
     let done = wait_terminal(&app, &start_prompt(&app, "refuse").await).await;
     assert_eq!(done.status_kind, "Failed");
     assert!(done.failure_reason.unwrap().contains("max_tokens"));
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 #[tokio::test]
@@ -342,6 +369,9 @@ async fn a_permission_request_is_refused_and_recorded() {
         .collect();
     assert_eq!(refused.len(), 1);
     assert_eq!(refused[0].body, "Run echo probe");
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 #[tokio::test]
@@ -370,6 +400,9 @@ async fn a_turn_whose_adapter_cannot_start_writes_nothing() {
     .await
     .unwrap();
     assert!(operations.is_empty(), "{operations:?}");
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// `stop` on an operation this runtime holds no live
@@ -401,6 +434,9 @@ async fn stop_without_a_live_turn_records_the_request_and_stays_non_terminal() {
     assert_eq!(loaded.status_kind, "Running");
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
+
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
 }
 
 /// With a live turn whose adapter cannot be terminated, Stop
@@ -408,7 +444,12 @@ async fn stop_without_a_live_turn_records_the_request_and_stays_non_terminal() {
 /// still-running tree can be reached again, and nothing terminal is written.
 #[tokio::test]
 async fn unconfirmed_termination_keeps_the_registration_and_leaves_the_operation_non_terminal() {
-    let app = test_app().await;
+    let Some(root) = process_directory::run(
+        "unconfirmed_termination_keeps_the_registration_and_leaves_the_operation_non_terminal",
+    ) else {
+        return;
+    };
+    let app = test_app_in(&root, acp::fake_adapter()).await;
     let op = start_prompt(&app, "ignore-cancel").await;
     wait_running(&app, &op).await;
     assert!(
@@ -425,4 +466,6 @@ async fn unconfirmed_termination_keeps_the_registration_and_leaves_the_operation
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
     assert!(app.handles.contains(&op).await);
+
+    app.runtime.storage_for_test().close().await.unwrap();
 }

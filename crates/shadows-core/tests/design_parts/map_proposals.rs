@@ -2,11 +2,11 @@ use super::super::*;
 use shadows_core::{Grant, MapAction, MapPropose, ProposedPart, ProposedWaiver, SendTurn};
 
 struct Fixture {
-    _tmp: tempfile::TempDir,
     storage: Storage,
     core: Arc<AppCore>,
     p: ProjectId,
     grant: Grant,
+    _tmp: tempfile::TempDir,
 }
 impl Fixture {
     async fn new() -> Self {
@@ -62,6 +62,7 @@ impl Fixture {
             .shut_down(std::time::Duration::from_secs(3), std::future::pending())
             .await
             .unwrap();
+        self.storage.close().await.unwrap();
     }
 }
 fn first() -> MapPropose {

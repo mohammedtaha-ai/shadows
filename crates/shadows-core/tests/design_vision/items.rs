@@ -51,6 +51,11 @@ async fn every_vision_change_is_a_stored_version() {
         core.design().vision(&p).await.unwrap().content.purpose[0].revision,
         2
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -112,6 +117,10 @@ async fn a_removed_id_is_never_reused() {
         core.design().vision(&p).await.unwrap().content.goals[2].id,
         "G5"
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -141,4 +150,8 @@ async fn item_ops_refuse_an_unknown_id_and_empty_text() {
         ));
     }
     assert_eq!(core.design().vision(&p).await.unwrap().revision, 0);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

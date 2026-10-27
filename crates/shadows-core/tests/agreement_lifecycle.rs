@@ -298,4 +298,6 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             .revision,
         0
     );
+
+    storage.close().await.unwrap();
 }

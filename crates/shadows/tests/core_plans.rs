@@ -121,6 +121,12 @@ async fn plan_command_fingerprints_do_not_move() {
     ];
     expected.sort();
     assert_eq!(recorded, expected);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -141,6 +147,12 @@ async fn plan_commands_replay_after_the_move() {
         e1["revision"], 1,
         "the replay answered the first edit, not a second one"
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -156,4 +168,10 @@ async fn a_project_grant_is_refused_another_projects_plan_after_the_move() {
         text.starts_with("GRANT_SCOPE: that plan is not in this grant's project"),
         "{text}"
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

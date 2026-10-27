@@ -41,6 +41,11 @@ async fn each_save_is_a_new_numbered_version() {
         .await
         .unwrap();
     assert_eq!(rows, 2);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -75,6 +80,11 @@ async fn current_instructions_are_the_highest_number() {
         .await
         .unwrap();
     assert_eq!(theirs.number, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -100,6 +110,11 @@ async fn the_saved_event_does_not_carry_the_body() {
         .collect();
     assert_eq!(saved, [json!({ "number": 1 })]);
     assert!(events.iter().all(|(_, p)| !p.contains("Keep every task")));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -149,4 +164,9 @@ async fn the_routes_read_and_save_a_version() {
     )
     .await;
     assert_eq!(status, 404, "{missing}");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

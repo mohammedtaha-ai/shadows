@@ -36,6 +36,11 @@ async fn change_model_is_refused_while_a_turn_runs() {
     let (s, b) = post(&app, &format!("/api/operations/{op}/stop"), json!({})).await;
     assert_eq!(s, 200, "{b}");
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Busy, under the lease: whoever holds the session's events has it
@@ -71,6 +76,11 @@ async fn change_model_is_refused_while_another_holds_the_session() {
         (s, b["current"]["model"].as_str()),
         (200, Some("fake-small"))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// The early busy check comes before the session: a thread with an operation
@@ -89,6 +99,11 @@ async fn change_model_on_a_busy_thread_opens_no_session() {
     let (s, b) = put_model(&app, app.thread.as_str(), "fake-small").await;
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Harness availability is checked before any session work.
@@ -107,6 +122,11 @@ async fn change_model_on_an_unavailable_harness_opens_no_session() {
         "{b}"
     );
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Harness carries no command: opening a session and changing its model
@@ -129,4 +149,9 @@ async fn harness_calls_record_no_command() {
     let (s, b) = put_model(&app, &thread, "fake-small").await;
     assert_eq!(s, 200, "{b}");
     assert_eq!(count().await, before, "no command was recorded");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

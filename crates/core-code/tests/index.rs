@@ -44,7 +44,7 @@ async fn startup_order_uses_creation_sequence_then_project_id_for_ties() {
         .await
         .unwrap();
     ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-    let code = Code::new(storage, projects);
+    let code = Code::new(storage.clone(), projects);
     code.start(CodeConfig::default()).await.unwrap();
     assert_eq!(
         code.active_for_test().await,
@@ -52,6 +52,8 @@ async fn startup_order_uses_creation_sequence_then_project_id_for_ties() {
         "equal activity sequences must sort by project id"
     );
     code.shut_down().await;
+
+    storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -80,7 +82,7 @@ fn caller() { answer(); }
         )
         .await
         .unwrap();
-    let code = Code::new(storage, projects);
+    let code = Code::new(storage.clone(), projects);
     code.scan_for_test(&project.id).await.unwrap();
     let definitions = code
         .definitions(Asker::Person(&project.id), None, "answer")
@@ -120,4 +122,6 @@ fn caller() { answer(); }
     ));
     assert_eq!(code.settings().await.unwrap().active_limit, 5);
     code.shut_down().await;
+
+    storage.close().await.unwrap();
 }

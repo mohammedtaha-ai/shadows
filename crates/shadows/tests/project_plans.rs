@@ -45,6 +45,11 @@ async fn two_starts_make_one_draft() {
             .await
             .unwrap();
     assert_eq!(drafts, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// V2 needs its reason, refused INVALID_COMMAND without one; v1 has
@@ -113,6 +118,11 @@ async fn a_new_version_needs_its_reason() {
         Some("the API changed")
     );
     assert_eq!(read(&v1).await.unwrap().change_reason, None);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A Planner's first start under one command id and its exact fingerprint.
@@ -162,6 +172,11 @@ async fn a_retried_first_start_answers_its_v1() {
         .await
         .unwrap();
     assert_eq!(versions, 1);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A person's approval of an external agent's version has no
@@ -244,4 +259,9 @@ async fn approving_an_external_version_writes_no_entry() {
     .await
     .unwrap();
     assert_eq!(frozen, vec![None]);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -358,6 +358,11 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .any(|p| p.participant.current && p.participant.binding.version == 2 && !p.affected)
     );
     let project = a.project.clone();
+
+    a.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
     drop(a);
     let reopened = app::test_app_at(temp.path()).await;
     assert_eq!(
@@ -394,4 +399,10 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             .version,
         1
     );
+
+    reopened
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

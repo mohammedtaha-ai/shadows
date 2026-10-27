@@ -126,6 +126,12 @@ async fn a_focused_turn_stores_the_task_with_the_message_and_tells_the_planner()
             EntryRef::Task(t2.as_str().into())
         ]
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -154,6 +160,12 @@ async fn the_same_command_with_another_focus_is_a_command_conflict() {
     let (status, body) = http_start(&l.app, l.app.thread.as_str(), other).await;
     assert_eq!(status, 409, "{body}");
     assert_eq!(body["code"], "COMMAND_CONFLICT");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -193,6 +205,12 @@ async fn a_focus_on_a_task_of_another_plan_is_refused() {
         shadows_core::Turns::list_operations_for_thread_for_test(&l.app.storage, &l.app.thread)
             .await;
     assert!(turns.unwrap().is_empty());
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -254,6 +272,12 @@ async fn plan_show_writes_a_card_and_signals_only_the_sending_tab() {
     assert_eq!(recorded.len(), 1);
     assert!(recorded[0].get("target_tab").is_none(), "{}", recorded[0]);
     assert!(recorded[0].get("client_tab").is_none(), "{}", recorded[0]);
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -284,6 +308,12 @@ async fn a_replayed_subscription_gets_the_card_but_no_plan_show_frame() {
     )
     .await;
     assert!(quiet.is_err(), "a replayed card never signals: {quiet:?}");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -360,6 +390,12 @@ async fn plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards() {
         [(Some(1), None), (Some(2), None)],
         "a replay sends nothing"
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -378,6 +414,12 @@ async fn an_external_grant_has_no_plan_show() {
             .await
             .is_empty()
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -455,4 +497,10 @@ async fn a_thread_grant_can_read_and_show_any_plan_in_its_project() {
         cards[1].refs,
         [EntryRef::Workflow(other_plan.as_str().into())]
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -61,7 +61,7 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
   canonical test and its diff is only the route and `ContextBreakdown`
 
 ### B-12 · Test fixtures release their database before their folder goes
-- Status: todo
+- Status: done
 - Read: CLAUDE.md "Rules"; `crates/shadows-core/tests/sessions.rs` (`Fixture`: `_tmp` is
   declared before `storage`); the `tempfile` crate's `TempDir` drop, which ignores a failed
   removal

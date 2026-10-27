@@ -58,6 +58,11 @@ async fn a_replayed_issue_does_not_show_the_token_again() {
     let replayed = issue().await.unwrap();
     assert!(replayed.token.is_none());
     assert_eq!(replayed.grant, issued.grant);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -88,6 +93,11 @@ async fn a_grant_is_revoked_by_delete_with_its_command_id_in_the_query() {
     let unknown = "/api/mcp-grants/00000000-0000-4000-8000-000000000000?command_id=r2";
     let (status, body) = call(&app, "DELETE", unknown, None).await;
     assert_eq!(status, 404, "{body}");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -158,6 +168,11 @@ async fn grant_events_never_carry_the_token() {
         assert!(every.iter().all(|p| !p.contains(token)), "{token}");
         assert!(every.iter().all(|p| !p.contains(&Token::hash_token(token))));
     }
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -218,6 +233,11 @@ async fn startup_revokes_every_thread_grant_and_keeps_project_grants() {
             .unwrap(),
         0
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// An external start from scratch under `grant` with `draft_ref`. Each new
@@ -377,6 +397,11 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
         matches!(revoked, Err(shadows_core::GrantsError::GrantInvalid)),
         "{revoked:?}"
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -402,6 +427,11 @@ async fn a_thread_grant_cannot_name_a_thread_of_another_project() {
             .await
             .unwrap();
     assert_ne!(grant.project_id, app.project);
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// The grant a session's opening issues is a durable event of the
@@ -425,4 +455,9 @@ async fn a_sessions_grant_reaches_a_subscriber_live() {
         (frame["kind"].as_str(), frame["thread_id"].as_str()),
         (Some("McpGrantIssued"), Some(app.thread.as_str()))
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -41,6 +41,11 @@ async fn initialize_advertises_recommended_value() {
         reply["client_meta"],
         json!({ "jetbrains": { "air": { "version": 1, "capabilities": ["recommendedValue"] } } })
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A picked effort is set at once and answered as `POST /session`
@@ -58,6 +63,11 @@ async fn picking_an_effort_sets_it_at_once() {
     assert_eq!(opened, c, "the session answers the effort it now holds");
     let h: Vec<Value> = get_json(&app, "/api/harnesses").await;
     assert!(h[0]["remembered"].is_null(), "only a turn is remembered");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -74,6 +84,11 @@ async fn an_effort_the_model_does_not_offer_is_not_offered() {
     );
     let (_, c) = put(&app, "model", "fake-large").await;
     assert_eq!(current(&c), ("fake-large", Some("high")), "unchanged");
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -87,6 +102,11 @@ async fn a_running_turns_effort_is_not_changed() {
     app::wait_terminal(&app, &op).await;
     let (s, c) = put(&app, "effort", "low").await;
     assert_eq!((s, current(&c)), (200, ("fake-large", Some("low"))));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// A turn remembers its effort for its model. Choosing a model, or
@@ -119,6 +139,11 @@ async fn the_effort_is_remembered_per_model() {
         h[0]["remembered"],
         json!({ "model": "fake-large", "effort": "max" })
     );
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Migration 0011: the effort a harness remembered before moves to its
@@ -135,6 +160,11 @@ async fn remembered_settings_survive_migration_0011() {
     );
     let (s, c) = post(&app, &session_path(&app), json!({})).await;
     assert_eq!((s, current(&c)), (200, ("fake-small", Some("low"))));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 /// Migration 0011: an effort `default` was no level, so it is not carried; the
@@ -151,6 +181,11 @@ async fn a_remembered_default_effort_is_not_carried_by_migration_0011() {
     );
     let (s, c) = post(&app, &session_path(&app), json!({})).await;
     assert_eq!((s, current(&c)), (200, ("fake-small", Some("high"))));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 async fn seed_before_0011(tmp: &Path) {

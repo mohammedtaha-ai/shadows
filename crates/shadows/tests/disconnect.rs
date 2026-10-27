@@ -116,6 +116,8 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
     .expect("the stop never finished after its request was dropped");
     assert_eq!(status, "Cancelled");
     assert!(!handles.contains(&op).await);
+
+    storage.close().await.unwrap();
 }
 
 async fn post(app: &Router, uri: &str, body: Value) -> Value {

@@ -30,4 +30,9 @@ async fn projects_list_marks_the_assistant_project() {
     let others: Vec<&Value> = list.iter().filter(|p| p["slug"] != "aylul").collect();
     assert!(!others.is_empty());
     assert!(others.iter().all(|p| p["assistant"] == Value::Bool(false)));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

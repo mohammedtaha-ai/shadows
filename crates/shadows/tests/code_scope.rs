@@ -140,4 +140,10 @@ async fn the_scope_is_the_project_and_its_links_only() {
         (status, body["code"].as_str()),
         (REFUSED, Some("INVALID_COMMAND"))
     );
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

@@ -72,6 +72,8 @@ async fn replaying_an_identical_command_returns_the_stored_outcome() {
         .await
         .unwrap();
     assert_eq!(events, 1, "replay must not append a second event");
+
+    storage.close().await.unwrap();
 }
 
 /// Replay requires fingerprint equality. The same command id with a different
@@ -112,6 +114,8 @@ async fn the_same_command_id_with_a_different_request_is_a_conflict() {
         .await
         .unwrap();
     assert_eq!(projects, 1, "a conflict must mutate nothing");
+
+    storage.close().await.unwrap();
 }
 
 /// Key order carries no meaning, so reordering JSON keys must not turn a
@@ -207,6 +211,8 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
         .await
         .unwrap();
     assert_eq!(events, 1, "a conflict must not append a second event");
+
+    storage.close().await.unwrap();
 }
 
 /// CLAUDE.md: ordering is explicit. Projects are listed in the order they were
@@ -250,4 +256,6 @@ async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
         .map(|p| p.id)
         .collect();
     assert_eq!(listed, created);
+
+    storage.close().await.unwrap();
 }

@@ -9,9 +9,9 @@ use serde_json::json;
 use std::sync::Arc;
 
 struct World {
-    _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     extensions: Arc<Extensions>,
+    _tmp: tempfile::TempDir,
 }
 
 async fn world() -> World {
@@ -120,6 +120,8 @@ async fn extension_import_copies_and_redacts_source() {
             .iter()
             .all(|s| !s.contains(w._tmp.path().to_str().unwrap()))
     );
+
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -201,6 +203,9 @@ async fn extension_commands_replay_and_conflict() {
             .await
             .is_err()
     );
+
+    drop(writes);
+    w.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -284,4 +289,6 @@ async fn extension_input_is_contained() {
         std::fs::remove_dir(&junction).unwrap();
         assert!(src.join("SKILL.md").exists());
     }
+
+    w.storage.close().await.unwrap();
 }

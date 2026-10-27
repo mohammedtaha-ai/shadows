@@ -10,7 +10,7 @@ async fn creation_and_replay_activate_the_project_index() {
     let storage = Arc::new(Storage::open(&tmp.path().join("core.db")).await.unwrap());
     let projects = Projects::new(storage.clone());
     let code = Code::new(storage.clone(), projects.clone());
-    let lifecycle = ProjectLifecycle::new(storage, projects, code.clone());
+    let lifecycle = ProjectLifecycle::new(storage.clone(), projects, code.clone());
     code.start(CodeConfig::default()).await.unwrap();
     let directory = tmp.path().join("project");
     std::fs::create_dir(&directory).unwrap();
@@ -30,4 +30,6 @@ async fn creation_and_replay_activate_the_project_index() {
     assert_eq!(replay.id, project.id);
     assert!(code.active_for_test().await.contains(&project.id));
     code.shut_down().await;
+
+    storage.close().await.unwrap();
 }

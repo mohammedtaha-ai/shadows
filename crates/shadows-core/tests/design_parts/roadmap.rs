@@ -6,12 +6,12 @@ use shadows_core::{
 };
 
 pub(super) struct Fixture {
-    pub(super) _tmp: tempfile::TempDir,
     pub(super) _storage: Storage,
     pub(super) core: Arc<AppCore>,
     pub(super) p: ProjectId,
     pub(super) grant: Grant,
     pub(super) parts: Vec<PartId>,
+    pub(super) _tmp: tempfile::TempDir,
 }
 
 impl Fixture {
@@ -75,6 +75,7 @@ impl Fixture {
             .shut_down(std::time::Duration::from_secs(3), std::future::pending())
             .await
             .unwrap();
+        self._storage.close().await.unwrap();
     }
 
     pub(super) fn outcome(
