@@ -49,11 +49,22 @@ settings dialog, PR #40) at `1a2b601`.
 - Needs: a shared request if `turn-state` needs a field Core does not send
 - Done when: one plan-refresh owner, one ProposalCard, one confirm pattern; web tests pass
 
-### F-22 · Keep the summary ring after breakdown removal
-- Status: blocked
+### F-22 · The context ring shows the summary only
+- Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-7b--remove-the-breakdown-route-after-agreement
-- Read: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8; web/src/app/conversation/contract.yaml; web/src/api/contract.yaml; docs/shared/README.md
-- Touch: web/src/app/conversation/context-ring.tsx, web/src/api/client.ts, web/src/api/schema.d.ts (generated), both owning contracts, docs/frontend/codebase/README.md; controller enumerates the actual remaining callers and tests before dispatch
-- Needs: A-7b on the same delivery branch (its regenerated OpenAPI); the accepted request
-  `docs/shared/requests/2026-10-27-summary-only-context-ring.md`
-- Done when: `npm run gen:api` regenerates the schema; focused tests prove the ring makes no hidden breakdown request, summary usage remains visible and explicit `/context` still sends; typecheck and lint pass; both sides land on the same delivery branch
+- Read: the accepted request `docs/shared/requests/2026-10-27-summary-only-context-ring.md`;
+  harness controls §12.8; `web/src/app/conversation/context-ring.tsx` and its test;
+  `web/src/api/sessions.ts`; the ring's lines in `web/src/app/conversation/contract.yaml`
+- Touch: `web/src/app/conversation/context-ring.tsx` (the Details button, the breakdown mutation
+  and the second level go; one muted line says to type `/context` in the conversation for the
+  full breakdown); `context-ring.test.tsx` (the second-level test becomes: the ring makes no
+  daemon request when opened, and shows the `/context` line); `web/src/api/sessions.ts`
+  (`readContext`, `ContextBreakdown`); `web/src/api/schema.d.ts` by `npm run gen:api` only;
+  `web/src/test/fake-daemon.ts` (the `context` answer); `web/src/api/contract.yaml` and
+  `web/src/app/conversation/contract.yaml` (the breakdown lines, its test row and the stale-data
+  gap); `docs/frontend/codebase/README.md` if a row names the breakdown; this task's `Status:`
+- Needs: A-7b on the same branch (its regenerated OpenAPI); the accepted request above
+- Done when: the ring opens with the summary only and makes no request; a test proves it and
+  that typing `/context` still sends it as a slash command (the existing composer path); the
+  schema has no `/api/threads/{id}/context`; from `web/`: `npx vitest run`, `npm run typecheck`,
+  `npm run lint` and `npm run build` pass
