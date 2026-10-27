@@ -1,6 +1,3 @@
-// One job: approving a Draft as the person saw it — what blocks it, the
-// button, and why an approval was refused (§13.11, Review Focus 4).
-
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck } from 'lucide-react'
 import { useRef } from 'react'

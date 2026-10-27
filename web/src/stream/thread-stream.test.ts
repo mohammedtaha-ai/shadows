@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FakeSource } from './fake-event-source'
+import { FakeSource } from '@/test/fake-event-source'
 import { fakeChoices } from '@/test/contract-fixtures'
 import { type Notice, type Options, type PageLike, ThreadStream } from './thread-stream'
 

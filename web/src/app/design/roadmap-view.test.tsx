@@ -5,13 +5,31 @@ import { answers } from '@/test/fake-daemon'
 import { planFixture } from '@/test/contract-fixtures'
 import type { DesignEdit } from '@/api/design'
 import { designKeys } from '@/api/design'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })
 const outcome = { id: 'o1', revision: 1, ordinal: 0, parent: null,
   content: { title: 'تسجيل الدخول', intended_result: 'دخول آمن', acceptance: ['يمكن الدخول', 'يمكن الخروج'] } }
 const listing = (id: string, title: string, plan: string) => ({ id, plan_id: plan, title, plan_state: 'Archived', state: 'Frozen', version: 1, updated_at: '2026-10-03T00:00:00Z' })
+
+it('workspace plans show Approved for frozen versions and preserve draft and archive labels', async () => {
+  const a = app = await startApp('/projects/p1/workspace?view=plans', {
+    ...answers(),
+    'GET /api/projects/p1/workflows': [
+      { ...listing('w1', 'Approved plan', 'approved'), plan_state: 'Active' },
+      { ...listing('w2', 'Draft plan', 'draft'), plan_state: 'Active', state: 'Draft', version: 2 },
+      listing('w3', 'Archived plan', 'archived'),
+    ],
+  })
+  await until(() => a.text().includes('Archived plan'))
+  const plans = Array.from(a.container.querySelectorAll('section')).find(section => section.querySelector('h2')?.textContent === 'Project plans')
+  const row = (id: string) => plans?.querySelector(`a[href="/projects/p1/workflows/${id}"]`)?.closest('li')
+  expect(row('w1')?.querySelector(':scope > span')?.textContent).toBe('Approved v1')
+  expect(row('w2')?.querySelector(':scope > span')?.textContent).toBe('Draft v2')
+  expect(row('w3')?.querySelector(':scope > span')?.textContent).toBe('Approved v1 · Archived')
+  expect(a.text()).not.toContain('Frozen')
+})
 
 // Hiding unassigned/archived plans or deriving Done from lifecycle fails here.
 it('roadmap_navigation_keeps_old_plans_accessible', async () => {

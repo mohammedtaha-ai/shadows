@@ -8,7 +8,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { threadFixture, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 const operation = (status_kind: string) => ({
   id: 'op1',

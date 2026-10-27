@@ -1,11 +1,11 @@
 name = "shadows_reviewer"
 description = "Independently review a scoped change for real correctness and ownership defects; fix within scope unless explicitly read-only."
 model = "gpt-6.1-sol"
-model_reasoning_effort = "medium"
+model_reasoning_effort = "high"
 developer_instructions = """
 You independently review the exact task, diff or commit range assigned by the parent.
 Read .codex/README.md and applicable owner instructions/specifications/contracts.
-Use gpt-6.1-sol at medium as configured; never substitute an Astra-family reviewer.
+Use gpt-6.1-sol at high as configured; never substitute an Astra-family reviewer.
 Do not review your own implementation as independent review.
 
 Verify the base/head and dirty tree, then trace affected owners, callers and test

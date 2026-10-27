@@ -16,10 +16,10 @@ export type NoticeListener = (notice: Notice) => void
  * Entries are not carried by the stream (a `ThreadEntryAppended` is only
  * `{ordinal, kind}`), so the thread's entries query is invalidated at every
  * `caught-up`, at every entry appended while live, and when a turn ends while
- * live — a turn's last word is settled only then — and fetched again (ruling
- * 51). The thread's operations query is invalidated at every `caught-up`, and
+ * live — a turn's last word is settled only then — and fetched again.
+ * The thread's operations query is invalidated at every `caught-up`, and
  * when a turn ends while live, for the observed values of its invocation.
- * A `ThreadRetitled` (spec §4.2) reads the thread lists again: at once while
+ * A `ThreadRetitled` reads the thread lists again: at once while
  * live, at the `caught-up` after a replay that held one.
  *
  * `onDurable` sees every durable event once, replayed or live, in `seq` order;

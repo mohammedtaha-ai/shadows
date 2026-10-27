@@ -4,7 +4,7 @@ import {afterEach,expect,it} from 'vitest'
 import type {MapProposal} from '@/api/design'
 import {agentEntry} from '@/test/contract-fixtures'
 import {answers} from '@/test/fake-daemon'
-import {type TestApp,startApp,until} from '../test-app'
+import {type TestApp,startApp,until} from '@/test/test-app'
 import {MapProposalCard} from './map-proposal-card'
 
 let app: TestApp | null = null

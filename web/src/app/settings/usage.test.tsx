@@ -3,7 +3,7 @@ import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { answers } from '@/test/fake-daemon'
 import { usageKeys, type UsageReport, type ProviderUsage } from '@/api/usage'
-import { startApp, until, type TestApp, type Answer } from '../test-app'
+import { startApp, until, type TestApp, type Answer } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null; vi.restoreAllMocks() })

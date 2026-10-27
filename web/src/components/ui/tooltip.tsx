@@ -1,7 +1,3 @@
-// shadcn/ui's Tooltip on Base UI's Tooltip, in the base-nova style of the
-// other components here. Written by hand from that registry's shape because
-// the registry was out of reach when it was added.
-
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 import { cn } from "cn"
 

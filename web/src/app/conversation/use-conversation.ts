@@ -21,7 +21,7 @@ const QUEUE_EVENTS = new Set(['MessageQueued', 'QueuedMessageRemoved', 'QueuedMe
  *
  * The stream also keeps this thread's plans current, for its cards and side
  * panel through the stream owner. `onShowHere` hears a plan the Planner showed
- * for this tab (§13.9): a live `plan-show` naming this tab's id, never a
+ * for this tab: a live `plan-show` naming this tab's id, never a
  * replayed card and never another tab's. */
 export function useConversation(threadId: string, onShowHere?: (show: PlanShowFrame) => void, projectId?: string) {
   const [turns, dispatchTurn] = useReducer(turnReducer, initialTurnState)
@@ -83,10 +83,8 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
 
   const running = runningTurn(turns)
   const runningText = running === null ? undefined : stream.streaming[running.id]
-  // The reply follows the streamed text during render, not from an effect: an
-  // effect made each delta a second, nested update, and a long turn passed
-  // React's update depth limit (react.dev: "storing information from
-  // previous renders").
+  // Follow streamed text during render: an effect would add a nested update
+  // for every delta and can exceed React's update depth on a long reply.
   const streamed = { op: running?.id ?? null, text: runningText }
   const [applied, setApplied] = useState<typeof streamed>({ op: null, text: undefined })
   if (applied.op !== streamed.op || applied.text !== streamed.text) {
@@ -121,7 +119,6 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
     context: reported.context ?? latestContext(operations.data ?? []),
     /** Account limits reported live on this conversation's stream, if any. */
     limits: reported.limits,
-    /** The harness's `/` list for this conversation (§21), empty until sent. */
     commands,
   }
 }
@@ -131,8 +128,7 @@ interface Reported {
   limits: Limits | null
 }
 
-/** The kinds a turn's agent writes: its text, its tool lines and its
- * subagent cards (§23.8). Each one moves the streamed reply on. */
+/** All agent entry kinds advance the reply so streamed text is not displayed twice. */
 const AGENT_KINDS: ReadonlySet<unknown> = new Set(['AgentMessage', 'ToolCall', 'Subagent'])
 
 /** The ordinal of an announced entry the turn's agent wrote, else `null`. The

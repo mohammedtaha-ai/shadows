@@ -1,6 +1,3 @@
-// One job: the project's allowed modes, per harness, as a checklist that
-// changes them (spec §12.5).
-//
 // A mode is a permission decision: the daemon checks every turn against this
 // set, whatever a client shows. Each change is one command; changes are sent
 // in order, and the list shows the set as last asked for while they travel.
@@ -20,15 +17,10 @@ export function ProjectModes({ project }: { project: Project }) {
   const queryClient = useQueryClient()
   const harnesses = useQuery(harnessesQuery).data
   const pending = useRef<Attempt | null>(null)
-  // The set last asked for, shown until the save of that same set answers.
-  // Reading it from the mutation's own pending state left a gap: between one
-  // save answering and the project list re-rendering, a second click computed
-  // from the old set and could turn a mode back on.
+  // Keep the requested set through cache notification so rapid clicks use the latest choice.
   const [asked, setAsked] = useState<Allowed | null>(null)
   const latest = useRef<Allowed | null>(null)
-  // Cleared on the query client's own schedule, not at once: the saved set
-  // reaches `project` a timer later, and clearing before it lands showed the
-  // old set for that moment — the same gap, one step down.
+  // Clear on the query notification schedule so stale props cannot flash an outdated set.
   const settle = (allowed: Allowed) =>
     notifyManager.schedule(() => {
       if (latest.current === allowed) setAsked(null)

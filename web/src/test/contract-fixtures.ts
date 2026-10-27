@@ -3,7 +3,7 @@
 // compile time rather than at run time. Test-only.
 //
 // The models, efforts and modes are made up, as the fake agent's are: no test
-// of product behaviour names a real Claude model (plan, Global Constraints).
+// of product behaviour depends on real Claude model names.
 
 import type { HarnessInfo } from '@/api/harnesses'
 import type { Plan, PlanListing, PlanTask, PlanVersions } from '@/api/workflows'
@@ -161,9 +161,9 @@ export function entryOfKind(
 
 export const userEntry = (id: string, body: string) => entryOfKind(id, 'UserMessage', body)
 export const agentEntry = (id: string, body: string) => entryOfKind(id, 'AgentMessage', body)
-/** A tool line (§23.8): its body is the tool's title. */
+/** The body carries the tool title for conversation rendering. */
 export const toolEntry = (id: string, title: string) => entryOfKind(id, 'ToolCall', title)
-/** A subagent (§22.2, §23.8): its body is the card's title, its card in `card`. */
+/** The body carries the title while `card` carries the structured subagent data. */
 export const subagentEntry = (id: string, card: { title: string } & Record<string, unknown>) => ({
   ...entryOfKind(id, 'Subagent', card.title),
   card,
@@ -251,8 +251,7 @@ export function planVersionsFixture(plan: Plan, versions?: PlanVersions['version
   }
 }
 
-/** A `PlanView` card (§13.9) of plan version `workflowId`, about task `taskId`
- * when given; its body is what the daemon writes. */
+/** Use the daemon-written body so plan card fixtures match durable entries. */
 export function planViewEntry(
   id: string,
   body: string,

@@ -1,6 +1,3 @@
-// One job: a subagent's card in the conversation (spec §22.4) — its task,
-// model, state and numbers; clicking it opens what it did beside the
-// conversation.
 
 import { Bot, ChevronRight, CircleCheck, CircleStop, CircleX, LoaderCircle } from 'lucide-react'
 import type { SubagentCard } from '@/stream'

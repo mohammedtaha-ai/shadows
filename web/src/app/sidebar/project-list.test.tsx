@@ -6,11 +6,11 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { Answer } from '@/app/test-app'
+import type { Answer } from '@/test/test-app'
 import { threadsQuery } from '@/api/threads'
 import { projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 const second = { ...projectFixture, id: 'p2', slug: 'second', name: 'Second', directory: null }
 const secondThread = { ...threadFixture, id: 't2', project_id: 'p2', title: 'Other talk' }

@@ -196,8 +196,8 @@ components:
       known: boolean; commands?: readonly SlashCommand[]; agentProfile?: string; ring?: ReactNode; onStarted: (operationId:
       string) => void; pointed: PointedTask | null; onPointed: (done: PointedTask) => void }) =>
       JSX.Element"
-    # Send, queue (while a turn runs) and Stop. Send waits for `known` and for the
-    # session to hold the chosen model before it can act.
+    # Composes useSend, useStop, useImages and useSessionSettings with the prompt
+    # and slash menu. Send waits for known and the session to hold the chosen model.
   ComposerBar:
     signature: "(props: { harness: string; harnessLabel: string; session: SessionView; settings:
       TurnSettings | null; onSettings: (next: TurnSettings) => void; changingModel: boolean;
@@ -259,6 +259,9 @@ components:
     # Waivers are shown as consent; the button label names them when present.
   RoadmapProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
+  ProposalApproval:
+    signature: "(props: { approval: ProposalApprovalState; buttonLabel: string; textClass: string }) => JSX.Element"
+    # Fragment preserves each card's status, attribution, button and error order.
   ApprovedBy:
     signature: "(props: { by: Plan['approved_by'] | null | undefined; projectId: string }) =>
       JSX.Element | null"
@@ -296,6 +299,30 @@ components:
     # Shows only reconnecting and failed; connecting and live show nothing.
 
 hooks:
+  useSend:
+    signature: "({ to: SendTo; threadId: string | null; running: Turn | null; initialAttempt?: Attempt | null; imagesChanged: () => void; dropImages: (sent: PendingImage[]) => void; clearPrompt: () => void; clearContinuedPlan: () => void; onPointed: (done: PointedTask) => void; onStarted: (operationId: string) => void }) => { deliver: ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>) => void; clearAttempt: () => void; sending: boolean; inFlight: boolean; error: Error | null }"
+    # Owns the pending attempt, send/queue mutations and their choice. deliver takes
+    # the message values; it reads neither prompt state nor the slash menu.
+    # clearAttempt is stable so the composer, images and settings share one reset.
+    # Thread delivery awaits uploads, then companion targeting, then start/queue.
+    # Draft delivery calls to.draft. Unchanged retries reuse the command; conflict
+    # drops it. focusOf uses the task id in the attempt and the request alike.
+    # Send success drops sent images, resets the attempt, clears continued plan and
+    # prompt, clears the pointed task, then calls onStarted. Queue success drops
+    # images, clears prompt and attempt, then refreshes the queue; focus/plan remain.
+    # inFlight is computed once for image intake and the composer controls;
+    # sending preserves the settings hook's busy input independently of queuing.
+  useStop:
+    signature: "(running: Turn | null) => { stop: (operationId: string) => void; isPending: boolean; error: Error | null; label: 'Stop' | 'Stopping…' | 'Stop again' }"
+    # Owns the stop mutation. Stopping persists until running clears; a failed stop
+    # offers Stop again. Only a pending request disables the button.
+  useSessionSettings:
+    signature: "(choices: SessionChoices | null, busy: boolean, threadId: string | null, changed: () => void) => { settings: TurnSettings | null; note: string | null; choose: (next: TurnSettings) => void; switching: boolean; error: Error | null; resetError: () => void }"
+    # Owns held settings, their note, mode replay, model refusal and effort changes.
+    # choose routes a saved mode change to Core and other choices to local settings.
+    # switching holds Send and the menus while any settings mutation is pending.
+    # changed drops the pending send identity; resetError clears only the effort error
+    # when submitting, preserving mode-error precedence. Busy defers model/effort writes.
   useConversation:
     signature: "(threadId: string, onShowHere?: (show: PlanShowFrame) => void, projectId?: string) => ConversationView"
     # Mount once per thread. Folds the stream into the turn and reply reducers, the
@@ -305,6 +332,7 @@ hooks:
     signature: "(threadId: string) => SessionView"
     # One POST /session, held as a query: never on a timer or on focus.
   useCarriedSend:
+    source: carried-send.ts
     signature: "(threadId: string) => CarriedSend | null"
     # Reads what carrySend left, once, on the first render.
   useCommands:
@@ -399,14 +427,23 @@ pure:
     signature: "() => (tree: HastNode) => void"
     # Runs after Streamdown's plugins. Gives each block its own direction.
 
+draft_owners:
+  draft.tsx: "Render draft conversation routes; DraftRoute, AgentDraftRoute, Draft read API-owned query state; first-send.ts owns mutations"
+  draft-session.ts: "Offer provisional draft choices; draftSession uses the private UNOPENED placeholder before a session exists"
+  first-send.ts: "Orchestrate the draft first send; useFirstSend owns thread creation, companion targeting, list invalidation, session opening, optional model change, image capability checking, staged uploads, first turn, navigation; DRAFT_TITLE is private; only draft.tsx imports this module"
+  carried-send.ts: "Store the one-time failed first-send handoff; CarriedSend, carrySend, useCarriedSend retain the message; Attempt comes directly from api/command-id through a type-only import; no runtime API call"
+  upload-images.ts: "Upload selected images with replayable commands; PendingImage, uploadImages, retryImageUpload own upload identity, shared in-flight promises, ordered answers, explicit retry"
+
 queries_and_mutations:
   # The session and command keys and cache updates (sessionKeys, replaceChoices,
   # reopenSession, replaceCommands, clearCommands) are api/sessions.ts's; the
   # conversation imports them from there (api/contract.yaml session_cache).
   carrySend:
+    source: carried-send.ts
     signature: "(threadId: string, send: CarriedSend) => void"
     # Module-level map: a draft that failed after its thread existed hands its text here.
   useFirstSend:
+    source: first-send.ts
     signature: "(projectId: string, harness: string, planId?: string, profile?: string) =>
       (commandId: string, text: string, chosen: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>"
     private: true
@@ -934,14 +971,14 @@ agreements:
       Both use toolText with the same fallback to the title.
     tested_by: "Copy on a tool line copies its title (§23.8)"
 
-  - between: [useFirstSend (draft), Composer submit (thread page)]
+  - between: [useFirstSend (draft), useSend (thread page)]
     must: >
       fingerprint a retried first send the same way, so the thread page's retry replays the
       draft's command and is not a new turn
     holds: true
     why: >
       The draft's catch builds its attempt from the same text, settings, plan and stable image keys; the thread
-      page's composer takes it as `carried.attempt`.
+      page's composer passes `carried.attempt` to useSend as `initialAttempt`.
     tested_by: "carries the selected plan and command into a failed first-send retry"
 
   - between: [useFirstSend, useSession]
@@ -970,8 +1007,8 @@ agreements:
 
 not_the_caller's:
   - >
-      Mint a CommandId for a send or a queue. Use the composer's pending attempt through
-      `attemptFor`, so a retry replays and a changed request is new.
+      Mint a CommandId for a send or a queue. Call useSend's deliver method, which owns the
+      pending attempt through `attemptFor`, so a retry replays and a changed request is new.
   - >
       Send `/model` or `/effort` to the harness as text. Use the pickers; `sessionCommand` is the
       only path that reads them.
@@ -1041,10 +1078,10 @@ gaps:
 
 open_questions:
   - >
-      Should a queued message clear the focus chip? `Composer`'s queue `onSuccess` does not call
+      Should a queued message clear the focus chip? `useSend`'s queue `onSuccess` does not call
       `onPointed`, while a sent turn does. The queued message stores its focus (WaitingMessages'
       rows carry it), so the chip staying means the next message carries it too. Intent is not
-      stated in code; decide, then align composer.tsx.
+      stated in code; decide, then align use-send.ts.
 
   - >
       Does the daemon retitle a draft's thread on its first start? `useFirstSend` creates the thread
@@ -1222,6 +1259,20 @@ tests:
   - name: "picking model from the menu opens the model picker"
     checks: "A listed 'model' command, picked, opens the model menu and clears the text."
 
+  # use-session-settings.test.tsx
+  - name: "choosing a value closes its menu, so it never covers Send"
+    checks: "After choosing Auto, the mode menu item is gone and the Auto button shows."
+  - name: "a model without auto moves the mode and the bar says so"
+    checks: "Model change to fake-small: note text shown and mode back to Accept edits."
+  - name: "picking a model sets it on the session at once, so its efforts show before Send"
+    checks: "PUT model; Send and effort disabled while changing; no turn starts."
+  - name: "a picked model ends at the effort its answer reports, not an earlier report"
+    checks: "Bodies hold only the model put; a later effort report does not set effort."
+  - name: "an effort the harness refuses goes back to the session’s, on the error line"
+    checks: "422 on effort: error line shows; the menu holds high; one PUT only."
+  - name: "a model the harness refuses goes back to the session’s, with its words"
+    checks: "422 on model: error shows; fake-large is restored in the menu."
+
   # composer-bar.test.tsx
   - name: "says it is connecting, then builds every menu from the session"
     checks: "Connecting text until the session answers; Accept edits and high menu items exist."
@@ -1229,22 +1280,10 @@ tests:
     checks: "options frames during opening are ignored; the answer's max effort holds."
   - name: "a failed opening shows the message and a retry, never an endless spinner"
     checks: "502 shows its message and Retry; Retry opens again (tries reaches 2)."
-  - name: "choosing a value closes its menu, so it never covers Send"
-    checks: "After choosing Auto, the mode menu item is gone and the Auto button shows."
   - name: "sends the chosen model, mode and effort"
     checks: "Turn body carries model fake-large, mode auto, effort high, prompt hi."
-  - name: "a model without auto moves the mode and the bar says so"
-    checks: "Model change to fake-small: note text shown and mode back to Accept edits."
-  - name: "picking a model sets it on the session at once, so its efforts show before Send"
-    checks: "PUT model; Send and effort disabled while changing; no turn starts."
-  - name: "a picked model ends at the effort its answer reports, not an earlier report"
-    checks: "Bodies hold only the model put; a later effort report does not set effort."
   - name: "picking an effort sets it on the session at once"
     checks: "PUT effort max; Send then carries effort max."
-  - name: "an effort the harness refuses goes back to the session’s, on the error line"
-    checks: "422 on effort: error line shows; the menu holds high; one PUT only."
-  - name: "a model the harness refuses goes back to the session’s, with its words"
-    checks: "422 on model: error shows; fake-large is restored in the menu."
   - name: "the mode menu says plainly what Accept edits allows"
     checks: "Mode menu item text carries the description for Accept edits and Auto."
   - name: "a fresh fork shows the CLI locked before any turn"
@@ -1416,9 +1455,12 @@ provider_models: Agent drafts project provider model objects into picker choices
 
 
 image_attachments:
-  owner: "Composer; PendingImage in carried-send.ts carries file identity, upload command, answer, error and in-flight promise"
-  uploadImages: "carried-send.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
-  intake: "Paste intercepts only image clipboard files in clipboard order; other paste keeps browser behavior. Paste, drop, Add photos and Ctrl+U share addImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
+  tested_by: [web/src/app/conversation/composer-images.test.tsx]
+  owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns previews and image controls; PendingImage in upload-images.ts carries file identity, upload command, answer, error and in-flight promise"
+  useImages: "(choices, threadId, inFlight, changed, refuse, initialImages?) => { images, imageReason, filePicker, add, pick, retry, remove, drop, imagesChanged }; changed clears the pending send on add/remove; refuse delivers Core capability refusal to the composer error line"
+  PendingImages: "({ images, threadId, inFlight, onRetry, onRemove }) => JSX.Element | null; owns ImagePreview and its object URL cleanup"
+  uploadImages: "upload-images.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
+  intake: "Paste intercepts only image clipboard files in clipboard order; other paste keeps browser behavior. Paste, drop, Add photos and Ctrl+U hand files or picking to useImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
   validation: "Core alone accepts content, media type and size. No frontend type list or size limit. Session capabilities disable intake with image_reason. Draft capability is provisional until the first opened session answers."
   previews: "Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
   sending: "Send awaits uploads; empty text with images is valid; send/queue carries ordered ids. Text and images survive failure. Only accepted sends clear text and images. Text and files cannot change during a pending send or queue request."
@@ -1444,6 +1486,15 @@ image_attachments:
     - "the draft keeps staged images when its opened session refuses images"
 
 session_cache_owner: "api/sessions.ts owns session/command identities, frame updates, resets and saved mutation answers; feature hooks project presentation state"
+
+proposal_approval:
+  owner: "useProposalApproval in use-proposal-approval.ts owns the live proposal read, command attempt, approval mutation and status text for all three cards"
+  signature: "<T extends VisionProposal | MapProposal | RoadmapProposal>({ projectId, proposalId: string | null, proposalsQuery: UseQueryOptions<T[], Error, T[], string[]>, approveProposal, approvedSuffix?: (live: T) => string }) => ProposalApprovalState"
+  result: "projectId, status, approved, approvedBy, canApprove, isPending, queryError, approvalError, submit"
+  rendering: "ProposalApproval in proposal-approval.tsx takes the result, buttonLabel and textClass; renders status, ApprovedBy, Approve, query error and approval error with no wrapper"
+  content: "Each card owns its snapshot parser, title and domain content; vision supplies its live approved item suffix, map supplies its waiver button label"
+  replay: "Unchanged approval retries reuse attemptFor({ projectId, proposalId }); success drops the attempt and invalidates designKeys.all(projectId); refusal keeps the attempt and invalidates that card's proposals query"
+  status: "Approved with the supplied suffix, Superseded, Outdated — ask the Planner to propose again, Pending, Loading status…, Status unavailable, in that order; approval requires readable live Pending without outdated"
 
 design_cache_identity: "Proposal approval refresh uses api/design.designKeys"
 

@@ -4,8 +4,8 @@
 // AgentMessage entries, which reach the entries list only after a refetch. The
 // stream announces an entry (a durable `ThreadEntryAppended`) before the
 // `turn-end` that drops the streamed text, but the refetch it triggers lands
-// later — so showing the stream only while it streams made the reply blink out
-// between the two. The streamed text therefore stays until the entries list
+// later, so dropping the reply at turn-end would hide it until the refetch
+// lands. The streamed text therefore stays until the entries list
 // holds every agent entry it stands in for, or, when it stands in for none
 // (a turn stopped mid-sentence), until the entries were fetched after the turn
 // ended. While it is shown, the entries it stands in for are hidden, so a

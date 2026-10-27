@@ -1,8 +1,4 @@
 // @vitest-environment happy-dom
-//
-// The Workflows page over a faked daemon (§13.11): the graph, the list above
-// Approve, an approval that meets a changed plan (Review Focus 4), an
-// approved version, and Arabic text (Review Focus 3).
 
 import type { FitViewOptions } from '@xyflow/react'
 import { act } from 'react'
@@ -11,7 +7,7 @@ import type { Plan, PlanVersions } from '@/api/workflows'
 import { answers } from '@/test/fake-daemon'
 import { planFixture, planListing, planTask } from '@/test/contract-fixtures'
 import { FakeResizeObserver, resize } from '@/test/fake-resize-observer'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 // Every fit the graph asks React Flow for, which does the rest unchanged.
 const fits = vi.hoisted(() => [] as (FitViewOptions | undefined)[])

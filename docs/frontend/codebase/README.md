@@ -13,6 +13,9 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 
 What the code keeps true. Each one was checked by reading the code that enforces it.
 
+- Production files outside `web/src/desktop/` ask for native capabilities; the architecture
+  checker refuses their `isDesktop` imports, re-exports or calls, including relative paths
+  through aliased barrels. Platform detection stays in `desktop/`.
 - Feature HTTP calls go through `web/src/api/`. `transport/index.ts` is the only file that
   calls `fetch` and the only one that creates the `openapi-fetch` client; every other
   API domain module uses this shared client.
@@ -27,8 +30,8 @@ What the code keeps true. Each one was checked by reading the code that enforces
   Nothing in it imports from `app/`, `api/`, or `stream/`.
 - `web/src/api/` and `web/src/stream/` import nothing from `web/src/app/`. Data flows
   up from them into the features, never back down.
-- Test-only code never reaches the product. `web/src/test/`, `web/src/app/test-app.tsx`
-  and `web/src/stream/fake-event-source.ts` are imported only by `*.test.ts(x)` files.
+- Test-only code never reaches the product. `web/src/test/` holds the harness and doubles;
+  tests and test-support files import them. The architecture check rejects production reachability.
 - Feature folders reach shared code by path (`@/api/…`, `@/components/ui/…`); the
   shared pieces at the root of `web/src/app/` (`error-line.tsx`, `copy-button.tsx`,
   `daemon-status.tsx`, `mode-policy.ts`) are imported by the feature folders that need them.
@@ -58,7 +61,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts, app/confirm-panel.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts, app/confirm-panel.tsx` | `-` | `api, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
@@ -67,9 +70,9 @@ boundaries do not exempt their sources from the other architecture rules.
 | `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
 | `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared` |
 | `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
-| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, workflows, navigation` |
+| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, workflows, navigation, desktop-ui` |
 | `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
-| `test-support` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, app/test-app.tsx, stream/fake-event-source.ts, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
+| `test-support` | `test/**, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
 import graphs, and `main.tsx`'s, cannot reach `api/transport/index.ts`. Route modules listed
@@ -135,6 +138,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app-root.tsx` | Shared dashboard mounting, owns the app's one QueryClient | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/connection-settings.tsx` | Local Core connection form | `web/src/app/desktop/contract.yaml` |
 | `web/src/desktop/runtime.ts` | Readiness ordering | `web/src/desktop/contract.yaml` |
+| `web/src/desktop/capabilities.ts` | Read native feature availability at call time | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/native.ts` | Desktop invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/index.ts` | Exposes native connection presentation | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/startup.ts` | Expose connection controls before API initialization | `web/src/app/desktop/contract.yaml` |
@@ -179,14 +183,17 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agreements/index.ts` | Expose app/agreements public capabilities | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/conversation/approved-by.tsx` | Attribution line linking to the approving conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/bidi.ts` | Text direction for each block of a reply | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/carried-send.ts` | Carries a failed first message to its thread page | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/carried-send.ts` | Store the failed first-send handoff | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/cli-picker.tsx` | Chooses the CLI a conversation runs on | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer-bar.tsx` | Flat row of composer menus under the message box | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/composer.tsx` | Message box that sends to the Planner, with Stop | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/composer.tsx` | Compose the message writing surface | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/context-ring.tsx` | Context-usage ring with its two popover levels | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/conversation.tsx` | Open conversation pane, assembled from its parts | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/deleted-conversation.tsx` | Readable history of a removed conversation | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/draft.tsx` | New conversation before its first message is sent | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/draft.tsx` | Render the draft conversation routes | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/draft-session.ts` | Offer choices before a draft session exists | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/first-send.ts` | Orchestrate the draft's first send | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/upload-images.ts` | Upload selected images with replayable commands | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/entry.tsx` | Renders one durable thread entry by its kind | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/focus-chip.tsx` | Chip naming the task a turn points at | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/map-proposal-card.tsx` | Card for an immutable map proposal, with approval state | `web/src/app/conversation/contract.yaml` |
@@ -197,6 +204,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/plan-side-panel.tsx` | Plan version shown beside the conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/reply-text.tsx` | Renders the Planner's markdown in the reply voice | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/reply.ts` | Transient streamed reply text with its lifetime | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/proposal-approval.tsx` | Render proposal status, attribution, approval control, errors | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/roadmap-proposal-card.tsx` | Card for an immutable roadmap proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/session-commands.ts` | Reads the /model, /effort commands as picker choices | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/slash-filter.ts` | Decides which / menu entries a composer text lists | `web/src/app/conversation/contract.yaml` |
@@ -213,7 +221,13 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/usage.ts` | Turns harness-reported context figures into readable figures | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-commands.ts` | Keeps each thread's slash-command list in the cache | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-conversation.ts` | Binds an open conversation to its stream, entries, turns | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-images.ts` | Own selected image uploads | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/pending-images.tsx` | Present selected image previews | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-session-settings.ts` | Own session-setting changes | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-send.ts` | Deliver the composed message | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-stop.ts` | Stop the running turn | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session.ts` | Harness session state the conversation screen reads | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/use-proposal-approval.ts` | Own the proposal approval lifecycle | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/waiting-messages.tsx` | Queued messages waiting to be sent or removed | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/index.ts` | Declare lazy route surfaces | `web/src/app/conversation/contract.yaml` |
@@ -235,6 +249,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/workspace-plans.tsx` | Project plan list, with its archive filter | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
+| `web/src/app/confirm-panel.tsx` | Confirmation presentation with non-submitting action buttons | `web/src/app/error-line.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
 | `web/src/app/mode-policy.ts` | Shadows' mode policy per harness, for display | `web/src/app/error-line.tsx` |
 | `web/src/app/new-project/folder-browser.tsx` | Browses one daemon directory to pick a folder | `web/src/app/new-project/contract.yaml` |
@@ -260,8 +275,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/navigation/index.ts` | Settings URL navigation hooks | `web/src/app/navigation/contract.yaml` |
 | `web/src/app/settings/sections/general.tsx` | General settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/account.tsx` | Account state controls | `web/src/app/settings/contract.yaml` |
-| `web/src/app/settings/sections/character.tsx` | Character settings content | `web/src/app/settings/contract.yaml` |
-| `web/src/app/settings/sections/core.tsx` | Local Core settings content | `web/src/app/settings/contract.yaml` |
+| `web/src/app/desktop/settings-sections.tsx` | Register desktop settings content by capability | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/sidebar-actions.tsx` | Present desktop sidebar actions | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/settings/sections/providers.tsx` | Provider settings navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/agents.tsx` | Agent settings navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/account-actions.ts` | Account state action selection | `web/src/app/settings/contract.yaml` |
@@ -295,7 +310,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/sidebar/workspace-switcher.tsx` | Sidebar title as the workspace menu | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workspace.ts` | Which workspace the sidebar shows, the page deciding before the stored choice | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/index.ts` | Expose app/sidebar public capabilities | `web/src/app/sidebar/contract.yaml` |
-| `web/src/app/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
 | `web/src/app/workflows/approve-bar.tsx` | Approval control for a Draft plan, with refusals | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/inspect-panel.tsx` | Panel showing one task beside the graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/layout.ts` | Places a plan's graph with dagre | `web/src/app/workflows/contract.yaml` |
@@ -322,7 +336,6 @@ it is that folder's `contract.yaml`.
 | `web/src/env.d.ts` | Declares the build-time environment variables | `web/src/main.tsx` |
 | `web/src/main.tsx` | Composes native callbacks before app mounting | `web/src/router.tsx` |
 | `web/src/router.tsx` | The app's routes, each open thing a URL | `web/src/main.tsx` |
-| `web/src/stream/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/frames.ts` | Typed reading of each subscribe frame | `web/src/stream/contract.yaml` |
 | `web/src/stream/tab-id.ts` | This tab's id, sent with every turn | `web/src/stream/contract.yaml` |
 | `web/src/stream/thread-stream.ts` | Client side of one thread's replay, then live feed | `web/src/stream/contract.yaml` |
@@ -332,8 +345,11 @@ it is that folder's `contract.yaml`.
 | `web/src/stream/use-project-events.ts` | Refetches project plan views on journal notices | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-thread-stream.ts` | Bind a registry subscription to a component | `web/src/stream/contract.yaml` |
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
+| `web/src/test/composer.ts` | Shared session-ready composer fixtures | `web/src/app/conversation/contract.yaml` |
 | `web/src/test/contract-fixtures.ts` | Sample daemon values typed against `schema.d.ts` | `web/src/test/fake-daemon.ts` |
 | `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon | `web/src/test/contract-fixtures.ts` |
+| `web/src/test/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
+| `web/src/test/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
 | `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
 | `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |

@@ -1,15 +1,11 @@
 // @vitest-environment happy-dom
-//
-// Project settings over a faked daemon (§13.7, §13.8, §13.11): the Planner
-// instructions saved as a command, and the external agents' grants — Connect
-// with its one-time command, a replayed Connect, and Revoke.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { grantsQuery } from '@/api/projects'
 import { grantFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, typeInto, until } from '../test-app'
+import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 
 const PAGE = '/projects/p1/settings'
 const NOTICE =
@@ -116,7 +112,7 @@ describe('project settings', () => {
         grants: [
           grantFixture('g2'),
           grantFixture('g1', { revoked_at: '2026-09-24T12:00:00Z' }),
-          // A Planner's own grant is not the person's to manage (§13.7).
+          // A Planner's own grant is not the person's to manage.
           grantFixture('g0', { kind: 'thread', thread_id: 't1' }),
         ],
       }),

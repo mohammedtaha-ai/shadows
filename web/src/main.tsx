@@ -1,9 +1,9 @@
 import './index.css'
-import {bootApplication,isDesktop,loadNativeGate} from './desktop/startup'
+import {bootApplication,capabilities,loadNativeGate} from './desktop/startup'
 
 const root=document.getElementById('root')
 if(!root)throw new Error('index.html has no #root')
-void bootApplication(isDesktop(),async ()=>{
+void bootApplication(capabilities.localCore,async ()=>{
   const desktop=await loadNativeGate()
   const {ConnectionSettings}=await import('./app/desktop/startup')
   await desktop.prepareDesktop(<ConnectionSettings/>)
@@ -11,7 +11,7 @@ void bootApplication(isDesktop(),async ()=>{
 },async ()=>{
   const {mountApplication}=await import('./app-root')
   mountApplication(root)
-  if(isDesktop()){
+  if(capabilities.tray){
     const {connectNavigation}=await import('./desktop')
     const {router}=await import('./router')
     await connectNavigation(async destination=>{

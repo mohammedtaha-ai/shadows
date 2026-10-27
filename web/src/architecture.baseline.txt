@@ -12,14 +12,13 @@ cache_write :: app/settings/plugins.test.tsx :: setQueryData #2
 cache_write :: stream/use-project-events.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #1
 cache_write :: stream/use-thread-stream.test.tsx :: setQueryData #2
-dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #1
-dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #2
-dependency :: app/conversation/composer-bar.test.tsx :: router.tsx #3
+dependency :: app/conversation/composer-images.test.tsx :: router.tsx #1
 dependency :: app/conversation/draft.test.tsx :: router.tsx #1
+dependency :: app/conversation/use-session-settings.test.tsx :: router.tsx #1
+dependency :: app/conversation/use-session-settings.test.tsx :: router.tsx #2
 dependency :: app/design/roadmap-view.test.tsx :: router.tsx #1
 dependency :: app/design/roadmap-view.test.tsx :: router.tsx #2
 dependency :: app/design/vision-editor.test.tsx :: router.tsx #1
-dependency :: app/desktop/companion-binding.test.tsx :: app/settings/sections/character.tsx #1
 dependency :: app/project-settings/project-settings.test.tsx :: router.tsx #1
 public_entry :: app/agents/aylul.test.tsx :: desktop/presence.ts #1
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #1
@@ -29,7 +28,6 @@ public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-se
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/companion-send.ts #5
 public_entry :: app/conversation/companion-send.test.tsx :: desktop/presence.ts #1
 public_entry :: app/desktop/companion-binding.test.tsx :: app/agents/character-colors.ts #1
-public_entry :: app/desktop/companion-binding.test.tsx :: app/settings/sections/character.tsx #1
-public_entry :: stream/fake-event-source.ts :: stream/thread-stream.ts #1
-server_access :: app/conversation/composer-bar.test.tsx :: global:fetch #1
+public_entry :: test/fake-event-source.ts :: stream/thread-stream.ts #1
+server_access :: app/conversation/composer-images.test.tsx :: global:fetch #1
 server_access :: app/conversation/draft.test.tsx :: global:fetch #1

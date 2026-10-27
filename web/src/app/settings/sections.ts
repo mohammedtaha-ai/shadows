@@ -1,20 +1,18 @@
-import { isDesktop } from '@/desktop'
+import { type DesktopSectionId, visibleDesktopSettingsSections } from '@/app/desktop'
 
-export type SectionId = 'account' | 'general' | 'providers' | 'agents' | 'plugins' | 'usage' | 'character' | 'core'
+export type SectionId = 'account' | 'general' | 'providers' | 'agents' | 'plugins' | 'usage' | DesktopSectionId
 
-export const SECTIONS: { id: SectionId; label: string; group: 'You' | 'AI' | 'This machine'; desktopOnly: boolean }[] = [
-  { id: 'account', label: 'Account', group: 'You', desktopOnly: false },
-  { id: 'general', label: 'General', group: 'You', desktopOnly: false },
-  { id: 'providers', label: 'Providers', group: 'AI', desktopOnly: false },
-  { id: 'agents', label: 'Agents', group: 'AI', desktopOnly: false },
-  { id: 'plugins', label: 'Plugins & Skills', group: 'AI', desktopOnly: false },
-  { id: 'usage', label: 'Usage', group: 'AI', desktopOnly: false },
-  { id: 'character', label: 'AYLUL character', group: 'This machine', desktopOnly: true },
-  { id: 'core', label: 'Local Core', group: 'This machine', desktopOnly: true },
+export const SECTIONS: { id: SectionId; label: string; group: 'You' | 'AI' }[] = [
+  { id: 'account', label: 'Account', group: 'You' },
+  { id: 'general', label: 'General', group: 'You' },
+  { id: 'providers', label: 'Providers', group: 'AI' },
+  { id: 'agents', label: 'Agents', group: 'AI' },
+  { id: 'plugins', label: 'Plugins & Skills', group: 'AI' },
+  { id: 'usage', label: 'Usage', group: 'AI' },
 ]
 
 export function visibleSections() {
-  return SECTIONS.filter(section => !section.desktopOnly || isDesktop())
+  return [...SECTIONS, ...visibleDesktopSettingsSections()]
 }
 
 export function readSettingsSearch(search: Record<string, unknown>): { settings?: SectionId; agent?: string } {

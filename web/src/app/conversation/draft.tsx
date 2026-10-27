@@ -1,46 +1,22 @@
-// One job: a new conversation before its first message (spec §13.11, §16.8) — the
-// empty conversation with its composer, where nothing exists on the daemon
-// until Send makes the thread and starts its first turn.
+// Defer thread creation until Send so an abandoned draft leaves nothing on the daemon.
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { MessageSquarePlus, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { type Choice, type SessionChoices, type TurnSettings, changeModel, openSession } from '@/api/sessions'
-import { createThread, startTurn } from '@/api/threads'
-import { type Attempt, attemptFor } from '@/api/command-id'
-import { ApiError } from '@/api/error'
+import { useMemo, useState } from 'react'
 import { harnessesQuery } from '@/api/harnesses'
 import { planVersionsQuery, plansQuery } from '@/api/workflows'
 import { projectsQuery } from '@/api/projects'
-import { threadsQuery } from '@/api/threads'
-import {noteCompanionSend} from '@/desktop'
-import { tabId } from '@/stream'
-import { agentsQuery, providersQuery, agentThreadsQuery, type Provider } from '@/api/aylul-profiles'
+import { agentsQuery, providersQuery, type Provider } from '@/api/aylul-profiles'
 import { ErrorLine } from '../error-line'
-import { policyOf } from '../mode-policy'
-import { carrySend, uploadImages, type PendingImage } from './carried-send'
+import { draftSession } from './draft-session'
+import { useFirstSend } from './first-send'
 import { AYLUL_HARNESS, CliMenu } from './cli-picker'
 import { Composer } from './composer'
 import { DEFAULT_HARNESS } from './conversation'
-import { type SessionView } from './use-session'
 import { StageChip } from './stage-chip'
 
 const route = getRouteApi('/projects/$projectId/new')
-
-/** What a draft's model menu reads: no model is chosen before a session
- * exists, and Send takes the one the session opens at. */
-const UNOPENED: Choice = {
-  id: 'unopened',
-  label: 'Set on send',
-  description: null,
-  enabled: true,
-  reason: null,
-}
-
-/** Required by the API; the first message retitles the thread at once, and
- * the harness after it (spec §4). */
-const DRAFT_TITLE = 'New conversation'
 
 /** Keyed by project, so a draft never carries its text to another project. */
 export function DraftRoute() {
@@ -158,103 +134,4 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
       />
     </div>
   )
-}
-
-/** What a draft's composer offers before a session exists: the harness's
- * modes as the project allows them, no model chosen and no effort. */
-function draftSession(harness: string, allowed: string[] | undefined, provider?: Provider, defaultModel?: string): SessionView {
-  if (allowed === undefined) return { state: 'connecting' }
-  const policy = policyOf(harness)
-  const choices: SessionChoices = {
-    // Drafts stage files locally; the opened session and Core judge the first send.
-    capabilities: { image: true, image_reason: null },
-    current: {
-      mode: policy.initial ?? policy.modes[0]?.id ?? '',
-      model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!.id,
-      effort: null,
-    },
-    modes: policy.modes.map((m) => {
-      const enabled = allowed.includes(m.id)
-      return {
-        id: m.id,
-        label: m.label,
-        description: null,
-        enabled,
-        reason: enabled ? null : 'Not allowed in this project',
-      }
-    }),
-    models: provider === undefined ? [UNOPENED] : provider.models.map(({ id }) => ({ id, label: id, description: null, enabled: true, reason: null })),
-    efforts: [],
-  }
-  return { state: 'ready', choices }
-}
-
-/** Send from a draft: create the thread, open its session for the model it
- * holds, start the turn with the chosen mode, then replace the draft's URL
- * with the thread's. A failed create stays in the draft for a retry with the
- * same command id; a turn that fails once the thread exists goes to the
- * thread with its text and error, so a retry never makes a second thread.
- * A person who left the draft while it sent stays where they went: the
- * thread shows in the sidebar, and nothing pulls them back to it. */
-function useFirstSend(projectId: string, harness: string, planId?: string, profile?: string) {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const create = useRef<Attempt | null>(null)
-  const shown = useRef(true)
-  useEffect(() => {
-    shown.current = true
-    return () => {
-      shown.current = false
-    }
-  }, [])
-
-  return async (commandId: string, text: string, chosen: TurnSettings, images: PendingImage[], changed: () => void): Promise<string> => {
-    const request = { title: DRAFT_TITLE, harness, ...(profile === undefined ? {} : { profile }) }
-    create.current = attemptFor(create.current, request)
-    const thread = await createThread(projectId, { ...request, command_id: create.current.commandId })
-    await noteCompanionSend(thread.id)
-    void queryClient.invalidateQueries({ queryKey: threadsQuery(projectId).queryKey })
-    if (profile !== undefined) void queryClient.invalidateQueries({ queryKey: agentThreadsQuery(profile).queryKey })
-    const open = async () => {
-      if (!shown.current) return
-      await navigate({
-        to: '/projects/$projectId/threads/$threadId',
-        params: { projectId, threadId: thread.id },
-        replace: true,
-      })
-    }
-
-    let settings: TurnSettings | null = null
-    try {
-      let choices = await openSession(thread.id)
-      if (profile !== undefined && chosen.model !== choices.current.model) {
-        choices = await changeModel(thread.id, chosen.model)
-      }
-      settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
-      if (images.length > 0 && !choices.capabilities.image) {
-        throw new Error(choices.capabilities.image_reason ?? 'This session does not support images.')
-      }
-      const attachments = await uploadImages(thread.id, images, changed)
-      const operationId = await startTurn(thread.id, commandId, text, settings, {
-        plan: planId ?? null,
-        clientTab: tabId(),
-        attachments,
-      })
-      void open()
-      return operationId
-    } catch (error) {
-      // The thread page's composer fingerprints what it sends the same way,
-      // so sending the same text and settings there replays this command.
-      const request = { text, settings: settings ?? chosen, ...(images.length === 0 ? {} : { attachments: images.map(image => image.key) }), focus: null, ...(planId === undefined ? {} : { plan: planId }) }
-      carrySend(thread.id, {
-        text,
-        images,
-        attempt: attemptFor(null, request, error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT' ? undefined : () => commandId),
-        error: error instanceof Error ? error : new Error(String(error)),
-        planId,
-      })
-      void open()
-      throw error
-    }
-  }
 }

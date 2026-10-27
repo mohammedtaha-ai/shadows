@@ -1,7 +1,3 @@
-// One job: the project settings page (§13.11) — the Planner's instructions
-// for this project, the modes it allows, the external agents allowed on it,
-// its code index, and removing it.
-
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { projectsQuery } from '@/api/projects'

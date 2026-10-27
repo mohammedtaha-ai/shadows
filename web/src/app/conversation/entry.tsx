@@ -53,7 +53,6 @@ export function Entry({
   requestedMode: string | null
   projectId: string
   onPointAt: (plan: Plan, task: PlanTask) => void
-  /** A subagent's card was clicked (§22.4). */
   onOpenSubagent: (id: string) => void
 }) {
   if (entry.kind === 'UserMessage') {
@@ -112,7 +111,7 @@ export function Entry({
   if (entry.kind === 'PermissionRefused') {
     // Refused in the mode the turn ran in; only a mode that asks refuses,
     // so without a record it is the policy's first. The unattended mode
-    // does not ask (spec §12.2).
+    // does not ask.
     const refusedIn = requestedMode ?? policy.initial
     return (
       <p className="flex items-start gap-2 text-xs text-muted-foreground">

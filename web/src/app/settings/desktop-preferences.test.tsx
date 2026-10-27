@@ -7,7 +7,7 @@ import { personQuery } from '@/api/person'
 import { codeKeys } from '@/api/code'
 import { GeneralSection } from './sections/general'
 import { DesktopPreferencesControls } from './desktop-preferences'
-import { until, typeInto } from '../test-app'
+import { until, typeInto } from '@/test/test-app'
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))

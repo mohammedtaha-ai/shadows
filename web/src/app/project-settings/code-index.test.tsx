@@ -1,8 +1,4 @@
 // @vitest-environment happy-dom
-//
-// The code index section of project settings over a faked daemon (§15.6,
-// §13.11): linking another project by its id, and unlinking it, each one
-// command, with the list following.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -10,7 +6,7 @@ import type { ProjectLink } from '@/api/code'
 import type { Project } from '@/api/projects'
 import { codeStatusFixture, projectFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, choose, startApp, until } from '../test-app'
+import { type TestApp, choose, startApp, until } from '@/test/test-app'
 
 let open: TestApp | null = null
 afterEach(() => {

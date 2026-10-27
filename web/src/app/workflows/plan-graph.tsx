@@ -1,6 +1,3 @@
-// One job: a plan version drawn as its graph — the canvas the Workflows page,
-// the conversation's plan cards and its side panel all show (§13.9, §13.11).
-
 import '@xyflow/react/dist/style.css'
 import {
   Controls,
@@ -50,7 +47,7 @@ export function PlanGraph({
   focusTask?: number
   onSelectTask?: (task: PlanTask) => void
 }) {
-  // Laid out again on every change (§13.11); nodes are never dragged.
+  // Recompute positions from the plan so every surface shows the same automatic layout.
   const { nodes, edges } = useMemo(() => layoutPlan(plan), [plan])
   const shown = useMemo(
     () =>
@@ -112,7 +109,6 @@ export function PlanGraph({
   )
 }
 
-/** Explains the two kinds of link (§13.11). */
 function Legend({ className }: { className: string }) {
   return (
     <div data-plan-legend className={className}>

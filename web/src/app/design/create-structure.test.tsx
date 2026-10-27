@@ -3,7 +3,7 @@ import { designKeys } from '@/api/design'
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers as baseAnswers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })

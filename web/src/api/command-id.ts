@@ -1,6 +1,3 @@
-// One job: which idempotency key (spec §3.2) a command carries on each attempt
-// a person makes to send it.
-//
 // A retry of the same request reuses the key, so an attempt whose answer was
 // lost (the daemon applied it, the browser never heard) replays the first
 // result instead of creating a second project. A changed request is a new

@@ -73,6 +73,7 @@ components:
     signature: "({ projectId: string, selected?: string }) => JSX.Element"
     # Starts the project's live stream (useProjectEvents) and lists its plans.
   DeleteThreadDialog:
+    note: ConfirmPanel renders the dialog body; this caller owns the mutation, command attempt, cache invalidations, navigation and pending close guard.
     signature: >-
       ({ thread: PlanningThread, open: boolean, onOpenChange: (open: boolean) => void,
       isCurrent: boolean }) => JSX.Element
@@ -304,3 +305,6 @@ removed_thread_cache_owner: "api/threads.ts owns removed-thread detail and live-
 feature_imports: "Cross-feature production imports use declared public entries."
 
 feature_entry: "index.ts exposes storedWorkspace, Sidebar."
+
+desktop_capabilities:
+  Sidebar: Renders desktop-ui's DesktopSidebarActions before the footer; desktop-ui owns capability checks, the conditional action row and its following error line.

@@ -1,6 +1,3 @@
-// One job: placing a plan's nodes and edges, left to right, with dagre
-// (§13.11: laid out automatically, recomputed on every change, never dragged).
-//
 // Every node's size is decided here, from the lines it will show, and handed
 // to React Flow as a fixed `width` and `height`: the box dagre spaced is the
 // box drawn, so nothing overlaps, and the edges can be drawn before (or, in a
@@ -21,7 +18,7 @@ export interface StartData extends Record<string, unknown> {
 /** What a task node shows, decided here so its height is known. */
 export interface TaskData extends Record<string, unknown> {
   task: PlanTask
-  /** The last edit changed it (§13.10's `last_edit.changed_tasks`). */
+  /** Marks tasks named in `last_edit.changed_tasks` so the latest changes are visible. */
   changed: boolean
   /** Set by `PlanGraph` for the task it centres; never by the layout. */
   focused?: boolean

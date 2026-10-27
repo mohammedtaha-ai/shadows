@@ -1,6 +1,3 @@
-// One job: one task opened beside the graph — its goal, reads, writes and
-// acceptance items, each waiting item saying for which task (§13.11).
-
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Plan, PlanTask } from '@/api/workflows'

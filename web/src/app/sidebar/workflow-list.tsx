@@ -1,6 +1,3 @@
-// One job: the open project's plans in the sidebar — active plans first,
-// then folded archived ones (§13.11, §16.8).
-
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, ChevronRight, Map, Workflow } from 'lucide-react'

@@ -6,7 +6,7 @@ import * as api from '@/api/threads'
 import * as presence from '@/desktop/presence'
 import {threadFixture,projectFixture,claudeHarness,runningOperation} from '@/test/contract-fixtures'
 import {answers} from '@/test/fake-daemon'
-import {startApp,typeInto,until,type TestApp} from '../test-app'
+import {startApp,typeInto,until,type TestApp} from '@/test/test-app'
 let app:TestApp|null=null
 afterEach(()=>{app?.unmount();app=null;vi.restoreAllMocks();delete (window as unknown as Record<string,unknown>).__TAURI_INTERNALS__})
 const bound={revision:1,generation:7,configurationId:'00000000-0000-4000-8000-000000000001',agent:'agent-a',target:null,previews:true}

@@ -7,7 +7,7 @@ import { ProviderPicker } from './provider-picker'
 import { presetGroups, type Preset } from './provider-presets'
 import { answers } from '@/test/fake-daemon'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { until } from '../test-app'
+import { until } from '@/test/test-app'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 it('presets are grouped by name', () => {

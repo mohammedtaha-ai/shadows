@@ -1,15 +1,9 @@
-// One job: the proposed content, its live state, and the person's approval (§23.5).
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useProposalApproval } from './use-proposal-approval'
+import { ProposalApproval } from './proposal-approval'
 import type { ThreadEntry } from '@/api/threads'
-import { type Attempt, attemptFor } from '@/api/command-id'
 import { approveVisionProposal, type VisionProposal } from '@/api/design'
 import { visionProposalsQuery } from '@/api/design'
-import { designKeys } from '@/api/design'
-import { Button } from '@/components/ui/button'
-import { ErrorLine } from '../error-line'
 import { VISION_FIELDS } from '@/app/design'
-import { ApprovedBy } from './approved-by'
 
 type Snapshot = Pick<VisionProposal, 'id' | 'action' | 'field' | 'item_id' | 'text' | 'old_text'>
 function proposed(entry: ThreadEntry): Snapshot | null {
@@ -24,43 +18,18 @@ function proposed(entry: ThreadEntry): Snapshot | null {
 
 export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; projectId: string }) {
   const snapshot = proposed(entry)
-  const client = useQueryClient()
-  const query = useQuery({ ...visionProposalsQuery(projectId), enabled: snapshot !== null })
-  const attempt = useRef<Attempt | null>(null)
-  const approve = useMutation({
-    mutationFn: (sent: { proposalId: string; commandId: string }) =>
-      approveVisionProposal(projectId, sent.proposalId, sent.commandId),
-    onSuccess: () => {
-      attempt.current = null
-      void client.invalidateQueries({ queryKey: designKeys.all(projectId) })
-    },
-    onError: () => {
-      void client.invalidateQueries({ queryKey: visionProposalsQuery(projectId).queryKey })
-    },
+  const approval = useProposalApproval({
+    projectId, proposalId: snapshot?.id ?? null,
+    proposalsQuery: visionProposalsQuery(projectId), approveProposal: approveVisionProposal,
+    approvedSuffix: live => live.item_id ? ` · ${live.item_id}` : '',
   })
   if (snapshot === null) return <p dir="auto">{entry.body}</p>
-  const live = query.data?.find(p => p.id === snapshot.id)
-  const status = live?.status === 'Approved' ? `Approved${live.item_id ? ` · ${live.item_id}` : ''}`
-    : live?.status === 'Superseded' ? 'Superseded'
-    : live?.outdated ? 'Outdated — ask the Planner to propose again'
-    : live?.status === 'Pending' ? 'Pending'
-    : query.isPending ? 'Loading status…' : 'Status unavailable'
   const label = {purpose:'purpose',users:'user',goals:'goal',boundaries:'boundary',technical_direction:'technical direction'}[snapshot.field]
   const action = { add: 'Add', edit: 'Edit', remove: 'Remove' }[snapshot.action]
-  const submit = () => {
-    attempt.current = attemptFor(attempt.current, { projectId, proposalId: snapshot.id })
-    approve.mutate({ proposalId: snapshot.id, commandId: attempt.current.commandId })
-  }
   return <article data-vision-proposal={snapshot.id} className="rounded-lg border bg-card p-4 space-y-3">
     <h3 className="text-sm font-medium">{action} {label}{snapshot.item_id ? ` · ${snapshot.item_id}` : ''}</h3>
     {snapshot.action === 'edit' && <del dir="auto" className="block whitespace-pre-wrap text-muted-foreground">{snapshot.old_text}</del>}
     <p dir="auto" className="whitespace-pre-wrap">{snapshot.action === 'remove' ? snapshot.old_text : snapshot.text}</p>
-    <p role="status" className="text-xs text-muted-foreground">{status}</p>
-    {live?.status === 'Approved' && <p className="text-xs text-muted-foreground">
-      <ApprovedBy by={live.approved_by} projectId={projectId} /></p>}
-    {live?.status === 'Pending' && !live.outdated && query.error === null &&
-      <Button size="sm" onClick={submit} disabled={approve.isPending}>Approve</Button>}
-    {query.error !== null && <ErrorLine error={query.error} />}
-    {approve.error !== null && <ErrorLine error={approve.error} />}
+    <ProposalApproval approval={approval} buttonLabel="Approve" textClass="text-xs text-muted-foreground" />
   </article>
 }

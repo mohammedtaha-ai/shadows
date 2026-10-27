@@ -21,7 +21,6 @@ export function planMapQuery(projectId: string) {
   return queryOptions({ queryKey: workflowKeys.map(projectId), queryFn: () => getPlanMap(projectId) })
 }
 
-/** A project's plans, each plan's latest version (§16.2), or archived ones too. */
 export function plansQuery(projectId: string, archived = false) {
   return queryOptions({
     queryKey: workflowKeys.list(projectId, archived),
@@ -29,7 +28,6 @@ export function plansQuery(projectId: string, archived = false) {
   })
 }
 
-/** One plan with every version, oldest first (§16.10). */
 export function planVersionsQuery(planId: string) {
   return queryOptions({
     queryKey: workflowKeys.versions(planId),

@@ -1,14 +1,10 @@
 // @vitest-environment happy-dom
-//
-// The sidebar's Workflows section over a faked daemon (§13.11): each
-// conversation's latest plan, an invitation when there is none, and why the
-// list could not be read.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { planFixture, planListing } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from '../test-app'
+import { type TestApp, startApp, until } from '@/test/test-app'
 
 const PAGE = '/projects/p1/workflows/w1'
 

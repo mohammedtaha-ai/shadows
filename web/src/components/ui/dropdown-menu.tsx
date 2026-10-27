@@ -1,7 +1,4 @@
-// shadcn/ui's DropdownMenu on Base UI's Menu, in the base-nova style of the
-// other components here. Written by hand from that registry's shape because
-// the registry was out of reach when it was added; only the parts this app
-// uses are here, and the rest are added the day a screen needs one.
+// Keep only the menu parts the app uses so the wrapper follows actual UI needs.
 
 import * as React from "react"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"

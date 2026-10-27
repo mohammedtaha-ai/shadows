@@ -1,5 +1,4 @@
-// The request each Phase B call sends, read off a stubbed `fetch`: the route,
-// and a body whose command id is always the caller's.
+// Stub fetch to verify routes and preserve caller-owned command ids.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeChoices, threadFixture } from '@/test/contract-fixtures'

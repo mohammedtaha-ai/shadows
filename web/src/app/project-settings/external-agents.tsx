@@ -1,6 +1,3 @@
-// One job: the external agents allowed on this project (§13.7) — Connect,
-// the command it answers once, and the grants with Revoke.
-//
 // The token lives only in the one answer to Connect, so the command is kept in
 // this component's state and nowhere else: leaving the page loses it, as the
 // daemon's own copy was never stored. Only project grants are shown; a

@@ -52,6 +52,7 @@ components:
     signature: "({ slug: string }) => JSX.Element"
   DeleteZone:
     signature: "({ title, summary, consequence, action, pending, error, onConfirm, inline?, compact? }) => JSX.Element"
+    note: ConfirmPanel renders the confirmation with non-submitting buttons; DeleteZone owns open state, the danger zone and its trigger. Mutations and command attempts remain with its callers.
     # The danger zone shared by both forms; inline=true keeps confirmation inside
     # Settings. Its error line shows a refusal such as PROVIDER_IN_USE.
   Field:
@@ -150,3 +151,6 @@ feature_entry: "index.ts exposes providerTitle, colorOf, ColorDot, AgentForm, De
 feature_imports: "Cross-feature production imports use declared public entries."
 
 route_entries: "home.tsx remain separate public lazy route modules declared by index.ts."
+
+desktop_capabilities:
+  AgentFields: companion gates the saved bound-agent appearance refresh and the hint that its colour is currently worn by the companion.

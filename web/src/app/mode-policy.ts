@@ -1,6 +1,4 @@
-// One job: Shadows' mode policy per harness (spec §12.4), for the places the
-// client names modes without an open session to ask: the project page's
-// checklist of allowed modes, and a refused permission's line.
+// The project checklist and refused-permission line need mode names without an open session.
 //
 // This is Shadows' own decision, not a list of the harness's modes: a
 // session's menus still come from what the harness offers, filtered by the
@@ -9,7 +7,7 @@
 
 export interface HarnessPolicy {
   /** The modes Shadows allows, in the order they are listed, each with the
-   * line that says plainly what it lets the harness do (spec §12.5). */
+   * line that says plainly what it lets the harness do. */
   readonly modes: readonly {
     readonly id: string
     readonly label: string
@@ -17,8 +15,8 @@ export interface HarnessPolicy {
   }[]
   /** Every new conversation's mode; one that asks before a tool runs. */
   readonly initial: string | null
-  /** The allowed mode that does not ask (spec §12.2): the one that would
-   * have let a refused permission through. */
+  /** The allowed mode that asks nothing: the one that would have let a refused
+   * permission through. */
   readonly unattended: string | null
 }
 

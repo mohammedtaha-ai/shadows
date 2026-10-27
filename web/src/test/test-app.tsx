@@ -1,12 +1,12 @@
 // One job: running the whole app in a test against a faked daemon — its
-// routes answered from a table, its streams driven by hand. Test-only; nothing
-// outside a `*.test.tsx` imports it.
+// routes answered from a table, its streams driven by hand. Test-only; only tests
+// and other test support import it.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { expect, vi } from 'vitest'
-import { FakeSource } from '@/stream/fake-event-source'
+import { FakeSource } from '@/test/fake-event-source'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -162,8 +162,7 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
 /** Lets pending fetches and renders settle until `ready` holds, for up to
  * three seconds. */
 export async function until(ready: () => boolean): Promise<void> {
-  // Generous: a passing check returns at once, and a loaded machine (a Rust
-  // build alongside) made lazily loaded pages miss a 3 s deadline.
+  // Allow lazy pages time to load under contention; a passing check returns at once.
   const deadline = Date.now() + 10_000
   while (!ready() && Date.now() < deadline) {
     await act(async () => {

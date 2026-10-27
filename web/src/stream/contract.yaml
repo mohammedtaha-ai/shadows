@@ -170,9 +170,10 @@ pure:
 test_only:
   FakeSource:
     note: >
-      An EventSource a test drives by hand: emit(type, data?), durable(seq, kind?, opId?,
-      payload?), caughtUp(seq), fail(), param(name), and a `closed` flag. Test-only by its
-      header.
+      web/src/test/fake-event-source.ts supplies an EventSource a test drives by hand:
+      emit(type, data?), durable(seq, kind?, opId?, payload?), caughtUp(seq), fail(),
+      param(name), and a `closed` flag. Tests and web/src/test/test-app.tsx use it;
+      the architecture check rejects production reachability to test support.
 
 
 # ── agreements ───────────────────────────────────────────────────────────────
@@ -451,12 +452,6 @@ gaps:
       parseDurable applies that rule. Here it does not: a daemon that omits target_tab is read
       as an untargeted frame, and use-conversation.ts drops it quietly, because null never
       equals the tab id. The test sends explicit nulls only.
-
-  - at: FakeSource
-    gap: >
-      The header says nothing outside a *.test.ts imports it. src/app/test-app.tsx, which is
-      not a test file, imports FakeSource for its `sources` array. If test-app is reachable from
-      the app entry, the test double ships in the production bundle. Not traced to the entry point.
 
 
 # ── open_questions ───────────────────────────────────────────────────────────

@@ -1,4 +1,3 @@
-// One job: the project's stage (§23.4) as one line in the conversation header.
 import { useQuery } from '@tanstack/react-query'
 import { stageQuery } from '@/api/design'
 import { projectsQuery } from '@/api/projects'

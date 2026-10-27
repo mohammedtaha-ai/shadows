@@ -15,7 +15,7 @@ export const threadKeys = {
 /** A project's planning threads, oldest first. A thread's own stream
  * refreshes the list on its `ThreadRetitled`, but the harness titles a thread
  * after its turn has ended, often once the person has left it, so the list is
- * also polled every 10 s while shown (spec §12.10). */
+ * also polled every 10 s while shown. */
 export function threadsQuery(projectId: string) {
   return queryOptions({
     queryKey: threadKeys.list(projectId),
@@ -34,7 +34,7 @@ export function threadQuery(threadId: string) {
 
 /** A thread's entries (`GET /api/threads/{id}/entries`). A durable
  * `ThreadEntryAppended` carries only `{ordinal, kind}`, so the stream hook
- * invalidates this key and the entries are fetched again (ruling 51). */
+ * invalidates this key and the entries are fetched again. */
 export function threadEntriesKey(threadId: string) {
   return threadKeys.entries(threadId)
 }
@@ -43,7 +43,7 @@ export function entriesQuery(threadId: string) {
   return queryOptions({ queryKey: threadEntriesKey(threadId), queryFn: () => listEntries(threadId) })
 }
 
-/** A thread's waiting messages (spec §20); the stream's queue events invalidate it. */
+/** Queue events invalidate this query so waiting messages follow the stream. */
 export function queuedQuery(threadId: string) {
   return queryOptions({
     queryKey: threadKeys.queue(threadId),

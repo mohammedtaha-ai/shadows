@@ -3,7 +3,7 @@ import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { agentExtensionsQuery, type AgentExtensions } from '@/api/extensions'
 import { answers } from '@/test/fake-daemon'
-import { startApp, until, typeInto, type TestApp, type Answer } from '../test-app'
+import { startApp, until, typeInto, type TestApp, type Answer } from '@/test/test-app'
 
 const plugin = { id: '11111111-1111-4111-8111-111111111111', name: 'git', description: 'Git tools.' }
 const skill = { id: '22222222-2222-4222-8222-222222222222', name: 'review', description: 'Review changes.' }

@@ -542,6 +542,25 @@ Do not combine this move with changing Core-owned mode defaults.
 
 This absorbs the presentation portion of F-19. Separate proposal, confirmation, and label commits.
 
+**Desktop capabilities (its own commit in W-10).** Today seven files outside `desktop/` and
+`app/desktop/` each ask `isDesktop()` and decide for themselves what to show:
+`app/settings/sections.ts`, `settings/sections/{general,account,agents}.tsx`,
+`sidebar/sidebar.tsx`, `agents/agent-settings.tsx` and `router.tsx`.
+
+- **Touch:** `web/src/desktop/` (a capabilities object, created once at start-up, with one field
+  per native feature: local Core, companion, tray navigation, account login item; the browser
+  build gets all `false`); the seven files above; `web/src/app/desktop/` where its sections and
+  sidebar entries register; `web/src/architecture.test.ts` (a rule with a failing fixture that
+  refuses `isDesktop()` outside `desktop/`), its baseline, contracts and the code map.
+- **Done-when:** screens ask for a capability (`capabilities.companion`), never for the platform.
+  Desktop-only sections and sidebar entries are registered from `app/desktop/` in one place.
+  `isDesktop()` is read only inside `desktop/`. Browser and desktop show exactly what they show
+  today (the existing settings and sidebar tests stay green unchanged).
+- **Why:** a new native feature (an in-app browser or terminal later) is one new capability:
+  its bridge in `desktop/` and its screen in `app/desktop/`, with no edit to unrelated screens.
+  The same capabilities later tell Core which desktop-only MCP tools to offer an agent
+  (`docs/aylul/future.md`, "AYLUL's own MCP tools"); that part is not in this task.
+
 ### W-11 · Remove copied Core decisions after API support exists
 
 - **Touch:** `agents/model-picks.ts`, `provider-models.tsx`, provider/agent forms; `app/mode-policy.ts`; draft choices; project-mode editor; `settings/active-projects.tsx`; `design/create-structure.tsx`; `conversation/turn-state.ts`; affected contracts/tests; generated schema through tooling only.

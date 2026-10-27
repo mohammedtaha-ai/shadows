@@ -4,10 +4,10 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, it, vi } from 'vitest'
-import { FakeSource } from './fake-event-source'
+import { FakeSource } from '@/test/fake-event-source'
 import { useProjectEvents } from './use-project-events'
-import { until } from '@/app/test-app'
-import { startApp, typeInto } from '@/app/test-app'
+import { until } from '@/test/test-app'
+import { startApp, typeInto } from '@/test/test-app'
 import { answers } from '@/test/fake-daemon'
 
 it.each(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])('pins project refresh for %s', async kind => {

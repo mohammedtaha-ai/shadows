@@ -11,6 +11,9 @@ components:
   UseWithCompanion: Explicitly target an existing selected-agent thread; never send a turn or change the selected agent.
   CompanionControls: Subscribe before snapshot; revisioned visibility and motion switches; explicit Retry after rendering failure.
   Activity: Desktop-only local sessions and approval controls.
+  CharacterSection: Companion switches followed by companion agent settings in the shared settings dialog.
+  CoreSection: Native Core connection settings in the shared settings dialog.
+  DesktopSidebarActions: Desktop sidebar action row with native failure feedback, without an extra wrapper.
   SessionsPanel: Show session state/project; preview hook settings before confirmed installation.
   ApprovalsPanel: Show project/session; allow once, deny, preview exact rule, approve or dismiss.
   RulePreviewGuard: Invalidate edited or stale previews; approve only the captured rule and settings fingerprint.
@@ -43,6 +46,11 @@ startup_entry: "startup.ts exports only ConnectionSettings before native readine
 
 feature_imports: "Cross-feature production imports use declared public entries."
 
-feature_entry: "index.ts exposes UseWithCompanion, CompanionControls, CompanionSettings, ConnectionSettings."
+feature_entry: "index.ts exposes UseWithCompanion, CompanionControls, CompanionSettings, ConnectionSettings, desktopSettingsSections, visibleDesktopSettingsSections, DesktopSectionId, CoreSection, DesktopSidebarActions."
 
 route_entries: "activity.tsx remain separate public lazy route modules declared by index.ts."
+
+desktop_capabilities:
+  Activity: localCore gates local sessions and approval controls; without it the existing desktop-availability message is shown.
+  desktopSettingsSections: Ordered registrations carry the desktop-owned id, label, This machine group, capability and content component. Character requires companion; Local Core requires localCore. visibleDesktopSettingsSections filters at read time.
+  DesktopSidebarActions: localCore gates Local activity; tray independently gates Hide to tray. The row exists when either is available; the error line follows the row.

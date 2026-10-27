@@ -13,7 +13,7 @@ vi.mock('@/desktop/presence', async importOriginal => ({
 }))
 import { projectFixture, threadFixture, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
+import { type TestApp, choose, menuItem, startApp, typeInto, until } from '@/test/test-app'
 
 const provider = { slug: 'fixture-provider', name: 'Test provider', base_url: 'https://example.com',
   models: [{ id: 'fake-large', context_window: 200000 }, { id: 'fake-small', context_window: 200000 }], key_set: true,

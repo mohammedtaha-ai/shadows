@@ -4,7 +4,7 @@ import { StrictMode, act, useEffect } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { threadEntriesKey, threadOperationsKey } from '@/api/threads'
-import { FakeSource } from '@/stream/fake-event-source'
+import { FakeSource } from '@/test/fake-event-source'
 import { useConversation } from './use-conversation'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -64,8 +64,7 @@ describe('useConversation', () => {
     client.clear()
   })
 
-  // Each delta used to reach the reply through an effect, one nested render
-  // per delta: a long reply passed React's update depth limit and threw.
+  // A long reply must not trigger nested renders per delta and exceed React's update depth.
   it('streams a long reply without exceeding the update depth', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } })
     client.setQueryData(threadEntriesKey('t1'), [])

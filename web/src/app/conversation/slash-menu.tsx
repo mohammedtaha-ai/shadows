@@ -1,5 +1,3 @@
-// One job: drawing the `/` menu (spec §21.4): the entries, the highlighted
-// one, and its description beside the list. Keys are the composer's.
 
 import { useEffect, useRef } from 'react'
 import type { SlashCommand } from '@/stream'
@@ -16,8 +14,7 @@ export function SlashMenu({
   onHighlight: (index: number) => void
 }) {
   const active = useRef<HTMLLIElement | null>(null)
-  // Braced: Chrome's `scrollIntoView` now returns a Promise, which React
-  // would take for the effect's clean-up.
+  // Braces keep scrollIntoView's Promise out of the effect's cleanup return value.
   useEffect(() => {
     active.current?.scrollIntoView({ block: 'nearest' })
   }, [highlighted])

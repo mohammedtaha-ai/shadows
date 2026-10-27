@@ -1,16 +1,14 @@
-// One job: the client half of spec §2.10 for one thread — durable replay,
-// then live, each durable event applied at most once by `seq`, reconnecting
-// from the last applied `seq` whenever the stream breaks.
+// Resume from the last applied `seq` so reconnects never apply a durable event twice.
 //
 // A hidden page holds no connection: the browser allows six connections to
 // one host across all its tabs, and each open stream keeps one, so a few
-// tabs left open would starve every other request (spec §2.10). Hidden, the
+// tabs left open would starve every other request. Hidden, the
 // stream lets go; shown again, it resumes from the last applied `seq`.
 //
 // Plain TypeScript with the EventSource injected, so it is tested without a
 // browser; `use-thread-stream.ts` is its React binding. Closing it closes the
-// connection and nothing else: a client leaving never cancels work (spec §8.4
-// case 7), and this module has no way to ask for that.
+// connection and nothing else: a client leaving never cancels work,
+// and this module has no way to ask for that.
 
 import type { SessionChoices } from '@/api/sessions'
 import {
@@ -35,8 +33,8 @@ import {
 
 /** A transient frame, handed on as it arrives and not kept here: the
  * harness session's latest context and limits (`usage`), the choices it now
- * offers (`options`), the harness's `/` list (`commands`, §21), or a plan the
- * Planner showed (`plan-show`, §13.9). */
+ * offers (`options`), the harness's `/` list (`commands`), or a plan the
+ * Planner showed (`plan-show`). */
 export type Notice =
   | { type: 'usage'; usage: UsageFrame }
   | { type: 'options'; choices: SessionChoices }
@@ -61,7 +59,7 @@ export interface StreamState {
   readonly streaming: Readonly<Record<string, string>>
   /** The latest operational label of each running turn, by operation id. */
   readonly labels: Readonly<Record<string, string>>
-  /** Each running turn's subagent cards as last sent, by card id (§22.3).
+  /** Each running turn's subagent cards as last sent, by card id.
    * Transient, cleared by a break; kept past `turn-end`, since the card's
    * entry is drawn in its place once the entries list holds it. */
   readonly subagents: Readonly<Record<string, SubagentCard>>

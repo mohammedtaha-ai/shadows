@@ -1,6 +1,4 @@
-// One job: turning what the harness reported about context and limits into
-// the figures a person reads (spec §12.8). Nothing it did not report is
-// estimated: a figure that is missing is `null` here and "no figures" there.
+// Missing harness figures stay unknown so the UI never presents an estimate as reported usage.
 
 import type { Operation } from '@/api/threads'
 

@@ -1,6 +1,6 @@
 export { noteCompanionSend } from './companion-send'
 export { useCompanionSendProblem } from './companion-send'
-export { isDesktop } from './runtime'
+export { capabilities } from './capabilities'
 export { aylulMessage } from './activity-api'
 export { answerRequest } from './activity-api'
 export { approveRule } from './activity-api'

@@ -24,7 +24,7 @@ export function WorkspaceSwitcher({ workspace, onSwitch }: {
         aria-label="Workspace"
         className="group -mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-1 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 data-[popup-open]:bg-sidebar-accent"
       >
-        {/* The app's wordmark, now naming the workspace shown below it. */}
+        {/* The wordmark labels the current workspace. */}
         <span className="bg-gradient-to-r from-foreground via-foreground to-accent-line bg-clip-text text-sm font-semibold tracking-wide text-transparent">
           {current.label}
         </span>
