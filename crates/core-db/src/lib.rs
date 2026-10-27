@@ -80,14 +80,16 @@ impl Storage {
 
     /// Releases every database connection before its directory can be removed.
     pub async fn close(&self) -> Result<(), StorageError> {
-        let mut writer = self.write.lock().await;
-        let close_writer = async {
-            if let Some(connection) = writer.take() {
-                connection.close().await?;
+        let result = {
+            let mut writer = self.write.lock().await;
+            match writer.take() {
+                Some(connection) => connection.close().await.map_err(StorageError::from),
+                None => Ok(()),
             }
-            Ok::<_, StorageError>(())
         };
-        let (_, result) = tokio::join!(self.read.close(), close_writer);
+        // Reader holders may still attempt writes before returning their connection.
+        // Release the writer lock so those attempts can observe closed storage.
+        self.read.close().await;
         result
     }
 
