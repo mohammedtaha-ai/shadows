@@ -228,7 +228,6 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/standards.rs` | Planner standards rendering | `crates/core-harness/src/standards.rs` |
 | `crates/core-harness/src/offers.rs` | the latest choices each open session offers | `crates/core-harness/src/offers.rs` |
 | `crates/core-harness/src/commands.rs` | the latest `/` list each open session sent | `crates/core-harness/src/commands.rs` |
-| `crates/core-harness/src/context.rs` | reading a session's context breakdown on demand | `crates/core-harness/src/context.rs` |
 | `crates/core-harness/src/titles.rs` | handing the titles a harness sends to its thread | `crates/core-harness/src/titles.rs` |
 | `crates/core-plans/src/` | project plans under the rules of §16 | `crates/core-plans/src/lib.rs` |
 | `crates/core-plans/src/model.rs` | the plan types callers meet | `crates/core-plans/src/model.rs` |
@@ -333,7 +332,6 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/policy.rs` | the modes Shadows allows per harness | `crates/shadows-agent/src/policy.rs` |
 | `crates/shadows-agent/src/profile.rs` | the child environment of an isolated Claude Code profile | `crates/shadows-agent/src/profile.rs` |
 | `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
-| `crates/shadows-agent/src/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows-agent/src/breakdown.rs` |
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
 | `crates/shadows-index/src/lib.rs` | one file's text turned into its tags | `crates/shadows-index/src/extract.rs` |
 | `crates/shadows-index/src/languages.rs` | the table of languages Shadows indexes | `crates/shadows-index/src/languages.rs` |

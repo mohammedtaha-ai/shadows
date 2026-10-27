@@ -176,7 +176,6 @@ fn the_document_names_every_route() {
             "GET /api/subscribe",
             "GET /api/threads/{id}",
             "GET /api/threads/{id}/attachments/{attachment_id}",
-            "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
             "GET /api/threads/{id}/queue",

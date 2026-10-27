@@ -12,7 +12,6 @@ mod error;
 pub use error::HarnessError;
 mod assistant;
 mod commands;
-mod context;
 mod extension_home;
 mod fork;
 mod live;
@@ -38,8 +37,7 @@ use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
 pub use model::{
-    AylulUsageSnapshot, ContextBreakdown, HarnessInfo, InvocationVersions, InvocationView,
-    RememberedSettings,
+    AylulUsageSnapshot, HarnessInfo, InvocationVersions, InvocationView, RememberedSettings,
 };
 use sessions::Sessions;
 pub use sessions::{LeaseError, OpenError, OpenSession, SessionsConfig};
@@ -283,32 +281,6 @@ impl Harness {
             return Err(HarnessError::ThreadBusy);
         }
         Ok(())
-    }
-
-    /// The context breakdown of the thread's session, read on demand:
-    /// the categories, or none with the reason. Nothing is written.
-    pub async fn context(&self, thread: &ThreadId) -> Result<ContextBreakdown, HarnessError> {
-        core_threads::Threads::turn_context_in(
-            &mut *self
-                .store
-                .storage
-                .reader()
-                .begin()
-                .await
-                .map_err(core_db::StorageError::from)?,
-            thread,
-        )
-        .await?;
-        Ok(match self.sessions.context(thread).await {
-            Ok(categories) => ContextBreakdown {
-                categories: Some(categories),
-                reason: None,
-            },
-            Err(why) => ContextBreakdown {
-                categories: None,
-                reason: Some(why.reason().to_string()),
-            },
-        })
     }
 
     /// Closes the thread's open session, if it has one: its adapter's

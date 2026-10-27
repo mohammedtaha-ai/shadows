@@ -2,7 +2,6 @@
 //!
 //! Harness builds these values; adapters serialize them.
 
-use shadows_agent::breakdown::Category;
 use shadows_agent::events::AccountLimits;
 use shadows_agent::policy;
 
@@ -41,17 +40,6 @@ impl super::Harness {
             _ => "Unknown",
         }
     }
-}
-
-/// The context breakdown read on demand: the categories, or none
-/// with the reason.
-#[derive(serde::Serialize, utoipa::ToSchema)]
-#[schema(description = include_str!("schema_descriptions/context.txt").replace("\r\n", "\n"))]
-pub struct ContextBreakdown {
-    #[schema(required)]
-    pub(super) categories: Option<Vec<Category>>,
-    #[schema(required)]
-    pub(super) reason: Option<String>,
 }
 
 /// Credential-free routing metadata pinned to the actual open adapter.

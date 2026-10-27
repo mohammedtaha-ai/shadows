@@ -8,7 +8,7 @@ mod app;
 mod plan;
 
 use app::{
-    App, create_thread, default_settings, get_json, http_start, post, start_settled, test_app,
+    App, create_thread, default_settings, http_start, post, start_settled, test_app, test_app_at,
     wait_terminal,
 };
 use plan::{add, draft, edit};
@@ -112,27 +112,50 @@ async fn a_refused_start_gives_the_session_back() {
 }
 
 /// A replay found only by the transaction also gives the session back. Two
-/// sends of one command both pass the early replay check while a `/context`
-/// read holds the session; the first to lease it commits and runs, and the
+/// sends of one command both pass the early replay check while a fake prompt
+/// holds the session; the first to lease it commits and runs, and the
 /// other, leasing after that turn, is answered the first operation by
 /// `start_turn`. Were its events kept, the next turn would wait out the lease
 /// and be busy.
 #[tokio::test]
 async fn a_replay_found_by_the_transaction_gives_the_session_back() {
-    let app = test_app().await;
+    let tmp = tempfile::tempdir().unwrap();
+    let app = test_app_at(tmp.path()).await;
     wait_terminal(&app, &start_settled(&app, "hi").await).await;
     let thread = app.thread.as_str().to_string();
-    let path = format!("/api/threads/{thread}/context");
-    // The fake answers an adapter's first `/context` after a second.
-    let (breakdown, ((s1, first), (s2, again))) =
-        tokio::join!(get_json::<Value>(&app, &path), async {
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-            tokio::join!(
-                http_start(&app, &thread, turn("raced", "hi")),
-                http_start(&app, &thread, turn("raced", "hi")),
-            )
-        });
-    assert!(breakdown["categories"].is_array(), "{breakdown}");
+    let opened = app.sessions.open(&app.thread).await.unwrap();
+    let mut held = app
+        .sessions
+        .lease_events(&app.thread, &opened)
+        .await
+        .unwrap();
+    // Keep both starts behind the lease without a durable busy operation.
+    let holder = async {
+        let (answer, ()) = tokio::join!(
+            opened
+                .connection()
+                .prompt(&opened.session_id, "wait-for-release", &[]),
+            async {
+                while let Some(event) = held.recv().await {
+                    if matches!(event, shadows_agent::events::HarnessEvent::Chunk { .. }) {
+                        break;
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                std::fs::write(tmp.path().join("release"), "").unwrap();
+            }
+        );
+        answer.unwrap();
+        while held.try_recv().is_ok() {}
+        app.sessions
+            .give_back_events(&app.thread, &opened, held)
+            .await;
+    };
+    let ((), (s1, first), (s2, again)) = tokio::join!(
+        holder,
+        http_start(&app, &thread, turn("raced", "hi")),
+        http_start(&app, &thread, turn("raced", "hi")),
+    );
     assert_eq!((s1, s2), (202, 202), "{first} {again}");
     assert_eq!(first["operation_id"], again["operation_id"]);
     let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)

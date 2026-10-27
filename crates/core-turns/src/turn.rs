@@ -272,9 +272,6 @@ impl PlannerTurn {
                     tracing::error!(%error, "planner.record_session_failed");
                 }
             }
-            if matches!(answer, Ok(TurnEnd::Ended)) {
-                w.sessions.mark_answered(&w.thread_id, &w.opened).await;
-            }
             w.sessions.touch(&w.thread_id).await;
             if w.handles.claim(&w.op_id).await.is_none() {
                 return;

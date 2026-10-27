@@ -15,7 +15,7 @@ use super::transport::Transport;
 use super::{AppState, Failure};
 use axum::http::StatusCode;
 use shadows_core::ThreadId;
-use shadows_core::{ContextBreakdown, HarnessInfo, SessionChoices};
+use shadows_core::{HarnessInfo, SessionChoices};
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct ChangeMode {
@@ -226,28 +226,6 @@ pub(super) async fn change_effort(
     })
     .await?;
     Ok(Json(choices))
-}
-
-/// The context breakdown of the thread's session, read on demand. It is fetched only on an open,
-/// idle session that has answered a
-/// turn, within five seconds; otherwise it says why it has none. Nothing is
-/// written: no operation, no entry.
-#[utoipa::path(
-    get,
-    path = "/api/threads/{id}/context",
-    tag = "threads",
-    params(("id" = ThreadId, Path, description = "The thread")),
-    responses(
-        (status = 200, body = ContextBreakdown),
-        (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn thread_context(
-    State(s): State<AppState>,
-    Path(thread): Path<ThreadId>,
-) -> Result<Json<ContextBreakdown>, Failure> {
-    Ok(Json(s.core.harness().context(&thread).await?))
 }
 
 #[utoipa::path(delete, path="/api/aylul/agents/{slug}", tag="aylul",

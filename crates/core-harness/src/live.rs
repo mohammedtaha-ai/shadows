@@ -20,12 +20,9 @@ use tokio::{
 pub(super) struct Live {
     pub(super) handle: ProcessHandle,
     pub(super) opened: OpenSession,
-    /// `None` while a turn (or a `/context` read) has taken them.
+    /// `None` while a turn or setting change has taken them.
     pub(super) events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
     pub(super) last_used: Instant,
-    /// Whether a Planner turn has answered in this adapter: before one has,
-    /// `/context` can stall a fresh session for tens of seconds.
-    pub(super) answered: bool,
     pub(super) window: Option<u32>,
     /// A failed replacement stays owned for cleanup but must not serve another prompt.
     usable: bool,
@@ -264,7 +261,6 @@ impl Sessions {
                 opened: opened.clone(),
                 events: Some(rx),
                 last_used: Instant::now(),
-                answered: false,
                 window,
                 usable: true,
             });
