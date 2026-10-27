@@ -33,9 +33,12 @@ on 2026-10-27); its entry is in this file at `4d5c022d`.
   - `crates/shadows-http/src/harness.rs` (`thread_context`) and its route line in
     `crates/shadows-http/src/lib.rs`;
   - `crates/core-harness/src/lib.rs` (`Harness::context`), `context.rs` (deleted: `NoBreakdown`,
-    `Sessions::context`), `model.rs` (`ContextBreakdown`), `sessions.rs` (`context_wait` and the
-    session hold a breakdown read takes), the `ContextBreakdown` re-export in
-    `crates/shadows-core/src/lib.rs`;
+    `Sessions::context`), `model.rs` (`ContextBreakdown`), `sessions.rs` (`context_wait`, the
+    session hold a breakdown read takes, and `Sessions::mark_answered`), `live.rs` (the
+    `answered` flag, which only the breakdown read checks), `access.rs`
+    (`Harness::mark_answered`), the `ContextBreakdown` re-export in
+    `crates/shadows-core/src/lib.rs`; the one `mark_answered` call in
+    `crates/core-turns/src/turn.rs`;
   - `crates/shadows-agent/src/breakdown.rs` and its `pub mod` line, once nothing uses
     `Category`;
   - tests: `crates/shadows/tests/harness_observation.rs` (the two breakdown-read tests and the
