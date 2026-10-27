@@ -6,7 +6,8 @@ import { afterEach, expect, it } from 'vitest'
 import { personQuery, type Person } from '@/api/person'
 import { answers } from '@/test/fake-daemon'
 import { GeneralPreferences } from './general-preferences'
-import { startApp, until, type TestApp, type Answer } from '@/test/test-app'
+import { YouCard } from './you-card'
+import { startApp, typeInto, until, type TestApp, type Answer } from '@/test/test-app'
 
 const person: Person = { name: 'Mohammed', aylul_calls_me: 'Abu Taha', language: 'en', theme: 'system', updated_at: null }
 let app: TestApp | null = null
@@ -18,32 +19,35 @@ async function open(overrides: Record<string, Answer> = {}) {
   await until(() => select('Theme') !== null && !select('Theme').disabled)
   return a
 }
-it('General reads and saves the whole person', async () => {
+it('General instantly saves only the picked preference', async () => {
   const a = await open(); expect(select('Language').value).toBe('en'); expect(select('Theme').value).toBe('system')
   act(() => a.button('Dark')!.click())
   await until(() => a.bodies.length === 1)
-  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: 'Mohammed', aylul_calls_me: 'Abu Taha', language: 'en', theme: 'dark' })
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), theme: 'dark' })
+  await until(() => !select('Language').disabled)
   choose('Language', '')
   await until(() => a.bodies.length === 2)
-  expect(a.bodies[1]).toEqual(expect.objectContaining({ language: null }))
+  expect(a.bodies[1]).toEqual({ command_id: expect.any(String), language: null })
 })
 it('an unknown saved language survives a theme-only change', async () => {
-  const a = await open({ 'GET /api/me': { ...person, language: 'ar' } })
+  const a = await open(answers({ person: { ...person, language: 'ar' } }))
   expect(select('Language').value).toBe('ar')
   expect([...select('Language').options].find(option => option.value === 'ar')?.disabled).toBe(true)
   act(() => a.button('Light')!.click())
   await until(() => a.bodies.length === 1)
-  expect(a.bodies[0]).toEqual(expect.objectContaining({ language: 'ar', theme: 'light' }))
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), theme: 'light' })
+  await until(() => !select('Theme').disabled)
+  expect(select('Language').value).toBe('ar')
 })
-it('observed names are preserved while editing preferences', async () => {
+it('preference patches omit even newly observed names', async () => {
   const a = await open()
   await act(async () => a.queryClient.setQueryData(personQuery.queryKey, { ...person, name: 'New name', aylul_calls_me: 'New nickname' }))
   act(() => a.button('Dark')!.click())
   await until(() => a.bodies.length === 1)
-  expect(a.bodies[0]).toEqual(expect.objectContaining({ name: 'New name', aylul_calls_me: 'New nickname', theme: 'dark' }))
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), theme: 'dark' })
 })
 it('a failed preference save retains its draft and command', async () => {
-  const a = await open({ 'PUT /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Save refused.' }, { status: 500 }) })
+  const a = await open({ 'PATCH /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Save refused.' }, { status: 500 }) })
   act(() => a.button('Dark')!.click())
   await until(() => a.text().includes('Save refused.') && a.button('Dark')?.disabled === false)
   expect(select('Theme').value).toBe('dark')
@@ -56,7 +60,7 @@ it('a failed preference save retains its draft and command', async () => {
 })
 it('pending saves cannot submit twice and closing an unsaved form sends nothing', async () => {
   let finish!: (response: Response) => void
-  const a = await open({ 'PUT /api/me': () => new Promise<Response>(resolve => { finish = resolve }) })
+  const a = await open({ 'PATCH /api/me': () => new Promise<Response>(resolve => { finish = resolve }) })
   const button = a.button('Dark')!
   act(() => { button.click(); button.click() })
   await until(() => a.bodies.length === 1)
@@ -66,7 +70,16 @@ it('pending saves cannot submit twice and closing an unsaved form sends nothing'
   await until(() => !select('Theme').closest('fieldset')?.disabled)
   act(() => a.button('Account')!.click())
   await until(() => select('Theme') === null)
-  expect(a.calls.filter(call => call === 'PUT /api/me')).toHaveLength(1)
+  expect(a.calls.filter(call => call === 'PATCH /api/me')).toHaveLength(1)
+})
+it('changing language after a failed theme save sends only language', async () => {
+  const a = await open({ 'PATCH /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Save refused.' }, { status: 500 }) })
+  act(() => a.button('Dark')!.click())
+  await until(() => a.text().includes('Save refused.') && !select('Language').disabled)
+  choose('Language', '')
+  await until(() => a.bodies.length === 2)
+  expect(a.bodies[1]).toEqual({ command_id: expect.any(String), language: null })
+  expect((a.bodies[1] as { command_id: string }).command_id).not.toBe((a.bodies[0] as { command_id: string }).command_id)
 })
 it('an old read cannot undo saved preferences', async () => {
   let reads = 0, release!: (response: Response) => void
@@ -90,4 +103,39 @@ it('failed preference loading shows no editable invented values', async () => {
   const a = app = await startApp('/?settings=general', { ...answers(), 'GET /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Person unavailable.' }, { status: 500 }) })
   await until(() => a.text().includes('Person unavailable.'))
   expect(select('Theme')).toBeNull()
+})
+
+it.each([0, 1])('both forms save from the same snapshot with patch %s applied first', async first => {
+  const routes = answers({ person })
+  const applyPatch = routes['PATCH /api/me'] as (request: Request) => Promise<Response>
+  const pending: { request: Request; finish: (response: Response) => void }[] = []
+  const a = app = await startApp('/', {
+    ...routes,
+    'PATCH /api/me': (request: Request) => new Promise<Response>(finish => pending.push({ request, finish })),
+  })
+  const host = document.createElement('div'); document.body.append(host)
+  const root = createRoot(host)
+  const client = new QueryClient({ defaultOptions: { queries: { enabled: false, initialData: person } } })
+  try {
+    await act(async () => root.render(<QueryClientProvider client={client}><YouCard /><GeneralPreferences /></QueryClientProvider>))
+    typeInto(host.querySelector<HTMLInputElement>('input[aria-label="Your name"]')!, 'Mo')
+    act(() => {
+      host.querySelector<HTMLButtonElement>('form[aria-label="You"] button[type="submit"]')!.click()
+      host.querySelector<HTMLButtonElement>('button[aria-label="Dark"]')!.click()
+    })
+    await until(() => pending.length === 2)
+    expect(client.getQueryData(personQuery.queryKey)).toEqual(person)
+    expect(a.bodies).toEqual(expect.arrayContaining([
+      { command_id: expect.any(String), name: 'Mo' },
+      { command_id: expect.any(String), theme: 'dark' },
+    ]))
+    for (const index of [first, 1 - first]) {
+      await act(async () => pending[index]!.finish(await applyPatch(pending[index]!.request)))
+    }
+    await until(() => !host.querySelector<HTMLFieldSetElement>('form[aria-label="You"] fieldset')!.disabled && !select('Theme').disabled)
+    const stored = await client.fetchQuery({ ...personQuery, staleTime: 0 })
+    expect(stored).toEqual({ ...person, name: 'Mo', theme: 'dark', updated_at: expect.any(String) })
+  } finally {
+    await act(async () => root.unmount()); client.clear(); host.remove()
+  }
 })

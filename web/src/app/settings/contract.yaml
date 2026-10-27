@@ -53,7 +53,7 @@ components:
     note: Active projects stays independent of Core language/theme and desktop-only machine preferences.
   GeneralPreferences:
     signature: "() => JSX.Element"
-    note: Uses personQuery/savePerson and savePersonAnswer; latest cached names survive preference-only writes.
+    note: Uses personQuery/savePerson and savePersonAnswer; each pick immediately sends only its theme or language field.
   PersonTheme:
     signature: "() => null"
     note: Mounted once in Shell after readiness; root dark class/data-theme follow saved preference or system, with complete effect cleanup.
@@ -95,8 +95,8 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
-  - rule: General saves the complete person with retry-stable command identity and latest observed names; unsupported language tags remain unchanged unless a supported choice is selected. Saved answers cancel older reads before cache writes.
-    tested_by: ["General reads and saves the whole person", "an unknown saved language survives a theme-only change", "observed names are preserved while editing preferences", "a failed preference save retains its draft and command", "an old read cannot undo saved preferences"]
+  - rule: General saves each picked theme or language immediately as a one-field patch with retry-stable command identity; failed drafts of another preference are not sent. Unsupported language tags stay omitted on theme picks. Saved whole-record answers cancel older reads before cache writes.
+    tested_by: ["General instantly saves only the picked preference", "an unknown saved language survives a theme-only change", "preference patches omit even newly observed names", "a failed preference save retains its draft and command", "changing language after a failed theme save sends only language", "an old read cannot undo saved preferences"]
   - rule: Dark/light themes apply through the root attributes and the shared CSS palette; System listens for browser colour-scheme changes while fixed themes do not. Failure without a person leaves the initial theme intact; unmount restores prior attributes and removes listeners.
     tested_by: ["theme follows the shared person", "System follows the OS and fixed themes do not", "failed person loading preserves the initial theme", "unmount removes System listeners and restores prior attributes"]
   - rule: Native controls read actual state instead of writing defaults, serialize local updates and accept the full returned object. A failed setter rereads actual values; failed recovery disables controls until explicit read retry. Native and Core errors remain independent; stale effect reads cannot overwrite a later accepted result.
@@ -111,8 +111,10 @@ obligations:
     tested_by: ["provider snapshots and labelled keys stay distinct", "provider bars compare total tokens", "model rows include their provider", "unknown charges are not zero"]
   - rule: Loading, empty and error states are distinct; explicit Retry keeps the same range.
     tested_by: ["empty and failed usage are distinct", "a refused period is shown without invented rows"]
-  - rule: You edits the person's names; save preserves last-read language and theme. Empty names send null; names over 64 characters or with line breaks are refused locally. Failed saves retain input and unchanged retries reuse their command id.
-    tested_by: ["saving sends the whole record", "an emptied field saves as null", "more than 64 characters is refused before sending", "a failed save keeps the typed values and retries with the same command"]
+  - rule: You sends only changed, trimmed names; an empty name sends null. Unchanged names disable Save and cannot send an empty patch. Names over 64 characters or with line breaks are refused locally. Failed saves retain input; the same patch reuses its command id and a changed patch gets a new one.
+    tested_by: ["saving sends only the changed names", "an emptied field saves as null", "both changed names share one patch", "unchanged and whitespace-only name edits cannot send an empty patch", "a changed name patch after failure gets a new command", "more than 64 characters is refused before sending", "a failed save keeps the typed values and retries with the same command"]
+  - rule: Name and preference patches made from the same earlier snapshot preserve both changes in Core, regardless of save order.
+    tested_by: ["both forms save from the same snapshot with patch %s applied first"]
   - rule: Browser Account exposes You without native sign-in controls; failed person loads show an error instead of a form.
     tested_by: ["the browser lists Account with only You", "a failed person load shows an error and no form"]
   - rule: Agents selects a form through the agent search key; Back and successful save clear that key to show the list without changing the page. Missing or deleted agent IDs show the list with a note. Closing discards unsaved edits.
@@ -216,7 +218,7 @@ tests:
 
 extension_refresh_owner: "Library changes invalidate extensionKeys from api/extensions.ts"
 
-person_cache_owner: "Both person forms pass saved whole records through api/person.savePersonAnswer; request fields remain unchanged"
+person_cache_owner: "Both person forms send only their changed fields through api/person.savePerson and pass saved whole records through api/person.savePersonAnswer"
 
 code_cache_owner: "api/code.ts owns saved active-project settings answers"
 

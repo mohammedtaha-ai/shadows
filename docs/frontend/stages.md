@@ -5,7 +5,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Left: F-28 waits on its Core request; F-18 and F-19's remaining `turn-state` part are the
+Finished on this branch: F-28 (partial person settings saves).
+Left: F-18 and F-19's remaining `turn-state` part are the
 [web architecture plan](plans/2026-10-25-web-architecture.md)'s W-11, blocked by domain until
 Core supplies the facts. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
@@ -19,13 +20,13 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-28 · Each settings form saves only the fields it changed
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
 - Read: `docs/shared/requests/2026-10-26-partial-person-update.md`; `web/src/api/person.ts`;
   `web/src/app/settings/contract.yaml`
 - Touch: `web/src/api/person.ts` and its tests; `web/src/app/settings/you-card.tsx`,
   `general-preferences.tsx`, their tests, `contract.yaml`; `web/src/api/schema.d.ts` through
-  `npm run gen:api` only
+  `npm run gen:api` only; `web/src/api/contract.yaml`; `web/src/test/fake-daemon.ts`
 - Needs: B-13 on the same branch (`PATCH /api/me` in the regenerated OpenAPI); F-17. General
   preferences already saves at once on each theme pick (`1e43ea5f`); keep that, sending only the
   picked field

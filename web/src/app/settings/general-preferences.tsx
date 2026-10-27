@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { personQuery, savePerson, savePersonAnswer, type Person, type PersonInput } from '@/api/person'
+import { personQuery, savePerson, savePersonAnswer, type PersonInput } from '@/api/person'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { ErrorLine } from '../error-line'
 
@@ -38,17 +38,10 @@ export function GeneralPreferences() {
   })
 
   function mutateWith(preferences: Partial<Preferences>) {
-    const latest = client.getQueryData<Person>(personQuery.queryKey)
-    if (!latest || locked.current) return
+    if (!person.data || locked.current) return
     locked.current = true
-    const nextPrefs = { ...edited, ...preferences }
-    setEdited(nextPrefs)
-    save.mutate({
-      name: latest.name ?? null,
-      aylul_calls_me: latest.aylul_calls_me ?? null,
-      language: (nextPrefs.language !== undefined ? nextPrefs.language : latest.language) ?? null,
-      theme: (nextPrefs.theme !== undefined ? nextPrefs.theme : latest.theme) ?? 'system',
-    })
+    setEdited(preferences)
+    save.mutate(preferences)
   }
 
   function changeTheme(theme: 'system' | 'light' | 'dark') {

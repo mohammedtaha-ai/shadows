@@ -7,6 +7,7 @@ import type { EffectiveStandards, StandardsAdditions } from '@/api/design'
 import type { Plan, PlanListing } from '@/api/workflows'
 import type { Grant, InstructionsVersion, Project } from '@/api/projects'
 import type { Operation, ThreadEntry } from '@/api/threads'
+import type { Person, PersonInput } from '@/api/person'
 import type { Answer } from '@/test/test-app'
 import {
   agentEntry,
@@ -59,7 +60,9 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   // Kept as the daemon keeps it: a refetch after a PATCH reads what the PATCH
   // saved, as it does against the real daemon.
   let project = o.project ?? projectFixture
-  let person = { name: null, aylul_calls_me: null, language: null, theme: 'system', updated_at: null }
+  let person: Person = typeof o.person === 'object' && o.person !== null
+    ? o.person as Person
+    : { name: null, aylul_calls_me: null, language: null, theme: 'system', updated_at: null }
   let instructions = o.instructions ?? null
   let grants = o.grants ?? []
   let standards: EffectiveStandards = {
@@ -79,10 +82,13 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/aylul/extensions': { plugins: [], skills: [] },
     ...Object.fromEntries(['work', 'aylul', 'agent-a'].map(slug => [`GET /api/aylul/agents/${slug}/extensions`, { plugins: [], skills: [] }])),
     'GET /api/aylul/usage': o.usage ?? { by_provider: [], by_model: [] },
-    'GET /api/me': o.person ?? (() => Response.json(person)),
-    'PUT /api/me': async (request: Request) => {
-      const { command_id: _command, ...input } = await request.json()
-      person = { ...input, updated_at: '2026-10-21T00:00:00Z' }
+    'GET /api/me': typeof o.person === 'function' ? o.person : () => Response.json(person),
+    'PATCH /api/me': async (request: Request) => {
+      const { command_id: _command, ...input } = await request.json() as PersonInput & { command_id: string }
+      if (Object.keys(input).length === 0 || input.theme === null) {
+        return Response.json({ code: 'VALIDATION_ERROR', message: 'A nonempty person patch with a non-null theme is required.' }, { status: 400 })
+      }
+      person = { ...person, ...input, updated_at: '2026-10-21T00:00:00Z' }
       return Response.json(person)
     },
     'GET /api/aylul/provider-presets': [

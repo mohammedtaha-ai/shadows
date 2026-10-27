@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
-import { personQuery, savePerson, savePersonAnswer, type Person } from '@/api/person'
+import { personQuery, savePerson, savePersonAnswer, type Person, type PersonInput } from '@/api/person'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,12 @@ function YouForm({ saved }: { saved: Person | undefined }) {
   const queryClient = useQueryClient()
   const [edited, setEdited] = useState<{ name: string; calls: string } | null>(null)
   const value = edited ?? { name: saved?.name ?? '', calls: saved?.aylul_calls_me ?? '' }
+  const patch: PersonInput = {}
+  const name = value.name.trim() || null
+  const calls = value.calls.trim() || null
+  if (name !== (saved?.name ?? null)) patch.name = name
+  if (calls !== (saved?.aylul_calls_me ?? null)) patch.aylul_calls_me = calls
+  const unchanged = Object.keys(patch).length === 0
   const pending = useRef<Attempt | null>(null)
   const [invalid, setInvalid] = useState<string | null>(null)
   const save = useMutation({
@@ -36,13 +42,12 @@ function YouForm({ saved }: { saved: Person | undefined }) {
   })
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (!saved || save.isPending) return
+    if (!saved || save.isPending || unchanged) return
     if ([value.name, value.calls].some(text => [...text.trim()].length > 64)) return setInvalid('At most 64 characters.')
     if ([value.name, value.calls].some(text => /[\r\n]/.test(text))) return setInvalid('Names must be on one line.')
     setInvalid(null)
-    save.mutate({ name: value.name.trim() || null, aylul_calls_me: value.calls.trim() || null, language: saved.language ?? null, theme: saved.theme })
+    save.mutate(patch)
   }
-  const unchanged = value.name === (saved?.name ?? '') && value.calls === (saved?.aylul_calls_me ?? '')
   return <form onSubmit={submit} aria-label="You" className="space-y-4 rounded-lg border border-border p-4">
     <h2 className="font-medium">You</h2>
     <fieldset disabled={!saved || save.isPending} className="grid gap-4">

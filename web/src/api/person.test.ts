@@ -1,6 +1,16 @@
 import { QueryClient } from '@tanstack/react-query'
-import { expect, it } from 'vitest'
-import { personKeys, personQuery, savePersonAnswer } from './person'
+import { afterEach, expect, it, vi } from 'vitest'
+import { personKeys, personQuery, savePerson, savePersonAnswer } from './person'
+afterEach(() => vi.unstubAllGlobals())
+it('patches only supplied person fields with the caller command id', async () => {
+  let sent: Request | undefined
+  const saved = { name: 'Mo', aylul_calls_me: null, language: 'en', theme: 'dark', updated_at: null }
+  vi.stubGlobal('fetch', (request: Request) => { sent = request; return Promise.resolve(Response.json(saved)) })
+  expect(await savePerson('command-1', { name: 'Mo', aylul_calls_me: null })).toEqual(saved)
+  expect(sent?.method).toBe('PATCH')
+  expect(new URL(sent!.url).pathname).toBe('/api/me')
+  expect(await sent!.json()).toEqual({ command_id: 'command-1', name: 'Mo', aylul_calls_me: null })
+})
 it('a stale person read cannot overwrite the owner saved answer', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   let release!: (value: never) => void

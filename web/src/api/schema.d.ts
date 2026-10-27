@@ -350,12 +350,12 @@ export interface paths {
             cookie?: never;
         };
         get: operations["person"];
-        put: operations["set_person"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["set_person"];
         trace?: never;
     };
     "/api/openapi.json": {
@@ -2299,14 +2299,14 @@ export interface components {
             theme: components["schemas"]["Theme"];
             updated_at?: string | null;
         };
-        PersonCommand: components["schemas"]["PersonInput"] & {
+        PersonCommand: components["schemas"]["PersonPatch"] & {
             command_id: string;
         };
-        PersonInput: {
+        PersonPatch: {
             aylul_calls_me?: string | null;
             language?: string | null;
             name?: string | null;
-            theme: components["schemas"]["Theme"];
+            theme?: components["schemas"]["Theme"];
         };
         /** @description One stored version of a plan, as a reader sees it now. */
         Plan: {

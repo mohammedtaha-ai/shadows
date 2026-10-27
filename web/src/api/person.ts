@@ -4,11 +4,11 @@ import { client, unwrap } from './transport'
 import type { components } from './schema'
 
 export type Person = components['schemas']['Person']
-export type PersonInput = components['schemas']['PersonInput']
+export type PersonInput = components['schemas']['PersonPatch']
 export const personKeys = { record: () => ['person'] }
 export const personQuery = queryOptions({ queryKey: personKeys.record(), queryFn: () => unwrap(client.GET('/api/me')) })
 export function savePerson(commandId: string, input: PersonInput): Promise<Person> {
-  return unwrap(client.PUT('/api/me', { body: { ...input, command_id: commandId } }))
+  return unwrap(client.PATCH('/api/me', { body: { ...input, command_id: commandId } }))
 }
 
 export function savePersonAnswer(client: QueryClient, person: Person) {
