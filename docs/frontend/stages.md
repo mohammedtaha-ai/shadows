@@ -58,7 +58,9 @@ settings dialog, PR #40) at `1a2b601`.
 - Touch: `web/src/app/conversation/context-ring.tsx` (the Details button, the breakdown mutation
   and the second level go; one muted line says to type `/context` in the conversation for the
   full breakdown); `context-ring.test.tsx` (the second-level test becomes: the ring makes no
-  daemon request when opened, and shows the `/context` line); `web/src/api/sessions.ts`
+  daemon request when opened, and shows the `/context` line); `web/src/app/conversation/conversation.tsx`
+  (the one line that renders the ring stops passing `threadId`, which the ring no longer reads);
+  `web/src/api/sessions.ts`
   (`readContext`, `ContextBreakdown`); `web/src/api/schema.d.ts` by `npm run gen:api` only;
   `web/src/test/fake-daemon.ts` (the `context` answer); `web/src/api/contract.yaml` and
   `web/src/app/conversation/contract.yaml` (the breakdown lines, its test row and the stale-data

@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 //
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -40,14 +39,7 @@ function renderRing({
   const container = document.createElement('div')
   document.body.append(container)
   const root: Root = createRoot(container)
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  act(() =>
-    root.render(
-      <QueryClientProvider client={client}>
-        <ContextRing threadId="t1" usage={usage} limits={limits} />
-      </QueryClientProvider>,
-    ),
-  )
+  act(() => root.render(<ContextRing usage={usage} limits={limits} />))
   mounted.push(() => {
     act(() => root.unmount())
     container.remove()

@@ -50,7 +50,6 @@ export type AccountLimits = components['schemas']['AccountLimits']
 
 export type TurnSettings = components['schemas']['TurnSettings']
 
-
 /** Opens the thread's harness session if it is not open; answers what it
  * offers now. Idempotent: an open session answers what it holds. */
 export function openSession(threadId: string): Promise<SessionChoices> {

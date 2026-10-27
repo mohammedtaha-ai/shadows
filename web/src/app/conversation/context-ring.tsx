@@ -10,7 +10,6 @@ export function ContextRing({
   usage,
   limits,
 }: {
-  threadId: string
   usage: ContextFigures | null
   limits: Limits | null
 }) {

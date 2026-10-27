@@ -276,8 +276,7 @@ components:
     signature: "(props: { text: string; forkPoint?: ForkPoint }) => JSX.Element"
     # Shown on hover and focus. Fork exists only where `forkPoint` was given.
   ContextRing:
-    signature: "(props: { threadId: string; usage: ContextFigures | null; limits: Limits | null })
-      => JSX.Element"
+    signature: "(props: { usage: ContextFigures | null; limits: Limits | null }) => JSX.Element"
     # Opens at once from the figures held and makes no daemon request; one muted line points to the /context slash command.
   DeletedConversation:
     signature: "(props: { thread: PlanningThread; projectId: string }) => JSX.Element"

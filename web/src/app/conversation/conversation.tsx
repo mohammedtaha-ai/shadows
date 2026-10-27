@@ -185,7 +185,7 @@ function Conversation({
           known={c.known}
           commands={c.commands}
           agentProfile={configuredAgents.data?.agents.find(a => a.slug === thread?.profile && !a.deleted)?.slug}
-          ring={<ContextRing threadId={threadId} usage={c.context} limits={limits} />}
+          ring={<ContextRing usage={c.context} limits={limits} />}
           onStarted={c.started}
           pointed={pointed}
           // Only the chip that was sent or dismissed: a task clicked meanwhile stays.
