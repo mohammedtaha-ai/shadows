@@ -1,6 +1,6 @@
 // One job: running the whole app in a test against a faked daemon — its
-// routes answered from a table, its streams driven by hand. Test-only; nothing
-// outside a `*.test.tsx` imports it.
+// routes answered from a table, its streams driven by hand. Test-only; only tests
+// and other test support import it.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
