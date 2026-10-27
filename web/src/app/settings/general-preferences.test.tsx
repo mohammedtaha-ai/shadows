@@ -58,19 +58,64 @@ it('a failed preference save retains its draft and command', async () => {
   await until(() => a.bodies.length === 3)
   expect((a.bodies[2] as { command_id: string }).command_id).not.toBe((a.bodies[0] as { command_id: string }).command_id)
 })
-it('pending saves cannot submit twice and closing an unsaved form sends nothing', async () => {
+it('identical pending picks share one save and closing the form sends nothing', async () => {
   let finish!: (response: Response) => void
   const a = await open({ 'PATCH /api/me': () => new Promise<Response>(resolve => { finish = resolve }) })
   const button = a.button('Dark')!
   act(() => { button.click(); button.click() })
   await until(() => a.bodies.length === 1)
-  expect(button.disabled).toBe(true)
-  expect(select('Theme').closest('fieldset')?.disabled).toBe(true)
+  expect(a.bodies).toHaveLength(1)
   await act(async () => finish(Response.json({ ...person, theme: 'dark' })))
   await until(() => !select('Theme').closest('fieldset')?.disabled)
   act(() => a.button('Account')!.click())
   await until(() => select('Theme') === null)
   expect(a.calls.filter(call => call === 'PATCH /api/me')).toHaveLength(1)
+})
+it.each(['language', 'theme'])('a quick second %s pick survives a pending theme save', async second => {
+  const routes = answers({ person })
+  const applyPatch = routes['PATCH /api/me'] as (request: Request) => Promise<Response>
+  const pending: { request: Request; finish: (response: Response) => void }[] = []
+  const a = await open({ ...routes, 'PATCH /api/me': (request: Request) => new Promise<Response>(finish => pending.push({ request, finish })) })
+  act(() => {
+    a.button('Dark')!.click()
+    if (second === 'theme') a.button('Light')!.click()
+    else {
+      select('Language').value = ''
+      select('Language').dispatchEvent(new Event('change', { bubbles: true }))
+    }
+  })
+  await until(() => pending.length === 1)
+  expect(select(second === 'theme' ? 'Theme' : 'Language').value).toBe(second === 'theme' ? 'light' : '')
+  expect(a.button('Light')!.disabled).toBe(false)
+  await act(async () => pending[0]!.finish(await applyPatch(pending[0]!.request)))
+  await until(() => pending.length === 2)
+  expect(a.bodies[1]).toEqual({ command_id: expect.any(String), ...(second === 'theme' ? { theme: 'light' } : { language: null }) })
+  expect((a.bodies[1] as { command_id: string }).command_id).not.toBe((a.bodies[0] as { command_id: string }).command_id)
+  await act(async () => pending[1]!.finish(await applyPatch(pending[1]!.request)))
+  await until(() => !a.text().includes('Saving…'))
+  const stored = await a.queryClient.fetchQuery({ ...personQuery, staleTime: 0 })
+  expect(stored).toEqual({ ...person, theme: second === 'theme' ? 'light' : 'dark', language: second === 'theme' ? 'en' : null, updated_at: expect.any(String) })
+})
+it('a queued success keeps another preference failure visible and retryable with its command', async () => {
+  const routes = answers({ person })
+  const applyPatch = routes['PATCH /api/me'] as (request: Request) => Promise<Response>
+  let finish!: (response: Response) => void
+  let writes = 0
+  const a = await open({ ...routes, 'PATCH /api/me': (request: Request) => ++writes === 1
+    ? new Promise<Response>(resolve => { finish = resolve })
+    : applyPatch(request) })
+  act(() => a.button('Dark')!.click())
+  await until(() => a.bodies.length === 1)
+  choose('Language', '')
+  await act(async () => finish(Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Save refused.' }, { status: 500 })))
+  await until(() => a.bodies.length === 2 && !a.text().includes('Saving…'))
+  expect(a.text()).toContain('Save refused.')
+  act(() => a.button('Dark')!.click())
+  await until(() => a.bodies.length === 3 && !a.text().includes('Saving…'))
+  expect(a.bodies[2]).toEqual(a.bodies[0])
+  expect(a.text()).not.toContain('Save refused.')
+  const stored = await a.queryClient.fetchQuery({ ...personQuery, staleTime: 0 })
+  expect(stored).toEqual({ ...person, language: null, theme: 'dark', updated_at: expect.any(String) })
 })
 it('changing language after a failed theme save sends only language', async () => {
   const a = await open({ 'PATCH /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Save refused.' }, { status: 500 }) })
@@ -132,7 +177,7 @@ it.each([0, 1])('both forms save from the same snapshot with patch %s applied fi
     for (const index of [first, 1 - first]) {
       await act(async () => pending[index]!.finish(await applyPatch(pending[index]!.request)))
     }
-    await until(() => !host.querySelector<HTMLFieldSetElement>('form[aria-label="You"] fieldset')!.disabled && !select('Theme').disabled)
+    await until(() => client.getQueryData<Person>(personQuery.queryKey)?.name === 'Mo' && client.getQueryData<Person>(personQuery.queryKey)?.theme === 'dark')
     const stored = await client.fetchQuery({ ...personQuery, staleTime: 0 })
     expect(stored).toEqual({ ...person, name: 'Mo', theme: 'dark', updated_at: expect.any(String) })
   } finally {

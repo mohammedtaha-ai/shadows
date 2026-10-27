@@ -17,31 +17,55 @@ export function GeneralPreferences() {
   const person = useQuery(personQuery)
   const client = useQueryClient()
   const [edited, setEdited] = useState<Partial<Preferences>>({})
-  const attempt = useRef<Attempt | null>(null)
-  const locked = useRef(false)
+  const attempts = useRef<Partial<Record<keyof Preferences, Attempt>>>({})
+  const [failures, setFailures] = useState<Partial<Record<keyof Preferences, Error>>>({})
+  const queued = useRef<Preferences[]>([])
   const value = { language: person.data?.language ?? null, theme: person.data?.theme ?? 'system', ...edited }
 
   const save = useMutation({
     retry: false,
-    mutationFn: (input: PersonInput) => {
-      attempt.current = attemptFor(attempt.current, input)
-      return savePerson(attempt.current.commandId, input)
+    mutationFn: (input: Preferences) => {
+      const key = 'theme' in input ? 'theme' : 'language'
+      const attempt = attemptFor(attempts.current[key] ?? null, input)
+      attempts.current[key] = attempt
+      return savePerson(attempt.commandId, input)
     },
-    onSuccess: async answer => {
+    onSuccess: async (answer, input) => {
       await savePersonAnswer(client, answer)
-      attempt.current = null
-      setEdited({})
+      const key = 'theme' in input ? 'theme' : 'language'
+      delete attempts.current[key]
+      setFailures(current => { const next = { ...current }; delete next[key]; return next })
+      const later = queued.current.slice(1)
+      setEdited(current => {
+        const next = { ...current }
+        // Keep later picks visible while an earlier answer updates the saved record.
+        for (const key of ['theme', 'language'] as const) {
+          if (key in input && !later.some(pick => key in pick)) delete next[key]
+        }
+        return next
+      })
+    },
+    onError: (error, input) => {
+      // A queued success must not hide another field's failure or discard its retry key.
+      const key = 'theme' in input ? 'theme' : 'language'
+      setFailures(current => ({ ...current, [key]: error }))
     },
     onSettled: () => {
-      locked.current = false
+      queued.current.shift()
+      const next = queued.current[0]
+      if (next) save.mutate(next)
     },
   })
 
   function mutateWith(preferences: Partial<Preferences>) {
-    if (!person.data || locked.current) return
-    locked.current = true
-    setEdited(preferences)
-    save.mutate(preferences)
+    if (!person.data) return
+    const last = queued.current.at(-1)
+    if (last && last.theme === preferences.theme && last.language === preferences.language) return
+    const waiting = queued.current.length > 0
+    setEdited(current => waiting ? { ...current, ...preferences } : preferences)
+    // Serialize one-field patches so the last pick also wins for the same field.
+    queued.current.push(preferences)
+    if (queued.current.length === 1) save.mutate(preferences)
   }
 
   function changeTheme(theme: 'system' | 'light' | 'dark') {
@@ -53,7 +77,7 @@ export function GeneralPreferences() {
   }
 
   if (person.error) return <ErrorLine error={person.error} />
-  const disabled = !person.data || save.isPending
+  const disabled = !person.data
 
   return (
     <form aria-label="General preferences" onSubmit={e => e.preventDefault()} className="space-y-4 rounded-lg border border-border p-4">
@@ -87,7 +111,6 @@ export function GeneralPreferences() {
 
         <div className="grid gap-2">
           <span className="text-sm font-medium">Theme</span>
-          {/* Accessible hidden select for screen readers and form automation */}
           <select
             aria-label="Theme"
             disabled={disabled}
@@ -105,7 +128,6 @@ export function GeneralPreferences() {
             <option value="light">Light</option>
           </select>
 
-          {/* Three separate frosted glass circles */}
           <div role="radiogroup" aria-label="Theme options" className="flex items-center justify-center gap-7 py-2">
             {THEMES.map(({ id, label, icon: Icon }) => {
               const active = value.theme === id
@@ -135,7 +157,7 @@ export function GeneralPreferences() {
           </div>
         </div>
 
-        {save.error && <ErrorLine error={save.error} />}
+        {(['theme', 'language'] as const).map(key => failures[key] && <ErrorLine key={key} error={failures[key]} />)}
       </fieldset>
     </form>
   )

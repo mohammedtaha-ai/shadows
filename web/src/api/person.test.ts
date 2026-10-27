@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, expect, it, vi } from 'vitest'
 import { personKeys, personQuery, savePerson, savePersonAnswer } from './person'
+import { answers } from '@/test/fake-daemon'
 afterEach(() => vi.unstubAllGlobals())
 it('patches only supplied person fields with the caller command id', async () => {
   let sent: Request | undefined
@@ -22,4 +23,24 @@ it('a stale person read cannot overwrite the owner saved answer', async () => {
   expect(client.getQueryData(personKeys.record())).toEqual(saved)
   expect(personQuery.queryKey).toEqual(['person'])
   client.clear()
+})
+it('the fake person patch keeps absent fields and clears explicit nulls', async () => {
+  const person = { name: 'Mo', aylul_calls_me: 'Taha', language: 'en', theme: 'dark', updated_at: null }
+  const routes = answers({ person })
+  const patch = routes['PATCH /api/me'] as (request: Request) => Promise<Response>
+  const get = routes['GET /api/me'] as () => Response
+  const response = await patch(new Request('http://localhost/api/me', { method: 'PATCH', body: JSON.stringify({ command_id: 'clear', name: null, language: null }) }))
+  expect(response.status).toBe(200)
+  const saved = { ...person, name: null, language: null, updated_at: expect.any(String) }
+  expect(await response.json()).toEqual(saved)
+  expect(await get().json()).toEqual(saved)
+})
+it.each([{}, { theme: null }])('the fake person patch rejects %j without changing storage', async input => {
+  const person = { name: 'Mo', aylul_calls_me: null, language: 'en', theme: 'dark', updated_at: null }
+  const routes = answers({ person })
+  const patch = routes['PATCH /api/me'] as (request: Request) => Promise<Response>
+  const get = routes['GET /api/me'] as () => Response
+  const response = await patch(new Request('http://localhost/api/me', { method: 'PATCH', body: JSON.stringify({ command_id: 'invalid', ...input }) }))
+  expect(response.status).toBe(400)
+  expect(await get().json()).toEqual(person)
 })

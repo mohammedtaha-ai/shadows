@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { personKeys } from '@/api/person'
+import { personKeys, savePersonAnswer, type Person } from '@/api/person'
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers } from '@/test/fake-daemon'
@@ -7,7 +7,7 @@ import { startApp, typeInto, until, type TestApp } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })
-const person = { name: 'Mohammed', aylul_calls_me: 'Abu Taha', language: 'ar', theme: 'dark', updated_at: null }
+const person: Person = { name: 'Mohammed', aylul_calls_me: 'Abu Taha', language: 'ar', theme: 'dark', updated_at: null }
 const input = (name: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!
 async function open(overrides = {}) {
   const a = app = await startApp('/?settings=account', { ...answers(), ...overrides })
@@ -38,9 +38,7 @@ it('saving sends only the changed names', async () => {
   act(() => a.button('Save')!.click())
   await until(() => a.calls.includes('PATCH /api/me'))
   expect(a.bodies[0]).toEqual({ command_id: expect.any(String), aylul_calls_me: 'Mo' })
-  // Save is disabled while the PATCH is pending too; the save has finished once the fields are
-  // enabled again.
-  await until(() => !input('What AYLUL calls you').disabled && a.button('Save')?.disabled === true)
+  await until(() => a.queryClient.getQueryData<Person>(personKeys.record())?.aylul_calls_me === 'Mo' && a.button('Save')?.disabled === true)
   expect(input('What AYLUL calls you').value).toBe('Mo')
 })
 it('an emptied field saves as null', async () => {
@@ -55,6 +53,50 @@ it('both changed names share one patch', async () => {
   act(() => a.button('Save')!.click())
   await until(() => a.bodies.length === 1)
   expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: 'Mo', aylul_calls_me: null })
+})
+it('names typed during a save survive its answer', async () => {
+  const routes = answers({ person })
+  const applyPatch = routes['PATCH /api/me'] as (request: Request) => Promise<Response>
+  let finish!: () => Promise<void>
+  let writes = 0
+  const a = await open({ ...routes, 'PATCH /api/me': (request: Request) => {
+    if (++writes > 1) return applyPatch(request)
+    return new Promise<Response>(resolve => { finish = async () => resolve(await applyPatch(request)) })
+  } })
+  typeInto(input('Your name'), 'Mo')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 1)
+  expect(input('Your name').closest('fieldset')?.disabled).toBe(false)
+  expect(a.button('Save')!.disabled).toBe(true)
+  typeInto(input('Your name'), 'Mohammed Taha')
+  typeInto(input('What AYLUL calls you'), 'Taha')
+  await act(async () => finish())
+  await until(() => !a.button('Save')!.disabled)
+  expect(input('Your name').value).toBe('Mohammed Taha')
+  expect(input('What AYLUL calls you').value).toBe('Taha')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 2)
+  expect(a.bodies[1]).toEqual({ command_id: expect.any(String), name: 'Mohammed Taha', aylul_calls_me: 'Taha' })
+})
+it('editing one name keeps the other name following saved updates', async () => {
+  const a = await open(answers({ person }))
+  typeInto(input('Your name'), 'Mo')
+  await act(async () => savePersonAnswer(a.queryClient, { ...person, aylul_calls_me: 'New nickname' }))
+  await until(() => input('What AYLUL calls you').value === 'New nickname')
+  expect(input('What AYLUL calls you').value).toBe('New nickname')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 1)
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: 'Mo' })
+})
+it('saved names keep following later answers without becoming edits', async () => {
+  const a = await open(answers({ person }))
+  typeInto(input('Your name'), 'Mo')
+  act(() => a.button('Save')!.click())
+  await until(() => a.queryClient.getQueryData<Person>(personKeys.record())?.name === 'Mo' && a.button('Save')!.disabled)
+  await act(async () => savePersonAnswer(a.queryClient, { ...person, name: 'New name', aylul_calls_me: 'New nickname' }))
+  await until(() => input('Your name').value === 'New name')
+  expect(input('What AYLUL calls you').value).toBe('New nickname')
+  expect(a.button('Save')!.disabled).toBe(true)
 })
 it('a fresh person shows empty fields', async () => {
   const a = await open()
