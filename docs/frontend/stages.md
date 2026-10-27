@@ -5,8 +5,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Left: F-22 is ready to build on a delivery branch with the backend's A-7b
-(`docs/shared/requests/2026-10-27-summary-only-context-ring.md`). F-28 waits on its Core
+Left: F-22 is done on the delivery branch `context-ring-summary` with the backend's A-7b;
+the branch waits for its PR. F-28 waits on its Core
 request; F-18 and F-19's remaining `turn-state` part are the
 [web architecture plan](plans/2026-10-25-web-architecture.md)'s W-11, blocked by domain until
 Core supplies the facts. Still open outside any task: the light palette and the real desktop
