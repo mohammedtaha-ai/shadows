@@ -701,6 +701,7 @@ obligations:
     tested_by:
       - a_refused_start_gives_the_session_back
       - a_replay_found_by_the_transaction_gives_the_session_back
+      - a_turn_started_during_a_session_hold_keeps_its_output
       - a_stop_while_pending_cancels_the_turn_before_its_prompt
     note: >
       The order itself is structural: `lease_events` takes the `OpenSession`
@@ -927,6 +928,10 @@ tests:
       Two sends of one command while a fake `wait-for-release` prompt holds
       the session both answer 202 with one operation id and one operation is
       written; the next start runs to Completed.
+  - name: a_turn_started_during_a_session_hold_keeps_its_output
+    checks: >
+      A turn started while a fake wait-for-release prompt holds the events waits
+      for the session, completes with both of its messages and records no holder output.
   - name: a_replay_is_answered_while_the_daemon_is_stopping
     checks: >
       After the registry closes, the first body replays 202 with its

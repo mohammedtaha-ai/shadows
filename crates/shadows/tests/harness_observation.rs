@@ -6,7 +6,7 @@ use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 
-use app::{start_settled, test_app, wait_terminal};
+use app::{entries, start_settled, test_app, test_app_at, wait_terminal};
 
 #[tokio::test]
 async fn a_completed_turn_records_what_the_harness_reported() {
@@ -82,4 +82,56 @@ async fn a_usage_frame_reaches_a_subscriber_of_the_thread() {
     let frame = app::next_frame_named(&mut sub, "usage").await;
     assert_eq!(frame["context_window"], 1_000_000);
     assert!(frame["limits"]["seven_day"].is_object(), "{frame}");
+}
+
+/// A turn waits for a session holder to finish, then collects only its own output.
+#[tokio::test]
+async fn a_turn_started_during_a_session_hold_keeps_its_output() {
+    use shadows_agent::events::HarnessEvent;
+    use std::time::Duration;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let app = test_app_at(tmp.path()).await;
+    wait_terminal(&app, &start_settled(&app, "hi").await).await;
+    let harness = app.core.harness();
+    let opened = harness.open(&app.thread).await.unwrap();
+    let mut held = harness.lease_events(&app.thread, &opened).await.unwrap();
+    let start = start_settled(&app, "two-messages");
+    tokio::pin!(start);
+
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let (answer, ()) = tokio::join!(
+            opened
+                .connection()
+                .prompt(&opened.session_id, "wait-for-release", &[]),
+            async {
+                loop {
+                    let event = held.recv().await.expect("the holder's events stay open");
+                    if let HarnessEvent::Chunk { text, .. } = event {
+                        assert_eq!(text, "waiting");
+                        break;
+                    }
+                }
+                assert!(
+                    tokio::time::timeout(Duration::from_millis(200), &mut start)
+                        .await
+                        .is_err(),
+                    "the turn must wait while the holder owns the session"
+                );
+                std::fs::write(tmp.path().join("release"), "").unwrap();
+            }
+        );
+        answer.unwrap();
+        while held.try_recv().is_ok() {}
+        harness.give_back_events(&app.thread, &opened, held).await;
+    })
+    .await
+    .expect("the holder finishes and returns the session");
+
+    let op = start.await;
+    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+    let bodies: Vec<String> = entries(&app).await.into_iter().map(|e| e.body).collect();
+    assert!(bodies.iter().any(|b| b == "first"), "{bodies:?}");
+    assert!(bodies.iter().any(|b| b == "second"), "{bodies:?}");
+    assert!(!bodies.iter().any(|b| b == "waiting"), "{bodies:?}");
 }

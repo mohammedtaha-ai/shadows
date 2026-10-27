@@ -599,7 +599,7 @@ obligations:
       The first counts `command_record` before and after both calls; it
       passes on b4d614e, so no harness call carries a fingerprint the move
       could shift. The second asserts `remembered` is still null after two
-      model changes. The fourth is the write: POST session appends the
+      model changes. The third is the write: POST session appends the
       thread's `McpGrantIssued`. The revocation of a replaced grant has no
       test of its own here.
 
@@ -681,6 +681,11 @@ obligations:
     note: >
       Fails before the slot map: `terminate` on the other thread waited 1.39 s
       for a slow resume's opening.
+
+  - rule: >
+      The session's event lease is exclusive. A turn started while another
+      holder owns it waits for the give-back and collects only its own output.
+    tested_by: a_turn_started_during_a_session_hold_keeps_its_output
 
   - rule: >
       One pool. `Sessions` writes through the core's `Arc<Storage>`, never a
@@ -932,6 +937,10 @@ tests:
       While one thread's slow resume opens, `terminate` on a second thread
       returns before that opening has finished; the opening then succeeds,
       one session live.
+  - name: a_turn_started_during_a_session_hold_keeps_its_output
+    checks: >
+      A turn polled while a fake wait-for-release prompt holds the session stays
+      pending, then records both of its messages and none of the holder's output.
   - name: a_busy_thread_is_refused_before_its_session_opens
     checks: >
       Turns' side: with a Pending operation, a turn start is 409 THREAD_BUSY
