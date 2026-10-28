@@ -5,34 +5,19 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Finished on this branch: F-28 (partial person settings saves).
 Left: F-18 and F-19's remaining `turn-state` part are the
 [web architecture plan](plans/2026-10-25-web-architecture.md)'s W-11, blocked by domain until
 Core supplies the facts. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
 
-Finished work: F-22 (the context ring shows the summary only, PR #45) is in this file at
+Finished work: F-28 (each settings form saves only the fields it changed, with the glass
+theme selector, PR #46) is in this file at `e95b79c3`; F-22 (the context ring shows the summary only, PR #45) is in this file at
 `29ddfd88`; F-20, F-21 and F-33 to F-44 (W-9, W-10, W-12 and W-13, PR #44) are in this
 file at `4d5c022d`; F-16, F-17, F-26, F-27 and F-29 to F-32 (W-1 to W-8, PR #43) at
 `ca618f89`; F-1 and F-23 to F-25 (PR #41) at `c7e7bac4`; F-2 to F-12, F-14 and F-15 (the
 settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
-
-### F-28 · Each settings form saves only the fields it changed
-- Status: done
-- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#decisions (3)
-- Read: `docs/shared/requests/2026-10-26-partial-person-update.md`; `web/src/api/person.ts`;
-  `web/src/app/settings/contract.yaml`
-- Touch: `web/src/api/person.ts` and its tests; `web/src/app/settings/you-card.tsx`,
-  `general-preferences.tsx`, their tests, `contract.yaml`; `web/src/api/schema.d.ts` through
-  `npm run gen:api` only; `web/src/api/contract.yaml`; `web/src/test/fake-daemon.ts`
-- Needs: B-13 on the same branch (`PATCH /api/me` in the regenerated OpenAPI); F-17. General
-  preferences already saves at once on each theme pick (`1e43ea5f`); keep that, sending only the
-  picked field
-- Done when: the You card sends only names, General preferences only language and theme;
-  a test saves both forms close together and both changes survive; `npm test -- settings`,
-  the architecture and codemap tests, `npm run typecheck` and `npm run lint` pass
 
 ### F-18 · Core owns the rules the client copies
 - Status: blocked

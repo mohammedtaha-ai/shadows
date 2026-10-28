@@ -278,7 +278,7 @@ These inspected edges must be accounted for, not assumed to be leaves:
 | `db/error.rs` | `PlanId`, `Problem`, `WorkflowId` belong to `plans` |
 | service `store` modules | Inherent `impl Storage` blocks cannot remain after `Storage` moves to another crate |
 | `threads` / `harness` / `turns` | Session lifecycle, title writes, stopping and ID types must be checked separately |
-| `profiles/person.rs` | `person` / `set_person` need an owner when profiles splits; four destination names do not cover this job |
+| `profiles/person.rs` | `person` / `update_person` need an owner when profiles splits; four destination names do not cover this job |
 
 Decisions the ledger must close before extraction: separate domain errors from
 database failures; give journal/command persistence inputs a downward-only type

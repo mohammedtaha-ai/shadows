@@ -25,33 +25,10 @@ folder goes) shipped in PR #45 (`5a0af4ff`); their entries are in this file at `
 A-22 (product workspaces) is deferred on 2026-10-28: its trigger is in
 [docs/future.md](../future.md) "Housekeeping"; its entry is in this file at `3dc2437f`.
 
-## Tasks
+B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #46
+(`e95b79c3`); its entry is in this file at `e95b79c3`.
 
-### B-13 · The person record takes a partial update
-- Status: done
-- Read: the accepted request `docs/shared/requests/2026-10-26-partial-person-update.md`;
-  `crates/shadows-core/src/app.rs` (`PersonSettings` owns the person record);
-  `crates/core-person/contract.yaml`
-- Touch: `crates/core-person/src/lib.rs` (`set_person` becomes `update_person`: validate only
-  the sent fields, fingerprint them as sent, refuse a request with no field), `model.rs`
-  (`PersonInput` becomes `PersonPatch`: each name and the language absent, `null` to clear,
-  or a value; `theme` absent or a value), `store/mod.rs` (read the row, apply the patch and
-  write it inside the one write transaction), `error.rs` (the no-field refusal), and
-  `contract.yaml`; `crates/core-person/tests/person.rs`; the person type re-export in
-  `crates/shadows-core/src/lib.rs` and the `PersonError` mapping in `crates/shadows-core/src/error.rs`
-  (the no-field refusal is a `ProfileInvalid`, a 400); the `set_person` calls in
-  `crates/shadows-core/tests/aylul_session/opening.rs`; `crates/shadows-http/src/aylul_person.rs`
-  (`PUT /api/me` becomes `PATCH /api/me`) and its line in `crates/shadows-http/src/lib.rs`;
-  `crates/shadows-http/src/aylul_profiles_tests.rs` (the person tests);
-  `crates/shadows/tests/openapi.rs` if it names the route; `api/openapi.json` by
-  `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` only; `docs/codebase/README.md` if a
-  row names `set_person`; this task's `Status:`
-- Needs: none. F-28 lands on the same branch.
-- Done when: a patch with one field keeps every other stored field; two patches of different
-  fields, sent one after the other from the same earlier snapshot, both survive; `null` clears a
-  name or the language; an empty patch is a 400; a replay with other fields is a 409; today's
-  validation messages are unchanged; `cargo test -p core-person -p shadows-http`, the
-  `shadows` openapi test, clippy with and without `test-support` and `cargo fmt --check` pass
+## Tasks
 
 ### A-8b · The binary has one start and no second surface
 - Status: blocked

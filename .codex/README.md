@@ -1,8 +1,9 @@
 # Shadows Codex agents
 
-Project-scoped agents for this repository. `shadows_backend` and
-`shadows_frontend` use `gpt-6.1-terra`; the other roles use `gpt-6.1-sol`.
-Every role uses `model_reasoning_effort = "medium"`. The project config sets
+Project-scoped agents for this repository. `shadows_backend`,
+`shadows_frontend` and `shadows_reviewer` use `gpt-6.1-terra`; the other roles use
+`gpt-6.1-sol`. `shadows_reviewer` uses `model_reasoning_effort = "high"`; every other
+role uses `"medium"`. The project config sets
 `gpt-6.1-sol` and `medium` as defaults
 for unnamed subagents. It does not change the parent chat's model or personal
 Codex configuration. `.claude/agents/` belongs to Claude Code and is unchanged.
