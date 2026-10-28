@@ -14,13 +14,16 @@ let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })
 const select = (name: string) => document.querySelector<HTMLSelectElement>(`select[aria-label="${name}"]`)!
 function choose(name: string, value: string) { act(() => { select(name).value = value; select(name).dispatchEvent(new Event('change', { bubbles: true })) }) }
+const themes = () => document.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Theme"]')
+const theme = () => themes()?.querySelector('[aria-checked="true"]')?.getAttribute('aria-label')?.toLowerCase()
+const themeDisabled = () => themes()?.querySelector<HTMLButtonElement>('button')?.disabled !== false
 async function open(overrides: Record<string, Answer> = {}) {
   const a = app = await startApp('/?settings=general', { ...answers({ person }), ...overrides })
-  await until(() => select('Theme') !== null && !select('Theme').disabled)
+  await until(() => themes() !== null && !themeDisabled())
   return a
 }
 it('General instantly saves only the picked preference', async () => {
-  const a = await open(); expect(select('Language').value).toBe('en'); expect(select('Theme').value).toBe('system')
+  const a = await open(); expect(select('Language').value).toBe('en'); expect(theme()).toBe('system')
   act(() => a.button('Dark')!.click())
   await until(() => a.bodies.length === 1)
   expect(a.bodies[0]).toEqual({ command_id: expect.any(String), theme: 'dark' })
@@ -36,7 +39,7 @@ it('an unknown saved language survives a theme-only change', async () => {
   act(() => a.button('Light')!.click())
   await until(() => a.bodies.length === 1)
   expect(a.bodies[0]).toEqual({ command_id: expect.any(String), theme: 'light' })
-  await until(() => !select('Theme').disabled)
+  await until(() => !themeDisabled())
   expect(select('Language').value).toBe('ar')
 })
 it('preference patches omit even newly observed names', async () => {
@@ -50,7 +53,7 @@ it('a failed preference save retains its draft and command', async () => {
   const a = await open({ 'PATCH /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Save refused.' }, { status: 500 }) })
   act(() => a.button('Dark')!.click())
   await until(() => a.text().includes('Save refused.') && a.button('Dark')?.disabled === false)
-  expect(select('Theme').value).toBe('dark')
+  expect(theme()).toBe('dark')
   act(() => a.button('Dark')!.click())
   await until(() => a.bodies.length === 2 && !a.button('Dark')?.disabled)
   expect(a.bodies[1]).toEqual(a.bodies[0])
@@ -66,9 +69,9 @@ it('identical pending picks share one save and closing the form sends nothing', 
   await until(() => a.bodies.length === 1)
   expect(a.bodies).toHaveLength(1)
   await act(async () => finish(Response.json({ ...person, theme: 'dark' })))
-  await until(() => !select('Theme').closest('fieldset')?.disabled)
+  await until(() => !themes()?.closest('fieldset')?.disabled)
   act(() => a.button('Account')!.click())
-  await until(() => select('Theme') === null)
+  await until(() => themes() === null)
   expect(a.calls.filter(call => call === 'PATCH /api/me')).toHaveLength(1)
 })
 it.each(['language', 'theme'])('a quick second %s pick survives a pending theme save', async second => {
@@ -85,7 +88,7 @@ it.each(['language', 'theme'])('a quick second %s pick survives a pending theme 
     }
   })
   await until(() => pending.length === 1)
-  expect(select(second === 'theme' ? 'Theme' : 'Language').value).toBe(second === 'theme' ? 'light' : '')
+  expect(second === 'theme' ? theme() : select('Language').value).toBe(second === 'theme' ? 'light' : '')
   expect(a.button('Light')!.disabled).toBe(false)
   await act(async () => pending[0]!.finish(await applyPatch(pending[0]!.request)))
   await until(() => pending.length === 2)
@@ -134,7 +137,7 @@ it('an old read cannot undo saved preferences', async () => {
   await until(() => a.queryClient.getQueryData<Person>(personQuery.queryKey)?.theme === 'light')
   await act(async () => release(Response.json(person)))
   expect(a.queryClient.getQueryData<Person>(personQuery.queryKey)?.theme).toBe('light')
-  expect(select('Theme').value).toBe('light')
+  expect(theme()).toBe('light')
 })
 it('loading preferences disables the fields', async () => {
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host)
@@ -147,7 +150,7 @@ it('loading preferences disables the fields', async () => {
 it('failed preference loading shows no editable invented values', async () => {
   const a = app = await startApp('/?settings=general', { ...answers(), 'GET /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Person unavailable.' }, { status: 500 }) })
   await until(() => a.text().includes('Person unavailable.'))
-  expect(select('Theme')).toBeNull()
+  expect(themes()).toBeNull()
 })
 
 it.each([0, 1])('both forms save from the same snapshot with patch %s applied first', async first => {

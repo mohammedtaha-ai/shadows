@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { personQuery, savePerson, savePersonAnswer, type PersonInput } from '@/api/person'
+import { personQuery, savePerson, savePersonAnswer, type PersonPatch } from '@/api/person'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { ErrorLine } from '../error-line'
 
-type Preferences = Pick<PersonInput, 'language' | 'theme'>
+type Preferences = Pick<PersonPatch, 'language' | 'theme'>
 
 const THEMES = [
   { id: 'system' as const, label: 'System', icon: Monitor },
@@ -111,24 +111,7 @@ export function GeneralPreferences() {
 
         <div className="grid gap-2">
           <span className="text-sm font-medium">Theme</span>
-          <select
-            aria-label="Theme"
-            disabled={disabled}
-            value={value.theme}
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
-            onChange={event => {
-              const next = event.target.value
-              if (next === 'dark' || next === 'light' || next === 'system') changeTheme(next)
-            }}
-          >
-            <option value="system">System</option>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-
-          <div role="radiogroup" aria-label="Theme options" className="flex items-center justify-center gap-7 py-2">
+          <div role="radiogroup" aria-label="Theme" className="flex items-center justify-center gap-7 py-2">
             {THEMES.map(({ id, label, icon: Icon }) => {
               const active = value.theme === id
               return (

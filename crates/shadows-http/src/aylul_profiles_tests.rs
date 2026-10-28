@@ -392,7 +392,8 @@ async fn me_round_trips() {
 #[tokio::test]
 async fn me_partial_updates_preserve_fields_and_refuse_empty_patches() {
     let w = world(false, false).await;
-    let seed = json!({"command_id":"seed", "name":"Alex", "aylul_calls_me":"Lex", "language":"en", "theme":"dark"});
+    let seed = json!({"command_id":"seed", "name":"Alex", "aylul_calls_me":"Lex",
+        "language":"en", "theme":"dark"});
     assert_eq!(call(&w, "PATCH", "/api/me", seed.clone()).await.0, 200);
     let name_patch = json!({"command_id":"name", "name":"  Alex Smith  "});
     assert_eq!(

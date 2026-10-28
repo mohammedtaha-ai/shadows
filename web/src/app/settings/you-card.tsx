@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
-import { personQuery, savePerson, savePersonAnswer, type Person, type PersonInput } from '@/api/person'
+import { personQuery, savePerson, savePersonAnswer, type Person, type PersonPatch } from '@/api/person'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,7 @@ function YouForm({ saved }: { saved: Person | undefined }) {
   const record = accepted && saved === accepted.before ? accepted.person : saved
   const [edited, setEdited] = useState<NameDraft>({})
   const value = { name: record?.name ?? '', calls: record?.aylul_calls_me ?? '', ...edited }
-  const patch: PersonInput = {}
+  const patch: PersonPatch = {}
   const name = value.name.trim() || null
   const calls = value.calls.trim() || null
   if (name !== (record?.name ?? null)) patch.name = name
@@ -33,7 +33,7 @@ function YouForm({ saved }: { saved: Person | undefined }) {
     // A read sent before the save would answer the old record after it: cancel it, so it cannot
     // overwrite what was saved.
     onMutate: () => queryClient.cancelQueries({ queryKey: personQuery.queryKey }),
-    mutationFn: ({ input }: { input: PersonInput; draft: NameDraft }) => {
+    mutationFn: ({ input }: { input: PersonPatch; draft: NameDraft }) => {
       pending.current = attemptFor(pending.current, input)
       return savePerson(pending.current.commandId, input)
     },

@@ -7,7 +7,7 @@ import type { EffectiveStandards, StandardsAdditions } from '@/api/design'
 import type { Plan, PlanListing } from '@/api/workflows'
 import type { Grant, InstructionsVersion, Project } from '@/api/projects'
 import type { Operation, ThreadEntry } from '@/api/threads'
-import type { Person, PersonInput } from '@/api/person'
+import type { Person, PersonPatch } from '@/api/person'
 import type { Answer } from '@/test/test-app'
 import {
   agentEntry,
@@ -84,9 +84,12 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/aylul/usage': o.usage ?? { by_provider: [], by_model: [] },
     'GET /api/me': typeof o.person === 'function' ? o.person : () => Response.json(person),
     'PATCH /api/me': async (request: Request) => {
-      const { command_id: _command, ...input } = await request.json() as PersonInput & { command_id: string }
-      if (Object.keys(input).length === 0 || input.theme === null) {
-        return Response.json({ code: 'VALIDATION_ERROR', message: 'A nonempty person patch with a non-null theme is required.' }, { status: 400 })
+      const { command_id: _command, ...input } = await request.json() as PersonPatch & { command_id: string }
+      if (input.theme === null) {
+        return Response.json({ code: 'INVALID_COMMAND', message: 'the request body is not valid JSON for this route' }, { status: 400 })
+      }
+      if (Object.keys(input).length === 0) {
+        return Response.json({ code: 'PROFILE_INVALID', message: 'invalid profile: person patch has no fields' }, { status: 400 })
       }
       person = { ...person, ...input, updated_at: '2026-10-21T00:00:00Z' }
       return Response.json(person)

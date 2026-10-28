@@ -593,7 +593,7 @@ provider_setup:
   testSavedProvider: "POST /api/aylul/providers/{slug}/test; omit key to test the stored secret; no secret in query keys"
 person:
   personQuery: "GET /api/me; ['person']"
-  savePerson: "PATCH /api/me; PersonInput aliases generated PersonPatch; only supplied fields plus caller command id are sent; omitted fields stay stored, null clears a name or language, theme cannot be null; Core returns the whole person"
+  savePerson: "PATCH /api/me; PersonPatch aliases the generated PersonPatch; only supplied fields plus caller command id are sent; omitted fields stay stored, null clears a name or language, theme cannot be null; Core returns the whole person"
 usage:
   usageQuery: "GET /api/aylul/usage with from/to RFC3339 query parameters; ['aylul-usage', from, to]; generated report aliases; explicit retry; no mutation or command id"
 extensions:

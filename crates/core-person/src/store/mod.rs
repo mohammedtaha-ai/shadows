@@ -1,7 +1,7 @@
 //! SQL for the one person row.
 use super::{Person, PersonPatch, Theme};
 use core_db::{CommandContext, Storage, StorageError};
-use sqlx::Row;
+use sqlx::{Row, sqlite::SqliteRow};
 use std::sync::Arc;
 
 /// The scope replays of configuration commands are classified under.
@@ -25,16 +25,7 @@ impl PersonStore {
         )
         .fetch_optional(self.storage.reader())
         .await?;
-        match row {
-            None => Ok(Person::default()),
-            Some(row) => Ok(Person {
-                name: row.get("name"),
-                aylul_calls_me: row.get("aylul_calls_me"),
-                language: row.get("language"),
-                theme: serde_json::from_value(serde_json::Value::String(row.get("theme")))?,
-                updated_at: Some(row.get("updated_at")),
-            }),
-        }
+        person_from(row)
     }
 
     pub(super) async fn save(
@@ -52,24 +43,15 @@ impl PersonStore {
                     {
                         return Ok(());
                     }
-                    // Merge against the current row under the writer lock to preserve unsent fields.
-                    let row = sqlx::query(
-                        "SELECT name,aylul_calls_me,language,theme FROM aylul_person WHERE id=1",
-                    )
-                    .fetch_optional(&mut *conn)
-                    .await?;
-                    let stored = match row {
-                        Some(row) => Person {
-                            name: row.get("name"),
-                            aylul_calls_me: row.get("aylul_calls_me"),
-                            language: row.get("language"),
-                            theme: serde_json::from_value(serde_json::Value::String(
-                                row.get("theme"),
-                            ))?,
-                            updated_at: None,
-                        },
-                        None => Person::default(),
-                    };
+                    // Merge under the writer lock, so a concurrent update keeps its unsent fields.
+                    let stored = person_from(
+                        sqlx::query(
+                            "SELECT name,aylul_calls_me,language,theme,updated_at
+                            FROM aylul_person WHERE id=1",
+                        )
+                        .fetch_optional(&mut *conn)
+                        .await?,
+                    )?;
                     let theme = match input.theme.unwrap_or(stored.theme) {
                         Theme::Dark => "dark",
                         Theme::Light => "light",
@@ -102,4 +84,18 @@ impl PersonStore {
             })
             .await
     }
+}
+
+/// The stored row as a person, or the defaults before the first write.
+fn person_from(row: Option<SqliteRow>) -> Result<Person, StorageError> {
+    let Some(row) = row else {
+        return Ok(Person::default());
+    };
+    Ok(Person {
+        name: row.get("name"),
+        aylul_calls_me: row.get("aylul_calls_me"),
+        language: row.get("language"),
+        theme: serde_json::from_value(serde_json::Value::String(row.get("theme")))?,
+        updated_at: Some(row.get("updated_at")),
+    })
 }
