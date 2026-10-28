@@ -355,7 +355,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["set_person"];
+        patch: operations["update_person"];
         trace?: never;
     };
     "/api/openapi.json": {
@@ -4380,7 +4380,7 @@ export interface operations {
             };
         };
     };
-    set_person: {
+    update_person: {
         parameters: {
             query?: never;
             header?: never;

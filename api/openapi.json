@@ -7413,7 +7413,7 @@
         ]
       },
       "patch": {
-        "operationId": "set_person",
+        "operationId": "update_person",
         "requestBody": {
           "content": {
             "application/json": {

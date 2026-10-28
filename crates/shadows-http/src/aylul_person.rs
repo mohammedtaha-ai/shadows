@@ -16,7 +16,7 @@ pub(super) async fn person(State(s): State<AppState>) -> Result<Json<Person>, Fa
     Ok(Json(s.core.person().person().await?))
 }
 
-#[utoipa::path(patch, path="/api/me", tag="aylul", operation_id="set_person",
+#[utoipa::path(patch, path="/api/me", tag="aylul",
     request_body=PersonCommand,
     responses((status=200,body=Person),(status=400,body=ErrorBody),(status=409,body=ErrorBody),
         (status=500,body=ErrorBody)))]
