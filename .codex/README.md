@@ -1,7 +1,9 @@
 # Shadows Codex agents
 
-Project-scoped agents for this repository. Every role uses `gpt-6.1-sol` with
-`model_reasoning_effort = "medium"`. The project config also sets those defaults
+Project-scoped agents for this repository. `shadows_backend` and
+`shadows_frontend` use `gpt-6.1-terra`; the other roles use `gpt-6.1-sol`.
+Every role uses `model_reasoning_effort = "medium"`. The project config sets
+`gpt-6.1-sol` and `medium` as defaults
 for unnamed subagents. It does not change the parent chat's model or personal
 Codex configuration. `.claude/agents/` belongs to Claude Code and is unchanged.
 
@@ -40,7 +42,7 @@ Select the named custom agent using the host's supported role selector. Some
 hosts expose `agent_type`; the collaboration API in other hosts exposes only
 `task_name`, `message`, `model`, `reasoning_effort` and `fork_turns`. In that case,
 read the selected TOML and include its `developer_instructions` in the assignment,
-using `model = "gpt-6.1-sol"`, `reasoning_effort = "medium"` and
+using the selected TOML's `model`, `reasoning_effort = "medium"` and
 `fork_turns = "none"`. A task name alone does not load a role. Never invent an
 unsupported selector or claim a profile was loaded without evidence.
 

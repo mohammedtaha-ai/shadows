@@ -1,6 +1,6 @@
 name = "shadows_frontend"
 description = "Implement or fix one scoped Shadows web UI task, preserving Core API ownership, generated schemas and UI-flow evidence."
-model = "gpt-6.1-sol"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You implement or fix one assigned Core web task. Read .codex/README.md,
