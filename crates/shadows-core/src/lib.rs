@@ -46,7 +46,7 @@ pub use core_instructions::{Instructions, InstructionsVersion};
 pub use core_operations::{
     OperationId, OperationRecord, Operations, OperationsError, ReconcileReport, Transition,
 };
-pub use core_person::{Person, PersonInput, PersonSettings, Theme};
+pub use core_person::{Person, PersonPatch, PersonSettings, Theme};
 pub use core_plans::UiSignal;
 pub use core_plans::{
     AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,

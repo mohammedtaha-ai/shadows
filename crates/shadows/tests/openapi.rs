@@ -180,6 +180,7 @@ fn the_document_names_every_route() {
             "GET /api/threads/{id}/operations",
             "GET /api/threads/{id}/queue",
             "GET /api/workflows/{id}",
+            "PATCH /api/me",
             "PATCH /api/projects/{id}",
             "PATCH /api/threads/{id}",
             "POST /api/aylul/agents",
@@ -215,7 +216,6 @@ fn the_document_names_every_route() {
             "PUT /api/aylul/providers/{slug}",
             "PUT /api/aylul/providers/{slug}/key",
             "PUT /api/code/settings",
-            "PUT /api/me",
             "PUT /api/projects/{id}/agreements/{agreement}",
             "PUT /api/projects/{id}/code/links/{linked}",
             "PUT /api/projects/{id}/planner-instructions",
@@ -362,4 +362,24 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
     }
 
     storage.close().await.unwrap();
+}
+
+#[test]
+fn person_patch_fields_are_optional_with_explicit_nullability() {
+    let doc = document();
+    let me = &doc["paths"]["/api/me"];
+    assert!(me["get"].is_object());
+    assert!(me["patch"].is_object());
+    assert!(me.get("put").is_none());
+    let patch = &doc["components"]["schemas"]["PersonPatch"];
+    assert!(patch.get("required").is_none());
+    for field in ["name", "aylul_calls_me", "language"] {
+        assert_eq!(
+            patch["properties"][field]["type"],
+            serde_json::json!(["string", "null"])
+        );
+    }
+    let theme = &patch["properties"]["theme"];
+    assert_eq!(theme["$ref"], "#/components/schemas/Theme");
+    assert!(theme.get("oneOf").is_none());
 }

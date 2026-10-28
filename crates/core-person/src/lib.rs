@@ -2,7 +2,7 @@
 mod model;
 mod store;
 
-pub use model::{Person, PersonInput, Theme};
+pub use model::{Person, PersonPatch, Theme};
 
 mod error;
 use core_db::{CommandContext, Storage};
@@ -26,21 +26,33 @@ impl PersonSettings {
         Ok(self.store.get().await?)
     }
 
-    pub async fn set_person(
+    pub async fn update_person(
         &self,
         command_id: String,
-        mut input: PersonInput,
+        mut input: PersonPatch,
     ) -> Result<Person, PersonError> {
-        normalize_name(&mut input.name)?;
-        normalize_name(&mut input.aylul_calls_me)?;
+        if input.name.is_none()
+            && input.aylul_calls_me.is_none()
+            && input.language.is_none()
+            && input.theme.is_none()
+        {
+            return Err(PersonError::EmptyPatch);
+        }
+        if let Some(name) = &mut input.name {
+            normalize_name(name)?;
+        }
+        if let Some(name) = &mut input.aylul_calls_me {
+            normalize_name(name)?;
+        }
         if input
             .language
-            .as_deref()
+            .as_ref()
+            .and_then(|tag| tag.as_deref())
             .is_some_and(|tag| !language_tag(tag))
         {
             return Err(PersonError::InvalidLanguage);
         }
-        let command = CommandContext::user(command_id, "person.set", serde_json::json!(input));
+        let command = CommandContext::user(command_id, "person.update", serde_json::json!(input));
         self.store.save(command, input).await?;
         self.person().await
     }

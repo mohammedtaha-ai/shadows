@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { personKeys } from '@/api/person'
+import { personKeys, savePersonAnswer, type Person } from '@/api/person'
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers } from '@/test/fake-daemon'
@@ -7,7 +7,7 @@ import { startApp, typeInto, until, type TestApp } from '@/test/test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })
-const person = { name: 'Mohammed', aylul_calls_me: 'Abu Taha', language: 'ar', theme: 'dark', updated_at: null }
+const person: Person = { name: 'Mohammed', aylul_calls_me: 'Abu Taha', language: 'ar', theme: 'dark', updated_at: null }
 const input = (name: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!
 async function open(overrides = {}) {
   const a = app = await startApp('/?settings=account', { ...answers(), ...overrides })
@@ -24,43 +24,101 @@ function stored(initial: typeof person) {
   let saved = initial
   return {
     'GET /api/me': () => Response.json(saved),
-    'PUT /api/me': async (request: Request) => {
+    'PATCH /api/me': async (request: Request) => {
       const { command_id: _command, ...input } = await request.json()
-      saved = { ...input, updated_at: null }
+      saved = { ...saved, ...input, updated_at: null }
       return Response.json(saved)
     },
   }
 }
-it('saving sends the whole record', async () => {
+it('saving sends only the changed names', async () => {
   const a = await open(stored(person))
   typeInto(input('What AYLUL calls you'), 'Mo')
-  expect(a.calls).not.toContain('PUT /api/me')
+  expect(a.calls).not.toContain('PATCH /api/me')
   act(() => a.button('Save')!.click())
-  await until(() => a.calls.includes('PUT /api/me'))
-  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: 'Mohammed', aylul_calls_me: 'Mo', language: 'ar', theme: 'dark' })
-  // Save is disabled while the PUT is pending too; the save has finished once the fields are
-  // enabled again.
-  await until(() => !input('What AYLUL calls you').disabled && a.button('Save')?.disabled === true)
+  await until(() => a.calls.includes('PATCH /api/me'))
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), aylul_calls_me: 'Mo' })
+  await until(() => a.queryClient.getQueryData<Person>(personKeys.record())?.aylul_calls_me === 'Mo' && a.button('Save')?.disabled === true)
   expect(input('What AYLUL calls you').value).toBe('Mo')
 })
 it('an emptied field saves as null', async () => {
   const a = await open({ 'GET /api/me': person }); typeInto(input('Your name'), '')
   act(() => a.button('Save')!.click()); await until(() => a.bodies.length > 0)
-  expect(a.bodies[0]).toEqual(expect.objectContaining({ name: null }))
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: null })
+})
+it('both changed names share one patch', async () => {
+  const a = await open(stored(person))
+  typeInto(input('Your name'), ' Mo ')
+  typeInto(input('What AYLUL calls you'), '')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 1)
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: 'Mo', aylul_calls_me: null })
+})
+it('names typed during a save survive its answer', async () => {
+  const routes = answers({ person })
+  const applyPatch = routes['PATCH /api/me'] as (request: Request) => Promise<Response>
+  let finish!: () => Promise<void>
+  let writes = 0
+  const a = await open({ ...routes, 'PATCH /api/me': (request: Request) => {
+    if (++writes > 1) return applyPatch(request)
+    return new Promise<Response>(resolve => { finish = async () => resolve(await applyPatch(request)) })
+  } })
+  typeInto(input('Your name'), 'Mo')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 1)
+  expect(input('Your name').closest('fieldset')?.disabled).toBe(false)
+  expect(a.button('Save')!.disabled).toBe(true)
+  typeInto(input('Your name'), 'Mohammed Taha')
+  typeInto(input('What AYLUL calls you'), 'Taha')
+  await act(async () => finish())
+  await until(() => !a.button('Save')!.disabled)
+  expect(input('Your name').value).toBe('Mohammed Taha')
+  expect(input('What AYLUL calls you').value).toBe('Taha')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 2)
+  expect(a.bodies[1]).toEqual({ command_id: expect.any(String), name: 'Mohammed Taha', aylul_calls_me: 'Taha' })
+})
+it('editing one name keeps the other name following saved updates', async () => {
+  const a = await open(answers({ person }))
+  typeInto(input('Your name'), 'Mo')
+  await act(async () => savePersonAnswer(a.queryClient, { ...person, aylul_calls_me: 'New nickname' }))
+  await until(() => input('What AYLUL calls you').value === 'New nickname')
+  expect(input('What AYLUL calls you').value).toBe('New nickname')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 1)
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: 'Mo' })
+})
+it('saved names keep following later answers without becoming edits', async () => {
+  const a = await open(answers({ person }))
+  typeInto(input('Your name'), 'Mo')
+  act(() => a.button('Save')!.click())
+  await until(() => a.queryClient.getQueryData<Person>(personKeys.record())?.name === 'Mo' && a.button('Save')!.disabled)
+  await act(async () => savePersonAnswer(a.queryClient, { ...person, name: 'New name', aylul_calls_me: 'New nickname' }))
+  await until(() => input('Your name').value === 'New name')
+  expect(input('What AYLUL calls you').value).toBe('New nickname')
+  expect(a.button('Save')!.disabled).toBe(true)
 })
 it('a fresh person shows empty fields', async () => {
   const a = await open()
   expect(input('Your name').value).toBe(''); expect(input('What AYLUL calls you').value).toBe('')
   expect(a.text()).toContain('AYLUL uses this name when it speaks to you. Without it, AYLUL uses your name.')
 })
+it('unchanged and whitespace-only name edits cannot send an empty patch', async () => {
+  const a = await open(stored(person))
+  expect(a.button('Save')?.disabled).toBe(true)
+  typeInto(input('Your name'), ' Mohammed ')
+  expect(a.button('Save')?.disabled).toBe(true)
+  act(() => document.querySelector<HTMLFormElement>('form[aria-label="You"]')!.requestSubmit())
+  expect(a.bodies).toHaveLength(0)
+})
 it('more than 64 characters is refused before sending', async () => {
   const a = await open(); typeInto(input('Your name'), 'x'.repeat(65))
   act(() => a.button('Save')!.click())
-  expect(a.text()).toContain('At most 64 characters.'); expect(a.calls).not.toContain('PUT /api/me')
+  expect(a.text()).toContain('At most 64 characters.'); expect(a.calls).not.toContain('PATCH /api/me')
 })
 it('a failed save keeps the typed values and retries with the same command', async () => {
   let count = 0
-  const a = await open({ 'PUT /api/me': async (request: Request) => {
+  const a = await open({ 'PATCH /api/me': async (request: Request) => {
     const body = await request.json(); return ++count === 1 ? Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Please retry.' }, { status: 500 }) : Response.json(body)
   } })
   typeInto(input('Your name'), 'Mo'); act(() => a.button('Save')!.click())
@@ -68,6 +126,17 @@ it('a failed save keeps the typed values and retries with the same command', asy
   expect(input('Your name').value).toBe('Mo')
   act(() => a.button('Save')!.click()); await until(() => a.bodies.length === 2)
   expect(a.bodies[1]).toEqual(a.bodies[0])
+})
+it('a changed name patch after failure gets a new command', async () => {
+  const a = await open({ 'PATCH /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Please retry.' }, { status: 500 }) })
+  typeInto(input('Your name'), 'Mo')
+  act(() => a.button('Save')!.click())
+  await until(() => a.text().includes('Please retry.') && !input('Your name').disabled)
+  typeInto(input('Your name'), 'Mohammed')
+  act(() => a.button('Save')!.click())
+  await until(() => a.bodies.length === 2)
+  expect((a.bodies[1] as { command_id: string }).command_id).not.toBe((a.bodies[0] as { command_id: string }).command_id)
+  expect(a.bodies[1]).toEqual({ command_id: expect.any(String), name: 'Mohammed' })
 })
 it('the browser lists Account with only You', async () => {
   const a = await open()
@@ -88,9 +157,9 @@ it('a read sent before the save cannot bring the old name back', async () => {
       if (++reads === 2) await new Promise<void>(resolve => { release = resolve })
       return Response.json(person)
     },
-    'PUT /api/me': async (request: Request) => {
+    'PATCH /api/me': async (request: Request) => {
       const { command_id: _command, ...input } = await request.json()
-      return Response.json({ ...input, updated_at: null })
+      return Response.json({ ...person, ...input, updated_at: null })
     },
   })
   void act(() => a.queryClient.invalidateQueries({ queryKey: personKeys.record() }))

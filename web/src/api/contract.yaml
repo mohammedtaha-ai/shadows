@@ -593,7 +593,7 @@ provider_setup:
   testSavedProvider: "POST /api/aylul/providers/{slug}/test; omit key to test the stored secret; no secret in query keys"
 person:
   personQuery: "GET /api/me; ['person']"
-  savePerson: "PUT /api/me; whole PersonInput plus caller command id; names and preferences are read from the generated schema"
+  savePerson: "PATCH /api/me; PersonPatch aliases the generated PersonPatch; only supplied fields plus caller command id are sent; omitted fields stay stored, null clears a name or language, theme cannot be null; Core returns the whole person"
 usage:
   usageQuery: "GET /api/aylul/usage with from/to RFC3339 query parameters; ['aylul-usage', from, to]; generated report aliases; explicit retry; no mutation or command id"
 extensions:
@@ -627,7 +627,7 @@ extension_cache:
 person_cache:
   owner: person.ts
   keys: "personKeys.record preserves ['person']"
-  savePersonAnswer: "writeSaved cancels the exact person read before storing the server's whole-record answer; savePerson request fields are unchanged"
+  savePersonAnswer: "writeSaved cancels the exact person read before storing the server's whole-record answer; savePerson sends only supplied patch fields"
 
 session_cache:
   owner: sessions.ts
@@ -753,6 +753,7 @@ aylul_profiles_transport:
 
 person_transport:
   owner: person.ts
+  tested_by: ["patches only supplied person fields with the caller command id", "the fake person patch keeps absent fields and clears explicit nulls", "the fake person patch rejects %j without changing storage"]
   transport: "HTTP operations use the shared generated client and error mapping in transport/index.ts"
 
 extensions_transport:

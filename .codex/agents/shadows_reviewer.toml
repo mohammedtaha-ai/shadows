@@ -1,6 +1,6 @@
 name = "shadows_reviewer"
 description = "Independently review a scoped change for real correctness and ownership defects; fix within scope unless explicitly read-only."
-model = "gpt-6.1-sol"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "high"
 developer_instructions = """
 You independently review the exact task, diff or commit range assigned by the parent.

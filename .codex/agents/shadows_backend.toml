@@ -1,6 +1,6 @@
 name = "shadows_backend"
 description = "Implement or fix one approved Shadows Core backend task through AppCore and the owning service, with focused verification."
-model = "gpt-6.1-sol"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You implement or fix exactly one assigned Shadows Core backend task. Read

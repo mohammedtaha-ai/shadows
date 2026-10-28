@@ -304,6 +304,7 @@ impl From<core_person::PersonError> for CoreError {
     fn from(error: core_person::PersonError) -> Self {
         use core_person::PersonError;
         match error {
+            PersonError::EmptyPatch => Self::ProfileInvalid("person patch has no fields".into()),
             PersonError::InvalidName => Self::ProfileInvalid("invalid person name".into()),
             PersonError::NameTooLong => Self::ProfileInvalid("person name is too long".into()),
             PersonError::InvalidLanguage => Self::ProfileInvalid("invalid language tag".into()),

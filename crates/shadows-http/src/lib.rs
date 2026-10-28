@@ -146,7 +146,7 @@ fn routes() -> OpenApiRouter<AppState> {
             shadows_core::MAX_IMAGE_BYTES + 65536,
         ))
         .routes(routes!(runtime::identity))
-        .routes(routes!(aylul_person::person, aylul_person::set_person))
+        .routes(routes!(aylul_person::person, aylul_person::update_person))
         .routes(routes!(aylul_providers::provider_presets))
         .routes(routes!(aylul_usage::usage))
         .routes(routes!(aylul_extensions::library, aylul_extensions::import))
