@@ -59,7 +59,9 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   a `config_tests.rs` beside `config.rs` for the moved AYLUL tests; `crates/shadows/Cargo.toml`
   (`keyring` and `rand` leave it); `crates/core-secrets/` (key loading, its `Cargo.toml` takes
   `keyring`, contract, tests); `crates/shadows-core/src/app.rs` (`AppCore::start` loads the key
-  and ensures AYLUL's project) and `crates/shadows-core/src/lib.rs` for a re-export; the
+  and ensures AYLUL's project), `crates/shadows-core/src/lib.rs` for a re-export and
+  `crates/shadows-core/src/error.rs` and `crates/shadows-core/tests/secrets_error_mapping.rs`
+  for the new `SecretsError` variant; the
   `StartConfig` builders `crates/shadows-core/src/testing/mod.rs` and
   `crates/shadows-http/src/aylul_env_tests.rs`; `crates/core-projects/contract.yaml` if its
   refusal wording moves; `Cargo.lock`; the `master_key*`, `aylul*` and `config*` rows in
