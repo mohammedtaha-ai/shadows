@@ -257,7 +257,9 @@ impl From<core_secrets::SecretsError> for CoreError {
             SecretsError::NameInvalid(name) => Self::SecretNameInvalid(name),
             SecretsError::ValueInvalid(name) => Self::SecretValueInvalid(name),
             SecretsError::Unreadable(name) => Self::SecretUnreadable(name),
-            SecretsError::Unavailable => Self::SecretsUnavailable,
+            SecretsError::Unavailable | SecretsError::MasterKeyUnavailable(_) => {
+                Self::SecretsUnavailable
+            }
             SecretsError::Storage(error) => Self::Storage(error),
         }
     }

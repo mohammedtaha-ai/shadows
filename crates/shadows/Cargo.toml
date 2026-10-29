@@ -14,8 +14,6 @@ doctest = false
 workspace = true
 
 [dependencies]
-keyring = { version = "=3.6.3", features = ["windows-native"] }
-rand = "0.8"
 anyhow = { workspace = true }
 axum = { workspace = true }
 clap = { workspace = true }

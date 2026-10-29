@@ -49,7 +49,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   names `daemon::`, `assistant-fixture`, `hermes-client` or `services/assistant`
 
 ### A-8b2 · Move the remaining rules out of the binary
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-8b--the-binary-has-one-start-and-no-second-surface
 - Read: `crates/shadows/src/{aylul,master_key,config}.rs`, `master_key.contract.yaml`;
   `crates/core-secrets/contract.yaml`; `crates/core-projects/contract.yaml`;
@@ -63,7 +63,9 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   `crates/shadows-core/src/error.rs` and `crates/shadows-core/tests/secrets_error_mapping.rs`
   for the new `SecretsError` variant; the
   `StartConfig` builders `crates/shadows-core/src/testing/mod.rs` and
-  `crates/shadows-http/src/aylul_env_tests.rs`; `crates/core-projects/contract.yaml` if its
+  `crates/shadows-http/src/aylul_env_tests.rs`; the `aylul_tests.rs` entry in
+  `crates/shadows/tests/architecture/ownership.allowlist` (removed, never replaced);
+  `crates/core-projects/contract.yaml` if its
   refusal wording moves; `Cargo.lock`; the `master_key*`, `aylul*` and `config*` rows in
   `docs/codebase/README.md`, and rows for the new `core-secrets` files
 - Needs: A-8b1 (done; Mohammed confirmed the owners on 2026-10-29)

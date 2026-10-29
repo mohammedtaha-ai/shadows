@@ -12,6 +12,8 @@ pub enum SecretsError {
     Unreadable(String),
     #[error("encrypted environment storage is unavailable")]
     Unavailable,
+    #[error("{0}")]
+    MasterKeyUnavailable(&'static str),
     #[error(transparent)]
     Storage(#[from] StorageError),
 }

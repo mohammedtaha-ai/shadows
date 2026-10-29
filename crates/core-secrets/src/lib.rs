@@ -4,6 +4,7 @@ mod crypto;
 #[path = "../tests/crypto/invariants.rs"]
 mod crypto_tests;
 mod error;
+mod master_key;
 mod model;
 mod store;
 
@@ -13,6 +14,12 @@ use core_db::{CommandContext, Storage};
 use crypto::{Keys, Sealed};
 pub use error::SecretsError;
 pub use model::{EnvEntry, SecretKey};
+
+#[derive(Clone)]
+pub enum KeySource {
+    Os,
+    Given(Option<SecretKey>),
+}
 
 pub struct Secrets {
     store: store::SecretsStore,

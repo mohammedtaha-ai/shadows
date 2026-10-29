@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::config::Config;
-use shadows_core::{AppCore, StartConfig};
+use shadows_core::{AppCore, KeySource, StartConfig};
 use shadows_http::AppState;
 
 /// Binds, prints exactly one address, and serves. It never opens a
@@ -25,19 +25,12 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let addr = listener.local_addr()?;
     let mcp_url = format!("http://{addr}/mcp");
     let prepared = match &config.aylul_config {
-        Some(path) => crate::aylul::prepare(Some(crate::aylul::load(path)?))?,
+        Some(path) => crate::config::prepare(Some(crate::config::load(path)?))?,
         None => None,
     };
     let aylul = prepared;
-    let secret_key = aylul.as_ref().and_then(|_| {
-        crate::master_key::load_or_create()
-            .map_err(|error| {
-                tracing::warn!(%error, "secrets.master_key_unavailable");
-            })
-            .ok()
-    });
     let start = StartConfig {
-        secret_key,
+        secret_key: KeySource::Os,
         db_path: config.db_path.clone(),
         node_path: config.node_path.clone(),
         adapter_path: config.adapter_path.clone(),
@@ -45,7 +38,6 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         aylul: aylul.clone(),
     };
     let core = AppCore::start(&start, mcp_url).await?;
-    crate::aylul::ensure_project(&core, aylul.as_ref()).await?;
 
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {

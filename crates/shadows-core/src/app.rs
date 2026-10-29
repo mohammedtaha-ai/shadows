@@ -33,7 +33,7 @@ use core_projects::Projects;
 use core_providers::Providers;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
-use core_secrets::{SecretKey, Secrets};
+use core_secrets::{KeySource, SecretKey, Secrets};
 use core_standards::Standards;
 use core_threads::Threads;
 use core_turns::{Bus, LiveHandles, Turns};
@@ -214,7 +214,7 @@ impl AppCore {
 /// adapter and harness paths. `Config` stays in the binary, which owns argument
 /// parsing, and builds this.
 pub struct StartConfig {
-    pub secret_key: Option<SecretKey>,
+    pub secret_key: KeySource,
     pub db_path: PathBuf,
     pub node_path: PathBuf,
     pub adapter_path: PathBuf,
@@ -269,7 +269,16 @@ impl AppCore {
     /// and a daemon that cannot bind must not run recovery.
     pub async fn start(config: &StartConfig, mcp_url: String) -> anyhow::Result<Arc<AppCore>> {
         let storage = Arc::new(Storage::open(&config.db_path).await?);
-        let secrets = Secrets::new(storage.clone(), config.secret_key.clone());
+        let key = match &config.secret_key {
+            KeySource::Given(key) => key.clone(),
+            KeySource::Os if config.aylul.is_some() => SecretKey::load_or_create()
+                .map_err(|error| {
+                    tracing::warn!(%error, "secrets.master_key_unavailable");
+                })
+                .ok(),
+            KeySource::Os => None,
+        };
+        let secrets = Secrets::new(storage.clone(), key);
         // Recover durable work before grants, sessions or callers can accept new turns.
         let runtime = Runtime::start(storage.clone()).await?;
         let operations = Operations::new(storage.clone());
@@ -289,6 +298,15 @@ impl AppCore {
         // Every Planner session opens with the `/mcp` of the address actually
         // bound, which differs from the configured one on port 0.
         let projects = Projects::new(storage.clone());
+        if let Some(aylul) = &config.aylul {
+            let project = projects
+                .ensure_assistant(&aylul.project_slug, "AYLUL", &aylul.home_root)
+                .await?;
+            anyhow::ensure!(
+                project.assistant,
+                "aylul project slug is already used by a regular project"
+            );
+        }
         let owners = Self::build_aylul_owners(
             storage.clone(),
             secrets.clone(),
@@ -665,5 +683,66 @@ impl AppCore {
     /// Builds the project service for fixtures that retain the database handle.
     pub fn projects_for_tests(storage: Arc<Storage>) -> Projects {
         Projects::new(storage)
+    }
+}
+
+#[cfg(test)]
+mod startup_tests {
+    use super::*;
+
+    fn config(root: &Path, aylul: bool) -> StartConfig {
+        StartConfig {
+            secret_key: KeySource::Given(None),
+            db_path: root.join("startup.db"),
+            node_path: root.join("absent-node"),
+            adapter_path: root.join("absent-adapter"),
+            harness_path: root.join("absent-harness"),
+            aylul: aylul.then(|| core_harness::AylulConfig {
+                home_root: root.to_owned(),
+                project_slug: "aylul".into(),
+            }),
+        }
+    }
+
+    #[tokio::test]
+    async fn startup_ensures_assistant_project() {
+        let root = tempfile::tempdir().unwrap();
+        let core = AppCore::start(&config(root.path(), true), String::new())
+            .await
+            .unwrap();
+        let project = core.projects().by_slug("aylul").await.unwrap().unwrap();
+        assert!(project.assistant);
+        let again = core
+            .projects()
+            .ensure_assistant("aylul", "AYLUL", root.path())
+            .await
+            .unwrap();
+        assert_eq!(project.id, again.id);
+    }
+
+    #[tokio::test]
+    async fn startup_refuses_regular_project_at_assistant_slug() {
+        let root = tempfile::tempdir().unwrap();
+        let core = AppCore::start(&config(root.path(), false), String::new())
+            .await
+            .unwrap();
+        core.projects()
+            .create(
+                "startup-test".into(),
+                "aylul",
+                "Regular",
+                root.path().to_str().unwrap(),
+            )
+            .await
+            .unwrap();
+        drop(core);
+        let error = AppCore::start(&config(root.path(), true), String::new())
+            .await
+            .err()
+            .expect("regular project must be refused");
+        assert_eq!(
+            error.to_string(),
+            "aylul project slug is already used by a regular project"
+        );
     }
 }

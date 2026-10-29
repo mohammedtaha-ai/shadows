@@ -102,10 +102,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/core-agents/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
-| `crates/shadows/src/master_key.contract.yaml` | master key storage obligations | `crates/shadows/src/master_key.rs` |
-| `crates/shadows/src/master_key.rs` | Windows master key storage | `crates/shadows/src/master_key.contract.yaml` |
-| `crates/shadows/src/master_key_tests.rs` | master key lifecycle tests with in-memory credentials | `crates/shadows/src/master_key.contract.yaml` |
-| `crates/shadows/src/aylul_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/aylul.rs` |
+| `crates/core-secrets/src/master_key.rs` | OS master key lifecycle | `crates/core-secrets/contract.yaml` |
+| `crates/core-secrets/src/master_key_tests.rs` | master key lifecycle tests with in-memory credentials | `crates/core-secrets/contract.yaml` |
+| `crates/shadows/src/config_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/config.rs` |
 | `crates/core-secrets/src/lib.rs` | encrypted environment operations | `crates/core-secrets/contract.yaml` |
 | `crates/core-secrets/src/error.rs` | secret operation failures | `crates/core-secrets/contract.yaml` |
 | `crates/core-secrets/src/` | encrypted profile environment operations | `crates/core-secrets/contract.yaml` |
@@ -134,7 +133,6 @@ pattern to follow, not merely an example.
 | `crates/shadows/src/runtime_record.rs` | private runtime record publication | `crates/shadows/src/runtime_record.rs` |
 | `crates/shadows/src/runtime_record_tests.rs` | private record replacement tests | `crates/shadows/src/runtime_record.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
-| `crates/shadows/src/aylul.rs` | AYLUL startup configuration | `crates/shadows/src/aylul.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
 | `crates/shadows-http/src/runtime.rs` | runtime readiness HTTP projection | `crates/shadows/src/desktop_runtime.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |

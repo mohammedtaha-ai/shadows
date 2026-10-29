@@ -64,7 +64,7 @@ pub use core_providers::{
     ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
 };
 pub use core_runtime::{RuntimeInstanceId, StopKind};
-pub use core_secrets::{EnvEntry, SecretKey, Secrets, SecretsError};
+pub use core_secrets::{EnvEntry, KeySource, SecretKey, Secrets, SecretsError};
 pub use core_threads::{
     Attachment, AttachmentId, AttachmentRef, EntryRef, MAX_IMAGE_BYTES, OperationRef,
     PlanningThread, TaskRef, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,

@@ -4,7 +4,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 
-use shadows_core::{AppCore, AylulConfig, SecretKey, StartConfig};
+use shadows_core::{AppCore, AylulConfig, KeySource, SecretKey, StartConfig};
 use tower::ServiceExt;
 
 use crate::AppState;
@@ -19,7 +19,7 @@ pub(crate) async fn world(configured: bool, key: bool) -> World {
     let tmp = tempfile::tempdir().unwrap();
     let core = AppCore::start(
         &StartConfig {
-            secret_key: key.then(|| SecretKey::from_bytes([7; 32])),
+            secret_key: KeySource::Given(key.then(|| SecretKey::from_bytes([7; 32]))),
             db_path: tmp.path().join("test.db"),
             node_path: tmp.path().join("absent-node"),
             adapter_path: tmp.path().join("absent-adapter.js"),

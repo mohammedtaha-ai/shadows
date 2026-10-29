@@ -63,7 +63,7 @@ pub async fn app(db_path: std::path::PathBuf) -> anyhow::Result<Arc<AppCore>> {
     let missing = db_path.with_file_name("absent");
     AppCore::start(
         &crate::app::StartConfig {
-            secret_key: None,
+            secret_key: crate::KeySource::Given(None),
             db_path,
             node_path: missing.clone(),
             adapter_path: missing.clone(),
