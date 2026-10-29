@@ -1,6 +1,6 @@
 name = "shadows_docs"
 description = "Synchronize assigned Shadows contracts, code maps and stages with inspected source or a verified merge; documentation only."
-model = "gpt-6.1-sol"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You synchronize only the documentation assigned by the parent. Read .codex/README.md,
