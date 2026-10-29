@@ -99,8 +99,8 @@ it('Enter with a duplicate model id does not submit the provider', async () => {
   const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
   await act(async () => { input('Add a model by id').dispatchEvent(enter) })
   expect(enter.defaultPrevented).toBe(true)
-  expect(document.querySelector('[role="alert"]')?.textContent).toContain('Models must')
-  expect(input('Add a model by id').value).toBe(id)
+  expect(document.querySelectorAll('input[aria-label="m1"]')).toHaveLength(2)
+  expect(input('Add a model by id').value).toBe('')
   expect(a.calls).not.toContain('PUT /api/aylul/providers/p')
 })
 it('presets come from Core, grouped by name', async () => {
@@ -186,6 +186,58 @@ it('a window out of range is refused', async () => {
   expect(input('Context window for m1').value).toBe('999')
   typeInto(input('Context window for m1'), '1000')
   expect(a.text()).not.toContain('Context window must be from 1000 to 10000000.')
+})
+
+it('sends duplicate models to Core', async () => {
+  const a = await setup('MiniMax')
+  addModel(a, 'same'); addModel(a, 'same')
+  act(() => a.button('Add 2 models')!.click())
+  await until(() => a.text().includes('Each model is listed once.'))
+  const rows = document.querySelectorAll<HTMLInputElement>('input[aria-label="same"]')
+  expect(rows).toHaveLength(2)
+  expect(rows[1].closest('div')?.textContent).toContain('Each model is listed once.')
+})
+
+it('clears a duplicate refusal when its row is removed', async () => {
+  const a = await setup('MiniMax')
+  addModel(a, 'same'); addModel(a, 'same'); addModel(a, 'same')
+  act(() => a.button('Add 3 models')!.click())
+  await until(() => a.text().includes('Each model is listed once.'))
+  const rows = document.querySelectorAll<HTMLInputElement>('input[aria-label="same"]')
+  act(() => rows[1].click())
+  expect(a.text()).not.toContain('Each model is listed once.')
+})
+
+it('keeps a model refusal on its row after reordering', async () => {
+  const a = app = await startApp('/aylul?settings=providers', base())
+  await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
+  typeInto(input('Context window for m2'), '999'); act(() => a.button('Save provider')!.click())
+  await until(() => a.text().includes('Context window must be from 1000 to 10000000.'))
+  act(() => input('m2 default').click())
+  expect(input('Context window for m2').closest('div')?.textContent).toContain('Context window must be from 1000 to 10000000.')
+  typeInto(input('Context window for m1'), '1234')
+  expect(a.text()).toContain('Context window must be from 1000 to 10000000.')
+  typeInto(input('Context window for m2'), '1234')
+  expect(a.text()).not.toContain('Context window must be from 1000 to 10000000.')
+})
+
+it('keeps a model refusal on its row after removing an earlier model', async () => {
+  const a = app = await startApp('/aylul?settings=providers', base())
+  await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
+  typeInto(input('Context window for m2'), '999'); act(() => a.button('Save provider')!.click())
+  await until(() => a.text().includes('Context window must be from 1000 to 10000000.'))
+  act(() => input('m1').click())
+  expect(input('Context window for m2').closest('div')?.textContent).toContain('Context window must be from 1000 to 10000000.')
+})
+
+it('uses a new command after a definitive provider refusal', async () => {
+  const a = await setup('MiniMax')
+  addModel(a, 'default'); act(() => a.button('Add 1 models')!.click())
+  await until(() => a.text().includes('default is reserved.'))
+  act(() => a.button('Add 1 models')!.click())
+  await until(() => a.bodies.length === 2)
+  const attempts = a.bodies as { command_id: string }[]
+  expect(attempts[0].command_id).not.toBe(attempts[1].command_id)
 })
 
 it.each(['new', 'saved'])('shows Core model refusals on the %s form', async mode => {

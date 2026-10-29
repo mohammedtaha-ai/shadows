@@ -69,6 +69,7 @@ export function ProviderForm({ provider, group, onSaved }: {
       onSaved(saved)
     },
     onError: (error) => {
+      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'PROFILE_INVALID') pending.current = null
       if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.field) {
         setRefusal({ field: error.problem.field, message: error.message })
       }
@@ -126,8 +127,11 @@ export function ProviderForm({ provider, group, onSaved }: {
       if (!match) return current
       const index = Number(match[1])
       const previous = picked[index]
+      if (!previous) return null
+      const nextIndex = models.indexOf(previous)
+      if (nextIndex >= 0) return { ...current, field: `models[${nextIndex}].${match[2]}` }
       const next = models[index]
-      return !previous || !next || previous.id !== next.id || (match[2] === 'context_window' && previous.contextWindow !== next.contextWindow) ? null : current
+      return models.length === picked.length && next && previous.id === next.id && match[2] === 'id' ? current : null
     })
     setPicked(models)
   }

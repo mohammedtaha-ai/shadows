@@ -103,14 +103,12 @@ it('provider_form_saves_and_clears_key', async () => {
   expect(a.text()).not.toContain('synthetic-ui-key')
 })
 
-it('models_editor_rejects_manual_duplicates_and_shows_core_refusal', async () => {
+it('models_editor_shows_core_refusal', async () => {
   const a = open = await startApp('/aylul?settings=providers', table())
   await addProvider(a, 'Custom')
   typeInto(input('Provider name'), 'Provider')
   typeInto(input('Provider URL'), 'https://example.com')
   addModel(a, 'fake-large')
-  addModel(a, 'fake-large')
-  expect(a.text()).toContain('Models must')
   addModel(a, 'default')
   act(() => a.button('Add 2 models')!.click())
   await until(() => a.text().includes('default is reserved.'))

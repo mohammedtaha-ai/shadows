@@ -100,8 +100,8 @@ obligations:
     tested_by: ["presets are grouped by name", "search filters the presets and keeps Custom", "a preset hides the URL and sends it", "Custom asks for the URL", "MiniMax China sends the China URL", "Moonshot China sends the China URL", "Edit keeps the saved region"]
   - rule: Provider keys are password inputs and clear after a successful save.
     tested_by: [provider_form_saves_and_clears_key]
-  - rule: The model editor does not add an already selected manual id. Core validates provider input; its field message appears by the named input or model row, and editing it clears the message. An absent window is omitted so Core chooses it.
-    tested_by: [models_editor_rejects_manual_duplicates_and_shows_core_refusal, "a window out of range is refused", "shows a fieldless refusal above save", "shows an edit refusal after create succeeded but key save failed"]
+  - rule: Core validates provider input, including duplicate models; its field message appears by the named input or model row, and editing it clears the message. Reordering keeps a model refusal on its row. An absent window is omitted so Core chooses it.
+    tested_by: [models_editor_shows_core_refusal, "sends duplicate models to Core", "a window out of range is refused", "keeps a model refusal on its row after reordering", "keeps a model refusal on its row after removing an earlier model", "uses a new command after a definitive provider refusal", "shows a fieldless refusal above save", "shows an edit refusal after create succeeded but key save failed"]
   - rule: An agent selects its default model from its provider models.
     tested_by: [agent_form_lists_provider_models]
   - rule: Agent variables use scoped query keys and never display stored values.
@@ -120,8 +120,8 @@ obligations:
 tests:
   - name: provider_form_saves_and_clears_key
     checks: Saving a new provider with a key posts the provider, then the key; the field empties and the key never shows.
-  - name: models_editor_rejects_manual_duplicates_and_shows_core_refusal
-    checks: A manual duplicate is not added; Core's reserved id refusal is shown on its row.
+  - name: models_editor_shows_core_refusal
+    checks: Core's reserved id refusal is shown on its row.
   - name: agent_form_lists_provider_models
     checks: The new-agent form's default-model menu lists the first provider's models in order.
   - name: lists_names_without_values
