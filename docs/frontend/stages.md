@@ -25,7 +25,8 @@ settings dialog, PR #40) at `1a2b601`.
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 1)
 - Read: docs/shared/requests/2026-10-29-provider-refusals.md; `web/src/app/agents/contract.yaml`
 - Touch: delete `web/src/app/agents/model-picks.ts`; `provider-form.tsx`, `provider-models.tsx`,
-  their tests and `contract.yaml`; `web/src/api/` provider error reading; `web/src/api/schema.d.ts`
+  their tests and `contract.yaml`; `web/src/api/transport/index.ts` (the problem carries
+  `field`), `transport/error.test.ts` and `web/src/api/contract.yaml`; `web/src/api/schema.d.ts`
   through `npm run gen:api` only; `web/src/test/fake-daemon.ts` (refuses create and edit as
   Core does); the `model-picks.ts` row in `docs/frontend/codebase/README.md`
 - Needs: B-14 on the same branch
