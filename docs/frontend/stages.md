@@ -21,7 +21,7 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-45 · The provider form shows Core's refusal
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 1)
 - Read: docs/shared/requests/2026-10-29-provider-refusals.md; `web/src/app/agents/contract.yaml`
 - Touch: delete `web/src/app/agents/model-picks.ts`; `provider-form.tsx`, `provider-models.tsx`,
@@ -35,7 +35,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck` and `npm run lint` pass
 
 ### F-46 · Active projects reads its bounds from Core
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 2)
 - Read: docs/shared/requests/2026-10-29-active-limit-bounds.md; `web/src/app/settings/contract.yaml`
 - Touch: `web/src/app/settings/active-projects.tsx`, its test and `contract.yaml`;
@@ -45,7 +45,7 @@ settings dialog, PR #40) at `1a2b601`.
   tests, `npm run typecheck` and `npm run lint` pass
 
 ### F-47 · Mode names and policy come from the harness list
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 3)
 - Read: docs/shared/requests/2026-10-29-harness-mode-policy.md; the `shared` rows of
   `docs/frontend/codebase/README.md`
@@ -60,7 +60,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck` and `npm run lint` pass
 
 ### F-48 · Create structure shows Core's file count
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 4)
 - Read: docs/shared/requests/2026-10-29-structure-file-count.md; `web/src/app/design/contract.yaml`
 - Touch: `web/src/app/design/create-structure.tsx`, its test and `contract.yaml`;

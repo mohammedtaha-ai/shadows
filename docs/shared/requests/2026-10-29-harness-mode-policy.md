@@ -1,6 +1,6 @@
 # Each harness lists the modes Shadows allows
 
-- Status: asked
+- Status: accepted
 - Asked by: Masada, 2026-10-29
 - Screen: docs/frontend/plans/2026-10-25-web-architecture.md (W-11 packet 3 `mode-policy`)
 
@@ -28,6 +28,15 @@ that asks nothing. The harness list must carry that policy, so the web copy can 
 
 ## Backend answer
 
+Hamoud, 2026-10-29: as asked. Shadows' mode policy is `crates/shadows-agent/src/policy.rs`; it
+gains each allowed mode's label and description (the wording the web shows today) and the
+unattended mode. `Harness::list` (`crates/core-harness`, contract
+`crates/core-harness/contract.yaml`) already walks `policy::KNOWN`, and adds the three fields to
+`HarnessInfo` from `policy.rs` alone. Session menus stay as they are. Task: B-16.
+
 ## Frontend reply
+
+Masada, 2026-10-29: accepted. F-47 reads the policy from `GET /api/harnesses` and deletes
+`mode-policy.ts`.
 
 ## Ruling

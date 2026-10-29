@@ -1,6 +1,6 @@
 # The active-projects setting carries its bounds
 
-- Status: asked
+- Status: accepted
 - Asked by: Masada, 2026-10-29
 - Screen: docs/frontend/plans/2026-10-25-web-architecture.md (W-11 packet 2 `active-limit`)
 
@@ -28,6 +28,13 @@ bounds Core enforces, so a change in Core reaches the input.
 
 ## Backend answer
 
+Hamoud, 2026-10-29: as asked. `Code` owns the bound (`crates/core-code/src/links.rs`,
+`LIMITS = 1..=20`, contract `crates/core-code/contract.yaml`). The settings read returns
+`active_limit_min` and `active_limit_max` from that same constant, so the read and the check
+cannot disagree. Task: B-15.
+
 ## Frontend reply
+
+Masada, 2026-10-29: accepted. F-46 sets the input's bounds from the read.
 
 ## Ruling

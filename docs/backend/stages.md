@@ -75,7 +75,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   tests pass
 
 ### B-14 · Provider refusals name the field
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 1)
 - Read: docs/shared/requests/2026-10-29-provider-refusals.md; `crates/core-providers/contract.yaml`;
   `crates/core-providers/src/validation.rs`
@@ -84,35 +84,35 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   `crates/shadows-http/src/failure/` (`mod.rs` and the case files) if it gains `field`; the
   create route in `aylul_providers.rs` and the edit route in `aylul_agents.rs` only if their
   answers change; `crates/shadows-http/src/aylul_profiles_tests.rs`; `api/openapi.json`
-- Needs: the request accepted
+- Needs: the request (accepted 2026-10-29)
 - Done when: each refused rule answers its own field and message from both create and edit,
   and a model sent with no context window is saved with Core's default; `cargo test -p
   core-providers` and HTTP tests refusing one create and one edit pass
 
 ### B-15 · The active-projects setting carries its bounds
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 2)
 - Read: docs/shared/requests/2026-10-29-active-limit-bounds.md; `crates/core-code/contract.yaml`
 - Touch: `crates/core-code/src/` (one constant pair the check and the read share), its
   contract and tests; `crates/shadows-http/src/code.rs`; `api/openapi.json`
-- Needs: the request accepted
+- Needs: the request (accepted 2026-10-29)
 - Done when: `GET /api/code/settings` returns the bounds the write enforces;
   `cargo test -p core-code` and the code-settings HTTP tests pass
 
 ### B-16 · Each harness lists the modes Shadows allows
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 3)
 - Read: docs/shared/requests/2026-10-29-harness-mode-policy.md; `crates/shadows-agent/src/policy.rs`;
   `crates/core-harness/contract.yaml`
 - Touch: `crates/shadows-agent/src/policy.rs` (labels and descriptions beside the ids, and
   the unattended mode); `crates/core-harness/src/{model,lib}.rs`, contract and tests;
   `api/openapi.json`
-- Needs: the request accepted
+- Needs: the request (accepted 2026-10-29)
 - Done when: `GET /api/harnesses` lists each harness's modes, initial and unattended mode
   from `policy.rs` alone; `cargo test -p shadows-agent` and `-p core-harness` pass
 
 ### B-17 · The design stage says how many files a structure writes
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 4)
 - Read: docs/shared/requests/2026-10-29-structure-file-count.md; `crates/core-design/contract.yaml`;
   `crates/core-design/src/structure_create.rs`
@@ -123,7 +123,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   `crates/shadows-core/tests/design_parts/{structure,roadmap}.rs`,
   `crates/shadows/tests/workspace_mcp/roadmap.rs` and `crates/shadows/tests/design_routes.rs`;
   `api/openapi.json`
-- Needs: the request accepted
+- Needs: the request (accepted 2026-10-29)
 - Done when:
   - a test holds the stage's count equal to the files `create_structure` writes;
   - a test changes the map between the stage read and the create, and nothing is written;

@@ -1,6 +1,6 @@
 # Provider refusals name the field
 
-- Status: asked
+- Status: accepted
 - Asked by: Masada, 2026-10-29
 - Screen: docs/frontend/plans/2026-10-25-web-architecture.md (W-11 packet 1 `model-picks`)
 
@@ -33,6 +33,16 @@ copies can go.
 
 ## Backend answer
 
+Hamoud, 2026-10-29: as asked. `Providers` owns the rules
+(`crates/core-providers/src/validation.rs`, contract `crates/core-providers/contract.yaml`);
+create and edit both validate there, so one change covers both routes. `ProvidersError` gains a
+field-carrying refusal, `CoreError` maps it to `PROFILE_INVALID` with the field, and `ErrorBody`
+gains an optional `field`, sent only when Core names one, beside `current_revision` and
+`problems`. An absent `context_window` already takes Core's 200000; the OpenAPI schema marks it
+optional. Task: B-14.
+
 ## Frontend reply
+
+Masada, 2026-10-29: accepted. F-45 reads `field` and `message` from both create and edit.
 
 ## Ruling

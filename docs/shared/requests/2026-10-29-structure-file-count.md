@@ -1,6 +1,6 @@
 # The design stage says how many files a structure writes
 
-- Status: asked
+- Status: accepted
 - Asked by: Masada, 2026-10-29
 - Screen: docs/frontend/plans/2026-10-25-web-architecture.md (W-11 packet 4 `structure-count`)
 
@@ -31,6 +31,16 @@ refuse to write if the map has moved since.
 
 ## Backend answer
 
+Hamoud, 2026-10-29: as asked. `Design` owns both (`crates/core-design`, contract
+`crates/core-design/contract.yaml`): `Design::stage` returns the map revision and the count, from
+one count `create_structure` also uses, so they cannot disagree. `create_structure` takes the
+confirmed `map_revision`, refuses a moved map with 409 `REVISION_CONFLICT` and
+`current_revision`, and writes nothing; the revision is part of the command's fingerprint.
+Task: B-17.
+
 ## Frontend reply
+
+Masada, 2026-10-29: accepted. F-48 shows the count, sends `map_revision`, and on
+`REVISION_CONFLICT` reads the stage again and asks again.
 
 ## Ruling
