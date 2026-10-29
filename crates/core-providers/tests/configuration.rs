@@ -91,64 +91,83 @@ async fn invalid_configuration_writes_no_provider_or_command() {
 #[tokio::test]
 async fn field_refusals_name_the_first_rule() {
     let (_directory, storage, providers) = fixture().await;
+    let custom = |extra: serde_json::Value| {
+        let mut value = serde_json::json!({
+            "name": "x",
+            "base_url": "https://example.test",
+            "models": [{"id": "m"}],
+        });
+        for (key, field) in extra.as_object().unwrap() {
+            value[key] = field.clone();
+        }
+        value
+    };
+    let id_rule = "Model ids must be 1 to 128 printable characters with no spaces.";
     let cases = [
         (
-            serde_json::json!({"name":"", "base_url":"https://example.test", "models":[{"id":"m"}]}),
+            custom(serde_json::json!({"name": ""})),
             "name",
             "Name must be 1 to 256 bytes.",
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"http://example.test", "models":[{"id":"m"}]}),
+            custom(serde_json::json!({"base_url": "http://example.test"})),
             "base_url",
-            "Base URL must use HTTPS or loopback HTTP, with a host, no credentials, and no invalid authority or whitespace.",
+            "Base URL must use HTTPS or loopback HTTP, with a host, \
+             no credentials, and no invalid authority or whitespace.",
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "label":"x".repeat(65), "models":[{"id":"m"}]}),
+            custom(serde_json::json!({"label": "x".repeat(65)})),
             "label",
             "Label must be at most 64 characters.",
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "label":"a\nb", "models":[{"id":"m"}]}),
+            custom(serde_json::json!({"label": "a\nb"})),
             "label",
             "Label must not contain control characters.",
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[]}),
+            custom(serde_json::json!({"models": []})),
             "models",
             "Models must be 1 to 20 ids.",
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"bad id"}]}),
+            custom(serde_json::json!({"models": [{"id": "bad id"}]})),
             "models[0].id",
-            "Model ids must be 1 to 128 printable characters with no spaces.",
+            id_rule,
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"a\u{feff}b"}]}),
+            custom(serde_json::json!({"models": [{"id": "a\u{feff}b"}]})),
             "models[0].id",
-            "Model ids must be 1 to 128 printable characters with no spaces.",
+            id_rule,
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"default"}]}),
+            custom(serde_json::json!({"models": [{"id": "default"}]})),
             "models[0].id",
             "default is reserved.",
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"m"},{"id":"m"}]}),
+            custom(serde_json::json!({"models": [{"id": "m"}, {"id": "m"}]})),
             "models[1].id",
             "Each model is listed once.",
         ),
         (
-            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"m"},{"id":"n", "context_window":999}]}),
+            custom(serde_json::json!({
+                "models": [{"id": "m"}, {"id": "n", "context_window": 999}],
+            })),
             "models[1].context_window",
             "Context window must be from 1000 to 10000000.",
         ),
         (
-            serde_json::json!({"preset":"minimax", "name":"other", "models":[{"id":"m"}]}),
+            serde_json::json!({"preset": "minimax", "name": "other", "models": [{"id": "m"}]}),
             "name",
             "Name must match the preset.",
         ),
         (
-            serde_json::json!({"preset":"minimax", "base_url":"https://other.test", "models":[{"id":"m"}]}),
+            serde_json::json!({
+                "preset": "minimax",
+                "base_url": "https://other.test",
+                "models": [{"id": "m"}],
+            }),
             "base_url",
             "Base URL must match the preset.",
         ),
@@ -157,8 +176,12 @@ async fn field_refusals_name_the_first_rule() {
         let error = providers
             .validated(serde_json::from_value(value).unwrap())
             .unwrap_err();
-        assert!(
-            matches!(error, ProvidersError::InvalidField { field, message } if field == expected_field && message == expected_message)
+        let ProvidersError::InvalidField { field, message } = error else {
+            panic!("expected a field refusal for {expected_field}");
+        };
+        assert_eq!(
+            (field.as_str(), message.as_str()),
+            (expected_field, expected_message)
         );
     }
     storage.close().await.unwrap();

@@ -1,6 +1,9 @@
 //! Provider input rules: presets, labels, URLs and the model list.
 use super::{ProviderInput, Providers, ProvidersError};
 
+const BASE_URL_RULE: &str = "Base URL must use HTTPS or loopback HTTP, with a host, \
+    no credentials, and no invalid authority or whitespace.";
+
 impl Providers {
     /// The input normalized, or the refusal: a preset supplies its name and URL.
     pub fn validated(&self, mut input: ProviderInput) -> Result<ProviderInput, ProvidersError> {
@@ -41,7 +44,7 @@ impl Providers {
             ));
         }
         let url = input.base_url.as_deref().unwrap_or("");
-        Self::validate_url(url).map_err(|_| invalid("base_url", "Base URL must use HTTPS or loopback HTTP, with a host, no credentials, and no invalid authority or whitespace."))?;
+        Self::validate_url(url).map_err(|_| invalid("base_url", BASE_URL_RULE))?;
         if input.name.as_deref().unwrap_or("").is_empty()
             || input.name.as_ref().is_some_and(|v| v.len() > 256)
         {

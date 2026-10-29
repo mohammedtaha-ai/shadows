@@ -24,7 +24,11 @@ async fn create_provider_reports_field_refusal() {
     assert_eq!(status, 400);
     assert_eq!(
         body,
-        json!({"code":"PROFILE_INVALID", "field":"models[1].context_window", "message":"Context window must be from 1000 to 10000000."})
+        json!({
+            "code": "PROFILE_INVALID",
+            "field": "models[1].context_window",
+            "message": "Context window must be from 1000 to 10000000.",
+        })
     );
     w.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
@@ -45,7 +49,11 @@ async fn edit_provider_reports_field_refusal() {
     assert_eq!(status, 400);
     assert_eq!(
         body,
-        json!({"code":"PROFILE_INVALID", "field":"models[1].context_window", "message":"Context window must be from 1000 to 10000000."})
+        json!({
+            "code": "PROFILE_INVALID",
+            "field": "models[1].context_window",
+            "message": "Context window must be from 1000 to 10000000.",
+        })
     );
     w.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())

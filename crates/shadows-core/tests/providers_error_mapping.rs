@@ -39,9 +39,14 @@ fn provider_failures_keep_application_codes_and_messages() {
         assert_eq!(application.code(), expected.code());
         assert_eq!(application.to_string(), expected.to_string());
     }
-    assert!(
-        matches!(CoreError::from(ProvidersError::InvalidField { field: "models[1].id".into(), message: "bad".into() }), CoreError::ProfileInvalidField { field, message } if field == "models[1].id" && message == "bad")
-    );
+    let refusal = ProvidersError::InvalidField {
+        field: "models[1].id".into(),
+        message: "bad".into(),
+    };
+    let CoreError::ProfileInvalidField { field, message } = CoreError::from(refusal) else {
+        panic!("a field refusal maps to ProfileInvalidField");
+    };
+    assert_eq!((field.as_str(), message.as_str()), ("models[1].id", "bad"));
     let opening = CoreError::from(shadows_core::OpenError::from(ProvidersError::NotFound(
         "fixture".into(),
     )));
