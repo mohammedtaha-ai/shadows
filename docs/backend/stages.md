@@ -61,7 +61,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   project); `crates/core-projects/contract.yaml` if its refusal wording moves; `Cargo.lock`;
   the `master_key*` and `aylul*` rows in `docs/codebase/README.md`, and rows for the new
   `core-secrets` files
-- Needs: A-8b1; Mohammed confirms the owners in the plan's A-8b2 table
+- Needs: A-8b1 (Mohammed confirmed the owners on 2026-10-29)
 - Done when: the binary holds only configuration, tracing, binding and signals;
   `cargo test -p shadows`, `-p core-secrets` and `-p core-projects` pass
 

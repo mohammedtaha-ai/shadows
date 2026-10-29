@@ -276,7 +276,7 @@ is the one host. After it, `cli/mod.rs::serve` is the one start function and
 
 **A-8b2 · Move the remaining rules out of the binary.** What `serve` still holds
 that is not configuration, tracing, binding or signals, and its proposed owner
-(Mohammed confirms the owners before dispatch):
+(Mohammed confirmed these owners on 2026-10-29):
 
 | Rule | Today | Proposed owner | Why |
 |---|---|---|---|
