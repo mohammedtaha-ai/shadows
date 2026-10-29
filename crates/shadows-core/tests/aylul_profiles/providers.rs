@@ -230,7 +230,8 @@ async fn refused(value: serde_json::Value) {
     let input = serde_json::from_value(value).unwrap();
     assert!(matches!(
         w.app.providers().create_provider("bad".into(), input).await,
-        Err(shadows_core::ProvidersError::InvalidProfile(_))
+        Err(shadows_core::ProvidersError::InvalidProfile(_)
+            | shadows_core::ProvidersError::InvalidField { .. })
     ));
     w.app
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())

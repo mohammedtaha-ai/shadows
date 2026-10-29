@@ -76,7 +76,7 @@ async fn invalid_configuration_writes_no_provider_or_command() {
     invalid.base_url = Some("http://example.test".to_owned());
     assert!(matches!(
         providers.create_provider("invalid".into(), invalid).await,
-        Err(ProvidersError::InvalidProfile(_))
+        Err(ProvidersError::InvalidField { .. })
     ));
     assert!(providers.providers().await.unwrap().is_empty());
     let commands: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM command_record")
@@ -85,5 +85,76 @@ async fn invalid_configuration_writes_no_provider_or_command() {
         .unwrap();
     assert_eq!(commands, 0);
 
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn field_refusals_name_the_first_rule() {
+    let (_directory, storage, providers) = fixture().await;
+    let cases = [
+        (
+            serde_json::json!({"name":"", "base_url":"https://example.test", "models":[{"id":"m"}]}),
+            "name",
+            "Name must be 1 to 256 bytes.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"http://example.test", "models":[{"id":"m"}]}),
+            "base_url",
+            "Base URL must use HTTPS or loopback HTTP, with a host, no credentials, and no invalid authority or whitespace.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "label":"x".repeat(65), "models":[{"id":"m"}]}),
+            "label",
+            "Label must be at most 64 characters.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "label":"a\nb", "models":[{"id":"m"}]}),
+            "label",
+            "Label must not contain control characters.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[]}),
+            "models",
+            "Models must be 1 to 20 ids.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"bad id"}]}),
+            "models[0].id",
+            "Model ids must be 1 to 128 printable characters with no spaces.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"default"}]}),
+            "models[0].id",
+            "default is reserved.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"m"},{"id":"m"}]}),
+            "models[1].id",
+            "Each model is listed once.",
+        ),
+        (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"m"},{"id":"n", "context_window":999}]}),
+            "models[1].context_window",
+            "Context window must be from 1000 to 10000000.",
+        ),
+        (
+            serde_json::json!({"preset":"minimax", "name":"other", "models":[{"id":"m"}]}),
+            "name",
+            "Name must match the preset.",
+        ),
+        (
+            serde_json::json!({"preset":"minimax", "base_url":"https://other.test", "models":[{"id":"m"}]}),
+            "base_url",
+            "Base URL must match the preset.",
+        ),
+    ];
+    for (value, expected_field, expected_message) in cases {
+        let error = providers
+            .validated(serde_json::from_value(value).unwrap())
+            .unwrap_err();
+        assert!(
+            matches!(error, ProvidersError::InvalidField { field, message } if field == expected_field && message == expected_message)
+        );
+    }
     storage.close().await.unwrap();
 }

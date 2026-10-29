@@ -1705,6 +1705,12 @@
               "null"
             ]
           },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "message": {
             "type": "string"
           },

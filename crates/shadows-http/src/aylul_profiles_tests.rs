@@ -15,6 +15,44 @@ fn provider() -> Value {
         "models":[{"id":"model-a","context_window":200000},{"id":"model-b"}]})
 }
 
+#[tokio::test]
+async fn create_provider_reports_field_refusal() {
+    let w = world(true, true).await;
+    let mut input = provider();
+    input["models"][1]["context_window"] = 999.into();
+    let (status, body) = call(&w, "POST", "/api/aylul/providers", input).await;
+    assert_eq!(status, 400);
+    assert_eq!(
+        body,
+        json!({"code":"PROFILE_INVALID", "field":"models[1].context_window", "message":"Context window must be from 1000 to 10000000."})
+    );
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn edit_provider_reports_field_refusal() {
+    let w = world(true, true).await;
+    let (status, created) = call(&w, "POST", "/api/aylul/providers", provider()).await;
+    assert_eq!(status, 201);
+    assert_eq!(created["models"][1]["context_window"], 200000);
+    let mut input = provider();
+    input["command_id"] = "edit".into();
+    input["models"][1]["context_window"] = 999.into();
+    let (status, body) = call(&w, "PUT", "/api/aylul/providers/test-2", input).await;
+    assert_eq!(status, 400);
+    assert_eq!(
+        body,
+        json!({"code":"PROFILE_INVALID", "field":"models[1].context_window", "message":"Context window must be from 1000 to 10000000."})
+    );
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 async fn seed(w: &World, name: &str) {
     if w.core.providers().providers().await.unwrap().is_empty() {
         w.core

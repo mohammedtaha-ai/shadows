@@ -7,6 +7,8 @@ pub enum ProvidersError {
     NotFound(String),
     #[error("invalid profile: {0}")]
     InvalidProfile(String),
+    #[error("{message}")]
+    InvalidField { field: String, message: String },
     #[error("AYLUL key is missing: {0}")]
     KeyMissing(String),
     #[error(transparent)]

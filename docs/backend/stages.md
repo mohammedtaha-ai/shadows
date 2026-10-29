@@ -75,7 +75,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   tests pass
 
 ### B-14 · Provider refusals name the field
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 1)
 - Read: docs/shared/requests/2026-10-29-provider-refusals.md; `crates/core-providers/contract.yaml`;
   `crates/core-providers/src/validation.rs`

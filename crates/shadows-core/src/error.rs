@@ -111,6 +111,8 @@ pub enum CoreError {
     ProviderInUse(String),
     #[error("invalid profile: {0}")]
     ProfileInvalid(String),
+    #[error("{message}")]
+    ProfileInvalidField { field: String, message: String },
     #[error("reserved environment name: {0}")]
     SecretNameReserved(String),
     #[error("invalid environment variable name: {0}")]
@@ -200,7 +202,9 @@ impl CoreError {
             CoreError::AylulProfileNotFound(_) => ErrorCode::AylulProfileNotFound,
             CoreError::AylulProviderNotFound(_) => ErrorCode::AylulProviderNotFound,
             CoreError::ProviderInUse(_) => ErrorCode::ProviderInUse,
-            CoreError::ProfileInvalid(_) => ErrorCode::ProfileInvalid,
+            CoreError::ProfileInvalid(_) | CoreError::ProfileInvalidField { .. } => {
+                ErrorCode::ProfileInvalid
+            }
             CoreError::SecretNameReserved(_) => ErrorCode::SecretNameReserved,
             CoreError::SecretNameInvalid(_) => ErrorCode::SecretNameInvalid,
             CoreError::SecretValueInvalid(_) => ErrorCode::SecretValueInvalid,
@@ -271,6 +275,9 @@ impl From<core_providers::ProvidersError> for CoreError {
         match error {
             ProvidersError::NotFound(slug) => Self::AylulProviderNotFound(slug),
             ProvidersError::InvalidProfile(message) => Self::ProfileInvalid(message),
+            ProvidersError::InvalidField { field, message } => {
+                Self::ProfileInvalidField { field, message }
+            }
             ProvidersError::KeyMissing(slug) => Self::AylulKeyMissing(slug),
             ProvidersError::Secrets(error) => error.into(),
             ProvidersError::Storage(error) => error.into(),

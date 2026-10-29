@@ -35,6 +35,7 @@ shapes:
   ProvidersError:
     NotFound: String # AylulProviderNotFound for a caller
     InvalidProfile: String
+    InvalidField: field and plain message for the first refused input rule
     KeyMissing: String
     Secrets: core_secrets::SecretsError
     Storage: StorageError
@@ -113,6 +114,8 @@ obligations:
     tested_by: [saved_test_uses_the_stored_key]
   - rule: Each model window defaults to 200000 and is within 1000..=10000000.
     tested_by: [model_window_defaults_and_is_bounded]
+  - rule: Field refusals identify the first invalid provider input rule with a displayable message; malformed input types are rejected by transport.
+    tested_by: [field_refusals_name_the_first_rule, create_provider_reports_field_refusal, edit_provider_reports_field_refusal]
   - rule: Model ids stay unique, 1..=20 per provider, and never default.
     tested_by: [model_ids_keep_their_rules]
   - rule: Migration gives each model its provider window in array order.
