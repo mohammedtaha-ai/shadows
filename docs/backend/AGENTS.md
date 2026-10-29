@@ -82,10 +82,21 @@ delivered, and a plan whose tasks are all done; its commit names the PR, and Git
    `docs/shared/requests/` covers it, then regenerate the document:
    `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`.
 5. Run the tests the task names, never the whole suite (the full gate in
-   `CLAUDE.md` runs once, before the PR).
+   `CLAUDE.md` runs once, before the PR). Before the commit, also run what CI
+   refuses a commit for:
+   - `cargo fmt --all --check`;
+   - `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings`
+     and `cargo clippy --workspace -- -D warnings`;
+   - `cargo test -p shadows --test architecture --test codemap`;
+   - no `.rs` line over 100 characters, since rustfmt leaves a line it cannot break:
+     `find crates -name '*.rs' -print0 | LC_ALL=C xargs -0 awk '{ s = $0; sub(/\r$/, "", s);
+     gsub(/[\200-\277]/, "", s) } length(s) > 100 { print FILENAME":"FNR }'` prints nothing.
+   A deleted or moved file also loses its code-map row and any entry in
+   `crates/shadows/tests/architecture/ownership.allowlist`; an entry is only ever removed.
 6. Commit with `git add <each file>`, never `git add -A` or `git add .`:
    Masada's builders may be committing to the same branch. Do not switch
-   branches, stash, rebase or push.
+   branches, stash, rebase or push. End the message with the `Co-Authored-By`
+   line of the model you run on.
 7. Set the task's `Status:` in `stages.md` and report: what changed, the test
    result, and anything you found but did not change.
 
