@@ -268,7 +268,6 @@ impl AppCore {
     /// `mcp_url`. The caller binds first: `mcp_url` names the bound address,
     /// and a daemon that cannot bind must not run recovery.
     pub async fn start(config: &StartConfig, mcp_url: String) -> anyhow::Result<Arc<AppCore>> {
-        let storage = Arc::new(Storage::open(&config.db_path).await?);
         let key = match &config.secret_key {
             KeySource::Given(key) => key.clone(),
             KeySource::Os if config.aylul.is_some() => SecretKey::load_or_create()
@@ -278,6 +277,7 @@ impl AppCore {
                 .ok(),
             KeySource::Os => None,
         };
+        let storage = Arc::new(Storage::open(&config.db_path).await?);
         let secrets = Secrets::new(storage.clone(), key);
         // Recover durable work before grants, sessions or callers can accept new turns.
         let runtime = Runtime::start(storage.clone()).await?;
@@ -718,6 +718,7 @@ mod startup_tests {
             .await
             .unwrap();
         assert_eq!(project.id, again.id);
+        core.storage.close().await.unwrap();
     }
 
     #[tokio::test]
@@ -735,6 +736,7 @@ mod startup_tests {
             )
             .await
             .unwrap();
+        core.storage.close().await.unwrap();
         drop(core);
         let error = AppCore::start(&config(root.path(), true), String::new())
             .await
