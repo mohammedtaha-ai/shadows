@@ -568,6 +568,27 @@ This absorbs the presentation portion of F-19. Separate proposal, confirmation, 
 
 Keep this blocked by domain rather than blocking all frontend architecture work.
 
+**Packets (controller, 2026-10-29).** Each packet is one shared request, one Core
+task and one web task, delivered on the same branch so CI's OpenAPI types check
+stays green. Packets are independent; they run in this order:
+
+| Packet | Copied rule in the web | Core owner today | Request | Core task | Web task |
+|---|---|---|---|---|---|
+| 1 `model-picks` | `agents/model-picks.ts`: 1 to 20 models, ids up to 128 printable characters, `default` reserved, context window 1000 to 10000000; `provider-form.tsx`: label up to 64; `provider-models.tsx`: window default 200000 | `core-providers/src/validation.rs` | [provider-refusals](../../shared/requests/2026-10-29-provider-refusals.md) | B-14 | F-45 |
+| 2 `active-limit` | `settings/active-projects.tsx`: `MIN = 1`, `MAX = 20` | `core-code` (`code_setting.active_limit`) | [active-limit-bounds](../../shared/requests/2026-10-29-active-limit-bounds.md) | B-15 | F-46 |
+| 3 `mode-policy` | `mode-policy.ts`: allowed modes, labels, descriptions, initial and unattended mode per harness | `shadows-agent/src/policy.rs`, listed by `Harness::list` | [harness-mode-policy](../../shared/requests/2026-10-29-harness-mode-policy.md) | B-16 | F-47 |
+| 4 `structure-count` | `design/create-structure.tsx::fileCount`: walks every part to count the files a structure writes | `core-design` (`create_structure`) | [structure-file-count](../../shared/requests/2026-10-29-structure-file-count.md) | B-17 | F-48 |
+| 5 `turn-state` | `conversation/turn-state.ts`: orders snapshot and stream statuses so a stale one cannot move a turn back | `core-operations` | none yet (OPEN below) | none yet | F-49 |
+
+Each web task deletes the copy, shows Core's answer, and keeps its form's current
+behaviour (instant save, retained errors, one command id per attempt).
+
+> **OPEN (packet 5):** does the client still need its own forward-only reducer
+> once Core's operation events and snapshot carry one ordering key, or must Core
+> send a turn status that can be applied as is? Closes when the controller reads
+> `core-operations`' event and snapshot shapes and writes the request, or rules
+> that the reducer is client presentation and stays.
+
 ### W-12 · Put test infrastructure under its owner
 
 - **Touch:** `app/test-app.tsx` → `test/`; `stream/fake-event-source.ts` → `test/`; `test/fake-daemon.ts`, fixture modules; importing tests; oversized composer test file; relevant contracts/map/baseline.

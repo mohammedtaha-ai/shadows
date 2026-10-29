@@ -250,15 +250,42 @@ summary regressions. `api/` changes only by generation for this accepted request
   and each of those tasks moves its own tests.
 
 ### A-8b · The binary has one start and no second surface
-Before dispatch, the controller names the existing owner for each product-host
-operation and amends the product-daemon integration spec if ownership changes.
-Preserve assistant-only startup, desktop receipts, shutdown order and the native
-caller contract. A route is not dead merely because the web client does not use it.
-`daemon/mod.rs` and `cli/mod.rs` call one start function. The `/assistant`
-route moves into `shadows-http` behind its guard. If it is dead, it is deleted
-instead. The master-key, desktop-receipt and assistant-bridge rules move into
-Core behind `AppCore` methods. The binary keeps only configuration, tracing,
-binding and signals.
+Mohammed decided on 2026-10-29 that the Hermes product daemon is deleted, not
+moved. Since AYLUL's brain became Claude Code run by Core, nothing starts
+`shadows daemon`: the desktop launches `shadows serve` only
+(`apps/desktop/src-tauri/src/core_connection/launch.rs`), and the desktop's
+`/v1/nylra/assistant` calls go to the account service, not to Core's `/assistant`.
+Git keeps the deleted code. The work is two tasks.
+
+**A-8b1 · Delete the Hermes product daemon.** These go:
+- the `daemon` command in `cli/args.rs` and its tests;
+- `crates/shadows/src/daemon/` (`mod.rs`, `bridge.rs`, `descriptor.rs`, `http.rs`,
+  `contract.yaml`);
+- `tests/assistant_daemon.rs`, `tests/fixtures/assistant_process.rs` and the
+  `assistant-fixture` `[[bin]]` in `crates/shadows/Cargo.toml`;
+- `packages/hermes-client/` and `services/assistant/`;
+- the `daemon/` row in `docs/codebase/README.md`.
+
+`runtime_record.rs` stays: the desktop receipt uses it. The integration spec
+(`docs/integration/2026-10-19-product-daemon-hermes-design.md`) is amended in the
+same commit to say the Hermes service and client are removed and `shadows serve`
+is the one host. After it, `cli/mod.rs::serve` is the one start function and
+`/assistant` is gone, so no second surface is left.
+
+**A-8b2 · Move the remaining rules out of the binary.** What `serve` still holds
+that is not configuration, tracing, binding or signals, and its proposed owner
+(Mohammed confirms the owners before dispatch):
+
+| Rule | Today | Proposed owner | Why |
+|---|---|---|---|
+| AYLUL's project exists and its slug is not a regular project's | `aylul.rs::ensure_project` | `AppCore::start`, through `Projects::ensure_assistant` | Core already owns the project; the refusal moves with it |
+| The OS master key is loaded or created once per user | `master_key.rs` | `core-secrets` (`SecretKey::load_or_create`) | The secrets service owns its own key; `keyring` moves with it |
+| The desktop receipt is claimed and published | `desktop_runtime.rs`, `runtime_record.rs` | stays in the binary | It publishes the bound address and process to the launcher: binding |
+
+`aylul.rs::load` and `prepare` read and check the AYLUL section of the
+configuration, so they fold into `config.rs`. Done when the binary holds only
+configuration, tracing, binding and signals, and `cargo test -p shadows`,
+`-p core-secrets` and `-p core-projects` pass.
 
 ### A-8c · Settle the extraction dependencies before moving crates
 Controller task: amend this plan and §14 with a complete dependency ledger from

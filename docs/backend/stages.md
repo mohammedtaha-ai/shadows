@@ -30,13 +30,82 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
 
 ## Tasks
 
-### A-8b · The binary has one start and no second surface
+### A-8b1 · Delete the Hermes product daemon
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-8b--the-binary-has-one-start-and-no-second-surface
+- Read: `crates/shadows/src/cli/args.rs`; `crates/shadows/src/daemon/contract.yaml`;
+  docs/integration/2026-10-19-product-daemon-hermes-design.md
+- Touch: `crates/shadows/src/cli/args.rs` (the `Daemon` command and its tests);
+  `crates/shadows/src/lib.rs`; delete `crates/shadows/src/daemon/`,
+  `crates/shadows/tests/assistant_daemon.rs`, `crates/shadows/tests/fixtures/assistant_process.rs`,
+  `packages/hermes-client/`, `services/assistant/`; the `assistant-fixture` `[[bin]]` in
+  `crates/shadows/Cargo.toml`; `Cargo.lock` if it changes; the `daemon/` row in
+  `docs/codebase/README.md`; the integration spec, amended to say Hermes is removed
+- Needs: none (Mohammed decided the deletion on 2026-10-29)
+- Done when: `shadows daemon` is refused as an unknown command; `cargo test -p shadows`
+  and `cargo test -p shadows --test codemap` pass; no `.rs`, `Cargo.toml` or workflow file
+  names `daemon::`, `assistant-fixture`, `hermes-client` or `services/assistant`
+
+### A-8b2 · Move the remaining rules out of the binary
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-8b--the-binary-has-one-start-and-no-second-surface
-- Read: crates/shadows/src/{cli,daemon}/; docs/integration/2026-10-19-product-daemon-hermes-design.md; docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md
-- Touch: crates/shadows/src/, crates/shadows-http/src/ (the moved route), Core methods they need
-- Needs: controller names each product-host operation's owner and exact paths; integration-spec amendment if ownership changes
-- Done when: `cargo test -p shadows` passes; the binary holds only configuration, tracing, binding and signals
+- Read: `crates/shadows/src/{aylul,master_key,config}.rs`, `master_key.contract.yaml`;
+  `crates/core-secrets/contract.yaml`; `crates/core-projects/contract.yaml`;
+  `crates/shadows-core/src/app.rs`
+- Touch: `crates/shadows/src/{aylul,aylul_tests,master_key,master_key_tests,config,lib}.rs`,
+  `master_key.contract.yaml`, `cli/mod.rs`; `crates/core-secrets/` (key loading, its
+  `Cargo.toml` takes `keyring` and `rand`, contract, tests); `crates/shadows-core/src/app.rs`
+  (`AppCore::start` ensures AYLUL's project); `crates/core-projects/contract.yaml` if its
+  refusal wording moves
+- Needs: A-8b1; Mohammed confirms the owners in the plan's A-8b2 table
+- Done when: the binary holds only configuration, tracing, binding and signals;
+  `cargo test -p shadows`, `-p core-secrets` and `-p core-projects` pass
+
+### B-14 · Provider refusals name the field
+- Status: blocked
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 1)
+- Read: docs/shared/requests/2026-10-29-provider-refusals.md; `crates/core-providers/contract.yaml`;
+  `crates/core-providers/src/validation.rs`
+- Touch: `crates/core-providers/src/{validation,error}.rs`, its tests and contract; the
+  `ProvidersError` mapping in `crates/shadows-core/src/error.rs`; the error body in
+  `crates/shadows-http/src/failure.rs` if it gains `field`; `api/openapi.json`
+- Needs: the request accepted
+- Done when: each refused rule answers its own field and message, and a model sent with no
+  context window is saved with Core's default; `cargo test -p core-providers` and the provider
+  HTTP tests pass
+
+### B-15 · The active-projects setting carries its bounds
+- Status: blocked
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 2)
+- Read: docs/shared/requests/2026-10-29-active-limit-bounds.md; `crates/core-code/contract.yaml`
+- Touch: `crates/core-code/src/` (one constant pair the check and the read share), its
+  contract and tests; `crates/shadows-http/src/code.rs`; `api/openapi.json`
+- Needs: the request accepted
+- Done when: `GET /api/code/settings` returns the bounds the write enforces;
+  `cargo test -p core-code` and the code-settings HTTP tests pass
+
+### B-16 · Each harness lists the modes Shadows allows
+- Status: blocked
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 3)
+- Read: docs/shared/requests/2026-10-29-harness-mode-policy.md; `crates/shadows-agent/src/policy.rs`;
+  `crates/core-harness/contract.yaml`
+- Touch: `crates/shadows-agent/src/policy.rs` (labels and descriptions beside the ids, and
+  the unattended mode); `crates/core-harness/src/{model,lib}.rs`, contract and tests;
+  `api/openapi.json`
+- Needs: the request accepted
+- Done when: `GET /api/harnesses` lists each harness's modes, initial and unattended mode
+  from `policy.rs` alone; `cargo test -p shadows-agent` and `-p core-harness` pass
+
+### B-17 · The design stage says how many files a structure writes
+- Status: blocked
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 4)
+- Read: docs/shared/requests/2026-10-29-structure-file-count.md; `crates/core-design/contract.yaml`;
+  `crates/core-design/src/structure_create.rs`
+- Touch: `crates/core-design/src/` (one count that `create_structure` and the stage read share),
+  contract and tests; the stage route in `crates/shadows-http/src/design.rs`; `api/openapi.json`
+- Needs: the request accepted
+- Done when: a test holds the stage's count equal to the files `create_structure` writes;
+  `cargo test -p core-design` and the design HTTP tests pass
 
 ### B-A2 · Prepare Core's scoped context contract
 - Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)
