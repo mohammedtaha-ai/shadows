@@ -58,7 +58,9 @@ impl Providers {
                 return Err(invalid(&field, "default is reserved."));
             }
             if !(1..=128).contains(&id.chars().count())
-                || id.chars().any(|c| c.is_whitespace() || c.is_control())
+                || id
+                    .chars()
+                    .any(|c| c.is_whitespace() || c.is_control() || c == '\u{feff}')
             {
                 return Err(invalid(
                     &field,

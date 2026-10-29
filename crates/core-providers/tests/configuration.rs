@@ -123,6 +123,11 @@ async fn field_refusals_name_the_first_rule() {
             "Model ids must be 1 to 128 printable characters with no spaces.",
         ),
         (
+            serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"a\u{feff}b"}]}),
+            "models[0].id",
+            "Model ids must be 1 to 128 printable characters with no spaces.",
+        ),
+        (
             serde_json::json!({"name":"x", "base_url":"https://example.test", "models":[{"id":"default"}]}),
             "models[0].id",
             "default is reserved.",

@@ -116,8 +116,8 @@ obligations:
     tested_by: [model_window_defaults_and_is_bounded]
   - rule: Field refusals identify the first invalid provider input rule with a displayable message; malformed input types are rejected by transport.
     tested_by: [field_refusals_name_the_first_rule, create_provider_reports_field_refusal, edit_provider_reports_field_refusal]
-  - rule: Model ids stay unique, 1..=20 per provider, and never default.
-    tested_by: [model_ids_keep_their_rules]
+  - rule: Model ids stay unique, 1..=20 per provider, never default, and contain no whitespace or controls including U+FEFF.
+    tested_by: [model_ids_keep_their_rules, field_refusals_name_the_first_rule]
   - rule: Migration gives each model its provider window in array order.
     tested_by: [migration_gives_models_the_provider_window]
   - rule: A preset supplies the name and URL; differing input is refused.
