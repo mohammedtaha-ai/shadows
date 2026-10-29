@@ -917,10 +917,24 @@
             "format": "int32",
             "minimum": 0,
             "type": "integer"
+          },
+          "active_limit_max": {
+            "description": "The most `active_limit` Core accepts.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "active_limit_min": {
+            "description": "The least `active_limit` Core accepts.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
-          "active_limit"
+          "active_limit",
+          "active_limit_min",
+          "active_limit_max"
         ],
         "type": "object"
       },

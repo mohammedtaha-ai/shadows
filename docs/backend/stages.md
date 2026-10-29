@@ -97,7 +97,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   pass, including HTTP tests refusing one create and one edit
 
 ### B-15 · The active-projects setting carries its bounds
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 2)
 - Read: docs/shared/requests/2026-10-29-active-limit-bounds.md; `crates/core-code/contract.yaml`
 - Touch: `crates/core-code/src/` (one constant pair the check and the read share), its

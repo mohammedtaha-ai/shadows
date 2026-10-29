@@ -11,6 +11,16 @@ use core_projects::ProjectId;
 /// The values `active_limit` may take.
 const LIMITS: std::ops::RangeInclusive<u32> = 1..=20;
 
+/// The settings with the bounds the write checks, so a read and the check
+/// cannot disagree.
+fn settings_of(active_limit: u32) -> CodeSettings {
+    CodeSettings {
+        active_limit,
+        active_limit_min: *LIMITS.start(),
+        active_limit_max: *LIMITS.end(),
+    }
+}
+
 impl Code {
     /// The projects `project` reads, by their slug.
     pub async fn links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodeError> {
@@ -20,9 +30,7 @@ impl Code {
     /// The stored settings.
     pub async fn settings(&self) -> Result<CodeSettings, CodeError> {
         let limit = self.inner.store.code_active_limit().await?;
-        Ok(CodeSettings {
-            active_limit: limit as u32,
-        })
+        Ok(settings_of(limit as u32))
     }
 
     /// "CodeActiveLimitSet", params { "active_limit" }: 1 to 20, else
@@ -49,6 +57,6 @@ impl Code {
         let now = store.code_active_limit().await?.max(1) as usize;
         active.limit(now);
         active.settle(self);
-        Ok(CodeSettings { active_limit: set })
+        Ok(settings_of(set))
     }
 }
