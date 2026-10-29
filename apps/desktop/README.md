@@ -36,7 +36,7 @@ keys. Configure providers and agents through the existing dashboard Settings.
 Native account and local activity controls remain in shared Settings and Local
 activity. Account login is independent of local AYLUL chat. The old desktop
 Hermes chat/source selector and its main IPC registration have been removed.
-`packages/hermes-client` and `services/assistant` retain their separate owners.
+`packages/hermes-client` and `services/assistant` were removed on 2026-10-29.
 Historical account chat evidence (`docs/evidence/aylul/2026-10-19-normal-chat.md` at `0187365`)
 records that earlier UI; it does not describe the current composer.
 

@@ -30,8 +30,6 @@ Mobile and semantic project-context integration remain future paths.
 | `web/src/app/desktop/` | Native account/activity/character settings | Colocated `contract.yaml` |
 | `apps/desktop/src/studio.tsx` | Separate development character studio | Character studio contract; absent from production inputs |
 | `apps/desktop/scripts/` | Shared desktop asset assembly | `apps/desktop/tests/desktop-build.test.mjs` |
-| `packages/hermes-client/` | Portable native Hermes TypeScript HTTP transport consumed as a packed artifact | Colocated `contract.yaml` |
-| `services/assistant/` | Persistent installation-scoped local assistant application | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/assistant/` | Retained native assistant service primitives without main IPC registration | Colocated `contract.yaml` |
 | `apps/desktop/src/api/generated/` | Backend-generated wire artifacts and input hash | Backend TypeBox owner; `provenance.json` |
 | `apps/desktop/src/app/` | Independent companion entry | Colocated `contract.yaml` |

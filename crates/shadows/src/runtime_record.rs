@@ -147,3 +147,7 @@ fn protect_windows(file: &File) -> std::io::Result<()> {
         result
     }
 }
+
+#[cfg(test)]
+#[path = "runtime_record_tests.rs"]
+mod tests;

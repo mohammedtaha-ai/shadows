@@ -216,9 +216,10 @@ functions above have been transferred. Remove disabled placeholder navigation.
 Keep native auth, hook, sidecar and character owners. Remove retired assistant
 IPC exposure only after proving it has no retained caller.
 
-Do not delete `packages/hermes-client`, `services/assistant`, account backend
-APIs or historical evidence as incidental cleanup; those have separate consumers
-or ownership. Update both source maps and changed contracts with implementation.
+Do not delete account backend APIs or historical evidence as incidental cleanup;
+those have separate consumers or ownership. `packages/hermes-client` and
+`services/assistant` were removed on 2026-10-29 with the Hermes product daemon
+(backend task A-8b1). Update both source maps and changed contracts with implementation.
 
 ## 7. Companion settings and conversation target
 

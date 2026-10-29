@@ -14,14 +14,14 @@ profile, voice, remote alerts) build on this one and get their own designs.
 ## 1. Intent and why
 
 AYLUL is Mohammed's assistant that stands between him and his agents (Claude,
-Codex, Gemini) and later handles personal tasks. Today its brain is Hermes,
-reached through `services/assistant` and the product daemon. That path shows
-the same problems the first Shadows UI had:
+Codex, Gemini) and later handles personal tasks. Its brain was Hermes, reached
+through `services/assistant` and the product daemon; both were removed on
+2026-10-29. That path showed the same problems the first Shadows UI had:
 
 - The screen looks stuck after a message: the reply arrives only when the
   Hermes run completes (`getRun` polling, `POLL_MS = 1500`), with no streamed
   text or tool progress.
-- No model or effort choice: the local protocol has seven actions and no
+- No model or effort choice: the local protocol had seven actions and no
   settings (`services/assistant/src/protocol.ts`).
 
 Shadows core already streams a turn's events to its web client and offers the
