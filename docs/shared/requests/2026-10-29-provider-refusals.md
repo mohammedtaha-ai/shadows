@@ -22,7 +22,7 @@ copies can go.
 
 | Call | Sends | Gets back |
 |---|---|---|
-| `POST /api/aylul/providers` | each model's `context_window` may be absent; Core fills its default | 400 `PROFILE_INVALID` with `field: string` (`models`, `models[i].id`, `models[i].context_window`, `name`, `label`, `base_url`) and a `message` that states the rule, e.g. "Models must be 1 to 20 ids." |
+| `POST /api/aylul/providers` (create) and `PUT /api/aylul/providers/{slug}` (edit, and the retry after a create whose key save failed) | each model's `context_window` may be absent; Core fills its default | the same 400 `PROFILE_INVALID` from both, with `field: string` (`models`, `models[i].id`, `models[i].context_window`, `name`, `label`, `base_url`) and a `message` that states the rule, e.g. "Models must be 1 to 20 ids." |
 
 ## Errors
 

@@ -264,7 +264,9 @@ Git keeps the deleted code. The work is two tasks.
 - `tests/assistant_daemon.rs`, `tests/fixtures/assistant_process.rs` and the
   `assistant-fixture` `[[bin]]` in `crates/shadows/Cargo.toml`;
 - `packages/hermes-client/` and `services/assistant/`;
-- the `daemon/` row in `docs/codebase/README.md`.
+- the `daemon/` rows in `docs/codebase/README.md` (the folder and each of its files) and the
+  `daemon/descriptor.rs` entry in `crates/shadows/tests/architecture/ownership.allowlist`,
+  which the architecture test refuses once its source is gone.
 
 `runtime_record.rs` stays: the desktop receipt uses it. The integration spec
 (`docs/integration/2026-10-19-product-daemon-hermes-design.md`) is amended in the

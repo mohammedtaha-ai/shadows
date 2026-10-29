@@ -39,11 +39,13 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   `crates/shadows/src/lib.rs`; delete `crates/shadows/src/daemon/`,
   `crates/shadows/tests/assistant_daemon.rs`, `crates/shadows/tests/fixtures/assistant_process.rs`,
   `packages/hermes-client/`, `services/assistant/`; the `assistant-fixture` `[[bin]]` in
-  `crates/shadows/Cargo.toml`; `Cargo.lock` if it changes; the `daemon/` row in
-  `docs/codebase/README.md`; the integration spec, amended to say Hermes is removed
+  `crates/shadows/Cargo.toml`; `Cargo.lock` if it changes; the `daemon/`, `daemon/bridge.rs`,
+  `daemon/http.rs` and `daemon/descriptor.rs` rows in `docs/codebase/README.md`; the
+  `daemon/descriptor.rs` entry in `crates/shadows/tests/architecture/ownership.allowlist`;
+  the integration spec, amended to say Hermes is removed
 - Needs: none (Mohammed decided the deletion on 2026-10-29)
-- Done when: `shadows daemon` is refused as an unknown command; `cargo test -p shadows`
-  and `cargo test -p shadows --test codemap` pass; no `.rs`, `Cargo.toml` or workflow file
+- Done when: `shadows daemon` is refused as an unknown command; `cargo test -p shadows`,
+  including the `codemap` and `architecture` tests, passes; no `.rs`, `Cargo.toml` or workflow file
   names `daemon::`, `assistant-fixture`, `hermes-client` or `services/assistant`
 
 ### A-8b2 · Move the remaining rules out of the binary
@@ -53,10 +55,12 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   `crates/core-secrets/contract.yaml`; `crates/core-projects/contract.yaml`;
   `crates/shadows-core/src/app.rs`
 - Touch: `crates/shadows/src/{aylul,aylul_tests,master_key,master_key_tests,config,lib}.rs`,
-  `master_key.contract.yaml`, `cli/mod.rs`; `crates/core-secrets/` (key loading, its
-  `Cargo.toml` takes `keyring` and `rand`, contract, tests); `crates/shadows-core/src/app.rs`
-  (`AppCore::start` ensures AYLUL's project); `crates/core-projects/contract.yaml` if its
-  refusal wording moves
+  `master_key.contract.yaml`, `cli/mod.rs`; `crates/shadows/Cargo.toml` (`keyring` and `rand`
+  leave it); `crates/core-secrets/` (key loading, its `Cargo.toml` takes `keyring` and `rand`,
+  contract, tests); `crates/shadows-core/src/app.rs` (`AppCore::start` ensures AYLUL's
+  project); `crates/core-projects/contract.yaml` if its refusal wording moves; `Cargo.lock`;
+  the `master_key*` and `aylul*` rows in `docs/codebase/README.md`, and rows for the new
+  `core-secrets` files
 - Needs: A-8b1; Mohammed confirms the owners in the plan's A-8b2 table
 - Done when: the binary holds only configuration, tracing, binding and signals;
   `cargo test -p shadows`, `-p core-secrets` and `-p core-projects` pass
@@ -68,11 +72,13 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   `crates/core-providers/src/validation.rs`
 - Touch: `crates/core-providers/src/{validation,error}.rs`, its tests and contract; the
   `ProvidersError` mapping in `crates/shadows-core/src/error.rs`; the error body in
-  `crates/shadows-http/src/failure.rs` if it gains `field`; `api/openapi.json`
+  `crates/shadows-http/src/failure/` (`mod.rs` and the case files) if it gains `field`; the
+  create route in `aylul_providers.rs` and the edit route in `aylul_agents.rs` only if their
+  answers change; `crates/shadows-http/src/aylul_profiles_tests.rs`; `api/openapi.json`
 - Needs: the request accepted
-- Done when: each refused rule answers its own field and message, and a model sent with no
-  context window is saved with Core's default; `cargo test -p core-providers` and the provider
-  HTTP tests pass
+- Done when: each refused rule answers its own field and message from both create and edit,
+  and a model sent with no context window is saved with Core's default; `cargo test -p
+  core-providers` and HTTP tests refusing one create and one edit pass
 
 ### B-15 · The active-projects setting carries its bounds
 - Status: blocked
@@ -101,10 +107,14 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 4)
 - Read: docs/shared/requests/2026-10-29-structure-file-count.md; `crates/core-design/contract.yaml`;
   `crates/core-design/src/structure_create.rs`
-- Touch: `crates/core-design/src/` (one count that `create_structure` and the stage read share),
-  contract and tests; the stage route in `crates/shadows-http/src/design.rs`; `api/openapi.json`
+- Touch: `crates/core-design/src/` (one count that `create_structure` and the stage read share;
+  `StageView` gains the map revision; `create_structure` takes the confirmed revision and
+  refuses a moved map before writing), contract and tests; the stage and structure routes in
+  `crates/shadows-http/src/design.rs`;
+  `api/openapi.json`
 - Needs: the request accepted
-- Done when: a test holds the stage's count equal to the files `create_structure` writes;
+- Done when: a test holds the stage's count equal to the files `create_structure` writes; a
+  test changes the map between the stage read and the create, and nothing is written;
   `cargo test -p core-design` and the design HTTP tests pass
 
 ### B-A2 · Prepare Core's scoped context contract

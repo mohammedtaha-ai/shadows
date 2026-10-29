@@ -26,7 +26,8 @@ settings dialog, PR #40) at `1a2b601`.
 - Read: docs/shared/requests/2026-10-29-provider-refusals.md; `web/src/app/agents/contract.yaml`
 - Touch: delete `web/src/app/agents/model-picks.ts`; `provider-form.tsx`, `provider-models.tsx`,
   their tests and `contract.yaml`; `web/src/api/` provider error reading; `web/src/api/schema.d.ts`
-  through `npm run gen:api` only; `web/src/test/fake-daemon.ts`
+  through `npm run gen:api` only; `web/src/test/fake-daemon.ts` (refuses create and edit as
+  Core does); the `model-picks.ts` row in `docs/frontend/codebase/README.md`
 - Needs: B-14 on the same branch
 - Done when: no web file holds the model limits, the 64-character label limit or the 200000
   window default; a refused save shows Core's message under its
@@ -63,10 +64,12 @@ settings dialog, PR #40) at `1a2b601`.
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 4)
 - Read: docs/shared/requests/2026-10-29-structure-file-count.md; `web/src/app/design/contract.yaml`
 - Touch: `web/src/app/design/create-structure.tsx`, its test and `contract.yaml`;
-  `web/src/api/schema.d.ts` through `npm run gen:api` only; `web/src/test/fake-daemon.ts`
+  `web/src/api/design.ts` (the create sends `map_revision`); `web/src/api/schema.d.ts` through
+  `npm run gen:api` only; `web/src/test/fake-daemon.ts`
 - Needs: B-17 on the same branch
-- Done when: `fileCount` and its part walk are gone; the confirm shows the stage's count;
-  the design tests, `npm run typecheck` and `npm run lint` pass
+- Done when: `fileCount` and its part walk are gone; the confirm shows the stage's count and
+  sends its revision; a moved map re-reads the stage and asks again; the design tests,
+  `npm run typecheck` and `npm run lint` pass
 
 ### F-49 · Turn state follows Core's ordering
 - Status: blocked
