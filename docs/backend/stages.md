@@ -49,21 +49,26 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   names `daemon::`, `assistant-fixture`, `hermes-client` or `services/assistant`
 
 ### A-8b2 · Move the remaining rules out of the binary
-- Status: blocked
+- Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-8b--the-binary-has-one-start-and-no-second-surface
 - Read: `crates/shadows/src/{aylul,master_key,config}.rs`, `master_key.contract.yaml`;
   `crates/core-secrets/contract.yaml`; `crates/core-projects/contract.yaml`;
   `crates/shadows-core/src/app.rs`
 - Touch: `crates/shadows/src/{aylul,aylul_tests,master_key,master_key_tests,config,lib}.rs`,
-  `master_key.contract.yaml`, `cli/mod.rs`; `crates/shadows/Cargo.toml` (`keyring` and `rand`
-  leave it); `crates/core-secrets/` (key loading, its `Cargo.toml` takes `keyring` and `rand`,
-  contract, tests); `crates/shadows-core/src/app.rs` (`AppCore::start` ensures AYLUL's
-  project); `crates/core-projects/contract.yaml` if its refusal wording moves; `Cargo.lock`;
-  the `master_key*` and `aylul*` rows in `docs/codebase/README.md`, and rows for the new
-  `core-secrets` files
-- Needs: A-8b1 (Mohammed confirmed the owners on 2026-10-29)
-- Done when: the binary holds only configuration, tracing, binding and signals;
-  `cargo test -p shadows`, `-p core-secrets` and `-p core-projects` pass
+  `master_key.contract.yaml`, `cli/mod.rs`, `cli/args.rs` if the AYLUL section is read there,
+  a `config_tests.rs` beside `config.rs` for the moved AYLUL tests; `crates/shadows/Cargo.toml`
+  (`keyring` and `rand` leave it); `crates/core-secrets/` (key loading, its `Cargo.toml` takes
+  `keyring`, contract, tests); `crates/shadows-core/src/app.rs` (`AppCore::start` loads the key
+  and ensures AYLUL's project) and `crates/shadows-core/src/lib.rs` for a re-export; the
+  `StartConfig` builders `crates/shadows-core/src/testing/mod.rs` and
+  `crates/shadows-http/src/aylul_env_tests.rs`; `crates/core-projects/contract.yaml` if its
+  refusal wording moves; `Cargo.lock`; the `master_key*`, `aylul*` and `config*` rows in
+  `docs/codebase/README.md`, and rows for the new `core-secrets` files
+- Needs: A-8b1 (done; Mohammed confirmed the owners on 2026-10-29)
+- Done when: the binary holds only configuration, tracing, binding and signals; no file under
+  `crates/shadows/src` names `keyring` or `ensure_assistant`; `cargo test -p shadows`,
+  `-p core-secrets`, `-p core-projects` and `-p shadows-core` and the `shadows-http` library
+  tests pass
 
 ### B-14 · Provider refusals name the field
 - Status: blocked
