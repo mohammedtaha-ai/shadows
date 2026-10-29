@@ -3,6 +3,10 @@
 Date: 2026-10-19.
 Status: The Hermes service, its TypeScript client and `shadows daemon` were removed on 2026-10-29. `shadows serve` is the one host.
 
+Sections 1-8 record the superseded 2026-10-19 design and its starting-point
+observations. They do not describe the current implementation or authorize
+reintroducing the removed service, client, daemon, or `/assistant` surface.
+
 ## 1. Approved intent
 
 The human selected a product daemon that hosts several capabilities. Shadows
