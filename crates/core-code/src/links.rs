@@ -43,7 +43,9 @@ impl Code {
     ) -> Result<CodeSettings, CodeError> {
         if !LIMITS.contains(&active_limit) {
             return Err(CodeError::InvalidCommand(format!(
-                "the active limit must be from 1 to 20, not {active_limit}"
+                "the active limit must be from {} to {}, not {active_limit}",
+                LIMITS.start(),
+                LIMITS.end()
             )));
         }
         let params = serde_json::json!({ "active_limit": active_limit });
