@@ -20,6 +20,14 @@ async function failureOf(pending: Promise<unknown>): Promise<ApiError> {
 }
 
 describe('unwrap', () => {
+  it('preserves the field named by a provider refusal', async () => {
+    const client = clientAnswering(async () => Response.json(
+      { code: 'PROFILE_INVALID', message: 'Bad model.', field: 'models[0].id' }, { status: 400 },
+    ))
+    const error = await failureOf(unwrap(client.GET('/api/projects')))
+    expect(error.problem).toEqual({ kind: 'daemon', status: 400, code: 'PROFILE_INVALID', field: 'models[0].id' })
+    expect(error.message).toBe('Bad model.')
+  })
   it("maps the daemon's ErrorBody to a daemon problem carrying its code", async () => {
     const client = clientAnswering(async () =>
       Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'database is locked' }, { status: 500 }),

@@ -8,14 +8,14 @@ import {
   saveProvider, setProviderKey, testProvider, testSavedProvider,
 } from '@/api/aylul-profiles'
 import { type Attempt, attemptFor } from '@/api/command-id'
+import { ApiError } from '@/api/error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
 import { DeleteZone } from './delete-zone'
 import { Field } from './form-field'
 import type { PresetGroup } from './provider-presets'
-import { ProviderModels } from './provider-models'
-import { modelPicksError, type ModelPick } from './model-picks'
+import { ProviderModels, type ModelPick } from './provider-models'
 import { testLine } from './provider-test'
 
 // Shown only while the field holds text, so adding or clearing the id removes it.
@@ -38,6 +38,7 @@ export function ProviderForm({ provider, group, onSaved }: {
   const [line, setLine] = useState<ReturnType<typeof testLine> | null>(null)
   const [apiKey, setKey] = useState('')
   const [invalid, setInvalid] = useState<string | null>(null)
+  const [refusal, setRefusal] = useState<{ field: string; message: string } | null>(null)
   const pending = useRef<Attempt | null>(null)
   const keyPending = useRef<Attempt | null>(null)
   const keyRemoval = useRef<Attempt | null>(null)
@@ -66,6 +67,11 @@ export function ProviderForm({ provider, group, onSaved }: {
       keyPending.current = null
       await refresh()
       onSaved(saved)
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.field) {
+        setRefusal({ field: error.problem.field, message: error.message })
+      }
     },
   })
   const removeKey = useMutation({
@@ -104,23 +110,38 @@ export function ProviderForm({ provider, group, onSaved }: {
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (manual !== '') return setInvalid(UNADDED)
-    const error = modelPicksError(picked)
-    if (error) return setInvalid(error)
-    if (label.trim().length > 64) return setInvalid('Label must be at most 64 characters.')
     setInvalid(null)
+    setRefusal(null)
     save.mutate({ ...(preset ? { preset: preset.id } : { preset: null, name, base_url: url }), label: label.trim() || null,
-      models: picked.map(model => ({ id: model.id, context_window: model.contextWindow })) })
+      models: picked.map(model => ({ id: model.id, ...(model.contextWindow != null && { context_window: model.contextWindow }) })) })
   }
   const busy = save.isPending || removeKey.isPending || remove.isPending || test.isPending
   const credentialsChanged = () => { setTestedKey(''); setLine(null); setListed([]) }
+  const clearRefusal = (field: string) => setRefusal(current => current?.field === field ? null : current)
+  const changeModels = (models: ModelPick[]) => {
+    setRefusal(current => {
+      if (!current) return null
+      if (current.field === 'models') return null
+      const match = /^models\[(\d+)\]\.(id|context_window)$/.exec(current.field)
+      if (!match) return current
+      const index = Number(match[1])
+      const previous = picked[index]
+      const next = models[index]
+      return !previous || !next || previous.id !== next.id || (match[2] === 'context_window' && previous.contextWindow !== next.contextWindow) ? null : current
+    })
+    setPicked(models)
+  }
+  const modelRefusal = refusal && /^models\[(\d+)\]\.(id|context_window)$/.exec(refusal.field)
+  const knownRefusal = refusal && (['models', 'label', ...(!group ? ['name', 'base_url'] : [])].includes(refusal.field) || (modelRefusal && Number(modelRefusal[1]) < picked.length))
 
   return (
     <div className="space-y-8">
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} noValidate className="space-y-4">
         <fieldset disabled={busy} className="grid gap-4">
           {group ? <h3 className="font-medium">{group.name}</h3> : <Field label="Name">
             <Input aria-label="Provider name" value={name} required placeholder="MiniMax"
-              onChange={(e) => setName(e.target.value)} />
+              onChange={(e) => { setName(e.target.value); clearRefusal('name') }} />
+            {refusal?.field === 'name' && <p role="alert">{refusal.message}</p>}
           </Field>}
           {group && group.presets.length > 1 && <fieldset aria-label="Region" role="radiogroup" className="flex gap-4">
             <legend className="mb-2 text-sm">Region</legend>
@@ -132,10 +153,12 @@ export function ProviderForm({ provider, group, onSaved }: {
           {!group && <Field label="URL" hint="Anthropic-compatible. http:// only for this machine.">
             <Input aria-label="Provider URL" type="url" value={url} required
               placeholder="https://api.example.com/anthropic" className="font-mono"
-              onChange={(e) => { setUrl(e.target.value); credentialsChanged() }} />
+              onChange={(e) => { setUrl(e.target.value); clearRefusal('base_url'); credentialsChanged() }} />
+            {refusal?.field === 'base_url' && <p role="alert">{refusal.message}</p>}
           </Field>}
           <Field label="Label" hint="Shown in parentheses, to tell two keys apart.">
-            <Input aria-label="Label" value={label} maxLength={64} onChange={event => setLabel(event.target.value)} />
+            <Input aria-label="Label" value={label} onChange={event => { setLabel(event.target.value); clearRefusal('label') }} />
+            {refusal?.field === 'label' && <p role="alert">{refusal.message}</p>}
           </Field>
           <Field
             label={provider?.key_set === true ? 'API key (saved, enter a new one to replace it)' : 'API key'}
@@ -156,10 +179,11 @@ export function ProviderForm({ provider, group, onSaved }: {
           </Field>
           {line && <p role={line.kind === 'error' ? 'alert' : 'status'}>{line.text}</p>}
           {test.error && <ErrorLine error={test.error} />}
-          <ProviderModels listed={listed} picked={picked} onChange={setPicked} manual={manual}
+          <ProviderModels listed={listed} picked={picked} onChange={changeModels} manual={manual} refusal={refusal}
             onManualChange={value => { setManual(value); if (invalid === UNADDED) setInvalid(null) }} />
           {invalid !== null && <p role="alert" className="text-xs text-destructive-foreground">{invalid}</p>}
-          {save.error !== null && <ErrorLine error={save.error} />}
+          {refusal && !knownRefusal && <p role="alert">{refusal.message}</p>}
+          {save.error !== null && !(save.error instanceof ApiError && save.error.problem.kind === 'daemon' && save.error.problem.field) && <ErrorLine error={save.error} />}
           {removeKey.error !== null && <ErrorLine error={removeKey.error} />}
           <div className="flex items-center gap-3">
             <Button type="submit">{save.isPending ? 'Saving…' : provider ? 'Save provider' : `Add ${picked.length} models`}</Button>

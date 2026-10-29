@@ -21,7 +21,7 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-45 · The provider form shows Core's refusal
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 1)
 - Read: docs/shared/requests/2026-10-29-provider-refusals.md; `web/src/app/agents/contract.yaml`
 - Touch: delete `web/src/app/agents/model-picks.ts`; `provider-form.tsx`, `provider-models.tsx`,

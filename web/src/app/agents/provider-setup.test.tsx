@@ -41,7 +41,7 @@ it.each(['new', 'saved'])('Enter adds a model without submitting the %s provider
   expect(a.calls).not.toContain('PUT /api/aylul/providers/p')
   act(() => a.button(mode === 'new' ? 'Add 1 models' : 'Save provider')!.click())
   await until(() => a.bodies.length === 1)
-  expect(a.bodies[0]).toEqual(expect.objectContaining({ models: [...(mode === 'saved' ? provider.models : []), { id: 'manual', context_window: 200000 }] }))
+  expect(a.bodies[0]).toEqual(expect.objectContaining({ models: [...(mode === 'saved' ? provider.models : []), { id: 'manual' }] }))
 })
 it.each(['new', 'saved'])('saving the %s provider with an unadded id explains it and preserves the draft', async (mode) => {
   const overrides = { 'POST /api/aylul/providers': () => Response.json(provider), 'PUT /api/aylul/providers/p': () => Response.json(provider) }
@@ -59,7 +59,7 @@ it.each(['new', 'saved'])('saving the %s provider with an unadded id explains it
   expect(a.text()).not.toContain('You have an unadded model id')
   act(() => a.button(mode === 'new' ? 'Add 2 models' : 'Save provider')!.click())
   await until(() => a.bodies.length === 1)
-  expect(a.bodies[0]).toEqual(expect.objectContaining({ models: [...(mode === 'saved' ? provider.models : [{ id: 'm1', context_window: 200000 }]), { id: 'manual', context_window: 200000 }] }))
+  expect(a.bodies[0]).toEqual(expect.objectContaining({ models: [...(mode === 'saved' ? provider.models : [{ id: 'm1' }]), { id: 'manual' }] }))
 })
 it('clearing an unadded id removes its message and saves the picked models', async () => {
   const a = app = await startApp('/aylul?settings=providers', { ...base(), 'PUT /api/aylul/providers/p': () => Response.json(provider) })
@@ -91,7 +91,8 @@ it('Enter that confirms an IME composition does not add the model', async () => 
   expect(input('Add a model by id').value).toBe('モデル')
   expect(input('モデル')).toBeNull()
 })
-it.each(['', 'default', 'm1'])('Enter with invalid model id "%s" does not submit the provider', async (id) => {
+it('Enter with a duplicate model id does not submit the provider', async () => {
+  const id = 'm1'
   const a = app = await startApp('/aylul?settings=providers', base())
   await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
   typeInto(input('Add a model by id'), id)
@@ -120,7 +121,7 @@ it('a preset saves its id, not its URL', async () => {
   act(() => input('China').click()); typeInto(input('Label'), 'Home'); typeInto(input('API key'), 'sk-1'); addModel(a, 'MiniMax-M3')
   act(() => a.button('Add 1 models')!.click())
   await until(() => a.calls.includes('PUT /api/aylul/providers/p/key'))
-  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), preset: 'minimax-china', label: 'Home', models: [{ id: 'MiniMax-M3', context_window: 200000 }] })
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), preset: 'minimax-china', label: 'Home', models: [{ id: 'MiniMax-M3' }] })
   expect(a.bodies[1]).toEqual({ command_id: expect.any(String), value: 'sk-1' })
 })
 it("Test connection lists the key's models", async () => {
@@ -132,7 +133,7 @@ it("Test connection lists the key's models", async () => {
   act(() => input('a').click()); act(() => input('b').click()); act(() => input('b default').click())
   act(() => a.button('Add 2 models')!.click())
   await until(() => a.calls.includes('POST /api/aylul/providers'))
-  expect(a.bodies[1]).toEqual(expect.objectContaining({ models: [{ id: 'b', context_window: 200000 }, { id: 'a', context_window: 1000000 }] }))
+  expect(a.bodies[1]).toEqual(expect.objectContaining({ models: [{ id: 'b' }, { id: 'a', context_window: 1000000 }] }))
 })
 it('search filters the models', async () => {
   const a = await setup('MiniMax', { 'POST /api/aylul/providers/test': { ok: true, listed: true, models: ['MiniMax-M3', 'MiniMax-M3.1-Flash', 'MiniMax-M2.5'].map(id => ({ id })) } })
@@ -180,6 +181,69 @@ it('a window out of range is refused', async () => {
   const a = app = await startApp('/aylul?settings=providers', base())
   await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
   typeInto(input('Context window for m1'), '999'); act(() => a.button('Save provider')!.click())
-  expect(a.text()).toContain('Context window must be a whole number from 1000 to 10000000.')
-  expect(a.calls).not.toContain('PUT /api/aylul/providers/p')
+  await until(() => a.text().includes('Context window must be from 1000 to 10000000.'))
+  expect(a.calls).toContain('PUT /api/aylul/providers/p')
+  expect(input('Context window for m1').value).toBe('999')
+  typeInto(input('Context window for m1'), '1000')
+  expect(a.text()).not.toContain('Context window must be from 1000 to 10000000.')
+})
+
+it.each(['new', 'saved'])('shows Core model refusals on the %s form', async mode => {
+  const a = mode === 'new' ? await setup('MiniMax') : app = await startApp('/aylul?settings=providers', base())
+  if (mode === 'saved') { await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click()) }
+  addModel(a, 'default')
+  act(() => a.button(mode === 'new' ? 'Add 1 models' : 'Save provider')!.click())
+  await until(() => a.text().includes('default is reserved.'))
+  expect(input('default').closest('div')?.textContent).toContain('default is reserved.')
+  act(() => input('default').click())
+  expect(a.text()).not.toContain('default is reserved.')
+})
+
+it.each(['new', 'saved'])('shows the models-list refusal on the %s form', async mode => {
+  const a = mode === 'new' ? await setup('MiniMax') : app = await startApp('/aylul?settings=providers', base())
+  if (mode === 'saved') {
+    await until(() => a.button('Edit') !== undefined); act(() => a.button('Edit')!.click())
+    act(() => { input('m1').click(); input('m2').click() })
+  }
+  act(() => a.button(mode === 'new' ? 'Add 0 models' : 'Save provider')!.click())
+  await until(() => a.text().includes('Models must be 1 to 20 ids.'))
+  expect(document.querySelector('[aria-label="Provider models"]')?.textContent).toContain('Models must be 1 to 20 ids.')
+  addModel(a, 'fixed'); expect(a.text()).not.toContain('Models must be 1 to 20 ids.')
+})
+
+it.each([
+  ['name', 'Provider name'], ['base_url', 'Provider URL'], ['label', 'Label'],
+])('shows the %s refusal beside its input and clears it on edit', async (field, label) => {
+  const message = `Core refused ${field}`
+  const a = await setup('Custom', { 'POST /api/aylul/providers': () => Response.json({ code: 'PROFILE_INVALID', field, message }, { status: 400 }) })
+  typeInto(input('Provider name'), 'My provider'); typeInto(input('Provider URL'), 'https://example.com'); typeInto(input('Label'), 'Draft')
+  addModel(a, 'model')
+  act(() => a.button('Add 1 models')!.click())
+  await until(() => a.text().includes(message))
+  expect(input(label).parentElement?.textContent).toContain(message)
+  const previous = input(label).value
+  expect(previous).not.toBe('')
+  typeInto(input(label), `${previous}x`)
+  expect(a.text()).not.toContain(message)
+})
+
+it('shows a fieldless refusal above save', async () => {
+  const a = await setup('MiniMax', { 'POST /api/aylul/providers': () => Response.json({ code: 'PROFILE_INVALID', message: 'Core refused this provider.' }, { status: 400 }) })
+  addModel(a, 'model'); act(() => a.button('Add 1 models')!.click())
+  await until(() => a.text().includes('Core refused this provider.'))
+  expect(input('model').checked).toBe(true)
+})
+
+it('shows an edit refusal after create succeeded but key save failed', async () => {
+  const a = await setup('MiniMax', {
+    'POST /api/aylul/providers': () => Response.json(provider),
+    'PUT /api/aylul/providers/p/key': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Key failed.' }, { status: 500 }),
+    'PUT /api/aylul/providers/p': () => Response.json({ code: 'PROFILE_INVALID', field: 'label', message: 'Label refused.' }, { status: 400 }),
+  })
+  typeInto(input('API key'), 'secret'); typeInto(input('Label'), 'Draft'); addModel(a, 'model')
+  act(() => a.button('Add 1 models')!.click()); await until(() => a.text().includes('Key failed.'))
+  act(() => a.button('Add 1 models')!.click()); await until(() => a.text().includes('Label refused.'))
+  expect(a.calls.filter(call => call === 'POST /api/aylul/providers')).toHaveLength(1)
+  expect(input('Label').value).toBe('Draft')
+  typeInto(input('Label'), 'Changed'); expect(a.text()).not.toContain('Label refused.')
 })

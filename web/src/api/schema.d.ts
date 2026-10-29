@@ -1938,6 +1938,7 @@ export interface components {
              * @description `REVISION_CONFLICT` only: the resource's revision now, to read again at.
              */
             current_revision?: number | null;
+            field?: string | null;
             message: string;
             /**
              * @description `WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences

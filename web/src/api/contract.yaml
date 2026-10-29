@@ -31,7 +31,7 @@ source: web/src/api
 shapes:
   Problem:
     unreachable: "{ kind: 'unreachable' }; no HTTP answer arrived at all"
-    daemon: "{ kind: 'daemon', status, code, currentRevision?, problems? }"
+    daemon: "{ kind: 'daemon', status, code, currentRevision?, problems?, field? }"
     http: "{ kind: 'http', status, body: string }; a failure that is not an ErrorBody"
   ApiError:
     extends: Error
@@ -246,8 +246,10 @@ obligations:
     tested_by: "maps the daemon's ErrorBody to a daemon problem carrying its code"
 
   - rule: >
-      A conflict or validation answer keeps `currentRevision` and `problems` from the body.
+      A conflict or validation answer keeps `currentRevision`, `problems` and `field` from the body when present.
     tested_by: "keeps the current revision and the problems an ErrorBody carries"
+  - rule: A provider refusal preserves its field and message.
+    tested_by: "preserves the field named by a provider refusal"
 
   - rule: >
       A non-JSON failure body (axum's plain-text rejection) is an `http` problem holding the text.
