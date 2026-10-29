@@ -8,10 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
 
-/** The bounds the daemon holds the setting to; another value is refused. */
-const MIN = 1
-const MAX = 20
-
 export function ActiveProjects() {
   const saved = useQuery(codeSettingsQuery)
 
@@ -49,8 +45,9 @@ function LimitForm({ saved }: { saved: CodeSettings }) {
     },
   })
 
+  const { active_limit_min: min, active_limit_max: max } = saved
   const limit = Number(draft)
-  const valid = draft.trim() !== '' && Number.isInteger(limit) && limit >= MIN && limit <= MAX
+  const valid = draft.trim() !== '' && Number.isInteger(limit) && limit >= min && limit <= max
   const unchanged = valid && limit === saved.active_limit
 
   const submit = (event: FormEvent) => {
@@ -67,8 +64,8 @@ function LimitForm({ saved }: { saved: CodeSettings }) {
         <Input
           type="number"
           inputMode="numeric"
-          min={MIN}
-          max={MAX}
+          min={min}
+          max={max}
           step={1}
           aria-label="Active projects"
           aria-invalid={!valid}
@@ -82,7 +79,7 @@ function LimitForm({ saved }: { saved: CodeSettings }) {
       </div>
       {!valid && (
         <p className="text-xs text-destructive-foreground">
-          A whole number from {MIN} to {MAX}.
+          A whole number from {min} to {max}.
         </p>
       )}
       {save.error !== null && <ErrorLine error={save.error} />}

@@ -1725,6 +1725,16 @@ export interface components {
              * @description How many projects are active at once: 1 to 20, default 5.
              */
             active_limit: number;
+            /**
+             * Format: int32
+             * @description The most `active_limit` Core accepts.
+             */
+            active_limit_max: number;
+            /**
+             * Format: int32
+             * @description The least `active_limit` Core accepts.
+             */
+            active_limit_min: number;
         };
         ContractHead: {
             header: string;

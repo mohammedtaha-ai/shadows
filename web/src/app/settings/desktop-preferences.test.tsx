@@ -22,7 +22,7 @@ beforeEach(() => {
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
   client.setQueryData(personQuery.queryKey, { name: 'Name', aylul_calls_me: null, language: null, theme: 'system', updated_at: null })
-  client.setQueryData(codeKeys.settings(), { active_limit: 5 })
+  client.setQueryData(codeKeys.settings(), { active_limit: 5, active_limit_min: 1, active_limit_max: 20 })
   invoke.mockReset().mockResolvedValue(defaults)
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     const body = await request.json()

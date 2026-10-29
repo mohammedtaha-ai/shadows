@@ -94,10 +94,10 @@ describe('settings', () => {
     const table = answers()
     // The daemon keeps what was saved, so a refetch after the save reads it.
     let limit = 5
-    table['GET /api/code/settings'] = () => Response.json({ active_limit: limit })
+    table['GET /api/code/settings'] = () => Response.json({ active_limit: limit, active_limit_min: 1, active_limit_max: 20 })
     table['PUT /api/code/settings'] = async (r: Request) => {
       ;({ active_limit: limit } = (await r.json()) as { active_limit: number })
-      return Response.json({ active_limit: limit })
+      return Response.json({ active_limit: limit, active_limit_min: 1, active_limit_max: 20 })
     }
     const app = (open = await startApp('/', table))
     const link = () => app.button('Settings')
@@ -123,7 +123,7 @@ describe('settings', () => {
   it('follows a value changed elsewhere while the field is untouched', async () => {
     const table = answers()
     let limit = 5
-    table['GET /api/code/settings'] = () => Response.json({ active_limit: limit })
+    table['GET /api/code/settings'] = () => Response.json({ active_limit: limit, active_limit_min: 1, active_limit_max: 20 })
     const app = (open = await startApp('/settings', table))
     await until(() => field()?.value === '5')
 

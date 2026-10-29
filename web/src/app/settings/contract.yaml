@@ -15,18 +15,13 @@ source: web/src/app/settings
 
 # ── shapes ───────────────────────────────────────────────────────────────────────
 
-shapes:
-  Limit:
-    # The bounds the form enforces before it sends. The daemon's own bounds are
-    # the same numbers by its comment; see open_questions.
-    MIN: 1
-    MAX: 20
+shapes: {}
 
 
 # ── external types ───────────────────────────────────────────────────────────────
 
 external:
-  CodeSettings: "web/src/api/code; active_limit"
+  CodeSettings: "web/src/api/code; active_limit and its bounds active_limit_min, active_limit_max"
 
 
 # ── functions ────────────────────────────────────────────────────────────────────
@@ -152,8 +147,8 @@ obligations:
     tested_by:
       - "/settings redirects to the dialog"
   - rule: >
-      The limit must be a whole number from 1 to 20. Any other text disables Save and
-      shows "A whole number from 1 to 20."
+      The limit must be a whole number within the bounds the settings read carries. Any other
+      text disables Save and shows the bounds, e.g. "A whole number from 1 to 20."
     tested_by:
       - "saves the active limit"
 
@@ -197,11 +192,7 @@ gaps:
 
 # ── open_questions ───────────────────────────────────────────────────────────────
 
-open_questions:
-  - >
-      Does the daemon hold active_limit to 1 through 20 as the comment says, and how does it
-      refuse a number outside them? Answering needs the code settings route, which is outside
-      this folder.
+open_questions: []
 
 
 # ── tests ────────────────────────────────────────────────────────────────────────

@@ -235,7 +235,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/projects/p1/map-proposals': [],
     'GET /api/projects/p1/roadmap-proposals': [],
     'GET /api/projects/p1/code/links': [],
-    'GET /api/code/settings': { active_limit: 5 },
+    'GET /api/code/settings': { active_limit: 5, active_limit_min: 1, active_limit_max: 20 },
     // Any grant the test gave the project can be revoked.
     ...Object.fromEntries(
       grants.map((g) => [
