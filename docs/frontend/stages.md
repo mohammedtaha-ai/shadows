@@ -36,11 +36,13 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck` and `npm run lint` pass
 
 ### F-46 · Active projects reads its bounds from Core
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 2)
 - Read: docs/shared/requests/2026-10-29-active-limit-bounds.md; `web/src/app/settings/contract.yaml`
-- Touch: `web/src/app/settings/active-projects.tsx`, its test and `contract.yaml`;
-  `web/src/api/schema.d.ts` through `npm run gen:api` only; `web/src/test/fake-daemon.ts`
+- Touch: `web/src/app/settings/active-projects.tsx` and `contract.yaml`; the settings fixtures in
+  `web/src/app/settings/{settings-dialog,desktop-preferences}.test.tsx` and
+  `web/src/api/code.test.ts`; `web/src/api/schema.d.ts` through `npm run gen:api` only;
+  `web/src/test/fake-daemon.ts`
 - Needs: B-15 on the same branch
 - Done when: `MIN` and `MAX` are gone and the input uses the settings' bounds; the settings
   tests, `npm run typecheck` and `npm run lint` pass
