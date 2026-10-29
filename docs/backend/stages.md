@@ -110,12 +110,19 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
 - Touch: `crates/core-design/src/` (one count that `create_structure` and the stage read share;
   `StageView` gains the map revision; `create_structure` takes the confirmed revision and
   refuses a moved map before writing), contract and tests; the stage and structure routes in
-  `crates/shadows-http/src/design.rs`;
+  `crates/shadows-http/src/design.rs`; the callers of the changed signature and body:
+  `crates/shadows-core/tests/design_parts/{structure,roadmap}.rs`,
+  `crates/shadows/tests/workspace_mcp/roadmap.rs` and `crates/shadows/tests/design_routes.rs`;
   `api/openapi.json`
 - Needs: the request accepted
-- Done when: a test holds the stage's count equal to the files `create_structure` writes; a
-  test changes the map between the stage read and the create, and nothing is written;
-  `cargo test -p core-design` and the design HTTP tests pass
+- Done when:
+  - a test holds the stage's count equal to the files `create_structure` writes;
+  - a test changes the map between the stage read and the create, and nothing is written;
+  - a retry with the same `CommandId` and revision returns the first result, and the same
+    `CommandId` with another revision is `CommandConflict`;
+  - `cargo test -p core-design`, `cargo test -p shadows-core --test design_parts`,
+    `cargo test -p shadows --test workspace_mcp` and `cargo test -p shadows --test
+    design_routes` pass
 
 ### B-A2 · Prepare Core's scoped context contract
 - Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)
