@@ -31,7 +31,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
 ## Tasks
 
 ### A-8b1 · Delete the Hermes product daemon
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-8b--the-binary-has-one-start-and-no-second-surface
 - Read: `crates/shadows/src/cli/args.rs`; `crates/shadows/src/daemon/contract.yaml`;
   docs/integration/2026-10-19-product-daemon-hermes-design.md

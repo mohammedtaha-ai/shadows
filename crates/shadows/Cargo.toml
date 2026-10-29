@@ -10,11 +10,6 @@ default-run = "shadows"
 [lib]
 doctest = false
 
-[[bin]]
-name = "assistant-fixture"
-path = "tests/fixtures/assistant_process.rs"
-required-features = ["test-support"]
-
 [lints]
 workspace = true
 

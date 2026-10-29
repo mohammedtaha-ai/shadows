@@ -18,22 +18,6 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Run product services; planning is optional.
-    Daemon {
-        #[arg(long)]
-        node: PathBuf,
-        #[arg(long)]
-        entry: PathBuf,
-        #[arg(long)]
-        config: PathBuf,
-        #[arg(long)]
-        descriptor: PathBuf,
-        #[arg(long, default_value = "127.0.0.1:4320")]
-        bind: SocketAddr,
-        /// Optional planning configuration; omitted for assistant-only operation.
-        #[arg(long)]
-        planner_config: Option<PathBuf>,
-    },
     /// Run the local daemon.
     Serve {
         #[arg(long, default_value = "shadows.sqlite3")]
@@ -98,24 +82,6 @@ fn parse_harness(raw: &str) -> Result<PathBuf, String> {
 impl Cli {
     pub async fn run(self) -> anyhow::Result<()> {
         match self.command {
-            Commands::Daemon {
-                node,
-                entry,
-                config,
-                descriptor,
-                bind,
-                planner_config,
-            } => {
-                crate::daemon::serve(crate::daemon::Config {
-                    node,
-                    entry,
-                    config,
-                    descriptor,
-                    bind,
-                    planner_config,
-                })
-                .await
-            }
             Commands::Serve {
                 db,
                 bind,
@@ -193,22 +159,8 @@ mod tests {
     }
 
     #[test]
-    fn product_daemon_does_not_require_planner_configuration() {
-        let result = Cli::try_parse_from([
-            "shadows",
-            "daemon",
-            "--node",
-            "node",
-            "--entry",
-            "assistant.js",
-            "--config",
-            "assistant.json",
-            "--descriptor",
-            "connection.json",
-        ]);
-        assert!(
-            result.is_ok(),
-            "assistant-only daemon must not require Claude or ACP configuration"
-        );
+    fn daemon_is_an_unknown_command() {
+        let error = Cli::try_parse_from(["shadows", "daemon"]).err().unwrap();
+        assert_eq!(error.kind(), clap::error::ErrorKind::InvalidSubcommand);
     }
 }
