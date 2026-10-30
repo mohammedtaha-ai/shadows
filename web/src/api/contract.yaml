@@ -373,8 +373,8 @@ obligations:
 
   - rule: >
       Query keys are arrays whose prefixes match the invalidations in src/stream and src/app.
-    tested_by: "integration: refetches entries at each caught-up, per live entry and live turn end,
-        never per replayed one"
+    tested_by: "integration: refetches entries at each caught-up, per live entry and live operation
+        event, never per replayed one"
     note: >
       That test in web/src/stream/use-thread-stream.test.tsx uses threadEntriesKey and
       threadOperationsKey to find the invalidations it counts. Only those two keys are checked.

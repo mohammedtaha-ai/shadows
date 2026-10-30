@@ -17,7 +17,6 @@ type RefreshEvent = DurableEvent & { projectId?: string }
 const PLAN_EVENTS = new Set(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])
 const DESIGN_EVENTS = new Set(['ProjectDesignChanged', 'ProjectStandardsSaved', 'VisionProposed', 'MapProposed', 'RoadmapProposed', 'RoadmapApproved', 'ProjectStructureWritten'])
 const REACH_EVENTS = new Set(['PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked', 'ProjectRemoved'])
-const TERMINAL_EVENTS = new Set(['OperationCompleted', 'OperationFailed', 'OperationCancelled', 'OperationInterrupted'])
 
 /** Identifiers come from the delivery scope or event payload, never cache state. */
 export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
@@ -36,8 +35,11 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
   }
   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
   if (event.threadId !== null) {
-    if (event.kind === 'ThreadEntryAppended' || TERMINAL_EVENTS.has(event.kind)) targets.push({ kind: 'entries', threadId: event.threadId })
-    if (TERMINAL_EVENTS.has(event.kind)) targets.push({ kind: 'operations', threadId: event.threadId })
+    // Which operation events end a turn is Core's lifecycle; every one refreshes rather than
+    // the client keeping a copy of the terminal kinds.
+    const operation = event.kind.startsWith('Operation')
+    if (event.kind === 'ThreadEntryAppended' || operation) targets.push({ kind: 'entries', threadId: event.threadId })
+    if (operation) targets.push({ kind: 'operations', threadId: event.threadId })
   }
   if (event.kind === 'ThreadRetitled') targets.push({ kind: 'thread-lists' })
   return targets
