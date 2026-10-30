@@ -35,32 +35,32 @@ entries are in this file at `4f23c717`.
 ## Tasks
 
 Tool activity ([spec](specs/2026-10-31-tool-activity-design.md),
-[plan](plans/2026-10-31-tool-activity.md)): B-19 to B-22 wait on the request
-`docs/shared/requests/2026-10-31-tool-activity.md` being `accepted`; then they run in order.
+[plan](plans/2026-10-31-tool-activity.md)): B-19 to B-22 build the request
+`docs/shared/requests/2026-10-31-tool-activity.md` (accepted at `7d20c439`), in order.
 
 ### B-19 · ACP tool facts and plan updates reach `HarnessEvent`
-- Status: blocked (request not yet accepted)
+- Status: todo
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-19--acp-facts-reach-harnessevent
 - Read: spec §1; code-map rows for `crates/shadows-agent/src/acp/mapping.rs` and `events/`; `crates/core-turns/contract.yaml` `live.cut` / `changed_cards` (the collector you only keep compiling)
 - Touch: `crates/shadows-agent/src/events.rs`, `crates/shadows-agent/src/events/tool.rs` (new), `crates/shadows-agent/src/acp/mapping.rs`, `crates/shadows-agent/src/acp_tests.rs`, `crates/core-turns/src/entries.rs` (compile only), `crates/core-turns/tests/entries.rs` (compile only), `docs/codebase/README.md`
 - Done when: `cargo test -p shadows-agent -- a_tool_call_carries_its_kind_locations_input_and_diffs an_update_carries_only_what_it_names a_plan_update_becomes_the_task_list` pass, `cargo test -p core-turns --test entries` and `cargo test -p shadows-core --test acp_connection` still pass
 
 ### B-20 · A `ToolCall` entry carries its `ToolCallCard`
-- Status: blocked (B-19; request not yet accepted)
+- Status: blocked (B-19)
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-20--a-toolcall-entry-carries-its-card
 - Read: spec §2 and §5; `crates/core-turns/contract.yaml` (`live`, the tool/subagent obligation); `crates/core-turns/src/subagents.rs` as the pattern; `crates/core-threads/contract.yaml` (the tool-line obligation); `docs/backend/AGENTS.md` rule 4
 - Touch: `Cargo.toml`, `Cargo.lock`, `crates/core-turns/Cargo.toml`, `crates/core-turns/src/hunks.rs` (new), `crates/core-turns/src/tools.rs` (new), `crates/core-turns/src/entries.rs`, `crates/core-turns/src/turn.rs`, `crates/core-turns/src/spawn.rs`, `crates/core-turns/src/lib.rs`, `crates/core-turns/tests/entries.rs`, `crates/core-turns/contract.yaml`, `crates/core-threads/src/model.rs` (doc comments only), `crates/core-threads/contract.yaml`, `crates/shadows-core/src/lib.rs`, `crates/shadows-core/src/testing/turn.rs`, `crates/shadows-core/src/testing/mod.rs`, `crates/shadows/tests/turn_command.rs`, `crates/shadows/tests/planner_mcp/standards.rs`, `crates/shadows/tests/plan_boundaries.rs`, `crates/shadows-http/src/openapi.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/planner_turn.rs`, `docs/codebase/README.md`
 - Done when: `cargo test -p core-turns --test entries` (the seven new tests and the kept ones) and `cargo test -p shadows --test planner_turn tool_entries_carry_their_cards` pass; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` then `cargo test -p shadows --test openapi` pass
 
 ### B-21 · The task list becomes a `TodoList` entry; a running turn's activity is readable
-- Status: blocked (B-20; request not yet accepted)
+- Status: blocked (B-20)
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-21--the-task-list-is-kept-and-a-running-turns-activity-is-readable
 - Read: spec §3 and §4; `crates/core-turns/contract.yaml` (`registry`, `called_by_other_services`); `crates/core-threads/contract.yaml` (`ThreadEntryKind`)
 - Touch: `crates/core-threads/src/model.rs`, `crates/core-threads/contract.yaml`, `crates/core-turns/src/entries.rs`, `crates/core-turns/src/tools.rs`, `crates/core-turns/src/turn.rs`, `crates/core-turns/src/handles.rs`, `crates/core-turns/src/spawn.rs`, `crates/core-turns/src/model.rs`, `crates/core-turns/src/lib.rs`, `crates/core-turns/contract.yaml`, `crates/core-turns/tests/entries.rs`, `crates/shadows-core/src/lib.rs`, `crates/shadows-http/src/openapi.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/planner_turn.rs`, `crates/shadows/tests/thread_contract.rs`
 - Done when: `cargo test -p core-turns --test entries`, `cargo test -p shadows --test planner_turn a_turns_task_list_is_kept_as_a_todo_list_entry`, `cargo test -p shadows --test thread_contract every_entry_kind_round_trips_as_its_stored_name` pass; openapi regenerated and `cargo test -p shadows --test openapi` passes
 
 ### B-22 · `tool` and `todos` frames, re-sent after `caught-up` for a running turn
-- Status: blocked (B-21; request not yet accepted)
+- Status: blocked (B-21)
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-22--a-subscriber-gets-tool-and-todos-and-a-reload-gets-them-back
 - Read: spec §4 and §5; `crates/core-events/contract.yaml` (`Delivery`, `next`, `transient`, the no-gap obligation); `crates/core-turns/contract.yaml` `live_activity`
 - Touch: `crates/core-events/src/subscription.rs`, `crates/core-events/src/lib.rs`, `crates/core-events/contract.yaml`, `crates/shadows-http/src/sse.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/stream_frames.rs`
