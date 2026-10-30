@@ -218,7 +218,7 @@ export function Composer({
             <textarea
               ref={messageBox}
               value={prompt}
-              disabled={inFlight}
+              readOnly={inFlight}
               onPaste={e => {
                 const files = Array.from(e.clipboardData.files).filter(file => file.type.startsWith('image/'))
                 if (files.length === 0) return

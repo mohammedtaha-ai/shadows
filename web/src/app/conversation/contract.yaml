@@ -200,6 +200,8 @@ components:
       JSX.Element"
     # Composes useSend, useStop, useImages and useSessionSettings with the prompt
     # and slash menu. Send waits for known and the session to hold the chosen model.
+    # While a send or queue is in flight the message box is read-only, never disabled,
+    # so it keeps focus and the person types again as soon as it settles.
   ComposerBar:
     signature: "(props: { harness: string; harnessLabel: string; session: SessionView; settings:
       TurnSettings | null; onSettings: (next: TurnSettings) => void; changingModel: boolean;
