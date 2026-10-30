@@ -287,3 +287,7 @@ pub(super) async fn put_settings(
             .await?,
     ))
 }
+
+#[cfg(test)]
+#[path = "code_tests.rs"]
+mod code_tests;

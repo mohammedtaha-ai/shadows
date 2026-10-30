@@ -3,6 +3,4 @@
 # A-20: legacy fixture service constructors.
 # A-20: adapter fixtures retain explicit storage, session and live-registry handles.
 # A-20: binary test module glob resolution reviews.
-crates/shadows/src/aylul_tests.rs :: module name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows/src/cli/args.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
-crates/shadows/src/daemon/descriptor.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1

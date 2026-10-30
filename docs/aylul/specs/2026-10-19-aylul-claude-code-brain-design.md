@@ -14,14 +14,14 @@ profile, voice, remote alerts) build on this one and get their own designs.
 ## 1. Intent and why
 
 AYLUL is Mohammed's assistant that stands between him and his agents (Claude,
-Codex, Gemini) and later handles personal tasks. Today its brain is Hermes,
-reached through `services/assistant` and the product daemon. That path shows
-the same problems the first Shadows UI had:
+Codex, Gemini) and later handles personal tasks. Its brain was Hermes, reached
+through `services/assistant` and the product daemon; both were removed on
+2026-10-29. That path showed the same problems the first Shadows UI had:
 
 - The screen looks stuck after a message: the reply arrives only when the
   Hermes run completes (`getRun` polling, `POLL_MS = 1500`), with no streamed
   text or tool progress.
-- No model or effort choice: the local protocol has seven actions and no
+- No model or effort choice: the local protocol had seven actions and no
   settings (`services/assistant/src/protocol.ts`).
 
 Shadows core already streams a turn's events to its web client and offers the
@@ -105,15 +105,15 @@ its limit, AYLUL keeps working on its own provider and key.
   own place" without a project, and keeps project files out by construction.
 - **Profiles stored under the AYLUL root**, one folder each, e.g.
   `%LOCALAPPDATA%\aylul\profiles\<name>\` as the `CLAUDE_CONFIG_DIR`.
-- **Keys kept by the product daemon** (the Rust daemon in `crates/shadows`,
-  not `services/assistant`), never in the profile's `settings.json`, and
+- **Keys kept by Core** (the `secrets` service `shadows serve` runs),
+  never in the profile's `settings.json`, and
   injected into the adapter's environment at spawn. Storage mechanism is the
   builder's choice within the planned `secrets` owner's rules (config holds
   references only).
 - **First profile:** "AYLUL" on MiniMax-M3 through
   `https://api.minimax.io/anthropic`, the provider Mohammed already uses.
-- **The Hermes path is left in place, unused by default**, until this path is
-  accepted; removing it is a separate decision.
+- **The Hermes path was left in place, unused by default**, until this path was
+  accepted; Mohammed decided its removal, done on 2026-10-29.
 - **Profiles in v1 are seeded, not edited in the UI.** On first run the
   product creates the "AYLUL" profile from a template kept in the repository
   (`CLAUDE.md`, `settings.json`). The key comes from a named environment

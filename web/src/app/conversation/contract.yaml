@@ -4,8 +4,9 @@
 # queue and stop path, and the draft-to-thread handoff (`useFirstSend`, `carrySend`).
 #
 # Trap: a turn's status never comes from one source alone. The operations snapshot
-# and the durable operation events are merged by `turnReducer` so a status only moves
-# forward; a reader that trusts whichever arrived last can pull a finished turn back.
+# and the durable operation events are merged by `turnReducer` by Core's journal `seq`:
+# per turn the source with the higher `seq` wins. A reader that trusts whichever arrived
+# last can pull a finished turn back.
 #
 # Trap: the streamed reply and the durable entries share the screen. The reply hides
 # the entries it stands in for (`ShownReply.hidden`), and `Messages` drops them. Neither
@@ -37,8 +38,7 @@ refresh_pinning:
 
 shapes:
   Status:
-    # Pending, then Running, then one terminal status that never changes.
-    # Unknown daemon statuses are read as Pending (asStatus), never as terminal.
+    # Core's status_kind. Unknown daemon statuses are read as Pending (asStatus), never as terminal.
     values: "'Pending' | 'Running' | 'Completed' | 'Failed' | 'Cancelled' | 'Interrupted'"
   Turn:
     id: string
@@ -47,6 +47,8 @@ shapes:
     stopRequested: bool
     # When this client learned the turn had ended (ms); set once and kept.
     endedAt: "number | null"
+    # Journal seq of the source that set the turn; -1 when only the start route has answered.
+    seq: number
   ReplyState:
     # The turn whose text this is; `live` means the stream is still delivering it.
     op: "string | null"
@@ -341,9 +343,12 @@ hooks:
 pure:
   turnReducer:
     signature: "(state: TurnState, action: TurnAction) => TurnState"
-    # Newest first. A status only moves forward; a terminal status never changes.
+    # Newest first. Per turn the row or event with the higher seq sets status_kind and
+    # stopRequested; an equal seq keeps what is known; the started action has no seq and yields.
+    # An event of no operation, or one without a status_kind in its payload, is ignored.
   isTerminal:
     signature: "(status: Status) => boolean"
+    # The one piece of status knowledge kept: whether a turn has ended (Stop, endedAt).
   runningTurn:
     signature: "(state: TurnState) => Turn | null"
     # The newest turn that has not ended.
@@ -427,8 +432,8 @@ pure:
     # Runs after Streamdown's plugins. Gives each block its own direction.
 
 draft_owners:
-  draft.tsx: "Render draft conversation routes; DraftRoute, AgentDraftRoute, Draft read API-owned query state; first-send.ts owns mutations"
-  draft-session.ts: "Offer provisional draft choices; draftSession uses the private UNOPENED placeholder before a session exists"
+  draft.tsx: "Render draft conversation routes; DraftRoute, AgentDraftRoute, Draft read API-owned query state (the harness list too: while it fails, the composer shows its error and offers no mode); first-send.ts owns mutations"
+  draft-session.ts: "Offer provisional draft choices; draftSession takes the harness policy Core lists (api/harnesses policyOf) and uses the private UNOPENED placeholder before a session exists; without the policy it is connecting"
   first-send.ts: "Orchestrate the draft first send; useFirstSend owns thread creation, companion targeting, list invalidation, session opening, optional model change, image capability checking, staged uploads, first turn, navigation; DRAFT_TITLE is private; only draft.tsx imports this module"
   carried-send.ts: "Store the one-time failed first-send handoff; CarriedSend, carrySend, useCarriedSend retain the message; Attempt comes directly from api/command-id through a type-only import; no runtime API call"
   upload-images.ts: "Upload selected images with replayable commands; PendingImage, uploadImages, retryImageUpload own upload identity, shared in-flight promises, ordered answers, explicit retry"
@@ -467,11 +472,20 @@ obligations:
     tested_by: [deleted_agent_conversation_reads]
 
   - rule: >
-      A turn's status only moves forward (Pending, Running, one terminal). A snapshot
-      read before a turn ended does not bring it back, and a replayed start does not
-      restart a turn the snapshot already saw end.
+      Per turn the source with the higher journal seq wins: a snapshot row or an operation
+      event sets the status and the stop flag. A snapshot read before a turn ended does not
+      bring it back, a replayed start does not reopen an ended turn, a newer row replaces an
+      older event, an equal seq keeps what is known, and the start route's answer yields to
+      any row or event. An unknown status keeps the turn unended.
     tested_by:
       - "a snapshot read before a turn ended does not bring it back"
+      - "a replayed start does not reopen a turn the snapshot saw end"
+      - "a newer snapshot row replaces an older event"
+      - "an equal seq keeps what is known"
+      - "the start route yields to any row or event"
+      - "a cancellation request sets stopRequested without changing the status"
+      - "an unknown status keeps the turn unended, so Stop stays offered"
+      - "ignores an operation event without a status_kind"
       - "a reload during a running turn shows it running, then follows it to its end"
 
   - rule: >
@@ -696,7 +710,8 @@ obligations:
       Its menu and turns use Core's current.mode, including after navigation or a fresh
       QueryClient remount. A pending write disables settings and Send; a refusal or lost
       connection keeps the last Core mode and displays the usual error. A draft keeps
-      its policy default and sends its chosen mode with its first turn.
+      Core's initial mode and sends its chosen mode with its first turn. While the
+      harness list cannot be read, the draft offers no mode and shows the list's error.
     tested_by:
       - "choosing Auto saves at once and shows only Core’s answer"
       - "Auto survives navigating away and back and a fresh QueryClient remount"
@@ -705,8 +720,9 @@ obligations:
       - "a mode save cancels an older session read before caching Core’s answer"
       - "switching conversations isolates their modes and a late save answer"
       - "every mode choice uses a fresh command and options frames remain authoritative"
-      - "a draft starts at the policy default without a session mode write"
+      - "a draft starts at Core's initial mode without a session mode write"
       - "the first message creates the thread, then sends, then opens the thread"
+      - "offers no mode and shows the error when the harness list cannot be read"
 
   - rule: >
       A draft whose turn fails after its thread exists carries the text, command and error to
@@ -1140,6 +1156,20 @@ tests:
     checks: "Snapshot plus replayed events give b Running, then Cancelled with endedAt 42."
   - name: "a snapshot read before a turn ended does not bring it back"
     checks: "Completed event then a stale Running snapshot: no running turn, endedAt kept at 7."
+  - name: "a replayed start does not reopen a turn the snapshot saw end"
+    checks: "Completed row seq 3, then Created/Started events seq 1-2: no running turn."
+  - name: "a newer snapshot row replaces an older event"
+    checks: "Started event seq 2 then Failed row seq 6: Failed, endedAt from the snapshot."
+  - name: "an equal seq keeps what is known"
+    checks: "Completed event seq 3 survives a Running row and a Started event at seq 3."
+  - name: "the start route yields to any row or event"
+    checks: "started then an event or row replaces it; an event then started keeps the event."
+  - name: "a cancellation request sets stopRequested without changing the status"
+    checks: "Running turn stays Running with stopRequested true."
+  - name: "an unknown status keeps the turn unended, so Stop stays offered"
+    checks: "status_kind Suspended reads Pending, still the running turn."
+  - name: "ignores an operation event without a status_kind"
+    checks: "Payload {} or null returns the same state."
   - name: "a turn begun after the snapshot is newest, and stays so when the snapshot is read again"
     checks: "A turn from events stays first after a second snapshot lists it."
   - name: "knows a turn is running from the start route before any of its events"

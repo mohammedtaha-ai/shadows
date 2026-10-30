@@ -6,10 +6,9 @@ import { notifyManager, useMutation, useQuery, useQueryClient } from '@tanstack/
 import { useRef, useState } from 'react'
 import { type Project, setProjectModes } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { harnessesQuery } from '@/api/harnesses'
+import { harnessesQuery, policyOf } from '@/api/harnesses'
 import { saveProjectAnswer } from '@/api/projects'
 import { ErrorLine } from '../error-line'
-import { policyOf } from '../mode-policy'
 
 type Allowed = Record<string, string[]>
 
@@ -43,7 +42,7 @@ export function ProjectModes({ project }: { project: Project }) {
   const allowed: Allowed = asked ?? project.allowed_modes
 
   const toggle = (harness: string, mode: string, on: boolean) => {
-    const order = policyOf(harness).modes.map((m) => m.id)
+    const order = policyOf(harnesses, harness).modes.map((m) => m.id)
     const current = new Set(allowed[harness] ?? [])
     if (on) current.add(mode)
     else current.delete(mode)
@@ -59,18 +58,17 @@ export function ProjectModes({ project }: { project: Project }) {
     <section className="w-full max-w-sm space-y-3 text-left">
       <h2 className="text-sm font-medium">Allowed modes</h2>
       {(harnesses ?? []).map((h) => {
-        const policy = policyOf(h.kind)
         const modes = allowed[h.kind] ?? []
         return (
           <fieldset key={h.kind} className="space-y-1.5">
             <legend className="text-xs text-muted-foreground">{h.label}</legend>
-            {policy.modes.length === 0 ? (
+            {h.modes.length === 0 ? (
               <p className="text-xs text-faint-foreground">
                 Modes are decided when {h.label} is enabled.
               </p>
             ) : (
               <>
-                {policy.modes.map((m) => (
+                {h.modes.map((m) => (
                   <label key={m.id} className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"

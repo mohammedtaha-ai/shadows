@@ -102,10 +102,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/core-agents/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
-| `crates/shadows/src/master_key.contract.yaml` | master key storage obligations | `crates/shadows/src/master_key.rs` |
-| `crates/shadows/src/master_key.rs` | Windows master key storage | `crates/shadows/src/master_key.contract.yaml` |
-| `crates/shadows/src/master_key_tests.rs` | master key lifecycle tests with in-memory credentials | `crates/shadows/src/master_key.contract.yaml` |
-| `crates/shadows/src/aylul_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/aylul.rs` |
+| `crates/core-secrets/src/master_key.rs` | OS master key lifecycle | `crates/core-secrets/contract.yaml` |
+| `crates/core-secrets/src/master_key_tests.rs` | master key lifecycle tests with in-memory credentials | `crates/core-secrets/contract.yaml` |
+| `crates/shadows/src/config_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/config.rs` |
 | `crates/core-secrets/src/lib.rs` | encrypted environment operations | `crates/core-secrets/contract.yaml` |
 | `crates/core-secrets/src/error.rs` | secret operation failures | `crates/core-secrets/contract.yaml` |
 | `crates/core-secrets/src/` | encrypted profile environment operations | `crates/core-secrets/contract.yaml` |
@@ -132,12 +131,8 @@ pattern to follow, not merely an example.
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
 | `crates/shadows/src/desktop_runtime.rs` | desktop launch identity | `docs/aylul/specs/2026-10-20-aylul-desktop-web-companion-design.md` |
 | `crates/shadows/src/runtime_record.rs` | private runtime record publication | `crates/shadows/src/runtime_record.rs` |
+| `crates/shadows/src/runtime_record_tests.rs` | private record replacement tests | `crates/shadows/src/runtime_record.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
-| `crates/shadows/src/daemon/` | product service composition | `docs/integration/2026-10-19-product-daemon-hermes-design.md` |
-| `crates/shadows/src/daemon/bridge.rs` | bounded Node request ownership | `crates/shadows/src/daemon/bridge.rs` |
-| `crates/shadows/src/daemon/http.rs` | native assistant request translation | `crates/shadows/src/daemon/http.rs` |
-| `crates/shadows/src/aylul.rs` | AYLUL startup configuration | `crates/shadows/src/aylul.rs` |
-| `crates/shadows/src/daemon/descriptor.rs` | private connection descriptor ownership | `crates/shadows/src/daemon/descriptor.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
 | `crates/shadows-http/src/runtime.rs` | runtime readiness HTTP projection | `crates/shadows/src/desktop_runtime.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |
@@ -153,6 +148,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/roadmap.rs` | the routes over roadmap proposals | `crates/shadows-http/src/roadmap.rs` |
 | `crates/shadows-http/src/agreements.rs` | the routes over shared API agreements | `crates/shadows-http/src/agreements.rs` |
 | `crates/shadows-http/src/code.rs` | the routes over the code index | `crates/shadows-http/src/code.rs` |
+| `crates/shadows-http/src/code_tests.rs` | the tests of the code index routes | `crates/shadows-http/src/code_tests.rs` |
 | `crates/shadows-http/src/sse.rs` | the replay-then-live stream's SSE framing | `crates/shadows-http/src/sse.rs` |
 | `crates/shadows-http/src/fs.rs` | choosing a project directory on this machine | `crates/shadows-http/src/fs.rs` |
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |

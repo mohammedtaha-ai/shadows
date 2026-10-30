@@ -29,6 +29,7 @@ export type Problem =
       kind: 'daemon'
       status: number
       code: ErrorCode
+      field?: string
       currentRevision?: number
       problems?: string[]
     }
@@ -56,6 +57,7 @@ export function toApiError(response: Response, body: unknown): ApiError {
         kind: 'daemon',
         status: response.status,
         code: body.code,
+        ...(body.field != null && { field: body.field }),
         ...(body.current_revision != null && { currentRevision: body.current_revision }),
         ...(body.problems != null && { problems: body.problems }),
       },

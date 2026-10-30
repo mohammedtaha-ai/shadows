@@ -42,6 +42,7 @@ impl Failure {
                     detail: Detail {
                         current_revision: Some(*current),
                         problems: None,
+                        field: None,
                     },
                 };
             }

@@ -1,15 +1,11 @@
 # Product daemon: TypeScript Hermes service
 
 Date: 2026-10-19.
-Status: Implemented locally on 2026-10-19 (evidence:
-`docs/evidence/aylul/2026-10-19-product-daemon-hermes.md` at `0187365`;
-the plan was deleted later that day, Git `226d0a3`).
+Status: The Hermes service, its TypeScript client and `shadows daemon` were removed on 2026-10-29. `shadows serve` is the one host.
 
-2026-10-19 amendment: the daemon stays AYLUL's host, but AYLUL's brain is now
-Claude Code run by Shadows core inside this daemon, owned by the
-[brain design](../aylul/specs/2026-10-19-aylul-claude-code-brain-design.md).
-The Hermes service and TypeScript client below stay in the code, unused by
-default; the sections about them describe existing code, not the direction.
+Sections 1-8 record the superseded 2026-10-19 design and its starting-point
+observations. They do not describe the current implementation or authorize
+reintroducing the removed service, client, daemon, or `/assistant` surface.
 
 ## 1. Approved intent
 

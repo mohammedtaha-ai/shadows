@@ -30,6 +30,26 @@ export const claudeHarness: HarnessInfo = {
   reason: null,
   remembered: null,
   limits: null,
+  modes: [
+    {
+      id: 'acceptEdits',
+      label: 'Accept edits',
+      description:
+        'Claude Code edits, creates and deletes files in the project folder without asking. Other commands are refused.',
+    },
+    { id: 'auto', label: 'Auto', description: 'Claude Code decides on its own; nothing is asked.' },
+  ],
+  initial_mode: 'acceptEdits',
+  unattended_mode: 'auto',
+}
+
+/** Core lists AYLUL with Claude Code's policy; it runs only when configured. */
+export const aylulHarness: HarnessInfo = {
+  ...claudeHarness,
+  kind: 'aylul',
+  label: 'AYLUL',
+  available: false,
+  reason: 'Coming later',
 }
 
 export const codexHarness: HarnessInfo = {
@@ -39,6 +59,9 @@ export const codexHarness: HarnessInfo = {
   reason: 'Codex is not runnable yet',
   remembered: null,
   limits: null,
+  modes: [],
+  initial_mode: null,
+  unattended_mode: null,
 }
 
 export const fakeChoices: SessionChoices = {
@@ -117,6 +140,7 @@ function operation(status_kind: string, invocation: InvocationView | null): Oper
     id: 'op1',
     kind: 'PlannerTurn',
     status_kind,
+    seq: 1,
     thread_id: 't1',
     runtime_instance_id: 'r1',
     created_at: '2026-09-24T00:00:00Z',

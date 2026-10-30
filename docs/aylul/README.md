@@ -25,7 +25,8 @@ alerts later.
 - [Vision](vision.md): the full product idea. Decides nothing.
 - [Future list](future.md): what is meant and not built yet, one line each, linked to the vision.
 - [Laptop hook design](specs/2026-10-13-aylul-hook-laptop-design.md): what AYLUL learns from Claude Code on the laptop.
-- [Product daemon](../integration/2026-10-19-product-daemon-hermes-design.md): the host process.
+- [Product daemon](../integration/2026-10-19-product-daemon-hermes-design.md): the superseded
+  Hermes host, removed on 2026-10-29.
 - [Code map](codebase/README.md): what each implemented desktop module owns.
 - Owners: [character](character/AGENTS.md), [native](native/AGENTS.md), [desktop UI](ui/AGENTS.md).
 

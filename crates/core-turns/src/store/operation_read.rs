@@ -48,6 +48,7 @@ fn into_operation(
         created_at: r.created_at,
         started_at: r.started_at,
         finished_at: r.finished_at,
+        seq: r.seq,
         invocation,
     }
 }

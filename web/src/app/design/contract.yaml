@@ -106,14 +106,14 @@ parts:
       and turns an empty kind into null.
   PartReferences: "({ projectId, selected, change }) -> JSX.Element"
   MapPartDetails: "({ content, projectId }) -> JSX.Element"
-  CreateStructure: "({ projectId }) -> JSX.Element"
-  fileCount:
-    signature: "(projectId: string) -> Promise<number>"
-    private: true
+  CreateStructure:
+    signature: "({ projectId }) -> JSX.Element"
     note: >
-      Walks the whole part tree serially, one request per branch page. Counts one
-      root SHADOWS.md, then one per part plus one per starter file. Throws 'Map
-      changed; try again.' if a page's revision differs or an id repeats.
+      The confirm shows the stage's structure_file_count (no count when null) and sends
+      the stage's map_revision. A REVISION_CONFLICT answer writes nothing: the screen says
+      "The map changed; check the new count.", reads the stage again and keeps the dialog
+      for a new confirm, which uses a fresh command id because the revision is part of
+      the command. An uncertain response retries the same command id.
 
 roadmap:
   RoadmapView:
@@ -281,15 +281,15 @@ obligations:
     note: "Enabled case: enables Create structure for a complete approved map."
 
   - rule: >
-      Confirming shows the project directory and file count before anything is written.
-      The write sends one command id, and success shows the path count and the written
-      paths, and survives the stage moving to roadmap.
+      Confirming shows the project directory and the stage's file count before anything
+      is written. The write sends one command id and the stage's map_revision, and
+      success shows the path count and the written paths, and survives the stage moving
+      to roadmap.
     tested_by: >-
       confirms the directory and count, writes, then preserves success after roadmap
       refresh
     note: >
-      The count is checked for one part with one starter file only. Whether each part
-      always gets a contract file is an open question.
+      The count is Core's; the screen counts nothing.
 
   - rule: >
       A daemon refusal of the write appears verbatim under the control, and Create
@@ -321,13 +321,17 @@ obligations:
     tested_by: none
 
   - rule: >
-      Structure file count walks every branch and counts one per part plus its starter files.
+      The confirm shows structure_file_count as the stage sends it, and shows no count
+      when it is null.
     tested_by: >-
-      confirms the directory and count, writes, then preserves success after roadmap
-      refresh
-    note: >
-      Only one part with one file is exercised. A branch read that changes mid-walk
-      (the 'Map changed' throw) has no test.
+      shows the count from the stage without reading the part tree; shows no count when
+      the stage sends none, and still confirms
+
+  - rule: >
+      A write refused as REVISION_CONFLICT writes nothing, says "The map changed; check
+      the new count.", reads the stage again, and the next confirm sends the new
+      revision under a fresh command id.
+    tested_by: re-reads the stage when the map moved and confirms again with the new revision
 
   - rule: >
       The Workspace route shows Vision when the view is missing, and the section nav
@@ -389,8 +393,8 @@ not_the_caller's:
       Load a whole parts tree for a picker or a summary. Open one branch with
       usePartPages, which pages at fifty items.
   - >
-      Compute a part's file count outside fileCount, or count folders as files. The
-      preview is the only count the confirmation shows.
+      Compute a structure's file count in the client, or walk the part tree for it.
+      The stage's structure_file_count is the only count the confirmation shows.
 
 
 # ── gaps ─────────────────────────────────────────────────────────────────────
@@ -413,20 +417,10 @@ gaps:
       acceptance item. PartEditor's contentOp removes blank lines from folders and
       rules, so the two editors disagree on the same input.
 
-  - at: fileCount
-    gap: >
-      Opening the confirmation issues one request per part branch page, serially, over
-      the whole tree, and aborts on any revision change. Its cost grows with the map,
-      not with the structure being written. No limit or cache bounds it.
-
 
 # ── open_questions ───────────────────────────────────────────────────────────
 
 open_questions:
-  - >
-      Does the structure writer write exactly one contract.yaml per part, and no file
-      for a folder? fileCount counts one per part plus starter files. Answering needs
-      the structure writer in crates/shadows-core (design service), not read here.
   - >
       Does the daemon refuse a blank outcome acceptance item or a blank standards part
       name, or does it store them? Answering needs the design service's validation.

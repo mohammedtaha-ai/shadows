@@ -95,10 +95,11 @@ async fn the_planner_proposes_and_approves_a_roadmap_after_the_structure() {
     .await;
     assert!(error && text.starts_with("STAGE_BLOCKED:"), "{text}");
     assert!(text.contains("no roadmap approved"), "{text}");
+    let revision = l.app.core.design().stage(&p).await.unwrap().map_revision;
     l.app
         .core
         .design()
-        .create_structure("write".into(), &p)
+        .create_structure("write".into(), &p, revision)
         .await
         .unwrap();
     let card = ok(&c, "roadmap_propose", first(&parts, "Login")).await;
@@ -139,10 +140,11 @@ async fn roadmap_proposal_routes_list_and_approve() {
     let l = listening::listening_unseeded().await;
     let dir = tempfile::tempdir().unwrap();
     let (p, thread, op) = structured(&l, dir.path()).await;
+    let revision = l.app.core.design().stage(&p).await.unwrap().map_revision;
     l.app
         .core
         .design()
-        .create_structure("write".into(), &p)
+        .create_structure("write".into(), &p, revision)
         .await
         .unwrap();
     let c = planner_client(&l, &thread).await;

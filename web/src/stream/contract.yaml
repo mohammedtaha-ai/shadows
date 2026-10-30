@@ -214,8 +214,8 @@ agreements:
     holds: true
     why: >
       The dispatcher calls api/threads invalidation methods using those same key factories.
-    tested_by: "refetches entries at each caught-up, per live entry and live turn end, never per
-        replayed one"
+    tested_by: "refetches entries at each caught-up, per live entry and live operation
+        event, never per replayed one"
 
 
 # ── obligations ──────────────────────────────────────────────────────────────
@@ -332,10 +332,10 @@ obligations:
 
   - rule: >
       Entries are refetched at each caught-up, per live ThreadEntryAppended and per live
-      terminal event, and never per replayed one. Operations are refetched at caught-up and
-      per live terminal event.
-    tested_by: "refetches entries at each caught-up, per live entry and live turn end, never per
-        replayed one"
+      Operation* event, and never per replayed one. Operations are refetched at caught-up and
+      per live Operation* event. The client keeps no list of which operation events end a turn.
+    tested_by: "refetches entries at each caught-up, per live entry and live operation event,
+        never per replayed one"
 
   - rule: >
       A ThreadRetitled reads the thread lists again at once when live, or once at the
@@ -555,12 +555,12 @@ tests:
     checks: >
       After t1 fails, showing t2 leaves only a t2 source open, and the old timer does not fire.
 
-  - name: "refetches entries at each caught-up, per live entry and live turn end,
+  - name: "refetches entries at each caught-up, per live entry and live operation event,
       never per replayed one"
     checks: >
       Entry and operation invalidations count 0 during replay, 1 each at caught-up, then one per
-      live ThreadEntryAppended and per live turn end, with a single refetch at the next caught-up.
-      Invalidate is called seven times in total.
+      live ThreadEntryAppended and per live Operation* event, with a single refetch at the next
+      caught-up. Invalidate is called eleven times in total.
 
   - name: hands every durable event to its caller once, saying whether it was live
     checks: >

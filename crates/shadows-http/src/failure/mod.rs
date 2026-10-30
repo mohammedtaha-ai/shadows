@@ -33,6 +33,7 @@ pub struct Failure {
 /// without reading it.
 #[derive(Default)]
 struct Detail {
+    field: Option<String>,
     current_revision: Option<i64>,
     problems: Option<Vec<String>>,
 }
@@ -46,6 +47,8 @@ struct Detail {
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
     /// `REVISION_CONFLICT` only: the resource's revision now, to read again at.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_revision: Option<i64>,
@@ -227,6 +230,7 @@ impl axum::response::IntoResponse for Failure {
             Json(ErrorBody {
                 code: self.code,
                 message: self.message,
+                field: self.detail.field,
                 current_revision: self.detail.current_revision,
                 problems: self.detail.problems,
             }),
@@ -271,6 +275,7 @@ pub(super) async fn rejections_as_error_bodies(
         Json(ErrorBody {
             code: ErrorCode::InvalidCommand,
             message,
+            field: None,
             current_revision: None,
             problems: None,
         }),

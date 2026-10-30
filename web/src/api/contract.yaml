@@ -31,7 +31,7 @@ source: web/src/api
 shapes:
   Problem:
     unreachable: "{ kind: 'unreachable' }; no HTTP answer arrived at all"
-    daemon: "{ kind: 'daemon', status, code, currentRevision?, problems? }"
+    daemon: "{ kind: 'daemon', status, code, currentRevision?, problems?, field? }"
     http: "{ kind: 'http', status, body: string }; a failure that is not an ErrorBody"
   ApiError:
     extends: Error
@@ -72,6 +72,9 @@ event_urls:
 
 threads_and_turns:
   listHarnesses: "() -> Promise<HarnessInfo[]>"
+  policyOf: "(harnesses: readonly HarnessInfo[] | undefined, kind: string) -> HarnessPolicy; the harness's modes, initial and unattended mode as Core lists them, or none while the list is unread"
+  modeLabel: "(policy: HarnessPolicy, mode: string) -> string; the id itself for a mode the policy does not list"
+  modeDescription: "(policy: HarnessPolicy, mode: string) -> string | null"
   uploadAttachment: "(threadId: string, commandId: string, file: File) -> Promise<Attachment>; multipart command_id and one file through the shared client; Core owns validation"
   attachmentUrl: "(threadId: string, attachmentId: string) -> string; encoded byte-route ids under DAEMON_URL"
   openSession: "(threadId: string) -> Promise<SessionChoices>"
@@ -246,8 +249,10 @@ obligations:
     tested_by: "maps the daemon's ErrorBody to a daemon problem carrying its code"
 
   - rule: >
-      A conflict or validation answer keeps `currentRevision` and `problems` from the body.
+      A conflict or validation answer keeps `currentRevision`, `problems` and `field` from the body when present.
     tested_by: "keeps the current revision and the problems an ErrorBody carries"
+  - rule: A provider refusal preserves its field and message.
+    tested_by: "preserves the field named by a provider refusal"
 
   - rule: >
       A non-JSON failure body (axum's plain-text rejection) is an `http` problem holding the text.
@@ -368,8 +373,8 @@ obligations:
 
   - rule: >
       Query keys are arrays whose prefixes match the invalidations in src/stream and src/app.
-    tested_by: "integration: refetches entries at each caught-up, per live entry and live turn end,
-        never per replayed one"
+    tested_by: "integration: refetches entries at each caught-up, per live entry and live operation
+        event, never per replayed one"
     note: >
       That test in web/src/stream/use-thread-stream.test.tsx uses threadEntriesKey and
       threadOperationsKey to find the invalidations it counts. Only those two keys are checked.
@@ -743,8 +748,8 @@ design_operations:
 
 harnesses_operations:
   owner: harnesses.ts
-  operations: "listHarnesses"
-  types: "HarnessInfo; generated schema aliases"
+  operations: "listHarnesses; policyOf, modeLabel, modeDescription read the mode policy out of the list"
+  types: "HarnessInfo; HarnessPolicy (modes, initial_mode, unattended_mode of a HarnessInfo); generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 aylul_profiles_transport:

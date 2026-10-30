@@ -100,4 +100,8 @@ pub struct ProjectLink {
 pub struct CodeSettings {
     /// How many projects are active at once: 1 to 20, default 5.
     pub active_limit: u32,
+    /// The least `active_limit` Core accepts.
+    pub active_limit_min: u32,
+    /// The most `active_limit` Core accepts.
+    pub active_limit_max: u32,
 }

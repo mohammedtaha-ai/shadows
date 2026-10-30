@@ -69,7 +69,7 @@ describe('useConversation', () => {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } })
     client.setQueryData(threadEntriesKey('t1'), [])
     client.setQueryData(threadOperationsKey('t1'), [
-      { id: 'op1', status_kind: 'Running', cancel_requested_at: null },
+      { id: 'op1', status_kind: 'Running', cancel_requested_at: null, seq: 1 },
     ])
     root = createRoot(document.createElement('div'))
     const target = root

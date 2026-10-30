@@ -34,7 +34,7 @@ What the code keeps true. Each one was checked by reading the code that enforces
   tests and test-support files import them. The architecture check rejects production reachability.
 - Feature folders reach shared code by path (`@/api/…`, `@/components/ui/…`); the
   shared pieces at the root of `web/src/app/` (`error-line.tsx`, `copy-button.tsx`,
-  `daemon-status.tsx`, `mode-policy.ts`) are imported by the feature folders that need them.
+  `daemon-status.tsx`) are imported by the feature folders that need them.
 
 ## Architecture modules
 
@@ -61,7 +61,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts, app/confirm-panel.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/mode-policy.ts, app/confirm-panel.tsx` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx` | `-` | `api, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
@@ -169,7 +169,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/provider-presets.ts` | Provider preset grouping | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-picker.tsx` | Searchable provider choice | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-models.tsx` | Provider model selection | `web/src/app/agents/contract.yaml` |
-| `web/src/app/agents/model-picks.ts` | Provider model validation | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/character-colors.ts` | Shared character colour lookup | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/color-swatches.tsx` | Character colour controls | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-test.ts` | Provider test outcome messages | `web/src/app/agents/contract.yaml` |
@@ -251,7 +250,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
 | `web/src/app/confirm-panel.tsx` | Confirmation presentation with non-submitting action buttons | `web/src/app/error-line.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
-| `web/src/app/mode-policy.ts` | Shadows' mode policy per harness, for display | `web/src/app/error-line.tsx` |
 | `web/src/app/new-project/folder-browser.tsx` | Browses one daemon directory to pick a folder | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/new-project/folder-state.ts` | Current folder of the new-project browser | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/new-project/new-folder.tsx` | Creates a named folder in the shown directory | `web/src/app/new-project/contract.yaml` |

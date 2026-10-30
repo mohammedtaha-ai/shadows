@@ -37,7 +37,8 @@ use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
 pub use model::{
-    AylulUsageSnapshot, HarnessInfo, InvocationVersions, InvocationView, RememberedSettings,
+    AylulUsageSnapshot, HarnessInfo, HarnessMode, InvocationVersions, InvocationView,
+    RememberedSettings,
 };
 use sessions::Sessions;
 pub use sessions::{LeaseError, OpenError, OpenSession, SessionsConfig};
@@ -172,6 +173,16 @@ impl Harness {
                 reason: (!available).then(|| "Coming later".to_string()),
                 remembered,
                 limits: self.store.latest_limits(kind).await?,
+                modes: policy::modes(kind)
+                    .iter()
+                    .map(|m| HarnessMode {
+                        id: m.id.to_string(),
+                        label: m.label.to_string(),
+                        description: m.description.to_string(),
+                    })
+                    .collect(),
+                initial_mode: policy::default_mode(kind).map(str::to_string),
+                unattended_mode: policy::unattended_mode(kind).map(str::to_string),
             });
         }
         Ok(list)

@@ -37,6 +37,8 @@ shapes:
     drift: Vec<String>
     stage: Stage
     missing: Vec<String>
+    map_revision: i64
+    structure_file_count: Option<u32>
   Design:
     store: Arc<DesignStore>
     operations: Operations
@@ -153,10 +155,12 @@ functions:
     propose_vision_for_test: Test-only proposal using the supplied command, writer and operation.
   service:
     create_structure:
-      signature: "(&self, command_id: String, project: &ProjectId) -> Result<StructureWritten, DesignError>"
+      signature: "(&self, command_id: String, project: &ProjectId, map_revision: i64) -> Result<StructureWritten, DesignError>"
       # Person HTTP only; daemon mutex, intent before disk, immutable command replay.
+      # map_revision is the revision the person confirmed and is part of the command
+      # fingerprint; a moved map is RevisionConflict before anything is written.
     create_structure_stopping_after:
-      signature: "test-support only: (&self, command: String, project: &ProjectId, n: usize) -> Result<StructureWritten, DesignError>"
+      signature: "test-support only: (&self, command: String, project: &ProjectId, map_revision: i64, n: usize) -> Result<StructureWritten, DesignError>"
     planner_approver:
       signature: "private: derives Planner writer, running operation and harness from grant/thread"
     approve_vision_proposal_as_planner:
@@ -200,6 +204,8 @@ functions:
       # Turns reads the stage fact in its snapshot for both normal and steered prompts.
     stage:
       signature: "(&self, project: &ProjectId) -> Result<StageView, DesignError>"
+      # map_revision is the map revision read; structure_file_count is planned from the
+      # same snapshot create_structure uses, none unless create_structure would proceed.
     agreements_for:
       signature: "(&self, grant: &Grant) -> Result<Vec<AgreementVersion>, DesignError>"
     agreement_for:
@@ -327,6 +333,7 @@ shared_in_transaction:
   start_design_agreement: Private owner transaction entry; its command rules are listed under functions.
   start_structure: Private owner transaction entry; its command rules are listed under functions.
   structure_snapshot: Private owner transaction entry; its command rules are listed under functions.
+  structure_snapshot_in: The stage's count and create_structure read the map through it in their own transaction.
   agreement_in: Owner entry in the caller transaction; agreements rules.
   agreed_before_in: Owner entry in the caller transaction; agreements rules.
   mark_agreed_in: Owner entry in the caller transaction; agreements rules.
@@ -412,6 +419,13 @@ obligations:
       Added parts come from Standards; unknown/removed projects refuse the stage read.
     tested_by: [the_stage_walks_idea_vision_map_structure, stage_counts_a_trimmed_kind_and_no_other_case, an_added_part_is_mandatory_for_the_stage]
   - rule: >
+      The stage's structure_file_count is the number of files create_structure writes:
+      both plan from one snapshot method. create_structure names the confirmed
+      map_revision, which is part of its fingerprint; a moved map refuses with
+      RevisionConflict before any intent or file is written, and one CommandId with
+      another revision is CommandConflict.
+    tested_by: [the_stage_counts_the_files_create_structure_writes, a_map_that_moved_since_the_stage_read_writes_nothing, the_revision_is_part_of_the_commands_identity]
+  - rule: >
       Outcome containment is independent of parts; cycles/foreign associations
       refuse the entire batch, titles are trimmed, other design text is exact.
       Outcome references preserve existing part/plan identities. Affected outcome
@@ -446,6 +460,12 @@ tests:
     checks: Changed approved temp-suffixed filenames refuse without deletion; restoration resumes.
   - name: create_structure_writes_exactly_the_approved_files
     checks: Approved bytes, contracts, SHADOWS.md, roadmap and one durable event.
+  - name: the_stage_counts_the_files_create_structure_writes
+    checks: The stage's file count equals the paths written; none once written.
+  - name: a_map_that_moved_since_the_stage_read_writes_nothing
+    checks: RevisionConflict with the current revision; no file, no intent, stage unchanged.
+  - name: the_revision_is_part_of_the_commands_identity
+    checks: Same command and revision replays the first result; another revision is CommandConflict.
   - name: a_stopped_write_resumes
     checks: Incomplete intent preserves structure stage; matching files remain and temp is removed.
   - name: a_foreign_or_changed_file_refuses_the_resume

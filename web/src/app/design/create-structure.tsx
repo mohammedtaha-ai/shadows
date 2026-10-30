@@ -1,37 +1,12 @@
 // The person's structure confirmation, write and retained result.
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createStructure, getParts, type StructureWritten } from '@/api/design'
+import { createStructure, type StructureWritten } from '@/api/design'
 import { ApiError } from '@/api/error'
 import { stageQuery } from '@/api/design'
 import { projectsQuery } from '@/api/projects'
 import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
-
-async function fileCount(projectId: string): Promise<number> {
-  const parents: (string | undefined)[] = [undefined]
-  const seen = new Set<string>()
-  let count = 1 // root SHADOWS.md
-  let revision: number | undefined
-  for (const parent of parents) {
-    let after: string | undefined
-    do {
-      const page = await getParts(projectId, parent, after)
-      if (revision !== undefined && revision !== page.revision) {
-        throw new Error('Map changed; try again.')
-      }
-      revision = page.revision
-      for (const part of page.items) {
-        if (seen.has(part.id)) throw new Error('Map changed; try again.')
-        seen.add(part.id)
-        count += 1 + (part.content.files?.length ?? 0)
-        parents.push(part.id)
-      }
-      after = page.next ?? undefined
-    } while (after !== undefined)
-  }
-  return count
-}
 
 export function CreateStructure({ projectId }: {projectId:string}) {
   const client = useQueryClient()
@@ -40,14 +15,15 @@ export function CreateStructure({ projectId }: {projectId:string}) {
   const project = projects.data?.find(p => p.id === projectId)
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<StructureWritten | null>(null)
-  const command = useRef<string | null>(null)
-  const preview = useQuery({
-    queryKey: designKeys.preview(projectId),
-    queryFn: () => fileCount(projectId),
-    enabled: confirming && stage.data?.stage === 'structure' && stage.data.missing.length === 0,
-  })
+  const [moved, setMoved] = useState(false)
+  // One command id per attempt: the revision is part of the fingerprint, so a new
+  // revision is a new attempt. An uncertain response retries the same attempt.
+  const command = useRef<{ id: string; revision: number } | null>(null)
   const write = useMutation({
-    mutationFn: () => createStructure(projectId, command.current ??= crypto.randomUUID()),
+    mutationFn: (revision: number) => {
+      if (command.current?.revision !== revision) command.current = { id: crypto.randomUUID(), revision }
+      return createStructure(projectId, command.current.id, revision)
+    },
     onSuccess: written => {
       setResult(written)
       setConfirming(false)
@@ -55,11 +31,17 @@ export function CreateStructure({ projectId }: {projectId:string}) {
       void client.invalidateQueries({queryKey:designKeys.all(projectId)})
     },
     onError: error => {
+      const daemon = error instanceof ApiError && error.problem.kind === 'daemon' ? error.problem : null
+      if (daemon?.code === 'REVISION_CONFLICT') {
+        // Nothing was written; the dialog stays open on the re-read count.
+        command.current = null
+        setMoved(true)
+        void client.invalidateQueries({ queryKey: designKeys.stage(projectId) })
+        return
+      }
       setConfirming(false)
       // Retry an uncertain response with the same id to recover the committed result.
-      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.status === 409) {
-        command.current = null
-      }
+      if (daemon?.status === 409) command.current = null
     },
   })
   if (result) return <section role="status" className="rounded border p-3 text-sm">
@@ -72,19 +54,21 @@ export function CreateStructure({ projectId }: {projectId:string}) {
   if (stage.data?.stage !== 'structure') return null
   const missing = stage.data.missing
   const reason = missing.length > 0 ? `missing part: ${missing.join(', ')}` : null
-  const error = write.error ?? preview.error ?? projects.error
+  const error = moved ? null : write.error ?? projects.error
   const disabled = write.isPending || reason !== null || !project?.directory
-  const confirmDisabled = disabled || preview.data === undefined || preview.isFetching
+  const revision = stage.data.map_revision
+  const count = stage.data.structure_file_count
+  const confirmDisabled = disabled || stage.isFetching
   return <section className="space-y-2 rounded border p-3 text-sm" aria-label="Create structure">
-    <Button disabled={disabled} onClick={() => setConfirming(true)}>Create structure</Button>
+    <Button disabled={disabled} onClick={() => { setMoved(false); setConfirming(true) }}>Create structure</Button>
     {reason && <p>{reason}</p>}
     {error && <p role="alert">{error.message}</p>}
-    {preview.error && <Button variant="secondary" onClick={() => void preview.refetch()}>Retry file count</Button>}
     {confirming && <div role="dialog" aria-label="Confirm create structure"
       className="space-y-3 rounded border bg-card p-4">
-      <p>{preview.data === undefined ? 'Reading file count' : `Write ${preview.data} files`} in <bdi dir="auto">{project?.directory}</bdi>?</p>
+      {moved && <p role="alert">The map changed; check the new count.</p>}
+      <p>{count === null ? 'Write the structure' : `Write ${count} files`} in <bdi dir="auto">{project?.directory}</bdi>?</p>
       <div className="flex gap-2">
-        <Button disabled={confirmDisabled} onClick={() => write.mutate()}>Confirm create structure</Button>
+        <Button disabled={confirmDisabled} onClick={() => { setMoved(false); write.mutate(revision) }}>Confirm create structure</Button>
         <Button variant="secondary" disabled={write.isPending} onClick={() => setConfirming(false)}>Cancel</Button>
       </div>
     </div>}

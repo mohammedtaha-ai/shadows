@@ -110,6 +110,8 @@ shapes:
     created_at: String
   CodeSettings:
     active_limit: u32    # 1..=20, default 5 (migration 0008)
+    active_limit_min: u32  # 1, from the `LIMITS` range the write checks
+    active_limit_max: u32  # 20, from the same range
   FileRow:
     # What `code_file` holds for one file.
     path_key: String

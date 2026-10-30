@@ -14,6 +14,7 @@ const operation = (status_kind: string) => ({
   id: 'op1',
   kind: 'PlannerTurn',
   status_kind,
+  seq: 4,
   thread_id: 't1',
   runtime_instance_id: 'r',
   created_at: '2026-09-23T00:00:00Z',
@@ -95,11 +96,11 @@ describe('the conversation, opened while a turn runs', () => {
     const stream = a.sources.findLast((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened')
     await act(async () => {
-      stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn' })
-      stream.durable(6, 'OperationStarted', 'op1', {})
+      stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn', status_kind: 'Pending', cancel_requested: false })
+      stream.durable(6, 'OperationStarted', 'op1', { status_kind: 'Running', cancel_requested: false })
       stream.caughtUp(6)
-      stream.durable(7, 'OperationCancellationRequested', 'op1', {})
-      stream.durable(8, 'OperationCancelled', 'op1', {})
+      stream.durable(7, 'OperationCancellationRequested', 'op1', { status_kind: 'Running', cancel_requested: true })
+      stream.durable(8, 'OperationCancelled', 'op1', { status_kind: 'Cancelled', cancel_requested: true })
     })
     await until(() => a.button('Send') !== undefined)
     expect(a.button('Stop')).toBeUndefined()
@@ -128,9 +129,9 @@ describe('a stop the daemon could not carry out', () => {
     const stream = a.sources.findLast((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened')
     await act(async () => {
-      stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn' })
-      stream.durable(6, 'OperationStarted', 'op1', {})
-      stream.durable(7, 'OperationCancellationRequested', 'op1', {})
+      stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn', status_kind: 'Pending', cancel_requested: false })
+      stream.durable(6, 'OperationStarted', 'op1', { status_kind: 'Running', cancel_requested: false })
+      stream.durable(7, 'OperationCancellationRequested', 'op1', { status_kind: 'Running', cancel_requested: true })
       stream.caughtUp(7)
     })
 

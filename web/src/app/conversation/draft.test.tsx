@@ -15,13 +15,21 @@ afterEach(() => {
 })
 
 describe('the draft', () => {
-  it('a draft starts at the policy default without a session mode write', async () => {
+  it("a draft starts at Core's initial mode without a session mode write", async () => {
     const app = open = await startApp('/projects/p1/new', answers())
     await until(() => app.button('Mode') !== undefined)
     expect(app.button('Mode')?.textContent).toContain('Accept edits')
     await choose(app, 'Mode', 'Auto')
     expect(app.button('Mode')?.textContent).toContain('Auto')
     expect(app.calls.some(c => c.includes('/session'))).toBe(false)
+  })
+  it('offers no mode and shows the error when the harness list cannot be read', async () => {
+    const routes = answers()
+    routes['GET /api/harnesses'] = () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Harness list unavailable' }, { status: 500 })
+    const app = open = await startApp('/projects/p1/new', routes)
+    await until(() => app.text().includes('Harness list unavailable'))
+    expect(app.button('Mode')).toBeUndefined()
+    expect(app.button('Accept edits')).toBeUndefined()
   })
   it('shows the project stage before the first message', async () => {
     const app = open = await startApp('/projects/p1/new', answers())

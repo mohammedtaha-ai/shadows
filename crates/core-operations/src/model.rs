@@ -28,6 +28,8 @@ pub struct OperationRecord {
     pub created_at: String,
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
+    /// Journal sequence of the operation's latest lifecycle event.
+    pub seq: i64,
 }
 
 #[derive(Debug, Default)]

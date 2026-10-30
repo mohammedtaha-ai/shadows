@@ -42,9 +42,12 @@ async fn create_structure_route_writes_and_refuses() {
         .await
         .unwrap();
     let route = format!("/api/projects/{p}/structure");
+    let (status, stage) = app::call(&app, "GET", &format!("/api/projects/{p}/stage"), None).await;
+    assert_eq!(status, 200, "{stage}");
+    let revision = stage["map_revision"].as_i64().unwrap();
+    let body = |command: &str| json!({"command_id":command,"map_revision":revision});
     std::fs::write(temp.path().join("foreign.txt"), "foreign").unwrap();
-    let (status, error) =
-        app::call(&app, "POST", &route, Some(json!({"command_id":"blocked"}))).await;
+    let (status, error) = app::call(&app, "POST", &route, Some(body("blocked"))).await;
     assert_eq!(status, 409);
     assert_eq!(error["code"], "STAGE_BLOCKED");
     assert!(
@@ -54,18 +57,34 @@ async fn create_structure_route_writes_and_refuses() {
             .contains("directory not empty")
     );
     std::fs::remove_file(temp.path().join("foreign.txt")).unwrap();
-    let (status, result) =
-        app::call(&app, "POST", &route, Some(json!({"command_id":"write"}))).await;
+    let stale = json!({"command_id":"stale","map_revision":revision - 1});
+    let (status, error) = app::call(&app, "POST", &route, Some(stale)).await;
+    assert_eq!(status, 409, "{error}");
+    assert_eq!(error["code"], "REVISION_CONFLICT");
+    assert_eq!(error["current_revision"], revision);
+    assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 0);
+    let (status, result) = app::call(&app, "POST", &route, Some(body("write"))).await;
     assert_eq!(status, 200, "{result}");
     assert_eq!(result["paths"].as_array().unwrap().len(), 5);
+    let (status, error) = app::call(
+        &app,
+        "POST",
+        &route,
+        Some(json!({"command_id":"write","map_revision":revision + 1})),
+    )
+    .await;
+    assert_eq!(
+        (status, &error["code"]),
+        (409, &json!("COMMAND_CONFLICT")),
+        "{error}"
+    );
     assert!(temp.path().join("backend/contract.yaml").is_file());
-    let (status, error) =
-        app::call(&app, "POST", &route, Some(json!({"command_id":"second"}))).await;
+    let (status, error) = app::call(&app, "POST", &route, Some(body("second"))).await;
     assert_eq!(status, 409);
     assert_eq!(error["code"], "STAGE_BLOCKED");
     assert_eq!(error["message"], "structure already written");
     assert_eq!(
-        app::call(&app, "POST", &route, Some(json!({"command_id":"write"}))).await,
+        app::call(&app, "POST", &route, Some(body("write"))).await,
         (200, result)
     );
     let events = app
@@ -290,7 +309,11 @@ async fn standards_routes_read_the_base_and_save_additions() {
     let stage = format!("/api/projects/{}/stage", app.project);
     assert_eq!(
         app::call(&app, "GET", &stage, None).await,
-        (200, json!({"stage":"idea","missing":[],"drift":[]}))
+        (
+            200,
+            json!({"stage":"idea","missing":[],"drift":[],
+            "map_revision":1,"structure_file_count":null})
+        )
     );
     for suffix in ["standards", "stage"] {
         let unknown = format!("/api/projects/{}/{suffix}", uuid::Uuid::new_v4());

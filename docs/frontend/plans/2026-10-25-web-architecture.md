@@ -1,7 +1,7 @@
 # Web architecture
 
-Status: W-1 to W-10, W-12 and W-13 shipped (PR #43, PR #44). Only W-11 remains, blocked
-until Core supplies the facts it names. Decisions below taken by Mohammed on 2026-10-25. The analysis that follows was written read-only by Codex from
+Status: W-1 to W-10, W-12 and W-13 shipped (PR #43, PR #44). W-11 is done in five packets
+(F-45 to F-49 with B-14 to B-18) on `feature/w11-a8b-plan`, before its PR. Decisions below taken by Mohammed on 2026-10-25. The analysis that follows was written read-only by Codex from
 `fix/flaky-tests` at `24a64289`.
 
 ## Decisions
@@ -567,6 +567,27 @@ This absorbs the presentation portion of F-19. Separate proposal, confirmation, 
 - **Done-when:** Core supplies validation/default/capability facts needed by these consumers; client shows those facts; copied policies disappear; stale-event reconciliation remains correct.
 
 Keep this blocked by domain rather than blocking all frontend architecture work.
+
+**Packets (controller, 2026-10-29).** Each packet is one shared request, one Core
+task and one web task, delivered on the same branch so CI's OpenAPI types check
+stays green. Packets are independent; they run in this order:
+
+| Packet | Copied rule in the web | Core owner today | Request | Core task | Web task |
+|---|---|---|---|---|---|
+| 1 `model-picks` | `agents/model-picks.ts`: 1 to 20 models, ids up to 128 printable characters, `default` reserved, context window 1000 to 10000000; `provider-form.tsx`: label up to 64; `provider-models.tsx`: window default 200000 | `core-providers/src/validation.rs` | [provider-refusals](../../shared/requests/2026-10-29-provider-refusals.md) | B-14 | F-45 |
+| 2 `active-limit` | `settings/active-projects.tsx`: `MIN = 1`, `MAX = 20` | `core-code` (`code_setting.active_limit`) | [active-limit-bounds](../../shared/requests/2026-10-29-active-limit-bounds.md) | B-15 | F-46 |
+| 3 `mode-policy` | `mode-policy.ts`: allowed modes, labels, descriptions, initial and unattended mode per harness | `shadows-agent/src/policy.rs`, listed by `Harness::list` | [harness-mode-policy](../../shared/requests/2026-10-29-harness-mode-policy.md) | B-16 | F-47 |
+| 4 `structure-count` | `design/create-structure.tsx::fileCount`: walks every part to count the files a structure writes | `core-design` (`create_structure`) | [structure-file-count](../../shared/requests/2026-10-29-structure-file-count.md) | B-17 | F-48 |
+| 5 `turn-state` | `conversation/turn-state.ts`: orders snapshot and stream statuses so a stale one cannot move a turn back | `core-operations` | [turn-status-order](../../shared/requests/2026-10-30-turn-status-order.md) | B-18 | F-49 |
+
+Each web task deletes the copy, shows Core's answer, and keeps its form's current
+behaviour (instant save, retained errors, one command id per attempt).
+
+**Packet 5 ruling (Mohammed, 2026-10-30).** The status rank and the event-kind table
+are Core's lifecycle copied, not presentation. Core gives each operation row its
+latest journal `seq` and each operation event the status it leaves; the client keeps
+the source with the higher `seq` per turn. `stopRequested`, `endedAt` and which turn
+is running stay client presentation.
 
 ### W-12 · Put test infrastructure under its owner
 

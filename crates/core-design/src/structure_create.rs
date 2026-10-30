@@ -15,42 +15,41 @@ impl Design {
         &self,
         command: String,
         project: &ProjectId,
+        map_revision: i64,
     ) -> Result<StructureWritten, DesignError> {
-        self.create_structure_inner(command, project, None).await
+        self.create_structure_inner(command, project, map_revision, None)
+            .await
     }
     #[cfg(feature = "test-support")]
     pub async fn create_structure_stopping_after(
         &self,
         command: String,
         p: &ProjectId,
+        map_revision: i64,
         n: usize,
     ) -> Result<StructureWritten, DesignError> {
-        self.create_structure_inner(command, p, Some(n)).await
+        self.create_structure_inner(command, p, map_revision, Some(n))
+            .await
     }
     async fn create_structure_inner(
         &self,
         command: String,
         p: &ProjectId,
+        map_revision: i64,
         stop: Option<usize>,
     ) -> Result<StructureWritten, DesignError> {
         let _guard = self.structure_lock.lock().await;
         let ctx = core_db::CommandContext::user(
             command,
             "CreateStructure",
-            serde_json::json!({"project":p}),
+            serde_json::json!({"project":p,"map_revision":map_revision}),
         );
-        let mut snapshot = match self.store.structure_snapshot(&ctx, p).await? {
+        let mut snapshot = match self.store.structure_snapshot(&ctx, p, map_revision).await? {
             Read::Replay(result) => return Ok(result),
             Read::Snapshot(snapshot) => snapshot,
         };
-        let plan = structure::Structure::render(&structure::RenderInput {
-            project_name: &snapshot.name,
-            map_number: snapshot.intent.map_number,
-            parts: &snapshot.parts,
-            standards_base: snapshot.intent.standards_version,
-            standards_additions: snapshot.intent.standards_additions_version_id.as_deref(),
-        })
-        .map_err(crate::DesignError::StageBlocked)?;
+        let plan =
+            structure::Structure::plan(&snapshot).map_err(crate::DesignError::StageBlocked)?;
         let hashes: Vec<_> = plan
             .files
             .iter()

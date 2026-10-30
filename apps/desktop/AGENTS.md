@@ -16,8 +16,8 @@ externally owned references; do not invent a second contract format.
 - Keep TypeScript/React presentation, Rust/Tauri platform integration, Node
   sidecar and `aylul-hook`; relocation is not a language or behavior rewrite.
 - AYLUL is the main experience; loading the existing Shadows workspace remains
-  planned integration. Normal chat selects the protected local product daemon
-  or the retained account backend; both use the portable TypeScript Hermes client.
+  planned integration. Normal chat runs on Claude Code, through Shadows Core
+  (`shadows serve`).
   Semantic project context and external agent control remain later slices.
 - Core owns its rules, plans and managed execution. The sidecar owns local agent
   observation and integration. Code intelligence has independent lifetime/state.

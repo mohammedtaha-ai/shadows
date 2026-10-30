@@ -6,7 +6,6 @@ hook/sidecar, native shell and code intelligence keep their own runtimes.
 
 | Area | Owns | Entry point |
 |---|---|---|
-| Product daemon | Optional capability composition and local assistant lifetime | [Runtime design](integration/2026-10-19-product-daemon-hermes-design.md) |
 | Shadows Core backend | Current Rust runtime, its services and API | [Backend](backend/AGENTS.md), [stages](backend/stages.md), [code map](codebase/README.md) |
 | Shadows Core frontend | Existing `web/` Planner/project workspace | [Frontend](frontend/AGENTS.md), [code map](frontend/codebase/README.md) |
 | AYLUL | The assistant: brain design, character, native shell and hook | [AYLUL](aylul/README.md) |

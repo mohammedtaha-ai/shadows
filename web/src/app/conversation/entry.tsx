@@ -5,7 +5,7 @@ import { CircleCheck, ShieldX, Wrench } from 'lucide-react'
 import { Suspense, lazy } from 'react'
 import { type Plan, type PlanTask } from '@/api/workflows'
 import { attachmentUrl, type ThreadEntry } from '@/api/threads'
-import { type HarnessPolicy, modeLabel } from '../mode-policy'
+import { type HarnessPolicy, modeLabel } from '@/api/harnesses'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'
 import { VisionProposalCard } from './vision-proposal-card'
@@ -110,17 +110,17 @@ export function Entry({
   }
   if (entry.kind === 'PermissionRefused') {
     // Refused in the mode the turn ran in; only a mode that asks refuses,
-    // so without a record it is the policy's first. The unattended mode
+    // so without a record it is the initial mode. The unattended mode
     // does not ask.
-    const refusedIn = requestedMode ?? policy.initial
+    const refusedIn = requestedMode ?? policy.initial_mode
     return (
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <ShieldX aria-label="Permission refused" className="mt-px size-3.5 shrink-0" />
         <span>
           <code className="font-mono break-all whitespace-pre-wrap">{entry.body}</code>
           {refusedIn !== null && <> — refused in {modeLabel(policy, refusedIn)}</>}
-          {policy.unattended !== null && refusedIn !== policy.unattended && (
-            <>. {modeLabel(policy, policy.unattended)} would allow it.</>
+          {policy.unattended_mode !== null && refusedIn !== policy.unattended_mode && (
+            <>. {modeLabel(policy, policy.unattended_mode)} would allow it.</>
           )}
         </span>
       </p>

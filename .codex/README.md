@@ -1,8 +1,8 @@
 # Shadows Codex agents
 
 Project-scoped agents for this repository. `shadows_backend`,
-`shadows_frontend` and `shadows_reviewer` use `gpt-6.1-terra`; the other roles use
-`gpt-6.1-sol`. `shadows_reviewer` uses `model_reasoning_effort = "high"`; every other
+`shadows_frontend`, `shadows_reviewer` and `shadows_docs` use `gpt-6.1-terra`;
+`shadows_architect` and `shadows_aylul` use `gpt-6.1-sol`. `shadows_reviewer` uses `model_reasoning_effort = "high"`; every other
 role uses `"medium"`. The project config sets
 `gpt-6.1-sol` and `medium` as defaults
 for unnamed subagents. It does not change the parent chat's model or personal

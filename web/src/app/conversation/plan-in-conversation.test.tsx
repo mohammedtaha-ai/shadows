@@ -139,7 +139,7 @@ describe('the plan in the conversation', () => {
     // Sent: the chip is gone, and the turn after carries no focus.
     await until(() => chip() === null)
     const stream = await liveStream(a)
-    await act(async () => stream.durable(1, 'OperationCompleted', 'op1', {}))
+    await act(async () => stream.durable(1, 'OperationCompleted', 'op1', { status_kind: 'Completed', cancel_requested: false }))
     await until(() => a.button('Send') !== undefined)
     const second = await send(a, 'thanks')
     expect(second.focus ?? null).toBeNull()

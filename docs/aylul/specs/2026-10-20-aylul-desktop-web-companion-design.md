@@ -127,8 +127,8 @@ DB, Node, ACP adapter, harness and AYLUL config, plus the loopback API address.
 These are references, never provider keys. Existing `aylul.json` remains
 `{ "home_root": ... }`; this desktop launch record does not expand it.
 
-Use the existing `shadows serve` runtime. Do not start the dormant Hermes
-service or require account login. Validate paths before launch; no PATH
+Use the existing `shadows serve` runtime. Do not require account login; the
+Hermes service was removed on 2026-10-29. Validate paths before launch; no PATH
 discovery, shell-built command strings or new empty DB as a fallback.
 
 Use a private per-configuration launch record and single-owner lock. The record
@@ -216,9 +216,10 @@ functions above have been transferred. Remove disabled placeholder navigation.
 Keep native auth, hook, sidecar and character owners. Remove retired assistant
 IPC exposure only after proving it has no retained caller.
 
-Do not delete `packages/hermes-client`, `services/assistant`, account backend
-APIs or historical evidence as incidental cleanup; those have separate consumers
-or ownership. Update both source maps and changed contracts with implementation.
+Do not delete account backend APIs or historical evidence as incidental cleanup;
+those have separate consumers or ownership. `packages/hermes-client` and
+`services/assistant` were removed on 2026-10-29 with the Hermes product daemon
+(backend task A-8b1). Update both source maps and changed contracts with implementation.
 
 ## 7. Companion settings and conversation target
 

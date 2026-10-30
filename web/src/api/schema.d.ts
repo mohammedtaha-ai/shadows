@@ -1725,6 +1725,16 @@ export interface components {
              * @description How many projects are active at once: 1 to 20, default 5.
              */
             active_limit: number;
+            /**
+             * Format: int32
+             * @description The most `active_limit` Core accepts.
+             */
+            active_limit_max: number;
+            /**
+             * Format: int32
+             * @description The least `active_limit` Core accepts.
+             */
+            active_limit_min: number;
         };
         ContractHead: {
             header: string;
@@ -1756,6 +1766,11 @@ export interface components {
         };
         CreateStructure: {
             command_id: string;
+            /**
+             * Format: int64
+             * @description The map revision the person confirmed, from the stage read.
+             */
+            map_revision: number;
         };
         CreateThread: {
             /** @description The idempotency key, scoped to the project. */
@@ -1938,6 +1953,7 @@ export interface components {
              * @description `REVISION_CONFLICT` only: the resource's revision now, to read again at.
              */
             current_revision?: number | null;
+            field?: string | null;
             message: string;
             /**
              * @description `WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences
@@ -1998,12 +2014,24 @@ export interface components {
          */
         HarnessInfo: {
             available: boolean;
+            /** @description The mode a new conversation starts in. */
+            initial_mode: string | null;
             kind: string;
             label: string;
             limits: null | components["schemas"]["AccountLimits"];
+            /** @description The modes Shadows allows, in listed order; empty when none are decided. */
+            modes: components["schemas"]["HarnessMode"][];
             /** @description Why it cannot run, when `available` is false. */
             reason: string | null;
             remembered: null | components["schemas"]["RememberedSettings"];
+            /** @description The allowed mode that asks nothing. */
+            unattended_mode: string | null;
+        };
+        /** @description A mode Shadows allows on a harness, with the words a client shows for it. */
+        HarnessMode: {
+            description: string;
+            id: string;
+            label: string;
         };
         /** @description One tag an answer points at. */
         Hit: {
@@ -2225,6 +2253,11 @@ export interface components {
             kind: string;
             outcome_json?: string | null;
             runtime_instance_id: components["schemas"]["RuntimeInstanceId"];
+            /**
+             * Format: int64
+             * @description Journal sequence of the operation's latest lifecycle event.
+             */
+            seq: number;
             started_at?: string | null;
             status_kind: string;
             thread_id?: string | null;
@@ -2715,9 +2748,21 @@ export interface components {
         Stage: "idea" | "vision" | "map" | "structure" | "roadmap" | "plans";
         StageView: {
             drift?: string[];
+            /**
+             * Format: int64
+             * @description The map revision `structure_file_count` was taken at; the revision a person
+             *     confirms when creating the structure.
+             */
+            map_revision: number;
             /** @description Missing vision field names at vision; mandatory part names at map. */
             missing: string[];
             stage: components["schemas"]["Stage"];
+            /**
+             * Format: int32
+             * @description Files `create_structure` would write for the map now; none when it would
+             *     refuse.
+             */
+            structure_file_count: number | null;
         };
         StandardRule: {
             id: string;
@@ -6412,7 +6457,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description STAGE_BLOCKED or COMMAND_CONFLICT */
+            /** @description STAGE_BLOCKED, COMMAND_CONFLICT, or REVISION_CONFLICT with `current_revision` when the map moved after `map_revision` */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -12,6 +12,7 @@ shapes:
   Secrets:
     store: private SecretsStore over the shared storage handle
     keys: Option<Keys>
+  KeySource: OS master key or an injected optional key for tests.
   SecretKey:
     bytes: private 32-byte master key; Debug is redacted
   EnvEntry:
@@ -25,6 +26,7 @@ shapes:
   EnvRemoval:
     fields: private secret_env.remove command, profile and name
 functions:
+  load_or_create: Serialize access to the Windows credential, creating only on NoEntry.
   provider_key_set: Read key presence without decrypting it.
   reserved_env_name: Identify routing names that agents cannot override.
   seal: public; check the key, the name and the value, then encrypt it into a SealedEnv before any transaction; set_env uses it too. Returns SecretsError.
@@ -46,6 +48,15 @@ functions:
   resolve_env: Decrypt all profile pairs for a new harness opening; public for trusted harness openings and owner tests.
   validate_env_name: Shared uppercase name validation including reserved names; removal checks the shape only.
 obligations:
+  - rule: A shared per-user OS file lock covers read, create and readback across daemon databases.
+    tested_by: [master_key_creation_waits_for_the_other_starter, absent_master_key_is_created_once]
+    note: The persistent lock file is empty; OS handle close releases the lock, including on crash.
+  - rule: Wrong lengths or read errors never overwrite an existing entry or expose its bytes.
+    tested_by: [wrong_length_master_key_is_never_replaced, unreadable_master_key_is_never_replaced]
+    note: Tests use in-memory keyring entries; real credential-store acceptance is pending.
+  - rule: The backend is windows-native; non-Windows loading fails without a mock fallback.
+    tested_by: none
+    note: Compilation is checked by the platform CI gate.
   - rule: Values never enter metadata, command records or diagnostic output.
     tested_by: [list_names_in_order_without_values, value_absent_from_db_wal_shm_and_command_record]
   - rule: AEAD binds each row to profile/name; malformed envelopes return an error.

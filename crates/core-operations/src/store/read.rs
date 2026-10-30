@@ -20,6 +20,7 @@ type OperationRow = (
     String,
     Option<String>,
     Option<String>,
+    i64,
 );
 
 impl Operations {
@@ -28,10 +29,12 @@ impl Operations {
         op_id: &OperationId,
     ) -> Result<OperationRecord, StorageError> {
         let row: OperationRow = sqlx::query_as(
-            "SELECT id, kind, status_kind, thread_id, runtime_instance_id, outcome_json,
-                    failure_stage, failure_reason, interrupt_reason, cancel_requested_at,
-                    created_at, started_at, finished_at
-               FROM operation WHERE id = ?",
+            "SELECT o.id, o.kind, o.status_kind, o.thread_id, o.runtime_instance_id,
+                    o.outcome_json, o.failure_stage, o.failure_reason, o.interrupt_reason,
+                    o.cancel_requested_at, o.created_at, o.started_at, o.finished_at,
+                    (SELECT MAX(l.seq) FROM durable_event l
+                      WHERE l.operation_id = o.id AND l.kind LIKE 'Operation%')
+               FROM operation o WHERE o.id = ?",
         )
         .bind(op_id.as_str())
         .fetch_optional(&mut *conn)
@@ -47,7 +50,9 @@ impl Operations {
         let rows: Vec<OperationRow> = sqlx::query_as(
             "SELECT o.id, o.kind, o.status_kind, o.thread_id, o.runtime_instance_id,
                     o.outcome_json, o.failure_stage, o.failure_reason, o.interrupt_reason,
-                    o.cancel_requested_at, o.created_at, o.started_at, o.finished_at
+                    o.cancel_requested_at, o.created_at, o.started_at, o.finished_at,
+                    (SELECT MAX(l.seq) FROM durable_event l
+                      WHERE l.operation_id = o.id AND l.kind LIKE 'Operation%')
                FROM operation o
                JOIN durable_event e
                  ON e.operation_id = o.id AND e.kind = 'OperationCreated'
@@ -91,6 +96,7 @@ fn into_operation(r: OperationRow) -> OperationRecord {
         created_at: r.10,
         started_at: r.11,
         finished_at: r.12,
+        seq: r.13,
     }
 }
 

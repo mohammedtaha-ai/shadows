@@ -36,6 +36,7 @@ impl DesignStore {
         &self,
         ctx: &CommandContext,
         p: &ProjectId,
+        confirmed: i64,
     ) -> Result<Read, crate::DesignError> {
         let mut tx = self.storage.reader().begin().await?;
         if let Some(id) = CommandContext::classify(&mut tx, ctx, "Project", p.as_str()).await? {
@@ -48,7 +49,19 @@ impl DesignStore {
             .await?;
             return Ok(Read::Replay(serde_json::from_str(&json)?));
         }
-        let metadata = core_projects::Projects::get_in(&mut tx, p).await?;
+        let snapshot = Self::structure_snapshot_in(&mut tx, p, Some(confirmed)).await?;
+        tx.commit().await?;
+        Ok(Read::Snapshot(snapshot))
+    }
+
+    /// What a structure write would use for the map now. `confirmed` is the revision a
+    /// person saw; a moved map refuses before anything is planned.
+    pub(crate) async fn structure_snapshot_in(
+        tx: &mut sqlx::SqliteConnection,
+        p: &ProjectId,
+        confirmed: Option<i64>,
+    ) -> Result<Snapshot, crate::DesignError> {
+        let metadata = core_projects::Projects::get_in(tx, p).await?;
         let (name, directory) = (metadata.name, metadata.directory);
         let revision: i64 =
             sqlx::query_scalar("SELECT map_revision FROM design_workspace WHERE project_id=?")
@@ -71,10 +84,17 @@ impl DesignStore {
         if revision == 0 {
             return Err(crate::DesignError::StageBlocked("map not approved".into()));
         }
-        let effective = super::map_versions::MapVersionsRows::effective(&mut tx, p).await?;
-        let rows = super::map_versions::MapVersionsRows::rows(&mut tx, p).await?;
+        if let Some(confirmed) = confirmed.filter(|c| *c != revision) {
+            return Err(core_db::StorageError::RevisionConflict {
+                current: revision,
+                summary: format!("the map moved from revision {confirmed} to {revision}"),
+            }
+            .into());
+        }
+        let effective = super::map_versions::MapVersionsRows::effective(tx, p).await?;
+        let rows = super::map_versions::MapVersionsRows::rows(tx, p).await?;
         let contents = super::map_versions::MapVersionsRows::contents(&rows)?;
-        let waived = super::map_versions::MapVersionsRows::waived(&mut tx, p).await?;
+        let waived = super::map_versions::MapVersionsRows::waived(tx, p).await?;
         let missing = map_rules::MapRules::missing_kinds(
             &super::map_versions::MapVersionsRows::views(&rows, &contents),
             &waived,
@@ -104,8 +124,7 @@ impl DesignStore {
         .await?;
         let rows: Vec<super::map_versions::MapRow> = serde_json::from_str(&json)?;
         let parts = super::map_versions::MapVersionsRows::contents(&rows)?;
-        tx.commit().await?;
-        Ok(Read::Snapshot(Snapshot {
+        Ok(Snapshot {
             name,
             directory: directory.ok_or_else(|| {
                 crate::DesignError::StageBlocked("project directory missing: not configured".into())
@@ -114,7 +133,7 @@ impl DesignStore {
             parts,
             intent,
             resumed,
-        }))
+        })
     }
 
     pub(crate) async fn start_structure(

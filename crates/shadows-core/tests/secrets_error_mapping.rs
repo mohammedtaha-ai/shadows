@@ -21,6 +21,10 @@ fn secrets_errors_keep_application_codes_and_messages() {
         ),
         (SecretsError::Unavailable, CoreError::SecretsUnavailable),
         (
+            SecretsError::MasterKeyUnavailable("synthetic"),
+            CoreError::SecretsUnavailable,
+        ),
+        (
             SecretsError::Storage(StorageError::CommandConflict),
             CoreError::Storage(StorageError::CommandConflict),
         ),

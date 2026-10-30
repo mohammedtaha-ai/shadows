@@ -1,5 +1,9 @@
+use std::io;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+
+use serde::Deserialize;
+use shadows_core::AylulConfig;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -104,3 +108,30 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError> {
         ))
     }
 }
+
+pub const PROJECT_SLUG: &str = "aylul";
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AylulSection {
+    home_root: PathBuf,
+}
+pub fn load(path: &Path) -> anyhow::Result<AylulSection> {
+    Ok(serde_json::from_slice(&std::fs::read(path)?)?)
+}
+pub fn prepare(section: Option<AylulSection>) -> io::Result<Option<AylulConfig>> {
+    let Some(section) = section else {
+        return Ok(None);
+    };
+    if !section.home_root.is_absolute() {
+        return Err(io::Error::other("aylul home_root must be absolute"));
+    }
+    std::fs::create_dir_all(&section.home_root)?;
+    Ok(Some(AylulConfig {
+        home_root: section.home_root,
+        project_slug: PROJECT_SLUG.into(),
+    }))
+}
+
+#[cfg(test)]
+#[path = "config_tests.rs"]
+mod tests;

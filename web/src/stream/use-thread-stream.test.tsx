@@ -89,7 +89,7 @@ describe('useThreadStream', () => {
     expect(sources.at(-1)?.param('thread_id')).toBe('t2')
   })
 
-  it('refetches entries at each caught-up, per live entry and live turn end, never per replayed one', () => {
+  it('refetches entries at each caught-up, per live entry and live operation event, never per replayed one', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const refetches = (key: readonly unknown[]) =>
       invalidate.mock.calls.filter(([filters]) => JSON.stringify(filters?.queryKey) === JSON.stringify(key)).length
@@ -108,10 +108,10 @@ describe('useThreadStream', () => {
     act(() => current().durable(3))
     expect(entries()).toBe(2)
     act(() => current().durable(4, 'OperationStarted', 'op'))
-    expect(entries()).toBe(2)
-    act(() => current().durable(5, 'OperationCompleted', 'op'))
-    // A live turn end also refetches the operations, for its invocation.
+    // Every live operation event refetches both; which ones end a turn is Core's to say.
     expect([entries(), operations()]).toEqual([3, 2])
+    act(() => current().durable(5, 'OperationCompleted', 'op'))
+    expect([entries(), operations()]).toEqual([4, 3])
 
     // A break: the events missed meanwhile are replayed, then one caught-up.
     act(() => current().fail())
@@ -122,11 +122,11 @@ describe('useThreadStream', () => {
       current().durable(7, 'OperationCancelled', 'op')
       current().durable(8)
     })
-    expect(entries()).toBe(3)
+    expect(entries()).toBe(4)
     act(() => current().caughtUp(8))
-    expect([entries(), operations()]).toEqual([4, 3])
+    expect([entries(), operations()]).toEqual([5, 4])
     // Each caught-up also reconciles workflows for the conversation's plan views.
-    expect(invalidate).toHaveBeenCalledTimes(9)
+    expect(invalidate).toHaveBeenCalledTimes(11)
   })
 
   it('hands every durable event to its caller once, saying whether it was live', () => {

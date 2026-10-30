@@ -89,11 +89,14 @@ built yet, stays `blocked`.
    (`npx vitest run src/codemap.test.ts` checks it).
 4. Every HTTP call goes through a domain file `web/src/api/<domain>.ts` over the one transport in `web/src/api/transport/`; the event stream is
    read only through `web/src/stream/`.
-5. Run, from `web/`, the tests the task names plus `npm run typecheck` and
-   `npm run lint`. Never the whole suite while working.
+5. Run, from `web/`, the tests the task names plus `npm run typecheck`,
+   `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
+   Never the whole suite while working. `src/api/schema.d.ts` changes only through
+   `npm run gen:api`, run first when the task's backend half changed `api/openapi.json`.
 6. Commit with `git add <each file>`, never `git add -A` or `git add .`:
    Hamoud's builders may be committing to the same branch. Do not switch
-   branches, stash, rebase or push.
+   branches, stash, rebase or push. End the message with the `Co-Authored-By`
+   line of the model you run on.
 7. Set the task's `Status:` in `stages.md` and report: what changed, the test
    result, and anything you found but did not change.
 

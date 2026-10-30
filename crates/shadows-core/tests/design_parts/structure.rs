@@ -46,6 +46,10 @@ pub(super) async fn setup() -> (
     (tmp, Storage::open(&db).await.unwrap(), core, p, dir)
 }
 
+pub(super) async fn revision(core: &AppCore, p: &ProjectId) -> i64 {
+    core.design().stage(p).await.unwrap().map_revision
+}
+
 fn blocked<T: std::fmt::Debug, E: Into<CoreError>>(result: Result<T, E>, reason: &str) {
     match result.unwrap_err().into() {
         CoreError::Refused {
@@ -63,7 +67,7 @@ async fn create_structure_writes_exactly_the_approved_files() {
     let (_tmp, storage, core, p, dir) = setup().await;
     let result = core
         .design()
-        .create_structure("write".into(), &p)
+        .create_structure("write".into(), &p, revision(&core, &p).await)
         .await
         .unwrap();
     assert_eq!(result.paths.len(), 9);
@@ -112,7 +116,7 @@ async fn a_directory_holding_only_git_is_accepted() {
             std::fs::write(dir.join(".git"), "gitdir: elsewhere").unwrap();
         }
         core.design()
-            .create_structure("write".into(), &p)
+            .create_structure("write".into(), &p, revision(&core, &p).await)
             .await
             .unwrap();
         assert!(dir.join(".git").exists());
@@ -129,7 +133,9 @@ async fn a_non_empty_directory_refuses_and_writes_nothing() {
     let (_tmp, storage, core, p, dir) = setup().await;
     std::fs::create_dir(dir.join("backend")).unwrap();
     blocked(
-        core.design().create_structure("write".into(), &p).await,
+        core.design()
+            .create_structure("write".into(), &p, revision(&core, &p).await)
+            .await,
         "directory not empty",
     );
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
@@ -154,7 +160,9 @@ async fn a_missing_or_file_directory_refuses() {
             std::fs::write(&dir, "foreign").unwrap();
         }
         blocked(
-            core.design().create_structure("write".into(), &p).await,
+            core.design()
+                .create_structure("write".into(), &p, revision(&core, &p).await)
+                .await,
             "project directory missing",
         );
 
@@ -174,7 +182,9 @@ async fn an_unapproved_map_or_missing_kind_refuses() {
         .await
         .unwrap();
     blocked(
-        core.design().create_structure("write".into(), &p).await,
+        core.design()
+            .create_structure("write".into(), &p, revision(&core, &p).await)
+            .await,
         "map not approved",
     );
     sqlx::query("UPDATE design_workspace SET map_revision=2 WHERE project_id=?")
@@ -197,7 +207,9 @@ async fn an_unapproved_map_or_missing_kind_refuses() {
         .await
         .unwrap();
     blocked(
-        core.design().create_structure("write".into(), &p).await,
+        core.design()
+            .create_structure("write".into(), &p, revision(&core, &p).await)
+            .await,
         "missing part: billing",
     );
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
@@ -213,16 +225,18 @@ async fn a_second_call_refuses_and_a_replay_returns_the_result() {
     let (_tmp, _storage, core, p, _dir) = setup().await;
     let result = core
         .design()
-        .create_structure("write".into(), &p)
+        .create_structure("write".into(), &p, revision(&core, &p).await)
         .await
         .unwrap();
     blocked(
-        core.design().create_structure("second".into(), &p).await,
+        core.design()
+            .create_structure("second".into(), &p, revision(&core, &p).await)
+            .await,
         "structure already written",
     );
     assert_eq!(
         core.design()
-            .create_structure("write".into(), &p)
+            .create_structure("write".into(), &p, revision(&core, &p).await)
             .await
             .unwrap(),
         result
@@ -239,7 +253,7 @@ async fn a_stopped_write_resumes() {
     let (_tmp, _storage, core, p, dir) = setup().await;
     assert!(
         core.design()
-            .create_structure_stopping_after("stop".into(), &p, 3)
+            .create_structure_stopping_after("stop".into(), &p, revision(&core, &p).await, 3)
             .await
             .is_err()
     );
@@ -250,7 +264,7 @@ async fn a_stopped_write_resumes() {
     assert!(dir.join("api/contract.yaml.shadows-tmp").exists());
     let result = core
         .design()
-        .create_structure("resume".into(), &p)
+        .create_structure("resume".into(), &p, revision(&core, &p).await)
         .await
         .unwrap();
     assert!(result.resumed);
@@ -258,7 +272,7 @@ async fn a_stopped_write_resumes() {
     assert!(result.paths.iter().all(|path| dir.join(path).is_file()));
     assert_eq!(
         core.design()
-            .create_structure("resume".into(), &p)
+            .create_structure("resume".into(), &p, revision(&core, &p).await)
             .await
             .unwrap(),
         result
@@ -276,14 +290,16 @@ async fn a_foreign_or_changed_file_refuses_the_resume() {
         let (_tmp, _storage, core, p, dir) = setup().await;
         assert!(
             core.design()
-                .create_structure_stopping_after("stop".into(), &p, 1)
+                .create_structure_stopping_after("stop".into(), &p, revision(&core, &p).await, 1)
                 .await
                 .is_err()
         );
         let path = if foreign { "foreign.txt" } else { "SHADOWS.md" };
         std::fs::write(dir.join(path), "person's bytes").unwrap();
         blocked(
-            core.design().create_structure("resume".into(), &p).await,
+            core.design()
+                .create_structure("resume".into(), &p, revision(&core, &p).await)
+                .await,
             path,
         );
         assert_eq!(
@@ -322,7 +338,9 @@ async fn a_reserved_path_from_an_older_map_refuses() {
         .await
         .unwrap();
     blocked(
-        core.design().create_structure("write".into(), &p).await,
+        core.design()
+            .create_structure("write".into(), &p, revision(&core, &p).await)
+            .await,
         "reserved path: backend/CONTRACT.yaml",
     );
     assert_eq!(std::fs::read_dir(dir).unwrap().count(), 0);
@@ -337,8 +355,10 @@ async fn a_reserved_path_from_an_older_map_refuses() {
 async fn concurrent_calls_write_once() {
     let (_tmp, _storage, core, p, _dir) = setup().await;
     let (one, two) = tokio::join!(
-        core.design().create_structure("one".into(), &p),
-        core.design().create_structure("two".into(), &p)
+        core.design()
+            .create_structure("one".into(), &p, revision(&core, &p).await),
+        core.design()
+            .create_structure("two".into(), &p, revision(&core, &p).await)
     );
     assert_ne!(one.is_ok(), two.is_ok());
     blocked(
@@ -388,14 +408,16 @@ async fn a_recorded_file_with_a_temp_suffix_is_never_cleaned_up() {
         .unwrap();
     assert!(
         core.design()
-            .create_structure_stopping_after("stop".into(), &p, 8)
+            .create_structure_stopping_after("stop".into(), &p, revision(&core, &p).await, 8)
             .await
             .is_err()
     );
     let recorded = dir.join("backend/contract.yaml.shadows-tmp");
     std::fs::write(&recorded, "person's changed bytes").unwrap();
     blocked(
-        core.design().create_structure("resume".into(), &p).await,
+        core.design()
+            .create_structure("resume".into(), &p, revision(&core, &p).await)
+            .await,
         "backend/contract.yaml.shadows-tmp",
     );
     assert_eq!(
@@ -406,7 +428,7 @@ async fn a_recorded_file_with_a_temp_suffix_is_never_cleaned_up() {
     std::fs::write(&recorded, "approved starter").unwrap();
     let written = core
         .design()
-        .create_structure("resume".into(), &p)
+        .create_structure("resume".into(), &p, revision(&core, &p).await)
         .await
         .unwrap();
     assert!(written.resumed);
@@ -424,4 +446,107 @@ async fn a_recorded_file_with_a_temp_suffix_is_never_cleaned_up() {
         .await
         .unwrap();
     _storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn the_stage_counts_the_files_create_structure_writes() {
+    let (_tmp, storage, core, p, _dir) = setup().await;
+    let stage = core.design().stage(&p).await.unwrap();
+    assert_eq!(stage.stage, Stage::Structure);
+    let written = core
+        .design()
+        .create_structure("write".into(), &p, stage.map_revision)
+        .await
+        .unwrap();
+    assert_eq!(stage.structure_file_count, Some(written.paths.len() as u32));
+    let after = core.design().stage(&p).await.unwrap();
+    assert_eq!(after.structure_file_count, None);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_map_that_moved_since_the_stage_read_writes_nothing() {
+    let (_tmp, storage, core, p, dir) = setup().await;
+    let seen = core.design().stage(&p).await.unwrap();
+    let part = core
+        .design()
+        .parts(&p, None, None)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
+    let mut content = part.items[0].content.clone();
+    content.design = "moved after the count was read".into();
+    let workspace = core.design().vision(&p).await.unwrap().revision;
+    core.plans()
+        .edit_design(
+            "move".into(),
+            &p,
+            workspace,
+            vec![DesignOp::PartPut {
+                id: part.items[0].id.clone(),
+                content,
+            }],
+        )
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap();
+    let now = core.design().stage(&p).await.unwrap();
+    assert!(now.map_revision > seen.map_revision);
+    match core
+        .design()
+        .create_structure("write".into(), &p, seen.map_revision)
+        .await
+    {
+        Err(shadows_core::DesignError::Storage(StorageError::RevisionConflict {
+            current, ..
+        })) => assert_eq!(current, now.map_revision),
+        other => panic!("expected RevisionConflict: {other:?}"),
+    }
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+    let intents: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM design_structure_write")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(intents, 0);
+    assert_eq!(core.design().stage(&p).await.unwrap(), now);
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn the_revision_is_part_of_the_commands_identity() {
+    let (_tmp, storage, core, p, _dir) = setup().await;
+    let revision = revision(&core, &p).await;
+    let first = core
+        .design()
+        .create_structure("write".into(), &p, revision)
+        .await
+        .unwrap();
+    assert_eq!(
+        core.design()
+            .create_structure("write".into(), &p, revision)
+            .await
+            .unwrap(),
+        first
+    );
+    assert!(matches!(
+        core.design()
+            .create_structure("write".into(), &p, revision + 1)
+            .await,
+        Err(shadows_core::DesignError::Storage(
+            StorageError::CommandConflict
+        ))
+    ));
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
 }

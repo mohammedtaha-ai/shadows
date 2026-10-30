@@ -1,4 +1,4 @@
-use super::*;
+use super::{AylulSection, prepare};
 #[test]
 fn old_section_keys_are_refused_by_name() {
     let tmp = tempfile::tempdir().unwrap();

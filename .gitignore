@@ -37,6 +37,4 @@ sandbox/persistence-delta/results/
 /apps/desktop/test-results/
 /apps/desktop/playwright-report/
 /.superpowers/
-/packages/hermes-client/dist/
-/services/assistant/dist/
 /output/runtime/

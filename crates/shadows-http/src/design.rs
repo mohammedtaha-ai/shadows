@@ -168,13 +168,17 @@ pub(super) async fn get_stage(
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct CreateStructure {
     command_id: String,
+    /// The map revision the person confirmed, from the stage read.
+    map_revision: i64,
 }
 
 #[utoipa::path(post, path = "/api/projects/{id}/structure", tag = "design",
     params(("id" = ProjectId, Path, description = "The project")),
     request_body = CreateStructure,
     responses((status = 200, body = StructureWritten), (status = 404, body = ErrorBody),
-        (status = 409, description = "STAGE_BLOCKED or COMMAND_CONFLICT", body = ErrorBody),
+        (status = 409, body = ErrorBody,
+            description = "STAGE_BLOCKED, COMMAND_CONFLICT, or REVISION_CONFLICT with \
+            `current_revision` when the map moved after `map_revision`"),
         (status = 422, body = ErrorBody), (status = 500, body = ErrorBody)))]
 pub(super) async fn create_structure(
     State(s): State<AppState>,
@@ -184,7 +188,7 @@ pub(super) async fn create_structure(
     Ok(Json(
         s.core
             .design()
-            .create_structure(body.command_id, &project)
+            .create_structure(body.command_id, &project, body.map_revision)
             .await?,
     ))
 }

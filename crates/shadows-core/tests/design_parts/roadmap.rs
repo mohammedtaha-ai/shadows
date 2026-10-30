@@ -20,7 +20,11 @@ impl Fixture {
         let (tmp, storage, core, p, _dir) = super::structure::setup().await;
         if write_structure {
             core.design()
-                .create_structure("write".into(), &p)
+                .create_structure(
+                    "write".into(),
+                    &p,
+                    super::structure::revision(&core, &p).await,
+                )
                 .await
                 .map_err(shadows_core::CoreError::from)
                 .unwrap();

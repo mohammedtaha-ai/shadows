@@ -27,6 +27,17 @@ impl From<CoreError> for Failure {
                 detail: Detail {
                     current_revision: None,
                     problems: Some(problems),
+                    field: None,
+                },
+            },
+            CoreError::ProfileInvalidField { field, message } => Failure {
+                status: StatusCode::BAD_REQUEST,
+                code: ErrorCode::ProfileInvalid,
+                message,
+                cause: None,
+                detail: Detail {
+                    field: Some(field),
+                    ..Detail::default()
                 },
             },
             CoreError::ReasonMissing | CoreError::Unavailable(_) => Failure {

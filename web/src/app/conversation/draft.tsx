@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { MessageSquarePlus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { harnessesQuery } from '@/api/harnesses'
+import { harnessesQuery, policyOf } from '@/api/harnesses'
 import { planVersionsQuery, plansQuery } from '@/api/workflows'
 import { projectsQuery } from '@/api/projects'
 import { agentsQuery, providersQuery, type Provider } from '@/api/aylul-profiles'
@@ -15,6 +15,7 @@ import { AYLUL_HARNESS, CliMenu } from './cli-picker'
 import { Composer } from './composer'
 import { DEFAULT_HARNESS } from './conversation'
 import { StageChip } from './stage-chip'
+import type { SessionView } from './use-session'
 
 const route = getRouteApi('/projects/$projectId/new')
 
@@ -47,9 +48,17 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
   const [picked, setHarness] = useState(DEFAULT_HARNESS)
   // AYLUL's project runs on `aylul` alone.
   const harness = profile !== undefined || project?.assistant === true ? AYLUL_HARNESS : picked
-  const label = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)?.label ?? harness
+  const harnesses = useQuery(harnessesQuery)
+  const label = harnesses.data?.find((h) => h.kind === harness)?.label ?? harness
   const allowed = project?.allowed_modes[harness]
-  const session = useMemo(() => draftSession(harness, allowed, provider, defaultModel), [harness, allowed, provider, defaultModel])
+  const policy = harnesses.data === undefined ? undefined : policyOf(harnesses.data, harness)
+  const ready = useMemo(() => draftSession(policy, allowed, provider, defaultModel), [policy, allowed, provider, defaultModel])
+  // Without the harness list no mode is offered; the composer shows why. A failed
+  // refetch over a list already read keeps that list's policy.
+  const session: SessionView =
+    harnesses.data === undefined && harnesses.isError && !harnesses.isFetching
+      ? { state: 'failed', error: harnesses.error, retry: () => void harnesses.refetch() }
+      : ready
   const draft = useFirstSend(projectId, harness, planId, profile)
 
   const planVersions = useQuery({

@@ -11,7 +11,7 @@ vi.mock('@/desktop/presence', async importOriginal => ({
   ...await importOriginal<typeof import('@/desktop/presence')>(),
   useCompanionBinding: () => colorFixture.bound ? { agent: colorFixture.bound } : null,
 }))
-import { projectFixture, threadFixture, userEntry } from '@/test/contract-fixtures'
+import { aylulHarness, claudeHarness, codexHarness, projectFixture, threadFixture, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, menuItem, startApp, typeInto, until } from '@/test/test-app'
 
@@ -22,6 +22,7 @@ const agent = { slug: 'work', name: 'Work', provider: 'fixture-provider', defaul
   deleted: false, created_at: 'now', updated_at: 'now' }
 const thread = { ...threadFixture, harness: 'aylul', profile: 'work', title: 'Work chat' }
 const table = () => ({ ...answers(),
+  'GET /api/harnesses': [claudeHarness, codexHarness, aylulHarness],
   'GET /api/projects': [{ ...projectFixture, assistant: true, allowed_modes: { ...projectFixture.allowed_modes, aylul: ['acceptEdits', 'plan', 'bypassPermissions'] } }],
   'GET /api/projects/p1/threads': [thread],
   'GET /api/aylul/providers': [provider],
@@ -103,17 +104,16 @@ it('provider_form_saves_and_clears_key', async () => {
   expect(a.text()).not.toContain('synthetic-ui-key')
 })
 
-it('models_editor_rejects_duplicates_and_default', async () => {
+it('models_editor_shows_core_refusal', async () => {
   const a = open = await startApp('/aylul?settings=providers', table())
   await addProvider(a, 'Custom')
   typeInto(input('Provider name'), 'Provider')
   typeInto(input('Provider URL'), 'https://example.com')
   addModel(a, 'fake-large')
-  for (const value of ['fake-large', 'default']) {
-    addModel(a, value)
-    expect(a.text()).toContain('Models must')
-  }
-  expect(a.calls).not.toContain('POST /api/aylul/providers')
+  addModel(a, 'default')
+  act(() => a.button('Add 2 models')!.click())
+  await until(() => a.text().includes('default is reserved.'))
+  expect(a.calls).toContain('POST /api/aylul/providers')
 })
 
 it('agent_form_lists_provider_models', async () => {

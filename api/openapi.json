@@ -917,10 +917,24 @@
             "format": "int32",
             "minimum": 0,
             "type": "integer"
+          },
+          "active_limit_max": {
+            "description": "The most `active_limit` Core accepts.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "active_limit_min": {
+            "description": "The least `active_limit` Core accepts.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
-          "active_limit"
+          "active_limit",
+          "active_limit_min",
+          "active_limit_max"
         ],
         "type": "object"
       },
@@ -1009,10 +1023,16 @@
         "properties": {
           "command_id": {
             "type": "string"
+          },
+          "map_revision": {
+            "description": "The map revision the person confirmed, from the stage read.",
+            "format": "int64",
+            "type": "integer"
           }
         },
         "required": [
-          "command_id"
+          "command_id",
+          "map_revision"
         ],
         "type": "object"
       },
@@ -1705,6 +1725,12 @@
               "null"
             ]
           },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "message": {
             "type": "string"
           },
@@ -1906,6 +1932,13 @@
           "available": {
             "type": "boolean"
           },
+          "initial_mode": {
+            "description": "The mode a new conversation starts in.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "kind": {
             "type": "string"
           },
@@ -1921,6 +1954,13 @@
                 "$ref": "#/components/schemas/AccountLimits"
               }
             ]
+          },
+          "modes": {
+            "description": "The modes Shadows allows, in listed order; empty when none are decided.",
+            "items": {
+              "$ref": "#/components/schemas/HarnessMode"
+            },
+            "type": "array"
           },
           "reason": {
             "description": "Why it cannot run, when `available` is false.",
@@ -1938,6 +1978,13 @@
                 "$ref": "#/components/schemas/RememberedSettings"
               }
             ]
+          },
+          "unattended_mode": {
+            "description": "The allowed mode that asks nothing.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1946,7 +1993,30 @@
           "available",
           "reason",
           "remembered",
-          "limits"
+          "limits",
+          "modes",
+          "initial_mode",
+          "unattended_mode"
+        ],
+        "type": "object"
+      },
+      "HarnessMode": {
+        "description": "A mode Shadows allows on a harness, with the words a client shows for it.",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "description"
         ],
         "type": "object"
       },
@@ -2776,6 +2846,11 @@
           "runtime_instance_id": {
             "$ref": "#/components/schemas/RuntimeInstanceId"
           },
+          "seq": {
+            "description": "Journal sequence of the operation's latest lifecycle event.",
+            "format": "int64",
+            "type": "integer"
+          },
           "started_at": {
             "type": [
               "string",
@@ -2798,6 +2873,7 @@
           "status_kind",
           "runtime_instance_id",
           "created_at",
+          "seq",
           "invocation"
         ],
         "type": "object"
@@ -4669,6 +4745,11 @@
             },
             "type": "array"
           },
+          "map_revision": {
+            "description": "The map revision `structure_file_count` was taken at; the revision a person\nconfirms when creating the structure.",
+            "format": "int64",
+            "type": "integer"
+          },
           "missing": {
             "description": "Missing vision field names at vision; mandatory part names at map.",
             "items": {
@@ -4678,11 +4759,22 @@
           },
           "stage": {
             "$ref": "#/components/schemas/Stage"
+          },
+          "structure_file_count": {
+            "description": "Files `create_structure` would write for the map now; none when it would\nrefuse.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
           "stage",
-          "missing"
+          "missing",
+          "map_revision",
+          "structure_file_count"
         ],
         "type": "object"
       },
@@ -10241,7 +10333,7 @@
                 }
               }
             },
-            "description": "STAGE_BLOCKED or COMMAND_CONFLICT"
+            "description": "STAGE_BLOCKED, COMMAND_CONFLICT, or REVISION_CONFLICT with `current_revision` when the map moved after `map_revision`"
           },
           "422": {
             "content": {

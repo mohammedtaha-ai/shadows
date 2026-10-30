@@ -10,17 +10,10 @@ default-run = "shadows"
 [lib]
 doctest = false
 
-[[bin]]
-name = "assistant-fixture"
-path = "tests/fixtures/assistant_process.rs"
-required-features = ["test-support"]
-
 [lints]
 workspace = true
 
 [dependencies]
-keyring = { version = "=3.6.3", features = ["windows-native"] }
-rand = "0.8"
 anyhow = { workspace = true }
 axum = { workspace = true }
 clap = { workspace = true }

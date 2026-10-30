@@ -120,7 +120,12 @@ fn caller() { answer(); }
         code.set_active_limit("invalid".into(), 0).await,
         Err(CodeError::InvalidCommand(_))
     ));
-    assert_eq!(code.settings().await.unwrap().active_limit, 5);
+    let settings = code.settings().await.unwrap();
+    assert_eq!(settings.active_limit, 5);
+    assert_eq!(
+        (settings.active_limit_min, settings.active_limit_max),
+        (1, 20)
+    );
     code.shut_down().await;
 
     storage.close().await.unwrap();

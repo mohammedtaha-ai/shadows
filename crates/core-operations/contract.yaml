@@ -39,6 +39,8 @@ shapes:
     created_at: String
     started_at: Option<String>
     finished_at: Option<String>
+    # Journal sequence of the operation's latest lifecycle event, read with the row.
+    seq: i64
   ReconcileReport:
     interrupted: Vec<OperationId>
     anomalies: Vec<OperationId>
@@ -71,11 +73,15 @@ functions:
     require_unfinished_in: Pending or Running or TransitionConflict.
     completed_in_snapshot: Whether the exact operation is Completed in the fork transaction.
     running_for_in: Running operation on the thread, ordered by id.
-    get_operation_in: Durable operation columns only.
-    list_operations_for_thread_in: Durable rows ordered by OperationCreated journal sequence descending.
+    get_operation_in: Durable operation columns and the latest lifecycle event's journal sequence.
+    list_operations_for_thread_in: Durable rows, each with its latest lifecycle event's journal sequence, ordered by OperationCreated journal sequence descending.
     started_thread_in: Retained thread of an operation with started_at set.
     started_for_thread_in: Started operation ids in stable id order.
 obligations:
+  - rule: Every lifecycle event's payload carries status_kind (the status after the event) and cancel_requested (a stop was asked by then), added once by Transition::record beside the payload's own fields.
+    tested_by: every_lifecycle_event_payload_carries_status_and_cancel_flag
+  - rule: A listed operation's seq equals its latest lifecycle event's journal sequence after each transition.
+    tested_by: a_listed_operation_seq_is_its_latest_event_sequence
   - rule: Lifecycle writes and events commit atomically; a terminal operation cannot transition again.
     tested_by: every_transition_appends_its_event_atomically
   - rule: Recovery interrupts other runtime owners including Escalated owners and reports Graceful anomalies.

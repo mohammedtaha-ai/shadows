@@ -9,6 +9,7 @@ import type { Grant, InstructionsVersion, Project } from '@/api/projects'
 import type { Operation, ThreadEntry } from '@/api/threads'
 import type { Person, PersonPatch } from '@/api/person'
 import type { Answer } from '@/test/test-app'
+import type { ProviderInput } from '@/api/aylul-profiles'
 import {
   agentEntry,
   claudeHarness,
@@ -22,6 +23,33 @@ import {
   threadFixture,
   userEntry,
 } from './contract-fixtures'
+
+async function saveFakeProvider(request: Request): Promise<Response> {
+  const input = await request.json() as ProviderInput
+  const refuse = (field: string, message: string) => Response.json({ code: 'PROFILE_INVALID', field, message }, { status: 400 })
+  const label = input.label?.trim() ?? ''
+  if ([...label].length > 64) return refuse('label', 'Label must be at most 64 characters.')
+  if (/\p{Cc}/u.test(label)) return refuse('label', 'Label must not contain control characters.')
+  if (!input.preset) {
+    const url = input.base_url?.trim() ?? ''
+    const match = /^(https?):\/\/([^/?#]*)/.exec(url)
+    const host = match?.[2]?.split(':')[0]
+    if (!match || !host || /[@%\\\s]/u.test(url) || (match[1] === 'http' && host !== 'localhost' && host !== '127.0.0.1')) return refuse('base_url', 'Base URL must use HTTPS or loopback HTTP, with a host, no credentials, and no invalid authority or whitespace.')
+    const name = input.name?.trim() ?? ''
+    if (!name || new TextEncoder().encode(name).length > 256) return refuse('name', 'Name must be 1 to 256 bytes.')
+  }
+  if (input.models.length < 1 || input.models.length > 20) return refuse('models', 'Models must be 1 to 20 ids.')
+  const seen = new Set<string>()
+  for (const [index, model] of input.models.entries()) {
+    const field = `models[${index}].id`
+    if (model.id === 'default') return refuse(field, 'default is reserved.')
+    if ([...model.id].length < 1 || [...model.id].length > 128 || /[\s\p{Cc}\uFEFF]/u.test(model.id)) return refuse(field, 'Model ids must be 1 to 128 printable characters with no spaces.')
+    if (seen.has(model.id)) return refuse(field, 'Each model is listed once.')
+    seen.add(model.id)
+    if (model.context_window != null && (model.context_window < 1000 || model.context_window > 10000000)) return refuse(`models[${index}].context_window`, 'Context window must be from 1000 to 10000000.')
+  }
+  return Response.json({ slug: 'fixture-provider', name: input.name ?? input.preset, preset: input.preset, label: input.label, base_url: input.base_url ?? 'https://example.com', models: input.models.map(model => ({ ...model, context_window: model.context_window ?? 200000 })), key_set: false, created_at: 'now', updated_at: 'now' })
+}
 
 export interface Overrides {
   usage?: Answer
@@ -54,6 +82,9 @@ export interface Overrides {
   /** `POST /api/projects/p1/mcp-grants`; by default issues grant `g9` with
    * its token and command. */
   issue?: Answer
+  /** The design map the stage and the structure create answer from. A test moves
+   * the map by changing `revision`; `count` null is a stage that cannot create. */
+  map?: { revision: number; count: number | null }
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
@@ -77,6 +108,9 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       contract_template: { rules: ['Trace every claim.'], shape: ['header', 'obligations'] },
     }, additions: null,
   }
+  const map = o.map ?? { revision: 1, count: null }
+  // Command id to the revision it first carried, as Core fingerprints it.
+  const structureCommands = new Map<string, number>()
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
     'GET /api/aylul/extensions': { plugins: [], skills: [] },
@@ -104,13 +138,31 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   { id: 'moonshot-china', name: 'Moonshot (Kimi)', region: 'china', base_url: 'https://api.moonshot.cn/anthropic' },
 ],
     'POST /api/aylul/providers/test': { ok: true, listed: false, models: [] },
+    'POST /api/aylul/providers': saveFakeProvider,
+    'PUT /api/aylul/providers/fixture-provider': saveFakeProvider,
+    'PUT /api/aylul/providers/p': saveFakeProvider,
     'POST /api/aylul/providers/fixture-provider/test': { ok: true, listed: false, models: [] },
     'GET /api/harnesses': [claudeHarness, codexHarness],
     'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],
     'GET /api/projects/p1/agreements': [],
     'GET /api/projects/p1/standards': () => Response.json(standards),
-    'GET /api/projects/p1/stage': { stage: 'idea', missing: [] },
+    'GET /api/projects/p1/stage': () => Response.json({
+      stage: 'idea', missing: [], structure_file_count: map.count, map_revision: map.revision,
+    }),
+    'POST /api/projects/p1/structure': async (request: Request) => {
+      const { command_id, map_revision } = await request.json() as { command_id: string; map_revision: number }
+      const first = structureCommands.get(command_id)
+      if (first !== undefined && first !== map_revision) {
+        return Response.json({ code: 'COMMAND_CONFLICT', message: 'command id reused with a different request' }, { status: 409 })
+      }
+      if (map_revision !== map.revision) {
+        return Response.json({ code: 'REVISION_CONFLICT', message: 'the map changed', current_revision: map.revision }, { status: 409 })
+      }
+      structureCommands.set(command_id, map_revision)
+      return Response.json({ map_version: map.revision, paths: ['SHADOWS.md'],
+        completed_at: '2026-10-12T00:00:00Z', resumed: false })
+    },
     'PUT /api/projects/p1/standards/additions': async (request: Request) => {
       const { content } = await request.json() as { content: StandardsAdditions }
       const additions = { number: (standards.additions?.number ?? 0) + 1, content, created_at: '2026-10-10T00:00:00Z' }
@@ -204,7 +256,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/projects/p1/map-proposals': [],
     'GET /api/projects/p1/roadmap-proposals': [],
     'GET /api/projects/p1/code/links': [],
-    'GET /api/code/settings': { active_limit: 5 },
+    'GET /api/code/settings': { active_limit: 5, active_limit_min: 1, active_limit_max: 20 },
     // Any grant the test gave the project can be revoked.
     ...Object.fromEntries(
       grants.map((g) => [
