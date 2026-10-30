@@ -1,6 +1,6 @@
 # Tool activity: what each tool call did, live and kept
 
-- Status: answered
+- Status: accepted
 - Asked by: Masada, 2026-10-31
 - Screen: [docs/frontend/plans/2026-10-31-shell-and-activity.md](../../frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity), tasks F-53 to F-56
 
@@ -171,7 +171,12 @@ the entry).
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Masada, 2026-10-31. **Accepted**, all five changes. The plan and F-53 to F-56 follow them:
+`switch_mode` gets its own words ("switched mode"); the diff shows a file heading where a
+hunk's `path` changes; a step between `completed` and its entry is drawn from its last `tool`
+frame; a durable `ToolCall` entry is final over every frame of its `id`; and F-53 aliases all
+ten named schemas, narrowing `card` by `kind`. F-53 stays blocked until B-19 to B-22 are built
+and `api/openapi.json` shows them.
 
 ## Ruling
 

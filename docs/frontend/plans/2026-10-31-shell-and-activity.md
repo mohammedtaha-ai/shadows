@@ -87,8 +87,10 @@ title, target, lines, status, started_at }`; a live `todos` frame `{ op, entries
 works out no diff, no status and no target.
 
 **Reading (stream and api, F-53).**
-- `api/threads.ts` re-exports the generated `ToolCallCard`, `DiffHunk` and `TodoListCard`
-  as aliases (`Schemas['...']`), never copying fields.
+- `api/threads.ts` re-exports the generated `ToolCallCard`, `DiffHunk`, `DiffLine`,
+  `TodoListCard`, `TodoItem`, `ToolLive`, `CallKind`, `CallStatus`, `DiffOp` and `TodoStatus`
+  as aliases (`Schemas['...']`), never copying fields. `card` stays a free-form object in the
+  schema; the readers narrow it by the entry's `kind`.
 - `stream/frames.ts` gains `ToolFrame` and `TodosFrame` (camelCase, as the other frames),
   `parseTool`, `parseTodos`, and `readToolCard(value: unknown): ToolCallCard | null` and
   `readTodoList(value: unknown): TodoListCard | null`, which return `null` for a value they
@@ -106,11 +108,15 @@ works out no diff, no status and no target.
   added, removed, diff, startedAt, finishedAt }`. A durable step comes from its entry and
   `readToolCard` (`card: null` gives `kind: null`, `status: 'completed'`, the title only);
   `sentence` is `toolText(title)` when it differs from the title (Shadows' own tools).
-- **Live steps.** While a turn runs, its `tool` frames whose `id` is not yet the `card.id`
-  of an entry are live steps (status `pending` / `in_progress` / `completed` / `failed`).
-  If the last shown row is a group of that turn and no reply text is drawn, they join it;
-  otherwise they form one group drawn after the reply, where `runningCards` are drawn today.
-  Once the turn has ended, live steps are not drawn: only entries.
+- **Live steps.** The latest turn's `tool` frames whose `id` is not the `card.id` of any
+  entry are live steps (status `pending` / `in_progress` / `completed` / `failed`). A
+  durable `ToolCall` entry is final over every frame of its `id` (Hamoud's rule: a frame
+  can repeat or lag). Core holds an ended call's entry until the turn's next entry of
+  another kind or the turn's end, so a `completed` step is drawn from its last frame until
+  its entry lands. If the last shown row is a group of that turn and no reply text is drawn,
+  live steps join it; otherwise they form one group drawn after the reply, where
+  `runningCards` are drawn today. Once the turn has ended a live step no longer spins (Core
+  writes every unended call as `stopped` at the turn's end, so its entry follows).
 - **The line.** A group of one step draws that step's line directly (no summary). A group
   of two or more draws a summary button: a chevron, the words, the total time, and, when a
   step failed, "· N failed". It is collapsed by default; while any step is pending or in
@@ -129,6 +135,7 @@ works out no diff, no status and no target.
   | `execute` | "ran a command" / "ran N commands" | calls |
   | `fetch` | "fetched a page" / "fetched N pages" | calls |
   | `think` | "thought" | calls (no number) |
+  | `switch_mode` | "switched mode" | calls (no number) |
   | `other`, or `null` | "used a tool" / "used N tools" | calls |
 
 - **Time.** Done: `finishedAt` of the last step minus `startedAt` of the first, as `duration`
@@ -137,7 +144,7 @@ works out no diff, no status and no target.
 - **A step** (opened group, numbered `1.`, `2.`, ...; or a lone step): an icon for its
   status (spinner for pending or in progress, a red `X` with "failed" for failed, a muted
   stop for stopped, none for completed), then `sentence` when set, else the verb of its kind
-  (Read, Edit, Delete, Move, Search, Run, Fetch, Think) and `target` with `lines` as
+  (Read, Edit, Delete, Move, Search, Run, Fetch, Think, Switch mode) and `target` with `lines` as
   `(47–102)`, else the title; then ` +A −R` for an edit; then its own time.
 - **Copy** on a group copies each step's line, one per line; on a lone step, its line (the
   title for a non-Shadows call, so "Copy on a tool line copies its title" still holds).
@@ -150,7 +157,9 @@ works out no diff, no status and no target.
 **The edit's diff (F-55).** An edit step with `diff` opens (its own chevron) into
 `ToolDiff`: monospace lines, added on a green tint with `+`, removed on a red tint with `−`,
 context plain; two gutters of line numbers (old, new) counted from `old_start` / `new_start`;
-no gutters when they are `null`. A gap between hunks is a `⋯` row. With `diff: null` and a
+no gutters when they are `null`. A gap between hunks is a `⋯` row. A hunk whose `path`
+differs from the one before it starts with that path as a small heading (one call can edit
+more than one file). With `diff: null` and a
 count set: "Diff too long to show". No syntax colouring.
 
 **The checklist (F-56).** `TodoCard` draws a list's items: a check (`CircleCheck`, accent)
@@ -229,10 +238,6 @@ are his.
 
 ## Open questions
 
-- **OPEN** Line numbers in an edit's diff. Claude Code sends an `Edit`'s diff as the replaced
-  snippet, not the whole file, so Core may not know where in the file it sits. The request
-  lets `old_start` / `new_start` be `null`, and then the diff shows without numbers. Closes
-  when Hamoud answers the request.
 - **OPEN** Narrow screens keep no stored choice (the sidebar always starts hidden below
   768 px). Closes when the user confirms or asks otherwise.
 

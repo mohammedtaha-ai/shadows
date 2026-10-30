@@ -6,7 +6,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 Open: F-52 (todo, web only). F-53 to F-56 are blocked on the shared request
-`docs/shared/requests/2026-10-31-tool-activity.md` (asked 2026-10-31, Hamoud's side). Still
+`docs/shared/requests/2026-10-31-tool-activity.md` (accepted 2026-10-31), until Hamoud's
+B-19 to B-22 are built. Still
 open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -92,7 +93,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   `AGENTS.md` rule 5.
 
 ### F-53 · The stream and the api read tool cards, `tool` frames and `todos` frames
-- Status: blocked (the request `docs/shared/requests/2026-10-31-tool-activity.md` is `asked`)
+- Status: blocked (the request is accepted; waits for B-19 to B-22 to be built)
 - Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("Reading")
 - Read: the request (as accepted: its "Fields" and "Backend answer" win over the plan where they
   differ); `web/src/stream/contract.yaml` (StreamState, frame_readers, the transient-frame
@@ -104,8 +105,10 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   `web/src/stream/frames.test.ts`, `web/src/stream/thread-stream.ts`,
   `web/src/stream/thread-stream.test.ts`, `web/src/stream/index.ts`,
   `web/src/stream/contract.yaml`
-- Needs: `docs/shared/requests/2026-10-31-tool-activity.md` accepted, and its Core side built so
-  `api/openapi.json` names `ToolCallCard`, `DiffHunk`, `TodoListCard` and the `TodoList` kind
+- Needs: `docs/shared/requests/2026-10-31-tool-activity.md` (accepted 2026-10-31) built by
+  B-19 to B-22, so `api/openapi.json` names `ToolCallCard`, `DiffHunk`, `DiffLine`,
+  `TodoListCard`, `TodoItem`, `ToolLive`, `CallKind`, `CallStatus`, `DiffOp`, `TodoStatus` and
+  the `TodoList` kind
 - Done when: `npx vitest run src/stream src/api` passes, with new tests:
   - frames: "reads a tool frame, and refuses one with a status it does not know";
     "reads a todos frame, and refuses an item without content"; "readToolCard reads a card with
@@ -136,7 +139,8 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 - Done when: `npx vitest run src/app/conversation` passes, with new tests:
   - activity-rows: "groups consecutive tool calls of one turn, and splits at another kind or
     another turn"; "an entry with no card is a completed step with its title";
-    "a live frame already written as an entry is not a live step"
+    "a live frame already written as an entry is not a live step, whatever the frame says";
+    "a completed call is drawn from its last frame until its entry lands"
   - activity-text: one `it.each` over the words table ("words %s"), plus "an edit's counts
     are summed", "a sentence wins over the verb", "lines read as (47–102)"
   - tool-group: "a finished group is one closed line with its time, and opens into numbered
@@ -160,7 +164,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 - Visual check: as F-52's, at 1280×800, of an opened edit step in light and dark themes.
 - Done when: `npx vitest run src/app/conversation` passes, with new tests: "draws added and
   removed lines with their old and new numbers"; "draws no numbers when the hunk has no
-  start"; "marks the gap between two hunks"; "a diff too long to show says so and keeps its
+  start"; "marks the gap between two hunks"; "names the file where a hunk's path changes"; "a diff too long to show says so and keeps its
   counts"; "an edit step without a diff has no chevron".
 
 ### F-56 · The agent's checklist, live and after reload
