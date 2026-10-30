@@ -185,6 +185,10 @@ frame; a durable `ToolCall` entry is final over every frame of its `id`; and F-5
 ten named schemas, narrowing `card` by `kind`. F-53 stays blocked until B-19 to B-22 are built
 and `api/openapi.json` shows them.
 
+Masada, 2026-10-31, on the `error` addendum (user ruling): **accepted** as written. The web
+shows it under a failed step's line (plan "A failed step's error"; F-53 reads it, F-54 draws it)
+and draws nothing for it from a live frame.
+
 ## Ruling
 
 <The teacher, only when disputed.>
