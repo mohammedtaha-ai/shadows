@@ -5,11 +5,11 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Left: W-11 of the [web architecture plan](plans/2026-10-25-web-architecture.md), split on
-2026-10-29 into five packets, F-45 to F-49. Each waits on its shared request and its Core
-task (B-14 to B-18). F-18 and F-19 are replaced by
-these packets. Still open outside any task: the light palette and the real desktop
-login-item behaviour need their own app and OS acceptance.
+W-11 of the [web architecture plan](plans/2026-10-25-web-architecture.md), split on
+2026-10-29 into five packets, is done on `feature/w11-a8b-plan` before its PR: F-45 to F-49,
+each with its accepted shared request and its Core task (B-14 to B-18). F-18 and F-19 are
+replaced by these packets. Still open outside any task: the light palette and the real
+desktop login-item behaviour need their own app and OS acceptance.
 
 Finished work: F-28 (each settings form saves only the fields it changed, with the glass
 theme selector, PR #46) is in this file at `e95b79c3`; F-22 (the context ring shows the summary only, PR #45) is in this file at

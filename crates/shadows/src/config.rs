@@ -1,5 +1,9 @@
+use std::io;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+
+use serde::Deserialize;
+use shadows_core::AylulConfig;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -104,10 +108,6 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError> {
         ))
     }
 }
-
-use serde::Deserialize;
-use shadows_core::AylulConfig;
-use std::io;
 
 pub const PROJECT_SLUG: &str = "aylul";
 #[derive(Deserialize)]

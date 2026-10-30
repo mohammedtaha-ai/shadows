@@ -28,6 +28,10 @@ A-22 (product workspaces) is deferred on 2026-10-28: its trigger is in
 B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #46
 (`e95b79c3`); its entry is in this file at `e95b79c3`.
 
+A-8b1 and A-8b2 (the Hermes product daemon goes; the AYLUL project check and the master key
+move into Core) and B-14 to B-18 (W-11's Core side) are done on `feature/w11-a8b-plan`,
+before its PR.
+
 ## Tasks
 
 ### A-8b1 · Delete the Hermes product daemon

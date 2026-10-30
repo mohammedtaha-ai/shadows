@@ -110,7 +110,7 @@ export function Entry({
   }
   if (entry.kind === 'PermissionRefused') {
     // Refused in the mode the turn ran in; only a mode that asks refuses,
-    // so without a record it is the policy's first. The unattended mode
+    // so without a record it is the initial mode. The unattended mode
     // does not ask.
     const refusedIn = requestedMode ?? policy.initial_mode
     return (
