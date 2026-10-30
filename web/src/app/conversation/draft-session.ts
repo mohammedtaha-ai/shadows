@@ -2,7 +2,7 @@
 
 import type { Choice, SessionChoices } from '@/api/sessions'
 import type { Provider } from '@/api/aylul-profiles'
-import { policyOf } from '../mode-policy'
+import type { HarnessPolicy } from '@/api/harnesses'
 import type { SessionView } from './use-session'
 
 /** What a draft's model menu reads: no model is chosen before a session
@@ -17,14 +17,13 @@ const UNOPENED: Choice = {
 
 /** What a draft's composer offers before a session exists: the harness's
  * modes as the project allows them, no model chosen and no effort. */
-export function draftSession(harness: string, allowed: string[] | undefined, provider?: Provider, defaultModel?: string): SessionView {
-  if (allowed === undefined) return { state: 'connecting' }
-  const policy = policyOf(harness)
+export function draftSession(policy: HarnessPolicy | undefined, allowed: string[] | undefined, provider?: Provider, defaultModel?: string): SessionView {
+  if (allowed === undefined || policy === undefined) return { state: 'connecting' }
   const choices: SessionChoices = {
     // Drafts stage files locally; the opened session and Core judge the first send.
     capabilities: { image: true, image_reason: null },
     current: {
-      mode: policy.initial ?? policy.modes[0]?.id ?? '',
+      mode: policy.initial_mode ?? policy.modes[0]?.id ?? '',
       model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!.id,
       effort: null,
     },

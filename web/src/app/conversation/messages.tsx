@@ -4,11 +4,12 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
 import type { Plan, PlanTask } from '@/api/workflows'
 import type { Choice } from '@/api/sessions'
 import type { Operation, ThreadEntry } from '@/api/threads'
-import { policyOf } from '../mode-policy'
+import { harnessesQuery, policyOf } from '@/api/harnesses'
 import { AYLUL_HARNESS } from './cli-picker'
 import { Entry, ReplyText } from './entry'
 import { MessageActions } from './message-actions'
@@ -103,7 +104,7 @@ export function Messages({
   const operational = label === undefined ? null : describeLabel(label)
   const answered = answeredNotes(shown, operations ?? [], models)
   const forkAt = forkAnchor(entries ?? [], shown)
-  const policy = policyOf(harness)
+  const policy = policyOf(useQuery(harnessesQuery).data, harness)
   const turnCards = runningCards(entries ?? [], reply, subagents)
   const modeOf = (entry: ThreadEntry) =>
     operations?.find((op) => op.id === entry.operation_id)?.invocation?.requested_mode ?? null

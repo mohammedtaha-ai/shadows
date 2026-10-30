@@ -72,6 +72,9 @@ event_urls:
 
 threads_and_turns:
   listHarnesses: "() -> Promise<HarnessInfo[]>"
+  policyOf: "(harnesses: readonly HarnessInfo[] | undefined, kind: string) -> HarnessPolicy; the harness's modes, initial and unattended mode as Core lists them, or none while the list is unread"
+  modeLabel: "(policy: HarnessPolicy, mode: string) -> string; the id itself for a mode the policy does not list"
+  modeDescription: "(policy: HarnessPolicy, mode: string) -> string | null"
   uploadAttachment: "(threadId: string, commandId: string, file: File) -> Promise<Attachment>; multipart command_id and one file through the shared client; Core owns validation"
   attachmentUrl: "(threadId: string, attachmentId: string) -> string; encoded byte-route ids under DAEMON_URL"
   openSession: "(threadId: string) -> Promise<SessionChoices>"
@@ -745,8 +748,8 @@ design_operations:
 
 harnesses_operations:
   owner: harnesses.ts
-  operations: "listHarnesses"
-  types: "HarnessInfo; generated schema aliases"
+  operations: "listHarnesses; policyOf, modeLabel, modeDescription read the mode policy out of the list"
+  types: "HarnessInfo; HarnessPolicy (modes, initial_mode, unattended_mode of a HarnessInfo); generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 aylul_profiles_transport:

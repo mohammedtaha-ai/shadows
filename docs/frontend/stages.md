@@ -48,7 +48,7 @@ settings dialog, PR #40) at `1a2b601`.
   tests, `npm run typecheck` and `npm run lint` pass
 
 ### F-47 · Mode names and policy come from the harness list
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 3)
 - Read: docs/shared/requests/2026-10-29-harness-mode-policy.md; the `shared` rows of
   `docs/frontend/codebase/README.md`

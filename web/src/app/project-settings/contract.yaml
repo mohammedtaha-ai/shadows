@@ -24,7 +24,7 @@ source: web/src/app/project-settings
 
 shapes:
   Allowed:
-    # Per harness kind, the modes in the order the harness's policy lists them.
+    # Per harness kind, the modes in the order Core's harness list gives them.
     # A missing harness reads as an empty list, which turns off every turn there.
     "<harness kind>": "string[]"
   ProjectLinkRow:
@@ -57,7 +57,7 @@ components:
     # Renders its Editor only once the saved version has loaded.
   ProjectModes:
     signature: "({ project: Project }) => JSX.Element"
-    # One checkbox per mode of each harness; a toggle sends the whole new set.
+    # One checkbox per mode each harness lists (GET /api/harnesses); a toggle sends the whole new set.
   ExternalAgents:
     signature: "({ projectId: string }) => JSX.Element"
     # Connect; the one answer's command; the project's grants with Revoke.

@@ -2,8 +2,10 @@
 // `+`, mode and folder; on the right model, effort and the context ring —
 // every menu built from what the harness session offers.
 
+import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Folder, Plus } from 'lucide-react'
 import { type ReactNode, type RefObject, useRef } from 'react'
+import { harnessesQuery, modeDescription, policyOf } from '@/api/harnesses'
 import type { Choice, TurnSettings } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ErrorLine } from '../error-line'
-import { modeDescription, policyOf } from '../mode-policy'
 import { effortsKnown, labelOf, withModel } from './turn-settings'
 import type { SessionView } from './use-session'
 
@@ -75,7 +76,7 @@ export function ComposerBar({
       : { open: opened === setting, onOpenChange: (open: boolean) => onOpened(open ? setting : null) }
   const choices = session.state === 'ready' ? session.choices : null
   const noMode = choices !== null && !choices.modes.some((m) => m.enabled)
-  const policy = policyOf(harness)
+  const policy = policyOf(useQuery(harnessesQuery).data, harness)
 
   return (
     <div className="space-y-1.5">

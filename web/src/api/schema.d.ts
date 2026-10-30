@@ -2009,12 +2009,24 @@ export interface components {
          */
         HarnessInfo: {
             available: boolean;
+            /** @description The mode a new conversation starts in. */
+            initial_mode: string | null;
             kind: string;
             label: string;
             limits: null | components["schemas"]["AccountLimits"];
+            /** @description The modes Shadows allows, in listed order; empty when none are decided. */
+            modes: components["schemas"]["HarnessMode"][];
             /** @description Why it cannot run, when `available` is false. */
             reason: string | null;
             remembered: null | components["schemas"]["RememberedSettings"];
+            /** @description The allowed mode that asks nothing. */
+            unattended_mode: string | null;
+        };
+        /** @description A mode Shadows allows on a harness, with the words a client shows for it. */
+        HarnessMode: {
+            description: string;
+            id: string;
+            label: string;
         };
         /** @description One tag an answer points at. */
         Hit: {
