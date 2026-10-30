@@ -345,7 +345,7 @@ pure:
     signature: "(state: TurnState, action: TurnAction) => TurnState"
     # Newest first. Per turn the row or event with the higher seq sets status_kind and
     # stopRequested; an equal seq keeps what is known; the started action has no seq and yields.
-    # An operation event without a status_kind in its payload is ignored.
+    # An event of no operation, or one without a status_kind in its payload, is ignored.
   isTerminal:
     signature: "(status: Status) => boolean"
     # The one piece of status knowledge kept: whether a turn has ended (Stop, endedAt).
