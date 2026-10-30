@@ -18,3 +18,39 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
+Branch `feature/web-polish`: fixes and small improvements the user finds while using the app.
+
+### F-50 · The message box keeps the caret after Send
+- Status: todo
+- Plan: none; a bug found in use, 2026-10-30
+- Read: `web/src/app/conversation/contract.yaml` (Composer, useSend)
+- Touch: `web/src/app/conversation/composer.tsx`, its test file, `web/src/app/conversation/contract.yaml`
+- Needs: none
+- Found: `composer.tsx` sets `disabled={inFlight}` on the textarea. A disabled field loses focus
+  to `BODY` and gets no focus back when it is enabled again, so after every Send or queue the
+  person must click the box to type. Measured in the browser: right after Enter,
+  `document.activeElement` is `BODY` and the box is disabled; after the send, the box is
+  enabled and focus is still `BODY`.
+- Done when: a test sends with Enter while the box has focus and finds the box still focused
+  (and not editable while the send is in flight) once the send settles, for both a send and a
+  queued message; `npx vitest run src/app/conversation` passes.
+
+### F-51 · A streamed reply shows as it arrives, without freezing the page
+- Status: todo
+- Plan: none; a bug found in use, 2026-10-30
+- Read: `web/src/stream/contract.yaml` (delta), `web/src/app/conversation/contract.yaml`
+  (Messages, Entry, PlanCard)
+- Touch: files under `web/src/app/conversation/` and `web/src/stream/` that the cause lies in,
+  their tests and their `contract.yaml`; report before touching anything else
+- Needs: none
+- Found: Core is not the cause. Recorded on `/api/subscribe` for one Planner reply: 100 `delta`
+  frames over 8.8 s, the largest gap 0.14 s. In the browser on the same thread (a long
+  conversation holding a plan card), the visible text went 14 → 54 characters, then one long
+  task blocked the main thread for 4549 ms, then the text jumped to 786. Other long tasks:
+  317 ms at send, 126 ms, 175 ms at the end. Find what one render does for 4.5 s while
+  deltas arrive (profile it; do not guess), and fix that cause.
+- Done when: a test drives many deltas into a thread that holds a plan card and long markdown
+  and proves the cause is gone (for example the expensive part renders once, not per delta);
+  `npx vitest run src/app/conversation src/stream` passes; and in the browser a reply on that
+  thread grows steadily with no long task over 200 ms.
+
