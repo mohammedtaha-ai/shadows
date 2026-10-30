@@ -1,6 +1,56 @@
 use core_turns::{TestCollector as Collector, TestDurable as Durable};
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::events::{AgentFacts, SubagentCard};
+
+#[test]
+fn the_last_plan_update_becomes_one_todo_list_entry_at_the_end() {
+    use shadows_agent::events::{TodoItem, TodoStatus};
+    let mut collector = Collector::new(None);
+    let first = TodoItem {
+        content: "Finish".into(),
+        status: TodoStatus::Pending,
+    };
+    let last = TodoItem {
+        content: "Finish".into(),
+        status: TodoStatus::Completed,
+    };
+    collector.push(&HarnessEvent::Todos(vec![first]));
+    collector.push(&chunk("m", "done"));
+    collector.push(&HarnessEvent::Todos(vec![last.clone()]));
+    assert_eq!(collector.live().1, Some(vec![last.clone()]));
+    let result = collector.finish();
+    assert_eq!(
+        result,
+        [
+            Durable::Message("done".into()),
+            Durable::TodoList(vec![last])
+        ]
+    );
+}
+
+#[test]
+fn a_turn_without_a_plan_writes_no_todo_list() {
+    let mut collector = Collector::new(None);
+    collector.push(&chunk("m", "done"));
+    assert_eq!(collector.finish(), [Durable::Message("done".into())]);
+    collector.push(&HarnessEvent::Todos(vec![]));
+    assert!(collector.finish().is_empty());
+}
+
+#[test]
+fn changed_tools_reports_a_call_once_per_change() {
+    use shadows_agent::events::CallStatus;
+    let mut collector = Collector::new(None);
+    collector.push(&tool("a", Some("Read"), Some("pending")));
+    assert_eq!(collector.changed_tools()[0].status, CallStatus::Pending);
+    assert_eq!(collector.live().0[0].id, "a");
+    assert!(collector.changed_tools().is_empty());
+    collector.push(&tool("a", Some("Read"), Some("pending")));
+    assert!(collector.changed_tools().is_empty());
+    collector.push(&tool("a", None, Some("completed")));
+    assert_eq!(collector.changed_tools()[0].status, CallStatus::Completed);
+    assert!(collector.live().0.is_empty());
+}
 fn chunk(id: &str, text: &str) -> HarnessEvent {
     HarnessEvent::Chunk {
         message_id: Some(id.into()),

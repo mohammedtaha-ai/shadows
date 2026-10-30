@@ -471,6 +471,47 @@ async fn unconfirmed_termination_keeps_the_registration_and_leaves_the_operation
 }
 
 #[tokio::test]
+async fn a_turns_task_list_is_kept_as_a_todo_list_entry() {
+    let app = test_app().await;
+    let op = start_prompt(&app, "todo-list").await;
+    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::get(format!("/api/threads/{}/entries", app.thread.as_str()))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let entries: Vec<Value> = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(
+        entries
+            .iter()
+            .map(|e| e["kind"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["UserMessage", "AgentMessage", "TodoList"]
+    );
+    let list = &entries[2];
+    assert_eq!(list["body"], "- [x] First\n- [ ] Second");
+    assert_eq!(list["operation_id"], op.as_str());
+    assert_eq!(
+        list["card"]["entries"],
+        json!([
+            {"content":"First", "status":"completed"},
+            {"content":"Second", "status":"in_progress"}
+        ])
+    );
+    app.sessions.close_all().await.unwrap();
+    app.runtime.storage_for_test().close().await.unwrap();
+}
+
+#[tokio::test]
 async fn tool_entries_carry_their_cards() {
     let app = test_app().await;
     let op = start_prompt(&app, "tool-activity").await;

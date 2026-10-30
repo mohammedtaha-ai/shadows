@@ -77,6 +77,19 @@ pub(crate) async fn answer(
         client_meta,
     } = turn;
     match prompt {
+        "todo-list" => {
+            for status in ["pending", "completed"] {
+                let plan = serde_json::from_value(json!({
+                    "entries": [
+                        {"content":"First", "priority":"high", "status":status},
+                        {"content":"Second", "priority":"low", "status":"in_progress"}
+                    ]
+                }))
+                .unwrap();
+                update(cx, id, SessionUpdate::Plan(plan))?;
+            }
+            chunk(cx, id, "m1", "task update")?;
+        }
         "two-messages" => {
             chunk(cx, id, "m1", "first")?;
             let tool: ToolCall = serde_json::from_value(json!({

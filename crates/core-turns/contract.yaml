@@ -97,6 +97,10 @@ dependencies:
   projects: crates/core-projects/contract.yaml
 
 shapes:
+  LiveActivity:
+    op: OperationId
+    tools: Vec<ToolLive> # Open calls in start order.
+    todos: Option<Vec<TodoItem>>
   Prompt:
     blocks: Vec<PromptBlock>
     withholds: bool
@@ -282,6 +286,9 @@ functions:
   plan_cards:
     show_plan: "(&self, grant, PlanShow) -> Result<PlanShown, TurnsError>; calls Plans::show, reads its live tab and signals only a non-replay"
   service:
+    live_activity:
+      signature: "(&self, thread: &ThreadId) -> Option<LiveActivity>"
+      # Latest open calls and list for a registered turn on this thread.
     remove_thread:
       signature: "(&self, command_id, thread) -> Result<PlanningThread, TurnsError>"
       # Replay first; Threads marks the row, Grants revokes, Threads journals and records
@@ -434,6 +441,12 @@ functions:
       # On `Collector`: each subagent card changed since the last call, as it
       # is now; `accept` publishes each as `HarnessEvent::Subagent` (§22.2).
       # The cards are gathered by `Subagents` (`subagents.rs`).
+    changed_tools:
+      signature: "(&mut self) -> Vec<ToolLive>"
+      # On Collector: changed call views since the last read.
+    live:
+      signature: "(&self) -> (Vec<ToolLive>, Option<Vec<TodoItem>>)"
+      # Open call views and the latest complete task list.
     steer_target:
       signature: "(&self) -> Option<SteerTarget>"
       # pub(crate) on `LiveHandles`: the running turn of a thread as Send now
@@ -563,9 +576,20 @@ shared_in_transaction:
 
 called_by_other_services:
   subscribe_live: Events subscribes before replay without accessing the sender.
+  live_activity: Events can read the current turn's open calls and task list.
 
 
 obligations:
+  - rule: >
+      A turn writes its last nonempty task list after its other entries, with
+      Markdown body and TodoListCard. No update or an empty final list writes none.
+      Live activity holds open tool calls and the latest list for the running turn;
+      tool changes publish on the turn bus.
+    tested_by:
+      - the_last_plan_update_becomes_one_todo_list_entry_at_the_end
+      - a_turn_without_a_plan_writes_no_todo_list
+      - changed_tools_reports_a_call_once_per_change
+      - a_turns_task_list_is_kept_as_a_todo_list_entry
   - rule: Terminal usage and operation state commit together once under the existing claim and CAS.
     tested_by: [usage_ends_atomically_once]
   - rule: Cancelled or refused replies keep actual measurements; missing responses remain unknown.

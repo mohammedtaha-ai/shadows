@@ -71,6 +71,7 @@ use core_runtime::StopKind;
 use core_standards::Standards;
 use core_threads::ThreadId;
 pub use error::TurnsError;
+pub use model::LiveActivity;
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
 /// `shadows_core::testing` re-exports these, and nothing outside the crate
@@ -146,6 +147,10 @@ fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> Comm
 }
 
 impl Turns {
+    /// Return the current activity for a running turn on this thread.
+    pub async fn live_activity(&self, thread: &ThreadId) -> Option<LiveActivity> {
+        self.handles.activity_for(thread).await
+    }
     // One argument for each service it calls: the constructor is its dependency list.
     #[allow(clippy::too_many_arguments)]
     pub fn new(

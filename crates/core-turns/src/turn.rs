@@ -29,7 +29,7 @@ use core_db::{Actor, StorageError};
 use super::{
     entries::{Collector, Durable},
     handles::LiveHandles,
-    model::{FailureStage, OperationId},
+    model::{ActivityState, FailureStage, OperationId},
     spawn::OnCompleted,
     steer::SteerRequest,
 };
@@ -37,7 +37,7 @@ use core_harness::{Harness, OpenSession};
 use core_threads::{NewThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_agent::{
     acp::{AcpError, TurnEnd},
-    events::{AccountLimits, HarnessEvent, TurnObservation},
+    events::{AccountLimits, HarnessEvent, TodoListCard, TodoStatus, TurnObservation},
 };
 use std::sync::{
     Arc,
@@ -59,6 +59,7 @@ pub enum StopOutcome {
 }
 
 pub(crate) struct TurnWatch {
+    pub activity: ActivityState,
     pub root: Option<std::path::PathBuf>,
     pub op_id: OperationId,
     pub storage: Arc<core_db::Storage>,
@@ -88,6 +89,23 @@ impl PlannerTurn {
         for entry in entries {
             let (kind, author, body, card) = match entry {
                 Durable::Message(body) => (ThreadEntryKind::AgentMessage, planner(), body, None),
+                Durable::TodoList(entries) => {
+                    let body = entries
+                        .iter()
+                        .map(|item| {
+                            let mark = if item.status == TodoStatus::Completed {
+                                "x"
+                            } else {
+                                " "
+                            };
+                            format!("- [{mark}] {}", item.content)
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    let card = serde_json::to_value(TodoListCard { entries }).ok();
+                    (ThreadEntryKind::TodoList, planner(), body, card)
+                }
+
                 Durable::Tool { title, card } => (
                     ThreadEntryKind::ToolCall,
                     planner(),
@@ -173,6 +191,14 @@ async fn accept(
             HarnessEvent::Subagent(card),
         ));
     }
+    for call in collector.changed_tools() {
+        let _ = bus.send((
+            w.thread_id.clone(),
+            w.op_id.clone(),
+            HarnessEvent::Tool(call),
+        ));
+    }
+    *w.activity.lock().unwrap_or_else(|error| error.into_inner()) = collector.live();
 }
 
 impl PlannerTurn {

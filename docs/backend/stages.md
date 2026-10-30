@@ -53,14 +53,14 @@ Tool activity ([spec](specs/2026-10-31-tool-activity-design.md),
 - Done when: `cargo test -p core-turns --test entries` (the eight new tests and the kept ones) and `cargo test -p shadows --test planner_turn tool_entries_carry_their_cards` pass; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` then `cargo test -p shadows --test openapi` pass
 
 ### B-21 · The task list becomes a `TodoList` entry; a running turn's activity is readable
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-21--the-task-list-is-kept-and-a-running-turns-activity-is-readable
 - Read: spec §3 and §4; `crates/core-turns/contract.yaml` (`registry`, `called_by_other_services`); `crates/core-threads/contract.yaml` (`ThreadEntryKind`)
 - Touch: `crates/core-threads/src/model.rs`, `crates/core-threads/contract.yaml`, `crates/core-turns/src/entries.rs`, `crates/core-turns/src/tools.rs`, `crates/core-turns/src/turn.rs`, `crates/core-turns/src/handles.rs`, `crates/core-turns/src/spawn.rs`, `crates/core-turns/src/model.rs`, `crates/core-turns/src/lib.rs`, `crates/core-turns/contract.yaml`, `crates/core-turns/tests/entries.rs`, `crates/shadows-core/src/lib.rs`, `crates/shadows-http/src/openapi.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/planner_turn.rs`, `crates/shadows/tests/thread_contract.rs`
 - Done when: `cargo test -p core-turns --test entries`, `cargo test -p shadows --test planner_turn a_turns_task_list_is_kept_as_a_todo_list_entry`, `cargo test -p shadows --test thread_contract every_entry_kind_round_trips_as_its_stored_name` pass; openapi regenerated and `cargo test -p shadows --test openapi` passes
 
 ### B-22 · `tool` and `todos` frames, re-sent after `caught-up` for a running turn
-- Status: blocked (B-21)
+- Status: todo
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-22--a-subscriber-gets-tool-and-todos-and-a-reload-gets-them-back
 - Read: spec §4 and §5; `crates/core-events/contract.yaml` (`Delivery`, `next`, `transient`, the no-gap obligation); `crates/core-turns/contract.yaml` `live_activity`
 - Touch: `crates/core-events/src/subscription.rs`, `crates/core-events/src/lib.rs`, `crates/core-events/contract.yaml`, `crates/shadows-http/src/sse.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/stream_frames.rs`

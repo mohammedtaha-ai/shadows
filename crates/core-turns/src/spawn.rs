@@ -124,6 +124,7 @@ impl PlannerTurn {
                 return Ok(op_id);
             }
         };
+        let activity = Arc::new(std::sync::Mutex::new((Vec::new(), None)));
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         let (steer, steers) = mpsc::unbounded_channel();
@@ -138,6 +139,7 @@ impl PlannerTurn {
                     cancel_requested: cancel_requested.clone(),
                     steer,
                     span: span.clone(),
+                    activity: activity.clone(),
                 },
             )
             .await
@@ -211,6 +213,7 @@ impl PlannerTurn {
         sessions.withhold(&thread_id, withholds);
         Self::watch_turn(
             TurnWatch {
+                activity,
                 root,
                 op_id: op_id.clone(),
                 storage,

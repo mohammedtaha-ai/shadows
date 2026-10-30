@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use shadows_agent::events::{HarnessEvent, SubagentCard, ToolCallCard};
+use shadows_agent::events::{HarnessEvent, SubagentCard, TodoItem, ToolCallCard, ToolLive};
 
 use crate::tools::Tools;
 
@@ -11,6 +11,7 @@ use super::subagents::{Call, Subagents};
 #[derive(Debug, PartialEq)]
 pub enum Durable {
     Message(String),
+    TodoList(Vec<TodoItem>),
     Tool {
         title: String,
         card: Box<ToolCallCard>,
@@ -30,6 +31,7 @@ pub struct Collector {
     message: String,
     tools: Tools,
     subagents: Subagents,
+    todos: Option<Vec<TodoItem>>,
 }
 
 impl Collector {
@@ -118,12 +120,12 @@ impl Collector {
                     out.push(Durable::PermissionRefused(title.clone()));
                 }
             }
+            HarnessEvent::Todos(items) => self.todos = Some(items.clone()),
             HarnessEvent::Usage { .. }
             | HarnessEvent::Options(_)
             | HarnessEvent::Commands(_)
             | HarnessEvent::SessionTitle { .. }
             | HarnessEvent::Tool(_)
-            | HarnessEvent::Todos(_)
             | HarnessEvent::Subagent(_)
             | HarnessEvent::TurnEnd { .. } => {}
         }
@@ -146,6 +148,14 @@ impl Collector {
         out
     }
 
+    pub fn changed_tools(&mut self) -> Vec<ToolLive> {
+        self.tools.changed()
+    }
+
+    pub fn live(&self) -> (Vec<ToolLive>, Option<Vec<TodoItem>>) {
+        (self.tools.live(), self.todos.clone())
+    }
+
     pub fn finish(&mut self) -> Vec<Durable> {
         let mut out = Vec::new();
         self.flush_message(&mut out);
@@ -160,6 +170,9 @@ impl Collector {
                     card: Box::new(card),
                 }),
         );
+        if let Some(todos) = self.todos.take().filter(|items| !items.is_empty()) {
+            out.push(Durable::TodoList(todos));
+        }
         out
     }
 }

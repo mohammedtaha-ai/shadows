@@ -150,6 +150,7 @@ shapes:
     UserMessage: unit
     AgentMessage: unit
     ToolCall: unit # The title is in body and the tool card is structured.
+    TodoList: unit # The body is Markdown tasks and the card is structured.
     Subagent: unit # Structured subagent card.
     PermissionRefused: unit
     PlanView: unit

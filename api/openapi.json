@@ -5211,7 +5211,7 @@
           },
           "card": {
             "additionalProperties": {},
-            "description": "Structured payload: `Subagent` carries a subagent card; `ToolCall` carries\na `ToolCallCard`. Other kinds have no card.",
+            "description": "Structured payload: `Subagent` carries a subagent card; `ToolCall` carries\na `ToolCallCard`; `TodoList` carries a `TodoListCard`.",
             "propertyNames": {
               "type": "string"
             },
@@ -5275,6 +5275,7 @@
           "UserMessage",
           "AgentMessage",
           "ToolCall",
+          "TodoList",
           "Subagent",
           "PermissionRefused",
           "PlanView",
@@ -5287,6 +5288,43 @@
       },
       "ThreadId": {
         "format": "uuid",
+        "type": "string"
+      },
+      "TodoItem": {
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TodoStatus"
+          }
+        },
+        "required": [
+          "content",
+          "status"
+        ],
+        "type": "object"
+      },
+      "TodoListCard": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TodoItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "type": "object"
+      },
+      "TodoStatus": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "completed"
+        ],
         "type": "string"
       },
       "Toggle": {
@@ -5382,6 +5420,56 @@
           "status",
           "started_at",
           "finished_at"
+        ],
+        "type": "object"
+      },
+      "ToolLive": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CallKind"
+          },
+          "lines": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CallStatus"
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "tool": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "started_at"
         ],
         "type": "object"
       },

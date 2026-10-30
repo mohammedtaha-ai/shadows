@@ -81,6 +81,7 @@ pub use error::{CoreError, ErrorCode};
 // `shadows-agent`; adapters serialize the same schema name.
 pub use shadows_agent::choices::SessionChoices;
 pub use shadows_agent::events::{CallKind, CallStatus, DiffHunk, DiffLine, DiffOp, ToolCallCard};
+pub use shadows_agent::events::{TodoItem, TodoListCard, TodoStatus, ToolLive};
 pub use shadows_agent::profile::ClaudeProfile;
 
 pub use core_standards::{

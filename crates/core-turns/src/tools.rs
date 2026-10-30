@@ -1,11 +1,12 @@
 //! Gather tool calls until their final details are ready to persist.
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use shadows_agent::events::{CallKind, CallStatus, ToolCallCard, ToolFacts};
+use shadows_agent::events::{CallKind, CallStatus, ToolCallCard, ToolFacts, ToolLive};
 
 use crate::hunks::Hunks;
 
+#[derive(Clone)]
 struct OpenCall {
     card: ToolCallCard,
     title: String,
@@ -18,6 +19,8 @@ pub(crate) struct Tools {
     open: Vec<OpenCall>,
     ended: Vec<OpenCall>,
     written: HashSet<String>,
+    last: HashMap<String, ToolLive>,
+    changes: Vec<ToolLive>,
 }
 
 impl Tools {
@@ -106,6 +109,11 @@ impl Tools {
                 _ => CallStatus::Pending,
             };
         }
+        let live = Self::view(call, self.root.as_deref());
+        if self.last.get(id) != Some(&live) {
+            self.last.insert(id.to_owned(), live.clone());
+            self.changes.push(live);
+        }
         if ended_at.is_none()
             && matches!(call.card.status, CallStatus::Completed | CallStatus::Failed)
         {
@@ -117,6 +125,32 @@ impl Tools {
                 .unwrap();
             self.ended.push(self.open.remove(at));
         }
+    }
+
+    fn view(call: &OpenCall, root: Option<&Path>) -> ToolLive {
+        let mut call = call.clone();
+        complete(&mut call, root);
+        ToolLive {
+            id: call.card.id,
+            tool: call.card.tool,
+            kind: call.card.kind,
+            title: call.title,
+            target: call.card.target,
+            lines: call.card.lines,
+            status: call.card.status,
+            started_at: call.card.started_at,
+        }
+    }
+
+    pub fn changed(&mut self) -> Vec<ToolLive> {
+        std::mem::take(&mut self.changes)
+    }
+
+    pub fn live(&self) -> Vec<ToolLive> {
+        self.open
+            .iter()
+            .map(|call| Self::view(call, self.root.as_deref()))
+            .collect()
     }
 
     pub fn ended(&mut self) -> Vec<(String, ToolCallCard)> {
