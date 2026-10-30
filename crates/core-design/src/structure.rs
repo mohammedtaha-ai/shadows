@@ -1,5 +1,6 @@
 //! Rendering an approved map snapshot into files.
 use super::PartContent;
+use super::store::structure::Snapshot;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlannedFile {
@@ -17,7 +18,23 @@ pub struct RenderInput<'a> {
     pub standards_base: i64,
     pub standards_additions: Option<&'a str>,
 }
+impl Planned {
+    /// The files `create_structure` writes; the stage read reports the same number.
+    pub fn file_count(&self) -> usize {
+        self.files.len()
+    }
+}
 impl Structure {
+    /// The one plan for a snapshot, shared by the write and the stage's count.
+    pub(crate) fn plan(snapshot: &Snapshot) -> Result<Planned, String> {
+        Self::render(&RenderInput {
+            project_name: &snapshot.name,
+            map_number: snapshot.intent.map_number,
+            parts: &snapshot.parts,
+            standards_base: snapshot.intent.standards_version,
+            standards_additions: snapshot.intent.standards_additions_version_id.as_deref(),
+        })
+    }
     pub fn render(input: &RenderInput<'_>) -> Result<Planned, String> {
         use super::map_rules::MapRules;
         let mut folders = std::collections::BTreeSet::new();

@@ -1023,10 +1023,16 @@
         "properties": {
           "command_id": {
             "type": "string"
+          },
+          "map_revision": {
+            "description": "The map revision the person confirmed, from the stage read.",
+            "format": "int64",
+            "type": "integer"
           }
         },
         "required": [
-          "command_id"
+          "command_id",
+          "map_revision"
         ],
         "type": "object"
       },
@@ -4733,6 +4739,11 @@
             },
             "type": "array"
           },
+          "map_revision": {
+            "description": "The map revision `structure_file_count` was taken at; the revision a person\nconfirms when creating the structure.",
+            "format": "int64",
+            "type": "integer"
+          },
           "missing": {
             "description": "Missing vision field names at vision; mandatory part names at map.",
             "items": {
@@ -4742,6 +4753,15 @@
           },
           "stage": {
             "$ref": "#/components/schemas/Stage"
+          },
+          "structure_file_count": {
+            "description": "Files `create_structure` would write for the map now; none unless the stage\ncan create a structure.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -10305,7 +10325,7 @@
                 }
               }
             },
-            "description": "STAGE_BLOCKED or COMMAND_CONFLICT"
+            "description": "STAGE_BLOCKED, COMMAND_CONFLICT, or REVISION_CONFLICT with `current_revision` when the map moved after `map_revision`"
           },
           "422": {
             "content": {

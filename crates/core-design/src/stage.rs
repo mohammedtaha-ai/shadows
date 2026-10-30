@@ -23,6 +23,14 @@ pub struct StageView {
     pub stage: Stage,
     /// Missing vision field names at vision; mandatory part names at map.
     pub missing: Vec<String>,
+    /// The map revision `structure_file_count` was taken at; the revision a person
+    /// confirms when creating the structure.
+    #[serde(default)]
+    pub map_revision: i64,
+    /// Files `create_structure` would write for the map now; none unless the stage
+    /// can create a structure.
+    #[serde(default)]
+    pub structure_file_count: Option<u32>,
 }
 
 impl StageRules {
@@ -44,6 +52,8 @@ impl StageRules {
                 drift: vec![],
                 stage: Stage::Idea,
                 missing: vec![],
+                map_revision: 0,
+                structure_file_count: None,
             };
         }
         if !empty.is_empty() {
@@ -51,6 +61,8 @@ impl StageRules {
                 drift: vec![],
                 stage: Stage::Vision,
                 missing: empty,
+                map_revision: 0,
+                structure_file_count: None,
             };
         }
         let missing: Vec<_> = required
@@ -66,6 +78,8 @@ impl StageRules {
                 Stage::Map
             },
             missing,
+            map_revision: 0,
+            structure_file_count: None,
         }
     }
 }

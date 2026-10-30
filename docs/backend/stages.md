@@ -119,7 +119,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   from `policy.rs` alone; `cargo test -p shadows-agent` and `-p core-harness` pass
 
 ### B-17 · The design stage says how many files a structure writes
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 4)
 - Read: docs/shared/requests/2026-10-29-structure-file-count.md; `crates/core-design/contract.yaml`;
   `crates/core-design/src/structure_create.rs`

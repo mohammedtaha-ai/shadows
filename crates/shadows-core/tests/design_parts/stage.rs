@@ -39,6 +39,8 @@ fn view(stage: shadows_core::Stage, missing: &[&str]) -> shadows_core::StageView
         drift: vec![],
         stage,
         missing: missing.iter().map(|m| m.to_string()).collect(),
+        map_revision: 0,
+        structure_file_count: None,
     }
 }
 
