@@ -696,7 +696,8 @@ obligations:
       Its menu and turns use Core's current.mode, including after navigation or a fresh
       QueryClient remount. A pending write disables settings and Send; a refusal or lost
       connection keeps the last Core mode and displays the usual error. A draft keeps
-      Core's initial mode and sends its chosen mode with its first turn.
+      Core's initial mode and sends its chosen mode with its first turn. While the
+      harness list cannot be read, the draft offers no mode and shows the list's error.
     tested_by:
       - "choosing Auto saves at once and shows only Core’s answer"
       - "Auto survives navigating away and back and a fresh QueryClient remount"
@@ -705,8 +706,9 @@ obligations:
       - "a mode save cancels an older session read before caching Core’s answer"
       - "switching conversations isolates their modes and a late save answer"
       - "every mode choice uses a fresh command and options frames remain authoritative"
-      - "a draft starts at the policy default without a session mode write"
+      - "a draft starts at Core's initial mode without a session mode write"
       - "the first message creates the thread, then sends, then opens the thread"
+      - "offers no mode and shows the error when the harness list cannot be read"
 
   - rule: >
       A draft whose turn fails after its thread exists carries the text, command and error to

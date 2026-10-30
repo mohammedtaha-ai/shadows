@@ -58,7 +58,7 @@ export function CreateStructure({ projectId }: {projectId:string}) {
   const disabled = write.isPending || reason !== null || !project?.directory
   const revision = stage.data.map_revision
   const count = stage.data.structure_file_count
-  const confirmDisabled = disabled || revision === undefined || stage.isFetching
+  const confirmDisabled = disabled || stage.isFetching
   return <section className="space-y-2 rounded border p-3 text-sm" aria-label="Create structure">
     <Button disabled={disabled} onClick={() => { setMoved(false); setConfirming(true) }}>Create structure</Button>
     {reason && <p>{reason}</p>}
@@ -66,9 +66,9 @@ export function CreateStructure({ projectId }: {projectId:string}) {
     {confirming && <div role="dialog" aria-label="Confirm create structure"
       className="space-y-3 rounded border bg-card p-4">
       {moved && <p role="alert">The map changed; check the new count.</p>}
-      <p>{typeof count === 'number' ? `Write ${count} files` : 'Write the structure'} in <bdi dir="auto">{project?.directory}</bdi>?</p>
+      <p>{count === null ? 'Write the structure' : `Write ${count} files`} in <bdi dir="auto">{project?.directory}</bdi>?</p>
       <div className="flex gap-2">
-        <Button disabled={confirmDisabled} onClick={() => { if (revision !== undefined) { setMoved(false); write.mutate(revision) } }}>Confirm create structure</Button>
+        <Button disabled={confirmDisabled} onClick={() => { setMoved(false); write.mutate(revision) }}>Confirm create structure</Button>
         <Button variant="secondary" disabled={write.isPending} onClick={() => setConfirming(false)}>Cancel</Button>
       </div>
     </div>}

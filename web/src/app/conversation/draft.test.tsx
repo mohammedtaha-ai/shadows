@@ -15,7 +15,7 @@ afterEach(() => {
 })
 
 describe('the draft', () => {
-  it('a draft starts at the policy default without a session mode write', async () => {
+  it("a draft starts at Core's initial mode without a session mode write", async () => {
     const app = open = await startApp('/projects/p1/new', answers())
     await until(() => app.button('Mode') !== undefined)
     expect(app.button('Mode')?.textContent).toContain('Accept edits')

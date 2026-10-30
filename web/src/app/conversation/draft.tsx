@@ -53,9 +53,10 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
   const allowed = project?.allowed_modes[harness]
   const policy = harnesses.data === undefined ? undefined : policyOf(harnesses.data, harness)
   const ready = useMemo(() => draftSession(policy, allowed, provider, defaultModel), [policy, allowed, provider, defaultModel])
-  // Without the harness list no mode is offered; the composer shows why.
+  // Without the harness list no mode is offered; the composer shows why. A failed
+  // refetch over a list already read keeps that list's policy.
   const session: SessionView =
-    harnesses.isError && !harnesses.isFetching
+    harnesses.data === undefined && harnesses.isError && !harnesses.isFetching
       ? { state: 'failed', error: harnesses.error, retry: () => void harnesses.refetch() }
       : ready
   const draft = useFirstSend(projectId, harness, planId, profile)

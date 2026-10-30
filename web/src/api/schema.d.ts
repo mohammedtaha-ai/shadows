@@ -2748,16 +2748,16 @@ export interface components {
              * @description The map revision `structure_file_count` was taken at; the revision a person
              *     confirms when creating the structure.
              */
-            map_revision?: number;
+            map_revision: number;
             /** @description Missing vision field names at vision; mandatory part names at map. */
             missing: string[];
             stage: components["schemas"]["Stage"];
             /**
              * Format: int32
-             * @description Files `create_structure` would write for the map now; none unless the stage
-             *     can create a structure.
+             * @description Files `create_structure` would write for the map now; none when it would
+             *     refuse.
              */
-            structure_file_count?: number | null;
+            structure_file_count: number | null;
         };
         StandardRule: {
             id: string;
