@@ -578,16 +578,16 @@ stays green. Packets are independent; they run in this order:
 | 2 `active-limit` | `settings/active-projects.tsx`: `MIN = 1`, `MAX = 20` | `core-code` (`code_setting.active_limit`) | [active-limit-bounds](../../shared/requests/2026-10-29-active-limit-bounds.md) | B-15 | F-46 |
 | 3 `mode-policy` | `mode-policy.ts`: allowed modes, labels, descriptions, initial and unattended mode per harness | `shadows-agent/src/policy.rs`, listed by `Harness::list` | [harness-mode-policy](../../shared/requests/2026-10-29-harness-mode-policy.md) | B-16 | F-47 |
 | 4 `structure-count` | `design/create-structure.tsx::fileCount`: walks every part to count the files a structure writes | `core-design` (`create_structure`) | [structure-file-count](../../shared/requests/2026-10-29-structure-file-count.md) | B-17 | F-48 |
-| 5 `turn-state` | `conversation/turn-state.ts`: orders snapshot and stream statuses so a stale one cannot move a turn back | `core-operations` | none yet (OPEN below) | none yet | F-49 |
+| 5 `turn-state` | `conversation/turn-state.ts`: orders snapshot and stream statuses so a stale one cannot move a turn back | `core-operations` | [turn-status-order](../../shared/requests/2026-10-30-turn-status-order.md) | B-18 | F-49 |
 
 Each web task deletes the copy, shows Core's answer, and keeps its form's current
 behaviour (instant save, retained errors, one command id per attempt).
 
-> **OPEN (packet 5):** does the client still need its own forward-only reducer
-> once Core's operation events and snapshot carry one ordering key, or must Core
-> send a turn status that can be applied as is? Closes when the controller reads
-> `core-operations`' event and snapshot shapes and writes the request, or rules
-> that the reducer is client presentation and stays.
+**Packet 5 ruling (Mohammed, 2026-10-30).** The status rank and the event-kind table
+are Core's lifecycle copied, not presentation. Core gives each operation row its
+latest journal `seq` and each operation event the status it leaves; the client keeps
+the source with the higher `seq` per turn. `stopRequested`, `endedAt` and which turn
+is running stay client presentation.
 
 ### W-12 · Put test infrastructure under its owner
 

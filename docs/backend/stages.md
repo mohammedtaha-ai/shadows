@@ -140,6 +140,28 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
     `cargo test -p shadows --test workspace_mcp` and `cargo test -p shadows --test
     design_routes` pass
 
+### B-18 · A turn's status carries its journal order
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 5)
+- Read: docs/shared/requests/2026-10-30-turn-status-order.md; `crates/core-operations/contract.yaml`;
+  `crates/core-operations/src/store/{transition,read,lifecycle,recovery}.rs`;
+  `crates/core-turns/contract.yaml` (the `operations` listing)
+- Touch: `crates/core-operations/src/store/{transition,read}.rs` (every transition event's payload
+  gains `status_kind` and `cancel_requested` in one place; the listing reads each row's latest
+  operation event `seq` in the same query), `crates/core-operations/src/model.rs`
+  (`OperationRecord.seq`), its contract and `tests/operations.rs`;
+  `crates/core-turns/src/model.rs` (`Operation.seq`), `crates/core-turns/src/store/operation_read.rs`,
+  its contract; the tests that build `OperationRecord` or `Operation` literals (mechanical);
+  `api/openapi.json` (through `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` only)
+- Needs: the request (accepted 2026-10-30)
+- Done when:
+  - a test reads each lifecycle event's payload and finds the status it left and whether a stop
+    was asked, including `OperationCancellationRequested` and recovery's `OperationInterrupted`;
+  - a test holds a listed operation's `seq` equal to its latest operation event's sequence after
+    each transition;
+  - `cargo test -p core-operations`, `cargo test -p shadows --test core_turns` and
+    `cargo test -p shadows --test openapi` pass
+
 ### B-A2 · Prepare Core's scoped context contract
 - Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)
 - Plan: none

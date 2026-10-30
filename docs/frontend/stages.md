@@ -7,7 +7,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 Left: W-11 of the [web architecture plan](plans/2026-10-25-web-architecture.md), split on
 2026-10-29 into five packets, F-45 to F-49. Each waits on its shared request and its Core
-task (B-14 to B-17); F-49 waits on the plan's OPEN block. F-18 and F-19 are replaced by
+task (B-14 to B-18). F-18 and F-19 are replaced by
 these packets. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
 
@@ -75,9 +75,18 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck` and `npm run lint` pass
 
 ### F-49 · Turn state follows Core's ordering
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 5)
-- Read: `web/src/app/conversation/turn-state.ts` and its contract
-- Touch: decided with the packet's OPEN block
-- Needs: the OPEN block in W-11 closed; a request if Core must send more
-- Done when: written when the OPEN block closes; stale-event reconciliation stays correct
+- Read: docs/shared/requests/2026-10-30-turn-status-order.md;
+  `web/src/app/conversation/turn-state.ts` and `web/src/app/conversation/contract.yaml`
+- Touch: `web/src/app/conversation/turn-state.ts`, its test and `contract.yaml`;
+  `web/src/api/schema.d.ts` through `npm run gen:api` only; `web/src/test/fake-daemon.ts` and
+  `web/src/test/contract-fixtures.ts` (operations carry `seq`, operation events carry
+  `status_kind` and `cancel_requested`); the conversation tests that feed operation rows or
+  events (fixture fields only)
+- Needs: B-18 on the same branch
+- Done when: `turn-state.ts` has no status rank and no event-kind table; per turn the source
+  with the higher `seq` wins, and the start route's answer yields to any row or event; tests
+  hold that a snapshot read before a turn ended does not restart it and a replayed
+  `OperationStarted` does not reopen an ended turn; `npx vitest run src/app/conversation`,
+  `npm run typecheck` and `npm run lint` pass
