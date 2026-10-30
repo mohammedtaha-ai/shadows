@@ -141,7 +141,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
     design_routes` pass
 
 ### B-18 · A turn's status carries its journal order
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 5)
 - Read: docs/shared/requests/2026-10-30-turn-status-order.md; `crates/core-operations/contract.yaml`;
   `crates/core-operations/src/store/{transition,read,lifecycle,recovery}.rs`;

@@ -2846,6 +2846,11 @@
           "runtime_instance_id": {
             "$ref": "#/components/schemas/RuntimeInstanceId"
           },
+          "seq": {
+            "description": "Journal sequence of the operation's latest lifecycle event.",
+            "format": "int64",
+            "type": "integer"
+          },
           "started_at": {
             "type": [
               "string",
@@ -2868,6 +2873,7 @@
           "status_kind",
           "runtime_instance_id",
           "created_at",
+          "seq",
           "invocation"
         ],
         "type": "object"

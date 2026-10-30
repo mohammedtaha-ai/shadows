@@ -100,6 +100,8 @@ pub struct Operation {
     pub created_at: String,
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
+    /// Journal sequence of the operation's latest lifecycle event.
+    pub seq: i64,
     /// What the turn asked of the harness and what it reported.
     /// `None` when no invocation is recorded.
     #[schema(required)]

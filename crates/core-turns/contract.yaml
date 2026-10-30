@@ -172,6 +172,8 @@ shapes:
     created_at: String
     started_at: Option<String>
     finished_at: Option<String>
+    # Journal sequence of the operation's latest lifecycle event.
+    seq: i64
     # `None` for an operation from before invocations were recorded.
     invocation: Option<InvocationView>
   StartedTurn:

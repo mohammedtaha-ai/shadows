@@ -88,6 +88,14 @@ impl Transition {
         if let Some(thread) = &before.thread {
             event.thread_id = Some(thread.as_str().to_owned());
         }
+        // The row is already written in this transaction, so the flag reflects this event.
+        let cancel_requested: bool = sqlx::query_scalar(
+            "SELECT cancel_requested_at IS NOT NULL FROM operation WHERE id = ?",
+        )
+        .bind(op_id.as_str())
+        .fetch_one(&mut *conn)
+        .await?;
+        event.payload_json = Self::with_status(&event.payload_json, to, cancel_requested)?;
         let kind = event.kind.clone();
         JournalEntry::append_event(conn, event, ts).await?;
         Ok(Transition {
@@ -102,6 +110,21 @@ impl Transition {
 }
 
 impl Transition {
+    /// Adds the status the event leaves and whether a stop was asked, keeping the payload's
+    /// own fields, so a reader merges a snapshot and a stream by sequence alone.
+    fn with_status(
+        payload_json: &str,
+        status: &str,
+        cancel_requested: bool,
+    ) -> Result<String, StorageError> {
+        let mut payload: serde_json::Value = serde_json::from_str(payload_json)?;
+        if let Some(fields) = payload.as_object_mut() {
+            fields.insert("status_kind".into(), status.into());
+            fields.insert("cancel_requested".into(), cancel_requested.into());
+        }
+        Ok(payload.to_string())
+    }
+
     pub(super) fn event(
         kind: &str,
         actor: Actor,
