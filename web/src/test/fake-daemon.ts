@@ -82,6 +82,9 @@ export interface Overrides {
   /** `POST /api/projects/p1/mcp-grants`; by default issues grant `g9` with
    * its token and command. */
   issue?: Answer
+  /** The design map the stage and the structure create answer from. A test moves
+   * the map by changing `revision`; `count` null is a stage that cannot create. */
+  map?: { revision: number; count: number | null }
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
@@ -105,6 +108,9 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       contract_template: { rules: ['Trace every claim.'], shape: ['header', 'obligations'] },
     }, additions: null,
   }
+  const map = o.map ?? { revision: 1, count: null }
+  // Command id to the revision it first carried, as Core fingerprints it.
+  const structureCommands = new Map<string, number>()
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
     'GET /api/aylul/extensions': { plugins: [], skills: [] },
@@ -141,7 +147,22 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/projects/p1/threads': [threadFixture],
     'GET /api/projects/p1/agreements': [],
     'GET /api/projects/p1/standards': () => Response.json(standards),
-    'GET /api/projects/p1/stage': { stage: 'idea', missing: [] },
+    'GET /api/projects/p1/stage': () => Response.json({
+      stage: 'idea', missing: [], structure_file_count: map.count, map_revision: map.revision,
+    }),
+    'POST /api/projects/p1/structure': async (request: Request) => {
+      const { command_id, map_revision } = await request.json() as { command_id: string; map_revision: number }
+      const first = structureCommands.get(command_id)
+      if (first !== undefined && first !== map_revision) {
+        return Response.json({ code: 'COMMAND_CONFLICT', message: 'command id reused with a different request' }, { status: 409 })
+      }
+      if (map_revision !== map.revision) {
+        return Response.json({ code: 'REVISION_CONFLICT', message: 'the map changed', current_revision: map.revision }, { status: 409 })
+      }
+      structureCommands.set(command_id, map_revision)
+      return Response.json({ map_version: map.revision, paths: ['SHADOWS.md'],
+        completed_at: '2026-10-12T00:00:00Z', resumed: false })
+    },
     'PUT /api/projects/p1/standards/additions': async (request: Request) => {
       const { content } = await request.json() as { content: StandardsAdditions }
       const additions = { number: (standards.additions?.number ?? 0) + 1, content, created_at: '2026-10-10T00:00:00Z' }

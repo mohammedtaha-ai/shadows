@@ -63,7 +63,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck` and `npm run lint` pass
 
 ### F-48 · Create structure shows Core's file count
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 4)
 - Read: docs/shared/requests/2026-10-29-structure-file-count.md; `web/src/app/design/contract.yaml`
 - Touch: `web/src/app/design/create-structure.tsx`, its test and `contract.yaml`;

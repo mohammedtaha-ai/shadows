@@ -20,9 +20,10 @@ export type PartContent = components['schemas']['PartContent']
 export type PartView = components['schemas']['PartView']
 export type PartPage = components['schemas']['PartPage']
 export type StructureWritten = components['schemas']['StructureWritten']
-export function createStructure(projectId: string, commandId: string): Promise<StructureWritten> {
+/** `mapRevision` is the revision of the count the person confirmed; Core refuses a moved map. */
+export function createStructure(projectId: string, commandId: string, mapRevision: number): Promise<StructureWritten> {
   return unwrap(client.POST('/api/projects/{id}/structure', {
-    params: {path:{id:projectId}}, body: {command_id:commandId},
+    params: {path:{id:projectId}}, body: {command_id:commandId, map_revision:mapRevision},
   }))
 }
 export type Outcome = components['schemas']['Outcome']
@@ -91,7 +92,6 @@ export const designKeys = {
   outcome: (projectId: string, outcomeId: string) => ['projects', projectId, 'design', 'outcome', outcomeId],
   collection: (projectId: string, kind: 'parts' | 'outcomes') => ['projects', projectId, 'design', kind],
   page: (projectId: string, kind: 'parts' | 'outcomes', parent?: string, after?: string) => ['projects', projectId, 'design', kind, parent ?? null, after ?? null],
-  preview: (projectId: string) => ['projects', projectId, 'design', 'structure-preview'],
 }
 
 export function standardsQuery(projectId: string) {

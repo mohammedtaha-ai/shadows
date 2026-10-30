@@ -1766,6 +1766,11 @@ export interface components {
         };
         CreateStructure: {
             command_id: string;
+            /**
+             * Format: int64
+             * @description The map revision the person confirmed, from the stage read.
+             */
+            map_revision: number;
         };
         CreateThread: {
             /** @description The idempotency key, scoped to the project. */
@@ -2738,9 +2743,21 @@ export interface components {
         Stage: "idea" | "vision" | "map" | "structure" | "roadmap" | "plans";
         StageView: {
             drift?: string[];
+            /**
+             * Format: int64
+             * @description The map revision `structure_file_count` was taken at; the revision a person
+             *     confirms when creating the structure.
+             */
+            map_revision?: number;
             /** @description Missing vision field names at vision; mandatory part names at map. */
             missing: string[];
             stage: components["schemas"]["Stage"];
+            /**
+             * Format: int32
+             * @description Files `create_structure` would write for the map now; none unless the stage
+             *     can create a structure.
+             */
+            structure_file_count?: number | null;
         };
         StandardRule: {
             id: string;
@@ -6435,7 +6452,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description STAGE_BLOCKED or COMMAND_CONFLICT */
+            /** @description STAGE_BLOCKED, COMMAND_CONFLICT, or REVISION_CONFLICT with `current_revision` when the map moved after `map_revision` */
             409: {
                 headers: {
                     [name: string]: unknown;
