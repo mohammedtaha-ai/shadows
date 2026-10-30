@@ -5,7 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-52 (todo, web only). F-53 to F-56 are blocked on the shared request
+Open: F-52 (done, web only). F-53 to F-56 are blocked on the shared request
 `docs/shared/requests/2026-10-31-tool-activity.md` (accepted 2026-10-31), until Hamoud's
 B-19 to B-22 are built. Still
 open outside any task: the light palette and the real desktop login-item behaviour need
@@ -58,7 +58,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   thread grows steadily with no long task over 200 ms.
 
 ### F-52 · The sidebar hides and shows: a button, Ctrl+B, an overlay below 768 px
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#1-the-sidebar-hides-and-shows
   (and its "Files" table for signatures and code-map rows)
 - Read: `web/src/app/sidebar/contract.yaml` (Sidebar, WorkspaceStore, the try/catch rule);
