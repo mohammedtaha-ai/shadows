@@ -14,6 +14,14 @@ pub struct RememberedSettings {
     pub(super) effort: Option<String>,
 }
 
+/// A mode Shadows allows on a harness, with the words a client shows for it.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct HarnessMode {
+    pub(super) id: String,
+    pub(super) label: String,
+    pub(super) description: String,
+}
+
 /// A CLI a conversation can run on. `kind` is `claude-code` or
 /// `codex`.
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -29,6 +37,14 @@ pub struct HarnessInfo {
     pub(super) remembered: Option<RememberedSettings>,
     #[schema(required)]
     pub(super) limits: Option<AccountLimits>,
+    /// The modes Shadows allows, in listed order; empty when none are decided.
+    pub(super) modes: Vec<HarnessMode>,
+    /// The mode a new conversation starts in.
+    #[schema(required)]
+    pub(super) initial_mode: Option<String>,
+    /// The allowed mode that asks nothing.
+    #[schema(required)]
+    pub(super) unattended_mode: Option<String>,
 }
 
 impl super::Harness {

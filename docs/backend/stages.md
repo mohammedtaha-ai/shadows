@@ -107,7 +107,7 @@ B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #
   `cargo test -p core-code` and the code-settings HTTP tests pass
 
 ### B-16 · Each harness lists the modes Shadows allows
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 3)
 - Read: docs/shared/requests/2026-10-29-harness-mode-policy.md; `crates/shadows-agent/src/policy.rs`;
   `crates/core-harness/contract.yaml`

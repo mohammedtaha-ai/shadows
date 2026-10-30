@@ -137,6 +137,17 @@ shapes:
     # effort; never the mode.
     remembered: Option<RememberedSettings>
     limits: Option<AccountLimits>
+    # `policy::modes(kind)` in listed order; [] when the harness has no decided modes.
+    modes: Vec<HarnessMode>
+    # `policy::default_mode(kind)`; None with no decided modes.
+    initial_mode: Option<String>
+    # `policy::unattended_mode(kind)`, the allowed mode that asks nothing.
+    unattended_mode: Option<String>
+  HarnessMode:
+    source: model.rs
+    id: String
+    label: String
+    description: String
   RememberedSettings:
     model: String
     # The effort remembered for `model`, None when no turn on it had one.
@@ -239,7 +250,8 @@ functions:
     list:
       signature: "(&self) -> Result<Vec<HarnessInfo>, HarnessError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
-      # `latest_limits`. Refusals: Storage.
+      # `latest_limits`, and the modes, initial and unattended mode from policy
+      # alone. Refusals: Storage.
     open_session:
       signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError>"
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
@@ -777,6 +789,10 @@ not_the_caller's:
 
 
 tests:
+  - name: the_harness_list_carries_the_policy_modes
+    checks: >
+      tests/commands.rs: claude-code and aylul list acceptEdits then auto with
+      initial acceptEdits and unattended auto; codex lists [], null, null.
   - name: idle_choices_report_the_adapters_mode
     checks: Idle choices expose an adapter mode change without overwriting the saved pick.
   - name: picking_auto_without_sending_survives_reopen_and_core_restart

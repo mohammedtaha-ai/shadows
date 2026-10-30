@@ -2,8 +2,9 @@
 //! Shadows, not a list of what the harness offers.
 //!
 //! What a harness offers comes from its session (`choices.rs`); this file only
-//! says which of those offered modes Shadows lets a turn use at all, and which
-//! harnesses exist. A mode reaches a menu only if it is here, the harness
+//! says which of those offered modes Shadows lets a turn use at all, how each
+//! is named and described, which one is unattended, and which harnesses
+//! exist. A mode reaches a menu only if it is here, the harness
 //! lists it, and the project allows it.
 
 use std::collections::BTreeMap;
@@ -25,6 +26,49 @@ pub fn allowed_modes(kind: &str) -> &'static [&'static str] {
     match kind {
         CLAUDE_CODE | AYLUL => &["acceptEdits", "auto"],
         _ => &[],
+    }
+}
+
+/// An allowed mode with the words a client shows for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mode {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub description: &'static str,
+}
+
+// Claude Code's own acceptEdits runs file commands inside the project folder
+// without a permission request, so Shadows never sees them; anything else is
+// asked, and Shadows refuses it.
+const CLAUDE_CODE_MODES: [Mode; 2] = [
+    Mode {
+        id: "acceptEdits",
+        label: "Accept edits",
+        description: "Claude Code edits, creates and deletes files in the project folder \
+                      without asking. Other commands are refused.",
+    },
+    Mode {
+        id: "auto",
+        label: "Auto",
+        description: "Claude Code decides on its own; nothing is asked.",
+    },
+];
+
+/// The allowed modes of `kind` with their labels and descriptions, in the
+/// order a client lists them, matching `allowed_modes`.
+pub fn modes(kind: &str) -> &'static [Mode] {
+    match kind {
+        CLAUDE_CODE | AYLUL => &CLAUDE_CODE_MODES,
+        _ => &[],
+    }
+}
+
+/// The allowed mode that asks nothing: the one that would let a refused
+/// permission through.
+pub fn unattended_mode(kind: &str) -> Option<&'static str> {
+    match kind {
+        CLAUDE_CODE | AYLUL => Some("auto"),
+        _ => None,
     }
 }
 
@@ -76,5 +120,20 @@ mod tests {
         assert!(!is_available(AYLUL));
         assert!(!is_available_with(AYLUL, false));
         assert!(is_available_with(AYLUL, true));
+    }
+
+    #[test]
+    fn described_modes_match_the_allowed_ids() {
+        for kind in KNOWN {
+            let ids: Vec<&str> = modes(kind).iter().map(|m| m.id).collect();
+            assert_eq!(ids, allowed_modes(kind), "{kind}");
+            let wanted = [default_mode(kind), unattended_mode(kind)];
+            for id in wanted.into_iter().flatten() {
+                assert!(ids.contains(&id), "{kind} {id}");
+            }
+        }
+        assert_eq!(unattended_mode(AYLUL), Some("auto"));
+        assert!(modes(CODEX).is_empty());
+        assert_eq!(unattended_mode(CODEX), None);
     }
 }

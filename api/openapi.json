@@ -1926,6 +1926,13 @@
           "available": {
             "type": "boolean"
           },
+          "initial_mode": {
+            "description": "The mode a new conversation starts in.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "kind": {
             "type": "string"
           },
@@ -1941,6 +1948,13 @@
                 "$ref": "#/components/schemas/AccountLimits"
               }
             ]
+          },
+          "modes": {
+            "description": "The modes Shadows allows, in listed order; empty when none are decided.",
+            "items": {
+              "$ref": "#/components/schemas/HarnessMode"
+            },
+            "type": "array"
           },
           "reason": {
             "description": "Why it cannot run, when `available` is false.",
@@ -1958,6 +1972,13 @@
                 "$ref": "#/components/schemas/RememberedSettings"
               }
             ]
+          },
+          "unattended_mode": {
+            "description": "The allowed mode that asks nothing.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1966,7 +1987,30 @@
           "available",
           "reason",
           "remembered",
-          "limits"
+          "limits",
+          "modes",
+          "initial_mode",
+          "unattended_mode"
+        ],
+        "type": "object"
+      },
+      "HarnessMode": {
+        "description": "A mode Shadows allows on a harness, with the words a client shows for it.",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "description"
         ],
         "type": "object"
       },
