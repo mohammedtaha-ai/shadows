@@ -2253,6 +2253,11 @@ export interface components {
             kind: string;
             outcome_json?: string | null;
             runtime_instance_id: components["schemas"]["RuntimeInstanceId"];
+            /**
+             * Format: int64
+             * @description Journal sequence of the operation's latest lifecycle event.
+             */
+            seq: number;
             started_at?: string | null;
             status_kind: string;
             thread_id?: string | null;

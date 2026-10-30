@@ -131,6 +131,7 @@ function operation(status_kind: string, invocation: InvocationView | null): Oper
     id: 'op1',
     kind: 'PlannerTurn',
     status_kind,
+    seq: 1,
     thread_id: 't1',
     runtime_instance_id: 'r1',
     created_at: '2026-09-24T00:00:00Z',

@@ -75,7 +75,7 @@ settings dialog, PR #40) at `1a2b601`.
   `npm run typecheck` and `npm run lint` pass
 
 ### F-49 · Turn state follows Core's ordering
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-25-web-architecture.md#w-11--remove-copied-core-decisions-after-api-support-exists (packet 5)
 - Read: docs/shared/requests/2026-10-30-turn-status-order.md;
   `web/src/app/conversation/turn-state.ts` and `web/src/app/conversation/contract.yaml`

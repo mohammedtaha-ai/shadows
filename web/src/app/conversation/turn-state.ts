@@ -3,11 +3,10 @@
 //
 // Two sources feed it, in either order: the operations route (a snapshot, read
 // on opening the thread and again at each `caught-up`) and the stream's durable
-// operation events, which name their operation. A status only moves forward —
-// Pending, then Running, then one terminal status that never changes — so
-// whichever source is behind cannot pull a turn back: a snapshot read before a
-// turn completed does not un-complete it, and a replayed `OperationStarted`
-// does not restart a turn the snapshot already saw end.
+// operation events, which name their operation. Core stamps each with the
+// journal `seq` of the operation's latest event and the status that event left,
+// so per turn the source with the higher `seq` wins and the other cannot pull
+// the turn back. The status itself is Core's answer, never derived here.
 
 import type { Operation } from '@/api/threads'
 import type { DurableEvent } from '@/stream'
@@ -21,6 +20,8 @@ export interface Turn {
   readonly stopRequested: boolean
   /** When this client learned the turn had ended (ms), else `null`. */
   readonly endedAt: number | null
+  /** Journal seq of the source that set this turn; -1 when only the start route has answered. */
+  readonly seq: number
 }
 
 /** Newest first. */
@@ -34,16 +35,12 @@ export type TurnAction =
   /** The start route answered with this operation before its events arrived. */
   | { type: 'started'; id: string }
 
+// The only status knowledge kept: whether a status is the end, which the screen
+// needs to offer Stop and to stamp `endedAt`. Core owns every other rule.
 const TERMINAL: ReadonlySet<Status> = new Set(['Completed', 'Failed', 'Cancelled', 'Interrupted'])
 
-const BY_EVENT: Readonly<Record<string, Status>> = {
-  OperationCreated: 'Pending',
-  OperationStarted: 'Running',
-  OperationCompleted: 'Completed',
-  OperationFailed: 'Failed',
-  OperationCancelled: 'Cancelled',
-  OperationInterrupted: 'Interrupted',
-}
+/** The start route's answer carries no seq, so any row or event replaces it. */
+const UNORDERED = -1
 
 export function isTerminal(status: Status): boolean {
   return TERMINAL.has(status)
@@ -52,15 +49,20 @@ export function isTerminal(status: Status): boolean {
 export function turnReducer(state: TurnState, action: TurnAction): TurnState {
   switch (action.type) {
     case 'started':
-      return upsert(state, action.id, 'Pending', false, 0)
+      return upsert(state, action.id, UNORDERED, 'Pending', false, 0)
     case 'event': {
       const { event, now } = action
-      if (event.operationId === null) return state
-      if (event.kind === 'OperationCancellationRequested') {
-        return upsert(state, event.operationId, 'Pending', true, now)
-      }
-      const status = BY_EVENT[event.kind]
-      return status === undefined ? state : upsert(state, event.operationId, status, false, now)
+      if (event.operationId === null || !event.kind.startsWith('Operation')) return state
+      const { status_kind, cancel_requested } = readPayload(event.payload)
+      if (status_kind === undefined) return state
+      return upsert(
+        state,
+        event.operationId,
+        event.seq,
+        asStatus(status_kind),
+        cancel_requested,
+        now,
+      )
     }
     case 'snapshot': {
       const listed = new Set(action.operations.map((op) => op.id))
@@ -71,6 +73,7 @@ export function turnReducer(state: TurnState, action: TurnAction): TurnState {
         merge(
           state.find((turn) => turn.id === op.id),
           op.id,
+          op.seq,
           asStatus(op.status_kind),
           op.cancel_requested_at != null,
           action.now,
@@ -94,37 +97,44 @@ export function latestTurn(state: TurnState): Turn | null {
 function upsert(
   state: TurnState,
   id: string,
+  seq: number,
   status: Status,
   stopRequested: boolean,
   now: number,
 ): TurnState {
   const index = state.findIndex((turn) => turn.id === id)
-  if (index === -1) return [merge(undefined, id, status, stopRequested, now), ...state]
+  if (index === -1) return [merge(undefined, id, seq, status, stopRequested, now), ...state]
   const next = [...state]
-  next[index] = merge(state[index], id, status, stopRequested, now)
+  next[index] = merge(state[index], id, seq, status, stopRequested, now)
   return next
 }
 
+/** The higher seq wins; an equal one keeps what is known, so a replay changes nothing. */
 function merge(
   known: Turn | undefined,
   id: string,
+  seq: number,
   status: Status,
   stopRequested: boolean,
   now: number,
 ): Turn {
-  const current = known?.status
-  const winner = current !== undefined && rank(current) >= rank(status) ? current : status
-  const ended = isTerminal(winner)
+  if (known !== undefined && seq <= known.seq) return known
   return {
     id,
-    status: winner,
-    stopRequested: (known?.stopRequested ?? false) || stopRequested,
-    endedAt: ended ? (known?.endedAt ?? now) : null,
+    status,
+    stopRequested,
+    endedAt: isTerminal(status) ? (known?.endedAt ?? now) : null,
+    seq,
   }
 }
 
-function rank(status: Status): number {
-  return isTerminal(status) ? 2 : status === 'Running' ? 1 : 0
+/** A payload is `unknown` on the wire: read only what is there. */
+function readPayload(payload: unknown): { status_kind: string | undefined; cancel_requested: boolean } {
+  const fields = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {}
+  return {
+    status_kind: typeof fields.status_kind === 'string' ? fields.status_kind : undefined,
+    cancel_requested: fields.cancel_requested === true,
+  }
 }
 
 /** A status the daemon names that this client does not know is treated as
