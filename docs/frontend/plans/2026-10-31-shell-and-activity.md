@@ -68,7 +68,14 @@ Read on 2026-10-31 at `4196c986`.
   becomes `relative`).
 - **Focus.** Showing by the button or the key moves focus to the sidebar's own toggle; hiding
   by Escape or the backdrop moves it to the main pane's toggle.
-- No slide animation, no icon rail, no resizing (not in this plan).
+- **The slide.** Hiding and showing slide, as Claude's own app does: on wide screens the
+  `aside`'s width animates between `w-72` and 0 (content clipped, `overflow-hidden`) while the
+  main pane widens with it; on narrow screens the overlay slides in from the left and the
+  backdrop fades. Both use Motion (`motion/react`, already wrapped by `MotionConfig
+  reducedMotion="user"` in `Shell`), about 200 ms, ease-out. With reduced motion it appears
+  and disappears at once. Hidden, the aside is removed from the tree once the slide ends
+  (`AnimatePresence`), so the tests' "aside is gone" still holds.
+- No icon rail and no resizing (not in this plan).
 
 ### 2. Agent activity
 
@@ -233,5 +240,5 @@ are his.
 
 - Showing a `Read`'s file contents or a command's output. Only an edit's diff is kept.
 - Syntax colouring in a diff.
-- An icon rail, a resizable sidebar, or a slide animation.
+- An icon rail or a resizable sidebar.
 - Grouping a subagent's own tool calls (they stay in its card's steps).

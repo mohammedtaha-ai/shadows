@@ -73,7 +73,8 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 - Needs: none
 - Visual check: no mockup. Before committing, run the app (`npm run dev` against a running
   `shadows serve`) and take screenshots at 1280×800 and 375×812 of a conversation page with the
-  sidebar shown and hidden (narrow: hidden, and shown as the overlay). Confirm the main pane's
+  sidebar shown and hidden (narrow: hidden, and shown as the overlay), and confirm the slide
+  runs both ways (the plan's "The slide"). Confirm the main pane's
   toggle covers no header control, and the conversation fills the width when hidden. Save
   them under the session scratchpad and name their paths in the report.
 - Done when: `npx vitest run src/app/sidebar src/app/agents` passes, with these new tests in
