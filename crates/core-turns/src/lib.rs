@@ -19,6 +19,7 @@
 mod entries;
 mod error;
 mod handles;
+mod hunks;
 mod model;
 mod plan_show;
 mod prompt;
@@ -33,6 +34,7 @@ mod store;
 mod subagents;
 #[cfg(feature = "test-support")]
 mod testing;
+mod tools;
 mod turn;
 
 use std::future::Future;
@@ -312,6 +314,7 @@ impl Turns {
             self.sessions.clone(),
             opened,
             PlannerTurnRequest {
+                root: context.project_directory.clone(),
                 thread_id,
                 harness: context.harness,
                 operation_id: started.operation_id,

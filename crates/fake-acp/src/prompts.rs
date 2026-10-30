@@ -100,6 +100,49 @@ pub(crate) async fn answer(
             update(cx, id, SessionUpdate::ToolCallUpdate(done))?;
             chunk(cx, id, "m2", "second")?;
         }
+        "tool-activity" => {
+            chunk(cx, id, "m1", "before")?;
+            let call: ToolCall = serde_json::from_value(json!({
+                "toolCallId":"edit", "title":"Edit a.rs", "kind":"edit",
+                "status":"in_progress", "locations":[{"path":"a.rs"}],
+                "content":[{"type":"diff","path":"a.rs","oldText":"x\n","newText":"y\n"}]
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::ToolCall(call))?;
+            let done: ToolCallUpdate = serde_json::from_value(json!({
+                "toolCallId":"edit", "status":"completed"
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::ToolCallUpdate(done))?;
+            let placed: ToolCallUpdate = serde_json::from_value(json!({
+                "toolCallId":"edit",
+                "locations":[{"path":"a.rs","line":10},{"path":"a.rs","line":20}],
+                "content":[
+                    {"type":"diff","path":"a.rs","oldText":"x\n","newText":"x\ny\n"},
+                    {"type":"diff","path":"a.rs","oldText":"q\n","newText":"r\n"}
+                ]
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::ToolCallUpdate(placed))?;
+            let read: ToolCall = serde_json::from_value(json!({
+                "toolCallId":"read", "title":"Read a.rs", "kind":"read", "status":"completed",
+                "rawInput":{"path":"a.rs","offset":10,"limit":5}
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::ToolCall(read))?;
+            let failed: ToolCall = serde_json::from_value(json!({
+                "toolCallId":"failed", "title":"Run false", "kind":"execute", "status":"failed",
+                "content":[{"type":"content","content":{"type":"text","text":"Exit code 1"}}]
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::ToolCall(failed))?;
+            chunk(cx, id, "m2", "after")?;
+            let open: ToolCall = serde_json::from_value(json!({
+                "toolCallId":"open", "title":"Run wait", "kind":"execute", "status":"in_progress"
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::ToolCall(open))?;
+        }
         "check-env-one" | "check-env-two" => {
             let expected = if prompt == "check-env-one" {
                 "synthetic-stored-one"

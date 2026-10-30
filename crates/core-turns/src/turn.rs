@@ -59,6 +59,7 @@ pub enum StopOutcome {
 }
 
 pub(crate) struct TurnWatch {
+    pub root: Option<std::path::PathBuf>,
     pub op_id: OperationId,
     pub storage: Arc<core_db::Storage>,
     pub handles: Arc<LiveHandles>,
@@ -87,7 +88,12 @@ impl PlannerTurn {
         for entry in entries {
             let (kind, author, body, card) = match entry {
                 Durable::Message(body) => (ThreadEntryKind::AgentMessage, planner(), body, None),
-                Durable::Tool(title) => (ThreadEntryKind::ToolCall, planner(), title, None),
+                Durable::Tool { title, card } => (
+                    ThreadEntryKind::ToolCall,
+                    planner(),
+                    title,
+                    serde_json::to_value(&*card).ok(),
+                ),
                 // Cards are stored as one structured entry, keeping their steps together.
                 Durable::Subagent(card) => (
                     ThreadEntryKind::Subagent,
@@ -179,7 +185,7 @@ impl PlannerTurn {
         let span = w.span.clone();
         tokio::spawn(
         async move {
-            let mut collector = Collector::new();
+            let mut collector = Collector::new(w.root.clone());
             let mut first = true;
             let mut last_usage = None;
             tracing::info!(session_id = %w.opened.session_id, how = w.opened.how,

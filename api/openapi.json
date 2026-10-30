@@ -834,6 +834,31 @@
         ],
         "type": "object"
       },
+      "CallKind": {
+        "enum": [
+          "read",
+          "edit",
+          "delete",
+          "move",
+          "search",
+          "execute",
+          "think",
+          "fetch",
+          "switch_mode",
+          "other"
+        ],
+        "type": "string"
+      },
+      "CallStatus": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "completed",
+          "failed",
+          "stopped"
+        ],
+        "type": "string"
+      },
       "ChangeEffort": {
         "description": "The effort a person picked.",
         "properties": {
@@ -1498,6 +1523,63 @@
             "type": "object"
           }
         ]
+      },
+      "DiffHunk": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/DiffLine"
+            },
+            "type": "array"
+          },
+          "new_start": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "old_start": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "DiffLine": {
+        "properties": {
+          "op": {
+            "$ref": "#/components/schemas/DiffOp"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "text"
+        ],
+        "type": "object"
+      },
+      "DiffOp": {
+        "enum": [
+          "context",
+          "add",
+          "remove"
+        ],
+        "type": "string"
       },
       "DirectoryEntry": {
         "description": "One directory a person could open or choose.",
@@ -5129,7 +5211,7 @@
           },
           "card": {
             "additionalProperties": {},
-            "description": "A card's structured payload: a `Subagent`'s card. `None` for\nevery other kind.",
+            "description": "Structured payload: `Subagent` carries a subagent card; `ToolCall` carries\na `ToolCallCard`. Other kinds have no card.",
             "propertyNames": {
               "type": "string"
             },
@@ -5219,6 +5301,87 @@
         "required": [
           "command_id",
           "enabled"
+        ],
+        "type": "object"
+      },
+      "ToolCallCard": {
+        "properties": {
+          "added": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "diff": {
+            "items": {
+              "$ref": "#/components/schemas/DiffHunk"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CallKind"
+          },
+          "lines": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "removed": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CallStatus"
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "started_at",
+          "finished_at"
         ],
         "type": "object"
       },

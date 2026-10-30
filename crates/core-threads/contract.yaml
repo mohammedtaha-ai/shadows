@@ -149,7 +149,7 @@ shapes:
     # Each stored as its name, which is also the wire name.
     UserMessage: unit
     AgentMessage: unit
-    ToolCall: unit # The tool title is recorded in body.
+    ToolCall: unit # The title is in body and the tool card is structured.
     Subagent: unit # Structured subagent card.
     PermissionRefused: unit
     PlanView: unit
@@ -480,7 +480,8 @@ obligations:
 
   - rule: >
       A tool line is a `ToolCall` entry whose body is the tool's title and
-      which has no card; a subagent is a `Subagent` entry whose body is its
+      which carries a tool card (older entries have no card); a subagent is a
+      `Subagent` entry whose body is its
       card's title and whose `card` is the card (§23.8). Migration 0020 moved
       the earlier `[tool: …]` and `[subagent: …]` bodies into these kinds and
       left a subagent body with invalid JSON as it was. A fork copies `card`.

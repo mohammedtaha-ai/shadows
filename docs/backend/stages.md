@@ -46,14 +46,14 @@ Tool activity ([spec](specs/2026-10-31-tool-activity-design.md),
 - Done when: `cargo test -p shadows-agent -- a_tool_call_carries_its_kind_locations_input_and_diffs an_update_carries_only_what_it_names a_plan_update_becomes_the_task_list a_failed_update_carries_its_text_and_raw_output` pass, `cargo test -p core-turns --test entries` and `cargo test -p shadows-core --test acp_connection` still pass
 
 ### B-20 · A `ToolCall` entry carries its `ToolCallCard`
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-20--a-toolcall-entry-carries-its-card
 - Read: spec §2 and §5; `crates/core-turns/contract.yaml` (`live`, the tool/subagent obligation); `crates/core-turns/src/subagents.rs` as the pattern; `crates/core-threads/contract.yaml` (the tool-line obligation); `docs/backend/AGENTS.md` rule 4
 - Touch: `Cargo.toml`, `Cargo.lock`, `crates/core-turns/Cargo.toml`, `crates/core-turns/src/hunks.rs` (new), `crates/core-turns/src/tools.rs` (new), `crates/core-turns/src/entries.rs`, `crates/core-turns/src/turn.rs`, `crates/core-turns/src/spawn.rs`, `crates/core-turns/src/lib.rs`, `crates/core-turns/tests/entries.rs`, `crates/core-turns/contract.yaml`, `crates/core-threads/src/model.rs` (doc comments only), `crates/core-threads/contract.yaml`, `crates/shadows-core/src/lib.rs`, `crates/shadows-core/src/testing/turn.rs`, `crates/shadows-core/src/testing/mod.rs`, `crates/shadows/tests/turn_command.rs`, `crates/shadows/tests/planner_mcp/standards.rs`, `crates/shadows/tests/plan_boundaries.rs`, `crates/shadows-http/src/openapi.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/planner_turn.rs`, `docs/codebase/README.md`
 - Done when: `cargo test -p core-turns --test entries` (the eight new tests and the kept ones) and `cargo test -p shadows --test planner_turn tool_entries_carry_their_cards` pass; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` then `cargo test -p shadows --test openapi` pass
 
 ### B-21 · The task list becomes a `TodoList` entry; a running turn's activity is readable
-- Status: blocked (B-20)
+- Status: todo
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-21--the-task-list-is-kept-and-a-running-turns-activity-is-readable
 - Read: spec §3 and §4; `crates/core-turns/contract.yaml` (`registry`, `called_by_other_services`); `crates/core-threads/contract.yaml` (`ThreadEntryKind`)
 - Touch: `crates/core-threads/src/model.rs`, `crates/core-threads/contract.yaml`, `crates/core-turns/src/entries.rs`, `crates/core-turns/src/tools.rs`, `crates/core-turns/src/turn.rs`, `crates/core-turns/src/handles.rs`, `crates/core-turns/src/spawn.rs`, `crates/core-turns/src/model.rs`, `crates/core-turns/src/lib.rs`, `crates/core-turns/contract.yaml`, `crates/core-turns/tests/entries.rs`, `crates/shadows-core/src/lib.rs`, `crates/shadows-http/src/openapi.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/planner_turn.rs`, `crates/shadows/tests/thread_contract.rs`

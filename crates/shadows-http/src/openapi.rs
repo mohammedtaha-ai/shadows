@@ -22,6 +22,10 @@ use utoipa::OpenApi;
                        (malformed JSON, a missing parameter) is answered in \
                        plain text."
     ),
+    components(schemas(
+        shadows_core::ToolCallCard, shadows_core::DiffHunk, shadows_core::DiffLine,
+        shadows_core::DiffOp, shadows_core::CallKind, shadows_core::CallStatus
+    )),
     tags(
         (name = "aylul", description = "AYLUL agents, providers and write-only credentials"),
         (name = "design", description = "Project design workspace"),
