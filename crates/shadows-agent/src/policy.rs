@@ -20,15 +20,6 @@ pub const AYLUL: &str = "aylul";
 /// Every harness Shadows knows, in the order a client lists them.
 pub const KNOWN: [&str; 3] = [CLAUDE_CODE, CODEX, AYLUL];
 
-/// The modes Shadows allows for `kind`. Empty for a harness whose modes are
-/// not decided (Codex) or that Shadows does not know.
-pub fn allowed_modes(kind: &str) -> &'static [&'static str] {
-    match kind {
-        CLAUDE_CODE | AYLUL => &["acceptEdits", "auto"],
-        _ => &[],
-    }
-}
-
 /// An allowed mode with the words a client shows for it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Mode {
@@ -54,11 +45,33 @@ const CLAUDE_CODE_MODES: [Mode; 2] = [
     },
 ];
 
+// The ids are read out of the table above, so a mode is named once.
+const CLAUDE_CODE_MODE_IDS: [&str; CLAUDE_CODE_MODES.len()] = ids(&CLAUDE_CODE_MODES);
+
+const fn ids<const N: usize>(modes: &[Mode; N]) -> [&'static str; N] {
+    let mut out = [""; N];
+    let mut i = 0;
+    while i < N {
+        out[i] = modes[i].id;
+        i += 1;
+    }
+    out
+}
+
 /// The allowed modes of `kind` with their labels and descriptions, in the
-/// order a client lists them, matching `allowed_modes`.
+/// order a client lists them.
 pub fn modes(kind: &str) -> &'static [Mode] {
     match kind {
         CLAUDE_CODE | AYLUL => &CLAUDE_CODE_MODES,
+        _ => &[],
+    }
+}
+
+/// The ids of `modes(kind)`, in the same order. Empty for a harness whose
+/// modes are not decided (Codex) or that Shadows does not know.
+pub fn allowed_modes(kind: &str) -> &'static [&'static str] {
+    match kind {
+        CLAUDE_CODE | AYLUL => &CLAUDE_CODE_MODE_IDS,
         _ => &[],
     }
 }
@@ -123,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn described_modes_match_the_allowed_ids() {
+    fn the_initial_and_unattended_modes_are_allowed() {
         for kind in KNOWN {
             let ids: Vec<&str> = modes(kind).iter().map(|m| m.id).collect();
             assert_eq!(ids, allowed_modes(kind), "{kind}");

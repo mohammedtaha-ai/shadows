@@ -791,7 +791,7 @@ not_the_caller's:
 tests:
   - name: the_harness_list_carries_the_policy_modes
     checks: >
-      tests/commands.rs: claude-code and aylul list acceptEdits then auto with
+      tests/list.rs: claude-code and aylul list acceptEdits then auto with
       initial acceptEdits and unattended auto; codex lists [], null, null.
   - name: idle_choices_report_the_adapters_mode
     checks: Idle choices expose an adapter mode change without overwriting the saved pick.

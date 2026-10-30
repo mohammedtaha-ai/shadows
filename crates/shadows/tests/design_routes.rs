@@ -57,6 +57,12 @@ async fn create_structure_route_writes_and_refuses() {
             .contains("directory not empty")
     );
     std::fs::remove_file(temp.path().join("foreign.txt")).unwrap();
+    let stale = json!({"command_id":"stale","map_revision":revision - 1});
+    let (status, error) = app::call(&app, "POST", &route, Some(stale)).await;
+    assert_eq!(status, 409, "{error}");
+    assert_eq!(error["code"], "REVISION_CONFLICT");
+    assert_eq!(error["current_revision"], revision);
+    assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 0);
     let (status, result) = app::call(&app, "POST", &route, Some(body("write"))).await;
     assert_eq!(status, 200, "{result}");
     assert_eq!(result["paths"].as_array().unwrap().len(), 5);

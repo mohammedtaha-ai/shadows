@@ -25,11 +25,10 @@ pub struct StageView {
     pub missing: Vec<String>,
     /// The map revision `structure_file_count` was taken at; the revision a person
     /// confirms when creating the structure.
-    #[serde(default)]
     pub map_revision: i64,
-    /// Files `create_structure` would write for the map now; none unless the stage
-    /// can create a structure.
-    #[serde(default)]
+    /// Files `create_structure` would write for the map now; none when it would
+    /// refuse.
+    #[schema(required)]
     pub structure_file_count: Option<u32>,
 }
 

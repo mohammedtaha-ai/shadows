@@ -1,7 +1,7 @@
 //! Reading every stage input in one consistent project snapshot.
 
 use super::DesignStore;
-use crate::{DesignError, PartContent, Stage, StageView, VisionContent, stage, structure};
+use crate::{DesignError, PartContent, StageView, VisionContent, stage, structure};
 use core_db::StorageError;
 use core_projects::ProjectId;
 use core_standards::{EffectiveStandards, Standards};
@@ -93,7 +93,9 @@ impl crate::Design {
             roadmap.unwrap_or(0),
         );
         stage.map_revision = map.unwrap_or(0);
-        if stage.stage == Stage::Structure {
+        // The count follows create_structure's own preconditions, not the stage name,
+        // so the two cannot disagree; skip the plan where it is sure to refuse.
+        if stage.map_revision > 0 && written.is_none() {
             stage.structure_file_count = Self::structure_file_count_in(tx, project).await?;
         }
         Ok(stage)

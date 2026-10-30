@@ -4755,7 +4755,7 @@
             "$ref": "#/components/schemas/Stage"
           },
           "structure_file_count": {
-            "description": "Files `create_structure` would write for the map now; none unless the stage\ncan create a structure.",
+            "description": "Files `create_structure` would write for the map now; none when it would\nrefuse.",
             "format": "int32",
             "minimum": 0,
             "type": [
@@ -4766,7 +4766,9 @@
         },
         "required": [
           "stage",
-          "missing"
+          "missing",
+          "map_revision",
+          "structure_file_count"
         ],
         "type": "object"
       },
