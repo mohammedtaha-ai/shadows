@@ -4,9 +4,9 @@ This area routes agreements between AYLUL, code intelligence and Core. Each
 operation/data format retains one implementation/contract owner. An integration
 document links those owners rather than defining their APIs twice.
 
-- [Product daemon](2026-10-19-product-daemon-hermes-design.md): the host process
-  that runs optional planning and AYLUL. Its Hermes assistant is implemented but
-  no longer AYLUL's direction.
+- [Product daemon](2026-10-19-product-daemon-hermes-design.md): the superseded
+  Hermes host design. The Hermes service and `shadows daemon` were removed on
+  2026-10-29; `shadows serve` is the one host.
 - [AYLUL brain](../aylul/specs/2026-10-19-aylul-claude-code-brain-design.md):
   Claude Code in its own home, run by Shadows core in the same daemon.
 - Daemon delivery evidence (`docs/evidence/aylul/2026-10-19-product-daemon-hermes.md` at `0187365`).

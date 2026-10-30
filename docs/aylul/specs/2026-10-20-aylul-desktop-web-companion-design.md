@@ -127,8 +127,8 @@ DB, Node, ACP adapter, harness and AYLUL config, plus the loopback API address.
 These are references, never provider keys. Existing `aylul.json` remains
 `{ "home_root": ... }`; this desktop launch record does not expand it.
 
-Use the existing `shadows serve` runtime. Do not start the dormant Hermes
-service or require account login. Validate paths before launch; no PATH
+Use the existing `shadows serve` runtime. Do not require account login; the
+Hermes service was removed on 2026-10-29. Validate paths before launch; no PATH
 discovery, shell-built command strings or new empty DB as a fallback.
 
 Use a private per-configuration launch record and single-owner lock. The record
