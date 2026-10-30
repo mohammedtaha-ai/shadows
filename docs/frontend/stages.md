@@ -21,7 +21,7 @@ settings dialog, PR #40) at `1a2b601`.
 Branch `feature/web-polish`: fixes and small improvements the user finds while using the app.
 
 ### F-50 · The message box keeps the caret after Send
-- Status: todo
+- Status: done
 - Plan: none; a bug found in use, 2026-10-30
 - Read: `web/src/app/conversation/contract.yaml` (Composer, useSend)
 - Touch: `web/src/app/conversation/composer.tsx`, its test file, `web/src/app/conversation/contract.yaml`
