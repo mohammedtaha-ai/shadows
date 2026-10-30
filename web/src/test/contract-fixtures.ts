@@ -43,6 +43,15 @@ export const claudeHarness: HarnessInfo = {
   unattended_mode: 'auto',
 }
 
+/** Core lists AYLUL with Claude Code's policy; it runs only when configured. */
+export const aylulHarness: HarnessInfo = {
+  ...claudeHarness,
+  kind: 'aylul',
+  label: 'AYLUL',
+  available: false,
+  reason: 'Coming later',
+}
+
 export const codexHarness: HarnessInfo = {
   kind: 'codex',
   label: 'Codex',

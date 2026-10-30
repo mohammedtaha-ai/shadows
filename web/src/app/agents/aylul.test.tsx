@@ -11,7 +11,7 @@ vi.mock('@/desktop/presence', async importOriginal => ({
   ...await importOriginal<typeof import('@/desktop/presence')>(),
   useCompanionBinding: () => colorFixture.bound ? { agent: colorFixture.bound } : null,
 }))
-import { projectFixture, threadFixture, userEntry } from '@/test/contract-fixtures'
+import { aylulHarness, claudeHarness, codexHarness, projectFixture, threadFixture, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, menuItem, startApp, typeInto, until } from '@/test/test-app'
 
@@ -22,6 +22,7 @@ const agent = { slug: 'work', name: 'Work', provider: 'fixture-provider', defaul
   deleted: false, created_at: 'now', updated_at: 'now' }
 const thread = { ...threadFixture, harness: 'aylul', profile: 'work', title: 'Work chat' }
 const table = () => ({ ...answers(),
+  'GET /api/harnesses': [claudeHarness, codexHarness, aylulHarness],
   'GET /api/projects': [{ ...projectFixture, assistant: true, allowed_modes: { ...projectFixture.allowed_modes, aylul: ['acceptEdits', 'plan', 'bypassPermissions'] } }],
   'GET /api/projects/p1/threads': [thread],
   'GET /api/aylul/providers': [provider],

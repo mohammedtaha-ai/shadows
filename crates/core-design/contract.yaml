@@ -333,6 +333,7 @@ shared_in_transaction:
   start_design_agreement: Private owner transaction entry; its command rules are listed under functions.
   start_structure: Private owner transaction entry; its command rules are listed under functions.
   structure_snapshot: Private owner transaction entry; its command rules are listed under functions.
+  structure_snapshot_in: The stage's count and create_structure read the map through it in their own transaction.
   agreement_in: Owner entry in the caller transaction; agreements rules.
   agreed_before_in: Owner entry in the caller transaction; agreements rules.
   mark_agreed_in: Owner entry in the caller transaction; agreements rules.
