@@ -150,7 +150,7 @@ table below.
 | spawn `claude --print` | the thread's adapter is open (§12.2), then `session/prompt` is sent |
 | handle registered, then `Running` | the prompt is registered in `LiveHandles`, then `Running` |
 | `stream_event` text deltas | `session/update` chunks: transient, rendered, never stored |
-| `assistant` / `user` lines → entries | one durable entry per agent message, keyed by the update's `messageId` and written when that message is complete (the next message begins, or the turn ends); a tool call is its own entry (kind `ToolCall`, its body the title; §23.8), written when its `tool_call_update` reports `completed` or `failed` (or the turn ends), under the last title it was given — the first title is generic ("Terminal") and the command arrives later |
+| `assistant` / `user` lines → entries | one durable entry per agent message, keyed by the update's `messageId` and written when that message is complete (the next message begins, or the turn ends); a tool call is its own entry (kind `ToolCall`, its body the last title it was given — the first is generic ("Terminal") and the command arrives later — and its `card` a `ToolCallCard`; §23.8). It is written after its `tool_call_update` reports `completed` or `failed`, before the turn's next entry of another kind, or at the turn's end as `stopped`; the card, the live `tool` frame and the agent's task list (`TodoList`) are owned by [the tool activity spec](../../backend/specs/2026-10-31-tool-activity-design.md) |
 | `result` line + exit status | the `session/prompt` response: `stopReason` `end_turn` is success; `max_tokens`, `max_turn_requests` and `refusal` are recorded as failures naming the reason; a JSON-RPC error is a failure carrying its message |
 | session recorded at turn-end | unchanged: the harness session id is recorded on the thread when its first turn ends, never earlier |
 | the adapter exits mid-turn | `Failed { stage: Run }`, "the harness exited during the turn" |
@@ -559,6 +559,7 @@ source with "(fork)":
 | `POST /api/threads/{id}/fork` | new, §12.9 |
 | thread snapshot, operation events | carry the invocation's requested and observed values |
 | entries | a new kind, `PermissionRefused` |
+| entries, SSE (2026-10-31) | a `ToolCall` entry's `card`, a new kind `TodoList`, transient frames `tool` and `todos`: [tool activity spec](../../backend/specs/2026-10-31-tool-activity-design.md) |
 | SSE | new transient frames: `usage` (context and limits), `options` (the session's choices changed) |
 | thread stream | a durable `ThreadRetitled` { title, source } when §4.2's rule changes the title; the web client reads the project's threads again on it. No project-level stream exists, and the harness's title usually lands after the person has left the conversation, so the web client also polls each open project's threads every 10 s, as it does its plans |
 

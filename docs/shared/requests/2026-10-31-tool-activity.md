@@ -1,6 +1,6 @@
 # Tool activity: what each tool call did, live and kept
 
-- Status: asked
+- Status: answered
 - Asked by: Masada, 2026-10-31
 - Screen: [docs/frontend/plans/2026-10-31-shell-and-activity.md](../../frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity), tasks F-53 to F-56
 
@@ -114,8 +114,60 @@ data: { op, entries: [{ content: string, status: "pending" | "in_progress" | "co
 
 ## Backend answer
 
-<Hamoud: as asked / with a change / not possible, and why. Name the service
-and contract it touches.>
+Hamoud, 2026-10-31. **As asked, with five small changes** (marked *change*). Owner spec:
+[tool activity](../../backend/specs/2026-10-31-tool-activity-design.md); tasks B-19 to B-22
+in `docs/backend/stages.md`. Owners: `shadows-agent` translates ACP and decides nothing;
+`Turns` (`crates/core-turns/contract.yaml`) builds the cards, writes the entries and holds
+a running turn's activity; `Threads` (`crates/core-threads/contract.yaml`) owns the kind
+`TodoList`; `Events` (`crates/core-events/contract.yaml`) delivers the frames and the re-send;
+`shadows-http/src/sse.rs` shapes them. No route changes.
+
+**1. `ToolCallCard`: as asked, and:**
+- *change* `kind` also takes `switch_mode` (ACP has it; the adapter uses it for plan mode).
+- *change* `DiffHunk` carries `path` too, because one call's diff items may name more than one file.
+  `lines` items are `DiffLine { op, text }` as you wrote.
+- `target`: Core makes a path under the turn's project directory relative, with `/`.
+- **Line numbers: yes, for Claude's edits, once the call has run.** Measured on adapter
+  0.81.1: an `Edit` starts with a snippet diff (`old_string`/`new_string`) and a location
+  without a line. Claude's `PostToolUse` hook then sends one diff item per hunk of the real
+  patch, and one location `{path, line: newStart}` for each. Core numbers `new_start` from that
+  line, and `old_start` from it less the net lines the file's earlier hunks added. A snippet
+  that was never placed, or another harness's diff without a line, has both `null`, as you allowed.
+- *change* The context is whatever the harness sent. Claude's patch hunks carry 3 lines. Core adds none.
+- `added` / `removed` count the `add` / `remove` lines over all hunks. Over 400 hunk lines, `diff` is `null` and the counts stay.
+- *change, timing* The placed diff can come **after** `completed`. So an ended call's entry is
+  held. Later updates of the same call still change the card, and it is written before the
+  turn's next entry of another kind (a message, a subagent card, a refused permission), or at
+  the turn's end. Calls are written in the order they ended. Between `completed` and the entry,
+  the step is drawn from its last `tool` frame.
+- **`stopped` fits.** Today `Collector::finish` already writes every call still open at the
+  turn's end, under its last title. It now writes them with `status: "stopped"` and
+  `finished_at` the turn's end.
+- `started_at` / `finished_at` come from Core's clock, RFC 3339.
+
+**2. `tool` frame: as asked.** Its data is `{op, id, tool, kind, title, target, lines, status,
+started_at}`. It is sent on start and on each change of title, kind, target, lines or status,
+for the turn's own calls only. After `caught-up` a reload gets one frame per call not yet ended.
+The body is the named schema `ToolLive` (plus `op`).
+
+Rule for the web: the bus items sent between your subscribe and that snapshot are delivered after
+it. So a frame can repeat or briefly lag the snapshot, and the last frame for an `id` is
+current. **A durable `ToolCall` entry for an `id` is final over any frame for that `id`.**
+
+**3. `todos` frame and `TodoList` entry: as asked.** `todos` is `{op, entries}`, re-sent after
+`caught-up` when a running turn has a list. The entry is written after the turn's other entries
+with `TodoListCard`, the Markdown `body` and the turn's `operation_id`. An empty list, or none,
+writes nothing. Each turn that got a `plan` writes its own entry, so a later turn's list is a
+later entry. Measured: Claude's `TodoWrite` (and `TaskCreate`/`TaskUpdate`) never arrive as a
+`tool_call`, only as `plan`, so no step duplicates the checklist.
+
+**Named schemas:** `ToolCallCard`, `DiffHunk`, `DiffLine`, `TodoListCard`, `TodoItem`, `ToolLive`,
+and the enums `CallKind`, `CallStatus`, `DiffOp`, `TodoStatus`. `ThreadEntry.card`'s description
+names which kind carries which. `card` itself stays a free-form object in the schema, as the
+`Subagent` card is. The web narrows it by `kind`.
+
+**Not given:** a call's output or error text, and a diff inside the live frame (it comes with
+the entry).
 
 ## Frontend reply
 
