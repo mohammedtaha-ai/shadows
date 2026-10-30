@@ -1,7 +1,7 @@
 # Web architecture
 
-Status: W-1 to W-10, W-12 and W-13 shipped (PR #43, PR #44). W-11 is done in five packets
-(F-45 to F-49 with B-14 to B-18) on `feature/w11-a8b-plan`, before its PR. Decisions below taken by Mohammed on 2026-10-25. The analysis that follows was written read-only by Codex from
+Status: W-1 to W-10, W-12 and W-13 shipped (PR #43, PR #44). W-11 shipped in five packets
+(F-45 to F-49 with B-14 to B-18, PR #47). Decisions below taken by Mohammed on 2026-10-25. The analysis that follows was written read-only by Codex from
 `fix/flaky-tests` at `24a64289`.
 
 ## Decisions
