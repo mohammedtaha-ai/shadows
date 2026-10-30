@@ -39,14 +39,14 @@ Tool activity ([spec](specs/2026-10-31-tool-activity-design.md),
 `docs/shared/requests/2026-10-31-tool-activity.md` (accepted at `7d20c439`), in order.
 
 ### B-19 · ACP tool facts and plan updates reach `HarnessEvent`
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-19--acp-facts-reach-harnessevent
 - Read: spec §1; code-map rows for `crates/shadows-agent/src/acp/mapping.rs` and `events/`; `crates/core-turns/contract.yaml` `live.cut` / `changed_cards` (the collector you only keep compiling)
 - Touch: `crates/shadows-agent/src/events.rs`, `crates/shadows-agent/src/events/tool.rs` (new), `crates/shadows-agent/src/acp/mapping.rs`, `crates/shadows-agent/src/acp_tests.rs`, `crates/core-turns/src/entries.rs` (compile only), `crates/core-turns/tests/entries.rs` (compile only), `docs/codebase/README.md`
 - Done when: `cargo test -p shadows-agent -- a_tool_call_carries_its_kind_locations_input_and_diffs an_update_carries_only_what_it_names a_plan_update_becomes_the_task_list a_failed_update_carries_its_text_and_raw_output` pass, `cargo test -p core-turns --test entries` and `cargo test -p shadows-core --test acp_connection` still pass
 
 ### B-20 · A `ToolCall` entry carries its `ToolCallCard`
-- Status: blocked (B-19)
+- Status: todo
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-20--a-toolcall-entry-carries-its-card
 - Read: spec §2 and §5; `crates/core-turns/contract.yaml` (`live`, the tool/subagent obligation); `crates/core-turns/src/subagents.rs` as the pattern; `crates/core-threads/contract.yaml` (the tool-line obligation); `docs/backend/AGENTS.md` rule 4
 - Touch: `Cargo.toml`, `Cargo.lock`, `crates/core-turns/Cargo.toml`, `crates/core-turns/src/hunks.rs` (new), `crates/core-turns/src/tools.rs` (new), `crates/core-turns/src/entries.rs`, `crates/core-turns/src/turn.rs`, `crates/core-turns/src/spawn.rs`, `crates/core-turns/src/lib.rs`, `crates/core-turns/tests/entries.rs`, `crates/core-turns/contract.yaml`, `crates/core-threads/src/model.rs` (doc comments only), `crates/core-threads/contract.yaml`, `crates/shadows-core/src/lib.rs`, `crates/shadows-core/src/testing/turn.rs`, `crates/shadows-core/src/testing/mod.rs`, `crates/shadows/tests/turn_command.rs`, `crates/shadows/tests/planner_mcp/standards.rs`, `crates/shadows/tests/plan_boundaries.rs`, `crates/shadows-http/src/openapi.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/planner_turn.rs`, `docs/codebase/README.md`

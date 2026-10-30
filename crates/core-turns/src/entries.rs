@@ -58,6 +58,7 @@ impl Collector {
                 tool,
                 parent,
                 agent,
+                ..
             } => {
                 self.flush_message(&mut out);
                 let call = Call {
@@ -99,6 +100,8 @@ impl Collector {
             | HarnessEvent::Options(_)
             | HarnessEvent::Commands(_)
             | HarnessEvent::SessionTitle { .. }
+            | HarnessEvent::Tool(_)
+            | HarnessEvent::Todos(_)
             | HarnessEvent::Subagent(_)
             | HarnessEvent::TurnEnd { .. } => {}
         }

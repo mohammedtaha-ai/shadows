@@ -9,6 +9,7 @@ fn chunk(id: &str, text: &str) -> HarnessEvent {
 }
 fn tool(id: &str, title: Option<&str>, status: Option<&str>) -> HarnessEvent {
     HarnessEvent::ToolCall {
+        facts: Default::default(),
         id: id.into(),
         title: title.map(str::to_owned),
         status: status.map(str::to_owned),
@@ -19,6 +20,7 @@ fn tool(id: &str, title: Option<&str>, status: Option<&str>) -> HarnessEvent {
 }
 fn agent(id: &str, status: Option<&str>, facts: AgentFacts) -> HarnessEvent {
     HarnessEvent::ToolCall {
+        facts: Default::default(),
         id: id.into(),
         title: Some("Task".into()),
         status: status.map(str::to_owned),
@@ -29,6 +31,7 @@ fn agent(id: &str, status: Option<&str>, facts: AgentFacts) -> HarnessEvent {
 }
 fn step(id: &str, tool: &str, title: &str, parent: Option<&str>, status: &str) -> HarnessEvent {
     HarnessEvent::ToolCall {
+        facts: Default::default(),
         id: id.into(),
         title: Some(title.into()),
         status: Some(status.into()),
