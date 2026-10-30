@@ -166,8 +166,15 @@ and the enums `CallKind`, `CallStatus`, `DiffOp`, `TodoStatus`. `ThreadEntry.car
 names which kind carries which. `card` itself stays a free-form object in the schema, as the
 `Subagent` card is. The web narrows it by `kind`.
 
-**Not given:** a call's output or error text, and a diff inside the live frame (it comes with
+**Not given:** a successful call's output, and a diff inside the live frame (it comes with
 the entry).
+
+**Added by the user's ruling, 2026-10-31:** `ToolCallCard.error: string | null`. It is set
+only when `status` is `failed`: the text of the call's last ACP `content` text items,
+joined by a newline; with none, its `rawOutput` (a string as is, else compact JSON).
+It is trimmed and cut to its first 2000 characters, ending in `…` when cut. It is `null` for
+every other status, and when the call gave no text. The live `tool` frame does not carry it.
+The owner spec §2 and task B-20 hold it.
 
 ## Frontend reply
 

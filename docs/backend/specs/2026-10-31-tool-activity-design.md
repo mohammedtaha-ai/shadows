@@ -25,8 +25,9 @@ What Core keeps and streams of a turn's own tool calls and of the agent's task l
 ## 1. What the harness says
 
 `shadows-agent` reads, from ACP `tool_call` and `tool_call_update`, besides what it reads
-today (§22.2): `kind`, `locations` (path, line), `rawInput`, and the `diff` items of
-`content` (path, `oldText`, `newText`). It hands them over as `ToolFacts`. On an update each
+today (§22.2): `kind`, `locations` (path, line), `rawInput`, `rawOutput`, the `diff` items of
+`content` (path, `oldText`, `newText`) and the text of its `content` items of type
+`content`. It hands them over as `ToolFacts`. On an update each
 is `None` when the update does not carry it; when it does, it replaces the last one (ACP
 replaces `content` and `locations` whole). It reads ACP `plan` as
 `HarnessEvent::Todos(Vec<TodoItem { content, status }>)`; `priority` is dropped.
@@ -56,6 +57,7 @@ A `ToolCall` entry keeps `body` (the call's last title) and carries a `ToolCallC
 | `lines` | `[from, to]`, 1-based, inclusive. A read with `offset` and `limit`: `[offset, offset + limit - 1]`. An edit whose hunks are placed: the first hunk's `new_start` to the last line of the last hunk's new side. Else null |
 | `added`, `removed` | Counted over every hunk; null when the call has no diff |
 | `diff` | `DiffHunk[]`, one per ACP diff item, in order; null when there is none, or when the hunks hold more than 400 lines together (`added` and `removed` stay) |
+| `error` | Set only for a call that ends `failed`: the text of its last `content` items of type `content` (their text blocks, joined by a newline); with none, its `rawOutput` (a JSON string as is, anything else as compact JSON). Trimmed of surrounding whitespace and cut to its first 2000 characters (Unicode scalar values), ending in `…` when cut. Null for every other status, and when there is no text (user ruling, 2026-10-31) |
 | `started_at`, `finished_at` | Core's clock (RFC 3339): when it first saw the call, and when it saw it end (for `stopped`, the turn's end) |
 
 `DiffHunk { path, old_start, new_start, lines: [{ op: context | add | remove, text }] }`.
@@ -110,5 +112,5 @@ frames. No route changes.
 
 ## Not here
 
-A read's file contents, a command's output, a failed call's error text, a diff while the
+A read's file contents, a successful command's output, a diff while the
 call runs (the frame carries none), syntax colouring.

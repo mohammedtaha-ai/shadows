@@ -17,7 +17,9 @@ Translation only; no rule about what a card shows.
 
 - New `crates/shadows-agent/src/events/tool.rs`, re-exported from `events.rs`:
   - `ToolFacts { kind: Option<CallKind>, locations: Option<Vec<ToolLocation>>, input:
-    Option<Value>, diffs: Option<Vec<ToolDiff>> }` (`Default`; not serialized).
+    Option<Value>, diffs: Option<Vec<ToolDiff>>, texts: Option<Vec<String>>, output:
+    Option<Value> }` (`Default`; not serialized). `texts` are the text blocks of the
+    `content` items of type `content`; `output` is `rawOutput`.
   - `ToolLocation { path: String, line: Option<u32> }`,
     `ToolDiff { path: String, old_text: Option<String>, new_text: String }`.
   - The wire types, each `Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema`,
@@ -28,7 +30,8 @@ Translation only; no rule about what a card shows.
     `DiffHunk { path: String, old_start: Option<u32>, new_start: Option<u32>, lines: Vec<DiffLine> }`,
     `ToolCallCard { id, tool: Option<String>, kind: CallKind, status: CallStatus,
     target: Option<String>, lines: Option<[u32; 2]>, added: Option<u32>, removed: Option<u32>,
-    diff: Option<Vec<DiffHunk>>, started_at: String, finished_at: String }`,
+    diff: Option<Vec<DiffHunk>>, error: Option<String>, started_at: String,
+    finished_at: String }`,
     `ToolLive { id, tool: Option<String>, kind: CallKind, title: String,
     target: Option<String>, lines: Option<[u32; 2]>, status: CallStatus, started_at: String }`,
     `TodoStatus { Pending, InProgress, Completed }`,
@@ -38,7 +41,8 @@ Translation only; no rule about what a card shows.
   `Todos(Vec<TodoItem>)`.
 - `acp/mapping.rs`: `ToolCall` fills every `facts` field (`kind` from ACP's `ToolKind`,
   `Other` for an unknown one; `diffs` from the `Diff` items of `content`, other items
-  skipped; paths with `Path::display`). `ToolCallUpdate` fills each from its `Option`.
+  skipped; `texts` from the text blocks of `Content` items, other blocks skipped; `output`
+  from `raw_output`; paths with `Path::display`). `ToolCallUpdate` fills each from its `Option`.
   `SessionUpdate::Plan(p)` becomes `Todos`, `priority` dropped.
 - `core-turns` only compiles on: `entries.rs` adds `..` to its `ToolCall` pattern and puts
   `Tool(_)` and `Todos(_)` in its ignored arm; `tests/entries.rs` builds `facts: ToolFacts::default()`.
@@ -48,7 +52,9 @@ Translation only; no rule about what a card shows.
   `a_tool_call_carries_its_kind_locations_input_and_diffs` (an `Edit` `tool_call` with a
   location, `rawInput` and one diff), `an_update_carries_only_what_it_names` (a title-only
   update has every `facts` field `None`; one with `content` and `locations` has both),
-  `a_plan_update_becomes_the_task_list` (three entries, statuses kept, in order).
+  `a_plan_update_becomes_the_task_list` (three entries, statuses kept, in order),
+  `a_failed_update_carries_its_text_and_raw_output` (a `failed` update with one text
+  content item and a `rawOutput`: `texts` and `output` both set).
 
 ## B-20 · A `ToolCall` entry carries its card
 
@@ -65,8 +71,8 @@ Translation only; no rule about what a card shows.
   `take(&mut self, id, title, status, tool, facts: &ToolFacts, now: &str)` (an id in
   `written` is ignored), `ended(&mut self) -> Vec<(String, ToolCallCard)>` (title and card of
   each held call, in end order, clearing them into `written`), `stop_all(&mut self, now) ->
-  Vec<(String, ToolCallCard)>` (held, then open as `Stopped`). Target, lines, counts and cap
-  per spec §2.
+  Vec<(String, ToolCallCard)>` (held, then open as `Stopped`). Target, lines, counts, cap and
+  `error` (2000 characters) per spec §2.
 - `entries.rs`: `Durable::Tool { title: String, card: Box<ToolCallCard> }`. `Collector` gets
   `tools: Tools` in place of `tools: Vec<(String, String)>` and is built by
   `Collector::new(root: Option<PathBuf>)`. A `ToolCall` that is not a subagent's goes to
@@ -87,17 +93,20 @@ Translation only; no rule about what a card shows.
 - `fake-acp` prompt `tool-activity`: chunk `m1`; an `Edit` `tool_call` (`kind: edit`,
   location without line, a snippet diff) → `completed` → an update with two placed diff
   items and their located lines; a `Read` with `offset: 10, limit: 5` → `completed`; an
-  `execute` call → `failed`; chunk `m2`; an `execute` call left `in_progress`.
+  `execute` call → `failed` with a text content item `Exit code 1`; chunk `m2`; an `execute` call left `in_progress`.
 - Tests: in `crates/core-turns/tests/entries.rs`:
   `a_tool_entry_carries_its_card_with_target_lines_and_status`,
   `a_placed_diff_after_the_end_replaces_the_snippet_before_the_next_text`,
   `a_diff_over_400_lines_keeps_its_counts_and_drops_its_hunks`,
   `a_new_file_is_one_hunk_of_added_lines_without_numbers`,
   `a_failed_call_is_failed_and_an_open_one_is_stopped`,
+  `a_failed_call_keeps_its_error_text_cut_at_2000_characters` (text content wins over
+  `rawOutput`; `rawOutput` alone is used; 2001 characters become 2000 ending in `…`; a
+  completed call's `error` is null),
   `a_target_under_the_root_is_relative`, `an_update_for_a_written_call_writes_nothing`;
   the existing tests kept, rewritten to the new `Durable::Tool`. In
   `crates/shadows/tests/planner_turn.rs`: `tool_entries_carry_their_cards` (the `tool-activity`
-  prompt over HTTP: entry order, both edit hunks placed, counts, `lines`, `failed`, `stopped`).
+  prompt over HTTP: entry order, both edit hunks placed, counts, `lines`, `failed` with `error` `Exit code 1`, `stopped`).
 
 ## B-21 · The task list is kept, and a running turn's activity is readable
 
