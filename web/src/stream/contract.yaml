@@ -275,6 +275,14 @@ obligations:
     tested_by: "keeps each operation's streamed text apart"
 
   - rule: >
+      A delta's text is in getState at once, but subscribers are told after the current task:
+      a burst of deltas handed over in one task is one notice. Any other state change
+      notifies at once, and carries a pending delta notice with it.
+    tested_by:
+      - "tells its subscribers once for a burst of deltas, with the text kept at once"
+      - "a frame after deltas tells its subscribers at once, and the deltas with it"
+
+  - rule: >
       A turn-end clears that op's streamed text and label, and sets lastTurnEnd. Other ops
       are not touched.
     tested_by: "clears an operation's streamed text and label at its turn end"
@@ -495,6 +503,16 @@ tests:
   - name: keeps each operation's streamed text apart
     checks: >
       Deltas for ops a and b accumulate separately: a 'Hello', b 'other'.
+
+  - name: tells its subscribers once for a burst of deltas, with the text kept at once
+    checks: >
+      100 deltas in one task: getState holds all 100 characters at once, no subscriber was
+      called; after the pending timer, exactly one call.
+
+  - name: a frame after deltas tells its subscribers at once, and the deltas with it
+    checks: >
+      A delta then a turn-end in one task: one call, at the turn-end; no second call after
+      the timers.
 
   - name: clears an operation's streamed text and label at its turn end
     checks: >

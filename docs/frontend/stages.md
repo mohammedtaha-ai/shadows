@@ -36,7 +36,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   queued message; `npx vitest run src/app/conversation` passes.
 
 ### F-51 · A streamed reply shows as it arrives, without freezing the page
-- Status: todo
+- Status: done
 - Plan: none; a bug found in use, 2026-10-30
 - Read: `web/src/stream/contract.yaml` (delta), `web/src/app/conversation/contract.yaml`
   (Messages, Entry, PlanCard)

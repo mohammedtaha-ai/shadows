@@ -87,6 +87,39 @@ describe('ThreadStream', () => {
     expect(stream.getState().streaming).toEqual({ a: 'Hello', b: 'other' })
   })
 
+  // A browser hands buffered deltas over in one task; one notice per delta
+  // re-rendered the whole conversation for each, and froze the page.
+  it('tells its subscribers once for a burst of deltas, with the text kept at once', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().caughtUp(0)
+    let heard = 0
+    stream.subscribe(() => (heard += 1))
+    for (let i = 0; i < 100; i += 1) current().emit('delta', JSON.stringify({ op: 'a', text: 'x' }))
+
+    expect(stream.getState().streaming).toEqual({ a: 'x'.repeat(100) })
+    expect(heard).toBe(0)
+    vi.runOnlyPendingTimers()
+    expect(heard).toBe(1)
+    vi.runOnlyPendingTimers()
+    expect(heard).toBe(1)
+  })
+
+  it('a frame after deltas tells its subscribers at once, and the deltas with it', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().caughtUp(0)
+    let heard = 0
+    stream.subscribe(() => (heard += 1))
+    current().emit('delta', JSON.stringify({ op: 'a', text: 'done' }))
+    current().emit('turn-end', JSON.stringify({ op: 'a', subtype: 'success', stop_reason: 'end_turn' }))
+
+    expect(heard).toBe(1)
+    expect(stream.getState().streaming).toEqual({})
+    vi.runOnlyPendingTimers()
+    expect(heard).toBe(1)
+  })
+
   it("clears an operation's streamed text and label at its turn end", () => {
     const { stream, current } = harness()
     stream.start()

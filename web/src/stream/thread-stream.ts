@@ -111,6 +111,8 @@ export class ThreadStream {
   #state: StreamState
   #source: EventSourceLike | null = null
   #timer: ReturnType<typeof setTimeout> | null = null
+  /** A notice of streamed text, waiting for the current task to end. */
+  #notice: ReturnType<typeof setTimeout> | null = null
   #failures = 0
   #wanted = false
 
@@ -223,10 +225,14 @@ export class ThreadStream {
       this.#set({ connection: 'live', caughtUp: true, problem: null })
       this.#options.onCaughtUp?.(this.#state.lastSeq)
     })
+    // The browser can hand over many buffered deltas in one task, and every
+    // notice re-renders whoever subscribes. The text is kept at once (a
+    // durable listener reads it), but subscribers hear once the task is done.
     on('delta', (data) => {
       const { op, text } = parseDelta(data)
       const streaming = this.#state.streaming
-      this.#set({ streaming: { ...streaming, [op]: (streaming[op] ?? '') + text } })
+      this.#state = { ...this.#state, streaming: { ...streaming, [op]: (streaming[op] ?? '') + text } }
+      this.#notifySoon()
     })
     on('turn-end', (data) => {
       const turnEnd = parseTurnEnd(data)
@@ -304,6 +310,20 @@ export class ThreadStream {
 
   #set(patch: Partial<StreamState>): void {
     this.#state = { ...this.#state, ...patch }
+    this.#notify()
+  }
+
+  #notifySoon(): void {
+    if (this.#notice !== null) return
+    this.#notice = setTimeout(() => this.#notify(), 0)
+  }
+
+  /** Also delivers a pending delta notice: the state it announces is this one. */
+  #notify(): void {
+    if (this.#notice !== null) {
+      clearTimeout(this.#notice)
+      this.#notice = null
+    }
     for (const listener of this.#listeners) listener()
   }
 }

@@ -3,13 +3,13 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
 import type { Plan, PlanTask } from '@/api/workflows'
 import type { Choice } from '@/api/sessions'
 import type { Operation, ThreadEntry } from '@/api/threads'
-import { harnessesQuery, policyOf } from '@/api/harnesses'
+import { type HarnessPolicy, harnessesQuery, policyOf } from '@/api/harnesses'
 import { AYLUL_HARNESS } from './cli-picker'
 import { Entry, ReplyText } from './entry'
 import { MessageActions } from './message-actions'
@@ -134,36 +134,20 @@ export function Messages({
         )}
         <AnimatePresence initial={false}>
           {shown.map((entry) => (
-            <motion.li
+            <EntryRow
               key={entry.id}
-              id={`entry-${entry.ordinal}`}
-              {...appear}
-              initial={handedOver.has(entry.ordinal) ? false : appear.initial}
-              data-entry-kind={isTool(entry) ? 'tool' : entry.kind}
-              className="group space-y-1"
-            >
-              <Entry
-                entry={entry}
-                policy={policy}
-                requestedMode={modeOf(entry)}
-                projectId={projectId}
-                onPointAt={onPointAt}
-                onOpenSubagent={onOpenSubagent}
-              />
-              {answered.has(entry.id) && (
-                <p className="text-xs text-faint-foreground">{answered.get(entry.id)}</p>
-              )}
-              <div className={entry.kind === 'UserMessage' ? 'flex justify-end' : undefined}>
-                <MessageActions
-                  text={copyText(entry)}
-                  forkPoint={
-                    forkFrom !== null && forkAt !== null && entry.id === forkAt.shownId
-                      ? { ...forkFrom, entryId: forkAt.entryId }
-                      : undefined
-                  }
-                />
-              </div>
-            </motion.li>
+              entry={entry}
+              handedOver={handedOver.has(entry.ordinal)}
+              policy={policy}
+              requestedMode={modeOf(entry)}
+              projectId={projectId}
+              onPointAt={onPointAt}
+              onOpenSubagent={onOpenSubagent}
+              answered={answered.get(entry.id)}
+              {...(forkFrom !== null && forkAt !== null && entry.id === forkAt.shownId
+                ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
+                : {})}
+            />
           ))}
           {reply !== null && (
             <motion.li key="reply" {...appear}>
@@ -196,6 +180,65 @@ export function Messages({
     </div>
   )
 }
+
+/** One durable entry with its note and actions. Memoised: a streamed delta
+ * re-renders the list, and a long thread's entries (markdown, a plan's graph)
+ * must not be drawn again for each one. */
+const EntryRow = memo(function EntryRow({
+  entry,
+  handedOver,
+  policy,
+  requestedMode,
+  projectId,
+  onPointAt,
+  onOpenSubagent,
+  answered,
+  forkProjectId,
+  forkThreadId,
+  forkEntryId,
+}: {
+  entry: ThreadEntry
+  /** Already on screen as the streamed reply: it does not fade in again. */
+  handedOver: boolean
+  policy: HarnessPolicy
+  requestedMode: string | null
+  projectId: string
+  onPointAt: (plan: Plan, task: PlanTask) => void
+  onOpenSubagent: (id: string) => void
+  answered: string | undefined
+  /** Where a fork from this row goes; set on the fork anchor only, as plain
+   * values so that a new object each render does not redraw the row. */
+  forkProjectId?: string
+  forkThreadId?: string
+  forkEntryId?: string
+}) {
+  const forkPoint =
+    forkProjectId === undefined || forkThreadId === undefined || forkEntryId === undefined
+      ? undefined
+      : { projectId: forkProjectId, threadId: forkThreadId, entryId: forkEntryId }
+  return (
+    <motion.li
+      id={`entry-${entry.ordinal}`}
+      {...appear}
+      initial={handedOver ? false : appear.initial}
+      data-entry-kind={isTool(entry) ? 'tool' : entry.kind}
+      className="group space-y-1"
+    >
+      <Entry
+        entry={entry}
+        policy={policy}
+        requestedMode={requestedMode}
+        projectId={projectId}
+        onPointAt={onPointAt}
+        onOpenSubagent={onOpenSubagent}
+      />
+      {answered !== undefined && <p className="text-xs text-faint-foreground">{answered}</p>}
+      <div className={entry.kind === 'UserMessage' ? 'flex justify-end' : undefined}>
+        <MessageActions text={copyText(entry)} forkPoint={forkPoint} />
+      </div>
+    </motion.li>
+  )
+})
 
 /** Keep subagent cards visible while their durable entries are hidden by the streamed reply. */
 function runningCards(

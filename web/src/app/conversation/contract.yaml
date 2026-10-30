@@ -547,6 +547,13 @@ obligations:
     tested_by: "streams a long reply without exceeding the update depth"
 
   - rule: >
+      A delta redraws the reply, not the thread: each durable entry is a memoised row
+      whose props stay equal while the entries list does (`Conversation` keeps
+      `onPointAt` and `openAgent` stable; the fork point goes as plain values to its
+      anchor row only), so a plan card or long markdown renders once while a reply streams.
+    tested_by: "draws the plan card and the long markdown once while many deltas arrive"
+
+  - rule: >
       Settings follow the session's own reports, but a report that arrives during a send or
       a running turn is not a refusal of the mode.
     tested_by: "follows a model change the session reports, but not while a send or a turn is in
@@ -1152,6 +1159,11 @@ tests:
   # use-conversation.test.tsx
   - name: "streams a long reply without exceeding the update depth"
     checks: "120 deltas outside act: no error, and the reply text is all 120 characters."
+
+  # streamed-reply.test.tsx
+  - name: "draws the plan card and the long markdown once while many deltas arrive"
+    checks: "100 deltas into a running thread holding a PlanView and 40 sections of markdown: Entry
+      renders for both stay at their count before the first delta; word99 shows."
 
   # turn-state.test.ts
   - name: "a reload during a running turn shows it running, then follows it to its end"
