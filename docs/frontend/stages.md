@@ -108,11 +108,13 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 - Needs: `docs/shared/requests/2026-10-31-tool-activity.md` (accepted 2026-10-31) built by
   B-19 to B-22, so `api/openapi.json` names `ToolCallCard`, `DiffHunk`, `DiffLine`,
   `TodoListCard`, `TodoItem`, `ToolLive`, `CallKind`, `CallStatus`, `DiffOp`, `TodoStatus` and
-  the `TodoList` kind
+  the `TodoList` kind, and `ToolCallCard` carries `error` (string, on a `failed` card only;
+  user ruling 2026-10-31)
 - Done when: `npx vitest run src/stream src/api` passes, with new tests:
   - frames: "reads a tool frame, and refuses one with a status it does not know";
     "reads a todos frame, and refuses an item without content"; "readToolCard reads a card with
-    its diff hunks, and returns null for a card it cannot read"; "readTodoList returns null
+    its diff hunks, and returns null for a card it cannot read"; "readToolCard keeps a failed
+    card's error"; "readTodoList returns null
     for a value that is not a list card"
   - thread-stream: "keeps the latest tool frame per call and the latest list per turn, past
     turn-end"; "clears tools and todos on a break and on lagged"
@@ -120,7 +122,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 
 ### F-54 · Tool calls drawn as groups of numbered steps, running and timed
 - Status: blocked (needs F-53)
-- Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("Grouping",
+- Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("Grouping", "A failed step's error",
   the words table, "A step", "Copy", "Fork and links", "Rendering cost"; signatures in "Files")
 - Read: `web/src/app/conversation/contract.yaml` (Messages, Entry, the F-51 obligation "A delta
   redraws the reply, not the thread", copyText agreement, fork rules, "A link to a requested
@@ -145,7 +147,8 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
     are summed", "a sentence wins over the verb", "lines read as (47–102)"
   - tool-group: "a finished group is one closed line with its time, and opens into numbered
     steps"; "a running group is open, spins, and counts its seconds"; "a failed step is marked
-    failed and the line says how many"; "Copy on a group copies every step's line"; "a link to
+    failed and the line says how many"; "a failed step shows its error under its line, wrapped,
+    and a long one opens with Show all"; "Copy on a group copies every step's line"; "a link to
     a member's entry opens its group"; "draws a group once while many deltas arrive"
   and the existing "a tool call reads as a tool line, not as bracketed text", "Copy on a tool
   line copies its title (§23.8)", "plan tool lines read as sentences" and "draws the plan card

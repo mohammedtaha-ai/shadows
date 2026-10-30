@@ -105,9 +105,11 @@ works out no diff, no status and no target.
   `operation_id` (silent ones are already filtered out, so `plan_show` never splits a run).
 - Each member is a **step** (`ToolStep`, a view model in `activity-rows.ts`):
   `{ key, ordinal | null, tool, kind | null, title, sentence | null, target, lines, status,
-  added, removed, diff, startedAt, finishedAt }`. A durable step comes from its entry and
+  added, removed, diff, error, startedAt, finishedAt }`. A durable step comes from its entry and
   `readToolCard` (`card: null` gives `kind: null`, `status: 'completed'`, the title only);
   `sentence` is `toolText(title)` when it differs from the title (Shadows' own tools).
+  `error` is the card's `error` (user ruling 2026-10-31: Core sends it on a `failed` card
+  only); a live step has `error: null`, since the `tool` frame carries none.
 - **Live steps.** The latest turn's `tool` frames whose `id` is not the `card.id` of any
   entry are live steps (status `pending` / `in_progress` / `completed` / `failed`). A
   durable `ToolCall` entry is final over every frame of its `id` (Hamoud's rule: a frame
@@ -146,6 +148,13 @@ works out no diff, no status and no target.
   stop for stopped, none for completed), then `sentence` when set, else the verb of its kind
   (Read, Edit, Delete, Move, Search, Run, Fetch, Think, Switch mode) and `target` with `lines` as
   `(47–102)`, else the title; then ` +A −R` for an edit; then its own time.
+- **A failed step's error** (user ruling 2026-10-31). Under the line of a `failed` step with
+  a non-empty `error`, the text shows as is: small, in the destructive colour, monospace,
+  `whitespace-pre-wrap break-words`, indented to the step's text, `dir="auto"`. It is always
+  visible, with no expand, while it is at most 6 lines and 600 characters; a longer error
+  shows its first 6 lines (CSS `line-clamp-6`) with a "Show all" / "Show less" button. A
+  lone failed step shows it too. A failed step without `error` (an old entry or a live frame)
+  shows only its "failed" mark. The error is not part of Copy's line.
 - **Copy** on a group copies each step's line, one per line; on a lone step, its line (the
   title for a non-Shadows call, so "Copy on a tool line copies its title" still holds).
 - **Fork and links.** The group row carries the fork point when its last member is the fork
