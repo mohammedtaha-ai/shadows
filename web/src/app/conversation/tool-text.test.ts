@@ -4,7 +4,7 @@ import { toolText } from './tool-text'
 const TOOLS = [
   'workflow_list', 'workflow_get', 'task_get', 'draft_prepare', 'draft_start', 'plan_edit',
   'agreement_edit', 'agreement_get', 'agreement_list', 'agreement_review', 'agreement_start',
-  'lines', 'map_approve', 'map_propose', 'outline', 'plan_approve', 'roadmap_approve',
+  'map_approve', 'map_propose', 'outline', 'plan_approve', 'roadmap_approve',
   'roadmap_propose', 'vision_approve', 'vision_propose', 'where_is', 'who_uses', 'workspace_get',
 ]
 

@@ -377,8 +377,42 @@ async fn stored_technical_direction_ids_become_td() {
     .execute(&pool)
     .await
     .unwrap();
+    // The proposals' thread, turn and entry are beside the point: only their item ids move.
+    exec(&pool, "PRAGMA foreign_keys = OFF").await;
+    for (id, field, item, seq) in [
+        ("td", "technical_direction", "T1", 1),
+        ("b", "boundaries", "B2", 2),
+    ] {
+        sqlx::query(
+            "INSERT INTO design_vision_proposal(id,project_id,thread_id,operation_id,entry_id,
+                action,field,item_id,text,old_text,expected_item_revision,status,
+                standards_version,created_at,seq)
+            VALUES (?,'P','T','O','E','edit',?,?,'Go','Rust',1,'Pending',1,'2026-10-31',?)",
+        )
+        .bind(id)
+        .bind(field)
+        .bind(item)
+        .bind(seq)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
     pool.close().await;
     let storage = Storage::open(&db).await.unwrap();
+    let items: Vec<(String, String)> =
+        sqlx::query_as("SELECT id,item_id FROM design_vision_proposal ORDER BY seq")
+            .fetch_all(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(
+        items,
+        [("td".into(), "TD1".into()), ("b".into(), "B2".into())]
+    );
+    assert_eq!(shadows_core::VisionField::of_id("T1"), None);
+    assert_eq!(
+        shadows_core::VisionField::of_id("TD1"),
+        Some(shadows_core::VisionField::TechnicalDirection)
+    );
     for sql in [
         "SELECT vision_content FROM design_workspace",
         "SELECT content_json FROM design_vision_version",

@@ -17,7 +17,6 @@ const SENTENCES: Readonly<Record<string, string | null>> = {
   agreement_list: "Listed the agreements",
   agreement_review: "Reviewed the agreement",
   agreement_start: "Agreement started",
-  lines: "Read the lines",
   map_approve: "Approved the map",
   map_propose: "Proposed a map",
   outline: "Read the outline",

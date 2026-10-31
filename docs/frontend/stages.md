@@ -251,7 +251,10 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   `web/src/app/settings/settings-dialog.tsx` at `onOpenChange`; `web/src/app/agents/provider-form.tsx`
 - Touch: `web/src/app/settings/settings-dialog.tsx`, `web/src/app/agents/provider-form.tsx`, their
   test files, both `contract.yaml` files, and a context or prop between them if one is needed
-  (name it in the report)
+  (name it in the report); widened in the branch review to
+  `web/src/app/settings/sections/providers.tsx` and `web/src/app/agents/index.ts`: the props
+  `ProviderForm.onDirtyChange` and `onUnsavedChange` carry the state through the section to the
+  dialog, and Back and the other sections wait on a dirty form as Escape does
 - Needs: none
 - Done when: `npx vitest run src/app/settings src/app/agents` passes, with new tests: "Escape with
   unsaved provider edits keeps the dialog and the typed values"; "Escape on a clean provider form
@@ -262,7 +265,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 - Plan: live run 2026-10-31: a step showed `mcp__shadows__workspace_get`. `SENTENCES` in
   `tool-text.ts` names 7 of the 23 Shadows MCP tools. Add the rest: agreement_edit,
   agreement_get, agreement_list, agreement_review, agreement_start, draft_start (kept),
-  lines, map_approve, map_propose, outline, plan_approve, roadmap_approve, roadmap_propose,
+  map_approve, map_propose, outline, plan_approve, roadmap_approve, roadmap_propose,
   vision_approve, vision_propose, where_is, who_uses, workspace_get (names from
   `crates/shadows-mcp/src/*_tools.rs`), in the same past-tense style ("Read the workspace").
   An unknown `mcp__shadows__x` reads "Used Shadows: x", never the raw prefix.

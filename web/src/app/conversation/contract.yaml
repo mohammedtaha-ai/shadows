@@ -349,7 +349,7 @@ components:
 
 hooks:
   useSend:
-    signature: "({ to: SendTo; threadId: string | null; running: Turn | null; initialAttempt?: Attempt | null; imagesChanged: () => void; dropImages: (sent: PendingImage[]) => void; clearPrompt: () => void; clearContinuedPlan: () => void; onPointed: (done: PointedTask) => void; onStarted: (operationId: string) => void }) => { deliver: ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>) => void; clearAttempt: () => void; sending: boolean; inFlight: boolean; error: Error | null }"
+    signature: "({ to: SendTo; threadId: string | null; running: Turn | null; initialAttempt?: Attempt | null; imagesChanged: () => void; dropImages: (sent: PendingImage[]) => void; clearPrompt: () => void; clearContinuedPlan: () => void; onStarted: (operationId: string) => void }) => { deliver: ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>) => void; clearAttempt: () => void; sending: boolean; inFlight: boolean; error: Error | null }"
     # Owns the pending attempt, send/queue mutations and their choice. deliver takes
     # the message values; it reads neither prompt state nor the slash menu.
     # clearAttempt is stable so the composer, images and settings share one reset.

@@ -61,7 +61,7 @@ components:
   YouCard:
     signature: "() => JSX.Element"
   ProvidersSection:
-    signature: "() => JSX.Element"
+    signature: "({ onUnsavedChange?: (unsaved: boolean) => void }) => JSX.Element"
     note: Provider list titles use Core presets plus region and label; Edit waits for presets to load.
   AgentsSection:
     signature: "() => JSX.Element"
@@ -119,10 +119,15 @@ obligations:
       - "saving and Back return to the Agents list"
       - "a deleted agent in the URL shows the list with a note"
       - "closing an unsaved agent form discards the draft"
-  - rule: Providers starts on its list; add and edit replace the section body; closing discards the unsaved form. Confirming deletion stays inside the existing settings dialog.
+  - rule: Providers starts on its list; add and edit replace the section body; closing a clean form saves nothing. Confirming deletion stays inside the existing settings dialog.
     tested_by:
       - "closing mid-form saves nothing"
       - "provider deletion confirms inside the settings dialog"
+  - rule: While a section reports unsaved edits through onUnsavedChange (Providers, from its form), Escape, a backdrop click, Back and the other sections do not leave it; only the form's Save or Cancel does. A clean form closes as before.
+    tested_by:
+      - "Escape with unsaved provider edits keeps the dialog and the typed values"
+      - "Escape on a clean provider form closes Settings"
+      - "Back and another section wait while the provider form holds unsaved edits"
   - rule: Character presents visibility, motion and reply preview as switches; Local Core shows its native state above configuration fields in a closed Advanced disclosure.
     tested_by:
       - "character shows three switches"
@@ -224,5 +229,3 @@ desktop_capabilities:
   GeneralSection: windowPreferences gates DesktopPreferencesControls for system startup and close-to-tray preferences.
   AccountSection: accountLogin gates the native account card; the You card remains available in both runtimes.
   AgentsSection: companion gates the bound-agent Companion badge.
-
-provider_unsaved_guard: "SettingsDialog ignores Escape and an outside click while agents.providerFormIsDirty() is true; a clean form closes as before."
