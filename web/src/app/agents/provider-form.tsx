@@ -190,7 +190,7 @@ export function ProviderForm({ provider, group, onSaved }: {
           {save.error !== null && !(save.error instanceof ApiError && save.error.problem.kind === 'daemon' && save.error.problem.field) && <ErrorLine error={save.error} />}
           {removeKey.error !== null && <ErrorLine error={removeKey.error} />}
           <div className="flex items-center gap-3">
-            <Button type="submit">{save.isPending ? 'Saving…' : provider ? 'Save provider' : `Add ${picked.length} models`}</Button>
+            <Button type="submit">{save.isPending ? 'Saving…' : provider ? 'Save provider' : `Add ${picked.length} ${picked.length === 1 ? 'model' : 'models'}`}</Button>
             <p className="text-xs text-faint-foreground">Changes apply to new and resumed conversations.</p>
           </div>
         </fieldset>

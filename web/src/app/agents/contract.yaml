@@ -116,6 +116,8 @@ obligations:
   - rule: Deleting a provider or an agent requires inline confirmation inside Settings; successful agent deletion preserves the current page.
     tested_by: ["provider deletion confirms inside the settings dialog", "agent deletion confirms inline and preserves the current page"]
     note: The daemon refuses a provider in use with PROVIDER_IN_USE; the dialog shows it.
+  - rule: The provider form's add button counts models in correct English ("Add 1 model", "Add 2 models").
+    tested_by: ["the add button reads Add 1 model, Add 2 models"]
 
 tests:
   - name: provider_form_saves_and_clears_key

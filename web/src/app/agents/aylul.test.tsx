@@ -35,7 +35,7 @@ afterEach(() => { open?.unmount(); open = null; window.localStorage.clear(); col
 const input = (name: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!
 const models = () => document.querySelector<HTMLInputElement>('input[aria-label="Add a model by id"]')!
 function addModel(a: TestApp, id: string) { typeInto(models(), id); act(() => a.button('Add')!.click()) }
-const saveButton = (a: TestApp) => a.button('Save provider') ?? a.buttons('Add 1 models')[0] ?? a.buttons('Add 2 models')[0]
+const saveButton = (a: TestApp) => a.button('Save provider') ?? a.buttons('Add 1 model')[0] ?? a.buttons('Add 2 models')[0]
 
 it('switcher_shows_both_with_check_on_current', async () => {
   const a = open = await startApp('/', table())
