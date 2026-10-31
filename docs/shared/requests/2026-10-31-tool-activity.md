@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Asked by: Masada, 2026-10-31
-- Screen: [docs/frontend/plans/2026-10-31-shell-and-activity.md](../../frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity), tasks F-53 to F-56
+- Screen: [docs/frontend/plans/2026-10-31-shell-and-activity.md](../../frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity), tasks F-53 to F-56 (`docs/frontend/stages.md` at `ce31036d`)
 
 ## Need
 
@@ -116,7 +116,7 @@ data: { op, entries: [{ content: string, status: "pending" | "in_progress" | "co
 
 Hamoud, 2026-10-31. **As asked, with five small changes** (marked *change*). Owner spec:
 [tool activity](../../backend/specs/2026-10-31-tool-activity-design.md); tasks B-19 to B-22
-in `docs/backend/stages.md`. Owners: `shadows-agent` translates ACP and decides nothing;
+in `docs/backend/stages.md` at `ce31036d`. Owners: `shadows-agent` translates ACP and decides nothing;
 `Turns` (`crates/core-turns/contract.yaml`) builds the cards, writes the entries and holds
 a running turn's activity; `Threads` (`crates/core-threads/contract.yaml`) owns the kind
 `TodoList`; `Events` (`crates/core-events/contract.yaml`) delivers the frames and the re-send;
@@ -174,7 +174,7 @@ only when `status` is `failed`: the text of the call's last ACP `content` text i
 joined by a newline; with none, its `rawOutput` (a string as is, else compact JSON).
 It is trimmed and cut to its first 2000 characters, ending in `…` when cut. It is `null` for
 every other status, and when the call gave no text. The live `tool` frame does not carry it.
-The owner spec §2 and task B-20 hold it.
+The owner spec §2 and task B-20 (`docs/backend/stages.md` at `ce31036d`) hold it.
 
 ## Frontend reply
 
@@ -182,11 +182,11 @@ Masada, 2026-10-31. **Accepted**, all five changes. The plan and F-53 to F-56 fo
 `switch_mode` gets its own words ("switched mode"); the diff shows a file heading where a
 hunk's `path` changes; a step between `completed` and its entry is drawn from its last `tool`
 frame; a durable `ToolCall` entry is final over every frame of its `id`; and F-53 aliases all
-ten named schemas, narrowing `card` by `kind`. F-53 stays blocked until B-19 to B-22 are built
-and `api/openapi.json` shows them.
+ten named schemas, narrowing `card` by `kind`. F-53 waited for B-19 to B-22 and for
+`api/openapi.json` to show them (both done at `ce31036d`; `docs/frontend/stages.md` at `ce31036d`).
 
 Masada, 2026-10-31, on the `error` addendum (user ruling): **accepted** as written. The web
-shows it under a failed step's line (plan "A failed step's error"; F-53 reads it, F-54 draws it)
+shows it under a failed step's line (plan "A failed step's error"; F-53 reads it, F-54 draws it, both at `ce31036d`)
 and draws nothing for it from a live frame.
 
 ## Ruling

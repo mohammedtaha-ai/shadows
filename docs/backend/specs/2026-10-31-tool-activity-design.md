@@ -1,9 +1,9 @@
 # Tool activity: what each tool call did, live and kept
 
-- Status: accepted 2026-10-31 (the request is accepted); built in B-19 to B-22
+- Status: accepted 2026-10-31 (the request is accepted); built in B-19 to B-22 (`docs/backend/stages.md` at `ce31036d`)
 - Request: [tool activity](../../shared/requests/2026-10-31-tool-activity.md)
 - Frontend plan: [shell and activity](../../frontend/plans/2026-10-31-shell-and-activity.md)
-- Plan: [tool activity](../plans/2026-10-31-tool-activity.md)
+- Plan: `docs/backend/plans/2026-10-31-tool-activity.md` at `ce31036d`
 - Amends: harness-controls §12.3 (the entries row) and §12.10, subagent cards §22.2
   (`docs/superpowers/specs/`), which link here.
 

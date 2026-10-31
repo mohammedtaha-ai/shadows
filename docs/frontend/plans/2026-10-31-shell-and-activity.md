@@ -9,8 +9,9 @@ Branch `feature/web-polish`. Two asks from the user, 2026-10-31, after using the
    time; an edit opens into its diff with line numbers; the agent's task list is a checklist.
 
 Part 1 is web only (F-52). Part 2 needs Core: the fields are asked in
-[`docs/shared/requests/2026-10-31-tool-activity.md`](../../shared/requests/2026-10-31-tool-activity.md),
-and F-53 to F-56 stay `blocked` until it is accepted, built, and `api/openapi.json` shows it.
+[`docs/shared/requests/2026-10-31-tool-activity.md`](../../shared/requests/2026-10-31-tool-activity.md).
+Shipped in PR #48: F-52 to F-56 are done, and their entries are in
+`docs/frontend/stages.md` at `ce31036d`. The F-numbers below name those tasks.
 
 ## What the code does today
 
@@ -232,18 +233,10 @@ TodoCard(props: { items: readonly TodoItem[] }): JSX.Element
 
 ## Tasks
 
-| Task | What | Needs |
-|---|---|---|
-| F-52 | The sidebar hides and shows: button, `Ctrl+B`, overlay below 768 px | none |
-| F-53 | The stream and the api read tool cards, `tool` and `todos` frames | the request, built |
-| F-54 | Tool calls drawn as groups of numbered steps, running and timed | F-53 |
-| F-55 | An edit step opens into its diff | F-54 |
-| F-56 | The agent's checklist, live and after reload | F-53 |
-
-F-54 and F-56 both change `messages.tsx` and `entry.tsx`: run them one after the other, F-54
-first, by the same builder. The Core side is Hamoud's (his task ids, in
-`docs/backend/stages.md`); its spec amendments (the harness-controls entries row and §23.8)
-are his.
+All five tasks are done at `ce31036d`: F-52 the sidebar hides and shows; F-53 the stream and
+the api read tool cards and `tool` / `todos` frames; F-54 tool calls drawn as numbered steps;
+F-55 an edit step opens into its diff; F-56 the agent's checklist. The Core side is Hamoud's
+(B-19 to B-22, in `docs/backend/stages.md` at `ce31036d`).
 
 ## Open questions
 
