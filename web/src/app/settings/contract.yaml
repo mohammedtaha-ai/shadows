@@ -224,3 +224,5 @@ desktop_capabilities:
   GeneralSection: windowPreferences gates DesktopPreferencesControls for system startup and close-to-tray preferences.
   AccountSection: accountLogin gates the native account card; the You card remains available in both runtimes.
   AgentsSection: companion gates the bound-agent Companion badge.
+
+provider_unsaved_guard: "SettingsDialog ignores Escape and an outside click while agents.providerFormIsDirty() is true; a clean form closes as before."

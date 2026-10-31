@@ -223,7 +223,7 @@ it('the list names each provider with its model count', async () => {
 })
 it('closing mid-form saves nothing', async () => {
   const a = open = await startApp('/aylul?settings=providers', table())
-  await addProvider(a, 'Custom'); typeInto(input('API key'), 'unsaved-key')
+  await addProvider(a, 'Custom')
   act(() => input('API key').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   await until(() => document.querySelector('[role="dialog"]') === null)
   act(() => a.button('Settings')!.click())
@@ -246,7 +246,7 @@ it('provider deletion confirms inside the settings dialog', async () => {
   act(() => a.button('Delete')!.click())
   expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
   expect(a.calls).not.toContain('DELETE /api/aylul/providers/fixture-provider')
-  act(() => a.button('Cancel')!.click())
+  act(() => [...document.querySelectorAll('button')].filter(b => b.textContent === 'Cancel').at(-1)!.click())
   expect(a.calls).not.toContain('DELETE /api/aylul/providers/fixture-provider')
   act(() => a.button('Delete')!.click())
   act(() => a.button('Delete provider')!.click())

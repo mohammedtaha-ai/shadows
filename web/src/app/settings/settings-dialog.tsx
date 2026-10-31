@@ -9,6 +9,7 @@ import { ProvidersSection } from './sections/providers'
 import { AgentsSection } from './sections/agents'
 import { UsageSection } from './sections/usage'
 import { PluginsSection } from './sections/plugins'
+import { providerFormIsDirty } from '@/app/agents'
 import { useCloseSettings, useOpenSettings } from '@/app/navigation'
 
 const CONTENT: Partial<Record<SectionId, ComponentType>> = {
@@ -25,7 +26,7 @@ export function SettingsDialog() {
   const Content = selected ? CONTENT[selected.id] : undefined
 
   return (
-    <Dialog open={settings !== undefined} onOpenChange={value => { if (!value) close() }}>
+    <Dialog open={settings !== undefined} onOpenChange={value => { if (!value && !providerFormIsDirty()) close() }}>
       <DialogContent
         className="h-[min(590px,calc(100dvh-2rem))] grid-cols-[minmax(130px,210px)_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-[900px]"
         finalFocus={() => document.querySelector<HTMLButtonElement>('[data-settings-trigger]')}

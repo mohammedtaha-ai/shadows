@@ -2,7 +2,7 @@
 // and context window, and deleting it.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type FormEvent, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import {
   type Provider, type ProviderInput, deleteProvider, providersQuery, removeProviderKey,
   saveProvider, setProviderKey, testProvider, testSavedProvider,
@@ -17,6 +17,7 @@ import { Field } from './form-field'
 import type { PresetGroup } from './provider-presets'
 import { ProviderModels, type ModelPick } from './provider-models'
 import { testLine } from './provider-test'
+import { setProviderDirty } from './provider-dirty'
 
 // Shown only while the field holds text, so adding or clearing the id removes it.
 const UNADDED = 'You have an unadded model id. Add it or clear the field before saving.'
@@ -116,6 +117,12 @@ export function ProviderForm({ provider, group, onSaved }: {
     save.mutate({ ...(preset ? { preset: preset.id } : { preset: null, name, base_url: url }), label: label.trim() || null,
       models: picked.map(model => ({ id: model.id, ...(model.contextWindow != null && { context_window: model.contextWindow }) })) })
   }
+  const [initial] = useState(() => JSON.stringify([name, url, preset?.id ?? null, picked, label]))
+  const dirty = apiKey !== '' || manual !== '' || JSON.stringify([name, url, preset?.id ?? null, picked, label]) !== initial
+  useEffect(() => {
+    setProviderDirty(dirty)
+    return () => setProviderDirty(false)
+  }, [dirty])
   const busy = save.isPending || removeKey.isPending || remove.isPending || test.isPending
   const credentialsChanged = () => { setTestedKey(''); setLine(null); setListed([]) }
   const clearRefusal = (field: string) => setRefusal(current => current?.field === field ? null : current)
@@ -191,6 +198,8 @@ export function ProviderForm({ provider, group, onSaved }: {
           {removeKey.error !== null && <ErrorLine error={removeKey.error} />}
           <div className="flex items-center gap-3">
             <Button type="submit">{save.isPending ? 'Saving…' : provider ? 'Save provider' : `Add ${picked.length} ${picked.length === 1 ? 'model' : 'models'}`}</Button>
+            <Button type="button" variant="outline" onClick={() => onSaved(null)}>Cancel</Button>
+            {dirty && <p role="status" className="text-xs text-destructive-foreground">Unsaved changes. Save or Cancel.</p>}
             <p className="text-xs text-faint-foreground">Changes apply to new and resumed conversations.</p>
           </div>
         </fieldset>

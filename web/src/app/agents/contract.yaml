@@ -151,3 +151,5 @@ route_entries: "home.tsx remain separate public lazy route modules declared by i
 
 desktop_capabilities:
   AgentFields: companion gates the saved bound-agent appearance refresh and the hint that its colour is currently worn by the companion.
+
+provider_unsaved_edits: "ProviderForm reports unsaved edits through provider-dirty.ts (setProviderDirty, read by providerFormIsDirty); while dirty it shows 'Unsaved changes. Save or Cancel.'. Its Cancel button discards the edits and returns to the list."
