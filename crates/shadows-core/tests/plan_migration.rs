@@ -95,7 +95,7 @@ async fn migration_0022_turns_vision_text_into_items() {
     assert_eq!(vision.purpose[0].approved_from, None);
     assert!(vision.users.is_empty() && vision.boundaries.is_empty());
     assert_eq!(vision.goals[0].id, "G1");
-    assert_eq!(vision.technical_direction[0].id, "T1");
+    assert_eq!(vision.technical_direction[0].id, "TD1");
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&counters).unwrap(),
         serde_json::json!({"purpose":1,"users":0,"goals":1,"boundaries":0,
@@ -346,5 +346,52 @@ async fn migration_0020_moves_tool_and_subagent_bodies_into_their_kinds() {
     assert_eq!(rows[6], ("ToolCall".into(), "a]b".into(), None));
     assert_eq!(rows[7], ("ToolCall".into(), "]".into(), None));
 
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn stored_technical_direction_ids_become_td() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db = tmp.path().join("td.sqlite3");
+    let pool = migrated_to(&db, 37).await;
+    exec(
+        &pool,
+        "INSERT INTO project(id,slug,name,directory,created_at)
+        VALUES ('P','p','P','C:/p','2026-10-31')",
+    )
+    .await;
+    let content = r#"{"purpose":[],"users":[],"goals":[],"boundaries":[],"technical_direction":[{"id":"T1","revision":1,"text":"T1 Rust","approved_from":null},{"id":"T2","revision":1,"text":"Go","approved_from":null}]}"#;
+    sqlx::query(
+        "INSERT INTO design_workspace(project_id,revision,vision_revision,vision_content)
+        VALUES ('P',1,1,?)",
+    )
+    .bind(content)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO design_vision_version(project_id,number,content_json,created_at)
+        VALUES ('P',1,?,'2026-10-31')",
+    )
+    .bind(content)
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&db).await.unwrap();
+    for sql in [
+        "SELECT vision_content FROM design_workspace",
+        "SELECT content_json FROM design_vision_version",
+    ] {
+        let json: String = sqlx::query_scalar(sql)
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let items = v["technical_direction"].as_array().unwrap();
+        assert_eq!(items[0]["id"], "TD1");
+        assert_eq!(items[1]["id"], "TD2");
+        assert_eq!(items[0]["text"], "T1 Rust");
+    }
     storage.close().await.unwrap();
 }

@@ -17,7 +17,7 @@ impl VisionField {
             Self::Users => "U",
             Self::Goals => "G",
             Self::Boundaries => "B",
-            Self::TechnicalDirection => "T",
+            Self::TechnicalDirection => "TD",
         }
     }
 

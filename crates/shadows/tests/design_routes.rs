@@ -558,7 +558,7 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     let item =
         |id: &str, text: &str| json!({"id":id,"text":text,"revision":1,"approved_from":null});
     let content = json!({"purpose":[item("PU1", " رؤية \n")], "users":[item("U1","مطورون")],
-        "goals":[item("G1","اهداف")],"boundaries":[],"technical_direction":[item("T1","Rust")]});
+        "goals":[item("G1","اهداف")],"boundaries":[],"technical_direction":[item("TD1","Rust")]});
     let request = json!({
         "command_id": "vision",
         "expected_revision": 0,
