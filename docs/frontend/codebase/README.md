@@ -166,6 +166,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/form-field.tsx` | Labelled controls drawn for the AYLUL forms | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/home.tsx` | Main pane of the AYLUL workspace when no conversation is open | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-form.tsx` | Form for one provider, its key write-only | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-dirty.ts` | Whether the provider form holds unsaved changes, read by the Settings dialog | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-presets.ts` | Provider preset grouping | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-picker.tsx` | Searchable provider choice | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-models.tsx` | Provider model selection | `web/src/app/agents/contract.yaml` |
