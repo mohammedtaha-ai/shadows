@@ -449,7 +449,7 @@ pure:
     signature: "(operations: readonly Operation[]) => ContextFigures | null"
   toolText:
     signature: "(title: string) => string | null"
-    # A sentence for Shadows' tools, the title for any other, null when the tool adds no line.
+    # A sentence for Shadows' tools (an unknown one reads "Used Shadows: <name>"), the title for any other, null when the tool adds no line.
   subagentOf:
     signature: "(entry: ThreadEntry) => SubagentCard | null"
     # Null for any other kind, and for a card that fails to read (no throw escapes).
@@ -1146,12 +1146,6 @@ gaps:
       The regex takes the first digits after the family as the major version. A dated model id
       such as "claude-opus-4-20250514" reads "Opus 4.20250514". "claude-3-5-sonnet" reads
       "Claude 3.5", which drops the family.
-
-  - at: toolText
-    gap: >
-      `name in SENTENCES` also matches inherited Object.prototype keys. "mcp__shadows__constructor"
-      returns the Object function, which is neither null nor the title. Reachable only with a
-      shadows tool name outside the table. Low severity; an own-property check fixes it.
 
   - at: ApprovedBy
     gap: >

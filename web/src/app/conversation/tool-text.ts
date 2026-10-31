@@ -12,13 +12,31 @@ const SENTENCES: Readonly<Record<string, string | null>> = {
   draft_start: 'Plan started',
   plan_edit: 'Plan edited',
   plan_show: null,
+  agreement_edit: "Edited the agreement",
+  agreement_get: "Read the agreement",
+  agreement_list: "Listed the agreements",
+  agreement_review: "Reviewed the agreement",
+  agreement_start: "Agreement started",
+  lines: "Read the lines",
+  map_approve: "Approved the map",
+  map_propose: "Proposed a map",
+  outline: "Read the outline",
+  plan_approve: "Approved the plan",
+  roadmap_approve: "Approved the roadmap",
+  roadmap_propose: "Proposed a roadmap",
+  vision_approve: "Approved the vision",
+  vision_propose: "Proposed a vision",
+  where_is: "Found where it is",
+  who_uses: "Found who uses it",
+  workspace_get: "Read the workspace",
 }
 
 /** How a tool titled `title` reads: a sentence for Shadows' tools, its title
  * for any other, `null` when it adds no line of its own. */
 export function toolText(title: string): string | null {
   const name = /^mcp__shadows__(\w+)/.exec(title)?.[1]
-  if (name === undefined || !(name in SENTENCES)) return title
+  if (name === undefined) return title
+  if (!Object.hasOwn(SENTENCES, name)) return `Used Shadows: ${name}`
   return SENTENCES[name] ?? null
 }
 
