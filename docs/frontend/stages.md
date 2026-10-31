@@ -5,9 +5,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-52 (done, web only). F-53 to F-56 are blocked on the shared request
-`docs/shared/requests/2026-10-31-tool-activity.md` (accepted 2026-10-31), until Hamoud's
-B-19 to B-22 are built. Still
+Open: F-52 (done, web only). F-53 is next; its backend half
+(`docs/shared/requests/2026-10-31-tool-activity.md`, B-19 to B-22) is built. Still
 open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -93,7 +92,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   `AGENTS.md` rule 5.
 
 ### F-53 · The stream and the api read tool cards, `tool` frames and `todos` frames
-- Status: blocked (the request is accepted; waits for B-19 to B-22 to be built)
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("Reading")
 - Read: the request (as accepted: its "Fields" and "Backend answer" win over the plan where they
   differ); `web/src/stream/contract.yaml` (StreamState, frame_readers, the transient-frame

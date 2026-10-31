@@ -1,6 +1,6 @@
 # Tool activity: what each tool call did, live and kept
 
-- Status: proposed by Hamoud, 2026-10-31; waits on the request's acceptance
+- Status: accepted 2026-10-31 (the request is accepted); built in B-19 to B-22
 - Request: [tool activity](../../shared/requests/2026-10-31-tool-activity.md)
 - Frontend plan: [shell and activity](../../frontend/plans/2026-10-31-shell-and-activity.md)
 - Plan: [tool activity](../plans/2026-10-31-tool-activity.md)
