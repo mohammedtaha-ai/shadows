@@ -66,6 +66,14 @@ Tool activity ([spec](specs/2026-10-31-tool-activity-design.md),
 - Touch: `crates/core-events/src/subscription.rs`, `crates/core-events/src/lib.rs`, `crates/core-events/contract.yaml`, `crates/shadows-http/src/sse.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/stream_frames.rs`
 - Done when: `cargo test -p shadows --test stream_frames -- tool_and_todos_frames_reach_a_running_turns_stream a_stream_opened_mid_turn_gets_its_open_calls_and_list_after_caught_up` pass, and the existing `stream_frames` and `protocol` tests still pass; openapi regenerated and `cargo test -p shadows --test openapi` passes
 
+### B-23 · Technical direction ids read `TD`, never a task's `T`
+- Status: todo
+- Plan: the user's ruling, 2026-10-31: a vision item `T1` (technical direction) reads the same as plan task T1, in the app and in what the Planner writes. The prefix becomes `TD`, as `PU` keeps purpose apart from a rule's `P1`. Ids already stored are renamed, so every project reads `TD<n>` and no `T<n>` vision id is left.
+- Read: `docs/superpowers/specs/2026-10-08-guided-planning-design.md` "Ids" (line ~112); `crates/core-design/contract.yaml` (vision items); `crates/core-design/src/vision_items.rs` (`prefix`, `of_id`); `crates/core-db/migrations/0022_vision_items.sql` (where ids are stored: `design_workspace.vision_content`, `design_vision_version.content_json`, `design_vision_proposal.item_id` and the proposal's ops JSON)
+- Touch: `crates/core-design/src/vision_items.rs`, `crates/core-design/contract.yaml`, a new `crates/core-db/migrations/0038_vision_technical_ids.sql` (renames `T<n>` to `TD<n>` in every stored place the read names, technical direction only; the counters stay as they are), the tests that name `T1` (`crates/shadows/tests/design_routes.rs`, `crates/shadows-core/tests/design_vision/*.rs`) and a migration test beside `crates/shadows-core/tests/plan_migration.rs`, the spec's "Ids" line (amended in place: technical direction `TD`, with the reason), and `web/src/test/contract-fixtures.ts` / `web/src/test/fake-daemon.ts` only if they hold a vision `T1`
+- Needs: none
+- Done when: `cargo test -p shadows-core --test design_vision`, `cargo test -p shadows --test design_routes`, `cargo test -p shadows --test codemap` and the new migration test `stored_technical_direction_ids_become_td` pass (a vision version, the current vision and a pending proposal holding `T1`/`T2` read `TD1`/`TD2` after migrating; `of_id("T1")` is `None`, `of_id("TD1")` is technical direction); `cargo clippy` on the touched crates is clean
+
 ### B-A2 · Prepare Core's scoped context contract
 - Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)
 - Plan: none
