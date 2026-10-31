@@ -32,6 +32,7 @@ pub type OnCompleted = Arc<dyn Fn(ThreadId) + Send + Sync>;
 /// A turn whose operation `TurnsStore::start_turn` has committed `Pending`.
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
+    pub root: Option<std::path::PathBuf>,
     /// The thread's harness as the turn command validated it, so nothing is
     /// read between the commit and the run that could strand it `Pending`.
     pub harness: String,
@@ -66,6 +67,7 @@ impl PlannerTurn {
     ) -> Result<OperationId, StartError> {
         let PlannerTurnRequest {
             thread_id,
+            root,
             harness,
             operation_id: op_id,
             prompt,
@@ -122,6 +124,7 @@ impl PlannerTurn {
                 return Ok(op_id);
             }
         };
+        let activity = Arc::new(std::sync::Mutex::new((Vec::new(), None)));
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         let (steer, steers) = mpsc::unbounded_channel();
@@ -136,6 +139,7 @@ impl PlannerTurn {
                     cancel_requested: cancel_requested.clone(),
                     steer,
                     span: span.clone(),
+                    activity: activity.clone(),
                 },
             )
             .await
@@ -209,6 +213,8 @@ impl PlannerTurn {
         sessions.withhold(&thread_id, withholds);
         Self::watch_turn(
             TurnWatch {
+                activity,
+                root,
                 op_id: op_id.clone(),
                 storage,
                 handles,

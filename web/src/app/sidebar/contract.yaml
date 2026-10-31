@@ -49,10 +49,13 @@ external:
 
 components:
   Sidebar:
-    signature: "() => JSX.Element"
+    signature: "({ narrow: boolean, onToggle: () => void, onHide: () => void }) => JSX.Element"
     # The aside: the workspace menu, New project (Shadows) or New agent (AYLUL), the
     # project or agent tree, the connection indicator and the Settings button (marked
     # current while its dialog is open).
+  SidebarToggle:
+    signature: "({ shown: boolean, onToggle: () => void, className?: string }) => JSX.Element"
+    # Accessible toggle with the Ctrl+B tooltip.
   ProjectList:
     signature: "() => JSX.Element"
     # Renders nothing until the project list answers; "No projects yet." when it is empty.
@@ -79,6 +82,9 @@ components:
       isCurrent: boolean }) => JSX.Element
 
 hooks:
+  useSidebarState:
+    signature: "() -> { shown: boolean; narrow: boolean; toggle: () => void; hide: () => void }"
+    # Wide visibility is stored per browser; narrow visibility starts hidden and is temporary.
   useWorkspace:
     signature: "() -> { workspace: Workspace; switchTo: (next: Workspace) => void }"
     # The page decides first: /aylul pages and a thread whose harness is aylul are AYLUL,
@@ -116,6 +122,12 @@ private_helpers:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: The sidebar toggles by button or Ctrl+B, persists wide visibility, and opens as a temporary narrow overlay that closes on navigation, Escape or backdrop.
+    tested_by:
+      - "the sidebar's button hides it, the main pane's button and Ctrl+B show it again"
+      - "a hidden sidebar stays hidden after a reload"
+      - "without storage the choice lasts until reload"
+      - "below 768 px it starts hidden, shows as an overlay, and closes on a chosen conversation, on Escape and on the backdrop"
   - rule: Each agent row's Bot icon uses its shared-table character colour in browser and desktop, including when its row opens; unknown or absent IDs resolve to the base colour.
     tested_by: ["the sidebar's agent icon wears the agent's colour"]
   - rule: No Providers link sits below the agent tree; the empty provider hint opens the Providers settings section over the current page.
@@ -304,7 +316,7 @@ removed_thread_cache_owner: "api/threads.ts owns removed-thread detail and live-
 
 feature_imports: "Cross-feature production imports use declared public entries."
 
-feature_entry: "index.ts exposes storedWorkspace, Sidebar."
+feature_entry: "index.ts exposes storedWorkspace, Sidebar, SidebarToggle, useSidebarState."
 
 desktop_capabilities:
   Sidebar: Renders desktop-ui's DesktopSidebarActions before the footer; desktop-ui owns capability checks, the conditional action row and its following error line.

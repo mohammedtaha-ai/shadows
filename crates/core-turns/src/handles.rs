@@ -1,5 +1,8 @@
 //! One job: register live turns for watcher/stop arbitration.
-use super::{model::OperationId, steer::SteerRequest};
+use super::{
+    model::{ActivityState, LiveActivity, OperationId},
+    steer::SteerRequest,
+};
 use core_harness::OpenSession;
 use core_threads::ThreadId;
 use std::{
@@ -21,6 +24,7 @@ pub(crate) struct LiveTurn {
     /// Where Send now hands the watcher a message the adapter took.
     pub(crate) steer: mpsc::UnboundedSender<SteerRequest>,
     pub(crate) span: tracing::Span,
+    pub(crate) activity: ActivityState,
 }
 
 /// What Send now needs of the running turn of a thread.
@@ -36,6 +40,22 @@ pub(crate) struct Registry {
 #[derive(Default)]
 pub struct LiveHandles(pub(crate) Mutex<Registry>);
 impl LiveHandles {
+    pub(crate) async fn activity_for(&self, thread: &ThreadId) -> Option<LiveActivity> {
+        let registry = self.0.lock().await;
+        let (op, turn) = registry
+            .turns
+            .iter()
+            .find(|(_, turn)| &turn.thread_id == thread)?;
+        let activity = turn
+            .activity
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        Some(LiveActivity {
+            op: op.clone(),
+            tools: activity.0.clone(),
+            todos: activity.1.clone(),
+        })
+    }
     pub(crate) async fn register(
         &self,
         op: OperationId,

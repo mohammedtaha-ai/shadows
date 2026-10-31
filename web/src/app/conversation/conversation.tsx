@@ -3,7 +3,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { agentsQuery } from '@/api/aylul-profiles'
 import type { Plan, PlanTask } from '@/api/workflows'
 import type { Project } from '@/api/projects'
@@ -95,9 +95,12 @@ function Conversation({
       })
     }
   }
-  // In the version and at the revision the person was looking at.
-  const onPointAt = (plan: Plan, task: PlanTask) =>
-    setPointed({ workflowId: plan.id, revision: plan.revision, task })
+  // In the version and at the revision the person was looking at. Stable, as
+  // is `openAgent`, so a streamed delta does not redraw every message.
+  const onPointAt = useCallback(
+    (plan: Plan, task: PlanTask) => setPointed({ workflowId: plan.id, revision: plan.revision, task }),
+    [],
+  )
   const c = useConversation(threadId, showHere, projectId)
   // Open the session with the conversation so its menus are ready for the first message.
   const session = useSession(threadId)
@@ -114,10 +117,10 @@ function Conversation({
   const limits = c.limits ?? (info?.limits == null ? null : toLimits(info.limits))
   const live = Object.values(c.stream.subagents)
   const agentCard = agent === null ? null : cardOf(agent, c.entries.data ?? [], live)
-  const openAgent = (id: string) => {
+  const openAgent = useCallback((id: string) => {
     setSide(null)
     setAgent(id)
-  }
+  }, [])
 
   return (
     <div className="flex h-full min-h-0">
@@ -171,6 +174,8 @@ function Conversation({
           projectId={projectId}
           onPointAt={onPointAt}
           subagents={live}
+          tools={c.stream.tools}
+          todos={c.stream.todos}
           onOpenSubagent={openAgent}
         />
         <WaitingMessages threadId={threadId} running={c.running !== null} />

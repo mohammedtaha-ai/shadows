@@ -36,7 +36,7 @@ components:
   ProviderPicker:
     signature: "({ onChoose: (group: PresetGroup | null) => void }) => JSX.Element"
   ProviderForm:
-    signature: "({ provider: Provider | null, group: PresetGroup | null, onSaved: (p: Provider | null) => void }) => JSX.Element"
+    signature: "({ provider: Provider | null, group: PresetGroup | null, onSaved: (p: Provider | null) => void, onCancel: () => void, onDirtyChange: (dirty: boolean) => void }) => JSX.Element"
     # Preset/region or Custom URL, label, write-only key tests, model selection;
     # Delete provider retains inline confirmation.
   ProviderModels:
@@ -116,6 +116,10 @@ obligations:
   - rule: Deleting a provider or an agent requires inline confirmation inside Settings; successful agent deletion preserves the current page.
     tested_by: ["provider deletion confirms inside the settings dialog", "agent deletion confirms inline and preserves the current page"]
     note: The daemon refuses a provider in use with PROVIDER_IN_USE; the dialog shows it.
+  - rule: The provider form's add button counts models in correct English ("Add 1 model", "Add 2 models").
+    tested_by: ["the add button reads Add 1 model, Add 2 models"]
+  - rule: The provider form reports through onDirtyChange whether it holds unsaved edits (a typed or tested key, an unadded model id, or a field changed from where it opened), and false when it unmounts; while dirty it shows "Unsaved changes. Save or Cancel.". Cancel discards the edits through onCancel.
+    tested_by: ["Escape with unsaved provider edits keeps the dialog and the typed values", "a tested key keeps the provider form unsaved", "Cancel discards the edits"]
 
 tests:
   - name: provider_form_saves_and_clears_key

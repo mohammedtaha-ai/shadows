@@ -675,5 +675,5 @@ modules:
   structure.rs: Rendering an approved map snapshot into files
   structure_create.rs: Coordinating a person's structure write
   structure_write.rs: Checking
-  vision_items.rs: Pure vision item edits with server-assigned identities
+  vision_items.rs: Pure vision item edits with server-assigned identities (PU, U, G, B, TD)
   workspace.rs: A grant's read of its project's workspace, so a Planner plans from it

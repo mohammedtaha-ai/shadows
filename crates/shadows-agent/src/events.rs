@@ -1,9 +1,14 @@
 mod limits;
 mod subagent;
+mod tool;
 mod usage;
 
 pub use limits::{AccountLimits, LimitWindow};
 pub use subagent::{AgentFacts, SubagentCard, ToolMeta};
+pub use tool::{
+    CallKind, CallStatus, DiffHunk, DiffLine, DiffOp, TodoItem, TodoListCard, TodoStatus,
+    ToolCallCard, ToolDiff, ToolFacts, ToolLive, ToolLocation,
+};
 pub use usage::{TurnObservation, TurnUsage, UsageCost};
 
 use serde_json::Value;
@@ -27,10 +32,13 @@ pub enum HarnessEvent {
         /// What an Agent call told of its subagent; `None` for any
         /// other tool.
         agent: Option<Box<AgentFacts>>,
+        facts: ToolFacts,
     },
     /// A subagent's card changed while its turn runs. Sent by the
     /// Planner's watcher, not the connection, as `TurnEnd` is.
     Subagent(SubagentCard),
+    Tool(ToolLive),
+    Todos(Vec<TodoItem>),
     PermissionRefused {
         title: String,
     },

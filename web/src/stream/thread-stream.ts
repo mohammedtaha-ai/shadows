@@ -17,6 +17,8 @@ import {
   type PlanShowFrame,
   type SlashCommand,
   type SubagentCard,
+  type TodoItem,
+  type ToolFrame,
   type TurnEnd,
   type UsageFrame,
   parseCaughtUp,
@@ -27,6 +29,8 @@ import {
   parseOptions,
   parsePlanShow,
   parseSubagent,
+  parseTodos,
+  parseTool,
   parseTurnEnd,
   parseUsage,
 } from './frames'
@@ -63,6 +67,13 @@ export interface StreamState {
    * Transient, cleared by a break; kept past `turn-end`, since the card's
    * entry is drawn in its place once the entries list holds it. */
   readonly subagents: Readonly<Record<string, SubagentCard>>
+  /** The latest `tool` frame of each call of a running turn, by call id.
+   * Transient, cleared by a break; kept past `turn-end`: the view drops a frame
+   * once the entries list holds its call. */
+  readonly tools: Readonly<Record<string, ToolFrame>>
+  /** The latest task list of each running turn, by operation id. Cleared by a
+   * break; kept past `turn-end` like `tools`. */
+  readonly todos: Readonly<Record<string, readonly TodoItem[]>>
   readonly lastTurnEnd: TurnEnd | null
   /** Why the last connection ended, for a person to read. */
   readonly problem: string | null
@@ -111,6 +122,8 @@ export class ThreadStream {
   #state: StreamState
   #source: EventSourceLike | null = null
   #timer: ReturnType<typeof setTimeout> | null = null
+  /** A notice of streamed text, waiting for the current task to end. */
+  #notice: ReturnType<typeof setTimeout> | null = null
   #failures = 0
   #wanted = false
 
@@ -131,6 +144,8 @@ export class ThreadStream {
       streaming: {},
       labels: {},
       subagents: {},
+      tools: {},
+      todos: {},
       lastTurnEnd: null,
       problem: null,
     }
@@ -163,7 +178,7 @@ export class ThreadStream {
     if (!this.#wanted || this.#state.connection === 'failed') return
     if (this.#hidden()) {
       this.#disconnect()
-      this.#set({ streaming: {}, labels: {}, subagents: {} })
+      this.#set({ streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {} })
     } else if (this.#source === null && this.#timer === null) {
       this.#failures = 0
       this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
@@ -223,10 +238,14 @@ export class ThreadStream {
       this.#set({ connection: 'live', caughtUp: true, problem: null })
       this.#options.onCaughtUp?.(this.#state.lastSeq)
     })
+    // The browser can hand over many buffered deltas in one task, and every
+    // notice re-renders whoever subscribes. The text is kept at once (a
+    // durable listener reads it), but subscribers hear once the task is done.
     on('delta', (data) => {
       const { op, text } = parseDelta(data)
       const streaming = this.#state.streaming
-      this.#set({ streaming: { ...streaming, [op]: (streaming[op] ?? '') + text } })
+      this.#state = { ...this.#state, streaming: { ...streaming, [op]: (streaming[op] ?? '') + text } }
+      this.#notifySoon()
     })
     on('turn-end', (data) => {
       const turnEnd = parseTurnEnd(data)
@@ -239,6 +258,14 @@ export class ThreadStream {
     on('subagent', (data) => {
       const { card } = parseSubagent(data)
       this.#set({ subagents: { ...this.#state.subagents, [card.id]: card } })
+    })
+    on('tool', (data) => {
+      const frame = parseTool(data)
+      this.#set({ tools: { ...this.#state.tools, [frame.id]: frame } })
+    })
+    on('todos', (data) => {
+      const { op, entries } = parseTodos(data)
+      this.#set({ todos: { ...this.#state.todos, [op]: entries } })
     })
     on('meta', (data) => {
       const { op, label } = parseMeta(data)
@@ -259,7 +286,7 @@ export class ThreadStream {
     // `lastSeq` at once. Not a failure, so no backoff.
     on('lagged', () => {
       this.#disconnect()
-      this.#set({ streaming: {}, labels: {}, subagents: {} })
+      this.#set({ streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {} })
       this.#open('reconnecting')
     })
     // The daemon could not read its journal and is ending the stream.
@@ -282,10 +309,10 @@ export class ThreadStream {
     this.#disconnect()
     this.#failures += 1
     if (this.#failures > this.#options.maxFailures) {
-      this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {} })
+      this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {} })
       return
     }
-    this.#set({ connection: 'reconnecting', problem, streaming: {}, labels: {}, subagents: {} })
+    this.#set({ connection: 'reconnecting', problem, streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {} })
     const delay = Math.min(
       this.#options.baseDelayMs * 2 ** (this.#failures - 1),
       this.#options.maxDelayMs,
@@ -299,11 +326,25 @@ export class ThreadStream {
   /** A frame this client cannot read. Reconnecting would read it again, so stop. */
   #fail(problem: string): void {
     this.#disconnect()
-    this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {} })
+    this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {} })
   }
 
   #set(patch: Partial<StreamState>): void {
     this.#state = { ...this.#state, ...patch }
+    this.#notify()
+  }
+
+  #notifySoon(): void {
+    if (this.#notice !== null) return
+    this.#notice = setTimeout(() => this.#notify(), 0)
+  }
+
+  /** Also delivers a pending delta notice: the state it announces is this one. */
+  #notify(): void {
+    if (this.#notice !== null) {
+      clearTimeout(this.#notice)
+      this.#notice = null
+    }
     for (const listener of this.#listeners) listener()
   }
 }

@@ -83,6 +83,7 @@ impl Events {
             after,
             self.store.clone(),
             self.harness.clone(),
+            Some(self.turns.clone()),
             subscription::Live {
                 committed: self.storage.watch_committed(),
                 bus: self.turns.subscribe_live(),
@@ -106,6 +107,7 @@ impl Events {
             after,
             self.store.clone(),
             self.harness.clone(),
+            None,
             subscription::Live {
                 committed: self.storage.watch_committed(),
                 bus: self.turns.subscribe_live(),

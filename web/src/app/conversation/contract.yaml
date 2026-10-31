@@ -9,8 +9,10 @@
 # last can pull a finished turn back.
 #
 # Trap: the streamed reply and the durable entries share the screen. The reply hides
-# the entries it stands in for (`ShownReply.hidden`), and `Messages` drops them. Neither
-# hides anything on its own, and a message must never be on screen twice.
+# the messages it stands in for (`ShownReply.hidden`), and `Messages` drops them. Neither
+# hides anything on its own, and a message must never be on screen twice. A tool call or a
+# subagent entry is never hidden: the reply is cut at each one, and `Messages` draws each cut
+# before its entry, so a finished call stays between the paragraphs it ran between.
 #
 # Trap: a CommandId is the replay key. A retry reuses its id only while the request is
 # unchanged; changing a setting or the text makes a new command. Two paths build the
@@ -49,22 +51,29 @@ shapes:
     endedAt: "number | null"
     # Journal seq of the source that set the turn; -1 when only the start route has answered.
     seq: number
+  Cut:
+    # The turn's text up to one announced agent entry: it came before that entry.
+    ordinal: number
+    # The entry is an AgentMessage, which this text stands in for.
+    message: bool
+    # '' when the entry followed another with no text between.
+    text: string
   ReplyState:
     # The turn whose text this is; `live` means the stream is still delivering it.
     op: "string | null"
-    # Messages of this turn already announced as agent entries.
-    segments: "string[]"
-    # How much of the turn's streamed text `segments` hold; `tail` is the rest.
+    # The text cut at each agent entry announced so far, in order.
+    cuts: "Cut[]"
+    # How much of the turn's streamed text `cuts` hold; `tail` is the rest.
     consumed: number
     tail: string
-    # Ordinals of the agent entries `segments` stand in for.
-    covers: "number[]"
     live: bool
   ShownReply:
-    text: string
-    # Still streaming: the cursor is drawn.
+    # The state's own array, unchanged by a delta, so the rows built from it stay the same.
+    cuts: "Cut[]"
+    tail: string
+    # Still streaming: the cursor is drawn on the tail.
     live: bool
-    # Entries this text stands in for; the list does not draw them.
+    # The messages this text stands in for (cuts with `message`); the list does not draw them.
     hidden: "Set<number>"
   Durable:
     # What the fetched entries list holds, and when it was fetched.
@@ -150,6 +159,15 @@ enums:
   SubagentCard:
     source: web/src/stream/frames.ts (readSubagentCard)
     values: []
+  ToolFrame:
+    source: web/src/stream/frames.ts
+    values: []
+  TodoItem:
+    source: web/src/stream/frames.ts (readTodoList)
+    values: []
+  DiffHunk:
+    source: web/src/api/threads.ts
+    values: []
   DurableEvent:
     source: web/src/stream/frames.ts
     values: []
@@ -200,6 +218,8 @@ components:
       JSX.Element"
     # Composes useSend, useStop, useImages and useSessionSettings with the prompt
     # and slash menu. Send waits for known and the session to hold the chosen model.
+    # While a send or queue is in flight the message box is read-only, never disabled,
+    # so it keeps focus and the person types again as soon as it settles.
   ComposerBar:
     signature: "(props: { harness: string; harnessLabel: string; session: SessionView; settings:
       TurnSettings | null; onSettings: (next: TurnSettings) => void; changingModel: boolean;
@@ -229,17 +249,44 @@ components:
   Messages:
     signature: "(props: { entries: readonly ThreadEntry[] | undefined; projectId: string; onPointAt:
       (plan: Plan, task: PlanTask) => void; subagents: readonly SubagentCard[]; onOpenSubagent: (id:
-      string) => void; operations: readonly Operation[] | undefined; models: readonly Choice[];
+      string) => void; tools: Readonly<Record<string, ToolFrame>>; todos: Readonly<Record<string,
+      readonly TodoItem[]>>; operations: readonly Operation[] | undefined; models: readonly Choice[];
       harness: string; forkFrom: { projectId: string; threadId: string } | null; loading: boolean;
       reply: ShownReply | null; running: boolean; thinking: boolean; label: string | undefined }) =>
       JSX.Element"
-    # Entries in order, then the reply, the running turn's cards, the waiting line
-    # and the operational label. Follows the bottom while the reader is there.
+    # Entries in order with the reply's cuts before the entries they were cut at, the running
+    # turn's unwritten calls, the reply's tail, the running turn's cards, the waiting line and
+    # the operational label. Follows the bottom while the reader is there. Tool calls are drawn
+    # as `ToolGroup` rows (`activityRows`); the running turn's `tools` frames not yet written
+    # as entries join the last row when it is that turn's group, or form one after it, before
+    # the tail (Core ends the message at each call).
+    # A turn's live `todos` list draws as a `TodoCard` after the reply until its entry lands.
   Entry:
     signature: "(props: { entry: ThreadEntry; policy: HarnessPolicy; requestedMode: string | null;
       projectId: string; onPointAt: (plan: Plan, task: PlanTask) => void; onOpenSubagent: (id:
       string) => void }) => JSX.Element"
-    # Dispatches on `entry.kind`: the kind decides the card, never the text.
+    # Dispatches on `entry.kind`: the kind decides the card, never the text. A `ToolCall`
+    # is not drawn here; `Messages` draws it as a `ToolGroup`.
+  ToolGroup:
+    signature: "(props: { steps: readonly ToolStep[]; ordinals: string; forkProjectId?: string;
+      forkThreadId?: string; forkEntryId?: string }) => JSX.Element"
+    # Memoised. One step is a line; two or more are a summary button (words, total time,
+    # '· N failed') that opens into numbered steps. Open while a step runs, unless the person
+    # chose; a link to a member's ordinal opens it. A failed step's `error` shows under its
+    # line, clamped to six lines with Show all. Copy takes each step's line. An edit step with a diff
+    # (or counts without one) has its own chevron that opens `ToolDiff`; every numbered step keeps
+    # that chevron's column, so the numbers line up.
+  ToolDiff:
+    signature: "(props: { diff: readonly DiffHunk[] | null }) => JSX.Element"
+    # Lines with old and new numbers (none when a hunk has no start), added on green and removed on
+    # red; a gap row between hunks of one file, the path as a heading where it changes. `null`
+    # reads 'Diff too long to show'.
+  TodoCard:
+    signature: "(props: { items: readonly TodoItem[] }) => JSX.Element"
+    # Heading 'Tasks · D of N done'; a check for completed (text muted), a spinner for in progress, an
+    # empty circle for pending. `Messages` draws the stream's live `todos` of an operation after the
+    # reply until the entries hold a `TodoList` entry of that operation, which `Entry` draws instead
+    # (never both); an unreadable card shows its body.
   ReplyText:
     signature: "(props: { text: string; live?: boolean }) => JSX.Element"
     # Declared in entry.tsx as a lazy wrapper around reply-text.tsx's renderer.
@@ -282,7 +329,8 @@ components:
     # Opens at once from the figures held and makes no daemon request; one muted line points to the /context slash command.
   DeletedConversation:
     signature: "(props: { thread: PlanningThread; projectId: string }) => JSX.Element"
-    # Read-only history; never opens a session.
+    # Read-only history; never opens a session, so it holds no live frames and passes empty
+    # `tools` and `todos`.
   FocusChip:
     signature: "(props: { pointed: PointedTask; onClear: () => void }) => JSX.Element"
   SlashMenu:
@@ -301,7 +349,7 @@ components:
 
 hooks:
   useSend:
-    signature: "({ to: SendTo; threadId: string | null; running: Turn | null; initialAttempt?: Attempt | null; imagesChanged: () => void; dropImages: (sent: PendingImage[]) => void; clearPrompt: () => void; clearContinuedPlan: () => void; onPointed: (done: PointedTask) => void; onStarted: (operationId: string) => void }) => { deliver: ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>) => void; clearAttempt: () => void; sending: boolean; inFlight: boolean; error: Error | null }"
+    signature: "({ to: SendTo; threadId: string | null; running: Turn | null; initialAttempt?: Attempt | null; imagesChanged: () => void; dropImages: (sent: PendingImage[]) => void; clearPrompt: () => void; clearContinuedPlan: () => void; onStarted: (operationId: string) => void }) => { deliver: ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>) => void; clearAttempt: () => void; sending: boolean; inFlight: boolean; error: Error | null }"
     # Owns the pending attempt, send/queue mutations and their choice. deliver takes
     # the message values; it reads neither prompt state nor the slash menu.
     # clearAttempt is stable so the composer, images and settings share one reset.
@@ -356,12 +404,12 @@ pure:
     signature: "(state: TurnState) => Turn | null"
   replyReducer:
     signature: "(state: ReplyState, action: ReplyAction) => ReplyState"
-    # `stream` follows the streamed text; `agent-entry` cuts a segment where the
-    # stream stood when the entry was announced.
+    # `stream` follows the streamed text; `agent-entry` cuts the text where the
+    # stream stood when the entry was announced, and records whether it is a message.
   shownReply:
     signature: "(state: ReplyState, durable: Durable) => ShownReply | null"
-    # Shown until the entries hold every covered ordinal, or until a fetch after the
-    # turn ended.
+    # Shown until the entries hold every cut's ordinal, or until a fetch after the
+    # turn ended. Null while no cut and no tail holds text.
   agentOrdinal:
     signature: "(payload: unknown) => number | null"
     # Exported from use-conversation.ts. AgentMessage, ToolCall and Subagent only.
@@ -399,22 +447,34 @@ pure:
     # Unix seconds in, two largest units out: `3d21h`, `4h18m`, `7m`, or `now`.
   latestContext:
     signature: "(operations: readonly Operation[]) => ContextFigures | null"
-  toolTitle:
-    signature: "(entry: ThreadEntry) => string | null"
   toolText:
     signature: "(title: string) => string | null"
-    # A sentence for Shadows' tools, the title for any other, null when the tool adds no line.
+    # A sentence for Shadows' tools (an unknown one reads "Used Shadows: <name>"), the title for any other, null when the tool adds no line.
   subagentOf:
     signature: "(entry: ThreadEntry) => SubagentCard | null"
     # Null for any other kind, and for a card that fails to read (no throw escapes).
-  isTool:
-    signature: "(entry: ThreadEntry) => boolean"
   silent:
     signature: "(entry: ThreadEntry) => boolean"
     # True for a tool call whose title reads as nothing (plan_show).
+  activityRows:
+    signature: "(shown: readonly ThreadEntry[], texts?: readonly TextPart[]) => Row[]"
+    # Consecutive ToolCall entries of one turn with a readable card form one group; an entry
+    # with no card (an old one) stands alone as a completed step with its title. Each text
+    # part (a reply cut) is a `text` row before the first entry at or after its ordinal, and
+    # splits a group there.
+  liveSteps:
+    signature: "(frames: readonly ToolFrame[], entries: readonly ThreadEntry[], op: string, ended?: boolean) => ToolStep[]"
+    # A frame whose call an entry already holds is dropped: the entry is final.
+  groupSummary:
+    signature: "(steps: readonly ToolStep[]) => string"
+    # 'Read 3 files, ran 2 commands, edited a file +36': kinds in order of first appearance.
+  stepLine:
+    signature: "(step: ToolStep) => { text: string; counts: string | null }"
+    # A sentence, else verb + target (+ lines), else the title.
   copyText:
     signature: "(entry: ThreadEntry) => string"
-    # What Copy puts on the clipboard: a subagent's report, a tool's sentence, or the body.
+    # What an entry row's Copy puts on the clipboard: a subagent's report, or the body. A tool
+    # call never reaches it: `ToolGroup` copies its steps' lines.
   duration:
     signature: "(ms: number) => string"
   tokens:
@@ -506,11 +566,19 @@ obligations:
 
   - rule: >
       A streamed reply stays on screen after its turn-end until the entries list holds
-      every agent entry it stands in for, and it hides exactly those entries, so a message
-      is never shown twice.
+      every agent entry it was cut at, and it hides exactly the messages among them, so a
+      message is never shown twice.
     tested_by:
       - "stays after turn-end until the entries list holds the agent entry"
       - "shows nothing before any text streams"
+      - "cuts the text at a tool call and hides only the messages it stands in for"
+
+  - rule: >
+      A finished tool call never disappears during its turn: its entry is drawn where it
+      ran, between the reply's paragraphs, the same before and after the turn ends.
+    tested_by:
+      - "a written tool call stays between the paragraphs while the turn streams on"
+      - "puts streamed text before the entry it was cut at, splitting the group there"
 
   - rule: >
       A turn stopped mid-sentence keeps its partial reply until the entries are fetched
@@ -543,6 +611,13 @@ obligations:
       A long reply streams without exceeding the update depth. The reply follows the
       streamed text during render, not through an effect per delta.
     tested_by: "streams a long reply without exceeding the update depth"
+
+  - rule: >
+      A delta redraws the reply, not the thread: each durable entry is a memoised row
+      whose props stay equal while the entries list does (`Conversation` keeps
+      `onPointAt` and `openAgent` stable; the fork point goes as plain values to its
+      anchor row only), so a plan card or long markdown renders once while a reply streams.
+    tested_by: "draws the plan card and the long markdown once while many deltas arrive"
 
   - rule: >
       Settings follow the session's own reports, but a report that arrives during a send or
@@ -783,7 +858,8 @@ obligations:
       - "a turn that ends with a plan card can still be forked, from its real last entry"
 
   - rule: >
-      Copy copies the text as it reads: a tool's sentence or title, and a subagent's report.
+      Copy copies the text as it reads: a tool step's line as `stepLine` words it (a sentence or
+      the title), and a subagent's report.
     tested_by:
       - "copy is on every message and copies its text"
       - "Copy on a tool line copies its title (§23.8)"
@@ -802,14 +878,34 @@ obligations:
       - "plan tool lines read as sentences"
 
   - rule: >
+      The conversation passes its stream's `tools` to Messages, so a running turn's tool call
+      shows as a running step in its turn's group before its entry is written.
+    tested_by: "a live tool frame draws a running step in its turn's group"
+
+  - rule: >
+      An edit step opens into its diff only when Core sent hunks or counts; a diff Core left out
+      for its size says so and keeps the step's counts.
+    tested_by:
+      - "a diff too long to show says so and keeps its counts"
+      - "an edit step without a diff has no chevron"
+
+  - rule: >
+      A turn's checklist is on screen once: the stream's live list until the entries hold that
+      turn's `TodoList` entry, then the entry, never both.
+    tested_by:
+      - "once the TodoList entry is in the list, the live card goes and the entry shows it, never both"
+      - "a live list updates with each todos frame"
+
+  - rule: >
       A PlanView entry draws its own version's graph, pinned to that version, with an Open
       plan link.
     tested_by: "a PlanView entry renders the graph of its version"
 
   - rule: >
       Clicking a task points the next turn at that task's id and the version and revision the
-      person saw. Sending clears the chip.
-    tested_by: "clicking a task adds the focus chip and the next send carries it"
+      person saw. The chip stays after a send or a queue, so several messages can go to the same
+      task; only × removes it.
+    tested_by: "clicking a task adds the focus chip and every send carries it until × removes it"
 
   - rule: >
       A live plan-show frame moves only the tab that sent the turn. A page navigates, a side
@@ -978,14 +1074,6 @@ obligations:
 # ── agreements ───────────────────────────────────────────────────────────────
 
 agreements:
-  - between: [copyText, Entry tool line]
-    must: >
-      read the same text for a tool call, so what Copy takes is what the person sees
-    holds: true
-    why: >
-      Both use toolText with the same fallback to the title.
-    tested_by: "Copy on a tool line copies its title (§23.8)"
-
   - between: [useFirstSend (draft), useSend (thread page)]
     must: >
       fingerprint a retried first send the same way, so the thread page's retry replays the
@@ -1059,12 +1147,6 @@ gaps:
       such as "claude-opus-4-20250514" reads "Opus 4.20250514". "claude-3-5-sonnet" reads
       "Claude 3.5", which drops the family.
 
-  - at: toolText
-    gap: >
-      `name in SENTENCES` also matches inherited Object.prototype keys. "mcp__shadows__constructor"
-      returns the Object function, which is neither null nor the title. Reachable only with a
-      shadows tool name outside the table. Low severity; an own-property check fixes it.
-
   - at: ApprovedBy
     gap: >
       Every `agent` other than 'human' reads as "Approved by the Planner at your request". An
@@ -1086,11 +1168,6 @@ gaps:
 # ── open_questions ───────────────────────────────────────────────────────────
 
 open_questions:
-  - >
-      Should a queued message clear the focus chip? `useSend`'s queue `onSuccess` does not call
-      `onPointed`, while a sent turn does. The queued message stores its focus (WaitingMessages'
-      rows carry it), so the chip staying means the next message carries it too. Intent is not
-      stated in code; decide, then align use-send.ts.
 
   - >
       Does the daemon retitle a draft's thread on its first start? `useFirstSend` creates the thread
@@ -1149,7 +1226,15 @@ tests:
 
   # use-conversation.test.tsx
   - name: "streams a long reply without exceeding the update depth"
-    checks: "120 deltas outside act: no error, and the reply text is all 120 characters."
+    checks: "120 deltas outside act: no error, and the reply's tail is all 120 characters."
+
+  # streamed-reply.test.tsx
+  - name: "draws the plan card and the long markdown once while many deltas arrive"
+    checks: "100 deltas into a running thread holding a PlanView and 40 sections of markdown: Entry
+      renders for both stay at their count before the first delta; word99 shows."
+  - name: "a written tool call stays between the paragraphs while the turn streams on"
+    checks: "Delta, AgentMessage announced, tool frame, ToolCall entry announced and fetched, more
+      deltas: the group still shows, after the first paragraph's row and before the second's."
 
   # turn-state.test.ts
   - name: "a reload during a running turn shows it running, then follows it to its end"
@@ -1183,15 +1268,17 @@ tests:
   - name: "ignores the person, plans and refusals"
     checks: "UserMessage, PlanView and PermissionRefused yield null."
   - name: "stays after turn-end until the entries list holds the agent entry"
-    checks: "Hidden set {2} and text 'Hello' until durable ordinals include 2, then null."
+    checks: "Hidden set {2} and a cut 'Hello' at 2 until durable ordinals include 2, then null."
   - name: "does not give way to the entry while the turn is still streaming"
-    checks: "A live reply keeps its text and cursor even when entry 2 is in the list."
+    checks: "A live reply keeps its cut, its tail and cursor even when entry 2 is in the list."
   - name: "splits messages where the stream stood when the entry was announced, not at the last render"
     checks: "Cut at the announced stream text: 'First.' then 'Second' joined by a blank line."
   - name: "a turn stopped mid-sentence stays until entries are fetched after it ended"
     checks: "Stopped reply shown until a fetch at or after endedAt, then null."
   - name: "a new turn replaces what the last one left"
     checks: "A second op's stream replaces the first's text and goes live."
+  - name: "cuts the text at a tool call and hides only the messages it stands in for"
+    checks: "Message 2 then call 3: cuts 'First.' and '', tail 'Second', hidden {2} only."
   - name: "shows nothing before any text streams"
     checks: "A stopped turn with no text yields null."
 
@@ -1417,9 +1504,9 @@ tests:
   # plan-in-conversation.test.tsx
   - name: "a PlanView entry renders the graph of its version"
     checks: "Card shows title, revision, graph node T1, Open plan link, no minimap, legend below."
-  - name: "clicking a task adds the focus chip and the next send carries it"
-    checks: "Chip shows T2 · Login screen; send carries focus w1/task-2/rev 3; chip cleared; same
-      tab id."
+  - name: "clicking a task adds the focus chip and every send carries it until × removes it"
+    checks: "Chip shows T2 · Login screen; send carries focus w1/task-2/rev 3; chip stays and the next
+      send carries it; × removes it and the one after carries none; same tab id."
   - name: "a plan-show frame for this tab and page navigates"
     checks: "A page plan-show for this tab navigates to the workflow page."
   - name: "a plan-show frame for this tab and side opens the panel on that version"

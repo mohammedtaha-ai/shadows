@@ -67,6 +67,8 @@ modules:
   turn.rs: live completion arbitration
   entries.rs: harness entry collection
   subagents.rs: subagent card collection
+  tools.rs: tool card collection
+  hunks.rs: edit hunk placement
   testing.rs: test-only lifecycle composition
   store/images.rs: neutral image read composition
   store/mod.rs: private TurnsStore handle
@@ -95,6 +97,10 @@ dependencies:
   projects: crates/core-projects/contract.yaml
 
 shapes:
+  LiveActivity:
+    op: OperationId
+    tools: Vec<ToolLive> # Open calls in start order.
+    todos: Option<Vec<TodoItem>>
   Prompt:
     blocks: Vec<PromptBlock>
     withholds: bool
@@ -280,6 +286,9 @@ functions:
   plan_cards:
     show_plan: "(&self, grant, PlanShow) -> Result<PlanShown, TurnsError>; calls Plans::show, reads its live tab and signals only a non-replay"
   service:
+    live_activity:
+      signature: "(&self, thread: &ThreadId) -> Option<LiveActivity>"
+      # Latest open calls and list for a registered turn on this thread.
     remove_thread:
       signature: "(&self, command_id, thread) -> Result<PlanningThread, TurnsError>"
       # Replay first; Threads marks the row, Grants revokes, Threads journals and records
@@ -432,6 +441,12 @@ functions:
       # On `Collector`: each subagent card changed since the last call, as it
       # is now; `accept` publishes each as `HarnessEvent::Subagent` (§22.2).
       # The cards are gathered by `Subagents` (`subagents.rs`).
+    changed_tools:
+      signature: "(&mut self) -> Vec<ToolLive>"
+      # On Collector: changed call views since the last read.
+    live:
+      signature: "(&self) -> (Vec<ToolLive>, Option<Vec<TodoItem>>)"
+      # Open call views and the latest complete task list.
     steer_target:
       signature: "(&self) -> Option<SteerTarget>"
       # pub(crate) on `LiveHandles`: the running turn of a thread as Send now
@@ -561,9 +576,20 @@ shared_in_transaction:
 
 called_by_other_services:
   subscribe_live: Events subscribes before replay without accessing the sender.
+  live_activity: Events can read the current turn's open calls and task list.
 
 
 obligations:
+  - rule: >
+      A turn writes its last nonempty task list after its other entries, with
+      Markdown body and TodoListCard. No update or an empty final list writes none.
+      Live activity holds open tool calls and the latest list for the running turn;
+      tool changes publish on the turn bus.
+    tested_by:
+      - the_last_plan_update_becomes_one_todo_list_entry_at_the_end
+      - a_turn_without_a_plan_writes_no_todo_list
+      - changed_tools_reports_a_call_once_per_change
+      - a_turns_task_list_is_kept_as_a_todo_list_entry
   - rule: Terminal usage and operation state commit together once under the existing claim and CAS.
     tested_by: [usage_ends_atomically_once]
   - rule: Cancelled or refused replies keep actual measurements; missing responses remain unknown.
@@ -588,7 +614,11 @@ obligations:
       - context_skipped_by_a_command_reaches_the_next_turn
       - changes_skipped_by_two_commands_reach_the_next_turn_once_and_current
   - rule: >
-      A tool is one `ToolCall` entry whose body is its title (§23.8). A
+      A tool becomes one `ToolCall` entry with its title and structured card.
+      Ended calls wait for late updates until another kind of entry or turn end;
+      open calls are written stopped at turn end. Written ids ignore later
+      updates. The card keeps the target, lines, diff counts, hunks, times and
+      a failed call's bounded error. A
       subagent is one `Subagent` entry carrying its card (§22.2, §23.8): the
       subagent's own tool calls are steps of its
       card, never entries; the card is written once its call has ended and
@@ -596,6 +626,15 @@ obligations:
       text, or at the turn's end, `stopped` if still running. Every change
       to a card while the turn runs is published whole on the turn's bus.
     tested_by:
+      - a_tool_entry_carries_its_card_with_target_lines_and_status
+      - a_placed_diff_after_the_end_replaces_the_snippet_before_the_next_text
+      - a_diff_over_400_lines_keeps_its_counts_and_drops_its_hunks
+      - a_new_file_is_one_hunk_of_added_lines_without_numbers
+      - a_failed_call_is_failed_and_an_open_one_is_stopped
+      - a_failed_call_keeps_its_error_text_cut_at_2000_characters
+      - a_target_under_the_root_is_relative
+      - an_update_for_a_written_call_writes_nothing
+      - tool_entries_carry_their_cards
       - a_subagent_becomes_one_entry_with_its_steps_and_numbers
       - a_card_without_numbers_goes_before_the_next_text_and_a_running_one_stops
   - rule: >

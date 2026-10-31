@@ -36,6 +36,7 @@ serde_json = "1"
 jsonschema = { version = "=0.58.5", default-features = false }
 json-patch = "=4.2.0"
 sha2 = "0.10"
+similar = "2"
 sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "migrate"] }
 thiserror = "2"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }

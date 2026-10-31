@@ -2,7 +2,7 @@
 // and context window, and deleting it.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type FormEvent, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import {
   type Provider, type ProviderInput, deleteProvider, providersQuery, removeProviderKey,
   saveProvider, setProviderKey, testProvider, testSavedProvider,
@@ -21,10 +21,13 @@ import { testLine } from './provider-test'
 // Shown only while the field holds text, so adding or clearing the id removes it.
 const UNADDED = 'You have an unadded model id. Add it or clear the field before saving.'
 
-export function ProviderForm({ provider, group, onSaved }: {
+export function ProviderForm({ provider, group, onSaved, onCancel, onDirtyChange }: {
   provider: Provider | null
   group: PresetGroup | null
   onSaved: (p: Provider | null) => void
+  onCancel: () => void
+  // The dialog around the form refuses to close while this reports true.
+  onDirtyChange: (dirty: boolean) => void
 }) {
   const queryClient = useQueryClient()
   const [name, setName] = useState(provider?.name ?? '')
@@ -116,6 +119,13 @@ export function ProviderForm({ provider, group, onSaved }: {
     save.mutate({ ...(preset ? { preset: preset.id } : { preset: null, name, base_url: url }), label: label.trim() || null,
       models: picked.map(model => ({ id: model.id, ...(model.contextWindow != null && { context_window: model.contextWindow }) })) })
   }
+  const [initial] = useState(() => JSON.stringify([name, url, preset?.id ?? null, picked, label]))
+  // A successful test moves the typed key out of the field into testedKey, still unsaved.
+  const dirty = apiKey !== '' || testedKey !== '' || manual !== '' || JSON.stringify([name, url, preset?.id ?? null, picked, label]) !== initial
+  useEffect(() => {
+    onDirtyChange(dirty)
+    return () => onDirtyChange(false)
+  }, [dirty, onDirtyChange])
   const busy = save.isPending || removeKey.isPending || remove.isPending || test.isPending
   const credentialsChanged = () => { setTestedKey(''); setLine(null); setListed([]) }
   const clearRefusal = (field: string) => setRefusal(current => current?.field === field ? null : current)
@@ -190,7 +200,9 @@ export function ProviderForm({ provider, group, onSaved }: {
           {save.error !== null && !(save.error instanceof ApiError && save.error.problem.kind === 'daemon' && save.error.problem.field) && <ErrorLine error={save.error} />}
           {removeKey.error !== null && <ErrorLine error={removeKey.error} />}
           <div className="flex items-center gap-3">
-            <Button type="submit">{save.isPending ? 'Saving…' : provider ? 'Save provider' : `Add ${picked.length} models`}</Button>
+            <Button type="submit">{save.isPending ? 'Saving…' : provider ? 'Save provider' : `Add ${picked.length} ${picked.length === 1 ? 'model' : 'models'}`}</Button>
+            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+            {dirty && <p role="status" className="text-xs text-destructive-foreground">Unsaved changes. Save or Cancel.</p>}
             <p className="text-xs text-faint-foreground">Changes apply to new and resumed conversations.</p>
           </div>
         </fieldset>

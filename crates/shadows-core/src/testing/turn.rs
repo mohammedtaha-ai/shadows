@@ -106,6 +106,7 @@ pub async fn start_direct(
         sessions.clone(),
         opened,
         PlannerTurnRequest {
+            root: None,
             thread_id: thread.clone(),
             harness: "claude-code".into(),
             operation_id: started.operation_id,

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { providersQuery, providerPresetsQuery } from '@/api/aylul-profiles'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../../error-line'
@@ -7,16 +7,21 @@ import { ProviderForm } from '@/app/agents'
 import { ProviderPicker } from '@/app/agents'
 import { presetOf, providerTitle, presetGroups, type PresetGroup } from '@/app/agents'
 
-export function ProvidersSection() {
+export function ProvidersSection({ onUnsavedChange }: { onUnsavedChange?: (unsaved: boolean) => void }) {
   const providers = useQuery(providersQuery)
   const presets = useQuery(providerPresetsQuery)
   const [step, setStep] = useState<'list' | 'choose' | 'setup'>('list')
   const [slug, setSlug] = useState<string | null>(null)
   const [group, setGroup] = useState<PresetGroup | null>(null)
   const provider = providers.data?.find(item => item.slug === slug) ?? null
+  const [dirty, setDirty] = useState(false)
+  useEffect(() => {
+    onUnsavedChange?.(dirty)
+    return () => onUnsavedChange?.(false)
+  }, [dirty, onUnsavedChange])
   return <div className="space-y-4">
     {providers.error && <ErrorLine error={providers.error} />}
-    {step !== 'list' && <Button type="button" variant="ghost" aria-label="Back" onClick={() => setStep(step === 'setup' && slug === null ? 'choose' : 'list')}>←</Button>}
+    {step !== 'list' && <Button type="button" variant="ghost" aria-label="Back" disabled={dirty} onClick={() => setStep(step === 'setup' && slug === null ? 'choose' : 'list')}>←</Button>}
     {step === 'list' && <>
       <Button type="button" onClick={() => { setSlug(null); setStep('choose') }}>Add provider</Button>
       {providers.data && <ul aria-label="Saved providers" className="divide-y divide-border">
@@ -38,6 +43,7 @@ export function ProvidersSection() {
     </>}
     {step === 'choose' && <ProviderPicker onChoose={group => { setGroup(group); setStep('setup') }} />}
     {presets.error && <ErrorLine error={presets.error} />}
-    {step === 'setup' && <ProviderForm key={slug ?? group?.name ?? 'custom'} provider={provider} group={group} onSaved={() => setStep('list')} />}
+    {step === 'setup' && <ProviderForm key={slug ?? group?.name ?? 'custom'} provider={provider} group={group}
+      onSaved={() => setStep('list')} onCancel={() => setStep('list')} onDirtyChange={setDirty} />}
   </div>
 }

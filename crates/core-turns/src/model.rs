@@ -109,3 +109,18 @@ pub struct Operation {
 }
 
 pub use core_harness::InvocationView;
+
+pub(crate) type ActivityState = std::sync::Arc<
+    std::sync::Mutex<(
+        Vec<shadows_agent::events::ToolLive>,
+        Option<Vec<shadows_agent::events::TodoItem>>,
+    )>,
+>;
+
+/// A running turn's latest activity for a thread subscriber.
+#[derive(Debug, Clone)]
+pub struct LiveActivity {
+    pub op: OperationId,
+    pub tools: Vec<shadows_agent::events::ToolLive>,
+    pub todos: Option<Vec<shadows_agent::events::TodoItem>>,
+}

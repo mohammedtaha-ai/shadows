@@ -118,7 +118,7 @@ describe('the plan in the conversation', () => {
     }
   })
 
-  it('clicking a task adds the focus chip and the next send carries it', async () => {
+  it('clicking a task adds the focus chip and every send carries it until × removes it', async () => {
     const a = await start(shown(), { plan: planFixture({ revision: 3 }) })
     await until(() => node(card(a), 2) !== null)
     await until(ready(a))
@@ -136,15 +136,23 @@ describe('the plan in the conversation', () => {
     const first = await send(a, 'change this')
     expect(first.focus).toEqual({ workflow_id: 'w1', task_id: 'task-2', revision: 3 })
     expect(typeof first.client_tab).toBe('string')
-    // Sent: the chip is gone, and the turn after carries no focus.
-    await until(() => chip() === null)
+    // Sent: the chip stays and the next turn carries the same focus.
+    expect(chip()).not.toBeNull()
     const stream = await liveStream(a)
     await act(async () => stream.durable(1, 'OperationCompleted', 'op1', { status_kind: 'Completed', cancel_requested: false }))
     await until(() => a.button('Send') !== undefined)
     const second = await send(a, 'thanks')
-    expect(second.focus ?? null).toBeNull()
+    expect(second.focus).toEqual(first.focus)
     // One tab, one id, on every turn.
     expect(second.client_tab).toBe(first.client_tab)
+    // × removes the chip; the turn after carries none.
+    await act(async () => a.button('Remove focus')?.click())
+    await until(() => chip() === null)
+    const stream2 = await liveStream(a)
+    await act(async () => stream2.durable(2, 'OperationCompleted', 'op2', { status_kind: 'Completed', cancel_requested: false }))
+    await until(() => a.button('Send') !== undefined)
+    const third = await send(a, 'last')
+    expect(third.focus ?? null).toBeNull()
   })
 
   it('a plan-show frame for this tab and page navigates', async () => {

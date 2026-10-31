@@ -113,7 +113,7 @@ export function Composer({
     dropImages: sent => dropImages(sent),
     clearPrompt: () => setPrompt(''),
     clearContinuedPlan: () => setContinuedPlan(undefined),
-    onPointed, onStarted,
+    onStarted,
   })
 
   // The `/` menu: open while the whole text is `/name`; Escape closes
@@ -218,7 +218,7 @@ export function Composer({
             <textarea
               ref={messageBox}
               value={prompt}
-              disabled={inFlight}
+              readOnly={inFlight}
               onPaste={e => {
                 const files = Array.from(e.clipboardData.files).filter(file => file.type.startsWith('image/'))
                 if (files.length === 0) return

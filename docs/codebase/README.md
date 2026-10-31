@@ -209,6 +209,8 @@ pattern to follow, not merely an example.
 | `crates/core-turns/src/steer.rs` | a Send now inside the turn's watcher | `crates/core-turns/src/steer.rs` |
 | `crates/core-turns/src/turn.rs` | the recorded ending of a live Planner turn | `crates/core-turns/src/turn.rs` |
 | `crates/core-turns/src/entries.rs` | turning harness events into durable entries | `crates/core-turns/src/entries.rs` |
+| `crates/core-turns/src/tools.rs` | tool card collection | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/hunks.rs` | edit hunk placement | `crates/core-turns/contract.yaml` |
 | `crates/core-turns/src/subagents.rs` | gathering a subagent's tool calls into its card (§22) | `crates/core-turns/src/subagents.rs` |
 | `crates/core-harness/src/` | the harnesses, each thread's open session included | `crates/core-harness/src/lib.rs` |
 | `crates/core-harness/src/model.rs` | the harness shapes callers meet | `crates/core-harness/src/model.rs` |
@@ -313,6 +315,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/acp/session.rs` | ACP session configuration | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/prompt.rs` | ACP prompt lifecycle | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/mapping.rs` | ordered ACP event translation | `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/events/tool.rs` | tool activity reports | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/events/subagent.rs` | subagent metadata | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/events/limits.rs` | reported account limits | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/events/usage.rs` | reported turn usage | `crates/shadows-agent/src/events.rs` |
