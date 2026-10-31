@@ -1,5 +1,6 @@
 // One job: how one durable thread entry reads in the conversation — a
-// message, a tool call, a subagent's card, a plan card, or a system line.
+// message, a subagent's card, a plan card, or a system line. Tool calls are
+// drawn as groups by `ToolGroup`.
 
 import { CircleCheck, ShieldX } from 'lucide-react'
 import { Suspense, lazy } from 'react'

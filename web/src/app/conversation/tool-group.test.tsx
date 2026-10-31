@@ -81,6 +81,30 @@ describe('a tool group', () => {
     expect(summary()?.textContent).toMatch(/\d+s/)
   })
 
+  it("a live tool frame draws a running step in its turn's group", async () => {
+    const a = await open([read('a')])
+    expect(summary()).toBeNull()
+    act(() =>
+      a.pushFrame('tool', {
+        op: 'op1',
+        id: 'b',
+        tool: 'Read',
+        kind: 'read',
+        title: 'Read b.ts',
+        target: 'b.ts',
+        lines: null,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+      }),
+    )
+    await until(() => summary() !== null)
+    expect(a.container.querySelectorAll('[data-entry-kind="tool"]')).toHaveLength(1)
+    expect(summary()?.textContent).toContain('Read 2 files')
+    expect(summary()?.getAttribute('aria-expanded')).toBe('true')
+    expect(a.container.querySelector('[aria-label="Running"]')).not.toBeNull()
+    expect(a.text()).toContain('Read b.ts')
+  })
+
   it('a failed step is marked failed and the line says how many', async () => {
     const a = await open([read('a'), read('b', { status: 'failed', error: 'no such file' })])
     expect(summary()?.textContent).toContain('1 failed')

@@ -22,7 +22,6 @@ import { SubagentCardView } from './subagent-card'
 import { copyText, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
 
-const NO_TOOLS: Readonly<Record<string, ToolFrame>> = {}
 const NO_ENTRIES: readonly ThreadEntry[] = []
 
 const appear = {
@@ -46,7 +45,7 @@ export function Messages({
   onPointAt,
   subagents,
   onOpenSubagent,
-  tools = NO_TOOLS,
+  tools,
 }: {
   entries: readonly ThreadEntry[] | undefined
   projectId: string
@@ -56,7 +55,7 @@ export function Messages({
   subagents: readonly SubagentCard[]
   onOpenSubagent: (id: string) => void
   /** The running turn's tool calls as the stream last sent them, by call id. */
-  tools?: Readonly<Record<string, ToolFrame>>
+  tools: Readonly<Record<string, ToolFrame>>
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */

@@ -30,7 +30,7 @@ export function DeletedConversation({ thread, projectId }: { thread: PlanningThr
           reply={null} running={false} thinking={false} label={undefined}
           operations={operations.data} models={[]} harness={thread.harness}
           forkFrom={null} projectId={projectId} onPointAt={() => {}}
-          subagents={[]} onOpenSubagent={setAgent}
+          subagents={[]} tools={{}} onOpenSubagent={setAgent}
         />
       </div>
       {card !== null && <SubagentPanel card={card} onClose={() => setAgent(null)} />}

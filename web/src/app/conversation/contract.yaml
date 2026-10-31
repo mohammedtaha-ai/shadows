@@ -231,7 +231,7 @@ components:
   Messages:
     signature: "(props: { entries: readonly ThreadEntry[] | undefined; projectId: string; onPointAt:
       (plan: Plan, task: PlanTask) => void; subagents: readonly SubagentCard[]; onOpenSubagent: (id:
-      string) => void; tools?: Readonly<Record<string, ToolFrame>>; operations: readonly Operation[] | undefined; models: readonly Choice[];
+      string) => void; tools: Readonly<Record<string, ToolFrame>>; operations: readonly Operation[] | undefined; models: readonly Choice[];
       harness: string; forkFrom: { projectId: string; threadId: string } | null; loading: boolean;
       reply: ShownReply | null; running: boolean; thinking: boolean; label: string | undefined }) =>
       JSX.Element"
@@ -294,7 +294,7 @@ components:
     # Opens at once from the figures held and makes no daemon request; one muted line points to the /context slash command.
   DeletedConversation:
     signature: "(props: { thread: PlanningThread; projectId: string }) => JSX.Element"
-    # Read-only history; never opens a session.
+    # Read-only history; never opens a session, so it holds no live frames and passes no tools.
   FocusChip:
     signature: "(props: { pointed: PointedTask; onClear: () => void }) => JSX.Element"
   SlashMenu:
@@ -832,6 +832,11 @@ obligations:
     tested_by:
       - "a tool call reads as a tool line, not as bracketed text"
       - "plan tool lines read as sentences"
+
+  - rule: >
+      The conversation passes its stream's `tools` to Messages, so a running turn's tool call
+      shows as a running step in its turn's group before its entry is written.
+    tested_by: "a live tool frame draws a running step in its turn's group"
 
   - rule: >
       A PlanView entry draws its own version's graph, pinned to that version, with an Open
