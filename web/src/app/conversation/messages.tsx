@@ -24,7 +24,6 @@ import { copyText, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
 
 const NO_ENTRIES: readonly ThreadEntry[] = []
-const NO_TODOS: Readonly<Record<string, readonly TodoItem[]>> = {}
 
 const appear = {
   initial: { opacity: 0, y: 6 },
@@ -48,7 +47,7 @@ export function Messages({
   subagents,
   onOpenSubagent,
   tools,
-  todos = NO_TODOS,
+  todos,
 }: {
   entries: readonly ThreadEntry[] | undefined
   projectId: string
@@ -60,7 +59,7 @@ export function Messages({
   /** The running turn's tool calls as the stream last sent them, by call id. */
   tools: Readonly<Record<string, ToolFrame>>
   /** The running turn's task lists as the stream last sent them, by operation. */
-  todos?: Readonly<Record<string, readonly TodoItem[]>>
+  todos: Readonly<Record<string, readonly TodoItem[]>>
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */

@@ -14,10 +14,6 @@ const SENTENCES: Readonly<Record<string, string | null>> = {
   plan_show: null,
 }
 
-export function toolTitle(entry: ThreadEntry): string | null {
-  return entry.kind === 'ToolCall' ? entry.body : null
-}
-
 /** How a tool titled `title` reads: a sentence for Shadows' tools, its title
  * for any other, `null` when it adds no line of its own. */
 export function toolText(title: string): string | null {
@@ -35,18 +31,14 @@ export function subagentOf(entry: ThreadEntry): SubagentCard | null {
   }
 }
 
-export const isTool = (entry: ThreadEntry) => entry.kind === 'ToolCall'
-
 /** An entry that adds no line: a tool call whose result is another entry. */
 export function silent(entry: ThreadEntry): boolean {
-  const tool = toolTitle(entry)
-  return tool !== null && toolText(tool) === null
+  return entry.kind === 'ToolCall' && toolText(entry.body) === null
 }
 
-/** What Copy puts on the clipboard: the text as it reads, not its wrapping. */
+/** What an entry's Copy puts on the clipboard: the text as it reads, not its wrapping. A tool
+ * call is never an entry row; its group copies its steps' lines. */
 export function copyText(entry: ThreadEntry): string {
   const card = subagentOf(entry)
-  if (card !== null) return card.report ?? card.title
-  const tool = toolTitle(entry)
-  return tool === null ? entry.body : (toolText(tool) ?? tool)
+  return card === null ? entry.body : (card.report ?? card.title)
 }

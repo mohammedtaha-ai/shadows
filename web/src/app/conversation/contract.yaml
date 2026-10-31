@@ -150,6 +150,15 @@ enums:
   SubagentCard:
     source: web/src/stream/frames.ts (readSubagentCard)
     values: []
+  ToolFrame:
+    source: web/src/stream/frames.ts
+    values: []
+  TodoItem:
+    source: web/src/stream/frames.ts (readTodoList)
+    values: []
+  DiffHunk:
+    source: web/src/api/threads.ts
+    values: []
   DurableEvent:
     source: web/src/stream/frames.ts
     values: []
@@ -231,7 +240,8 @@ components:
   Messages:
     signature: "(props: { entries: readonly ThreadEntry[] | undefined; projectId: string; onPointAt:
       (plan: Plan, task: PlanTask) => void; subagents: readonly SubagentCard[]; onOpenSubagent: (id:
-      string) => void; tools: Readonly<Record<string, ToolFrame>>; operations: readonly Operation[] | undefined; models: readonly Choice[];
+      string) => void; tools: Readonly<Record<string, ToolFrame>>; todos: Readonly<Record<string,
+      readonly TodoItem[]>>; operations: readonly Operation[] | undefined; models: readonly Choice[];
       harness: string; forkFrom: { projectId: string; threadId: string } | null; loading: boolean;
       reply: ShownReply | null; running: boolean; thinking: boolean; label: string | undefined }) =>
       JSX.Element"
@@ -239,6 +249,7 @@ components:
     # and the operational label. Follows the bottom while the reader is there. Tool calls
     # are drawn as `ToolGroup` rows (`activityRows`); the running turn's `tools` frames
     # not yet written as entries join the last group of that turn, or form one after the reply.
+    # A turn's live `todos` list draws as a `TodoCard` after the reply until its entry lands.
   Entry:
     signature: "(props: { entry: ThreadEntry; policy: HarnessPolicy; requestedMode: string | null;
       projectId: string; onPointAt: (plan: Plan, task: PlanTask) => void; onOpenSubagent: (id:
@@ -252,7 +263,8 @@ components:
     # '· N failed') that opens into numbered steps. Open while a step runs, unless the person
     # chose; a link to a member's ordinal opens it. A failed step's `error` shows under its
     # line, clamped to six lines with Show all. Copy takes each step's line. An edit step with a diff
-    # (or counts without one) has its own chevron that opens `ToolDiff`.
+    # (or counts without one) has its own chevron that opens `ToolDiff`; every numbered step keeps
+    # that chevron's column, so the numbers line up.
   ToolDiff:
     signature: "(props: { diff: readonly DiffHunk[] | null }) => JSX.Element"
     # Lines with old and new numbers (none when a hunk has no start), added on green and removed on
@@ -306,7 +318,8 @@ components:
     # Opens at once from the figures held and makes no daemon request; one muted line points to the /context slash command.
   DeletedConversation:
     signature: "(props: { thread: PlanningThread; projectId: string }) => JSX.Element"
-    # Read-only history; never opens a session, so it holds no live frames and passes no tools.
+    # Read-only history; never opens a session, so it holds no live frames and passes empty
+    # `tools` and `todos`.
   FocusChip:
     signature: "(props: { pointed: PointedTask; onClear: () => void }) => JSX.Element"
   SlashMenu:
@@ -423,16 +436,12 @@ pure:
     # Unix seconds in, two largest units out: `3d21h`, `4h18m`, `7m`, or `now`.
   latestContext:
     signature: "(operations: readonly Operation[]) => ContextFigures | null"
-  toolTitle:
-    signature: "(entry: ThreadEntry) => string | null"
   toolText:
     signature: "(title: string) => string | null"
     # A sentence for Shadows' tools, the title for any other, null when the tool adds no line.
   subagentOf:
     signature: "(entry: ThreadEntry) => SubagentCard | null"
     # Null for any other kind, and for a card that fails to read (no throw escapes).
-  isTool:
-    signature: "(entry: ThreadEntry) => boolean"
   silent:
     signature: "(entry: ThreadEntry) => boolean"
     # True for a tool call whose title reads as nothing (plan_show).
@@ -451,7 +460,8 @@ pure:
     # A sentence, else verb + target (+ lines), else the title.
   copyText:
     signature: "(entry: ThreadEntry) => string"
-    # What Copy puts on the clipboard: a subagent's report, a tool's sentence, or the body.
+    # What an entry row's Copy puts on the clipboard: a subagent's report, or the body. A tool
+    # call never reaches it: `ToolGroup` copies its steps' lines.
   duration:
     signature: "(ms: number) => string"
   tokens:
@@ -827,7 +837,8 @@ obligations:
       - "a turn that ends with a plan card can still be forked, from its real last entry"
 
   - rule: >
-      Copy copies the text as it reads: a tool's sentence or title, and a subagent's report.
+      Copy copies the text as it reads: a tool step's line as `stepLine` words it (a sentence or
+      the title), and a subagent's report.
     tested_by:
       - "copy is on every message and copies its text"
       - "Copy on a tool line copies its title (§23.8)"
@@ -849,6 +860,20 @@ obligations:
       The conversation passes its stream's `tools` to Messages, so a running turn's tool call
       shows as a running step in its turn's group before its entry is written.
     tested_by: "a live tool frame draws a running step in its turn's group"
+
+  - rule: >
+      An edit step opens into its diff only when Core sent hunks or counts; a diff Core left out
+      for its size says so and keeps the step's counts.
+    tested_by:
+      - "a diff too long to show says so and keeps its counts"
+      - "an edit step without a diff has no chevron"
+
+  - rule: >
+      A turn's checklist is on screen once: the stream's live list until the entries hold that
+      turn's `TodoList` entry, then the entry, never both.
+    tested_by:
+      - "once the TodoList entry is in the list, the live card goes and the entry shows it, never both"
+      - "a live list updates with each todos frame"
 
   - rule: >
       A PlanView entry draws its own version's graph, pinned to that version, with an Open
@@ -1027,15 +1052,6 @@ obligations:
 # ── agreements ───────────────────────────────────────────────────────────────
 
 agreements:
-  - between: [copyText, ToolGroup lone step]
-    must: >
-      read the same text for a tool call, so what Copy takes is what the person sees
-    holds: true
-    why: >
-      A card-less call reads as toolText(title) with the title as fallback, in both
-      (stepLine and copyText).
-    tested_by: "Copy on a tool line copies its title (§23.8)"
-
   - between: [useFirstSend (draft), useSend (thread page)]
     must: >
       fingerprint a retried first send the same way, so the thread page's retry replays the

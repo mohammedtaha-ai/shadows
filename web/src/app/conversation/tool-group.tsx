@@ -50,11 +50,11 @@ const CLAMPED_LINES = 6
 const CLAMPED_CHARS = 600
 
 /** A failed step's error as Core sent it, shortened to six lines past that. */
-function ErrorText({ text, numbered }: { text: string; numbered: boolean }) {
+function ErrorText({ text, indent }: { text: string; indent: string }) {
   const long = text.split('\n').length > CLAMPED_LINES || text.length > CLAMPED_CHARS
   const [all, setAll] = useState(false)
   return (
-    <div className={numbered ? 'ps-11' : 'ps-6'}>
+    <div className={indent}>
       <pre
         dir="auto"
         className={`font-mono text-xs break-words whitespace-pre-wrap text-destructive ${long && !all ? 'line-clamp-6' : ''}`}
@@ -110,6 +110,8 @@ function StepLine({
   return (
     <div id={step.ordinal === null || number === null ? undefined : `entry-${step.ordinal}`}>
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
+        {/* Every numbered step keeps the chevron's column, so the numbers line up. */}
+        {!drawable && number !== null && <span aria-hidden className="size-3.5 shrink-0" />}
         {drawable && (
           <button
             type="button"
@@ -131,7 +133,10 @@ function StepLine({
         {time !== null && <span className="ms-auto shrink-0 tabular-nums">{time}</span>}
       </p>
       {step.status === 'failed' && step.error !== null && step.error !== '' && (
-        <ErrorText text={step.error} numbered={number !== null} />
+        <ErrorText
+          text={step.error}
+          indent={number !== null ? 'ps-16' : drawable ? 'ps-11' : 'ps-6'}
+        />
       )}
       {drawable && shown && <ToolDiff diff={step.diff} />}
     </div>

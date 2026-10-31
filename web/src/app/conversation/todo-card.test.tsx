@@ -26,7 +26,7 @@ function draw(node: React.ReactNode) {
   document.body.append(host)
   const root = createRoot(host)
   act(() => root.render(node))
-  return { host, rerender: (n: React.ReactNode) => act(() => root.render(n)) }
+  return { host }
 }
 
 const entry = (card: Record<string, unknown> | null) => ({
@@ -79,10 +79,19 @@ describe('TodoCard', () => {
     expect(host.querySelectorAll('svg')).toHaveLength(3)
   })
 
-  it('a live list updates with each todos frame', () => {
-    const { host, rerender } = draw(<TodoCard items={items} />)
-    rerender(<TodoCard items={items.map((i) => ({ ...i, status: 'completed' as const }))} />)
-    expect(host.textContent).toContain('3 of 3 done')
+  it('a live list updates with each todos frame', async () => {
+    const a = (app = await startApp(
+      '/projects/p1/threads/t1',
+      answers({ entries: [userEntry('u1', 'go')], operations: [runningOperation()] }),
+    ))
+    await until(() => a.sources.length > 0)
+    act(() => a.pushFrame('caught-up', { seq: 0 }))
+    act(() => a.pushFrame('todos', { op: 'op1', entries: items }))
+    await until(() => a.text().includes('1 of 3 done'))
+    const done = items.map((item) => ({ ...item, status: 'completed' as const }))
+    act(() => a.pushFrame('todos', { op: 'op1', entries: done }))
+    await until(() => a.text().includes('3 of 3 done'))
+    expect(a.container.querySelectorAll('[data-todo-card]')).toHaveLength(1)
   })
 
   it('after a reload the TodoList entry draws the checklist', () => {

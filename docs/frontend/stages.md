@@ -179,7 +179,10 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 - Touch: new `web/src/app/conversation/todo-card.tsx`, `todo-card.test.tsx`; changed
   `web/src/app/conversation/messages.tsx`, `web/src/app/conversation/entry.tsx`,
   `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md` (row:
-  `todo-card.tsx` "The agent's task list drawn as a checklist")
+  `todo-card.tsx` "The agent's task list drawn as a checklist"); widened to
+  `web/src/app/conversation/conversation.tsx` (one line, `todos={c.stream.todos}`, without which
+  no live list reaches `Messages`) and, in the branch review, `deleted-conversation.tsx` (passes
+  empty `todos` now that the prop is required)
 - Needs: F-53 done
 - Visual check: as F-52's, at 1280×800, of a live list with all three states.
 - Done when: `npx vitest run src/app/conversation` passes, with new tests: "draws done, in
