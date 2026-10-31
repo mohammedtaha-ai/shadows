@@ -5,7 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-57 (todo). F-50 to F-56 are done. Still
+Open: F-59 to F-61 (todo). F-50 to F-58 are done. Still
 open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -230,3 +230,45 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   between the paragraphs while the turn streams on", "cuts the text at a tool call and hides only
   the messages it stands in for" and "puts streamed text before the entry it was cut at,
   splitting the group there".
+
+### F-59 · The provider form's button counts models in correct English
+- Status: todo
+- Plan: bug hunt 2026-10-31: the button reads "Add 1 models".
+- Read: `web/src/app/agents/contract.yaml`; `web/src/app/agents/provider-form.tsx` at the submit
+  button
+- Touch: `web/src/app/agents/provider-form.tsx`, its test file, `web/src/app/agents/contract.yaml`
+- Needs: none
+- Done when: `npx vitest run src/app/agents` passes, with a new test "the add button reads
+  Add 1 model, Add 2 models".
+
+### F-60 · Escape never drops a half-filled provider form
+- Status: todo
+- Plan: bug hunt 2026-10-31: Escape (or a click outside) closes Settings and the provider form
+  loses what was typed. Rule: while the form holds unsaved changes, Escape and a click outside
+  do not close the dialog; the form shows "Unsaved changes. Save or Cancel." next to its
+  buttons. Cancel discards and closes the form as today; a clean form closes as today.
+- Read: `web/src/app/settings/contract.yaml`, `web/src/app/agents/contract.yaml`;
+  `web/src/app/settings/settings-dialog.tsx` at `onOpenChange`; `web/src/app/agents/provider-form.tsx`
+- Touch: `web/src/app/settings/settings-dialog.tsx`, `web/src/app/agents/provider-form.tsx`, their
+  test files, both `contract.yaml` files, and a context or prop between them if one is needed
+  (name it in the report)
+- Needs: none
+- Done when: `npx vitest run src/app/settings src/app/agents` passes, with new tests: "Escape with
+  unsaved provider edits keeps the dialog and the typed values"; "Escape on a clean provider form
+  closes Settings"; "Cancel discards the edits".
+
+### F-61 · Every Shadows tool step reads as a sentence, never its raw name
+- Status: todo
+- Plan: live run 2026-10-31: a step showed `mcp__shadows__workspace_get`. `SENTENCES` in
+  `tool-text.ts` names 7 of the 23 Shadows MCP tools. Add the rest: agreement_edit,
+  agreement_get, agreement_list, agreement_review, agreement_start, draft_start (kept),
+  lines, map_approve, map_propose, outline, plan_approve, roadmap_approve, roadmap_propose,
+  vision_approve, vision_propose, where_is, who_uses, workspace_get (names from
+  `crates/shadows-mcp/src/*_tools.rs`), in the same past-tense style ("Read the workspace").
+  An unknown `mcp__shadows__x` reads "Used Shadows: x", never the raw prefix.
+- Read: `web/src/app/conversation/contract.yaml`; `web/src/app/conversation/tool-text.ts`
+- Touch: `web/src/app/conversation/tool-text.ts`, its test file (or the test that covers
+  `toolText`), `web/src/app/conversation/contract.yaml`
+- Needs: none
+- Done when: `npx vitest run src/app/conversation` passes, with new tests: "every Shadows MCP
+  tool has a sentence"; "an unknown Shadows tool never shows its mcp__ prefix".
