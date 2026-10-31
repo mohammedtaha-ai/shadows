@@ -212,6 +212,26 @@ pub(crate) async fn answer(
                 ),
             )?;
         }
+        "activity-hold" => {
+            let open: ToolCall = serde_json::from_value(json!({
+                "toolCallId":"held", "title":"Run wait", "kind":"execute",
+                "status":"in_progress"
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::ToolCall(open))?;
+            let plan = serde_json::from_value(json!({
+                "entries": [{"content":"Only", "priority":"high", "status":"in_progress"}]
+            }))
+            .unwrap();
+            update(cx, id, SessionUpdate::Plan(plan))?;
+            let mut cancelled = s.cancel.subscribe();
+            while !*cancelled.borrow() {
+                if cancelled.changed().await.is_err() {
+                    break;
+                }
+            }
+            return Ok((StopReason::Cancelled, None));
+        }
         "hang" => {
             chunk(cx, id, "m1", "waiting")?;
             let mut cancelled = s.cancel.subscribe();

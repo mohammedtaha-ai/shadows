@@ -163,3 +163,263 @@ fn frames(text: &str) -> Vec<(String, Value)> {
         })
         .collect()
 }
+
+struct Running {
+    router: axum::Router,
+    storage: Arc<Storage>,
+    sessions: Arc<shadows_core::testing::Harness>,
+    handles: Arc<LiveHandles>,
+    thread: shadows_core::ThreadId,
+    _stopping: tokio::sync::watch::Sender<bool>,
+    _tmp: tempfile::TempDir,
+}
+
+/// An app whose adapter is the fake ACP agent, with one planning thread.
+async fn running() -> Running {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let (runtime, _report) = AppCore::runtime_for_tests(storage.clone()).await.unwrap();
+    let sessions =
+        AppCore::harness_for_tests(acp::fake_adapter(), storage.clone(), acp::test_config());
+    let handles = Arc::new(LiveHandles::default());
+    let (bus, _) = tokio::sync::broadcast::channel(256);
+    let (stopping, shutdown) = tokio::sync::watch::channel(false);
+    let router = router(AppState {
+        core: AppCore::assemble(CoreParts {
+            operations: AppCore::operations_for_tests(storage.clone()),
+            secrets: shadows_core::testing::secrets(storage.clone(), None),
+            storage: storage.clone(),
+            runtime: Arc::new(runtime),
+            sessions: sessions.clone(),
+            handles: handles.clone(),
+            bus,
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
+        }),
+        allowed_origins: Vec::new(),
+        shutdown,
+    });
+    let params = serde_json::json!({});
+    let ctx = |id: &str, kind: &str| CommandContext {
+        agent: None,
+        principal_kind: "User".into(),
+        principal_id: "local".into(),
+        command_id: id.into(),
+        command_kind: kind.into(),
+        command_schema_ver: 1,
+        request_fingerprint: CommandContext::fingerprint(kind, &params),
+    };
+    let dir = shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap();
+    let project = shadows_core::testing::create_project(
+        &storage,
+        &ctx("c1", "project.create"),
+        "demo",
+        "Demo",
+        &dir,
+        &shadows_agent::policy::default_modes(),
+    )
+    .await
+    .unwrap();
+    let thread = shadows_core::Threads::create_planning_thread_for_test(
+        &storage,
+        &ctx("c2", "thread.create"),
+        &project.id,
+        "T",
+        "claude-code",
+        None,
+    )
+    .await
+    .unwrap()
+    .id;
+    Running {
+        router,
+        storage,
+        sessions,
+        handles,
+        thread,
+        _stopping: stopping,
+        _tmp: tmp,
+    }
+}
+
+async fn start(app: &Running, prompt: &str) -> shadows_core::OperationId {
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::post(format!("/api/threads/{}/turns", app.thread.as_str()))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "command_id": uuid::Uuid::new_v4().to_string(),
+                        "prompt": prompt,
+                        "model": "fake-large",
+                        "mode": "acceptEdits",
+                        "effort": "high",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 202);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body: Value = serde_json::from_slice(&bytes).unwrap();
+    shadows_core::OperationId::from_literal(body["operation_id"].as_str().unwrap())
+}
+
+type Chunks = std::pin::Pin<
+    Box<dyn tokio_stream::Stream<Item = Result<axum::body::Bytes, axum::Error>> + Send>,
+>;
+
+async fn subscribe(app: &Running) -> Chunks {
+    Box::pin(
+        app.router
+            .clone()
+            .oneshot(
+                Request::get(format!("/api/subscribe?thread_id={}", app.thread.as_str()))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+            .into_body()
+            .into_data_stream(),
+    )
+}
+
+/// Reads the stream until `done` accepts the frames so far.
+async fn read_until(
+    body: &mut Chunks,
+    done: impl Fn(&[(String, Value)]) -> bool,
+) -> Vec<(String, Value)> {
+    let mut text = String::new();
+    loop {
+        // Only whole frames: the last piece may be cut mid-frame.
+        let whole = text.rfind("\n\n").map_or("", |end| &text[..end + 2]);
+        let seen = frames(whole);
+        if done(&seen) {
+            return seen;
+        }
+        let chunk = tokio::time::timeout(Duration::from_secs(10), body.next())
+            .await
+            .unwrap_or_else(|_| panic!("stalled: {text}"))
+            .expect("the stream ended early")
+            .unwrap();
+        text.push_str(std::str::from_utf8(&chunk).unwrap());
+    }
+}
+
+fn named<'a>(seen: &'a [(String, Value)], event: &str) -> Vec<&'a Value> {
+    seen.iter()
+        .filter(|(e, _)| e == event)
+        .map(|(_, d)| d)
+        .collect()
+}
+
+fn has(seen: &[(String, Value)], event: &str) -> bool {
+    seen.iter().any(|(e, _)| e == event)
+}
+
+#[tokio::test]
+async fn tool_and_todos_frames_reach_a_running_turns_stream() {
+    let app = running().await;
+    let mut body = subscribe(&app).await;
+    let op = start(&app, "tool-activity").await;
+    let seen = read_until(&mut body, |s| has(s, "turn-end")).await;
+    let tools = named(&seen, "tool");
+    let ids: Vec<_> = tools.iter().map(|t| t["id"].as_str().unwrap()).collect();
+    assert_eq!(
+        ids,
+        ["edit", "edit", "edit", "read", "failed", "open"],
+        "{seen:?}"
+    );
+    assert!(tools.iter().all(|t| t["op"] == op.as_str()), "{tools:?}");
+    assert!(
+        matches!(tools[0]["status"].as_str(), Some("pending" | "in_progress")),
+        "{tools:?}"
+    );
+    assert_eq!(tools[1]["status"], "completed");
+    assert_eq!(tools[4]["status"], "failed");
+    assert_eq!(tools[4]["kind"], "execute");
+
+    let other = running().await;
+    let mut body = subscribe(&other).await;
+    let op = start(&other, "todo-list").await;
+    let seen = read_until(&mut body, |s| has(s, "turn-end")).await;
+    let lists = named(&seen, "todos");
+    assert_eq!(lists.len(), 2, "{seen:?}");
+    assert_eq!(lists[0]["op"], op.as_str());
+    assert_eq!(lists[0]["entries"][0]["status"], "pending");
+    assert_eq!(lists[1]["entries"][0]["status"], "completed");
+    assert_eq!(lists[1]["entries"][1]["status"], "in_progress");
+
+    for a in [&app, &other] {
+        a.sessions.close_all().await.unwrap();
+        a.storage.close().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn a_stream_opened_mid_turn_gets_its_open_calls_and_list_after_caught_up() {
+    let app = running().await;
+    let op = start(&app, "activity-hold").await;
+    // The frames went out before the second subscriber: wait until they have.
+    let mut early = subscribe(&app).await;
+    read_until(&mut early, |s| has(s, "todos")).await;
+
+    let mut late = subscribe(&app).await;
+    let seen = read_until(&mut late, |s| has(s, "todos")).await;
+    let position = |event: &str| seen.iter().position(|(e, _)| e == event).unwrap();
+    assert!(position("caught-up") < position("tool"), "{seen:?}");
+    assert!(position("tool") < position("todos"), "{seen:?}");
+    let tools = named(&seen, "tool");
+    assert_eq!(tools.len(), 1, "{seen:?}");
+    assert_eq!(tools[0]["id"], "held");
+    assert!(
+        matches!(tools[0]["status"].as_str(), Some("pending" | "in_progress")),
+        "{tools:?}"
+    );
+    assert_eq!(tools[0]["op"], op.as_str());
+    let lists = named(&seen, "todos");
+    assert_eq!(lists.len(), 1, "{seen:?}");
+    assert_eq!(lists[0]["entries"][0]["content"], "Only");
+
+    shadows_core::testing::PlannerTurn::stop(
+        app.storage.clone(),
+        app.handles.clone(),
+        app.sessions.clone(),
+        &op,
+        shadows_core::Actor::user("local"),
+    )
+    .await
+    .unwrap();
+    let entries = loop {
+        let response = app
+            .router
+            .clone()
+            .oneshot(
+                Request::get(format!("/api/threads/{}/entries", app.thread.as_str()))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let entries: Vec<Value> = serde_json::from_slice(&bytes).unwrap();
+        if entries.iter().any(|e| e["kind"] == "ToolCall") {
+            break entries;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
+    let call = entries.iter().find(|e| e["kind"] == "ToolCall").unwrap();
+    assert_eq!(call["card"]["status"], "stopped", "{call}");
+
+    app.sessions.close_all().await.unwrap();
+    app.storage.close().await.unwrap();
+}

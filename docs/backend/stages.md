@@ -60,7 +60,7 @@ Tool activity ([spec](specs/2026-10-31-tool-activity-design.md),
 - Done when: `cargo test -p core-turns --test entries`, `cargo test -p shadows --test planner_turn a_turns_task_list_is_kept_as_a_todo_list_entry`, `cargo test -p shadows --test thread_contract every_entry_kind_round_trips_as_its_stored_name` pass; openapi regenerated and `cargo test -p shadows --test openapi` passes
 
 ### B-22 · `tool` and `todos` frames, re-sent after `caught-up` for a running turn
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-31-tool-activity.md#b-22--a-subscriber-gets-tool-and-todos-and-a-reload-gets-them-back
 - Read: spec §4 and §5; `crates/core-events/contract.yaml` (`Delivery`, `next`, `transient`, the no-gap obligation); `crates/core-turns/contract.yaml` `live_activity`
 - Touch: `crates/core-events/src/subscription.rs`, `crates/core-events/src/lib.rs`, `crates/core-events/contract.yaml`, `crates/shadows-http/src/sse.rs`, `api/openapi.json`, `crates/fake-acp/src/prompts.rs`, `crates/shadows/tests/stream_frames.rs`
