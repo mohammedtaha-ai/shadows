@@ -18,3 +18,11 @@ UPDATE design_vision_version SET content_json = json_set(content_json, '$.techni
 
 UPDATE design_vision_proposal SET item_id = 'TD' || substr(item_id, 2)
  WHERE item_id GLOB 'T[0-9]*';
+
+-- A proposal's card is the snapshot the conversation draws and a command replay returns.
+UPDATE thread_entry SET card_json = json_set(card_json, '$.item_id',
+    'TD' || substr(json_extract(card_json, '$.item_id'), 2))
+ WHERE kind = 'VisionProposal'
+   AND json_valid(card_json)
+   AND json_extract(card_json, '$.field') = 'technical_direction'
+   AND json_extract(card_json, '$.item_id') GLOB 'T[0-9]*';

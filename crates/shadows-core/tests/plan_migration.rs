@@ -377,7 +377,7 @@ async fn stored_technical_direction_ids_become_td() {
     .execute(&pool)
     .await
     .unwrap();
-    // The proposals' thread, turn and entry are beside the point: only their item ids move.
+    // The proposals' thread, turn and entry are beside the point: only their item ids, in the row and in the card, move.
     exec(&pool, "PRAGMA foreign_keys = OFF").await;
     for (id, field, item, seq) in [
         ("td", "technical_direction", "T1", 1),
@@ -396,9 +396,39 @@ async fn stored_technical_direction_ids_become_td() {
         .execute(&pool)
         .await
         .unwrap();
+        let card = serde_json::json!({
+            "id": id, "thread_id": "T", "action": "edit", "field": field, "item_id": item,
+            "text": "Go", "old_text": "Rust", "expected_item_revision": 1,
+            "status": "Pending", "outdated": false, "created_at": "2026-10-31",
+        });
+        sqlx::query(
+            "INSERT INTO thread_entry(id,thread_id,ordinal,kind,author_kind,author_id,body,
+                card_json,created_at)
+            VALUES (?,'T',?,'VisionProposal','Agent','Planner','Edit',?,'2026-10-31')",
+        )
+        .bind(format!("E{seq}"))
+        .bind(seq)
+        .bind(card.to_string())
+        .execute(&pool)
+        .await
+        .unwrap();
     }
     pool.close().await;
     let storage = Storage::open(&db).await.unwrap();
+    let cards: Vec<String> =
+        sqlx::query_scalar("SELECT card_json FROM thread_entry ORDER BY ordinal")
+            .fetch_all(storage.reader())
+            .await
+            .unwrap();
+    let card_ids: Vec<serde_json::Value> = cards
+        .iter()
+        .map(|c| serde_json::from_str::<serde_json::Value>(c).unwrap()["item_id"].clone())
+        .collect();
+    assert_eq!(
+        card_ids,
+        ["TD1", "B2"],
+        "only a technical direction card moves"
+    );
     let items: Vec<(String, String)> =
         sqlx::query_as("SELECT id,item_id FROM design_vision_proposal ORDER BY seq")
             .fetch_all(storage.reader())
