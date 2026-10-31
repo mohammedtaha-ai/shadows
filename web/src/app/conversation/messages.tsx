@@ -3,7 +3,7 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
 import type { Plan, PlanTask } from '@/api/workflows'
@@ -14,11 +14,16 @@ import { AYLUL_HARNESS } from './cli-picker'
 import { Entry, ReplyText } from './entry'
 import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
-import type { SubagentCard } from '@/stream'
+import type { SubagentCard, ToolFrame } from '@/stream'
+import { type Row, activityRows, liveSteps } from './activity-rows'
+import { ToolGroup } from './tool-group'
 import type { ShownReply } from './reply'
 import { SubagentCardView } from './subagent-card'
-import { copyText, isTool, silent, subagentOf } from './tool-text'
+import { copyText, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
+
+const NO_TOOLS: Readonly<Record<string, ToolFrame>> = {}
+const NO_ENTRIES: readonly ThreadEntry[] = []
 
 const appear = {
   initial: { opacity: 0, y: 6 },
@@ -41,6 +46,7 @@ export function Messages({
   onPointAt,
   subagents,
   onOpenSubagent,
+  tools = NO_TOOLS,
 }: {
   entries: readonly ThreadEntry[] | undefined
   projectId: string
@@ -49,6 +55,8 @@ export function Messages({
   /** The running turns' subagent cards as the stream last sent them. */
   subagents: readonly SubagentCard[]
   onOpenSubagent: (id: string) => void
+  /** The running turn's tool calls as the stream last sent them, by call id. */
+  tools?: Readonly<Record<string, ToolFrame>>
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */
@@ -99,8 +107,36 @@ export function Messages({
   const newlyHidden = [...(reply?.hidden ?? [])].filter((ordinal) => !handedOver.has(ordinal))
   if (newlyHidden.length > 0) setHandedOver(new Set([...handedOver, ...newlyHidden]))
 
-  const shown =
-    entries?.filter((entry) => !reply?.hidden.has(entry.ordinal) && !silent(entry)) ?? []
+  // The hidden ordinals as a string, so a delta that changes nothing here
+  // leaves the shown entries, and so the rows, the same objects.
+  const hiddenKey = [...(reply?.hidden ?? [])].join(',')
+  const hidden = useMemo(
+    () => new Set(hiddenKey === '' ? [] : hiddenKey.split(',').map(Number)),
+    [hiddenKey],
+  )
+  const shown = useMemo(
+    () => (entries ?? NO_ENTRIES).filter((entry) => !hidden.has(entry.ordinal) && !silent(entry)),
+    [entries, hidden],
+  )
+  const written = useMemo(() => activityRows(shown), [shown])
+  const frames = useMemo(() => Object.values(tools), [tools])
+  const turnOp = frames.at(-1)?.op
+  const live = useMemo(
+    () => (turnOp === undefined ? [] : liveSteps(frames, entries ?? NO_ENTRIES, turnOp, !running)),
+    [frames, entries, turnOp, running],
+  )
+  const lastShown = shown.at(-1)
+  const joins =
+    live.length > 0 &&
+    reply === null &&
+    lastShown?.kind === 'ToolCall' &&
+    lastShown.operation_id === turnOp
+  const rows = useMemo(() => {
+    const last = written.at(-1)
+    if (!joins || last?.kind !== 'tools' || last.steps.some((step) => step.kind === null)) return written
+    return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
+  }, [written, live, joins])
+  const apart = live.length > 0 && rows === written
   const operational = label === undefined ? null : describeLabel(label)
   const answered = answeredNotes(shown, operations ?? [], models)
   const forkAt = forkAnchor(entries ?? [], shown)
@@ -133,18 +169,25 @@ export function Messages({
           </li>
         )}
         <AnimatePresence initial={false}>
-          {shown.map((entry) => (
+          {rows.map((row) => row.kind === 'tools' ? (
+            <ToolRow
+              key={row.key}
+              row={row}
+              answered={answered.get(row.steps.at(-1)?.key ?? row.key)}
+              {...forkProps(row, forkFrom, forkAt)}
+            />
+          ) : (
             <EntryRow
-              key={entry.id}
-              entry={entry}
-              handedOver={handedOver.has(entry.ordinal)}
+              key={row.entry.id}
+              entry={row.entry}
+              handedOver={handedOver.has(row.entry.ordinal)}
               policy={policy}
-              requestedMode={modeOf(entry)}
+              requestedMode={modeOf(row.entry)}
               projectId={projectId}
               onPointAt={onPointAt}
               onOpenSubagent={onOpenSubagent}
-              answered={answered.get(entry.id)}
-              {...(forkFrom !== null && forkAt !== null && entry.id === forkAt.shownId
+              answered={answered.get(row.entry.id)}
+              {...(forkFrom !== null && forkAt !== null && row.entry.id === forkAt.shownId
                 ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
                 : {})}
             />
@@ -153,6 +196,9 @@ export function Messages({
             <motion.li key="reply" {...appear}>
               <ReplyText text={reply.text} live={reply.live} />
             </motion.li>
+          )}
+          {apart && (
+            <ToolRow key='live-tools' row={{ kind: 'tools', key: 'live-tools', steps: live }} answered={undefined} />
           )}
           {turnCards.map((card) => (
             <motion.li key={`subagent-${card.id}`} {...appear} data-entry-kind="subagent">
@@ -179,6 +225,45 @@ export function Messages({
       </ol>
     </div>
   )
+}
+
+/** A run of tool calls with its note. */
+function ToolRow({
+  row,
+  answered,
+  forkProjectId,
+  forkThreadId,
+  forkEntryId,
+}: {
+  row: Extract<Row, { kind: 'tools' }>
+  answered: string | undefined
+  forkProjectId?: string
+  forkThreadId?: string
+  forkEntryId?: string
+}) {
+  return (
+    <motion.li {...appear} data-entry-kind='tool' className='group space-y-1'>
+      <ToolGroup
+        steps={row.steps}
+        ordinals={row.steps.flatMap((step) => (step.ordinal === null ? [] : [step.ordinal])).join(',')}
+        {...(forkProjectId !== undefined && forkThreadId !== undefined && forkEntryId !== undefined
+          ? { forkProjectId, forkThreadId, forkEntryId }
+          : {})}
+      />
+      {answered !== undefined && <p className='text-xs text-faint-foreground'>{answered}</p>}
+    </motion.li>
+  )
+}
+
+/** The fork point a row carries when its last step is the fork anchor. */
+function forkProps(
+  row: Extract<Row, { kind: 'tools' }>,
+  forkFrom: { projectId: string; threadId: string } | null,
+  forkAt: { shownId: string; entryId: string } | null,
+) {
+  return forkFrom !== null && forkAt !== null && row.steps.at(-1)?.key === forkAt.shownId
+    ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
+    : {}
 }
 
 /** One durable entry with its note and actions. Memoised: a streamed delta
@@ -221,7 +306,7 @@ const EntryRow = memo(function EntryRow({
       id={`entry-${entry.ordinal}`}
       {...appear}
       initial={handedOver ? false : appear.initial}
-      data-entry-kind={isTool(entry) ? 'tool' : entry.kind}
+      data-entry-kind={entry.kind}
       className="group space-y-1"
     >
       <Entry

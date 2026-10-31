@@ -231,17 +231,27 @@ components:
   Messages:
     signature: "(props: { entries: readonly ThreadEntry[] | undefined; projectId: string; onPointAt:
       (plan: Plan, task: PlanTask) => void; subagents: readonly SubagentCard[]; onOpenSubagent: (id:
-      string) => void; operations: readonly Operation[] | undefined; models: readonly Choice[];
+      string) => void; tools?: Readonly<Record<string, ToolFrame>>; operations: readonly Operation[] | undefined; models: readonly Choice[];
       harness: string; forkFrom: { projectId: string; threadId: string } | null; loading: boolean;
       reply: ShownReply | null; running: boolean; thinking: boolean; label: string | undefined }) =>
       JSX.Element"
     # Entries in order, then the reply, the running turn's cards, the waiting line
-    # and the operational label. Follows the bottom while the reader is there.
+    # and the operational label. Follows the bottom while the reader is there. Tool calls
+    # are drawn as `ToolGroup` rows (`activityRows`); the running turn's `tools` frames
+    # not yet written as entries join the last group of that turn, or form one after the reply.
   Entry:
     signature: "(props: { entry: ThreadEntry; policy: HarnessPolicy; requestedMode: string | null;
       projectId: string; onPointAt: (plan: Plan, task: PlanTask) => void; onOpenSubagent: (id:
       string) => void }) => JSX.Element"
-    # Dispatches on `entry.kind`: the kind decides the card, never the text.
+    # Dispatches on `entry.kind`: the kind decides the card, never the text. A `ToolCall`
+    # is not drawn here; `Messages` draws it as a `ToolGroup`.
+  ToolGroup:
+    signature: "(props: { steps: readonly ToolStep[]; ordinals: string; forkProjectId?: string;
+      forkThreadId?: string; forkEntryId?: string }) => JSX.Element"
+    # Memoised. One step is a line; two or more are a summary button (words, total time,
+    # '· N failed') that opens into numbered steps. Open while a step runs, unless the person
+    # chose; a link to a member's ordinal opens it. A failed step's `error` shows under its
+    # line, clamped to six lines with Show all. Copy takes each step's line.
   ReplyText:
     signature: "(props: { text: string; live?: boolean }) => JSX.Element"
     # Declared in entry.tsx as a lazy wrapper around reply-text.tsx's renderer.
@@ -414,6 +424,19 @@ pure:
   silent:
     signature: "(entry: ThreadEntry) => boolean"
     # True for a tool call whose title reads as nothing (plan_show).
+  activityRows:
+    signature: "(shown: readonly ThreadEntry[]) => Row[]"
+    # Consecutive ToolCall entries of one turn with a readable card form one group; an entry
+    # with no card (an old one) stands alone as a completed step with its title.
+  liveSteps:
+    signature: "(frames: readonly ToolFrame[], entries: readonly ThreadEntry[], op: string, ended?: boolean) => ToolStep[]"
+    # A frame whose call an entry already holds is dropped: the entry is final.
+  groupSummary:
+    signature: "(steps: readonly ToolStep[]) => string"
+    # 'Read 3 files, ran 2 commands, edited a file +36': kinds in order of first appearance.
+  stepLine:
+    signature: "(step: ToolStep) => { text: string; counts: string | null }"
+    # A sentence, else verb + target (+ lines), else the title.
   copyText:
     signature: "(entry: ThreadEntry) => string"
     # What Copy puts on the clipboard: a subagent's report, a tool's sentence, or the body.
@@ -987,12 +1010,13 @@ obligations:
 # ── agreements ───────────────────────────────────────────────────────────────
 
 agreements:
-  - between: [copyText, Entry tool line]
+  - between: [copyText, ToolGroup lone step]
     must: >
       read the same text for a tool call, so what Copy takes is what the person sees
     holds: true
     why: >
-      Both use toolText with the same fallback to the title.
+      A card-less call reads as toolText(title) with the title as fallback, in both
+      (stepLine and copyText).
     tested_by: "Copy on a tool line copies its title (§23.8)"
 
   - between: [useFirstSend (draft), useSend (thread page)]

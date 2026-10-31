@@ -121,7 +121,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   and the stream contract lists `tool` and `todos` under shapes, frame_readers and obligations.
 
 ### F-54 · Tool calls drawn as groups of numbered steps, running and timed
-- Status: blocked (needs F-53)
+- Status: done
 - Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("Grouping", "A failed step's error",
   the words table, "A step", "Copy", "Fork and links", "Rendering cost"; signatures in "Files")
 - Read: `web/src/app/conversation/contract.yaml` (Messages, Entry, the F-51 obligation "A delta

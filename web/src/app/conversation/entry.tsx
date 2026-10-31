@@ -1,7 +1,7 @@
 // One job: how one durable thread entry reads in the conversation — a
 // message, a tool call, a subagent's card, a plan card, or a system line.
 
-import { CircleCheck, ShieldX, Wrench } from 'lucide-react'
+import { CircleCheck, ShieldX } from 'lucide-react'
 import { Suspense, lazy } from 'react'
 import { type Plan, type PlanTask } from '@/api/workflows'
 import { attachmentUrl, type ThreadEntry } from '@/api/threads'
@@ -11,7 +11,7 @@ import { SubagentCardView } from './subagent-card'
 import { VisionProposalCard } from './vision-proposal-card'
 import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
-import { subagentOf, toolText } from './tool-text'
+import { subagentOf } from './tool-text'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -79,23 +79,6 @@ export function Entry({
   if (entry.kind === 'Subagent') {
     const card = subagentOf(entry)
     return card === null ? null : <SubagentCardView card={card} onOpen={onOpenSubagent} />
-  }
-  if (entry.kind === 'ToolCall') {
-    const tool = entry.body
-    // Shadows' own tools read as sentences; any other shows its title.
-    const text = toolText(tool) ?? tool
-    return (
-      <p className="flex items-start gap-2 text-xs text-muted-foreground">
-        <Wrench aria-label="Tool" className="mt-px size-3.5 shrink-0" />
-        {text === tool ? (
-          <code dir="auto" className="font-mono break-all whitespace-pre-wrap">
-            {tool}
-          </code>
-        ) : (
-          <span dir="auto">{text}</span>
-        )}
-      </p>
-    )
   }
   if (entry.kind === 'PlanView') {
     return <PlanCard entry={entry} projectId={projectId} onPointAt={onPointAt} />
