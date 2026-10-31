@@ -6,12 +6,14 @@ import { CircleCheck, ShieldX } from 'lucide-react'
 import { Suspense, lazy } from 'react'
 import { type Plan, type PlanTask } from '@/api/workflows'
 import { attachmentUrl, type ThreadEntry } from '@/api/threads'
+import { readTodoList } from '@/stream'
 import { type HarnessPolicy, modeLabel } from '@/api/harnesses'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'
 import { VisionProposalCard } from './vision-proposal-card'
 import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
+import { TodoCard } from './todo-card'
 import { subagentOf } from './tool-text'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
@@ -80,6 +82,10 @@ export function Entry({
   if (entry.kind === 'Subagent') {
     const card = subagentOf(entry)
     return card === null ? null : <SubagentCardView card={card} onOpen={onOpenSubagent} />
+  }
+  if (entry.kind === 'TodoList') {
+    const list = readTodoList(entry.card)
+    if (list !== null) return <TodoCard items={list.entries} />
   }
   if (entry.kind === 'PlanView') {
     return <PlanCard entry={entry} projectId={projectId} onPointAt={onPointAt} />

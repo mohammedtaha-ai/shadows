@@ -171,7 +171,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   counts"; "an edit step without a diff has no chevron".
 
 ### F-56 · The agent's checklist, live and after reload
-- Status: blocked (needs F-53; run after F-54, which changes the same files)
+- Status: done
 - Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("The checklist")
 - Read: `web/src/app/conversation/contract.yaml` (Messages, Entry, "A streamed reply stays
   ... a message is never shown twice"); `web/src/app/conversation/messages.tsx` at `Messages`;

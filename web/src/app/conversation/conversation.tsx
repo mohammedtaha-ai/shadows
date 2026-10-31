@@ -175,6 +175,7 @@ function Conversation({
           onPointAt={onPointAt}
           subagents={live}
           tools={c.stream.tools}
+          todos={c.stream.todos}
           onOpenSubagent={openAgent}
         />
         <WaitingMessages threadId={threadId} running={c.running !== null} />

@@ -14,7 +14,8 @@ import { AYLUL_HARNESS } from './cli-picker'
 import { Entry, ReplyText } from './entry'
 import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
-import type { SubagentCard, ToolFrame } from '@/stream'
+import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
+import { TodoCard } from './todo-card'
 import { type Row, activityRows, liveSteps } from './activity-rows'
 import { ToolGroup } from './tool-group'
 import type { ShownReply } from './reply'
@@ -23,6 +24,7 @@ import { copyText, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
 
 const NO_ENTRIES: readonly ThreadEntry[] = []
+const NO_TODOS: Readonly<Record<string, readonly TodoItem[]>> = {}
 
 const appear = {
   initial: { opacity: 0, y: 6 },
@@ -46,6 +48,7 @@ export function Messages({
   subagents,
   onOpenSubagent,
   tools,
+  todos = NO_TODOS,
 }: {
   entries: readonly ThreadEntry[] | undefined
   projectId: string
@@ -56,6 +59,8 @@ export function Messages({
   onOpenSubagent: (id: string) => void
   /** The running turn's tool calls as the stream last sent them, by call id. */
   tools: Readonly<Record<string, ToolFrame>>
+  /** The running turn's task lists as the stream last sent them, by operation. */
+  todos?: Readonly<Record<string, readonly TodoItem[]>>
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */
@@ -136,6 +141,10 @@ export function Messages({
     return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
   }, [written, live, joins])
   const apart = live.length > 0 && rows === written
+  // A list the entries already hold draws as that entry, never twice.
+  const liveLists = Object.entries(todos).filter(
+    ([op]) => !(entries ?? NO_ENTRIES).some((e) => e.kind === 'TodoList' && e.operation_id === op),
+  )
   const operational = label === undefined ? null : describeLabel(label)
   const answered = answeredNotes(shown, operations ?? [], models)
   const forkAt = forkAnchor(entries ?? [], shown)
@@ -199,6 +208,11 @@ export function Messages({
           {apart && (
             <ToolRow key='live-tools' row={{ kind: 'tools', key: 'live-tools', steps: live }} answered={undefined} />
           )}
+          {liveLists.map(([op, items]) => (
+            <motion.li key={`todos-${op}`} {...appear} data-entry-kind='todos'>
+              <TodoCard items={items} />
+            </motion.li>
+          ))}
           {turnCards.map((card) => (
             <motion.li key={`subagent-${card.id}`} {...appear} data-entry-kind="subagent">
               <SubagentCardView card={card} onOpen={onOpenSubagent} />

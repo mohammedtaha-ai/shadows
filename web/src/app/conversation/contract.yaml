@@ -258,6 +258,12 @@ components:
     # Lines with old and new numbers (none when a hunk has no start), added on green and removed on
     # red; a gap row between hunks of one file, the path as a heading where it changes. `null`
     # reads 'Diff too long to show'.
+  TodoCard:
+    signature: "(props: { items: readonly TodoItem[] }) => JSX.Element"
+    # Heading 'Tasks · D of N done'; a check for completed (text muted), a spinner for in progress, an
+    # empty circle for pending. `Messages` draws the stream's live `todos` of an operation after the
+    # reply until the entries hold a `TodoList` entry of that operation, which `Entry` draws instead
+    # (never both); an unreadable card shows its body.
   ReplyText:
     signature: "(props: { text: string; live?: boolean }) => JSX.Element"
     # Declared in entry.tsx as a lazy wrapper around reply-text.tsx's renderer.
