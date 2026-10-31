@@ -48,7 +48,12 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
       if (live && event.kind === 'ThreadEntryAppended') {
         const ordinal = agentOrdinal(event.payload)
         if (ordinal !== null) {
-          dispatchReply({ type: 'agent-entry', ordinal, streaming: current.streaming })
+          dispatchReply({
+            type: 'agent-entry',
+            ordinal,
+            message: (event.payload as { kind?: unknown }).kind === 'AgentMessage',
+            streaming: current.streaming,
+          })
         }
       }
     },
@@ -128,7 +133,8 @@ interface Reported {
   limits: Limits | null
 }
 
-/** All agent entry kinds advance the reply so streamed text is not displayed twice. */
+/** Every kind the turn's agent writes cuts the reply there, so streamed text is
+ * not displayed twice and each call sits where it ran. */
 const AGENT_KINDS: ReadonlySet<unknown> = new Set(['AgentMessage', 'ToolCall', 'Subagent'])
 
 /** The ordinal of an announced entry the turn's agent wrote, else `null`. The

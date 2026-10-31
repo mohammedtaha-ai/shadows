@@ -34,6 +34,14 @@ export interface ToolStep {
 export type Row =
   | { kind: 'entry'; entry: ThreadEntry }
   | { kind: 'tools'; key: string; steps: ToolStep[] }
+  /** Streamed text of the running turn not yet in the list as its message. */
+  | { kind: 'text'; key: string; text: string }
+
+/** Streamed text that came before the entry at `ordinal`. */
+export interface TextPart {
+  ordinal: number
+  text: string
+}
 
 function sentenceOf(title: string): string | null {
   const text = toolText(title)
@@ -81,11 +89,23 @@ function durableStep(entry: ThreadEntry): ToolStep {
 }
 
 /** Consecutive tool calls of one turn that carry a card form one group. An
- * entry with no card stands alone: it has nothing to count or time. */
-export function activityRows(shown: readonly ThreadEntry[]): Row[] {
+ * entry with no card stands alone: it has nothing to count or time. A text
+ * part (in ordinal order) goes before the first entry at or after its
+ * `ordinal`, and ends a group as a message entry would. */
+export function activityRows(shown: readonly ThreadEntry[], texts: readonly TextPart[] = []): Row[] {
   const rows: Row[] = []
   let open: { op: string | null; steps: ToolStep[] } | null = null
+  let next = 0
+  const textsUpTo = (ordinal: number) => {
+    for (; next < texts.length && (texts[next]?.ordinal ?? Infinity) <= ordinal; next += 1) {
+      const part = texts[next]
+      if (part === undefined || part.text === '') continue
+      open = null
+      rows.push({ kind: 'text', key: `reply-${part.ordinal}`, text: part.text })
+    }
+  }
   for (const entry of shown) {
+    textsUpTo(entry.ordinal)
     if (entry.kind !== 'ToolCall') {
       open = null
       rows.push({ kind: 'entry', entry })
@@ -105,6 +125,7 @@ export function activityRows(shown: readonly ThreadEntry[]): Row[] {
     open = { op: entry.operation_id, steps }
     rows.push({ kind: 'tools', key: step.key, steps })
   }
+  textsUpTo(Infinity)
   return rows
 }
 

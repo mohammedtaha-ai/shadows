@@ -9,8 +9,10 @@
 # last can pull a finished turn back.
 #
 # Trap: the streamed reply and the durable entries share the screen. The reply hides
-# the entries it stands in for (`ShownReply.hidden`), and `Messages` drops them. Neither
-# hides anything on its own, and a message must never be on screen twice.
+# the messages it stands in for (`ShownReply.hidden`), and `Messages` drops them. Neither
+# hides anything on its own, and a message must never be on screen twice. A tool call or a
+# subagent entry is never hidden: the reply is cut at each one, and `Messages` draws each cut
+# before its entry, so a finished call stays between the paragraphs it ran between.
 #
 # Trap: a CommandId is the replay key. A retry reuses its id only while the request is
 # unchanged; changing a setting or the text makes a new command. Two paths build the
@@ -49,22 +51,29 @@ shapes:
     endedAt: "number | null"
     # Journal seq of the source that set the turn; -1 when only the start route has answered.
     seq: number
+  Cut:
+    # The turn's text up to one announced agent entry: it came before that entry.
+    ordinal: number
+    # The entry is an AgentMessage, which this text stands in for.
+    message: bool
+    # '' when the entry followed another with no text between.
+    text: string
   ReplyState:
     # The turn whose text this is; `live` means the stream is still delivering it.
     op: "string | null"
-    # Messages of this turn already announced as agent entries.
-    segments: "string[]"
-    # How much of the turn's streamed text `segments` hold; `tail` is the rest.
+    # The text cut at each agent entry announced so far, in order.
+    cuts: "Cut[]"
+    # How much of the turn's streamed text `cuts` hold; `tail` is the rest.
     consumed: number
     tail: string
-    # Ordinals of the agent entries `segments` stand in for.
-    covers: "number[]"
     live: bool
   ShownReply:
-    text: string
-    # Still streaming: the cursor is drawn.
+    # The state's own array, unchanged by a delta, so the rows built from it stay the same.
+    cuts: "Cut[]"
+    tail: string
+    # Still streaming: the cursor is drawn on the tail.
     live: bool
-    # Entries this text stands in for; the list does not draw them.
+    # The messages this text stands in for (cuts with `message`); the list does not draw them.
     hidden: "Set<number>"
   Durable:
     # What the fetched entries list holds, and when it was fetched.
@@ -245,10 +254,12 @@ components:
       harness: string; forkFrom: { projectId: string; threadId: string } | null; loading: boolean;
       reply: ShownReply | null; running: boolean; thinking: boolean; label: string | undefined }) =>
       JSX.Element"
-    # Entries in order, then the reply, the running turn's cards, the waiting line
-    # and the operational label. Follows the bottom while the reader is there. Tool calls
-    # are drawn as `ToolGroup` rows (`activityRows`); the running turn's `tools` frames
-    # not yet written as entries join the last group of that turn, or form one after the reply.
+    # Entries in order with the reply's cuts before the entries they were cut at, the running
+    # turn's unwritten calls, the reply's tail, the running turn's cards, the waiting line and
+    # the operational label. Follows the bottom while the reader is there. Tool calls are drawn
+    # as `ToolGroup` rows (`activityRows`); the running turn's `tools` frames not yet written
+    # as entries join the last row when it is that turn's group, or form one after it, before
+    # the tail (Core ends the message at each call).
     # A turn's live `todos` list draws as a `TodoCard` after the reply until its entry lands.
   Entry:
     signature: "(props: { entry: ThreadEntry; policy: HarnessPolicy; requestedMode: string | null;
@@ -393,12 +404,12 @@ pure:
     signature: "(state: TurnState) => Turn | null"
   replyReducer:
     signature: "(state: ReplyState, action: ReplyAction) => ReplyState"
-    # `stream` follows the streamed text; `agent-entry` cuts a segment where the
-    # stream stood when the entry was announced.
+    # `stream` follows the streamed text; `agent-entry` cuts the text where the
+    # stream stood when the entry was announced, and records whether it is a message.
   shownReply:
     signature: "(state: ReplyState, durable: Durable) => ShownReply | null"
-    # Shown until the entries hold every covered ordinal, or until a fetch after the
-    # turn ended.
+    # Shown until the entries hold every cut's ordinal, or until a fetch after the
+    # turn ended. Null while no cut and no tail holds text.
   agentOrdinal:
     signature: "(payload: unknown) => number | null"
     # Exported from use-conversation.ts. AgentMessage, ToolCall and Subagent only.
@@ -446,9 +457,11 @@ pure:
     signature: "(entry: ThreadEntry) => boolean"
     # True for a tool call whose title reads as nothing (plan_show).
   activityRows:
-    signature: "(shown: readonly ThreadEntry[]) => Row[]"
+    signature: "(shown: readonly ThreadEntry[], texts?: readonly TextPart[]) => Row[]"
     # Consecutive ToolCall entries of one turn with a readable card form one group; an entry
-    # with no card (an old one) stands alone as a completed step with its title.
+    # with no card (an old one) stands alone as a completed step with its title. Each text
+    # part (a reply cut) is a `text` row before the first entry at or after its ordinal, and
+    # splits a group there.
   liveSteps:
     signature: "(frames: readonly ToolFrame[], entries: readonly ThreadEntry[], op: string, ended?: boolean) => ToolStep[]"
     # A frame whose call an entry already holds is dropped: the entry is final.
@@ -553,11 +566,19 @@ obligations:
 
   - rule: >
       A streamed reply stays on screen after its turn-end until the entries list holds
-      every agent entry it stands in for, and it hides exactly those entries, so a message
-      is never shown twice.
+      every agent entry it was cut at, and it hides exactly the messages among them, so a
+      message is never shown twice.
     tested_by:
       - "stays after turn-end until the entries list holds the agent entry"
       - "shows nothing before any text streams"
+      - "cuts the text at a tool call and hides only the messages it stands in for"
+
+  - rule: >
+      A finished tool call never disappears during its turn: its entry is drawn where it
+      ran, between the reply's paragraphs, the same before and after the turn ends.
+    tested_by:
+      - "a written tool call stays between the paragraphs while the turn streams on"
+      - "puts streamed text before the entry it was cut at, splitting the group there"
 
   - rule: >
       A turn stopped mid-sentence keeps its partial reply until the entries are fetched
@@ -1211,12 +1232,15 @@ tests:
 
   # use-conversation.test.tsx
   - name: "streams a long reply without exceeding the update depth"
-    checks: "120 deltas outside act: no error, and the reply text is all 120 characters."
+    checks: "120 deltas outside act: no error, and the reply's tail is all 120 characters."
 
   # streamed-reply.test.tsx
   - name: "draws the plan card and the long markdown once while many deltas arrive"
     checks: "100 deltas into a running thread holding a PlanView and 40 sections of markdown: Entry
       renders for both stay at their count before the first delta; word99 shows."
+  - name: "a written tool call stays between the paragraphs while the turn streams on"
+    checks: "Delta, AgentMessage announced, tool frame, ToolCall entry announced and fetched, more
+      deltas: the group still shows, after the first paragraph's row and before the second's."
 
   # turn-state.test.ts
   - name: "a reload during a running turn shows it running, then follows it to its end"
@@ -1250,15 +1274,17 @@ tests:
   - name: "ignores the person, plans and refusals"
     checks: "UserMessage, PlanView and PermissionRefused yield null."
   - name: "stays after turn-end until the entries list holds the agent entry"
-    checks: "Hidden set {2} and text 'Hello' until durable ordinals include 2, then null."
+    checks: "Hidden set {2} and a cut 'Hello' at 2 until durable ordinals include 2, then null."
   - name: "does not give way to the entry while the turn is still streaming"
-    checks: "A live reply keeps its text and cursor even when entry 2 is in the list."
+    checks: "A live reply keeps its cut, its tail and cursor even when entry 2 is in the list."
   - name: "splits messages where the stream stood when the entry was announced, not at the last render"
     checks: "Cut at the announced stream text: 'First.' then 'Second' joined by a blank line."
   - name: "a turn stopped mid-sentence stays until entries are fetched after it ended"
     checks: "Stopped reply shown until a fetch at or after endedAt, then null."
   - name: "a new turn replaces what the last one left"
     checks: "A second op's stream replaces the first's text and goes live."
+  - name: "cuts the text at a tool call and hides only the messages it stands in for"
+    checks: "Message 2 then call 3: cuts 'First.' and '', tail 'Second', hidden {2} only."
   - name: "shows nothing before any text streams"
     checks: "A stopped turn with no text yields null."
 

@@ -18,12 +18,13 @@ import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
 import { TodoCard } from './todo-card'
 import { type Row, activityRows, liveSteps } from './activity-rows'
 import { ToolGroup } from './tool-group'
-import type { ShownReply } from './reply'
+import type { Cut, ShownReply } from './reply'
 import { SubagentCardView } from './subagent-card'
 import { copyText, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
 
 const NO_ENTRIES: readonly ThreadEntry[] = []
+const NO_CUTS: readonly Cut[] = []
 
 const appear = {
   initial: { opacity: 0, y: 6 },
@@ -121,25 +122,29 @@ export function Messages({
     () => (entries ?? NO_ENTRIES).filter((entry) => !hidden.has(entry.ordinal) && !silent(entry)),
     [entries, hidden],
   )
-  const written = useMemo(() => activityRows(shown), [shown])
+  // The reply's text sits between the entries where it was cut, so a turn's
+  // calls stay between the paragraphs they ran between, as after it ends.
+  const cuts = reply === null || reply.cuts.length === 0 ? NO_CUTS : reply.cuts
+  const written = useMemo(() => activityRows(shown, cuts), [shown, cuts])
   const frames = useMemo(() => Object.values(tools), [tools])
   const turnOp = frames.at(-1)?.op
   const live = useMemo(
     () => (turnOp === undefined ? [] : liveSteps(frames, entries ?? NO_ENTRIES, turnOp, !running)),
     [frames, entries, turnOp, running],
   )
-  const lastShown = shown.at(-1)
-  const joins =
-    live.length > 0 &&
-    reply === null &&
-    lastShown?.kind === 'ToolCall' &&
-    lastShown.operation_id === turnOp
-  const rows = useMemo(() => {
+  // Calls not yet written are the turn's newest: they join its last group
+  // when nothing came after it, else form one there, before the text still
+  // streaming (Core cuts the message at each call).
+  const rows = useMemo((): Row[] => {
+    if (live.length === 0) return written
     const last = written.at(-1)
-    if (!joins || last?.kind !== 'tools' || last.steps.some((step) => step.kind === null)) return written
-    return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
-  }, [written, live, joins])
-  const apart = live.length > 0 && rows === written
+    const lastKey = last?.kind === 'tools' ? last.steps.at(-1)?.key : undefined
+    const lastOp = shown.find((entry) => entry.id === lastKey)?.operation_id
+    if (last?.kind === 'tools' && lastOp === turnOp && !last.steps.some((step) => step.kind === null)) {
+      return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
+    }
+    return [...written, { kind: 'tools', key: 'live-tools', steps: live }]
+  }, [written, live, shown, turnOp])
   // A list the entries already hold draws as that entry, never twice.
   const liveLists = Object.entries(todos).filter(
     ([op]) => !(entries ?? NO_ENTRIES).some((e) => e.kind === 'TodoList' && e.operation_id === op),
@@ -148,7 +153,7 @@ export function Messages({
   const answered = answeredNotes(shown, operations ?? [], models)
   const forkAt = forkAnchor(entries ?? [], shown)
   const policy = policyOf(useQuery(harnessesQuery).data, harness)
-  const turnCards = runningCards(entries ?? [], reply, subagents)
+  const turnCards = runningCards(entries ?? [], subagents)
   const modeOf = (entry: ThreadEntry) =>
     operations?.find((op) => op.id === entry.operation_id)?.invocation?.requested_mode ?? null
 
@@ -176,7 +181,11 @@ export function Messages({
           </li>
         )}
         <AnimatePresence initial={false}>
-          {rows.map((row) => row.kind === 'tools' ? (
+          {rows.map((row) => row.kind === 'text' ? (
+            <motion.li key={row.key} {...appear}>
+              <ReplyText text={row.text} />
+            </motion.li>
+          ) : row.kind === 'tools' ? (
             <ToolRow
               key={row.key}
               row={row}
@@ -199,13 +208,10 @@ export function Messages({
                 : {})}
             />
           ))}
-          {reply !== null && (
+          {reply !== null && reply.tail !== '' && (
             <motion.li key="reply" {...appear}>
-              <ReplyText text={reply.text} live={reply.live} />
+              <ReplyText text={reply.tail} live={reply.live} />
             </motion.li>
-          )}
-          {apart && (
-            <ToolRow key='live-tools' row={{ kind: 'tools', key: 'live-tools', steps: live }} answered={undefined} />
           )}
           {liveLists.map(([op, items]) => (
             <motion.li key={`todos-${op}`} {...appear} data-entry-kind='todos'>
@@ -337,21 +343,15 @@ const EntryRow = memo(function EntryRow({
   )
 })
 
-/** Keep subagent cards visible while their durable entries are hidden by the streamed reply. */
-function runningCards(
-  entries: readonly ThreadEntry[],
-  reply: ShownReply | null,
-  live: readonly SubagentCard[],
-): SubagentCard[] {
+/** The running turn's subagents that no entry holds yet; a written one draws
+ * as its entry, in place. */
+function runningCards(entries: readonly ThreadEntry[], live: readonly SubagentCard[]): SubagentCard[] {
   const written = new Set<string>()
-  const hidden: SubagentCard[] = []
   for (const entry of entries) {
     const card = subagentOf(entry)
-    if (card === null) continue
-    written.add(card.id)
-    if (reply?.hidden.has(entry.ordinal) === true) hidden.push(card)
+    if (card !== null) written.add(card.id)
   }
-  return [...hidden, ...live.filter((card) => !written.has(card.id))]
+  return live.filter((card) => !written.has(card.id))
 }
 
 /** The daemon requires the real last entry, even if hidden; show Fork on the last visible entry. */

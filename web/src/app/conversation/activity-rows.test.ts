@@ -20,6 +20,18 @@ const frame = (id: string, extra: Partial<ToolFrame> = {}): ToolFrame => ({
 })
 
 describe('activity rows', () => {
+  it('puts streamed text before the entry it was cut at, splitting the group there', () => {
+    const a = call('a')
+    const b = call('b')
+    const rows = activityRows([a, b], [
+      { ordinal: a.ordinal - 1, text: 'First.' },
+      { ordinal: b.ordinal, text: 'Then.' },
+      { ordinal: b.ordinal + 1, text: 'Last.' },
+    ])
+    expect(rows.map((row) => (row.kind === 'text' ? row.text : row.kind === 'tools' ? row.steps.map((s) => s.key) : row.kind)))
+      .toEqual(['First.', ['e-a'], 'Then.', ['e-b'], 'Last.'])
+  })
+
   it('groups consecutive tool calls of one turn, and splits at another kind or another turn', () => {
     const rows = activityRows([
       call('a'),

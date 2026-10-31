@@ -5,11 +5,15 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ThreadEntry } from '@/api/threads'
 import {
+  agentEntry,
   entryOfKind,
   planFixture,
   planViewEntry,
   runningOperation,
+  toolCardEntry,
+  toolCardFixture,
   userEntry,
 } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
@@ -70,5 +74,52 @@ describe('a streamed reply', () => {
     expect(before.plan).toBeGreaterThan(0)
     expect(drawn.get('v1')).toBe(before.plan)
     expect(drawn.get('a1')).toBe(before.markdown)
+  })
+
+  it('a written tool call stays between the paragraphs while the turn streams on', async () => {
+    const list: ThreadEntry[] = [userEntry('u1', 'read the plan')]
+    open = await startApp('/projects/p1/threads/t1', {
+      ...answers({ operations: [runningOperation()] }),
+      'GET /api/threads/t1/entries': () => Response.json(list),
+    })
+    const app = open
+    await until(() => app.sources.some((s) => s.param('thread_id') === 't1'))
+    const stream = app.sources.find((s) => s.param('thread_id') === 't1')
+    if (stream === undefined) throw new Error('no stream was opened for t1')
+    await act(async () => stream.caughtUp(0))
+    const delta = (text: string) =>
+      act(async () => stream.emit('delta', JSON.stringify({ op: 'op1', text })))
+    // Core writes the message, then the call, each announced as it lands.
+    const write = (seq: number, entry: ThreadEntry) =>
+      act(async () => {
+        list.push(entry)
+        stream.durable(seq, 'ThreadEntryAppended', 'op1', { ordinal: entry.ordinal, kind: entry.kind })
+      })
+    const group = () => app.container.querySelector('[data-entry-kind="tool"]')
+
+    await delta('First paragraph.')
+    await write(1, agentEntry('a1', 'First paragraph.'))
+    await act(async () =>
+      stream.emit('tool', JSON.stringify({
+        op: 'op1', id: 'b', tool: 'Read', kind: 'read', title: 'Read b.ts', target: 'b.ts',
+        lines: null, status: 'completed', started_at: '2026-10-31T10:00:00Z',
+      })),
+    )
+    await write(2, toolCardEntry('e-b', 'Read b.ts', toolCardFixture({ id: 'b', target: 'b.ts' })))
+    await until(() => group() !== null)
+    await delta('Second paragraph.')
+    await until(() => app.text().includes('Second paragraph.'))
+    // Give the list every chance to refetch and redraw.
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)))
+
+    const tool = group()
+    expect(tool).not.toBeNull()
+    expect(tool?.textContent).toContain('Read b.ts')
+    const first = [...app.container.querySelectorAll('li')].find((li) => li.textContent?.includes('First paragraph.'))
+    const second = [...app.container.querySelectorAll('li')].find((li) => li.textContent?.includes('Second paragraph.'))
+    if (tool === null || first === undefined || second === undefined) throw new Error('a row is missing')
+    expect(first.compareDocumentPosition(tool) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tool.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(first).not.toBe(second)
   })
 })

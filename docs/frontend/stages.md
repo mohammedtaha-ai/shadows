@@ -209,3 +209,24 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   "clicking a task adds the focus chip and every send carries it until × removes it": after a
   send the chip is still there and the next send carries the same focus; after × the next send
   carries none.
+
+### F-58 · A finished tool call stays between the paragraphs while its turn streams
+- Status: done
+- Plan: a live-run finding, 2026-10-31 (Claude Code, Haiku): during a running turn a finished
+  group vanished once more text arrived, only the newest unwritten step showed, after the whole
+  reply text; at turn-end every group came back between the paragraphs. Cause: the streamed reply
+  hid every agent entry it was cut at (ToolCall and Subagent too), and `liveSteps` drops written
+  calls, so a written call was drawn nowhere until turn-end. Fix: the reply keeps its text as cuts
+  (one per announced entry) and hides only messages; `Messages` draws each cut before its entry,
+  the unwritten calls after the turn's last row, then the tail.
+- Read: `web/src/app/conversation/contract.yaml` (`ShownReply`, `Messages`, `activityRows`)
+- Touch: `web/src/app/conversation/reply.ts`, `web/src/app/conversation/use-conversation.ts`,
+  `web/src/app/conversation/activity-rows.ts`, `web/src/app/conversation/messages.tsx`,
+  `web/src/app/conversation/contract.yaml`, `web/src/app/conversation/reply.test.ts`,
+  `web/src/app/conversation/activity-rows.test.ts`, `web/src/app/conversation/streamed-reply.test.tsx`,
+  `web/src/app/conversation/use-conversation.test.tsx`
+- Needs: none
+- Done when: `npx vitest run src/app/conversation` passes, with "a written tool call stays
+  between the paragraphs while the turn streams on", "cuts the text at a tool call and hides only
+  the messages it stands in for" and "puts streamed text before the entry it was cut at,
+  splitting the group there".
