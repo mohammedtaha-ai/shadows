@@ -155,7 +155,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   and the long markdown once while many deltas arrive" pass unchanged.
 
 ### F-55 · An edit step opens into its diff
-- Status: blocked (needs F-54)
+- Status: done
 - Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("The edit's diff")
 - Read: `web/src/app/conversation/contract.yaml` (ToolGroup as F-54 left it);
   `web/src/app/conversation/tool-group.tsx` at `StepLine`; `DiffHunk` in `web/src/api/threads.ts`

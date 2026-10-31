@@ -251,7 +251,13 @@ components:
     # Memoised. One step is a line; two or more are a summary button (words, total time,
     # '· N failed') that opens into numbered steps. Open while a step runs, unless the person
     # chose; a link to a member's ordinal opens it. A failed step's `error` shows under its
-    # line, clamped to six lines with Show all. Copy takes each step's line.
+    # line, clamped to six lines with Show all. Copy takes each step's line. An edit step with a diff
+    # (or counts without one) has its own chevron that opens `ToolDiff`.
+  ToolDiff:
+    signature: "(props: { diff: readonly DiffHunk[] | null }) => JSX.Element"
+    # Lines with old and new numbers (none when a hunk has no start), added on green and removed on
+    # red; a gap row between hunks of one file, the path as a heading where it changes. `null`
+    # reads 'Diff too long to show'.
   ReplyText:
     signature: "(props: { text: string; live?: boolean }) => JSX.Element"
     # Declared in entry.tsx as a lazy wrapper around reply-text.tsx's renderer.

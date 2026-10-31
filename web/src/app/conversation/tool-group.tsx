@@ -8,6 +8,7 @@ import type { ToolStep } from './activity-rows'
 import { groupSummary, stepLine } from './activity-text'
 import { MessageActions } from './message-actions'
 import { duration } from './subagent-text'
+import { ToolDiff } from './tool-diff'
 
 const running = (step: ToolStep) => step.status === 'pending' || step.status === 'in_progress'
 
@@ -102,9 +103,24 @@ function StepLine({
 }) {
   const line = stepLine(step)
   const time = stepTime(step, now)
+  const [shown, setShown] = useState(false)
+  const drawable =
+    step.kind === 'edit' &&
+    ((step.diff?.length ?? 0) > 0 || step.added !== null || step.removed !== null)
   return (
     <div id={step.ordinal === null || number === null ? undefined : `entry-${step.ordinal}`}>
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
+        {drawable && (
+          <button
+            type="button"
+            aria-expanded={shown}
+            aria-label="Show diff"
+            onClick={() => setShown(!shown)}
+            className="shrink-0 hover:text-foreground"
+          >
+            <ChevronRight className={`size-3.5 transition-transform ${shown ? 'rotate-90' : ''}`} />
+          </button>
+        )}
         {number !== null && <span className="w-4 shrink-0 text-end tabular-nums">{number}.</span>}
         <StatusMark step={step} />
         <span dir="auto" className="min-w-0 break-words">
@@ -117,6 +133,7 @@ function StepLine({
       {step.status === 'failed' && step.error !== null && step.error !== '' && (
         <ErrorText text={step.error} numbered={number !== null} />
       )}
+      {drawable && shown && <ToolDiff diff={step.diff} />}
     </div>
   )
 }
