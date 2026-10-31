@@ -3,22 +3,28 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
 import type { Plan, PlanTask } from '@/api/workflows'
 import type { Choice } from '@/api/sessions'
 import type { Operation, ThreadEntry } from '@/api/threads'
-import { harnessesQuery, policyOf } from '@/api/harnesses'
+import { type HarnessPolicy, harnessesQuery, policyOf } from '@/api/harnesses'
 import { AYLUL_HARNESS } from './cli-picker'
 import { Entry, ReplyText } from './entry'
 import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
-import type { SubagentCard } from '@/stream'
-import type { ShownReply } from './reply'
+import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
+import { TodoCard } from './todo-card'
+import { type Row, activityRows, liveSteps } from './activity-rows'
+import { ToolGroup } from './tool-group'
+import type { Cut, ShownReply } from './reply'
 import { SubagentCardView } from './subagent-card'
-import { copyText, isTool, silent, subagentOf } from './tool-text'
+import { copyText, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
+
+const NO_ENTRIES: readonly ThreadEntry[] = []
+const NO_CUTS: readonly Cut[] = []
 
 const appear = {
   initial: { opacity: 0, y: 6 },
@@ -41,6 +47,8 @@ export function Messages({
   onPointAt,
   subagents,
   onOpenSubagent,
+  tools,
+  todos,
 }: {
   entries: readonly ThreadEntry[] | undefined
   projectId: string
@@ -49,6 +57,10 @@ export function Messages({
   /** The running turns' subagent cards as the stream last sent them. */
   subagents: readonly SubagentCard[]
   onOpenSubagent: (id: string) => void
+  /** The running turn's tool calls as the stream last sent them, by call id. */
+  tools: Readonly<Record<string, ToolFrame>>
+  /** The running turn's task lists as the stream last sent them, by operation. */
+  todos: Readonly<Record<string, readonly TodoItem[]>>
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */
@@ -99,13 +111,49 @@ export function Messages({
   const newlyHidden = [...(reply?.hidden ?? [])].filter((ordinal) => !handedOver.has(ordinal))
   if (newlyHidden.length > 0) setHandedOver(new Set([...handedOver, ...newlyHidden]))
 
-  const shown =
-    entries?.filter((entry) => !reply?.hidden.has(entry.ordinal) && !silent(entry)) ?? []
+  // The hidden ordinals as a string, so a delta that changes nothing here
+  // leaves the shown entries, and so the rows, the same objects.
+  const hiddenKey = [...(reply?.hidden ?? [])].join(',')
+  const hidden = useMemo(
+    () => new Set(hiddenKey === '' ? [] : hiddenKey.split(',').map(Number)),
+    [hiddenKey],
+  )
+  const shown = useMemo(
+    () => (entries ?? NO_ENTRIES).filter((entry) => !hidden.has(entry.ordinal) && !silent(entry)),
+    [entries, hidden],
+  )
+  // The reply's text sits between the entries where it was cut, so a turn's
+  // calls stay between the paragraphs they ran between, as after it ends.
+  const cuts = reply === null || reply.cuts.length === 0 ? NO_CUTS : reply.cuts
+  const written = useMemo(() => activityRows(shown, cuts), [shown, cuts])
+  const frames = useMemo(() => Object.values(tools), [tools])
+  const turnOp = frames.at(-1)?.op
+  const live = useMemo(
+    () => (turnOp === undefined ? [] : liveSteps(frames, entries ?? NO_ENTRIES, turnOp, !running)),
+    [frames, entries, turnOp, running],
+  )
+  // Calls not yet written are the turn's newest: they join its last group
+  // when nothing came after it, else form one there, before the text still
+  // streaming (Core cuts the message at each call).
+  const rows = useMemo((): Row[] => {
+    if (live.length === 0) return written
+    const last = written.at(-1)
+    const lastKey = last?.kind === 'tools' ? last.steps.at(-1)?.key : undefined
+    const lastOp = shown.find((entry) => entry.id === lastKey)?.operation_id
+    if (last?.kind === 'tools' && lastOp === turnOp && !last.steps.some((step) => step.kind === null)) {
+      return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
+    }
+    return [...written, { kind: 'tools', key: 'live-tools', steps: live }]
+  }, [written, live, shown, turnOp])
+  // A list the entries already hold draws as that entry, never twice.
+  const liveLists = Object.entries(todos).filter(
+    ([op]) => !(entries ?? NO_ENTRIES).some((e) => e.kind === 'TodoList' && e.operation_id === op),
+  )
   const operational = label === undefined ? null : describeLabel(label)
   const answered = answeredNotes(shown, operations ?? [], models)
   const forkAt = forkAnchor(entries ?? [], shown)
   const policy = policyOf(useQuery(harnessesQuery).data, harness)
-  const turnCards = runningCards(entries ?? [], reply, subagents)
+  const turnCards = runningCards(entries ?? [], subagents)
   const modeOf = (entry: ThreadEntry) =>
     operations?.find((op) => op.id === entry.operation_id)?.invocation?.requested_mode ?? null
 
@@ -133,43 +181,43 @@ export function Messages({
           </li>
         )}
         <AnimatePresence initial={false}>
-          {shown.map((entry) => (
-            <motion.li
-              key={entry.id}
-              id={`entry-${entry.ordinal}`}
-              {...appear}
-              initial={handedOver.has(entry.ordinal) ? false : appear.initial}
-              data-entry-kind={isTool(entry) ? 'tool' : entry.kind}
-              className="group space-y-1"
-            >
-              <Entry
-                entry={entry}
-                policy={policy}
-                requestedMode={modeOf(entry)}
-                projectId={projectId}
-                onPointAt={onPointAt}
-                onOpenSubagent={onOpenSubagent}
-              />
-              {answered.has(entry.id) && (
-                <p className="text-xs text-faint-foreground">{answered.get(entry.id)}</p>
-              )}
-              <div className={entry.kind === 'UserMessage' ? 'flex justify-end' : undefined}>
-                <MessageActions
-                  text={copyText(entry)}
-                  forkPoint={
-                    forkFrom !== null && forkAt !== null && entry.id === forkAt.shownId
-                      ? { ...forkFrom, entryId: forkAt.entryId }
-                      : undefined
-                  }
-                />
-              </div>
+          {rows.map((row) => row.kind === 'text' ? (
+            <motion.li key={row.key} {...appear}>
+              <ReplyText text={row.text} />
             </motion.li>
+          ) : row.kind === 'tools' ? (
+            <ToolRow
+              key={row.key}
+              row={row}
+              answered={answered.get(row.steps.at(-1)?.key ?? row.key)}
+              {...forkProps(row, forkFrom, forkAt)}
+            />
+          ) : (
+            <EntryRow
+              key={row.entry.id}
+              entry={row.entry}
+              handedOver={handedOver.has(row.entry.ordinal)}
+              policy={policy}
+              requestedMode={modeOf(row.entry)}
+              projectId={projectId}
+              onPointAt={onPointAt}
+              onOpenSubagent={onOpenSubagent}
+              answered={answered.get(row.entry.id)}
+              {...(forkFrom !== null && forkAt !== null && row.entry.id === forkAt.shownId
+                ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
+                : {})}
+            />
           ))}
-          {reply !== null && (
+          {reply !== null && reply.tail !== '' && (
             <motion.li key="reply" {...appear}>
-              <ReplyText text={reply.text} live={reply.live} />
+              <ReplyText text={reply.tail} live={reply.live} />
             </motion.li>
           )}
+          {liveLists.map(([op, items]) => (
+            <motion.li key={`todos-${op}`} {...appear} data-entry-kind='todos'>
+              <TodoCard items={items} />
+            </motion.li>
+          ))}
           {turnCards.map((card) => (
             <motion.li key={`subagent-${card.id}`} {...appear} data-entry-kind="subagent">
               <SubagentCardView card={card} onOpen={onOpenSubagent} />
@@ -197,21 +245,113 @@ export function Messages({
   )
 }
 
-/** Keep subagent cards visible while their durable entries are hidden by the streamed reply. */
-function runningCards(
-  entries: readonly ThreadEntry[],
-  reply: ShownReply | null,
-  live: readonly SubagentCard[],
-): SubagentCard[] {
+/** A run of tool calls with its note. */
+function ToolRow({
+  row,
+  answered,
+  forkProjectId,
+  forkThreadId,
+  forkEntryId,
+}: {
+  row: Extract<Row, { kind: 'tools' }>
+  answered: string | undefined
+  forkProjectId?: string
+  forkThreadId?: string
+  forkEntryId?: string
+}) {
+  return (
+    <motion.li {...appear} data-entry-kind='tool' className='group space-y-1'>
+      <ToolGroup
+        steps={row.steps}
+        ordinals={row.steps.flatMap((step) => (step.ordinal === null ? [] : [step.ordinal])).join(',')}
+        {...(forkProjectId !== undefined && forkThreadId !== undefined && forkEntryId !== undefined
+          ? { forkProjectId, forkThreadId, forkEntryId }
+          : {})}
+      />
+      {answered !== undefined && <p className='text-xs text-faint-foreground'>{answered}</p>}
+    </motion.li>
+  )
+}
+
+/** The fork point a row carries when its last step is the fork anchor. */
+function forkProps(
+  row: Extract<Row, { kind: 'tools' }>,
+  forkFrom: { projectId: string; threadId: string } | null,
+  forkAt: { shownId: string; entryId: string } | null,
+) {
+  return forkFrom !== null && forkAt !== null && row.steps.at(-1)?.key === forkAt.shownId
+    ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
+    : {}
+}
+
+/** One durable entry with its note and actions. Memoised: a streamed delta
+ * re-renders the list, and a long thread's entries (markdown, a plan's graph)
+ * must not be drawn again for each one. */
+const EntryRow = memo(function EntryRow({
+  entry,
+  handedOver,
+  policy,
+  requestedMode,
+  projectId,
+  onPointAt,
+  onOpenSubagent,
+  answered,
+  forkProjectId,
+  forkThreadId,
+  forkEntryId,
+}: {
+  entry: ThreadEntry
+  /** Already on screen as the streamed reply: it does not fade in again. */
+  handedOver: boolean
+  policy: HarnessPolicy
+  requestedMode: string | null
+  projectId: string
+  onPointAt: (plan: Plan, task: PlanTask) => void
+  onOpenSubagent: (id: string) => void
+  answered: string | undefined
+  /** Where a fork from this row goes; set on the fork anchor only, as plain
+   * values so that a new object each render does not redraw the row. */
+  forkProjectId?: string
+  forkThreadId?: string
+  forkEntryId?: string
+}) {
+  const forkPoint =
+    forkProjectId === undefined || forkThreadId === undefined || forkEntryId === undefined
+      ? undefined
+      : { projectId: forkProjectId, threadId: forkThreadId, entryId: forkEntryId }
+  return (
+    <motion.li
+      id={`entry-${entry.ordinal}`}
+      {...appear}
+      initial={handedOver ? false : appear.initial}
+      data-entry-kind={entry.kind}
+      className="group space-y-1"
+    >
+      <Entry
+        entry={entry}
+        policy={policy}
+        requestedMode={requestedMode}
+        projectId={projectId}
+        onPointAt={onPointAt}
+        onOpenSubagent={onOpenSubagent}
+      />
+      {answered !== undefined && <p className="text-xs text-faint-foreground">{answered}</p>}
+      <div className={entry.kind === 'UserMessage' ? 'flex justify-end' : undefined}>
+        <MessageActions text={copyText(entry)} forkPoint={forkPoint} />
+      </div>
+    </motion.li>
+  )
+})
+
+/** The running turn's subagents that no entry holds yet; a written one draws
+ * as its entry, in place. */
+function runningCards(entries: readonly ThreadEntry[], live: readonly SubagentCard[]): SubagentCard[] {
   const written = new Set<string>()
-  const hidden: SubagentCard[] = []
   for (const entry of entries) {
     const card = subagentOf(entry)
-    if (card === null) continue
-    written.add(card.id)
-    if (reply?.hidden.has(entry.ordinal) === true) hidden.push(card)
+    if (card !== null) written.add(card.id)
   }
-  return [...hidden, ...live.filter((card) => !written.has(card.id))]
+  return live.filter((card) => !written.has(card.id))
 }
 
 /** The daemon requires the real last entry, even if hidden; show Fork on the last visible entry. */

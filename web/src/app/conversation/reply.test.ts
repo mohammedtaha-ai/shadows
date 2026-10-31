@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type ReplyAction, type ReplyState, initialReply, replyReducer, shownReply } from './reply'
+import { type ReplyAction, type ReplyState, type ShownReply, initialReply, replyReducer, shownReply } from './reply'
 import { agentOrdinal } from './use-conversation'
 
 describe('agentOrdinal', () => {
@@ -22,11 +22,17 @@ const stream = (text: string | undefined, op: string | null = 'op'): ReplyAction
   op,
   text,
 })
-const agentEntry = (ordinal: number, streaming: Record<string, string> = {}): ReplyAction => ({
+const agentEntry = (ordinal: number, streaming: Record<string, string> = {}, message = true): ReplyAction => ({
   type: 'agent-entry',
   ordinal,
+  message,
   streaming,
 })
+/** All the shown text, its parts in order. */
+const textOf = (shown: ShownReply | null) =>
+  shown === null
+    ? undefined
+    : [...shown.cuts.map((cut) => cut.text), shown.tail].filter((part) => part !== '').join('\n\n')
 const durable = (ordinals: number[], fetchedAt = 0, endedAt: number | null = null) => ({
   ordinals: new Set(ordinals),
   fetchedAt,
@@ -41,7 +47,8 @@ describe('the streamed reply', () => {
     // The refetch has not landed: the reply is still on screen, no cursor,
     // and entry 2 would not be shown twice.
     expect(shownReply(state, durable([1]))).toEqual({
-      text: 'Hello',
+      cuts: [{ ordinal: 2, message: true, text: 'Hello' }],
+      tail: '',
       live: false,
       hidden: new Set([2]),
     })
@@ -52,7 +59,8 @@ describe('the streamed reply', () => {
   it('does not give way to the entry while the turn is still streaming', () => {
     const state = run(stream('First.'), agentEntry(2), stream('First.Second'))
     expect(shownReply(state, durable([1, 2]))).toEqual({
-      text: 'First.\n\nSecond',
+      cuts: [{ ordinal: 2, message: true, text: 'First.' }],
+      tail: 'Second',
       live: true,
       hidden: new Set([2]),
     })
@@ -62,18 +70,34 @@ describe('the streamed reply', () => {
     // The last delta of the first message arrived after the text was last
     // seen, but before the entry was announced: it belongs to the first.
     const state = run(stream('First'), agentEntry(2, { op: 'First.' }), stream('First.Second'))
-    expect(shownReply(state, durable([1]))?.text).toBe('First.\n\nSecond')
+    expect(textOf(shownReply(state, durable([1])))).toBe('First.\n\nSecond')
   })
 
   it('a turn stopped mid-sentence stays until entries are fetched after it ended', () => {
     const state = run(stream('Partial'), stream(undefined, null))
-    expect(shownReply(state, durable([1], 9, 10))?.text).toBe('Partial')
+    expect(textOf(shownReply(state, durable([1], 9, 10)))).toBe('Partial')
     expect(shownReply(state, durable([1], 11, 10))).toBeNull()
   })
 
   it('a new turn replaces what the last one left', () => {
     const state = run(stream('Old'), stream(undefined), stream('New', 'op2'))
-    expect(shownReply(state, durable([1]))).toMatchObject({ text: 'New', live: true })
+    expect(shownReply(state, durable([1]))).toMatchObject({ cuts: [], tail: 'New', live: true })
+  })
+
+  it('cuts the text at a tool call and hides only the messages it stands in for', () => {
+    const state = run(
+      stream('First.'),
+      agentEntry(2, { op: 'First.' }),
+      agentEntry(3, { op: 'First.' }, false),
+      stream('First.Second'),
+    )
+    const shown = shownReply(state, durable([1, 2, 3]))
+    expect(shown?.cuts).toEqual([
+      { ordinal: 2, message: true, text: 'First.' },
+      { ordinal: 3, message: false, text: '' },
+    ])
+    expect(shown?.tail).toBe('Second')
+    expect(shown?.hidden).toEqual(new Set([2]))
   })
 
   it('shows nothing before any text streams', () => {

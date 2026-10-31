@@ -30,6 +30,7 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
     let all = [
         ThreadEntryKind::UserMessage,
         ThreadEntryKind::AgentMessage,
+        ThreadEntryKind::TodoList,
         ThreadEntryKind::PermissionRefused,
         ThreadEntryKind::PlanView,
         ThreadEntryKind::PlanApproved,
@@ -67,6 +68,7 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
         [
             "UserMessage",
             "AgentMessage",
+            "TodoList",
             "PermissionRefused",
             "PlanView",
             "PlanApproved"

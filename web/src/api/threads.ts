@@ -97,6 +97,17 @@ export type PlanningThread = components['schemas']['PlanningThread']
 
 export type ThreadEntry = components['schemas']['ThreadEntry']
 
+export type ToolCallCard = components['schemas']['ToolCallCard']
+export type DiffHunk = components['schemas']['DiffHunk']
+export type DiffLine = components['schemas']['DiffLine']
+export type TodoListCard = components['schemas']['TodoListCard']
+export type TodoItem = components['schemas']['TodoItem']
+export type ToolLive = components['schemas']['ToolLive']
+export type CallKind = components['schemas']['CallKind']
+export type CallStatus = components['schemas']['CallStatus']
+export type DiffOp = components['schemas']['DiffOp']
+export type TodoStatus = components['schemas']['TodoStatus']
+
 export type Attachment = components['schemas']['Attachment']
 
 export type Operation = components['schemas']['Operation']

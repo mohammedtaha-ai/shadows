@@ -1,13 +1,21 @@
 //! One job: turn ACP updates into complete durable conversation entries.
 
-use shadows_agent::events::{HarnessEvent, SubagentCard};
+use std::path::PathBuf;
+
+use shadows_agent::events::{HarnessEvent, SubagentCard, TodoItem, ToolCallCard, ToolLive};
+
+use crate::tools::Tools;
 
 use super::subagents::{Call, Subagents};
 
 #[derive(Debug, PartialEq)]
 pub enum Durable {
     Message(String),
-    Tool(String),
+    TodoList(Vec<TodoItem>),
+    Tool {
+        title: String,
+        card: Box<ToolCallCard>,
+    },
     /// A subagent's card; its steps are no entries of their own.
     Subagent(Box<SubagentCard>),
     PermissionRefused(String),
@@ -21,14 +29,29 @@ fn card(card: SubagentCard) -> Durable {
 pub struct Collector {
     message_id: Option<String>,
     message: String,
-    /// Open tool calls, id and latest title, in the order they were first seen.
-    tools: Vec<(String, String)>,
+    tools: Tools,
     subagents: Subagents,
+    todos: Option<Vec<TodoItem>>,
 }
 
 impl Collector {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(root: Option<PathBuf>) -> Self {
+        Self {
+            tools: Tools::new(root),
+            ..Self::default()
+        }
+    }
+
+    fn flush_tools(&mut self, out: &mut Vec<Durable>) {
+        out.extend(
+            self.tools
+                .ended()
+                .into_iter()
+                .map(|(title, card)| Durable::Tool {
+                    title,
+                    card: Box::new(card),
+                }),
+        );
     }
 
     fn flush_message(&mut self, out: &mut Vec<Durable>) {
@@ -42,6 +65,7 @@ impl Collector {
         match event {
             HarnessEvent::Chunk { message_id, text } => {
                 // A card whose numbers did not come goes before this text.
+                self.flush_tools(&mut out);
                 let ended = self.subagents.ended();
                 if (self.message_id != *message_id || !ended.is_empty()) && !self.message.is_empty()
                 {
@@ -58,7 +82,11 @@ impl Collector {
                 tool,
                 parent,
                 agent,
+                facts,
             } => {
+                if self.tools.is_written(id) {
+                    return out;
+                }
                 self.flush_message(&mut out);
                 let call = Call {
                     id,
@@ -69,36 +97,35 @@ impl Collector {
                     agent: agent.as_deref(),
                 };
                 if self.subagents.take(call) {
-                    out.extend(self.subagents.ready().into_iter().map(card));
+                    let ready = self.subagents.ready();
+                    if !ready.is_empty() {
+                        self.flush_tools(&mut out);
+                    }
+                    out.extend(ready.into_iter().map(card));
                     return out;
                 }
-                let at = match self.tools.iter().position(|(open, _)| open == id) {
-                    Some(at) => at,
-                    None => {
-                        self.tools.push((id.clone(), String::new()));
-                        self.tools.len() - 1
-                    }
-                };
-                if let Some(title) = title {
-                    self.tools[at].1 = title.clone();
-                }
-                if matches!(status.as_deref(), Some("completed" | "failed")) {
-                    let (_, title) = self.tools.remove(at);
-                    if !title.is_empty() {
-                        out.push(Durable::Tool(title));
-                    }
-                }
+                self.tools.take(
+                    id,
+                    title.as_deref(),
+                    status.as_deref(),
+                    tool.as_deref(),
+                    facts,
+                    &core_db::Storage::now(),
+                );
             }
             HarnessEvent::PermissionRefused { title } => {
                 self.flush_message(&mut out);
+                self.flush_tools(&mut out);
                 if !title.is_empty() {
                     out.push(Durable::PermissionRefused(title.clone()));
                 }
             }
+            HarnessEvent::Todos(items) => self.todos = Some(items.clone()),
             HarnessEvent::Usage { .. }
             | HarnessEvent::Options(_)
             | HarnessEvent::Commands(_)
             | HarnessEvent::SessionTitle { .. }
+            | HarnessEvent::Tool(_)
             | HarnessEvent::Subagent(_)
             | HarnessEvent::TurnEnd { .. } => {}
         }
@@ -116,18 +143,35 @@ impl Collector {
     pub fn cut(&mut self) -> Vec<Durable> {
         let mut out = Vec::new();
         self.flush_message(&mut out);
+        self.flush_tools(&mut out);
         self.message_id = None;
         out
+    }
+
+    pub fn changed_tools(&mut self) -> Vec<ToolLive> {
+        self.tools.changed()
+    }
+
+    pub fn live(&self) -> (Vec<ToolLive>, Option<Vec<TodoItem>>) {
+        (self.tools.live(), self.todos.clone())
     }
 
     pub fn finish(&mut self) -> Vec<Durable> {
         let mut out = Vec::new();
         self.flush_message(&mut out);
+        self.flush_tools(&mut out);
         out.extend(self.subagents.all().into_iter().map(card));
-        for (_, title) in self.tools.drain(..) {
-            if !title.is_empty() {
-                out.push(Durable::Tool(title));
-            }
+        out.extend(
+            self.tools
+                .stop_all(&core_db::Storage::now())
+                .into_iter()
+                .map(|(title, card)| Durable::Tool {
+                    title,
+                    card: Box::new(card),
+                }),
+        );
+        if let Some(todos) = self.todos.take().filter(|items| !items.is_empty()) {
+            out.push(Durable::TodoList(todos));
         }
         out
     }

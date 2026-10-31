@@ -79,6 +79,9 @@ shapes:
     Durable: StoredEvent
     CaughtUp: "{ seq: i64 }"
     Delta: "{ op: OperationId, text: String }"
+    # A running turn's call or task list, whole, after a change. Transient.
+    Tool: "{ op: OperationId, call: ToolLive }"
+    Todos: "{ op: OperationId, entries: Vec<TodoItem> }"
     TurnEnd: "{ op: OperationId, subtype: &'static str, stop_reason: Option<String> }"
     # `limits` is `None` when unknown or unreadable; `size` 0 is no window.
     Usage: "{ thread: ThreadId, used: u64, size: u64, limits: Option<AccountLimits> }"
@@ -127,7 +130,9 @@ functions:
       # journal read failed" and answers Fatal("the journal could not be
       # read")); an empty read ends `reading`, and the first one answers
       # CaughtUp { seq: last_seq }, after which a thread stream sends the
-      # harness's `/` list (`harness.commands_of`) once, if it has one; else
+      # running turn's activity (`turns.live_activity`, held by a thread
+      # stream only): one Tool per open call, then one Todos if a list exists;
+      # then the harness's `/` list (`harness.commands_of`) once, if it has one; else
       # `live`, whose `commands` source sends each change of the thread's list.
     live:
       signature: "(&mut self) -> Option<Result<Delivery, &'static str>>"
@@ -142,8 +147,9 @@ functions:
     transient:
       signature: "(&self, thread, op, item: HarnessEvent) -> Option<Delivery>"
       private: true
-      # Usage → Usage with `Harness::limits_of`; Chunk → Delta; TurnEnd →
-      # TurnEnd; anything else (Entry, ToolCall, Options, …) → None.
+      # Usage → Usage with `Harness::limits_of`; Chunk → Delta; Subagent →
+      # Subagent; Tool → Tool; Todos → Todos; TurnEnd → TurnEnd; anything else
+      # (ToolCall, Options, …) → None.
   testing:
     read_events_after_for_test:
       signature: "(storage: Arc<Storage>, cursor, thread, limit) -> Result<Vec<StoredEvent>, StorageError>"
@@ -355,6 +361,15 @@ tests:
     checks: >
       OperationStarted is in the replay; OperationCompleted arrives live as
       the last durable kind.
+  - name: tool_and_todos_frames_reach_a_running_turns_stream
+    checks: >
+      A tool frame per change of a call, failed included, and a todos frame
+      per task-list update, each naming the operation.
+  - name: a_stream_opened_mid_turn_gets_its_open_calls_and_list_after_caught_up
+    checks: >
+      A stream opened after the frames went out gets, after caught-up and
+      before the commands, one tool frame per open call and one todos frame;
+      Stop then leaves the call's entry stopped.
   - name: durable_frames_name_their_operation_and_thread_and_caught_up_is_json
     checks: >
       A durable frame carries operation_id, thread_id and an object payload,

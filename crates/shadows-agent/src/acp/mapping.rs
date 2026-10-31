@@ -1,8 +1,14 @@
 //! Ordered ACP notifications translated to harness events.
-use crate::events::{HarnessEvent, SlashCommand, ToolMeta};
+use crate::events::{
+    CallKind, HarnessEvent, SlashCommand, TodoItem, TodoStatus, ToolDiff, ToolFacts, ToolLocation,
+    ToolMeta,
+};
 use agent_client_protocol::schema::{
     MaybeUndefined,
-    v1::{AvailableCommandInput, ContentBlock, SessionUpdate},
+    v1::{
+        AvailableCommandInput, ContentBlock, PlanEntryStatus, SessionUpdate, ToolCallContent,
+        ToolCallLocation, ToolCallStatus, ToolKind,
+    },
 };
 use serde_json::Value;
 
@@ -23,10 +29,18 @@ impl Mapping {
                 Some(HarnessEvent::ToolCall {
                     id: t.tool_call_id.to_string(),
                     title: Some(t.title),
-                    status: Some(format!("{:?}", t.status).to_lowercase()),
+                    status: Some(call_status(t.status).into()),
                     tool: m.tool.or(t.name),
                     parent: m.parent,
                     agent: m.agent,
+                    facts: ToolFacts {
+                        kind: Some(call_kind(t.kind)),
+                        locations: Some(locations(t.locations)),
+                        input: t.raw_input,
+                        diffs: Some(diffs(&t.content)),
+                        texts: Some(texts(t.content)),
+                        output: t.raw_output,
+                    },
                 })
             }
             SessionUpdate::ToolCallUpdate(t) => {
@@ -34,12 +48,34 @@ impl Mapping {
                 Some(HarnessEvent::ToolCall {
                     id: t.tool_call_id.to_string(),
                     title: t.fields.title,
-                    status: t.fields.status.map(|s| format!("{s:?}").to_lowercase()),
+                    status: t.fields.status.map(|s| call_status(s).into()),
                     tool: m.tool.or(t.fields.name),
                     parent: m.parent,
                     agent: m.agent,
+                    facts: ToolFacts {
+                        kind: t.fields.kind.map(call_kind),
+                        locations: t.fields.locations.map(locations),
+                        input: t.fields.raw_input,
+                        diffs: t.fields.content.as_ref().map(|content| diffs(content)),
+                        texts: t.fields.content.map(texts),
+                        output: t.fields.raw_output,
+                    },
                 })
             }
+            SessionUpdate::Plan(plan) => Some(HarnessEvent::Todos(
+                plan.entries
+                    .into_iter()
+                    .map(|entry| TodoItem {
+                        content: entry.content,
+                        status: match entry.status {
+                            PlanEntryStatus::Pending => TodoStatus::Pending,
+                            PlanEntryStatus::InProgress => TodoStatus::InProgress,
+                            PlanEntryStatus::Completed => TodoStatus::Completed,
+                            _ => TodoStatus::Pending,
+                        },
+                    })
+                    .collect(),
+            )),
             SessionUpdate::UsageUpdate(u) => {
                 let meta = serde_json::to_value(u.meta).unwrap_or(Value::Null);
                 Some(HarnessEvent::Usage {
@@ -87,4 +123,66 @@ impl Mapping {
             events(item);
         }
     }
+}
+
+/// The ACP wire name of a call's status, which the collectors match on.
+fn call_status(status: ToolCallStatus) -> &'static str {
+    match status {
+        ToolCallStatus::InProgress => "in_progress",
+        ToolCallStatus::Completed => "completed",
+        ToolCallStatus::Failed => "failed",
+        _ => "pending",
+    }
+}
+
+fn call_kind(kind: ToolKind) -> CallKind {
+    match kind {
+        ToolKind::Read => CallKind::Read,
+        ToolKind::Edit => CallKind::Edit,
+        ToolKind::Delete => CallKind::Delete,
+        ToolKind::Move => CallKind::Move,
+        ToolKind::Search => CallKind::Search,
+        ToolKind::Execute => CallKind::Execute,
+        ToolKind::Think => CallKind::Think,
+        ToolKind::Fetch => CallKind::Fetch,
+        ToolKind::SwitchMode => CallKind::SwitchMode,
+        _ => CallKind::Other,
+    }
+}
+
+fn locations(items: Vec<ToolCallLocation>) -> Vec<ToolLocation> {
+    items
+        .into_iter()
+        .map(|item| ToolLocation {
+            path: item.path.display().to_string(),
+            line: item.line,
+        })
+        .collect()
+}
+
+fn diffs(items: &[ToolCallContent]) -> Vec<ToolDiff> {
+    items
+        .iter()
+        .filter_map(|item| match item {
+            ToolCallContent::Diff(diff) => Some(ToolDiff {
+                path: diff.path.display().to_string(),
+                old_text: diff.old_text.clone(),
+                new_text: diff.new_text.clone(),
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
+fn texts(items: Vec<ToolCallContent>) -> Vec<String> {
+    items
+        .into_iter()
+        .filter_map(|item| match item {
+            ToolCallContent::Content(content) => match content.content {
+                ContentBlock::Text(text) => Some(text.text),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
 }

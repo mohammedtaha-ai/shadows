@@ -10,7 +10,7 @@ import type { Plan, PlanListing, PlanTask, PlanVersions } from '@/api/workflows'
 import type { ProjectStatus } from '@/api/code'
 import type { Grant, Project } from '@/api/projects'
 import type { Choice, SessionChoices } from '@/api/sessions'
-import type { InvocationView, Operation, PlanningThread, ThreadEntry } from '@/api/threads'
+import type { InvocationView, Operation, PlanningThread, ThreadEntry, ToolCallCard } from '@/api/threads'
 import type { VisionProposal } from '@/api/design'
 
 export function visionProposalEntry(id: string, proposal: VisionProposal): ThreadEntry {
@@ -187,6 +187,27 @@ export const userEntry = (id: string, body: string) => entryOfKind(id, 'UserMess
 export const agentEntry = (id: string, body: string) => entryOfKind(id, 'AgentMessage', body)
 /** The body carries the tool title for conversation rendering. */
 export const toolEntry = (id: string, title: string) => entryOfKind(id, 'ToolCall', title)
+/** A finished read of `a.ts`, a second long; `extra` changes what a test needs. */
+export const toolCardFixture = (extra: Partial<ToolCallCard> = {}): ToolCallCard => ({
+  id: 'call-1',
+  tool: 'Read',
+  kind: 'read',
+  status: 'completed',
+  target: 'a.ts',
+  lines: null,
+  added: null,
+  removed: null,
+  diff: null,
+  error: null,
+  started_at: '2026-10-31T10:00:00Z',
+  finished_at: '2026-10-31T10:00:01Z',
+  ...extra,
+})
+/** A tool call entry whose `card` is a tool card; the body carries the title. */
+export const toolCardEntry = (id: string, title: string, card: ToolCallCard, op = 'op1') => ({
+  ...entryOfKind(id, 'ToolCall', title, op),
+  card,
+})
 /** The body carries the title while `card` carries the structured subagent data. */
 export const subagentEntry = (id: string, card: { title: string } & Record<string, unknown>) => ({
   ...entryOfKind(id, 'Subagent', card.title),

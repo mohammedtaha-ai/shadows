@@ -84,8 +84,8 @@ pub struct ThreadEntry {
     pub author: Actor,
     pub body: String,
     pub refs: Vec<EntryRef>,
-    /// A card's structured payload: a `Subagent`'s card. `None` for
-    /// every other kind.
+    /// Structured payload: `Subagent` carries a subagent card; `ToolCall` carries
+    /// a `ToolCallCard`; `TodoList` carries a `TodoListCard`.
     #[schema(
         value_type = Option<std::collections::HashMap<String, serde_json::Value>>,
         required
@@ -120,8 +120,10 @@ pub struct NewThreadEntry<'a> {
 pub enum ThreadEntryKind {
     UserMessage,
     AgentMessage,
-    /// A tool the harness ran; its body is the tool's title.
+    /// A tool the harness ran; body is its title and card is a `ToolCallCard`.
     ToolCall,
+    /// The agent task list; card is a `TodoListCard`.
+    TodoList,
     /// A subagent's card; its body is the card's title and `card` the
     /// card itself.
     Subagent,
@@ -145,6 +147,7 @@ impl ThreadEntryKind {
             Self::UserMessage => "UserMessage",
             Self::AgentMessage => "AgentMessage",
             Self::ToolCall => "ToolCall",
+            Self::TodoList => "TodoList",
             Self::Subagent => "Subagent",
             Self::PermissionRefused => "PermissionRefused",
             Self::PlanView => "PlanView",
@@ -161,6 +164,7 @@ impl ThreadEntryKind {
             Self::UserMessage,
             Self::AgentMessage,
             Self::ToolCall,
+            Self::TodoList,
             Self::Subagent,
             Self::PermissionRefused,
             Self::PlanView,

@@ -190,6 +190,12 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 change: `{id, title, agent_type, model, status, prompt, steps, report, \
 duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when \
 it ends. Transient.\n\
+- `tool` — `{op, id, tool, kind, title, target, lines, status, started_at}`: a running \
+turn's tool call, whole, after each change; `status` is `pending`, `in_progress`, \
+`completed` or `failed`. Its entry, kind `ToolCall` with the card, is written when it \
+ends. After `caught-up`, each call still open is sent again. Transient.\n\
+- `todos` — `{op, entries}`: a running turn's task list, whole, after each update, each \
+entry `{content, status}`. After `caught-up` the turn's list is sent again. Transient.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
 - `usage` — `{thread_id, context_used, context_window, limits}`: the session's \
 context use and the account's limits as the harness last reported them; each is \
@@ -234,7 +240,7 @@ fn durable_frame(ev: &StoredEvent) -> Result<Event, Event> {
     Ok(Event::default().event("durable").data(frame.to_string()))
 }
 
-/// The frame of a transient delivery: `delta`, `turn-end`, `usage`,
+/// The frame of a transient delivery: `delta`, `subagent`, `tool`, `todos`, `turn-end`, `usage`,
 /// `options`, `commands`, `plan-show` or `lagged`.
 fn frame(delivery: Delivery) -> Event {
     match delivery {
@@ -244,6 +250,14 @@ fn frame(delivery: Delivery) -> Event {
         Delivery::Subagent { op, card } => Event::default()
             .event("subagent")
             .data(serde_json::json!({ "op": op, "card": card }).to_string()),
+        Delivery::Tool { op, call } => {
+            let mut body = serde_json::json!(call);
+            body["op"] = serde_json::json!(op);
+            Event::default().event("tool").data(body.to_string())
+        }
+        Delivery::Todos { op, entries } => Event::default()
+            .event("todos")
+            .data(serde_json::json!({ "op": op, "entries": entries }).to_string()),
         Delivery::TurnEnd {
             op,
             subtype,

@@ -114,9 +114,10 @@ Decided with Mohammed on 2026-10-12, for PR 2:
   - users `U`;
   - goals `G`;
   - boundaries `B`;
-  - technical direction `T`.
+  - technical direction `TD`.
 
-  `PU` keeps purpose apart from a project rule's `P1` (§23.2). Numbers count
+  `PU` keeps purpose apart from a project rule's `P1` (§23.2); `TD` keeps technical
+  direction apart from a plan task's `T1` (user ruling, 2026-10-31). Numbers count
   per field from 1. An add gets its id when it is approved, so two pending
   adds never claim the same one. The next number is one past the highest
   ever issued in that field, so a removed id is never reused.

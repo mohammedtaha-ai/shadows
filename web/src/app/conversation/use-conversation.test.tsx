@@ -14,7 +14,7 @@ let root: Root | null = null
 let shown: string | undefined
 
 function Probe() {
-  const text = useConversation('t1').reply?.text
+  const text = useConversation('t1').reply?.tail
   // An effect after every commit, as `messages.tsx` keeps the list scrolled.
   useEffect(() => {
     shown = text

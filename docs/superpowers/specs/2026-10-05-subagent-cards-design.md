@@ -50,7 +50,8 @@ report, duration_ms, tokens, tool_count }`:
   appended to `steps`. `SubagentHandback` is not a step: it is the report;
 - the card is written once, as a `Subagent` entry whose body is the card's
   title and whose `card` is the card, the way a tool is a `ToolCall` entry
-  whose body is its title. §23.8 made both their own kinds (Mohammed,
+  whose body is its title (and, since 2026-10-31, whose `card` is its `ToolCallCard`:
+  [tool activity spec](../../backend/specs/2026-10-31-tool-activity-design.md)). §23.8 made both their own kinds (Mohammed,
   2026-10-08); before migration 0020 they were `AgentMessage` bodies
   `[subagent: <card JSON>]` and `[tool: <title>]`. It is written when its call has
   ended and its numbers have arrived; or, ended without numbers, when the

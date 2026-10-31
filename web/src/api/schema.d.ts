@@ -1693,6 +1693,10 @@ export interface components {
             workflow_id: components["schemas"]["WorkflowId"];
             workflow_state: components["schemas"]["WorkflowState"];
         };
+        /** @enum {string} */
+        CallKind: "read" | "edit" | "delete" | "move" | "search" | "execute" | "think" | "fetch" | "switch_mode" | "other";
+        /** @enum {string} */
+        CallStatus: "pending" | "in_progress" | "completed" | "failed" | "stopped";
         /** @description The effort a person picked. */
         ChangeEffort: {
             /** @description One of the session's `efforts`, for the model it holds. */
@@ -1870,6 +1874,20 @@ export interface components {
             kind: "PlanLinkRemove";
             plan: components["schemas"]["PlanId"];
         };
+        DiffHunk: {
+            lines: components["schemas"]["DiffLine"][];
+            /** Format: int32 */
+            new_start?: number | null;
+            /** Format: int32 */
+            old_start?: number | null;
+            path: string;
+        };
+        DiffLine: {
+            op: components["schemas"]["DiffOp"];
+            text: string;
+        };
+        /** @enum {string} */
+        DiffOp: "context" | "add" | "remove";
         /** @description One directory a person could open or choose. */
         DirectoryEntry: {
             /**
@@ -2853,8 +2871,8 @@ export interface components {
             author: components["schemas"]["Actor"];
             body: string;
             /**
-             * @description A card's structured payload: a `Subagent`'s card. `None` for
-             *     every other kind.
+             * @description Structured payload: `Subagent` carries a subagent card; `ToolCall` carries
+             *     a `ToolCallCard`; `TodoList` carries a `TodoListCard`.
              */
             card: {
                 [key: string]: unknown;
@@ -2880,12 +2898,47 @@ export interface components {
          *     Each variant uses its name for storage and serialization.
          * @enum {string}
          */
-        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
         /** Format: uuid */
         ThreadId: string;
+        TodoItem: {
+            content: string;
+            status: components["schemas"]["TodoStatus"];
+        };
+        TodoListCard: {
+            entries: components["schemas"]["TodoItem"][];
+        };
+        /** @enum {string} */
+        TodoStatus: "pending" | "in_progress" | "completed";
         Toggle: {
             command_id: string;
             enabled: boolean;
+        };
+        ToolCallCard: {
+            /** Format: int32 */
+            added?: number | null;
+            diff?: components["schemas"]["DiffHunk"][] | null;
+            error?: string | null;
+            finished_at: string;
+            id: string;
+            kind: components["schemas"]["CallKind"];
+            lines?: number[] | null;
+            /** Format: int32 */
+            removed?: number | null;
+            started_at: string;
+            status: components["schemas"]["CallStatus"];
+            target?: string | null;
+            tool?: string | null;
+        };
+        ToolLive: {
+            id: string;
+            kind: components["schemas"]["CallKind"];
+            lines?: number[] | null;
+            started_at: string;
+            status: components["schemas"]["CallStatus"];
+            target?: string | null;
+            title: string;
+            tool?: string | null;
         };
         /**
          * @description The settings a turn runs with. `effort` is `None` exactly
@@ -6763,6 +6816,8 @@ export interface operations {
              *     - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.
              *     - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.
              *     - `subagent` — `{op, card}`: a running turn's subagent card, whole, after each change: `{id, title, agent_type, model, status, prompt, steps, report, duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when it ends. Transient.
+             *     - `tool` — `{op, id, tool, kind, title, target, lines, status, started_at}`: a running turn's tool call, whole, after each change; `status` is `pending`, `in_progress`, `completed` or `failed`. Its entry, kind `ToolCall` with the card, is written when it ends. After `caught-up`, each call still open is sent again. Transient.
+             *     - `todos` — `{op, entries}`: a running turn's task list, whole, after each update, each entry `{content, status}`. After `caught-up` the turn's list is sent again. Transient.
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
              *     - `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.
              *     - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.

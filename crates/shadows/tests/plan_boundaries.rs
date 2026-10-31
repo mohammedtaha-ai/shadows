@@ -201,6 +201,7 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
                         app.sessions.clone(),
                         opened,
                         PlannerTurnRequest {
+                            root: None,
                             images: Vec::new(),
                             thread_id: app.thread.clone(),
                             harness: "claude-code".into(),

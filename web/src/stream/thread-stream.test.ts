@@ -87,6 +87,39 @@ describe('ThreadStream', () => {
     expect(stream.getState().streaming).toEqual({ a: 'Hello', b: 'other' })
   })
 
+  // A browser hands buffered deltas over in one task; one notice per delta
+  // re-rendered the whole conversation for each, and froze the page.
+  it('tells its subscribers once for a burst of deltas, with the text kept at once', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().caughtUp(0)
+    let heard = 0
+    stream.subscribe(() => (heard += 1))
+    for (let i = 0; i < 100; i += 1) current().emit('delta', JSON.stringify({ op: 'a', text: 'x' }))
+
+    expect(stream.getState().streaming).toEqual({ a: 'x'.repeat(100) })
+    expect(heard).toBe(0)
+    vi.runOnlyPendingTimers()
+    expect(heard).toBe(1)
+    vi.runOnlyPendingTimers()
+    expect(heard).toBe(1)
+  })
+
+  it('a frame after deltas tells its subscribers at once, and the deltas with it', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().caughtUp(0)
+    let heard = 0
+    stream.subscribe(() => (heard += 1))
+    current().emit('delta', JSON.stringify({ op: 'a', text: 'done' }))
+    current().emit('turn-end', JSON.stringify({ op: 'a', subtype: 'success', stop_reason: 'end_turn' }))
+
+    expect(heard).toBe(1)
+    expect(stream.getState().streaming).toEqual({})
+    vi.runOnlyPendingTimers()
+    expect(heard).toBe(1)
+  })
+
   it("clears an operation's streamed text and label at its turn end", () => {
     const { stream, current } = harness()
     stream.start()
@@ -267,3 +300,43 @@ function fakePage(initial = 'visible'): PageLike & { show: (state: string) => vo
   }
   return page
 }
+
+describe('ThreadStream tool and todos frames', () => {
+  const tool = (id: string, status: string) =>
+    JSON.stringify({
+      op: 'op-1', id, tool: null, kind: 'execute', title: id, target: null, lines: null,
+      status, started_at: '2026-10-31T10:00:00Z',
+    })
+  const todos = (content: string) =>
+    JSON.stringify({ op: 'op-1', entries: [{ content, status: 'pending' }] })
+
+  it('keeps the latest tool frame per call and the latest list per turn, past turn-end', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().emit('tool', tool('c1', 'pending'))
+    current().emit('tool', tool('c1', 'completed'))
+    current().emit('tool', tool('c2', 'pending'))
+    current().emit('todos', todos('one'))
+    current().emit('todos', todos('two'))
+    current().emit('turn-end', JSON.stringify({ op: 'op-1', subtype: 'success', stop_reason: null }))
+    const state = stream.getState()
+    expect(Object.keys(state.tools)).toEqual(['c1', 'c2'])
+    expect(state.tools.c1?.status).toBe('completed')
+    expect(state.todos['op-1']?.[0]?.content).toBe('two')
+  })
+
+  it('clears tools and todos on a break and on lagged', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().emit('tool', tool('c1', 'pending'))
+    current().emit('todos', todos('one'))
+    current().emit('lagged')
+    expect(stream.getState().tools).toEqual({})
+    expect(stream.getState().todos).toEqual({})
+    current().emit('tool', tool('c1', 'pending'))
+    current().emit('todos', todos('one'))
+    current().fail()
+    expect(stream.getState().tools).toEqual({})
+    expect(stream.getState().todos).toEqual({})
+  })
+})

@@ -71,7 +71,7 @@ export function subscribeProjectStream(client: QueryClient, projectId: string, s
 export function threadBinding(client: QueryClient, threadId: string) {
   let state: StreamState = {
     connection: 'connecting', caughtUp: false, lastSeq: 0,
-    streaming: {}, labels: {}, subagents: {}, lastTurnEnd: null, problem: null,
+    streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {}, lastTurnEnd: null, problem: null,
   }
   const durable = new Set<NonNullable<StreamSubscriber['onDurable']>>()
   const notices = new Set<NonNullable<StreamSubscriber['onNotice']>>()

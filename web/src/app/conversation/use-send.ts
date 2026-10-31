@@ -24,7 +24,7 @@ interface Send {
 
 export function useSend({
   to, threadId, running, initialAttempt = null, imagesChanged, dropImages,
-  clearPrompt, clearContinuedPlan, onPointed, onStarted,
+  clearPrompt, clearContinuedPlan, onStarted,
 }: {
   to: SendTo
   threadId: string | null
@@ -34,7 +34,6 @@ export function useSend({
   dropImages: (sent: PendingImage[]) => void
   clearPrompt: () => void
   clearContinuedPlan: () => void
-  onPointed: (done: PointedTask) => void
   onStarted: (operationId: string) => void
 }) {
   // The command id belongs to a pending send: made when Send is
@@ -57,12 +56,11 @@ export function useSend({
     onError: error => {
       if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT') pending.current = null
     },
-    onSuccess: (operationId, { pointed, images: sent }) => {
+    onSuccess: (operationId, { images: sent }) => {
       dropImages(sent)
       pending.current = null
       clearContinuedPlan()
       clearPrompt()
-      if (pointed !== null) onPointed(pointed)
       onStarted(operationId)
     },
   })

@@ -23,7 +23,9 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use shadows_agent::choices::{Offered, SessionChoices};
-use shadows_agent::events::{AccountLimits, HarnessEvent, SlashCommand, SubagentCard};
+use shadows_agent::events::{
+    AccountLimits, HarnessEvent, SlashCommand, SubagentCard, TodoItem, ToolLive,
+};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, watch};
 
@@ -34,6 +36,7 @@ use core_operations::OperationId;
 use core_plans::UiSignal;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
+use core_turns::Turns;
 
 /// How many journal rows one read returns; the replay reads until one is empty.
 const BATCH: i64 = 500;
@@ -50,6 +53,15 @@ pub enum Delivery {
     /// A running turn's subagent card, whole, after a change.
     /// Transient: its entry is written when it ends.
     Subagent { op: OperationId, card: SubagentCard },
+    /// A running turn's tool call, whole, after a change. Transient: its entry is
+    /// written when the call ends; after `caught-up` each open call is sent again.
+    Tool { op: OperationId, call: ToolLive },
+    /// A running turn's task list, whole, after an update. Transient: sent again
+    /// after `caught-up` when the turn has one.
+    Todos {
+        op: OperationId,
+        entries: Vec<TodoItem>,
+    },
     /// The harness finished a turn. Transient.
     TurnEnd {
         op: OperationId,
@@ -105,6 +117,9 @@ pub struct Subscription {
     scope: Scope,
     store: EventsStore,
     harness: Arc<Harness>,
+    /// Where a thread stream reads its running turn's activity; a project
+    /// stream has none.
+    turns: Option<Turns>,
     live: Live,
     /// The highest `seq` delivered, starting at the client's `after`.
     last_seq: i64,
@@ -116,6 +131,11 @@ pub struct Subscription {
     caught_up: bool,
     /// `caught-up` was just sent on a thread stream: the `/` list follows.
     commands_due: bool,
+    /// `caught-up` was just sent on a thread stream: the running turn's open
+    /// calls and task list follow, before the `/` list.
+    activity_due: bool,
+    /// Activity frames read and not yet delivered.
+    activity: VecDeque<Delivery>,
     /// Why the stream is over, once it is.
     over: Option<&'static str>,
 }
@@ -126,18 +146,22 @@ impl Subscription {
         after: i64,
         store: EventsStore,
         harness: Arc<Harness>,
+        turns: Option<Turns>,
         live: Live,
     ) -> Self {
         Self {
             scope,
             store,
             harness,
+            turns,
             live,
             last_seq: after,
             read: VecDeque::new(),
             reading: true,
             caught_up: false,
             commands_due: false,
+            activity_due: false,
+            activity: VecDeque::new(),
             over: None,
         }
     }
@@ -169,9 +193,17 @@ impl Subscription {
                 if !self.caught_up {
                     self.caught_up = true;
                     self.commands_due = matches!(self.scope, Scope::Thread(_));
+                    self.activity_due = self.commands_due;
                     return Ok(Delivery::CaughtUp { seq: self.last_seq });
                 }
                 continue;
+            }
+            if self.activity_due {
+                self.activity_due = false;
+                self.load_activity().await;
+            }
+            if let Some(delivery) = self.activity.pop_front() {
+                return Ok(delivery);
             }
             if self.commands_due {
                 self.commands_due = false;
@@ -185,6 +217,26 @@ impl Subscription {
             if let Some(delivery) = self.live().await {
                 return delivery;
             }
+        }
+    }
+
+    /// Queues the running turn's open calls, then its task list, if it has any.
+    async fn load_activity(&mut self) {
+        let (Scope::Thread(thread), Some(turns)) = (&self.scope, &self.turns) else {
+            return;
+        };
+        let Some(activity) = turns.live_activity(thread).await else {
+            return;
+        };
+        let op = activity.op;
+        for call in activity.tools {
+            self.activity.push_back(Delivery::Tool {
+                op: op.clone(),
+                call,
+            });
+        }
+        if let Some(entries) = activity.todos {
+            self.activity.push_back(Delivery::Todos { op, entries });
         }
     }
 
@@ -317,6 +369,8 @@ impl Subscription {
             },
             HarnessEvent::Chunk { text, .. } => Delivery::Delta { op, text },
             HarnessEvent::Subagent(card) => Delivery::Subagent { op, card },
+            HarnessEvent::Tool(call) => Delivery::Tool { op, call },
+            HarnessEvent::Todos(entries) => Delivery::Todos { op, entries },
             HarnessEvent::TurnEnd {
                 subtype,
                 stop_reason,
