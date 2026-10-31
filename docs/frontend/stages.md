@@ -5,7 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-59 to F-61 (todo). F-50 to F-58 are done. Still
+Open: nothing on this branch; F-50 to F-61 are done. Still
 open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -232,7 +232,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   splitting the group there".
 
 ### F-59 · The provider form's button counts models in correct English
-- Status: todo
+- Status: done
 - Plan: bug hunt 2026-10-31: the button reads "Add 1 models".
 - Read: `web/src/app/agents/contract.yaml`; `web/src/app/agents/provider-form.tsx` at the submit
   button
@@ -242,7 +242,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   Add 1 model, Add 2 models".
 
 ### F-60 · Escape never drops a half-filled provider form
-- Status: todo
+- Status: done
 - Plan: bug hunt 2026-10-31: Escape (or a click outside) closes Settings and the provider form
   loses what was typed. Rule: while the form holds unsaved changes, Escape and a click outside
   do not close the dialog; the form shows "Unsaved changes. Save or Cancel." next to its
@@ -258,7 +258,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   closes Settings"; "Cancel discards the edits".
 
 ### F-61 · Every Shadows tool step reads as a sentence, never its raw name
-- Status: todo
+- Status: done
 - Plan: live run 2026-10-31: a step showed `mcp__shadows__workspace_get`. `SENTENCES` in
   `tool-text.ts` names 7 of the 23 Shadows MCP tools. Add the rest: agreement_edit,
   agreement_get, agreement_list, agreement_review, agreement_start, draft_start (kept),
