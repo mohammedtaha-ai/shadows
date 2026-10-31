@@ -360,7 +360,11 @@ async fn stored_technical_direction_ids_become_td() {
         VALUES ('P','p','P','C:/p','2026-10-31')",
     )
     .await;
-    let content = r#"{"purpose":[],"users":[],"goals":[],"boundaries":[],"technical_direction":[{"id":"T1","revision":1,"text":"T1 Rust","approved_from":null},{"id":"T2","revision":1,"text":"Go","approved_from":null}]}"#;
+    let content = concat!(
+        r#"{"purpose":[],"users":[],"goals":[],"boundaries":[],"technical_direction":["#,
+        r#"{"id":"T1","revision":1,"text":"T1 Rust","approved_from":null},"#,
+        r#"{"id":"T2","revision":1,"text":"Go","approved_from":null}]}"#,
+    );
     sqlx::query(
         "INSERT INTO design_workspace(project_id,revision,vision_revision,vision_content)
         VALUES ('P',1,1,?)",
@@ -377,7 +381,8 @@ async fn stored_technical_direction_ids_become_td() {
     .execute(&pool)
     .await
     .unwrap();
-    // The proposals' thread, turn and entry are beside the point: only their item ids, in the row and in the card, move.
+    // The proposals' thread, turn and entry are beside the point: only their item ids,
+    // in the row and in the card, move.
     exec(&pool, "PRAGMA foreign_keys = OFF").await;
     for (id, field, item, seq) in [
         ("td", "technical_direction", "T1", 1),
