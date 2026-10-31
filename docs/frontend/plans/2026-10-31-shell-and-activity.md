@@ -225,7 +225,7 @@ ToolGroup(props: { steps: readonly ToolStep[]; ordinals: string; forkProjectId?:
   forkThreadId?: string; forkEntryId?: string }): JSX.Element
 //   `ordinals` is the members' ordinals joined, a stable string key for memo
 // tool-diff.tsx
-ToolDiff(props: { hunks: readonly DiffHunk[] }): JSX.Element
+ToolDiff(props: { diff: readonly DiffHunk[] | null }): JSX.Element
 // todo-card.tsx
 TodoCard(props: { items: readonly TodoItem[] }): JSX.Element
 ```
