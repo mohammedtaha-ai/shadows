@@ -7,7 +7,7 @@ use agent_client_protocol::schema::{
     MaybeUndefined,
     v1::{
         AvailableCommandInput, ContentBlock, PlanEntryStatus, SessionUpdate, ToolCallContent,
-        ToolCallLocation, ToolKind,
+        ToolCallLocation, ToolCallStatus, ToolKind,
     },
 };
 use serde_json::Value;
@@ -29,7 +29,7 @@ impl Mapping {
                 Some(HarnessEvent::ToolCall {
                     id: t.tool_call_id.to_string(),
                     title: Some(t.title),
-                    status: Some(format!("{:?}", t.status).to_lowercase()),
+                    status: Some(call_status(t.status).into()),
                     tool: m.tool.or(t.name),
                     parent: m.parent,
                     agent: m.agent,
@@ -48,7 +48,7 @@ impl Mapping {
                 Some(HarnessEvent::ToolCall {
                     id: t.tool_call_id.to_string(),
                     title: t.fields.title,
-                    status: t.fields.status.map(|s| format!("{s:?}").to_lowercase()),
+                    status: t.fields.status.map(|s| call_status(s).into()),
                     tool: m.tool.or(t.fields.name),
                     parent: m.parent,
                     agent: m.agent,
@@ -122,6 +122,16 @@ impl Mapping {
         if let Some(item) = item {
             events(item);
         }
+    }
+}
+
+/// The ACP wire name of a call's status, which the collectors match on.
+fn call_status(status: ToolCallStatus) -> &'static str {
+    match status {
+        ToolCallStatus::InProgress => "in_progress",
+        ToolCallStatus::Completed => "completed",
+        ToolCallStatus::Failed => "failed",
+        _ => "pending",
     }
 }
 

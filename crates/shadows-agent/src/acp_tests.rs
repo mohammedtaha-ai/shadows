@@ -68,9 +68,10 @@ fn a_tool_call_carries_its_kind_locations_input_and_diffs() {
         "rawInput": {"file_path": "/work/a.rs"},
         "content": [{"type": "diff", "path": "/work/a.rs", "oldText": "a", "newText": "b"}]
     }));
-    let HarnessEvent::ToolCall { facts, .. } = event else {
+    let HarnessEvent::ToolCall { facts, status, .. } = event else {
         panic!("expected tool call")
     };
+    assert_eq!(status.as_deref(), Some("in_progress"));
     assert_eq!(facts.kind, Some(CallKind::Edit));
     assert_eq!(
         facts.locations,

@@ -147,9 +147,9 @@ functions:
     transient:
       signature: "(&self, thread, op, item: HarnessEvent) -> Option<Delivery>"
       private: true
-      # Usage → Usage with `Harness::limits_of`; Chunk → Delta; Tool → Tool;
-      # Todos → Todos; TurnEnd →
-      # TurnEnd; anything else (Entry, Options, …) → None.
+      # Usage → Usage with `Harness::limits_of`; Chunk → Delta; Subagent →
+      # Subagent; Tool → Tool; Todos → Todos; TurnEnd → TurnEnd; anything else
+      # (ToolCall, Options, …) → None.
   testing:
     read_events_after_for_test:
       signature: "(storage: Arc<Storage>, cursor, thread, limit) -> Result<Vec<StoredEvent>, StorageError>"

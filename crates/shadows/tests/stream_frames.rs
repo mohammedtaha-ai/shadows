@@ -338,13 +338,11 @@ async fn tool_and_todos_frames_reach_a_running_turns_stream() {
         "{seen:?}"
     );
     assert!(tools.iter().all(|t| t["op"] == op.as_str()), "{tools:?}");
-    assert!(
-        matches!(tools[0]["status"].as_str(), Some("pending" | "in_progress")),
-        "{tools:?}"
-    );
+    assert_eq!(tools[0]["status"], "in_progress", "{tools:?}");
     assert_eq!(tools[1]["status"], "completed");
     assert_eq!(tools[4]["status"], "failed");
     assert_eq!(tools[4]["kind"], "execute");
+    assert_eq!(tools[5]["status"], "in_progress", "{tools:?}");
 
     let other = running().await;
     let mut body = subscribe(&other).await;
@@ -379,10 +377,7 @@ async fn a_stream_opened_mid_turn_gets_its_open_calls_and_list_after_caught_up()
     let tools = named(&seen, "tool");
     assert_eq!(tools.len(), 1, "{seen:?}");
     assert_eq!(tools[0]["id"], "held");
-    assert!(
-        matches!(tools[0]["status"].as_str(), Some("pending" | "in_progress")),
-        "{tools:?}"
-    );
+    assert_eq!(tools[0]["status"], "in_progress", "{tools:?}");
     assert_eq!(tools[0]["op"], op.as_str());
     let lists = named(&seen, "todos");
     assert_eq!(lists.len(), 1, "{seen:?}");

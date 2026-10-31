@@ -1,3 +1,5 @@
+// One job: whether the sidebar shows, kept per browser when the window is wide.
+
 import { useCallback, useEffect, useState } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
