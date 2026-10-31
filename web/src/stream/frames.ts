@@ -4,6 +4,17 @@
 // they are checked here, and a frame that does not match is a protocol error.
 
 import type { AccountLimits, Choice, SessionChoices } from '@/api/sessions'
+import type {
+  CallKind,
+  CallStatus,
+  DiffHunk,
+  DiffLine,
+  TodoItem,
+  TodoListCard,
+  ToolCallCard,
+} from '@/api/threads'
+
+export type { TodoItem }
 
 /** One journal event. `operationId` and `threadId` are the ids the event
  * names, `null` where it names none; `payload` is the event's JSON payload. */
@@ -145,6 +156,165 @@ export function parseSubagent(data: string): SubagentFrame {
   const card = readSubagentCard(frame.card)
   if (typeof frame.op !== 'string' || card === null) throw new FrameError('subagent', data)
   return { op: frame.op, card }
+}
+
+/** A running turn's tool call as last sent (the ToolLive body plus op). Transient. */
+export interface ToolFrame {
+  op: string
+  id: string
+  tool: string | null
+  kind: CallKind
+  title: string
+  target: string | null
+  lines: readonly number[] | null
+  status: CallStatus
+  startedAt: string
+}
+
+/** A running turn's whole task list. Transient. */
+export interface TodosFrame {
+  op: string
+  entries: readonly TodoItem[]
+}
+
+const KINDS: readonly string[] = [
+  'read', 'edit', 'delete', 'move', 'search', 'execute', 'think', 'fetch', 'switch_mode', 'other',
+]
+const CALL_STATUSES: readonly string[] = ['pending', 'in_progress', 'completed', 'failed', 'stopped']
+const TODO_STATUSES: readonly string[] = ['pending', 'in_progress', 'completed']
+const DIFF_OPS: readonly string[] = ['context', 'add', 'remove']
+
+function textOrNull(v: unknown): string | null {
+  return typeof v === 'string' ? v : null
+}
+
+function readLines(v: unknown): [number, number] | null {
+  if (!Array.isArray(v) || v.length !== 2) return null
+  const [a, b] = v
+  return isSeq(a) && isSeq(b) ? [a, b] : null
+}
+
+function readHunk(value: unknown): DiffHunk | null {
+  if (!isRecord(value) || typeof value.path !== 'string' || !Array.isArray(value.lines)) return null
+  const lines: DiffLine[] = []
+  for (const line of value.lines) {
+    if (
+      !isRecord(line) ||
+      typeof line.op !== 'string' ||
+      !DIFF_OPS.includes(line.op) ||
+      typeof line.text !== 'string'
+    ) {
+      return null
+    }
+    lines.push({ op: line.op as DiffLine['op'], text: line.text })
+  }
+  const place = (v: unknown) => (isSeq(v) ? v : null)
+  return {
+    path: value.path,
+    old_start: place(value.old_start),
+    new_start: place(value.new_start),
+    lines,
+  }
+}
+
+/** The tool call card `value` holds, or `null` when it is not one. */
+export function readToolCard(value: unknown): ToolCallCard | null {
+  if (!isRecord(value)) return null
+  const { id, kind, status, started_at, finished_at } = value
+  if (
+    typeof id !== 'string' ||
+    typeof kind !== 'string' ||
+    !KINDS.includes(kind) ||
+    typeof status !== 'string' ||
+    !CALL_STATUSES.includes(status) ||
+    typeof started_at !== 'string' ||
+    typeof finished_at !== 'string'
+  ) {
+    return null
+  }
+  let diff: DiffHunk[] | null = null
+  if (Array.isArray(value.diff)) {
+    diff = []
+    for (const raw of value.diff) {
+      const hunk = readHunk(raw)
+      if (hunk === null) return null
+      diff.push(hunk)
+    }
+  }
+  const count = (v: unknown) => (isSeq(v) ? v : null)
+  return {
+    id,
+    tool: textOrNull(value.tool),
+    kind: kind as CallKind,
+    status: status as CallStatus,
+    target: textOrNull(value.target),
+    lines: readLines(value.lines),
+    added: count(value.added),
+    removed: count(value.removed),
+    diff,
+    error: status === 'failed' ? textOrNull(value.error) : null,
+    started_at,
+    finished_at,
+  }
+}
+
+function readTodoItems(value: unknown): TodoItem[] | null {
+  if (!Array.isArray(value)) return null
+  const items: TodoItem[] = []
+  for (const item of value) {
+    if (
+      !isRecord(item) ||
+      typeof item.content !== 'string' ||
+      typeof item.status !== 'string' ||
+      !TODO_STATUSES.includes(item.status)
+    ) {
+      return null
+    }
+    items.push({ content: item.content, status: item.status as TodoItem['status'] })
+  }
+  return items
+}
+
+/** The task list card `value` holds, or `null` when it is not one. */
+export function readTodoList(value: unknown): TodoListCard | null {
+  if (!isRecord(value)) return null
+  const entries = readTodoItems(value.entries)
+  return entries === null ? null : { entries }
+}
+
+export function parseTool(data: string): ToolFrame {
+  const frame = object('tool', data)
+  const { op, id, kind, title, status, started_at } = frame
+  if (
+    typeof op !== 'string' ||
+    typeof id !== 'string' ||
+    typeof kind !== 'string' ||
+    !KINDS.includes(kind) ||
+    typeof title !== 'string' ||
+    typeof status !== 'string' ||
+    !CALL_STATUSES.includes(status) ||
+    typeof started_at !== 'string'
+  ) {
+    throw new FrameError('tool', data)
+  }
+  return {
+    op,
+    id,
+    tool: textOrNull(frame.tool),
+    kind: kind as CallKind,
+    title,
+    target: textOrNull(frame.target),
+    lines: readLines(frame.lines),
+    status: status as CallStatus,
+    startedAt: started_at,
+  }
+}
+
+export function parseTodos(data: string): TodosFrame {
+  const frame = object('todos', data)
+  const entries = readTodoItems(frame.entries)
+  if (typeof frame.op !== 'string' || entries === null) throw new FrameError('todos', data)
+  return { op: frame.op, entries }
 }
 
 export class FrameError extends Error {

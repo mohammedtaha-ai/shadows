@@ -54,6 +54,8 @@ shapes:
     streaming: "Record<opId, string>; cleared on a break and at that op's turn-end"
     labels: "Record<opId, string>; cleared on a break and at that op's turn-end"
     subagents: "Record<cardId, SubagentCard>; cleared on a break, kept past turn-end"
+    tools: "Record<callId, ToolFrame>; the latest tool frame per call; cleared on a break and on lagged, kept past turn-end"
+    todos: "Record<opId, TodoItem[]>; the latest list per turn; cleared on a break and on lagged, kept past turn-end"
     lastTurnEnd: "TurnEnd | null"
     problem: "string | null; why the last connection ended, for a person to read"
   Notice: "{ type: 'usage' } | { type: 'options' } | { type: 'commands' } | { type: 'plan-show' }"
@@ -96,6 +98,20 @@ shapes:
     durationMs: "number | null"
     tokens: "number | null"
     toolCount: "number | null"
+  ToolFrame:
+    op: string
+    id: string
+    tool: "string | null"
+    kind: CallKind
+    title: string
+    target: "string | null"
+    lines: "readonly number[] | null"
+    status: "CallStatus; pending, in_progress, completed, failed or stopped"
+    startedAt: string
+    note: "transient; a durable ToolCall entry for the id is final over any frame"
+  TodosFrame:
+    op: string
+    entries: "readonly TodoItem[]; the whole list, replaced each time"
   ProjectDesignChanged:
     project_id: string
     revision: number
@@ -134,6 +150,11 @@ frame_readers:
   parseSubagent: "(data: string) -> SubagentFrame"
   readSubagentCard:
     "(value: unknown) -> SubagentCard | null; null when value is not a card, no throw"
+  parseTool: "(data: string) -> ToolFrame"
+  parseTodos: "(data: string) -> TodosFrame"
+  readToolCard:
+    "(value: unknown) -> ToolCallCard | null; null when value is not a card, no throw; error kept only on a failed card"
+  readTodoList: "(value: unknown) -> TodoListCard | null; null when value is not a list card, no throw"
   toLimits: "(limits: AccountLimits) -> Limits"
   private_readers:
     note: >
@@ -221,6 +242,12 @@ agreements:
 # ── obligations ──────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: >
+      A tool frame is keyed by call id into `tools` and a todos frame by op into `todos`; both
+      are kept past turn-end and cleared by a break and by lagged. A frame that cannot be read
+      fails the stream with the frame in `problem`.
+    tested_by: "keeps the latest tool frame per call and the latest list per turn, past turn-end; clears tools and todos on a break and on lagged"
+
   - rule: >
       A durable event is applied once, in seq order: an event whose seq is not above lastSeq is
       dropped, and a replay after a reconnect does not apply it again.
@@ -656,7 +683,7 @@ design_cache_identity: "Project design refresh uses api/design.designKeys shared
 
 thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
 
-feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
 
 refresh_policy:
   classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."

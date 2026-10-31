@@ -92,14 +92,15 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   `AGENTS.md` rule 5.
 
 ### F-53 · The stream and the api read tool cards, `tool` frames and `todos` frames
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-31-shell-and-activity.md#2-agent-activity ("Reading")
 - Read: the request (as accepted: its "Fields" and "Backend answer" win over the plan where they
   differ); `web/src/stream/contract.yaml` (StreamState, frame_readers, the transient-frame
   traps); `web/src/api/contract.yaml` (`externally_owned.aliases`, `threads_operations`);
   `web/src/stream/frames.ts` at `readSubagentCard` and `parseSubagent` (the pattern to copy);
   `web/src/stream/thread-stream.ts` at `#open` and the `lagged` handler
-- Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`, run first),
+- Touch: `web/src/stream/thread-registry.ts` (the initial `StreamState`),
+  `web/src/api/schema.d.ts` (only through `npm run gen:api`, run first),
   `web/src/api/threads.ts`, `web/src/api/contract.yaml`, `web/src/stream/frames.ts`,
   `web/src/stream/frames.test.ts`, `web/src/stream/thread-stream.ts`,
   `web/src/stream/thread-stream.test.ts`, `web/src/stream/index.ts`,

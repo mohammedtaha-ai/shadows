@@ -52,6 +52,7 @@ externally_owned:
   aliases: >
     Domain files re-export `Schemas['X']` / `components['schemas']['X']`
     under the same name. Each alias is that schema's type; none is redefined here.
+  tool_activity_aliases: "threads.ts aliases ToolCallCard, DiffHunk, DiffLine, TodoListCard, TodoItem, ToolLive, CallKind, CallStatus, DiffOp and TodoStatus; ThreadEntry.card stays free-form and stream/frames.ts narrows it"
   ErrorCode: "schema.d.ts components.schemas.ErrorCode; the daemon's error codes"
 
 

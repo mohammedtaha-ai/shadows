@@ -7,7 +7,11 @@ import {
   parseDurable,
   parseOptions,
   parsePlanShow,
+  parseTodos,
+  parseTool,
   parseUsage,
+  readTodoList,
+  readToolCard,
 } from './frames'
 
 describe('frames', () => {
@@ -111,5 +115,54 @@ describe('frames', () => {
     expect(untargeted.targetTab).toBeNull()
     expect(untargeted.taskNumber).toBeNull()
     expect(() => parsePlanShow(JSON.stringify({ ...frame, place: 'window' }))).toThrow(FrameError)
+  })
+})
+
+const toolFrame = {
+  op: 'op-1', id: 'c1', tool: 'Read', kind: 'read', title: 'Read a.ts', target: 'a.ts',
+  lines: [1, 5], status: 'in_progress', started_at: '2026-10-31T10:00:00Z',
+}
+const toolCard = {
+  id: 'c1', tool: 'Edit', kind: 'edit', status: 'completed', target: 'a.ts', lines: null,
+  added: 1, removed: 1,
+  diff: [{ path: 'a.ts', old_start: 3, new_start: 3, lines: [
+    { op: 'remove', text: 'a' }, { op: 'add', text: 'b' },
+  ] }],
+  started_at: '2026-10-31T10:00:00Z', finished_at: '2026-10-31T10:00:02Z',
+}
+
+describe('tool and todos frames', () => {
+  it('reads a tool frame, and refuses one with a status it does not know', () => {
+    expect(parseTool(JSON.stringify(toolFrame))).toMatchObject({
+      op: 'op-1', id: 'c1', kind: 'read', lines: [1, 5], status: 'in_progress',
+      startedAt: '2026-10-31T10:00:00Z',
+    })
+    expect(() => parseTool(JSON.stringify({ ...toolFrame, status: 'weird' }))).toThrow(FrameError)
+  })
+
+  it('reads a todos frame, and refuses an item without content', () => {
+    const ok = { op: 'op-1', entries: [{ content: 'x', status: 'pending' }] }
+    expect(parseTodos(JSON.stringify(ok))).toEqual(ok)
+    const bad = { op: 'op-1', entries: [{ status: 'pending' }] }
+    expect(() => parseTodos(JSON.stringify(bad))).toThrow(FrameError)
+  })
+
+  it('readToolCard reads a card with its diff hunks, and returns null for a card it cannot read', () => {
+    const card = readToolCard(toolCard)
+    expect(card?.diff?.[0]?.lines).toHaveLength(2)
+    expect(card?.error).toBeNull()
+    expect(readToolCard({ ...toolCard, kind: 'nope' })).toBeNull()
+    expect(readToolCard(null)).toBeNull()
+  })
+
+  it("readToolCard keeps a failed card's error", () => {
+    const card = readToolCard({ ...toolCard, status: 'failed', diff: null, error: 'boom' })
+    expect(card?.error).toBe('boom')
+  })
+
+  it('readTodoList returns null for a value that is not a list card', () => {
+    expect(readTodoList({ entries: [{ content: 'a', status: 'completed' }] })?.entries).toHaveLength(1)
+    expect(readTodoList({ entries: 'x' })).toBeNull()
+    expect(readTodoList('x')).toBeNull()
   })
 })

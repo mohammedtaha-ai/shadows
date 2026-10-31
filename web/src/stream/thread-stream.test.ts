@@ -300,3 +300,43 @@ function fakePage(initial = 'visible'): PageLike & { show: (state: string) => vo
   }
   return page
 }
+
+describe('ThreadStream tool and todos frames', () => {
+  const tool = (id: string, status: string) =>
+    JSON.stringify({
+      op: 'op-1', id, tool: null, kind: 'execute', title: id, target: null, lines: null,
+      status, started_at: '2026-10-31T10:00:00Z',
+    })
+  const todos = (content: string) =>
+    JSON.stringify({ op: 'op-1', entries: [{ content, status: 'pending' }] })
+
+  it('keeps the latest tool frame per call and the latest list per turn, past turn-end', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().emit('tool', tool('c1', 'pending'))
+    current().emit('tool', tool('c1', 'completed'))
+    current().emit('tool', tool('c2', 'pending'))
+    current().emit('todos', todos('one'))
+    current().emit('todos', todos('two'))
+    current().emit('turn-end', JSON.stringify({ op: 'op-1', subtype: 'success', stop_reason: null }))
+    const state = stream.getState()
+    expect(Object.keys(state.tools)).toEqual(['c1', 'c2'])
+    expect(state.tools.c1?.status).toBe('completed')
+    expect(state.todos['op-1']?.[0]?.content).toBe('two')
+  })
+
+  it('clears tools and todos on a break and on lagged', () => {
+    const { stream, current } = harness()
+    stream.start()
+    current().emit('tool', tool('c1', 'pending'))
+    current().emit('todos', todos('one'))
+    current().emit('lagged')
+    expect(stream.getState().tools).toEqual({})
+    expect(stream.getState().todos).toEqual({})
+    current().emit('tool', tool('c1', 'pending'))
+    current().emit('todos', todos('one'))
+    current().fail()
+    expect(stream.getState().tools).toEqual({})
+    expect(stream.getState().todos).toEqual({})
+  })
+})
