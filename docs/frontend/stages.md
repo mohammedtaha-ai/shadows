@@ -5,8 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-52 (done, web only). F-53 is next; its backend half
-(`docs/shared/requests/2026-10-31-tool-activity.md`, B-19 to B-22) is built. Still
+Open: F-57 (todo). F-50 to F-56 are done. Still
 open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -191,3 +190,22 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
   it, never both"; "after a reload the TodoList entry draws the checklist"; "an unreadable card
   shows its body"; "Copy on a checklist copies its Markdown list".
 
+
+### F-57 · The task label stays after a send, until the person removes it
+- Status: todo
+- Plan: the user's ruling, 2026-10-31: the focus chip (the task a message is about) stays on
+  both a send and a queue, so several questions can go to the same task; × removes it. No
+  option or pin.
+- Read: `web/src/app/conversation/contract.yaml` (`useSend`, the rule "Clicking a task points
+  the next turn at that task's id ... Sending clears the chip"); `web/src/app/conversation/use-send.ts`
+  at the send `onSuccess`; `web/src/app/conversation/plan-in-conversation.test.tsx` at
+  "clicking a task adds the focus chip and the next send carries it"
+- Touch: `web/src/app/conversation/use-send.ts` (drop the clear on send success, and the
+  `onPointed` parameter if nothing else uses it), `web/src/app/conversation/composer.tsx` (stop
+  passing it to `useSend`; × still calls `onPointed`), `web/src/app/conversation/contract.yaml`,
+  `web/src/app/conversation/plan-in-conversation.test.tsx`
+- Needs: none
+- Done when: `npx vitest run src/app/conversation` passes, with the test renamed and changed to
+  "clicking a task adds the focus chip and every send carries it until × removes it": after a
+  send the chip is still there and the next send carries the same focus; after × the next send
+  carries none.
