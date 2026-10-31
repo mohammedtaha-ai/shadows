@@ -192,7 +192,7 @@ Branch `feature/web-polish`: fixes and small improvements the user finds while u
 
 
 ### F-57 · The task label stays after a send, until the person removes it
-- Status: todo
+- Status: done
 - Plan: the user's ruling, 2026-10-31: the focus chip (the task a message is about) stays on
   both a send and a queue, so several questions can go to the same task; × removes it. No
   option or pin.

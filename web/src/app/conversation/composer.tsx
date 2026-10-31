@@ -113,7 +113,7 @@ export function Composer({
     dropImages: sent => dropImages(sent),
     clearPrompt: () => setPrompt(''),
     clearContinuedPlan: () => setContinuedPlan(undefined),
-    onPointed, onStarted,
+    onStarted,
   })
 
   // The `/` menu: open while the whole text is `/name`; Escape closes

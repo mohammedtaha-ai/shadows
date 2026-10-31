@@ -882,8 +882,9 @@ obligations:
 
   - rule: >
       Clicking a task points the next turn at that task's id and the version and revision the
-      person saw. Sending clears the chip.
-    tested_by: "clicking a task adds the focus chip and the next send carries it"
+      person saw. The chip stays after a send or a queue, so several messages can go to the same
+      task; only × removes it.
+    tested_by: "clicking a task adds the focus chip and every send carries it until × removes it"
 
   - rule: >
       A live plan-show frame moves only the tab that sent the turn. A page navigates, a side
@@ -1152,11 +1153,6 @@ gaps:
 # ── open_questions ───────────────────────────────────────────────────────────
 
 open_questions:
-  - >
-      Should a queued message clear the focus chip? `useSend`'s queue `onSuccess` does not call
-      `onPointed`, while a sent turn does. The queued message stores its focus (WaitingMessages'
-      rows carry it), so the chip staying means the next message carries it too. Intent is not
-      stated in code; decide, then align use-send.ts.
 
   - >
       Does the daemon retitle a draft's thread on its first start? `useFirstSend` creates the thread
@@ -1488,9 +1484,9 @@ tests:
   # plan-in-conversation.test.tsx
   - name: "a PlanView entry renders the graph of its version"
     checks: "Card shows title, revision, graph node T1, Open plan link, no minimap, legend below."
-  - name: "clicking a task adds the focus chip and the next send carries it"
-    checks: "Chip shows T2 · Login screen; send carries focus w1/task-2/rev 3; chip cleared; same
-      tab id."
+  - name: "clicking a task adds the focus chip and every send carries it until × removes it"
+    checks: "Chip shows T2 · Login screen; send carries focus w1/task-2/rev 3; chip stays and the next
+      send carries it; × removes it and the one after carries none; same tab id."
   - name: "a plan-show frame for this tab and page navigates"
     checks: "A page plan-show for this tab navigates to the workflow page."
   - name: "a plan-show frame for this tab and side opens the panel on that version"
