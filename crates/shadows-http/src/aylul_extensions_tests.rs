@@ -46,10 +46,15 @@ async fn extension_routes_round_trip() {
     assert_eq!(request(&w, "PUT", &path, &toggle).await.0, StatusCode::OK);
     let (status, view) = request(&w, "GET", "/api/aylul/agents/agent/extensions", "").await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(
-        serde_json::from_str::<Value>(&view).unwrap()["skills"][0]["enabled"],
-        true
-    );
+    // Bundled library skills sit beside the imported one, so find it by id.
+    let view: Value = serde_json::from_str(&view).unwrap();
+    let imported = view["skills"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|skill| skill["id"] == id)
+        .unwrap();
+    assert_eq!(imported["enabled"], true);
     let (status, view) = request(&w, "GET", "/api/aylul/extensions", "").await;
     assert_eq!(status, StatusCode::OK);
     assert!(
