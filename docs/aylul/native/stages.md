@@ -28,11 +28,12 @@ Earlier finished work: N-6 and N-7 (the settings dialog request, PR #40) are in 
 - Done when: `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml appearance` and `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion_surface_wire_is_pinned` pass (outfit copied opaque beside colour; absent when the agent has none, when unbound or when unavailable), `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test architecture` passes, and from `web/` `npx vitest run src/desktop/native-parity.test.ts` passes on the rewritten fixture.
 
 ### N-23 · Main destinations the panel opens
-- Status: todo
+- Status: done (destination/navigation tests, 58 architecture checks and 6 web parity checks passed)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#n-23
 - Read: design §7.6; `docs/aylul/shared/requests/2026-11-01-companion-panel.md` (`open_main_from_companion`, `main-navigation`); `apps/desktop/src-tauri/src/presence/contract.yaml` (`destination`, `open_main_from_companion`)
 - Touch: apps/desktop/src-tauri/src/navigation.rs, apps/desktop/src-tauri/src/presence/mod.rs, apps/desktop/src-tauri/src/presence/workflows.rs, apps/desktop/src-tauri/src/presence/binding_tests.rs, apps/desktop/src-tauri/src/presence/contract.yaml, apps/desktop/src-tauri/src/commands/companion.rs, apps/desktop/src-tauri/src/commands/contract.yaml, web/src/test/native-presence.json (rewritten by `write_presence_fixture`), docs/aylul/native/stages.md
 - Needs: docs/aylul/shared/requests/2026-11-01-companion-panel.md (accepted); F-67 done
+- Additional Touch: apps/desktop/src-tauri/build.rs, apps/desktop/src-tauri/src/contract.yaml, docs/aylul/codebase/README.md (Windows test manifest required when navigation workflow tests link native dialog imports).
 - Done when: `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml destination` passes (each target resolves with reads only and creates no thread; `bound` keeps today's result; an unresolvable target falls back to `companionSettings`), `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml navigation` and `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test architecture` pass, and from `web/` `npx vitest run src/desktop/native-parity.test.ts` passes on the rewritten fixture.
 
 ### N-24 · Panel surface, agent list and selection from the companion

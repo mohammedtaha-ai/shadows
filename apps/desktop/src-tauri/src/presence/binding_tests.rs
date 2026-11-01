@@ -250,6 +250,55 @@ fn click_destination_is_closed_and_does_not_create_a_thread() {
         }
     );
 }
+#[test]
+fn named_destinations_resolve_with_reads_only_and_closed_fallbacks() {
+    use crate::navigation::MainDestination;
+    let (_api, _root, presence) = fixture();
+    assert_eq!(
+        presence.destination_for(MainTarget::NewAgent),
+        MainDestination::NewAgent
+    );
+    assert_eq!(
+        presence.destination_for(MainTarget::Settings),
+        MainDestination::Settings
+    );
+    assert_eq!(
+        presence.destination_for(MainTarget::AgentSettings),
+        MainDestination::CompanionSettings
+    );
+    presence
+        .select(presence.request(None).unwrap(), Some("agent-a".into()))
+        .unwrap();
+    assert_eq!(
+        presence.destination_for(MainTarget::AgentSettings),
+        MainDestination::AgentSettings {
+            agent: "agent-a".into()
+        }
+    );
+    assert_eq!(
+        presence.destination_for(MainTarget::Bound),
+        presence.destination()
+    );
+    assert_eq!(
+        presence.destination_for(MainTarget::OldestWaiting),
+        MainDestination::CompanionSettings
+    );
+    presence.configuration_changed(Some("other".into()));
+    assert_eq!(
+        presence.destination_for(MainTarget::AgentSettings),
+        MainDestination::CompanionSettings
+    );
+}
+#[tokio::test]
+async fn navigation_rejects_unknown_targets_before_window_work() {
+    let (_api, _root, presence) = fixture();
+    for target in ["", "url", "https://example.com", "../settings"] {
+        assert_eq!(
+            presence.open_main_from_companion(Some(target.into())).await,
+            Err("navigation_invalid".into())
+        );
+    }
+}
 
 #[test]
 fn write_presence_fixture() {
@@ -274,6 +323,11 @@ fn write_presence_fixture() {
             project_id: PROJECT.into(),
             thread_id: THREAD.into(),
         }),
+        navigation.request(crate::navigation::MainDestination::AgentSettings {
+            agent: "agent-a".into(),
+        }),
+        navigation.request(crate::navigation::MainDestination::NewAgent),
+        navigation.request(crate::navigation::MainDestination::Settings),
     ];
     let active_presence = super::projection::PresenceProjection {
         expression: "success".into(),

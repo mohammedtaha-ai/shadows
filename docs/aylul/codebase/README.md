@@ -56,6 +56,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/studio/` | Development-only scenes, controlled simulations and PNG export | Colocated `contract.yaml`; excluded from parent scope |
 | `apps/desktop/src-tauri/src/lib.rs` | Register native lifetime adapters | Composition contract |
 | `apps/desktop/src-tauri/src/app.rs` | Assemble the nine native owners with explicit window handles and live close/tray callbacks | `src-tauri/src/contract.yaml` |
+| `apps/desktop/src-tauri/build.rs` | Generate native command permissions | Composition contract; Windows tests declare Common Controls v6 |
 | `apps/desktop/src-tauri/src/windows/` | MainWindow construction/opening with injected tray/close callbacks and physical placement | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit editor focus with physical bounds through the supplied window Handle | Companion window contract |
 | `apps/desktop/src-tauri/src/windows/companion/surface.rs` | Window-owned presentation DTOs | Companion window contract; producers map outside window code |

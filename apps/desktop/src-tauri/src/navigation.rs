@@ -8,6 +8,11 @@ use std::sync::Mutex;
 )]
 pub enum MainDestination {
     CompanionSettings,
+    AgentSettings {
+        agent: String,
+    },
+    NewAgent,
+    Settings,
     AgentDraft {
         agent: String,
     },

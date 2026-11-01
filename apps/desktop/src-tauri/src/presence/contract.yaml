@@ -34,7 +34,8 @@ public_api:
   retarget: Validate thread ID, project, AYLUL harness, selected profile and nonremoved status; latest explicit action wins.
   previews: Persist the person's preview opt-in without conversation content.
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
-  destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
+  destination: Resolve bound through destination_for; named targets return Settings, NewAgent, live bound AgentSettings or validated Conversation, with CompanionSettings as the closed fallback. No thread is created.
+  MainTarget: Closed deserialized companion navigation targets; omitted target means bound. OldestWaiting resolves when waiting observation is installed by N-25.
 obligations:
   - rule: Presence starts, synchronizes and stops its observer; DesktopApp retains no observer field.
     tested_by: [companion_owns_observer_start_sync_and_stop, desktop_registers_one_private_composition_root]

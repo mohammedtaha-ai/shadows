@@ -138,9 +138,10 @@ pub async fn drag_companion(window: tauri::WebviewWindow) -> Result<(), String> 
 pub async fn open_main_from_companion(
     window: tauri::WebviewWindow,
     desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+    target: Option<String>,
 ) -> Result<(), String> {
     guard(&window, "open_main_from_companion")?;
-    desktop.presence().open_main_from_companion().await
+    desktop.presence().open_main_from_companion(target).await
 }
 #[cfg(test)]
 mod tests {

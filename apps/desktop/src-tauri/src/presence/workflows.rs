@@ -89,11 +89,25 @@ impl Presence {
         self.watcher().refresh_appearance(&self.view()).await
     }
 
-    pub async fn open_main_from_companion(self: &Arc<Self>) -> Result<(), String> {
+    pub async fn open_main_from_companion(
+        self: &Arc<Self>,
+        target: Option<String>,
+    ) -> Result<(), String> {
+        let target: super::MainTarget = target
+            .map(|value| serde_json::from_value(serde_json::Value::String(value)))
+            .transpose()
+            .map_err(|_| "navigation_invalid")?
+            .unwrap_or_default();
         let presence = self.clone();
-        let destination = tauri::async_runtime::spawn_blocking(move || presence.destination())
-            .await
-            .map_err(|_| "main_open_failed")?;
+        let destination = tauri::async_runtime::spawn_blocking(move || {
+            if matches!(target, super::MainTarget::Bound) {
+                presence.destination()
+            } else {
+                presence.destination_for(target)
+            }
+        })
+        .await
+        .map_err(|_| "main_open_failed")?;
         let dependencies = self.workflows();
         let navigation = dependencies.navigation.clone();
         (dependencies.window.on_ui)(Box::new(move |app| navigation.open_main(app, destination)))

@@ -25,6 +25,16 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 type Notify = Arc<dyn Fn(BindingView) + Send + Sync>;
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MainTarget {
+    #[default]
+    Bound,
+    AgentSettings,
+    NewAgent,
+    Settings,
+    OldestWaiting,
+}
 struct Model {
     view: BindingView,
     error: Option<&'static str>,
@@ -213,6 +223,16 @@ impl Presence {
         Ok(view)
     }
     pub fn destination(&self) -> MainDestination {
+        self.destination_for(MainTarget::Bound)
+    }
+
+    pub fn destination_for(&self, target: MainTarget) -> MainDestination {
+        match target {
+            MainTarget::NewAgent => return MainDestination::NewAgent,
+            MainTarget::Settings => return MainDestination::Settings,
+            MainTarget::OldestWaiting => return MainDestination::CompanionSettings,
+            MainTarget::Bound | MainTarget::AgentSettings => (),
+        }
         let destination = || -> Result<MainDestination, &'static str> {
             let view = self.snapshot()?;
             let Some(agent) = view.agent else {
@@ -227,7 +247,9 @@ impl Presence {
             }
             let workspace = binding::workspace(&ready)?;
             binding::live_agent(&workspace, &agent)?;
-            let result = if let Some(target) = view.target {
+            let result = if matches!(target, MainTarget::AgentSettings) {
+                MainDestination::AgentSettings { agent }
+            } else if let Some(target) = view.target {
                 let target = binding::target(&ready, &workspace, &agent, &target.thread_id)?;
                 MainDestination::Conversation {
                     project_id: target.project_id,
