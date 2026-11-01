@@ -49,6 +49,7 @@ the real desktop acceptance in plan §5 remains for the complete UI/native slice
 
 ### B-24 · Migration 0039: agent profile columns, MCP tables, bundled flag, declined names
 - Status: done
+- Additional Touch: `crates/core-db/tests/storage_contract/schema.rs` (the fresh-schema table list gains the three new tables).
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#2-how-each-part-is-built (§2.1, §2.5, §2.6 storage lines)
 - Read: `crates/core-db/contract.yaml` (migration catalog rule); `crates/core-db/migrations/0035_aylul_extensions.sql`; `crates/shadows/tests/architecture/table-owners.txt`.
 - Touch: `crates/core-db/migrations/0039_aylul_agent_profile.sql` (new); `crates/core-db/tests/fixtures/base_migrations.sha384`; `crates/core-db/tests/migration_checksums.rs` (count 39); `crates/shadows/tests/architecture/table-owners.txt` (`aylul_mcp_server`, `aylul_agent_mcp`, `aylul_extension_declined` :: extensions).

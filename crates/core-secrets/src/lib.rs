@@ -114,12 +114,15 @@ impl Secrets {
     }
 }
 
-/// An MCP name: 1..=128 of A-Z a-z 0-9 - _, and never a reserved environment name.
-fn validate_mcp_name(name: &str) -> Result<(), SecretsError> {
-    if Secrets::reserved_env_name(name) {
-        return Err(SecretsError::NameReserved(name.into()));
+impl Secrets {
+    /// An MCP name: 1..=128 of A-Z a-z 0-9 - _, and never a reserved environment name.
+    /// Public so an owner can refuse a name whose stored value it keeps unsent.
+    pub fn validate_mcp_name(name: &str) -> Result<(), SecretsError> {
+        if Self::reserved_env_name(name) {
+            return Err(SecretsError::NameReserved(name.into()));
+        }
+        validate_mcp_format(name)
     }
-    validate_mcp_format(name)
 }
 
 fn validate_mcp_format(name: &str) -> Result<(), SecretsError> {
@@ -233,7 +236,7 @@ impl Secrets {
         value: &str,
     ) -> Result<EnvWrite, SecretsError> {
         let scope = Self::mcp_scope(id);
-        let value = self.seal_named(&scope, name, value, validate_mcp_name)?;
+        let value = self.seal_named(&scope, name, value, Self::validate_mcp_name)?;
         Ok(Self::write_command(command_id, &scope, name, value))
     }
 

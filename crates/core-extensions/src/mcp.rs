@@ -116,15 +116,7 @@ impl Extensions {
                 keyed.push(serde_json::json!({"name":pair.name,"mac":write.value_mac()}));
                 writes.push(write);
             } else {
-                // The removal constructor validates names even when no value was sent.
-                self.secrets.mcp_value_removal(
-                    format!("{command_id}:{}", pair.name),
-                    &id,
-                    &pair.name,
-                )?;
-                if core_secrets::Secrets::reserved_env_name(&pair.name) {
-                    return Err(core_secrets::SecretsError::NameReserved(pair.name).into());
-                }
+                core_secrets::Secrets::validate_mcp_name(&pair.name)?;
                 keyed.push(serde_json::json!({"name":pair.name,"mac":null}));
                 names_without_values.push(pair.name.clone());
             }

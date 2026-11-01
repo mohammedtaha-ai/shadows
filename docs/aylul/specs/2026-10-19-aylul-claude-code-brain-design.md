@@ -141,9 +141,9 @@ its limit, AYLUL keeps working on its own provider and key.
   quality difference.
 - **Permissions:** the profile's `settings.json` denies Read, Edit and Write on
   `C:\Users\Mohammed\.claude` and `.claude.json`. Other permission requests
-  were refused at once, as Planner turns are (harness controls §12.2); no
-  prompt existed. Since 2026-11-01 they are put to Mohammed
-  ([AYLUL agents and panel §7.8](2026-11-01-aylul-agents-and-panel-design.md)).
+  are put to Mohammed
+  ([AYLUL agents and panel §7.8](2026-11-01-aylul-agents-and-panel-design.md));
+  Planner turns refuse them at once (harness controls §12.2).
   A full sandbox around Bash is out of scope; deny rules do not fence shell
   commands.
 - **First task is a probe through the real adapter.** Every measurement so far

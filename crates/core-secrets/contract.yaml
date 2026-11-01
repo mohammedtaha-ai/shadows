@@ -51,7 +51,7 @@ functions:
   set_env: Validate and encrypt a value of any scope, atomically classify/write/record one user command; checks no owner.
   remove_env: Atomically classify/delete/record one user command of any scope, replay without deleting again; checks no owner.
   resolve_env: Decrypt all profile pairs for a new harness opening; public for trusted harness openings and owner tests.
-  validate_mcp_name: private; the MCP name rule beside validate_env_name: 1..=128 of A-Z a-z 0-9 - _, reserved names refused.
+  validate_mcp_name: public; the MCP name rule beside validate_env_name, also checking a name whose value Extensions keeps unsent: 1..=128 of A-Z a-z 0-9 - _, reserved names refused.
   validate_env_name: Shared uppercase name validation including reserved names; removal checks the shape only.
 obligations:
   - rule: A shared per-user OS file lock covers read, create and readback across daemon databases.

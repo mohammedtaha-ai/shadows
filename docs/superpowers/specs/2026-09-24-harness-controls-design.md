@@ -139,7 +139,7 @@ way it did and that `auto` is the mode that would have allowed it. `auto` itself
 does not ask. This keeps Milestone 0's behaviour, where
 `--permission-prompts none` denied the same requests without a trace.
 
-**AYLUL threads ask instead** (amended 2026-11-01). The refusal above holds for
+**AYLUL threads ask instead.** The refusal above holds for
 the Planner. In an AYLUL thread the request is held and put to the person, who
 answers with one of the adapter's options; who owns the waiting request, how it
 is recorded and answered, and how an unanswered one ends is owned by

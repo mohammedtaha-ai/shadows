@@ -259,11 +259,10 @@ the existing motion; no new animation is required.
 
 ### 7.8 Asking before a tool runs
 
-Today Shadows answers every ACP `session/request_permission` with the reject
-option at once and writes a `PermissionRefused` entry
-(`shadows-agent/src/acp/connection.rs`; harness controls §12.2 owns that rule).
-For AYLUL threads this branch replaces it with a question to Mohammed. The
-Planner keeps today's refusal; harness controls §12.2 is amended to say so.
+For the Planner, Shadows answers every ACP `session/request_permission` with
+the reject option at once and writes a `PermissionRefused` entry (harness
+controls §12.2 owns that rule). For AYLUL threads the request is put to
+Mohammed instead, as below.
 
 - **Owner of the waiting request: `Harness`,** because it is live session
   state: the ACP request is held on the session's connection until it is
