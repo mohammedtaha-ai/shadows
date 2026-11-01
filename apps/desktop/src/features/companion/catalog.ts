@@ -27,6 +27,9 @@ export const OUTFITS: readonly { id: OutfitId; label: string }[] = [
   { id: "halo", label: "Halo" },
   { id: "special", label: "Special" },
 ];
+export function outfitOf(id: string | null | undefined): OutfitId {
+  return OUTFITS.find(outfit => outfit.id === id)?.id ?? 'default';
+}
 export const DIRECTIONS: readonly {
   id: DirectionId;
   lx: number;

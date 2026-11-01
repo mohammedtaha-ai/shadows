@@ -26,7 +26,7 @@ acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-accep
 - Done when: from `apps/desktop/`, `EXPORT_OUTFITS=1 npx playwright test tests/companion/outfit-export.spec.ts` writes ten 160 px PNGs and the manifest; `node --test tests/companion/outfit-manifest.test.ts` passes, and fails when an id, a label, the order or an image differs from `OUTFITS` (shown by a fixture case); `npx playwright test tests/companion/studio.spec.ts`, `npm run test:companion:unit`, `npm run build` and `npm run typecheck:tests` pass. The ten images are attached to the report.
 
 ### C-9 · The character wears the bound agent's outfit
-- Status: blocked (waits for U-5)
+- Status: done (13 browser tests passed, 2 opt-in cases skipped; unit/production suites, build and test typecheck passed)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#c-9
 - Read: design §7.7; `apps/desktop/src/features/companion/contract.yaml`
 - Touch: apps/desktop/src/features/companion/DesktopCompanion.tsx, apps/desktop/src/features/companion/Companion.tsx, apps/desktop/src/features/companion/catalog.ts, apps/desktop/src/features/companion/contract.yaml, apps/desktop/tests/companion/desktop-window.spec.ts, docs/aylul/character/stages.md

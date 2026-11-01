@@ -1,7 +1,7 @@
 import React from 'react';
 import {CompanionCanvas} from './CompanionCanvas';
 import {SpeechBubble} from './SpeechBubble';
-import {DEFAULT_SETTINGS} from './catalog.ts';
+import {DEFAULT_SETTINGS,outfitOf} from './catalog.ts';
 import type {MotionInput} from './types.ts';
 import {connectCompanion,dragCompanion,openMainFromCompanion,reportCompanionFailure,setCompanionInput,type CompanionState} from '../../platform/companion';
 import {createDesktopGesture} from './desktop-gesture.ts';
@@ -28,7 +28,7 @@ export function DesktopCompanion():React.JSX.Element {
     refresh();document.addEventListener('visibilitychange',refresh);
     return ()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',refresh);};
   },[state?.presence]);
-  const input:MotionInput={color:state?.color,viewport:{width:0,height:0,dpr:1},presentation,settings:DEFAULT_SETTINGS,outfit:'default',scene:'studio',pointer:null,direction:null,perch:null};
+  const input:MotionInput={color:state?.color,viewport:{width:0,height:0,dpr:1},presentation,settings:DEFAULT_SETTINGS,outfit:outfitOf(state?.outfit),scene:'studio',pointer:null,direction:null,perch:null};
   const point=(event:React.PointerEvent)=>({pointerId:event.pointerId,button:event.button,x:event.clientX,y:event.clientY});
   const setInput=(open:boolean)=>{void setCompanionInput(open).catch(()=>setError('Unable to change AYLUL input.'));};
   const composer=state?.composer;

@@ -66,3 +66,19 @@ test("the companion window draws the state's colour",async({page})=>{
     }).toBeLessThanOrEqual(4);
   }
 });
+test("the companion window draws the state's outfit",async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.addInitScript(()=>{Math.random=()=>0.5;});
+  const images:string[]=[];
+  for(const outfit of ['default','headphones','unknown-outfit']){
+    await page.addInitScript(outfit=>{(window as any).nativeState.appearance={outfit};},outfit);
+    await page.goto('/companion.html');
+    await expect.poll(()=>page.locator('canvas').evaluate((canvas:HTMLCanvasElement)=>canvas.getContext('2d')!.getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0))).toBe(true);
+    images.push(await page.locator('canvas').evaluate(async(canvas:HTMLCanvasElement)=>{
+      const pixels=canvas.getContext('2d')!.getImageData(0,0,canvas.width,canvas.height).data;
+      return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',pixels))).map(value=>value.toString(16).padStart(2,'0')).join('');
+    }));
+  }
+  expect(images[1]).not.toBe(images[0]);
+  expect(images[2]).toBe(images[0]);
+});
