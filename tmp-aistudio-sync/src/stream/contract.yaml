@@ -1,0 +1,703 @@
+# Owns the client half of spec §2.10 for the two event streams: one thread's
+# (`/api/subscribe`) and one project's plan and design notifications
+# (`/api/projects/{id}/events`). It owns the resume cursor, the at-most-once rule
+# for durable events, the reconnect and give-up policy, the reading of every frame
+# the daemon sends, and the React bindings that hold a connection while a
+# component is mounted.
+#
+# Traps:
+#  - `connection === 'live'` is how the hooks tell live events from replay. It
+#    becomes true only at `caught-up`. A hidden page leaves it stale (see gaps).
+#  - A `failed` stream leaves `failed` only through `retry()`. Any other break
+#    reconnects from `lastSeq` after a capped backoff.
+#  - `close()` closes the connection and nothing else. A client leaving never
+#    cancels a turn, and nothing in this folder can.
+#  - Streamed text, labels and subagent cards are cleared on a break. Notices
+#    (usage, options, commands, plan-show) are handed on and never stored.
+#  - Durable events are replayed after a reconnect and applied once, by `seq`.
+#    Transient frames are not replayed, so a break drops whatever streamed then.
+#  - `tab-id.ts` keeps its id in memory only. A reload is a new tab by design.
+
+name: web-stream
+version: 1
+status: current
+source: web/src/stream
+
+refresh_pinning:
+  project: "pins project refresh for %s covers all five plan event kinds: design, agreement versions, project maps/lists, plan versions, sibling versions and project neighbours."
+  permissions: "PermissionsChanged on the project stream invalidates the waiting permissions query. Every project caught-up also reconciles it, covering reconnects and late subscribers."
+
+connection_registry:
+  owner: thread-registry.ts
+  scope: "One connection per QueryClient/thread or QueryClient/project; construction happens only here."
+  lifetime: "Subscribing acquires a reference; the last subscriber leaving closes the transport and cancels reconnect. A repeated departure is ignored and never closes a channel opened after it. Rendering alone opens nothing."
+  delivery: "All durable, notice and state listeners share the transport cursor; reconnect resumes after its last applied sequence. A late subscriber reconciles immediately if already live."
+  tested_by:
+    - shares a thread across sibling subscribers, delivers to both, resumes and closes at the last departure
+    - shares writer watchers with a sibling conversation stream until the last watcher leaves
+    - a repeated departure never closes a channel opened after it
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────
+
+shapes:
+  DurableEvent:
+    seq: number
+    kind: string
+    operationId: "string | null; null when the event names no operation"
+    threadId: "string | null; null when the event names no thread"
+    payload: "unknown; read raw here, typed by each caller"
+  Connection: "'connecting' | 'live' | 'reconnecting' | 'failed'"
+  StreamState:
+    connection: Connection
+    caughtUp: "boolean; history has loaded at least once"
+    lastSeq: "number; the highest durable seq applied, the next resume point"
+    streaming: "Record<opId, string>; cleared on a break and at that op's turn-end"
+    labels: "Record<opId, string>; cleared on a break and at that op's turn-end"
+    subagents: "Record<cardId, SubagentCard>; cleared on a break, kept past turn-end"
+    tools: "Record<callId, ToolFrame>; the latest tool frame per call; cleared on a break and on lagged, kept past turn-end"
+    todos: "Record<opId, TodoItem[]>; the latest list per turn; cleared on a break and on lagged, kept past turn-end"
+    lastTurnEnd: "TurnEnd | null"
+    problem: "string | null; why the last connection ended, for a person to read"
+  Notice: "{ type: 'usage' } | { type: 'options' } | { type: 'commands' } | { type: 'plan-show' }"
+  Options:
+    url: "(after: number) -> string"
+    connect: "(url) -> EventSourceLike; default `new EventSource(url)`"
+    after: "number; default 0"
+    onDurable: "called once per seq, in order"
+    onCaughtUp: "called with lastSeq at every caught-up"
+    onNotice: "called once per usage, options, commands or plan-show frame"
+    baseDelayMs: "number; default 500"
+    maxDelayMs: "number; default 10000"
+    maxFailures: "number; default 10; breaks without a caught-up between them"
+    page: "PageLike | null; default `document`; null keeps the connection on any page"
+  Delta: "{ op: string, text: string }; transient"
+  TurnEnd: "{ op: string, subtype: string, stopReason: string | null }; transient"
+  Meta: "{ op: string, label: string }; transient; sets the op's label"
+  UsageFrame: "{ threadId, contextUsed, contextWindow, limits: Limits | null }"
+  Limits: "{ fiveHour: LimitWindow | null, sevenDay: LimitWindow | null, observedAt: string }"
+  LimitWindow: "{ utilization: number, resetsAt: number }; resetsAt in Unix seconds"
+  OptionsFrame: "{ threadId, choices: SessionChoices }"
+  SlashCommand: "{ name: string, description: string, hint: string | null }"
+  PlanShowFrame:
+    threadId: string
+    targetTab: "string | null; the tab that sent the turn, null when it named none"
+    workflowId: string
+    version: number
+    taskNumber: "number | null"
+    place: "'inline' | 'side' | 'page'"
+    note: "live only; never replayed; only the tab named by targetTab acts on it"
+  SubagentCard:
+    id: string
+    title: string
+    agentType: "string | null"
+    model: "string | null; the model it ran on, else the one it asked for"
+    status: "'running' | 'completed' | 'failed' | 'stopped'"
+    prompt: "string | null"
+    steps: "readonly string[]; titles of its tool calls in the order they ended"
+    report: "string | null"
+    durationMs: "number | null"
+    tokens: "number | null"
+    toolCount: "number | null"
+  ToolFrame:
+    op: string
+    id: string
+    tool: "string | null"
+    kind: CallKind
+    title: string
+    target: "string | null"
+    lines: "readonly number[] | null"
+    status: "CallStatus; pending, in_progress, completed, failed or stopped"
+    startedAt: string
+    note: "transient; a durable ToolCall entry for the id is final over any frame"
+  TodosFrame:
+    op: string
+    entries: "readonly TodoItem[]; the whole list, replaced each time"
+  ProjectDesignChanged:
+    project_id: string
+    revision: number
+    changed_parts: "string[]"
+    changed_outcomes: "string[]"
+    vision_changed: boolean
+    note: "identifiers only, never vision content"
+  FrameError:
+    extends: Error
+    message: "malformed <event> frame: first 200 characters of its data"
+  EventSourceLike: "{ addEventListener(type, listener), close() }; the part of EventSource used"
+  PageLike: "{ visibilityState, addEventListener/removeEventListener('visibilitychange') }"
+
+
+externally_owned:
+  SessionChoices: "imported from @/api/sessions, which re-exports schema.d.ts; not redefined here"
+  AccountLimits: "imported from @/api/sessions (schema.d.ts); toLimits maps it to Limits"
+  Choice: "imported from @/api/sessions (schema.d.ts); isChoice checks its shape"
+  EventSource: "the browser's; the only one of these that is not in this folder"
+
+
+# ── functions ────────────────────────────────────────────────────────────────
+
+frame_readers:
+  # frames.ts: each reads one frame's `data:` string. Each throws FrameError
+  # on a value it cannot read; none returns a partial result.
+  parseDurable: "(data: string) -> DurableEvent"
+  parseCaughtUp: "(data: string) -> number"
+  parseDelta: "(data: string) -> Delta"
+  parseTurnEnd: "(data: string) -> TurnEnd"
+  parseMeta: "(data: string) -> Meta"
+  parseUsage: "(data: string) -> UsageFrame"
+  parseOptions: "(data: string) -> OptionsFrame"
+  parseCommands: "(data: string) -> { threadId: string, commands: readonly SlashCommand[] }"
+  parsePlanShow: "(data: string) -> PlanShowFrame"
+  parseSubagent: "(data: string) -> SubagentFrame"
+  readSubagentCard:
+    "(value: unknown) -> SubagentCard | null; null when value is not a card, no throw"
+  parseTool: "(data: string) -> ToolFrame"
+  parseTodos: "(data: string) -> TodosFrame"
+  readToolCard:
+    "(value: unknown) -> ToolCallCard | null; null when value is not a card, no throw; error kept only on a failed card"
+  readTodoList: "(value: unknown) -> TodoListCard | null; null when value is not a list card, no throw"
+  toLimits: "(limits: AccountLimits) -> Limits"
+  private_readers:
+    note: >
+      json, object, isRecord, isCountOrNull, isWindowOrNull, isAccountLimits, isStringOrNull,
+      isSlashCommand, isChoice, isSessionChoices, isSeq, isIdOrNull. All private. Their rules
+      are the frame rules above.
+    private: true
+
+thread_stream:
+  # thread-stream.ts: one ThreadStream owns one thread's connection. Constructing it opens
+  # nothing; start() opens or waits for a shown page.
+  constructor: "(options: Options) -> ThreadStream"
+  start: "() -> void; opens, or waits while hidden; calling again after close() resumes"
+  close: "() -> void; closes the connection and cancels a pending reconnect"
+  retry: "() -> void; the only way out of `failed`; resets the failure budget"
+  getState: "() -> StreamState"
+  subscribe: "(listener: () => void) -> () => void"
+  private_methods:
+    note: >
+      #open(connection), #durable(event), #lost(problem), #fail(problem), #onPage(),
+      #disconnect(), #hidden(), #set(patch). All private; they hold the state machine.
+    private: true
+
+hooks:
+  useThreadStream:
+    "(threadId: string, onDurable?: DurableListener, onNotice?: NoticeListener, projectId?: string)
+      -> StreamState & { retry: () => void }"
+  useProjectEvents: "(projectId: string | undefined) -> void"
+  usePlanEvents: "(threadId: string | undefined, projectId?: string) -> void"
+
+pure:
+  tabId: "() -> string; this page load's random id, in memory only"
+
+test_only:
+  FakeSource:
+    note: >
+      web/src/test/fake-event-source.ts supplies an EventSource a test drives by hand:
+      emit(type, data?), durable(seq, kind?, opId?, payload?), caughtUp(seq), fail(),
+      param(name), and a `closed` flag. Tests and web/src/test/test-app.tsx use it;
+      the architecture check rejects production reachability to test support.
+
+
+# ── agreements ───────────────────────────────────────────────────────────────
+
+agreements:
+  - between: [api/threads.invalidateThreadLists, threadsQuery key, agentThreadsQuery key]
+    must: >
+      match the same thread-list keys: ['projects', id, 'threads'] and ['aylul-agent', slug, 'threads']
+    holds: true
+    why: >
+      The API method matches key[0] 'projects' or 'aylul-agent' and key[2] 'threads', the shapes
+      threadsQuery (src/api/threads.ts) and agentThreadsQuery (src/api/aylul-profiles.ts) build.
+    tested_by: "reads the thread lists again on a retitle: live at once, replayed at the caught-up"
+
+  - between: [use-project-events design invalidation, design keys in src/api/design.ts]
+    must: >
+      invalidate the ['projects', id, 'design'] prefix that every design query key begins with
+    holds: true
+    why: >
+      Each design query in design.ts starts with ['projects', projectId, 'design'].
+    tested_by: >
+      "independent tabs refresh every design slice, deduplicate and resume after disconnect"
+    note: >
+      web/src/stream/use-project-events.test.tsx. The test covers the design prefix only.
+
+  - between: [plan event handling while live, plan event handling while not live]
+    must: >
+      refetch the same plan views for the same event
+    holds: true
+    why: >
+      The shared refresh dispatches classified targets immediately while live, or deduplicates
+      them until caught-up and dispatches the same targets.
+    tested_by: preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
+
+  - between: [threadEntriesKey, threadOperationsKey]
+    must: >
+      be the keys the thread hook invalidates, by the same function threads.ts exports
+    holds: true
+    why: >
+      The dispatcher calls api/threads invalidation methods using those same key factories.
+    tested_by: "refetches entries at each caught-up, per live entry and live operation
+        event, never per replayed one"
+
+
+# ── obligations ──────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      A tool frame is keyed by call id into `tools` and a todos frame by op into `todos`; both
+      are kept past turn-end and cleared by a break and by lagged. A frame that cannot be read
+      fails the stream with the frame in `problem`.
+    tested_by: "keeps the latest tool frame per call and the latest list per turn, past turn-end; clears tools and todos on a break and on lagged"
+
+  - rule: >
+      A durable event is applied once, in seq order: an event whose seq is not above lastSeq is
+      dropped, and a replay after a reconnect does not apply it again.
+    tested_by: "applies a durable event replayed after a reconnect only once"
+
+  - rule: >
+      A reconnect asks for events after lastSeq, the last one applied, and not after the start
+      cursor.
+    tested_by: "reconnects after the latest applied seq, not the one it started from"
+
+  - rule: >
+      A `lagged` frame resubscribes at once from lastSeq. It is not counted as a failure and
+      is not backed off.
+    tested_by: "resubscribes at once from lastSeq when the daemon says it lagged"
+    note: >
+      The test checks that the old source is closed, no timer ran, and streaming is cleared.
+      It does not check labels or subagents, which the code also clears.
+
+  - rule: >
+      A break reconnects after baseDelayMs * 2^(n-1), capped at maxDelayMs. After maxFailures
+      breaks with no caught-up between them, the stream is `failed`. retry() starts again.
+    tested_by: "backs off with a cap, gives up after maxFailures, and retry() starts over"
+
+  - rule: >
+      A caught-up resets the failure budget.
+    tested_by: "earns back its failure budget at every caught-up"
+
+  - rule: >
+      A frame that cannot be read makes the stream `failed` with the frame in `problem`, and
+      does not reconnect.
+    tested_by: "fails without retrying on a frame it cannot read"
+    note: >
+      Only a malformed durable frame is tested. Every other frame reader reaches the same #fail
+      path, but no test sends one.
+
+  - rule: >
+      Frames still arriving from a source the stream has replaced or closed are ignored, and
+      a late error from it is not a failure.
+    tested_by: "ignores whatever a replaced connection still delivers"
+
+  - rule: >
+      close() cancels a pending reconnect and closes the source, so nothing reconnects after it.
+    tested_by: "stops reconnecting once closed"
+
+  - rule: >
+      caught-up moves the stream to `live`, sets caughtUp, and calls onCaughtUp with lastSeq.
+      Before it, the stream is `connecting` or `reconnecting`.
+    tested_by: "is loading history until caught-up, then live"
+
+  - rule: >
+      Text of a streamed delta is appended per op, and two ops' text stays apart.
+    tested_by: "keeps each operation's streamed text apart"
+
+  - rule: >
+      A delta's text is in getState at once, but subscribers are told after the current task:
+      a burst of deltas handed over in one task is one notice. Any other state change
+      notifies at once, and carries a pending delta notice with it.
+    tested_by:
+      - "tells its subscribers once for a burst of deltas, with the text kept at once"
+      - "a frame after deltas tells its subscribers at once, and the deltas with it"
+
+  - rule: >
+      A turn-end clears that op's streamed text and label, and sets lastTurnEnd. Other ops
+      are not touched.
+    tested_by: "clears an operation's streamed text and label at its turn end"
+    note: >
+      A meta frame sets the op's label. The test checks only that a turn-end clears it; the
+      setting itself is not asserted.
+
+  - rule: >
+      A subagent frame is keyed by card id into `subagents`, and the card is kept past
+      turn-end. A break clears it.
+    tested_by: "integration: a live frame draws a running card until its entry is in the list"
+    note: >
+      In web/src/app/conversation/subagent-card.test.tsx. The stream folder has no test of
+      subagent storage, clearing or retention.
+
+  - rule: >
+      usage and options frames are handed on as notices, in order, and not stored.
+    tested_by: "hands on usage and options frames as notices"
+
+  - rule: >
+      commands frames are handed on as notices.
+    tested_by: "hands on a commands frame as a notice"
+
+  - rule: >
+      plan-show frames are handed on as notices, and only the tab named by targetTab acts on
+      them.
+    tested_by: "integration: a plan-show frame for another tab only shows the card"
+    note: >
+      web/src/app/conversation/plan-in-conversation.test.tsx. This folder does not test
+      plan-show delivery; the targetTab filter lives in use-conversation.ts.
+
+  - rule: >
+      A hidden page holds no connection. Hidden, the stream closes its source and clears
+      transient state. Shown again, it resumes after lastSeq.
+    tested_by: "lets go of its connection while the page is hidden and resumes after its seq"
+    note: >
+      The test checks the source's closed flag and the resumed cursor. It does not check
+      `connection`. See the gap at #onPage.
+
+  - rule: >
+      A stream started on a hidden page opens nothing until the page is shown.
+    tested_by: "opens nothing while started on a hidden page"
+
+  - rule: >
+      useThreadStream holds one connection under StrictMode and closes it on unmount.
+    tested_by: "holds one connection under StrictMode and closes it on unmount"
+
+  - rule: >
+      Switching threadId closes the old connection and cancels its pending reconnect.
+    tested_by: "switching thread closes the old one's connection and its pending reconnect"
+
+  - rule: >
+      onDurable sees each durable event once, in seq order, saying whether it came live.
+    tested_by: "hands every durable event to its caller once, saying whether it was live"
+
+  - rule: >
+      Entries are refetched at each caught-up, per live ThreadEntryAppended and per live
+      Operation* event, and never per replayed one. Operations are refetched at caught-up and
+      per live Operation* event. The client keeps no list of which operation events end a turn.
+    tested_by: "refetches entries at each caught-up, per live entry and live operation event,
+        never per replayed one"
+
+  - rule: >
+      A ThreadRetitled reads the thread lists again at once when live, or once at the
+      caught-up that ends a replay that held one.
+    tested_by: "reads the thread lists again on a retitle: live at once, replayed at the caught-up"
+
+  - rule: >
+      useProjectEvents: a design event refetches the project's design prefix, live or replayed.
+      Every caught-up refetches it too.
+    tested_by: "independent tabs refresh every design slice, deduplicate and resume after
+        disconnect"
+    note: >
+      Covers the design prefix, the vision, parts, outcomes and proposal event kinds the test
+      emits. It also covers a replayed design event refetching before caught-up.
+
+  - rule: >
+      Visible views of one project share one connection per query client. The last view that
+      leaves closes it.
+    tested_by: none
+    note: >
+      The shared-watch path needs two views in one QueryClient. The test in
+      use-project-events.test.tsx uses one client per tab, so it never reaches the shared path.
+
+  - rule: >
+      Plan events (WorkflowDraftStarted, WorkflowEdited, WorkflowFrozen, PlanArchived,
+      PlanUnarchived) refetch the plan views when live, and are parked and flushed at caught-up
+      when not.
+    tested_by: preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
+
+  - rule: >
+      AgreementChanged refetches the agreement views and returns before the design branch.
+    tested_by: none
+
+  - rule: >
+      REACH events (PlanDependenciesChanged, ProjectLinked, ProjectUnlinked, ProjectRemoved)
+      refetch the project's views only when live. ProjectRemoved also refetches the project
+      list. caught-up refetches the same views anyway.
+    tested_by: none
+
+  - rule: >
+      tabId returns the same id for every call in one page load, and never reads or writes
+      storage.
+    tested_by: none
+
+  - rule: >
+      parseDurable requires a `payload` key and accepts a null or string operation_id and
+      thread_id. A missing key is a protocol error.
+    tested_by: "reads an event that names no operation as null, and refuses one missing the field"
+
+  - rule: >
+      parseCaughtUp requires a JSON object with a safe-integer seq; a bare number is refused.
+    tested_by: "reads caught-up as a JSON object"
+
+  - rule: >
+      parseUsage accepts nulls for the counts and limits, and refuses a frame without thread_id.
+    tested_by: "reads a usage frame that reported nothing as nulls"
+
+  - rule: >
+      parseOptions refuses choices without their current settings.
+    tested_by: "refuses an options frame whose choices have no current settings"
+
+  - rule: >
+      parseCommands accepts a null or string hint and refuses an entry without a name.
+    tested_by: "refuses a commands entry without a name"
+
+  - rule: >
+      parsePlanShow refuses a place outside inline, side and page.
+    tested_by: "reads a plan-show frame, and refuses a place it does not know"
+
+  - rule: >
+      parseDelta, parseTurnEnd, parseMeta, parseSubagent and readSubagentCard refuse a frame whose
+      required fields do not match, and toLimits maps the wire names.
+    tested_by: none
+    note: >
+      Delta, turn-end and meta are exercised only with valid shapes, in thread-stream.test.ts.
+      No test sends a mismatched one, and toLimits is reached only through parseUsage.
+
+
+# ── not_the_caller's ─────────────────────────────────────────────────────────
+
+not_the_caller's:
+  - >
+    Open an EventSource yourself, or build the stream URL by hand. Use the registry through
+    useThreadStream, usePlanEvents or useProjectEvents, which retain the cursor and close the source.
+  - >
+    Call close() to cancel work. close() ends only this connection.
+  - >
+    Read `connection === 'live'` as "the daemon is up" while the page is hidden. It is the
+    last state the stream held, and the hidden branch does not change it (see gaps).
+  - >
+    Retry a `failed` stream by constructing another ThreadStream. Call retry(), which keeps
+    the cursor.
+  - >
+    Add a plan or design event kind to these hooks without updating PLAN_EVENTS, REACH_EVENTS or
+    the design branch in use-project-events.ts. An unlisted kind is ignored silently.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: ThreadStream.#onPage
+    gap: >
+      When the page turns hidden, #onPage disconnects and clears streaming, labels and subagents,
+      but leaves `connection` at its previous value. A stream that was `live` therefore reports
+      `live` with no open source, until the page is shown and #open sets `reconnecting`.
+      start() on a hidden page sets `reconnecting` or `connecting` instead, so the two paths
+      disagree about the same state. useThreadStream and use-conversation.ts read `connection`
+      directly. The hidden test does not check `connection`, so nothing catches it.
+
+  - at: parsePlanShow
+    gap: >
+      target_tab and task_number default to null when the field is absent (`?? null`). The
+      comment on isIdOrNull says a missing field is a daemon the client cannot follow, and
+      parseDurable applies that rule. Here it does not: a daemon that omits target_tab is read
+      as an untargeted frame, and use-conversation.ts drops it quietly, because null never
+      equals the tab id. The test sends explicit nulls only.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+    `fatal` is treated as a break: the stream reconnects with backoff, and gives up only after
+    maxFailures. The comment says the daemon "is ending the stream", and the thread-stream test
+    asserts `reconnecting`. Whether a journal read failure is recoverable is decided by the
+    daemon's SSE handler (the frame header names src/protocol/sse.rs, which is in crates/ and
+    not read here) and by spec §2.10.
+
+  - >
+    `plan-show` is delivered as a notice whenever it arrives, with no replay check, although the
+    frame's comment says it is live only. Confirm the daemon's subscribe handler never replays it.
+
+  - >
+    ThreadRetitled invalidates the thread lists but not threadQuery's detail key. conversation.tsx
+    reads the detail only for a thread missing from the list. Whether a removed thread can still
+    be retitled is decided by the daemon; if it can, its title stays stale until reload.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────
+
+tests:
+  # thread-stream.test.ts
+  - name: applies a durable event replayed after a reconnect only once
+    checks: >
+      Events 1 to 3 are applied in order, a replay of 2 after a failure is dropped, and
+      lastSeq is 3.
+
+  - name: reconnects after the latest applied seq, not the one it started from
+    checks: >
+      Starting at after=4, a `fatal` frame gives `reconnecting`, the old source is closed, and the
+      new URL has after=6.
+
+  - name: resubscribes at once from lastSeq when the daemon says it lagged
+    checks: >
+      A `lagged` frame opens a second source at after=1 with no timer, and streaming is cleared.
+
+  - name: keeps each operation's streamed text apart
+    checks: >
+      Deltas for ops a and b accumulate separately: a 'Hello', b 'other'.
+
+  - name: tells its subscribers once for a burst of deltas, with the text kept at once
+    checks: >
+      100 deltas in one task: getState holds all 100 characters at once, no subscriber was
+      called; after the pending timer, exactly one call.
+
+  - name: a frame after deltas tells its subscribers at once, and the deltas with it
+    checks: >
+      A delta then a turn-end in one task: one call, at the turn-end; no second call after
+      the timers.
+
+  - name: clears an operation's streamed text and label at its turn end
+    checks: >
+      Op a's turn-end clears a's text and label, leaves b's text, and sets lastTurnEnd with
+      stopReason.
+
+  - name: is loading history until caught-up, then live
+    checks: >
+      Before caught-up the state is connecting with caughtUp false. After it, live with
+      caughtUp true, and onCaughtUp is called with 1.
+
+  - name: backs off with a cap, gives up after maxFailures, and retry() starts over
+    checks: >
+      Waits are 100, 200, 300, 300 ms; the fifth failure is `failed`; retry opens a sixth source
+      and is `connecting`.
+
+  - name: stops reconnecting once closed
+    checks: >
+      After close(), 60 s of timers open nothing more, and the one source is closed.
+
+  - name: fails without retrying on a frame it cannot read
+    checks: >
+      A durable frame with a string seq sets `failed` with a problem matching "malformed
+      `durable` frame", and nothing reconnects in 60 s.
+
+  - name: ignores whatever a replaced connection still delivers
+    checks: >
+      After a lagged replacement, frames and an error from the old source change no state, and no
+      third source opens.
+
+  - name: earns back its failure budget at every caught-up
+    checks: >
+      With maxFailures 1, three rounds of fail, reconnect and caught-up each end `live`.
+
+  - name: hands on usage and options frames as notices
+    checks: >
+      usage and options arrive in order as notices, and options carries the choices.
+
+  - name: hands on a commands frame as a notice
+    checks: >
+      A commands frame arrives as one notice carrying its list.
+
+  - name: lets go of its connection while the page is hidden and resumes after its seq
+    checks: >
+      Hiding closes the source, showing opens a second at after=1, and close() stops reopening on
+      show. The connection state is not asserted.
+
+  - name: opens nothing while started on a hidden page
+    checks: >
+      start() on a hidden page opens no source; showing the page opens one.
+
+  # use-thread-stream.test.tsx
+  - name: holds one connection under StrictMode and closes it on unmount
+    checks: >
+      Under StrictMode one thread_id=t1 source is open; unmount closes it, leaving none open.
+
+  - name: switching thread closes the old one's connection and its pending reconnect
+    checks: >
+      After t1 fails, showing t2 leaves only a t2 source open, and the old timer does not fire.
+
+  - name: "refetches entries at each caught-up, per live entry and live operation event,
+      never per replayed one"
+    checks: >
+      Entry and operation invalidations count 0 during replay, 1 each at caught-up, then one per
+      live ThreadEntryAppended and per live Operation* event, with a single refetch at the next
+      caught-up. Invalidate is called eleven times in total.
+
+  - name: hands every durable event to its caller once, saying whether it was live
+    checks: >
+      Seqs 1 and 2 arrive as [1, false] and [2, true]; a duplicate seq 2 is not delivered.
+
+  - name: "reads the thread lists again on a retitle: live at once, replayed at the caught-up"
+    checks: >
+      A replayed ThreadRetitled refetches thread lists only at the caught-up, once; a live one
+      refetches at once; the project detail key is not invalidated.
+
+  # use-project-events.test.tsx
+  - name: independent tabs refresh every design slice, deduplicate and resume after disconnect
+    checks: >
+      Two tabs with separate clients each refetch vision, parts and outcomes on a design event,
+      on standards, and on proposal and structure events. A repeated seq 7 causes no read. After a
+      break the resume cursor is 11; a replayed design event refreshes before caught-up. Switching
+      to project p2 closes the old source and opens one at after=0.
+
+  - name: "$entity keeps dirty Arabic input through real disconnect, replay and a stale save"
+    checks: >
+      Integration through the app: unsaved input survives a disconnect and a replayed design event;
+      a save at a stale revision is refused, and the input is kept until Reload.
+
+  # frames.test.ts
+  - name: reads a durable frame with its operation, its thread, and its payload object
+    checks: >
+      A durable frame with operation_id and thread_id maps to camelCase fields with payload as is.
+
+  - name: reads an event that names no operation as null, and refuses one missing the field
+    checks: >
+      operation_id null reads as null; a frame without operation_id throws FrameError.
+
+  - name: reads caught-up as a JSON object
+    checks: >
+      {"seq":12} reads as 12; a bare 12 throws FrameError.
+
+  - name: parses a usage frame with limits
+    checks: >
+      context_used and five_hour utilization map through; seven_day null stays null.
+
+  - name: reads a usage frame that reported nothing as nulls
+    checks: >
+      All-null counts and limits give the same nulls in camelCase.
+
+  - name: refuses a usage frame without thread_id
+    checks: >
+      A usage frame missing thread_id throws FrameError.
+
+  - name: parses an options frame
+    checks: >
+      Options from fakeChoices read back with their model ids.
+
+  - name: refuses an options frame whose choices have no current settings
+    checks: >
+      Choices without `current` throw FrameError.
+
+  - name: reads a commands frame with and without a hint
+    checks: >
+      Commands with a null and a string hint round-trip unchanged.
+
+  - name: refuses a commands entry without a name
+    checks: >
+      A command with no name throws FrameError.
+
+  - name: reads a plan-show frame, and refuses a place it does not know
+    checks: >
+      A side plan-show maps to camelCase; explicit null target_tab and task_number map to null;
+      place 'window' throws FrameError.
+
+agreement_refresh: "AgreementChanged and caught-up invalidate api/agreements agreementKeys shared with feature reads"
+
+workflow_refresh_identity: "api/workflows.workflowKeys owns the plan prefix used by project journal refresh"
+
+design_cache_identity: "Project design refresh uses api/design.designKeys shared with feature queries"
+
+thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
+
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
+
+refresh_policy:
+  classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."
+  dispatcher: "dispatchRefresh maps targets to API owners' invalidation methods, without building query keys."
+  union: "All five plan kinds refresh all workflows plus the source project's design and agreement versions, on every path."
+  scope: "Project subscriptions supply their project id; writer subscriptions use the plan's project_id and conversations supply the route project id. Payload project_id is a fallback."
+  replay: "Plan targets are deduplicated until caught-up. Project design/agreement notices still refresh during replay. Thread caught-up refreshes entries, operations and workflows; writer caught-up refreshes workflows."
+  sharing: "Holders of one thread or project share one refresh per QueryClient (holdThreadRefresh, holdProjectRefresh): each event and caught-up dispatches once however many views hold it. Thread scope is the union of holders: writer-only while every holder is a writer, the first supplied project id. A holder joining a live stream dispatches only the baseline targets it adds."
+  tested_by:
+    - pins project refresh for %s
+    - pins writer-thread refresh for %s
+    - pins conversation refresh for %s
+    - classifies the full plan refresh union for %s
+    - preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
+    - refreshes once per event however many views share a stream, and a late view on a live stream refetches nothing it already watches
+    - a conversation joining a live writer stream reads its entries and operations once

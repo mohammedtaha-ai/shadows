@@ -1,0 +1,921 @@
+diff --git a/src/api/contract.yaml b/src/api/contract.yaml
+index 22cf1fe1..bca893b9 100644
+--- a/src/api/contract.yaml
++++ b/src/api/contract.yaml
+@@ -67,6 +67,19 @@ client_core:
+   DAEMON_URL: "string; verified native origin frozen before module import; browser VITE_SHADOWS_URL or http://127.0.0.1:4318"
+   client: "openapi-fetch client<paths>; fetch looked up per call"
+ 
++permissions:
++  owner: permissions.ts
++  query: "waitingPermissionsQuery; GET /api/aylul/permissions; permissionKeys.waiting() = ['aylul-permissions']; no polling"
++  answer: "answerPermission(threadId, requestId, optionId, commandId) forwards one button choice to the generated POST route"
++  refresh: "invalidatePermissions reconciles the live list after answers, settled/not-found errors and project PermissionsChanged events"
++
++mcp_library:
++  owner: extensions.ts
++  save: "saveMcp(id, commandId, McpInput): POST for new items, PUT by stable id for edits; preserves absent secret values"
++  remove: "removeExtension uses the existing mcp kind route"
++  types: "McpItem, McpInput and McpValueInput alias generated schemas"
++  agent_switches: "saveAgentExtensionAnswer maps plugin/skill/mcp to plugins/skills/mcp and writes the saved answer after cancelling stale reads"
++
+ agent_instructions_template:
+   owner: aylul-profiles.ts
+   query: "agentTemplateQuery; GET /api/aylul/agent-template; profileKeys.template() = ['aylul-agent-template']; immutable bundled template"
+diff --git a/src/api/extensions.test.ts b/src/api/extensions.test.ts
+new file mode 100644
+index 00000000..4214f865
+--- /dev/null
++++ b/src/api/extensions.test.ts
+@@ -0,0 +1,23 @@
++import { afterEach, expect, it, vi } from 'vitest'
++import { saveMcp, removeExtension } from './extensions'
++afterEach(() => vi.unstubAllGlobals())
++it('MCP creation and editing use generated routes and preserve absent secret values', async () => {
++  const calls: { method: string; path: string; body: unknown }[] = []
++  vi.stubGlobal('fetch', async (request: Request) => {
++    calls.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() })
++    return Response.json({ id: 'm1', name: 'tools', description: '', transport: { type: 'http', url: 'https://example.com', headers: [] } })
++  })
++  await saveMcp(null, 'create', { name: 'tools', transport: { type: 'http', url: 'https://example.com', headers: [{ name: 'Authorization', value: 'Synthetic bearer' }] } })
++  await saveMcp('m1', 'edit', { name: 'tools', transport: { type: 'http', url: 'https://example.com/new', headers: [{ name: 'Authorization' }] } })
++  expect(calls[0]).toMatchObject({ method: 'POST', path: '/api/aylul/extensions/mcp', body: { command_id: 'create' } })
++  expect(calls[1]).toEqual({ method: 'PUT', path: '/api/aylul/extensions/mcp/m1', body: { command_id: 'edit', name: 'tools', transport: { type: 'http', url: 'https://example.com/new', headers: [{ name: 'Authorization' }] } } })
++})
++it('MCP deletion uses the existing kind route', async () => {
++  vi.stubGlobal('fetch', async (request: Request) => {
++    expect(request.method).toBe('DELETE')
++    expect(new URL(request.url).pathname).toBe('/api/aylul/extensions/mcp/m1')
++    expect(new URL(request.url).searchParams.get('command_id')).toBe('remove')
++    return new Response(null, { status: 204 })
++  })
++  await removeExtension('remove', 'mcp', 'm1')
++})
+diff --git a/src/api/extensions.ts b/src/api/extensions.ts
+index f0936a4a..bb539a01 100644
+--- a/src/api/extensions.ts
++++ b/src/api/extensions.ts
+@@ -9,6 +9,15 @@ export type AgentItem = components['schemas']['AgentItem']
+ export type ExtensionLibrary = components['schemas']['ExtensionLibrary']
+ export type AgentExtensions = components['schemas']['AgentExtensions']
+ export type ExtensionImport = components['schemas']['Import']
++export type McpItem = components['schemas']['McpItem']
++export type McpInput = components['schemas']['McpInput']
++export type McpValueInput = components['schemas']['McpValueInput']
++
++export function saveMcp(id: string | null, commandId: string, input: McpInput): Promise<McpItem> {
++  const body = { command_id: commandId, ...input }
++  return id === null ? unwrap(client.POST('/api/aylul/extensions/mcp', { body }))
++    : unwrap(client.PUT('/api/aylul/extensions/mcp/{id}', { params: { path: { id } }, body }))
++}
+ 
+ export const extensionKeys = {
+   library: () => ['aylul-extensions'],
+@@ -37,7 +46,7 @@ export function setAgentExtension(slug: string, kind: ExtensionKind, id: string,
+ }
+ 
+ export function saveAgentExtensionAnswer(client: QueryClient, slug: string, kind: ExtensionKind, saved: AgentItem) {
+-  const field = kind === 'plugin' ? 'plugins' : 'skills'
++  const field = kind === 'plugin' ? 'plugins' : kind === 'skill' ? 'skills' : 'mcp'
+   return writeSaved<AgentExtensions>(client, extensionKeys.agent(slug), current => current
+     ? { ...current, [field]: current[field].map(value => value.id === saved.id ? saved : value) } : current)
+ }
+diff --git a/src/api/permissions.test.ts b/src/api/permissions.test.ts
+new file mode 100644
+index 00000000..ba7982e1
+--- /dev/null
++++ b/src/api/permissions.test.ts
+@@ -0,0 +1,16 @@
++import { afterEach, expect, it, vi } from 'vitest'
++import { waitingPermissionsQuery, answerPermission } from './permissions'
++afterEach(() => vi.unstubAllGlobals())
++it('permission queries and answers use the generated routes and the caller command', async () => {
++  const calls: Request[] = []
++  vi.stubGlobal('fetch', async (request: Request) => {
++    calls.push(request)
++    return Response.json(request.method === 'GET' ? [] : { request_id: 'r1', option_id: 'allow' })
++  })
++  expect(await waitingPermissionsQuery.queryFn!({} as never)).toEqual([])
++  await answerPermission('t1', 'r1', 'allow', 'cmd1')
++  expect(new URL(calls[0].url).pathname).toBe('/api/aylul/permissions')
++  expect(new URL(calls[1].url).pathname).toBe('/api/threads/t1/session/permissions/r1')
++  expect(calls[1].method).toBe('POST')
++  expect(await calls[1].json()).toEqual({ command_id: 'cmd1', option_id: 'allow' })
++})
+diff --git a/src/api/permissions.ts b/src/api/permissions.ts
+new file mode 100644
+index 00000000..a95efbb3
+--- /dev/null
++++ b/src/api/permissions.ts
+@@ -0,0 +1,21 @@
++import { queryOptions, type QueryClient } from '@tanstack/react-query'
++import { client, unwrap } from './transport'
++import type { components } from './schema'
++
++export type WaitingPermission = components['schemas']['WaitingPermission']
++export type PermissionAnswer = components['schemas']['PermissionAnswer']
++export type PermissionOption = components['schemas']['PermissionOption']
++export const permissionKeys = { waiting: () => ['aylul-permissions'] }
++export const waitingPermissionsQuery = queryOptions({
++  queryKey: permissionKeys.waiting(), retry: false,
++  queryFn: () => unwrap(client.GET('/api/aylul/permissions')),
++})
++export function answerPermission(threadId: string, requestId: string, optionId: string, commandId: string): Promise<PermissionAnswer> {
++  return unwrap(client.POST('/api/threads/{id}/session/permissions/{request_id}', {
++    params: { path: { id: threadId, request_id: requestId } },
++    body: { command_id: commandId, option_id: optionId },
++  }))
++}
++export function invalidatePermissions(client: QueryClient) {
++  return client.invalidateQueries({ queryKey: permissionKeys.waiting() })
++}
+diff --git a/src/app/agents/agent-extensions.test.tsx b/src/app/agents/agent-extensions.test.tsx
+index d9a60542..2435355d 100644
+--- a/src/app/agents/agent-extensions.test.tsx
++++ b/src/app/agents/agent-extensions.test.tsx
+@@ -30,6 +30,21 @@ it("the form lists the library's items for this agent", async () => {
+   expect(a.text()).toContain('Git tools.'); expect(a.text()).toContain('Review changes.')
+   expect(agentExtensionsQuery('ay').queryKey).not.toEqual(agentExtensionsQuery('zed').queryKey)
+ })
++it('capabilities include MCP switches and Add to library even when nonempty', async () => {
++  let enabled = false
++  const tool = { id: 'm1', name: 'research', description: 'Research tools', transport: { type: 'http', url: 'https://example.com', headers: [] } }
++  const a = await open({
++    'GET /api/aylul/agents/ay/extensions': () => Response.json({ ...view(), mcp: [{ ...tool, enabled }] }),
++    'PUT /api/aylul/agents/ay/extensions/mcp/m1': async (request: Request) => { enabled = (await request.json()).enabled; return Response.json({ ...tool, enabled }) },
++  })
++  expect(document.querySelector('[role=group][aria-label=Capabilities]')).not.toBeNull()
++  expect(switchOf('research').checked).toBe(false)
++  act(() => switchOf('research').click()); await until(() => enabled && !switchOf('research').disabled)
++  expect(a.calls).toContain('PUT /api/aylul/agents/ay/extensions/mcp/m1')
++  expect(a.queryClient.getQueryData<AgentExtensions>(agentExtensionsQuery('ay').queryKey)?.mcp[0].enabled).toBe(true)
++  act(() => a.button('Add to library')!.click())
++  await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Plugins & Skills')
++})
+ it('a switch saves at once', async () => {
+   let resolve!: (response: Response) => void, enabled = false
+   const a = await open({ 'GET /api/aylul/agents/ay/extensions': () => Response.json(view(enabled)),
+@@ -86,15 +101,15 @@ it('a new agent shows the part after it is created', async () => {
+ })
+ it('an empty library links to the section', async () => {
+   const a = app = await startApp('/?settings=agents&agent=ay', { ...routes(), 'GET /api/aylul/agents/ay/extensions': { plugins: [], skills: [] } })
+-  await until(() => a.text().includes('No plugins or skills yet.'))
+-  act(() => a.button('Open Plugins & Skills')!.click())
++  await until(() => a.text().includes('No capabilities yet.'))
++  act(() => a.button('Add to library')!.click())
+   await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Plugins & Skills')
+   expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1); expect(a.path()).toBe('/')
+ })
+ it('an extension load failure is local', async () => {
+   const a = app = await startApp('/?settings=agents&agent=ay', { ...routes(), 'GET /api/aylul/agents/ay/extensions': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Extensions unavailable.' }, { status: 500 }) })
+   await until(() => a.text().includes('Extensions unavailable.'))
+-  expect(a.text()).not.toContain('No plugins or skills yet.')
++  expect(a.text()).not.toContain('No capabilities yet.')
+   expect(a.button('Save agent')?.disabled).toBe(false)
+ })
+ it('library removal clears every agent view', async () => {
+@@ -109,10 +124,10 @@ it('library removal clears every agent view', async () => {
+   act(() => a.button('Remove')!.click()); act(() => a.buttons('Remove').at(-1)!.click())
+   await until(() => a.text().includes('No plugins yet.'))
+   act(() => a.button('Agents')!.click()); await until(() => a.buttons('Edit').length === 2)
+-  act(() => a.buttons('Edit')[1].click()); await until(() => a.text().includes('No plugins or skills yet.'))
++  act(() => a.buttons('Edit')[1].click()); await until(() => a.text().includes('No capabilities yet.'))
+   expect(switchOf('git')).toBeNull()
+   act(() => a.button('Back')!.click()); await until(() => a.buttons('Edit').length === 2)
+-  act(() => a.buttons('Edit')[0].click()); await until(() => a.text().includes('No plugins or skills yet.'))
++  act(() => a.buttons('Edit')[0].click()); await until(() => a.text().includes('No capabilities yet.'))
+   expect(switchOf('git')).toBeNull()
+ })
+ 
+diff --git a/src/app/agents/agent-extensions.tsx b/src/app/agents/agent-extensions.tsx
+index 293135ba..762ca01f 100644
+--- a/src/app/agents/agent-extensions.tsx
++++ b/src/app/agents/agent-extensions.tsx
+@@ -9,13 +9,17 @@ import { useOpenSettings } from '@/app/navigation'
+ export function AgentExtensions({ slug }: { slug: string }) {
+   const state = useQuery(agentExtensionsQuery(slug))
+   const open = useOpenSettings()
+-  return <section role="group" aria-label="Plugins & Skills" className="space-y-3">
+-    <h2 className="font-medium">Plugins & Skills</h2>
+-    {state.isPending ? <p role="status">Loading plugins and skills…</p> : state.error ? <div className="space-y-3"><ErrorLine error={state.error} /><Button type="button" variant="outline" disabled={state.isFetching} onClick={() => { void state.refetch() }}>Retry plugins and skills</Button></div> :
+-      state.data.plugins.length + state.data.skills.length === 0 ? <div><p>No plugins or skills yet.</p><Button type="button" variant="link" onClick={() => open('plugins')}>Open Plugins & Skills</Button></div> : <>
++  return <section role="group" aria-label="Capabilities" className="space-y-3">
++    <h2 className="font-medium">Capabilities</h2>
++    {state.isPending ? <p role="status">Loading capabilities…</p> : state.error ? <div className="space-y-3"><ErrorLine error={state.error} /><Button type="button" variant="outline" disabled={state.isFetching} onClick={() => { void state.refetch() }}>Retry capabilities</Button></div> :
++      state.data.plugins.length + state.data.skills.length + (state.data.mcp?.length ?? 0) === 0 ? <p>No capabilities yet.</p> : <>
+         <p className="text-xs text-muted-foreground">Changes apply when the next conversation session opens.</p>
+-        {(['plugin', 'skill'] as const).map(kind => <div key={kind} className="space-y-3">{(kind === 'plugin' ? state.data.plugins : state.data.skills).map(item => <ExtensionSwitch key={`${slug}:${kind}:${item.id}`} slug={slug} kind={kind} item={item} />)}</div>)}
++        {(['skill', 'plugin', 'mcp'] as const).map(kind => <div key={kind} className="space-y-3">
++          <h3 className="text-sm text-muted-foreground">{kind === 'skill' ? 'Skills' : kind === 'plugin' ? 'Plugins' : 'MCP tools'}</h3>
++          {(kind === 'plugin' ? state.data.plugins : kind === 'skill' ? state.data.skills : state.data.mcp ?? []).map(item => <ExtensionSwitch key={`${slug}:${kind}:${item.id}`} slug={slug} kind={kind} item={item} />)}
++        </div>)}
+       </>}
++    <Button type="button" variant="link" onClick={() => open('plugins')}>Add to library</Button>
+   </section>
+ }
+ 
+@@ -37,7 +41,7 @@ function ExtensionSwitch({ slug, kind, item }: { slug: string; kind: ExtensionKi
+     },
+     onSettled: () => { locked.current = false; setOptimistic(null) },
+   })
+-  return <div className="space-y-2 rounded border border-border p-3">
++  return <div className="neon-surface space-y-2 rounded-lg border border-border bg-card p-3">
+     <label className="flex items-center justify-between gap-3 text-sm"><span>{item.name}</span><input type="checkbox" role="switch" aria-label={item.name} checked={optimistic ?? item.enabled} disabled={toggle.isPending} onChange={event => {
+       if (locked.current) return
+       locked.current = true; setOptimistic(event.target.checked); toggle.mutate(event.target.checked)
+diff --git a/src/app/agents/agent-form.test.tsx b/src/app/agents/agent-form.test.tsx
+index a0e1f45c..fcdb27d3 100644
+--- a/src/app/agents/agent-form.test.tsx
++++ b/src/app/agents/agent-form.test.tsx
+@@ -68,6 +68,16 @@ it('editing and reverting instructions omits them from the save', async () => {
+   await until(() => a.calls.includes('PUT /api/aylul/agents/work'))
+   expect(a.bodies.at(-1)).not.toHaveProperty('instructions')
+ })
++it('unsaved identity changes are visible and reverting clears the indicator', async () => {
++  const a = await open('work', 'Original instructions')
++  expect(a.text()).not.toContain('Unsaved changes')
++  typeInto(field('Agent description'), 'New purpose')
++  expect(a.text()).toContain('Unsaved changes')
++  typeInto(field('Agent description'), 'Builds things')
++  expect(a.text()).not.toContain('Unsaved changes')
++  typeInto(field('Agent instructions'), 'New instructions')
++  expect(a.text()).toContain('Unsaved changes')
++})
+ 
+ it('a delayed template does not overwrite other edits or allow an early save', async () => {
+   let release!: (response: Response) => void
+diff --git a/src/app/agents/agent-settings.tsx b/src/app/agents/agent-settings.tsx
+index 6a280477..8e9adf6b 100644
+--- a/src/app/agents/agent-settings.tsx
++++ b/src/app/agents/agent-settings.tsx
+@@ -43,9 +43,12 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
+   const initialInstructions = original?.instructions || template.data?.instructions || ''
+   const pending = useRef<Attempt | null>(null)
+   const first = providers.data?.[0]
+-  const value: AgentInput = edited ?? (original === undefined
++  const initialValue: AgentInput = original === undefined
+     ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0]?.id ?? '', character_color: colorOf(null).id, outfit: 'default', description: '' }
+-    : { name: original.name, provider: original.provider, default_model: original.default_model, character_color: colorOf(original.character_color).id, outfit: original.outfit ?? 'default', description: original.description ?? '' })
++    : { name: original.name, provider: original.provider, default_model: original.default_model, character_color: colorOf(original.character_color).id, outfit: original.outfit ?? 'default', description: original.description ?? '' }
++  const value = edited ?? initialValue
++  const dirty = (['name', 'provider', 'default_model', 'character_color', 'outfit', 'description'] as const)
++    .some(key => value[key] !== initialValue[key]) || instructions !== null && instructions !== initialInstructions
+   const provider = providers.data?.find((p) => p.slug === value.provider)
+ 
+   const save = useMutation({
+@@ -128,6 +131,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
+         </Field>
+         {template.error !== null && <ErrorLine error={template.error} />}
+         {save.error !== null && <ErrorLine error={save.error} />}
++        {dirty && <p role="status" className="text-xs font-medium text-warning">Unsaved changes</p>}
+         <div className="flex items-center gap-3">
+           <Button type="submit" disabled={value.provider === '' || value.default_model === '' || (!original?.instructions && template.data === undefined)}>
+             {save.isPending ? 'Saving…' : slug === null ? 'Create agent' : 'Save agent'}
+diff --git a/src/app/agents/contract.yaml b/src/app/agents/contract.yaml
+index 256b4e41..3619c882 100644
+--- a/src/app/agents/contract.yaml
++++ b/src/app/agents/contract.yaml
+@@ -25,7 +25,7 @@ components:
+     note: Manifest-ordered studio previews form an accessible radio group; unknown ids select default.
+   AgentExtensions:
+     signature: "({ slug: string }) => JSX.Element"
+-    note: Saved-agent extension switches live outside the Save agent form; failed extension reads do not disable ordinary fields.
++    note: Saved-agent Capabilities lists skills, plugins and MCP switches outside the Save agent form; Add to library always opens Plugins & Skills. Failed extension reads do not disable ordinary fields.
+   ColorSwatches:
+     signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
+     note: Radio group in shared table order with per-entry label, title, colour and selected ring.
+@@ -83,6 +83,8 @@ pure:
+     signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
+ 
+ obligations:
++  - rule: An edited agent identity shows Unsaved changes; reverting every identity field and instructions clears it. The shared neon palette owns visual emphasis.
++    tested_by: ["unsaved identity changes are visible and reverting clears the indicator"]
+   - rule: Agent forms load the bundled instructions through api/aylul-profiles; only edited instructions are sent, and Core's validation message preserves the draft.
+     tested_by: ["a new agent is prefilled from the template and saves outfit and description", "untouched large instructions are not sent and changed instructions are sent", "editing and reverting instructions omits them from the save", "the form follows the design order and displays Core profile errors", "a delayed template does not overwrite other edits or allow an early save", "a template failure is shown and cannot silently create an uninitialized agent"]
+   - rule: Every manifest outfit has a labelled radio and its exported preview; unknown ids select default and disabled controls cannot change it.
+diff --git a/src/app/agents/outfit-picker.tsx b/src/app/agents/outfit-picker.tsx
+index 6a09b230..94981e15 100644
+--- a/src/app/agents/outfit-picker.tsx
++++ b/src/app/agents/outfit-picker.tsx
+@@ -4,12 +4,12 @@ export function OutfitPicker({ value, onChange, disabled }: {
+   value: string; onChange: (id: string) => void; disabled?: boolean
+ }) {
+   return <div role="radiogroup" aria-label="Outfit" className="grid grid-cols-5 gap-2">
+-    {OUTFITS.map(outfit => <label key={outfit.id} className="relative cursor-pointer text-center">
++    {OUTFITS.map(outfit => <label key={outfit.id} className="neon-choice relative cursor-pointer text-center">
+       <input type="radio" name="outfit" aria-label={outfit.label} value={outfit.id}
+         checked={outfitOf(value).id === outfit.id} disabled={disabled}
+         onChange={() => onChange(outfit.id)}
+         className="peer sr-only" />
+-      <span className="flex flex-col items-center rounded-lg border border-border p-1 text-xs peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-disabled:opacity-50">
++      <span className="flex flex-col items-center rounded-lg border border-border p-1 text-xs peer-checked:border-accent-line peer-checked:bg-accent-softer peer-checked:ring-1 peer-checked:ring-accent-line peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-disabled:opacity-50">
+         <img src={outfit.image} alt="" width={160} height={160} className="aspect-square w-full object-contain" />
+         {outfit.label}
+       </span>
+diff --git a/src/app/conversation/contract.yaml b/src/app/conversation/contract.yaml
+index d471f05b..28badc6c 100644
+--- a/src/app/conversation/contract.yaml
++++ b/src/app/conversation/contract.yaml
+@@ -35,6 +35,14 @@ source: web/src/app/conversation
+ refresh_pinning:
+   conversation: "pins conversation refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."
+ 
++permission_cards:
++  presentation: "Shared neon surface and a text-labelled warning pill distinguish a live request; palette and effects remain in index.css."
++  owner: permission-card.tsx
++  authority: "Only a matching thread/request in the live waiting list offers option buttons; malformed and historical cards offer no actions. The project stream refreshes the list without polling."
++  answers: "A button sends its offered option id; one answer stays in flight. Equal retries reuse the command id; a settled/not-found error refetches and keeps Core's message."
++  entries: "entry.tsx renders PermissionAsked through PermissionCard, PermissionAnswered with its body and by you, and held PermissionRefused with its reason; Planner's legacy mode hint remains for unstructured refusals."
++  tested_by: ["only a live matching request offers option buttons and a click answers it", "an uncertain failed answer retries with the same command id", "the project event removes a request settled by another surface", "one answer stays in flight and every option is disabled until it settles"]
++
+ 
+ # ── shapes ───────────────────────────────────────────────────────────────────
+ 
+diff --git a/src/app/conversation/entry.tsx b/src/app/conversation/entry.tsx
+index bd00bfc3..4a15ad69 100644
+--- a/src/app/conversation/entry.tsx
++++ b/src/app/conversation/entry.tsx
+@@ -15,6 +15,7 @@ import { MapProposalCard } from './map-proposal-card'
+ import { RoadmapProposalCard } from './roadmap-proposal-card'
+ import { TodoCard } from './todo-card'
+ import { subagentOf } from './tool-text'
++import { PermissionCard } from './permission-card'
+ 
+ // Streamdown and its code highlighting are most of this app's weight, so they
+ // are a chunk of their own, and not in the one every screen waits for. The
+@@ -76,6 +77,9 @@ export function Entry({
+     )
+   }
+   if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
++  if (entry.kind === 'PermissionAsked') return <PermissionCard entry={entry} projectId={projectId} />
++  if (entry.kind === 'PermissionAnswered') return <p className="text-xs text-muted-foreground"><span dir="auto">{entry.body}</span> · by you</p>
++  if (entry.kind === 'PermissionRefused' && typeof entry.card?.reason === 'string') return <p className="text-xs text-muted-foreground"><span dir="auto">{entry.body}</span> · {entry.card.reason}</p>
+   if (entry.kind === 'VisionProposal') return <VisionProposalCard entry={entry} projectId={projectId} />
+   if (entry.kind === 'MapProposal') return <MapProposalCard entry={entry} projectId={projectId} />
+   if (entry.kind === 'RoadmapProposal') return <RoadmapProposalCard entry={entry} projectId={projectId} />
+diff --git a/src/app/conversation/permission-card.test.tsx b/src/app/conversation/permission-card.test.tsx
+new file mode 100644
+index 00000000..609cba8b
+--- /dev/null
++++ b/src/app/conversation/permission-card.test.tsx
+@@ -0,0 +1,96 @@
++// @vitest-environment happy-dom
++import { act } from 'react'
++import { afterEach, expect, it } from 'vitest'
++import { answers } from '@/test/fake-daemon'
++import { entryOfKind } from '@/test/contract-fixtures'
++import { startApp, until, type TestApp, type Answer } from '@/test/test-app'
++
++const options = [{ option_id: 'allow', name: 'Allow once', kind: 'allow_once' }, { option_id: 'reject', name: 'Reject', kind: 'reject_once' }]
++const request = { request_id: 'r1', thread_id: 't1', agent: 'work', title: 'Run a command', options, asked_at: '2026-11-01T12:00:00Z' }
++const asked = { ...entryOfKind('permission1', 'PermissionAsked', 'Run a command'), card: { request_id: 'r1', options } }
++let app: TestApp | null = null
++afterEach(() => { app?.unmount(); app = null })
++async function open(overrides: Record<string, Answer> = {}) {
++  const a = app = await startApp('/projects/p1/threads/t1', { ...answers(),
++    'GET /api/threads/t1/entries': [asked],
++    'GET /api/aylul/permissions': [request],
++    ...overrides,
++  })
++  await until(() => a.text().includes('Run a command'))
++  return a
++}
++it('only a live matching request offers option buttons and a click answers it', async () => {
++  let waiting = true
++  const a = await open({
++    'GET /api/aylul/permissions': () => Response.json(waiting ? [request] : []),
++    'POST /api/threads/t1/session/permissions/r1': () => { waiting = false; return Response.json({ request_id: 'r1', option_id: 'allow' }) },
++  })
++  await until(() => a.button('Allow once') !== undefined)
++  expect(a.button('Reject')).toBeDefined()
++  expect(document.querySelector('[aria-label="Permission answer"]')).toBeNull()
++  act(() => a.button('Allow once')!.click())
++  await until(() => a.calls.includes('POST /api/threads/t1/session/permissions/r1') && a.button('Allow once') === undefined)
++  expect(a.bodies.at(-1)).toEqual({ command_id: expect.any(String), option_id: 'allow' })
++})
++it('a past card or a request in another thread cannot be answered', async () => {
++  const a = await open({ 'GET /api/aylul/permissions': [{ ...request, thread_id: 'other' }] })
++  await until(() => a.calls.includes('GET /api/aylul/permissions'))
++  expect(a.button('Allow once')).toBeUndefined()
++  expect(a.button('Reject')).toBeUndefined()
++})
++it('the project event removes a request settled by another surface', async () => {
++  let waiting = true
++  const a = await open({ 'GET /api/aylul/permissions': () => Response.json(waiting ? [request] : []) })
++  await until(() => a.button('Allow once') !== undefined)
++  const project = a.sources.find(source => new URL(source.url).pathname === '/api/projects/p1/events')!
++  act(() => project.caughtUp(0))
++  waiting = false
++  act(() => project.durable(1, 'PermissionsChanged', null, { request_id: 'r1', state: 'answered' }))
++  await until(() => a.button('Allow once') === undefined)
++  expect(a.calls).not.toContain('POST /api/threads/t1/session/permissions/r1')
++})
++it('one answer stays in flight and every option is disabled until it settles', async () => {
++  let release!: (value: Response) => void
++  const a = await open({ 'POST /api/threads/t1/session/permissions/r1': () => new Promise<Response>(resolve => { release = resolve }) })
++  await until(() => a.button('Allow once') !== undefined)
++  act(() => { a.button('Allow once')!.click(); a.button('Allow once')!.click() })
++  await until(() => a.bodies.length === 1)
++  expect(a.button('Allow once')!.disabled).toBe(true)
++  expect(a.button('Reject')!.disabled).toBe(true)
++  await act(async () => release(Response.json({ request_id: 'r1', option_id: 'allow' })))
++  await until(() => a.button('Allow once') === undefined)
++})
++it('an uncertain failed answer retries with the same command id', async () => {
++  let count = 0
++  const a = await open({ 'POST /api/threads/t1/session/permissions/r1': () => ++count === 1
++    ? Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Answer failed.' }, { status: 503 })
++    : Response.json({ request_id: 'r1', option_id: 'allow' }),
++  })
++  await until(() => a.button('Allow once') !== undefined)
++  act(() => a.button('Allow once')!.click())
++  await until(() => a.text().includes('Answer failed.') && a.button('Allow once')?.disabled === false)
++  act(() => a.button('Allow once')!.click()); await until(() => count === 2)
++  expect(a.bodies[1]).toEqual(a.bodies[0])
++})
++it.each(['PERMISSION_NOT_FOUND', 'PERMISSION_SETTLED'])('%s refetches the waiting list and shows Core message', async code => {
++  let waiting = true
++  const a = await open({
++    'GET /api/aylul/permissions': () => Response.json(waiting ? [request] : []),
++    'POST /api/threads/t1/session/permissions/r1': () => { waiting = false; return Response.json({ code, message: 'This request is no longer waiting.' }, { status: code === 'PERMISSION_NOT_FOUND' ? 404 : 409 }) },
++  })
++  await until(() => a.button('Allow once') !== undefined)
++  const reads = a.calls.filter(call => call === 'GET /api/aylul/permissions').length
++  act(() => a.button('Allow once')!.click())
++  await until(() => a.text().includes('This request is no longer waiting.') && a.button('Allow once') === undefined)
++  expect(a.calls.filter(call => call === 'GET /api/aylul/permissions').length).toBeGreaterThan(reads)
++})
++it('answered and refused entries display the chosen option and refusal reason', async () => {
++  const a = await open({ 'GET /api/threads/t1/entries': [asked,
++    { ...entryOfKind('permission2', 'PermissionAnswered', 'Allow once'), ordinal: 2, card: { request_id: 'r1', by: { agent: 'human', principal: 'user:local' } } },
++    { ...entryOfKind('permission3', 'PermissionRefused', 'Another command'), ordinal: 3, card: { request_id: 'r2', reason: 'cancelled' } },
++  ], 'GET /api/aylul/permissions': [] })
++  await until(() => a.text().includes('by you'))
++  expect(a.text()).toContain('Allow once')
++  expect(a.text()).toContain('cancelled')
++  expect(a.text()).not.toContain('would allow it')
++})
+diff --git a/src/app/conversation/permission-card.tsx b/src/app/conversation/permission-card.tsx
+new file mode 100644
+index 00000000..f9a60565
+--- /dev/null
++++ b/src/app/conversation/permission-card.tsx
+@@ -0,0 +1,45 @@
++import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
++import { useRef } from 'react'
++import { answerPermission, invalidatePermissions, waitingPermissionsQuery } from '@/api/permissions'
++import { attemptFor, type Attempt } from '@/api/command-id'
++import { ApiError } from '@/api/error'
++import type { ThreadEntry } from '@/api/threads'
++import { useProjectEvents } from '@/stream'
++import { Button } from '@/components/ui/button'
++import { ErrorLine } from '../error-line'
++
++export function PermissionCard({ entry, projectId }: { entry: ThreadEntry; projectId: string }) {
++  const requestId = typeof entry.card?.request_id === 'string' ? entry.card.request_id : null
++  const client = useQueryClient()
++  useProjectEvents(projectId)
++  const waiting = useQuery({ ...waitingPermissionsQuery, enabled: requestId !== null })
++  const attempt = useRef<Attempt | null>(null)
++  const locked = useRef(false)
++  const request = waiting.error === null ? waiting.data?.find(value => value.thread_id === entry.thread_id && value.request_id === requestId) : undefined
++  const answer = useMutation({ retry: false,
++    mutationFn: (optionId: string) => {
++      attempt.current = attemptFor(attempt.current, { threadId: entry.thread_id, requestId, optionId })
++      return answerPermission(entry.thread_id, requestId!, optionId, attempt.current.commandId)
++    },
++    onSuccess: async () => { attempt.current = null; await invalidatePermissions(client) },
++    onError: async error => {
++      if (error instanceof ApiError && error.problem.kind === 'daemon' &&
++        (error.problem.code === 'PERMISSION_NOT_FOUND' || error.problem.code === 'PERMISSION_SETTLED')) {
++        await invalidatePermissions(client)
++      }
++    },
++    onSettled: () => { locked.current = false },
++  })
++  return <section aria-label="Permission request" className="neon-surface space-y-3 rounded-lg border border-border bg-card p-4">
++    {request && !answer.isSuccess && <p className="neon-status text-warning">Waiting for your approval</p>}
++    <p dir="auto" className="text-sm font-medium whitespace-pre-wrap">{entry.body}</p>
++    {waiting.isPending && requestId !== null && <p role="status" className="text-xs text-muted-foreground">Checking request…</p>}
++    {request && !answer.isSuccess && <div className="flex flex-wrap gap-2">{request.options.map(option => <Button
++      key={option.option_id} type="button" variant="outline" disabled={answer.isPending}
++      onClick={() => { if (locked.current) return; locked.current = true; answer.mutate(option.option_id) }}
++    >{option.name}</Button>)}</div>}
++    {!request && waiting.isSuccess && <p className="text-xs text-muted-foreground">This request is no longer waiting.</p>}
++    {waiting.error && <ErrorLine error={waiting.error} />}
++    {answer.error && <ErrorLine error={answer.error} />}
++  </section>
++}
+diff --git a/src/app/settings/contract.yaml b/src/app/settings/contract.yaml
+index 0d20b599..2d9f904c 100644
+--- a/src/app/settings/contract.yaml
++++ b/src/app/settings/contract.yaml
+@@ -29,11 +29,14 @@ external:
+ components:
+   PluginsSection:
+     signature: "() => JSX.Element"
+-    note: Accessible Plugins/Skills tabs; Add replaces the body without another dialog.
++    note: Accessible Plugins/Skills/MCP tools tabs; Add and MCP Edit replace the body without another dialog.
++  McpForm:
++    signature: "({ item: McpItem | null, onDone: () => void }) => JSX.Element"
++    note: HTTP headers and stdio environment values use password inputs, never read values. An empty value on edit omits value to retain it. Arguments are explicit rows. Core owns validation; failed attempts retain command identity, success clears secret drafts and invalidates library plus agent capabilities.
+   ExtensionImport:
+     signature: "({ kind: ExtensionKind, onDone: () => void }) => JSX.Element"
+   ExtensionList:
+-    signature: "({ kind: ExtensionKind, items: Item[] }) => JSX.Element"
++    signature: "({ kind: ExtensionKind, items: (Item | McpItem)[], onEdit?: (item: McpItem) => void }) => JSX.Element"
+     note: ConfirmPanel renders the inline confirmation with non-submitting buttons; ExtensionList owns the selected item, mutation, per-item command attempts, invalidations and locked ref.
+   UsageSection:
+     signature: "() => JSX.Element"
+diff --git a/src/app/settings/extension-list.tsx b/src/app/settings/extension-list.tsx
+index e1f7922b..49212fbd 100644
+--- a/src/app/settings/extension-list.tsx
++++ b/src/app/settings/extension-list.tsx
+@@ -1,11 +1,11 @@
+ import { useMutation, useQueryClient } from '@tanstack/react-query'
+ import { useRef, useState } from 'react'
+-import { extensionsQuery, extensionKeys, removeExtension, type ExtensionKind, type Item } from '@/api/extensions'
++import { extensionsQuery, extensionKeys, removeExtension, type ExtensionKind, type Item, type McpItem } from '@/api/extensions'
+ import { attemptFor, type Attempt } from '@/api/command-id'
+ import { Button } from '@/components/ui/button'
+ import { ConfirmPanel } from '../confirm-panel'
+ 
+-export function ExtensionList({ kind, items }: { kind: ExtensionKind; items: Item[] }) {
++export function ExtensionList({ kind, items, onEdit }: { kind: ExtensionKind; items: (Item | McpItem)[]; onEdit?: (item: McpItem) => void }) {
+   const client = useQueryClient()
+   const [confirming, setConfirming] = useState<{ kind: ExtensionKind; id: string } | null>(null)
+   const attempts = useRef(new Map<string, Attempt>())
+@@ -24,9 +24,10 @@ export function ExtensionList({ kind, items }: { kind: ExtensionKind; items: Ite
+     },
+     onSettled: () => { locked.current = false },
+   })
+-  if (!items.length) return <p>{kind === 'plugin' ? 'No plugins yet.' : 'No skills yet.'}</p>
++  if (!items.length) return <p>{kind === 'plugin' ? 'No plugins yet.' : kind === 'skill' ? 'No skills yet.' : 'No MCP tools yet.'}</p>
+   return <ul className="divide-y divide-border">{items.map(item => <li key={item.id} className="space-y-3 py-3">
+-    <div className="flex items-center gap-3"><div className="min-w-0 flex-1"><h3 className="font-medium">{item.name}</h3><p className="truncate text-sm text-muted-foreground" title={item.description}>{item.description}</p></div>
++    <div className="flex items-center gap-3"><div className="min-w-0 flex-1"><h3 className="font-medium">{item.name}</h3><p className="truncate text-sm text-muted-foreground" title={item.description}>{item.description}</p>{'bundled' in item && item.bundled && <p className="text-xs text-muted-foreground">Included with AYLUL</p>}</div>
++      {kind === 'mcp' && 'transport' in item && <Button type="button" variant="outline" disabled={remove.isPending} onClick={() => onEdit?.(item)}>Edit</Button>}
+       <Button type="button" variant="outline" disabled={remove.isPending || confirming?.kind === kind && confirming.id === item.id} onClick={() => { remove.reset(); setConfirming({ kind, id: item.id }) }}>Remove</Button>
+     </div>
+     {confirming?.kind === kind && confirming.id === item.id && <ConfirmPanel
+diff --git a/src/app/settings/mcp-form.test.tsx b/src/app/settings/mcp-form.test.tsx
+new file mode 100644
+index 00000000..e0ea3a2b
+--- /dev/null
++++ b/src/app/settings/mcp-form.test.tsx
+@@ -0,0 +1,61 @@
++// @vitest-environment happy-dom
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
++import { act } from 'react'
++import { createRoot, type Root } from 'react-dom/client'
++import { afterEach, expect, it, vi } from 'vitest'
++import { typeInto, until } from '@/test/test-app'
++import { McpForm } from './mcp-form'
++import type { McpItem } from '@/api/extensions'
++
++let root: Root | undefined
++afterEach(() => { act(() => root?.unmount()); document.body.replaceChildren(); vi.unstubAllGlobals() })
++const field = (name: string) => document.querySelector<HTMLInputElement>(`[aria-label="${name}"]`)!
++const button = (name: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === name)!
++function render(item: McpItem | null = null) {
++  const done = vi.fn()
++  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
++  const container = document.createElement('div'); document.body.append(container); root = createRoot(container)
++  act(() => root!.render(<QueryClientProvider client={client}><McpForm item={item} onDone={done} /></QueryClientProvider>))
++  return done
++}
++it.each(['http', 'stdio'] as const)('adds %s items with password values and clears them on success', async type => {
++  let body: Record<string, unknown> | undefined
++  vi.stubGlobal('fetch', async (request: Request) => { body = await request.json(); return Response.json({ id: 'm1' }, { status: 201 }) })
++  const done = render()
++  typeInto(field('MCP name'), 'tools')
++  if (type === 'stdio') {
++    const select = document.querySelector<HTMLSelectElement>('[aria-label="MCP transport"]')!
++    act(() => { select.value = 'stdio'; select.dispatchEvent(new Event('change', { bubbles: true })) })
++    typeInto(field('MCP command'), 'node')
++    act(() => button('Add argument').click()); typeInto(field('Argument 1'), 'a spaced argument')
++    expect(document.body.textContent).toContain("Runs on this machine's daemon only")
++  } else typeInto(field('MCP URL'), 'https://example.com/mcp')
++  act(() => button(type === 'http' ? 'Add header' : 'Add environment variable').click())
++  typeInto(field('Secret name 1'), type === 'http' ? 'Authorization' : 'TOKEN')
++  expect(field('Secret value 1').type).toBe('password')
++  typeInto(field('Secret value 1'), 'synthetic-secret')
++  act(() => button('Add MCP tool').click())
++  await until(() => done.mock.calls.length === 1)
++  expect(JSON.stringify(body)).toContain('synthetic-secret')
++  expect(body?.transport).toMatchObject(type === 'http' ? { type, headers: [{ name: 'Authorization', value: 'synthetic-secret' }] } : { type, command: 'node', args: ['a spaced argument'], env: [{ name: 'TOKEN', value: 'synthetic-secret' }] })
++  expect(document.querySelector('[aria-label="Secret value 1"]')).toBeNull()
++  expect(document.body.textContent).not.toContain('synthetic-secret')
++})
++it('editing shows Set metadata and retains the id and absent secret values', async () => {
++  let requestBody: unknown
++  vi.stubGlobal('fetch', async (request: Request) => { expect(new URL(request.url).pathname).toBe('/api/aylul/extensions/mcp/m1'); requestBody = await request.json(); return Response.json({ id: 'm1' }) })
++  const done = render({ id: 'm1', name: 'tools', description: 'Tools', transport: { type: 'http', url: 'https://example.com', headers: [{ name: 'Authorization', set: true }] } })
++  expect(document.body.textContent).toContain('Set')
++  expect(field('Secret value 1').value).toBe('')
++  act(() => button('Save MCP tool').click()); await until(() => done.mock.calls.length === 1)
++  expect(requestBody).toMatchObject({ name: 'tools', transport: { headers: [{ name: 'Authorization' }] } })
++  expect(JSON.stringify(requestBody)).not.toContain('"value"')
++})
++it.each([400, 409, 503])('Core %s errors preserve the form and retry command identity', async status => {
++  const bodies: unknown[] = []
++  vi.stubGlobal('fetch', async (request: Request) => { bodies.push(await request.json()); return Response.json({ code: status === 503 ? 'SECRETS_UNAVAILABLE' : status === 409 ? 'EXTENSION_NAME_CONFLICT' : 'PROFILE_INVALID', message: `Core refused ${status}` }, { status }) })
++  render(); typeInto(field('MCP name'), 'tools')
++  act(() => button('Add MCP tool').click()); await until(() => document.body.textContent!.includes(`Core refused ${status}`) && !button('Add MCP tool').disabled)
++  act(() => button('Add MCP tool').click()); await until(() => bodies.length === 2)
++  expect(bodies[1]).toEqual(bodies[0]); expect(field('MCP name').value).toBe('tools')
++})
+diff --git a/src/app/settings/mcp-form.tsx b/src/app/settings/mcp-form.tsx
+new file mode 100644
+index 00000000..5738a5af
+--- /dev/null
++++ b/src/app/settings/mcp-form.tsx
+@@ -0,0 +1,75 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query'
++import { useRef, useState, type FormEvent } from 'react'
++import { extensionKeys, saveMcp, type McpInput, type McpItem, type McpValueInput } from '@/api/extensions'
++import { attemptFor, type Attempt } from '@/api/command-id'
++import { Button } from '@/components/ui/button'
++import { Input } from '@/components/ui/input'
++import { ErrorLine } from '../error-line'
++
++type SecretRow = { name: string; value: string; set: boolean; key: number }
++export function McpForm({ item, onDone }: { item: McpItem | null; onDone: () => void }) {
++  const client = useQueryClient()
++  const transport = item?.transport
++  const [name, setName] = useState(item?.name ?? '')
++  const [description, setDescription] = useState(item?.description ?? '')
++  const [type, setType] = useState<'http' | 'stdio'>(transport?.type ?? 'http')
++  const [url, setUrl] = useState(transport?.type === 'http' ? transport.url : '')
++  const [command, setCommand] = useState(transport?.type === 'stdio' ? transport.command : '')
++  const [args, setArgs] = useState(transport?.type === 'stdio' ? transport.args : [])
++  const [headers, setHeaders] = useState<SecretRow[]>(transport?.type === 'http' ? transport.headers.map((row, key) => ({ ...row, value: '', key })) : [])
++  const [env, setEnv] = useState<SecretRow[]>(transport?.type === 'stdio' ? transport.env.map((row, key) => ({ ...row, value: '', key })) : [])
++  const nextKey = useRef(headers.length + env.length)
++  const attempt = useRef<Attempt | null>(null)
++  const locked = useRef(false)
++  const rows = type === 'http' ? headers : env
++  const setRows = type === 'http' ? setHeaders : setEnv
++  const save = useMutation({ retry: false,
++    mutationFn: (input: McpInput) => {
++      attempt.current = attemptFor(attempt.current, { id: item?.id ?? null, input })
++      return saveMcp(item?.id ?? null, attempt.current.commandId, input)
++    },
++    onSuccess: async () => {
++      attempt.current = null; setHeaders([]); setEnv([])
++      await Promise.all([client.invalidateQueries({ queryKey: extensionKeys.library() }), client.invalidateQueries({ queryKey: extensionKeys.agents() })])
++      onDone()
++    },
++    onSettled: () => { locked.current = false },
++  })
++  function submit(event: FormEvent) {
++    event.preventDefault()
++    if (locked.current) return
++    const values: McpValueInput[] = rows.map(row => ({ name: row.name, ...(item !== null && row.value === '' ? {} : { value: row.value }) }))
++    locked.current = true
++    save.mutate({ name, description, transport: type === 'http' ? { type, url, headers: values } : { type, command, args, env: values } })
++  }
++  return <div className="space-y-4">
++    <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>Back</Button>
++    <form onSubmit={submit} className="space-y-4">
++      <fieldset disabled={save.isPending} className="grid gap-4">
++        <label className="grid gap-2 text-sm">Name<Input aria-label="MCP name" value={name} onChange={e => setName(e.target.value)} /></label>
++        <label className="grid gap-2 text-sm">Description<Input aria-label="MCP description" value={description} onChange={e => setDescription(e.target.value)} /></label>
++        <label className="grid gap-2 text-sm">Transport<select aria-label="MCP transport" className="rounded border border-input bg-background p-2" value={type} onChange={e => setType(e.target.value as 'http' | 'stdio')}>
++          <option value="http">HTTP</option><option value="stdio">stdio</option>
++        </select></label>
++        {type === 'http' ? <label className="grid gap-2 text-sm">URL<Input aria-label="MCP URL" value={url} onChange={e => setUrl(e.target.value)} /></label> : <>
++          <p className="text-xs text-muted-foreground">Runs on this machine's daemon only</p>
++          <label className="grid gap-2 text-sm">Command<Input aria-label="MCP command" value={command} onChange={e => setCommand(e.target.value)} /></label>
++          <div className="space-y-2">{args.map((argument, index) => <div key={index} className="flex gap-2">
++            <Input aria-label={`Argument ${index + 1}`} value={argument} onChange={e => setArgs(args.map((value, i) => i === index ? e.target.value : value))} />
++            <Button type="button" variant="outline" aria-label={`Remove argument ${index + 1}`} onClick={() => setArgs(args.filter((_, i) => i !== index))}>Remove</Button>
++          </div>)}<Button type="button" variant="outline" onClick={() => setArgs([...args, ''])}>Add argument</Button></div>
++        </>}
++        <div className="space-y-3">
++          {rows.map((row, index) => <div key={row.key} className="space-y-2 rounded border border-border p-3">
++            <label className="grid gap-1 text-sm">{type === 'http' ? 'Header name' : 'Environment name'}<Input aria-label={`Secret name ${index + 1}`} value={row.name} onChange={e => setRows(rows.map(value => value.key === row.key ? { ...value, name: e.target.value } : value))} /></label>
++            <label className="grid gap-1 text-sm">Value{row.set && <span className="text-xs text-muted-foreground">Set · leave empty to keep</span>}<Input aria-label={`Secret value ${index + 1}`} type="password" autoComplete="new-password" value={row.value} onChange={e => setRows(rows.map(value => value.key === row.key ? { ...value, value: e.target.value } : value))} /></label>
++            <Button type="button" variant="outline" aria-label={`Remove secret ${index + 1}`} onClick={() => setRows(rows.filter(value => value.key !== row.key))}>Remove</Button>
++          </div>)}
++          <Button type="button" variant="outline" onClick={() => setRows([...rows, { name: '', value: '', set: false, key: nextKey.current++ }])}>{type === 'http' ? 'Add header' : 'Add environment variable'}</Button>
++        </div>
++        {save.error && <ErrorLine error={save.error} />}
++        <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : item ? 'Save MCP tool' : 'Add MCP tool'}</Button>
++      </fieldset>
++    </form>
++  </div>
++}
+diff --git a/src/app/settings/plugins.test.tsx b/src/app/settings/plugins.test.tsx
+index 011c526c..23a33091 100644
+--- a/src/app/settings/plugins.test.tsx
++++ b/src/app/settings/plugins.test.tsx
+@@ -29,6 +29,34 @@ it('the library has tabs and no switches', async () => {
+   await until(() => a.text().includes('No skills yet.'))
+   act(() => a.button('Plugins')!.click()); expect(a.text()).toContain('No plugins yet.')
+ })
++it('bundled items are marked and MCP tools edit and delete through the library', async () => {
++  let removed = false
++  const tool = { id: 'm1', name: 'research', description: 'Research tools', transport: { type: 'http', url: 'https://example.com', headers: [{ name: 'Authorization', set: true }] } }
++  const a = await open({
++    'GET /api/aylul/extensions': () => Response.json({ plugins: [{ ...plugin, bundled: true }], skills: [], mcp: removed ? [] : [tool] }),
++    'PUT /api/aylul/extensions/mcp/m1': () => Response.json(tool),
++    'DELETE /api/aylul/extensions/mcp/m1': () => { removed = true; return new Response(null, { status: 204 }) },
++  })
++  expect(a.text()).toContain('Included with AYLUL')
++  act(() => a.button('MCP tools')!.click())
++  expect(a.text()).toContain('Research tools')
++  act(() => a.button('Edit')!.click())
++  expect(document.querySelector<HTMLInputElement>('[aria-label="Secret value 1"]')?.value).toBe('')
++  expect(a.text()).toContain('Set')
++  act(() => a.button('Save MCP tool')!.click())
++  await until(() => a.button('Add MCP tool') !== undefined)
++  expect(a.calls).toContain('PUT /api/aylul/extensions/mcp/m1')
++  act(() => a.button('Remove')!.click()); confirm(a)
++  await until(() => a.text().includes('No MCP tools yet.'))
++})
++it('library keyboard navigation includes the MCP tab', async () => {
++  await open()
++  const pluginTab = document.querySelector<HTMLElement>('[role="tab"][data-kind="plugin"]')!
++  act(() => pluginTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })))
++  expect(document.querySelector('[role="tab"][aria-selected=true]')?.textContent).toBe('MCP tools')
++  act(() => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
++  expect(document.querySelector('[role="tab"][aria-selected=true]')?.textContent).toBe('Plugins')
++})
+ it('Add imports a folder on the daemon', async () => {
+   let items: Item[] = []
+   const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: [], skills: items }),
+diff --git a/src/app/settings/sections/plugins.tsx b/src/app/settings/sections/plugins.tsx
+index e1c4ab0e..3a40c035 100644
+--- a/src/app/settings/sections/plugins.tsx
++++ b/src/app/settings/sections/plugins.tsx
+@@ -1,29 +1,34 @@
+ import { useId, useState } from 'react'
+ import { useQuery } from '@tanstack/react-query'
+-import { extensionsQuery, type ExtensionKind } from '@/api/extensions'
++import { extensionsQuery, type ExtensionKind, type McpItem } from '@/api/extensions'
+ import { Button } from '@/components/ui/button'
+ import { ErrorLine } from '../../error-line'
+ import { ExtensionImport } from '../extension-import'
+ import { ExtensionList } from '../extension-list'
++import { McpForm } from '../mcp-form'
+ 
+ export function PluginsSection() {
+   const library = useQuery(extensionsQuery)
+   const [kind, setKind] = useState<ExtensionKind>('plugin')
+   const [adding, setAdding] = useState(false)
++  const [editing, setEditing] = useState<McpItem | null>(null)
+   const id = useId()
+-  if (adding) return <ExtensionImport kind={kind} onDone={() => setAdding(false)} />
++  const kinds = ['plugin', 'skill', 'mcp'] as const
++  if (adding || editing) return kind === 'mcp'
++    ? <McpForm item={editing} onDone={() => { setAdding(false); setEditing(null) }} />
++    : <ExtensionImport kind={kind} onDone={() => setAdding(false)} />
+   return <div className="space-y-4">
+-    <div role="tablist" aria-label="Extension library" className="flex gap-2">{(['plugin', 'skill'] as const).map(value => <button type="button" key={value} role="tab" id={`${id}-${value}`} data-kind={value} aria-selected={kind === value} aria-controls={`${id}-panel`} tabIndex={kind === value ? 0 : -1}
++    <div role="tablist" aria-label="Extension library" className="flex gap-2">{kinds.map(value => <button type="button" key={value} role="tab" id={`${id}-${value}`} data-kind={value} aria-selected={kind === value} aria-controls={`${id}-panel`} tabIndex={kind === value ? 0 : -1}
+       className="rounded-md px-3 py-2 text-sm aria-selected:bg-secondary" onClick={() => setKind(value)} onKeyDown={event => {
+         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+         event.preventDefault()
+-        const next = event.key === 'Home' ? 'plugin' : event.key === 'End' ? 'skill' : kind === 'plugin' ? 'skill' : 'plugin'
++        const next = event.key === 'Home' ? 'plugin' : event.key === 'End' ? 'mcp' : kinds[(kinds.indexOf(kind) + (event.key === 'ArrowRight' ? 1 : 2)) % kinds.length]
+         setKind(next); event.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-kind="${next}"]`)?.focus()
+-      }}>{value === 'plugin' ? 'Plugins' : 'Skills'}</button>)}</div>
++      }}>{value === 'plugin' ? 'Plugins' : value === 'skill' ? 'Skills' : 'MCP tools'}</button>)}</div>
+     <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${kind}`} className="space-y-4">
+       {library.isPending ? <p role="status">Loading library…</p> : library.error ? <div className="space-y-3"><ErrorLine error={library.error} /><Button type="button" variant="outline" disabled={library.isFetching} onClick={() => { void library.refetch() }}>Retry</Button></div> : <>
+-        <Button type="button" onClick={() => setAdding(true)}>Add</Button>
+-        <ExtensionList kind={kind} items={kind === 'plugin' ? library.data.plugins : library.data.skills} />
++        <Button type="button" onClick={() => setAdding(true)}>{kind === 'mcp' ? 'Add MCP tool' : 'Add'}</Button>
++        <ExtensionList kind={kind} items={kind === 'plugin' ? library.data.plugins : kind === 'skill' ? library.data.skills : library.data.mcp ?? []} onEdit={setEditing} />
+       </>}
+     </div>
+   </div>
+diff --git a/src/stream/contract.yaml b/src/stream/contract.yaml
+index 45a0bdec..bdc1e125 100644
+--- a/src/stream/contract.yaml
++++ b/src/stream/contract.yaml
+@@ -25,6 +25,7 @@ source: web/src/stream
+ 
+ refresh_pinning:
+   project: "pins project refresh for %s covers all five plan event kinds: design, agreement versions, project maps/lists, plan versions, sibling versions and project neighbours."
++  permissions: "PermissionsChanged on the project stream invalidates the waiting permissions query. Every project caught-up also reconciles it, covering reconnects and late subscribers."
+ 
+ connection_registry:
+   owner: thread-registry.ts
+diff --git a/src/stream/refresh.test.tsx b/src/stream/refresh.test.tsx
+index 4e421cbf..137ff108 100644
+--- a/src/stream/refresh.test.tsx
++++ b/src/stream/refresh.test.tsx
+@@ -8,9 +8,38 @@ import { FakeSource } from '@/test/fake-event-source'
+ import { usePlanEvents } from './use-plan-events'
+ import { useProjectEvents } from './use-project-events'
+ import { useThreadStream } from './use-thread-stream'
++import { waitingPermissionsQuery } from '@/api/permissions'
+ 
+ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+ 
++it('PermissionsChanged on the project stream refetches the waiting list and reconnect reconciles it', async () => {
++  const client = new QueryClient()
++  const sources: FakeSource[] = []
++  vi.stubGlobal('EventSource', class extends FakeSource { constructor(url: string) { super(url); sources.push(this) } })
++  let reads = 0
++  const options = { ...waitingPermissionsQuery, queryFn: async () => { reads++; return [] } }
++  const root = createRoot(document.createElement('div'))
++  function View() { useProjectEvents('p1'); return null }
++  const observer = client.getQueryCache()
++  try {
++    await client.fetchQuery(options)
++    const { QueryObserver } = await import('@tanstack/react-query')
++    const watch = new QueryObserver(client, options)
++    const release = watch.subscribe(() => {})
++    act(() => root.render(<QueryClientProvider client={client}><View /></QueryClientProvider>))
++    const project = sources[0]
++    act(() => project.caughtUp(0)); await new Promise(resolve => setTimeout(resolve, 0))
++    const before = reads
++    act(() => project.durable(1, 'PermissionsChanged', null, { request_id: 'r1', state: 'asked' }))
++    await new Promise(resolve => setTimeout(resolve, 0))
++    expect(reads).toBeGreaterThan(before)
++    const afterEvent = reads
++    act(() => project.caughtUp(1)); await new Promise(resolve => setTimeout(resolve, 0))
++    expect(reads).toBeGreaterThan(afterEvent)
++    release()
++  } finally { act(() => root.unmount()); observer.clear(); client.clear(); vi.unstubAllGlobals() }
++})
++
+ it.each(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])('classifies the full plan refresh union for %s', kind => {
+   expect(classifyRefresh({ kind, seq: 1, threadId: 't1', operationId: null, payload: {}, projectId: 'p1' })).toEqual([
+     { kind: 'workflows' }, { kind: 'design', projectId: 'p1' }, { kind: 'agreement-versions', projectId: 'p1' },
+diff --git a/src/stream/refresh.ts b/src/stream/refresh.ts
+index 154719a2..6b168fd4 100644
+--- a/src/stream/refresh.ts
++++ b/src/stream/refresh.ts
+@@ -4,11 +4,12 @@ import { invalidateDesign } from '@/api/design'
+ import { invalidateAgreements, invalidateAgreementVersions } from '@/api/agreements'
+ import { invalidateProjects } from '@/api/projects'
+ import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '@/api/threads'
++import { invalidatePermissions } from '@/api/permissions'
+ import type { DurableEvent } from './frames'
+ import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
+ 
+ export type RefreshTarget =
+-  | { kind: 'workflows' | 'projects' | 'thread-lists' }
++  | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' }
+   | { kind: 'design' | 'agreements' | 'agreement-versions' | 'project-workflows'; projectId: string }
+   | { kind: 'entries' | 'operations'; threadId: string }
+ 
+@@ -34,6 +35,7 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
+     if (REACH_EVENTS.has(event.kind)) targets.push({ kind: 'project-workflows', projectId })
+   }
+   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
++  if (event.kind === 'PermissionsChanged' && projectId !== undefined) targets.push({ kind: 'permissions' })
+   if (event.threadId !== null) {
+     // Which operation events end a turn is Core's lifecycle; every one refreshes rather than
+     // the client keeping a copy of the terminal kinds.
+@@ -54,6 +56,7 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
+       case 'agreements': invalidateAgreements(client, target.projectId); break
+       case 'agreement-versions': invalidateAgreementVersions(client, target.projectId); break
+       case 'projects': invalidateProjects(client); break
++      case 'permissions': void invalidatePermissions(client); break
+       case 'entries': invalidateEntries(client, target.threadId); break
+       case 'operations': invalidateOperations(client, target.threadId); break
+       case 'thread-lists': invalidateThreadLists(client); break
+@@ -65,7 +68,7 @@ interface RefreshScope { projectId?: string; threadId?: string; plansOnly?: bool
+ 
+ function baseline(scope: RefreshScope): RefreshTarget[] {
+   return scope.threadId === undefined
+-    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }]
++    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }, { kind: 'permissions' }]
+     : scope.plansOnly ? [{ kind: 'workflows' }]
+     : [{ kind: 'workflows' }, { kind: 'entries', threadId: scope.threadId }, { kind: 'operations', threadId: scope.threadId }]
+ }
+diff --git a/src/test/native-presence.json b/src/test/native-presence.json
+index 2d7b1e4a..f99d8f0c 100644
+--- a/src/test/native-presence.json
++++ b/src/test/native-presence.json
+@@ -60,6 +60,25 @@
+         "threadId": "00000000-0000-4000-8000-000000000003"
+       },
+       "revision": 3
++    },
++    {
++      "destination": {
++        "agent": "agent-a",
++        "kind": "agentSettings"
++      },
++      "revision": 4
++    },
++    {
++      "destination": {
++        "kind": "newAgent"
++      },
++      "revision": 5
++    },
++    {
++      "destination": {
++        "kind": "settings"
++      },
++      "revision": 6
+     }
+   ],
+   "target": {

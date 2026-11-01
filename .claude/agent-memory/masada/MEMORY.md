@@ -1,0 +1,3 @@
+- [Background agents](feedback_background_agents.md) — always run builder/fixer in the background
+- [Freedom over agents and splits](feedback_agent_freedom.md) — may edit builder/fixer instructions and split tasks unasked; visual tasks need screenshot compare
+- [Same agent for related tasks](feedback_same_agent_related_tasks.md) — related next task goes to the previous agent via SendMessage

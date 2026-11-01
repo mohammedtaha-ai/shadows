@@ -23,7 +23,7 @@ harness/*/node_modules/
 sandbox/persistence-delta/results/
 
 # Local launcher configuration
-.claude/
+
 /start-chat.cmd
 
 # Browser-check screenshots and traces; evidence that matters is copied into docs/evidence/.

@@ -1,0 +1,87 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "daemon",
+      "runtimeExecutable": "E:/Globalprojects/shadows/target/debug/shadows.exe",
+      "runtimeArgs": [
+        "serve",
+        "--debug",
+        "--db",
+        "C:/Users/Mohammed/AppData/Local/shadows-dev/shadows.sqlite3",
+        "--node",
+        "C:/Program Files/nodejs/node.exe",
+        "--adapter",
+        "E:/Globalprojects/shadows/harness/claude/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "--harness",
+        "C:/Users/Mohammed/.local/bin/claude.exe",
+        "--aylul-config",
+        "C:/Users/Mohammed/AppData/Local/aylul/aylul.json"
+      ],
+      "port": 4318
+    },
+    {
+      "name": "daemon-copy",
+      "runtimeExecutable": "E:/Globalprojects/shadows-bin/shadows.exe",
+      "runtimeArgs": [
+        "serve",
+        "--debug",
+        "--db",
+        "C:/Users/Mohammed/AppData/Local/shadows-dev/shadows.sqlite3",
+        "--node",
+        "C:/Program Files/nodejs/node.exe",
+        "--adapter",
+        "E:/Globalprojects/shadows/harness/claude/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "--harness",
+        "C:/Users/Mohammed/.local/bin/claude.exe",
+        "--aylul-config",
+        "C:/Users/Mohammed/AppData/Local/aylul/aylul.json"
+      ],
+      "port": 4318
+    },
+    {
+      "name": "daemon-journey",
+      "runtimeExecutable": "E:/Globalprojects/shadows/target/debug/shadows.exe",
+      "runtimeArgs": [
+        "serve",
+        "--debug",
+        "--db",
+        "C:/Users/Mohammed/AppData/Local/Temp/claude/E--Globalprojects-shadows/c3c54b24-ceb1-49d7-812f-74e865311164/scratchpad/journey/shadows.sqlite3",
+        "--node",
+        "C:/Program Files/nodejs/node.exe",
+        "--adapter",
+        "E:/Globalprojects/shadows/harness/claude/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "--harness",
+        "C:/Users/Mohammed/.local/bin/claude.exe",
+        "--aylul-config",
+        "C:/Users/Mohammed/AppData/Local/Temp/claude/E--Globalprojects-shadows/c3c54b24-ceb1-49d7-812f-74e865311164/scratchpad/journey/aylul.json"
+      ],
+      "port": 4318
+    },
+    {
+      "name": "ui-modernizer",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--prefix",
+        "../ui-modernizer",
+        "vite",
+        "../ui-modernizer",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "vite",
+        "web"
+      ],
+      "port": 5173
+    }
+  ]
+}
