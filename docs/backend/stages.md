@@ -38,9 +38,9 @@ in PR #48 (`ce31036d`); their entries are in this file at `ce31036d`.
 
 AYLUL agents and panel, Core side ([plan](plans/2026-11-01-aylul-agents-panel-backend.md),
 design `docs/aylul/specs/2026-11-01-aylul-agents-and-panel-design.md`, accepted 2026-11-01):
-B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4. Tasks marked
-`blocked` change what the frontend sees and wait for the shared request that accepts plan §3
-(`docs/shared/requests/2026-11-01-aylul-agents-panel.md`, not yet filed).
+B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4. The shared
+request that accepts plan §3 (`docs/shared/requests/2026-11-01-aylul-agents-panel.md`) was
+accepted on 2026-11-01, so no task waits on it.
 
 ## Tasks
 
@@ -54,7 +54,7 @@ B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4.
 - Done when: `cargo test -p core-db --test migration_checksums`, `cargo test -p core-agents --test agents`, `cargo test -p core-extensions --test library`, `cargo test -p shadows --test architecture` pass.
 
 ### B-25 · Agents: description, instructions, outfit, the template, the one-time home import
-- Status: blocked (shared request for plan §3.1)
+- Status: todo (shared request accepted 2026-11-01)
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#21-agents-71-73--b-25
 - Read: `crates/core-agents/contract.yaml`; design §7.1, §7.3; plan §2.1 and §3.1; `crates/shadows-core/src/app.rs` `AppCore::start`.
 - Touch: `crates/core-agents/src/{model.rs,lib.rs,home.rs,store/mod.rs}`; `crates/core-agents/contract.yaml`; `crates/core-agents/tests/agents.rs`; `crates/shadows-core/src/app.rs` (call `agents.import_home_instructions()` in `start`, after `build_aylul_owners`); `crates/shadows-http/src/aylul_agents.rs` (`GET /api/aylul/agent-template`); `crates/shadows-http/src/lib.rs` (route); `crates/shadows-http/src/openapi.rs`; `crates/shadows-http/src/aylul_profiles_tests.rs`; `crates/shadows-http/contract.yaml`; `api/openapi.json`.
@@ -88,7 +88,7 @@ B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4.
 - Done when: `cargo test -p shadows-core --test acp_connection` passes `a_refusing_connection_rejects_at_once`, `a_held_request_waits_for_its_answer`, `an_option_not_offered_is_refused_and_the_request_stays`, `a_second_answer_finds_the_request_settled`, `cancel_refuses_held_requests_before_cancelling`, `refuse_held_ends_every_waiting_request`; `cargo test -p shadows --test planner_turn` passes unchanged; `cargo test -p core-turns --test entries` passes.
 
 ### B-29 · Extensions: MCP items, write-only values, the Secrets edge
-- Status: blocked (shared request for plan §3.2)
+- Status: todo (shared request accepted 2026-11-01)
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#25-extensions-mcp-items-72--b-29
 - Read: `crates/core-extensions/contract.yaml`; `crates/core-secrets/contract.yaml` (after B-26); `crates/core-providers/contract.yaml` (`validate_url`); plan §2.5, §3.2.
 - Touch: `crates/core-extensions/Cargo.toml` (`core-secrets`, `core-providers` as dependencies); `crates/core-extensions/src/{lib.rs,model.rs,error.rs,store/mod.rs}`; `crates/core-extensions/src/mcp.rs` (new: MCP item commands and checks); `crates/core-extensions/contract.yaml`; `crates/core-extensions/tests/library.rs`; `crates/core-providers/src/validation.rs` (`validate_url` public); `crates/core-providers/contract.yaml`; `crates/shadows-core/src/app.rs` (`Extensions::new(storage, secrets, home_root)`); `crates/shadows-core/src/lib.rs` (re-exports); `crates/shadows-core/src/error.rs` (ExtensionsError's Secrets arm); `crates/shadows-http/src/failure/other.rs` (only if the new arm needs it); `crates/core-harness/tests/fixture/mod.rs`; `crates/shadows-http/src/aylul_extensions.rs` (POST and PUT `/api/aylul/extensions/mcp…`; the folder import refuses `mcp`); `crates/shadows-http/src/aylul_extensions_tests.rs`; `crates/shadows-http/src/lib.rs`; `crates/shadows-http/src/openapi.rs`; `crates/shadows-http/contract.yaml`; `api/openapi.json`.
@@ -97,7 +97,7 @@ B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4.
 - Done when: `cargo test -p core-extensions --test library mcp_` passes `mcp_item_is_configuration_with_write_only_values`, `mcp_input_is_checked`, `mcp_edit_keeps_its_id_switches_and_unsent_values`, `mcp_delete_removes_switches_and_scope_in_one_write`, `mcp_commands_replay_and_conflict`, `mcp_values_never_leave_secrets`, `agent_mcp_servers_resolve_only_enabled_items`; the rest of `--test library` passes; `cargo test -p shadows-http aylul_extensions` passes incl. `mcp_routes_answer_names_never_values` and `folder_import_refuses_mcp`; openapi regenerated and `cargo test -p shadows --test openapi` passes; `cargo test -p shadows --test architecture` passes.
 
 ### B-30 · Extensions: bundled library items, imported at start, declined when deleted
-- Status: blocked (shared request for plan §3.2, `Item.bundled`)
+- Status: todo (shared request accepted 2026-11-01)
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#26-extensions-bundled-items-74--b-30
 - Read: `crates/core-extensions/contract.yaml`; design §7.4; plan §2.6.
 - Touch: `crates/core-extensions/assets/library/skills/aylul-hello/SKILL.md` (new); `crates/core-extensions/build.rs` (new); `crates/core-extensions/Cargo.toml` (`build`); `crates/core-extensions/src/bundled.rs` (new); `crates/core-extensions/src/{lib.rs,model.rs,store/mod.rs}`; `crates/core-extensions/contract.yaml` (modules incl. the assets folder); `crates/core-extensions/tests/library.rs`; `crates/shadows-core/src/app.rs` (call `extensions.import_bundled()` in `start`, after owners); `api/openapi.json`.
@@ -113,7 +113,7 @@ B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4.
 - Done when: `cargo test -p shadows-core --test aylul_session` passes incl. `opening_writes_the_stored_instructions`, `opening_writes_the_template_for_empty_instructions`, `opening_leaves_an_unimported_home_file`, `opening_sends_only_enabled_mcp_items`, `an_aylul_opening_never_receives_shadows_mcp`, `mcp_values_reach_the_session_as_hashes_only`; `cargo test -p shadows --test planner_mcp` and `cargo test -p shadows --test acp_log_safety` pass.
 
 ### B-32 · Turns: permission entries and the `PermissionsChanged` event
-- Status: blocked (shared request for plan §3.3 entries)
+- Status: todo (shared request accepted 2026-11-01)
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#24-holding-a-permission-request-78--b-28-b-32-b-33
 - Read: `crates/core-turns/contract.yaml` (entries, `persist`); `crates/core-threads/contract.yaml` (`ThreadEntryKind`); `crates/core-events/contract.yaml` (`subscribe_project`); plan §3.3 entry table.
 - Touch: `crates/core-threads/src/model.rs` (`PermissionAsked`, `PermissionAnswered`); `crates/core-threads/contract.yaml`; `crates/core-turns/src/entries.rs`; `crates/core-turns/src/turn.rs` (`persist`, the project id on `TurnWatch`); `crates/core-turns/src/spawn.rs` (only to fill that project id); `crates/core-turns/contract.yaml`; `crates/core-turns/tests/entries.rs`; `crates/core-events/src/store.rs` (allowlist `PermissionsChanged`); `crates/core-events/contract.yaml`; `crates/core-events/tests/cursor.rs` (or a new `crates/core-events/tests/project_permissions.rs`); `api/openapi.json`.
@@ -121,7 +121,7 @@ B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4.
 - Done when: `cargo test -p core-turns --test entries permission_` passes `permission_asked_and_answered_become_entries`, `an_open_ask_is_refused_at_finish`, `the_planner_refusal_entry_is_unchanged`; `cargo test -p core-events` passes incl. `project_stream_carries_permissions_changed`; `cargo test -p shadows --test planner_turn` passes; openapi regenerated and `cargo test -p shadows --test openapi`.
 
 ### B-33 · Harness: AYLUL asks, `answer_permission`, `waiting_permissions`, refusal on cancel/close/stop
-- Status: blocked (shared request for plan §3.3 error codes)
+- Status: todo (shared request accepted 2026-11-01)
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#24-holding-a-permission-request-78--b-28-b-32-b-33
 - Read: `crates/core-harness/contract.yaml` (whole: sessions, terminate, close_all, `change_mode`'s command pattern); design §7.8; approval authority §24.1 (`docs/superpowers/specs/2026-10-08-approval-authority-design.md`); harness controls §12.2 (`docs/superpowers/specs/2026-09-24-harness-controls-design.md`).
 - Touch: `crates/core-harness/src/permissions.rs` (new: `answer_permission`, `waiting_permissions`); `crates/core-harness/src/store/permission.rs` (new: the command record) and `crates/core-harness/src/store/mod.rs`; `crates/core-harness/src/{lib.rs,model.rs,error.rs,live.rs,sessions.rs,access.rs}`; `crates/core-harness/contract.yaml`; `crates/shadows-core/src/error.rs` (`ErrorCode` `PermissionNotFound`, `PermissionSettled`, `PermissionOptionNotOffered`); `crates/shadows-core/src/lib.rs` (re-exports); `crates/shadows-http/src/failure/{other.rs,cases.rs}` (404, 409, 422); `crates/shadows-core/tests/aylul_session.rs` (mod) and `crates/shadows-core/tests/aylul_session/permissions.rs` (new); `crates/fake-acp/src/prompts.rs` (only for a second-request prompt); `docs/superpowers/specs/2026-09-24-harness-controls-design.md` (§12.2 amended in place: AYLUL asks, the Planner refuses); `api/openapi.json`.
@@ -129,7 +129,7 @@ B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4.
 - Done when: `cargo test -p shadows-core --test aylul_session permissions::` passes `an_aylul_request_waits_and_is_listed`, `answering_runs_the_tool_and_records_by_you`, `a_rejected_request_ends_rejected_and_the_turn_goes_on`, `an_option_not_offered_is_refused`, `a_second_answer_is_settled`, `an_equal_replay_answers_the_first_result`, `cancelling_while_asked_ends_refused_and_publishes`, `closing_the_session_while_asked_ends_refused`, `waiting_is_listed_oldest_first_across_agents`, `permissions_changed_reaches_the_aylul_project_stream`; `cargo test -p shadows --test planner_turn` (the Planner still refuses at once); `cargo test -p shadows-http failure` passes; openapi regenerated and `cargo test -p shadows --test openapi`.
 
 ### B-34 · HTTP: list and answer permission requests
-- Status: blocked (shared request for plan §3.3)
+- Status: todo (shared request accepted 2026-11-01)
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#33-permission-requests
 - Read: `crates/shadows-http/contract.yaml`; `crates/core-harness/contract.yaml` (`answer_permission`, `waiting_permissions`); plan §3.3.
 - Touch: `crates/shadows-http/src/harness.rs` (`GET /api/aylul/permissions`, `POST /api/threads/{id}/session/permissions/{request_id}`); `crates/shadows-http/src/lib.rs`; `crates/shadows-http/src/openapi.rs`; `crates/shadows-http/src/sse.rs` (doc text of the project stream only); `crates/shadows-http/contract.yaml`; `crates/shadows/tests/permission_routes.rs` (new); `api/openapi.json`.
