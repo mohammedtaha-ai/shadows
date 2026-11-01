@@ -5,9 +5,9 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-62 to F-67, the web half of the AYLUL agents and panel design
+Open: F-62 to F-66, the web half of the AYLUL agents and panel design
 ([plan](plans/2026-11-01-aylul-agents-panel-frontend.md)), on `feature/aylul-agents-panel`.
-Runnable now: F-67 (and C-8, N-22 on the AYLUL side). Shapes: `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`
+Runnable now: C-8 and N-22 on the AYLUL side. Shapes: `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`
 §3, accepted in `docs/shared/requests/2026-11-01-aylul-agents-panel.md`. The desktop half is U-5 to U-8 in `docs/aylul/ui/stages.md`, C-8 and C-9 in
 `docs/aylul/character/stages.md`, N-22 to N-25 in `docs/aylul/native/stages.md`. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
@@ -64,7 +64,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npm run gen:api` first, then `npx vitest run src/api/permissions.test.ts src/stream/refresh.test.tsx src/app/conversation/permission-card.test.tsx src/app/conversation/conversation.test.tsx` pass (option buttons, labelled with each option's `name`, only while the request is in `GET /api/aylul/permissions`; a click posts `{ command_id, option_id }` to `POST /api/threads/{id}/session/permissions/{request_id}` and a retry reuses the command id; `PERMISSION_NOT_FOUND` and `PERMISSION_SETTLED` refetch the list and show Core's message; there is no typed answer; a `PermissionAnswered` entry shows its body and "by you"; a `PermissionRefused` with a card shows its reason; a `PermissionsChanged` frame on the project stream refetches the list), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshot attached.
 
 ### F-67 · Main-window destinations the panel opens
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-67
 - Read: `docs/aylul/shared/requests/2026-11-01-companion-panel.md` (the `main-navigation` row); `web/src/desktop/contract.yaml`
 - Touch: web/src/desktop/navigation.ts, web/src/desktop/native-parity.test.ts, web/src/desktop/contract.yaml, web/src/main.tsx, docs/frontend/stages.md
