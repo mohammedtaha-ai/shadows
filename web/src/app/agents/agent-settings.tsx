@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useRef, useState } from 'react'
 import {
-  type AgentInput, agentsQuery, deleteAgent, providersQuery, providerPresetsQuery, saveAgent,
+  type AgentInput, agentsQuery, agentTemplateQuery, deleteAgent, providersQuery, providerPresetsQuery, saveAgent,
 } from '@/api/aylul-profiles'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
@@ -12,10 +12,11 @@ import { ErrorLine } from '../error-line'
 import { AgentEnv } from './agent-env'
 import { AgentExtensions } from './agent-extensions'
 import { DeleteZone } from './delete-zone'
-import { Field, Select } from './form-field'
+import { Field, Select, TextArea } from './form-field'
 import { providerTitle } from './provider-presets'
 import { colorOf } from './character-colors'
 import { ColorSwatches } from './color-swatches'
+import { OutfitPicker } from './outfit-picker'
 import { capabilities } from '@/desktop'
 import { useCompanionBinding, refreshCompanionAppearance } from '@/desktop'
 import { useOpenSettings } from '@/app/navigation'
@@ -23,7 +24,7 @@ import { useOpenSettings } from '@/app/navigation'
 export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () => void }) {
   const agent = useQuery(agentsQuery).data?.agents.find(agent => agent.slug === slug)
   return <div className="space-y-6">
-    <AgentFields slug={slug} onDone={onDone} />
+    <AgentFields key={slug ?? 'new'} slug={slug} onDone={onDone} />
     {slug !== null && agent && <><AgentExtensions slug={slug} /><AgentEnv slug={slug} /><DeleteAgent slug={slug} name={agent.name} onDone={onDone} /></>}
   </div>
 }
@@ -33,14 +34,18 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
   const openSettings = useOpenSettings()
   const providers = useQuery(providersQuery)
   const presets = useQuery(providerPresetsQuery)
-  const original = useQuery(agentsQuery).data?.agents.find((a) => a.slug === slug)
+  const agents = useQuery(agentsQuery)
+  const original = agents.data?.agents.find((a) => a.slug === slug)
+  const template = useQuery({ ...agentTemplateQuery, enabled: slug === null || (original !== undefined && !original.instructions) })
   const queryClient = useQueryClient()
   const [edited, setEdited] = useState<AgentInput | null>(null)
+  const [instructions, setInstructions] = useState<string | null>(null)
+  const initialInstructions = original?.instructions || template.data?.instructions || ''
   const pending = useRef<Attempt | null>(null)
   const first = providers.data?.[0]
   const value: AgentInput = edited ?? (original === undefined
-    ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0]?.id ?? '', character_color: colorOf(null).id }
-    : { name: original.name, provider: original.provider, default_model: original.default_model, character_color: colorOf(original.character_color).id })
+    ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0]?.id ?? '', character_color: colorOf(null).id, outfit: 'default', description: '' }
+    : { name: original.name, provider: original.provider, default_model: original.default_model, character_color: colorOf(original.character_color).id, outfit: original.outfit ?? 'default', description: original.description ?? '' })
   const provider = providers.data?.find((p) => p.slug === value.provider)
 
   const save = useMutation({
@@ -60,10 +65,12 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
   })
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    save.mutate(value)
+    save.mutate(instructions !== null && instructions !== initialInstructions ? { ...value, instructions } : value)
   }
 
   if (providers.error !== null) return <ErrorLine error={providers.error} />
+  if (slug !== null && agents.error !== null) return <ErrorLine error={agents.error} />
+  if (slug !== null && original === undefined) return null
   if (providers.data === undefined) return null
   if (providers.data.length === 0) {
     return (
@@ -78,9 +85,25 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
   return (
     <form onSubmit={submit} className="space-y-4">
       <fieldset disabled={save.isPending} className="grid gap-4">
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-xs text-muted-foreground">Outfit</legend>
+          <OutfitPicker value={value.outfit ?? 'default'} onChange={id => setEdited({ ...value, outfit: id })} />
+        </fieldset>
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-xs text-muted-foreground">Character colour</legend>
+          <ColorSwatches value={colorOf(value.character_color).id} disabled={save.isPending} onChange={id => setEdited({ ...value, character_color: id })} />
+          <p className="text-xs text-muted-foreground">{!capabilities.companion
+            ? 'AYLUL wears this colour on the desktop when this agent is the companion agent.'
+            : slug !== null && binding?.agent === slug ? 'AYLUL wears this colour now.'
+              : 'AYLUL wears this colour when this agent is the companion agent.'}</p>
+        </fieldset>
         <Field label="Name" hint={slug === null ? 'Its address is made from the name and never changes.' : undefined}>
           <Input aria-label="Agent name" value={value.name} required placeholder="AYLUL"
             onChange={(e) => setEdited({ ...value, name: e.target.value })} />
+        </Field>
+        <Field label="Description">
+          <Input aria-label="Agent description" value={value.description ?? ''} placeholder="What this agent helps with"
+            onChange={e => setEdited({ ...value, description: e.target.value })} />
         </Field>
         <Field label="Provider">
           <Select aria-label="Provider" value={value.provider}
@@ -98,17 +121,15 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
             {provider?.models.map(({ id }) => <option key={id} value={id}>{id}</option>)}
           </Select>
         </Field>
-        <fieldset className="grid gap-2">
-          <legend className="mb-2 text-xs text-muted-foreground">Character colour</legend>
-          <ColorSwatches value={colorOf(value.character_color).id} disabled={save.isPending} onChange={id => setEdited({ ...value, character_color: id })} />
-          <p className="text-xs text-muted-foreground">{!capabilities.companion
-            ? 'AYLUL wears this colour on the desktop when this agent is the companion agent.'
-            : slug !== null && binding?.agent === slug ? 'AYLUL wears this colour now.'
-              : 'AYLUL wears this colour when this agent is the companion agent.'}</p>
-        </fieldset>
+        <Field label="Instructions" hint="Edit instructions here. Changes made directly to CLAUDE.md are overwritten when a conversation opens.">
+          <TextArea aria-label="Agent instructions" rows={10} value={instructions ?? initialInstructions}
+            disabled={!original?.instructions && template.data === undefined}
+            onChange={e => setInstructions(e.target.value)} />
+        </Field>
+        {template.error !== null && <ErrorLine error={template.error} />}
         {save.error !== null && <ErrorLine error={save.error} />}
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={value.provider === '' || value.default_model === ''}>
+          <Button type="submit" disabled={value.provider === '' || value.default_model === '' || (!original?.instructions && template.data === undefined)}>
             {save.isPending ? 'Saving…' : slug === null ? 'Create agent' : 'Save agent'}
           </Button>
           <p className="text-xs text-faint-foreground">Changes apply to new and resumed conversations.</p>

@@ -16,6 +16,7 @@ export const profileKeys = {
   presets: () => ['aylul-provider-presets'],
   providers: () => ['aylul-providers'],
   agents: () => ['aylul-agents'],
+  template: () => ['aylul-agent-template'],
   threads: (slug: string) => ['aylul-agent', slug, 'threads'],
   env: (slug: string) => ['aylul-agent', slug, 'env'],
 }
@@ -38,6 +39,10 @@ export const providersQuery = queryOptions({
 })
 export const agentsQuery = queryOptions({
   queryKey: profileKeys.agents(), queryFn: () => unwrap(client.GET('/api/aylul/agents')),
+})
+export const agentTemplateQuery = queryOptions({
+  queryKey: profileKeys.template(), staleTime: Infinity,
+  queryFn: () => unwrap(client.GET('/api/aylul/agent-template')),
 })
 export function agentThreadsQuery(slug: string) {
   return queryOptions({ queryKey: profileKeys.threads(slug),

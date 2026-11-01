@@ -72,6 +72,8 @@ components:
     # Live agents laid out like projects: each folds open to its conversations and
     # "Agent settings"; its + opens a draft under it. Providers are reached through Settings.
     # Empty states: "Add a provider first", then "Add an agent to start".
+    note: A nonempty agent description appears below its name, truncated on its own line.
+    tested_by: ["the sidebar shows the description under the agent name"]
   WorkflowList:
     signature: "({ projectId: string, selected?: string }) => JSX.Element"
     # Starts the project's live stream (useProjectEvents) and lists its plans.

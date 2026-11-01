@@ -367,7 +367,7 @@ it("an agent's colour is shown and saved with the form", async () => {
   expect(a.calls).not.toContain('PUT /api/aylul/agents/work')
   act(() => a.button('Save agent')!.click())
   await until(() => a.calls.includes('PUT /api/aylul/agents/work'))
-  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: agent.name, provider: agent.provider, default_model: agent.default_model, character_color: next.id })
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: agent.name, provider: agent.provider, default_model: agent.default_model, character_color: next.id, outfit: 'default', description: '' })
 })
 it('an id the table does not know shows Purple and is replaced on save', async () => {
   const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(),
@@ -441,7 +441,7 @@ it('saving the companion agent refreshes the character', async () => {
 it('saving another agent does not', async () => {
   colorFixture.desktop = true; colorFixture.bound = 'other'
   const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(), 'PUT /api/aylul/agents/work': () => Response.json(agent) })
-  await until(() => a.button('Save agent') !== undefined)
+  await until(() => a.button('Save agent')?.disabled === false)
   act(() => a.button('Save agent')!.click())
   await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
   expect(refreshInvoke).not.toHaveBeenCalled()
@@ -450,7 +450,7 @@ it('a failed refresh does not fail the save', async () => {
   colorFixture.desktop = true; colorFixture.bound = 'work'
   refreshInvoke.mockRejectedValue(new Error('Core unavailable'))
   const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(), 'PUT /api/aylul/agents/work': () => Response.json(agent) })
-  await until(() => a.button('Save agent') !== undefined)
+  await until(() => a.button('Save agent')?.disabled === false)
   act(() => a.button('Save agent')!.click())
   await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
   expect(refreshInvoke).toHaveBeenCalledTimes(1)

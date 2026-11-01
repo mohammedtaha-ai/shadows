@@ -5,9 +5,9 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-62 to F-66, the web half of the AYLUL agents and panel design
+Open: F-64 to F-66, the web half of the AYLUL agents and panel design
 ([plan](plans/2026-11-01-aylul-agents-panel-frontend.md)), on `feature/aylul-agents-panel`.
-Runnable now: F-62, F-64 and F-66; U-5, N-23 and N-24 on the AYLUL side. Shapes: `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`
+Runnable now: F-64 and F-66; U-5, N-23 and N-24 on the AYLUL side. Shapes: `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`
 §3, accepted in `docs/shared/requests/2026-11-01-aylul-agents-panel.md`. The desktop half is U-5 to U-8 in `docs/aylul/ui/stages.md`, C-8 and C-9 in
 `docs/aylul/character/stages.md`, N-22 to N-25 in `docs/aylul/native/stages.md`. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
@@ -32,11 +32,12 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/agents/outfit-picker.test.tsx` passes (every manifest outfit is a radio with its label and image; an unknown id selects `default`), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshot of the picker attached to the report.
 
 ### F-63 · Agent form: outfit, description and instructions, in the design's order
-- Status: todo (F-62 and backend §3.1 are built)
+- Status: done (focused tests 55/55; typecheck, lint, build, codemap/architecture passed; browser form and save verified with synthetic API responses)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-63
 - Read: design §7.1, §7.3, §7.5; `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3.1; `web/src/app/agents/contract.yaml`; `web/src/api/contract.yaml`; `web/src/app/sidebar/contract.yaml`
 - Touch: web/src/api/schema.d.ts (only through `npm run gen:api`), web/src/api/aylul-profiles.ts, web/src/api/aylul-profiles.test.ts, web/src/api/contract.yaml, web/src/app/agents/agent-settings.tsx, web/src/app/agents/agent-form.test.tsx (new), web/src/app/agents/contract.yaml, web/src/app/sidebar/agent-list.tsx, web/src/app/sidebar/sidebar.test.tsx, web/src/app/sidebar/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
 - Needs: docs/shared/requests/2026-11-01-aylul-agents-panel.md (accepted); backend §3.1 built and in `api/openapi.json`; F-62 done
+- Additional Touch: web/src/test/fake-daemon.ts (shared test daemon supplies the new immutable template route); web/src/app/agents/aylul.test.tsx (existing colour save expects the new fields and waits for template readiness before saving).
 - Done when: From `web/`: `npm run gen:api` first, then `npx vitest run src/api/aylul-profiles.test.ts src/app/agents/agent-form.test.tsx src/app/sidebar/sidebar.test.tsx` pass (new agent prefilled from `GET /api/aylul/agent-template`; an existing agent shows `Agent.instructions`, or the template when it is `""`; untouched instructions are not sent; outfit and description saved; Core's 400 `PROFILE_INVALID` message shown; the sidebar shows the description), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshot of the form attached.
 
 ### F-64 · MCP tools in the library, with secret fields
@@ -48,7 +49,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npm run gen:api` first, then `npx vitest run src/api/extensions.test.ts src/app/settings/mcp-form.test.tsx src/app/settings/plugins.test.tsx` pass (add `http` and `stdio` items with `{ name, value }` pairs typed in password fields; values never shown back, a pair with `set` shows "Set"; an edit keeps the id and sends a pair without `value` to keep it; Core's 400/409/503 messages shown; a `bundled` item is marked; delete), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass.
 
 ### F-65 · Capabilities in the agent form: skills, plugins and MCP tools
-- Status: blocked (waits for F-63 and F-64)
+- Status: blocked (waits for F-64; F-63 is built)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-65
 - Read: design §7.5 item 5; `web/src/app/agents/contract.yaml`
 - Touch: web/src/api/extensions.ts, web/src/app/agents/agent-extensions.tsx, web/src/app/agents/agent-extensions.test.tsx, web/src/app/agents/agent-settings.tsx, web/src/app/agents/contract.yaml, docs/frontend/stages.md

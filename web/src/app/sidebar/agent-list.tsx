@@ -97,7 +97,10 @@ function AgentRow({ agent, projectId, open, current, selected, onToggle }: {
             className={`size-4 shrink-0 text-faint-foreground transition-transform ${open ? 'rotate-90' : ''}`}
           />
           <Bot aria-hidden className="size-4 shrink-0" data-color={colorOf(agent.character_color).id} style={{ color: colorOf(agent.character_color).swatch }} />
-          <span dir="auto" className="min-w-0 flex-1 truncate text-start">{agent.name}</span>
+          <span className="min-w-0 flex-1 text-start">
+            <span dir="auto" className="block truncate">{agent.name}</span>
+            {agent.description && <span dir="auto" className="block truncate text-xs text-faint-foreground">{agent.description}</span>}
+          </span>
         </button>
         <Link
           to="/aylul/agents/$slug/new"

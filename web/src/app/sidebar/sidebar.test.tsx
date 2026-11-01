@@ -9,6 +9,15 @@ const button = (s: string) => document.querySelector<HTMLButtonElement>(`button[
 const click = (s: string) => act(() => button(s)?.click())
 const media = (narrow: boolean) => vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: narrow, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
 afterEach(() => { app?.unmount(); app = null; vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear() })
+it('the sidebar shows the description under the agent name', async () => {
+  app = await startApp('/aylul', { ...answers(),
+    'GET /api/aylul/providers': [{ slug: 'fixture', models: [] }],
+    'GET /api/aylul/agents': { project_id: 'p1', agents: [{ slug: 'work', name: 'Work', description: 'Builds useful things' }] },
+  })
+  await until(() => sidebar()?.textContent?.includes('Builds useful things') === true)
+  const row = [...sidebar()!.querySelectorAll('button')].find(button => button.textContent?.includes('Work'))!
+  expect(row.textContent).toContain('WorkBuilds useful things')
+})
 it("the sidebar's button hides it, the main pane's button and Ctrl+B show it again", async () => {
  media(false); app = await startApp('/projects/p1/threads/t1', answers()); await until(() => sidebar() !== null)
  expect(button('Hide sidebar')?.getAttribute('aria-expanded')).toBe('true'); click('Hide sidebar'); await until(() => sidebar() === null)

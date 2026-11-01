@@ -48,6 +48,7 @@ components:
     signature: "({ slug: string | null, onDone: () => void }) => JSX.Element"
     # Null creates an agent; a saved agent includes its scoped environment and deletion.
     # Successful saves return to the Agents list via onDone, without changing the page.
+    note: Outfit and colour precede name and description, provider and model, then instructions. Empty stored instructions display the API template; unchanged instruction text is omitted from saves. Template loading and errors block uninitialized saves and keep other edits.
   DeleteAgent:
     signature: "({ slug, name, onDone, compact? }) => JSX.Element"
     # Reuses the same idempotent deletion from an agent form or list row.
@@ -82,6 +83,8 @@ pure:
     signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
 
 obligations:
+  - rule: Agent forms load the bundled instructions through api/aylul-profiles; only edited instructions are sent, and Core's validation message preserves the draft.
+    tested_by: ["a new agent is prefilled from the template and saves outfit and description", "untouched large instructions are not sent and changed instructions are sent", "editing and reverting instructions omits them from the save", "the form follows the design order and displays Core profile errors", "a delayed template does not overwrite other edits or allow an early save", "a template failure is shown and cannot silently create an uninitialized agent"]
   - rule: Every manifest outfit has a labelled radio and its exported preview; unknown ids select default and disabled controls cannot change it.
     tested_by: ["every manifest outfit is a radio with its label and image", "an unknown id selects default", "choosing an outfit reports its id and a disabled picker cannot change"]
   - rule: Enter (with or without Shift) in the manual model field uses the Add action without submitting the provider form, including when the id is invalid; an Enter that confirms an IME composition does nothing. Saving with an unadded id shows an explicit alert and preserves the draft; adding or clearing the id removes the alert.

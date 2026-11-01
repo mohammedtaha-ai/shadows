@@ -162,6 +162,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/contract.yaml` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/agent-settings.tsx` | Agent editing form | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/agent-form.test.tsx` | Agent identity form checks | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/delete-zone.tsx` | Danger zone confirming the deletion of a provider or agent | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/form-field.tsx` | Labelled controls drawn for the AYLUL forms | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/home.tsx` | Main pane of the AYLUL workspace when no conversation is open | `web/src/app/agents/contract.yaml` |
