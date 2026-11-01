@@ -1,5 +1,9 @@
 # Neon clarity implementation plan
 
+> **Superseded** (2026-11-02) by
+> [the AI Studio UI migration plan](2026-11-02-ai-studio-ui-migration.md). F-68's neon look is
+> replaced; the owner spec records the new direction. Kept as the record of F-68.
+
 > Execute inline with superpowers:executing-plans. Current checkout only; serialized builds.
 
 **Goal:** Apply Mohammed's chosen neon visual hierarchy without changing page arrangement.
