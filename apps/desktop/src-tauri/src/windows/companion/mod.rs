@@ -6,6 +6,7 @@ mod surface;
 
 pub use surface::{
     EditorContext, SurfaceAgent, SurfaceAppearance, SurfacePanel, SurfacePresence, SurfacePreview,
+    SurfaceWaiting, SurfaceWaitingOption, SurfaceWaitingRequest,
 };
 
 pub use state::CompanionState;

@@ -157,7 +157,7 @@ aclTest('generated native permissions grant sidecar access only to main',()=>{
  const permissions=manifests['__app-acl__'].permissions;
  const commands=label=>Object.values(capabilities).filter(c=>c.local&&c.windows.includes(label))
   .flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
- assert.deepEqual([...commands('companion')].sort(),['companion_state','companion_ready','companion_failed','drag_companion','open_main_from_companion','companion_input','companion_send','companion_panel','select_companion_agent'].sort());
+ assert.deepEqual([...commands('companion')].sort(),['companion_state','companion_ready','companion_failed','drag_companion','open_main_from_companion','companion_input','companion_send','companion_panel','answer_companion_permission','select_companion_agent'].sort());
  for(const name of ['companion_input','companion_send'])assert.ok(!commands('main').includes(name));
  assert.ok(commands('main').includes('aylul_call'),'main must reach the merged local sidecar');
  assert.ok(!commands('main').includes('assistant_call'),'retired assistant chat must have no main capability');

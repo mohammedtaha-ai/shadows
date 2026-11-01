@@ -15,7 +15,7 @@ pub struct SurfacePresence {
     pub preview: Option<SurfacePreview>,
     /// Carried to the state's own `waiting` field, never serialized under `presence`.
     #[serde(skip)]
-    pub waiting: super::state::Waiting,
+    pub waiting: SurfaceWaiting,
 }
 
 impl Default for SurfacePresence {
@@ -60,5 +60,32 @@ pub struct SurfacePanel {
 impl SurfacePanel {
     pub fn is_empty(&self) -> bool {
         !self.open && self.agents.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SurfaceWaitingOption {
+    pub option_id: String,
+    pub name: String,
+    pub kind: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SurfaceWaitingRequest {
+    pub thread_id: String,
+    pub request_id: String,
+    pub title: String,
+    pub options: Vec<SurfaceWaitingOption>,
+}
+/// Requests waiting for the person: the count across AYLUL, the bound conversation's own.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+pub struct SurfaceWaiting {
+    pub count: u32,
+    pub bound: Vec<SurfaceWaitingRequest>,
+}
+impl SurfaceWaiting {
+    pub fn is_empty(&self) -> bool {
+        self.count == 0 && self.bound.is_empty()
     }
 }

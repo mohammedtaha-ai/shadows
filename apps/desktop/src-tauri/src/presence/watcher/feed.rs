@@ -1,6 +1,6 @@
 //! One bound conversation's read loop: validate, subscribe, reconcile, project.
 use super::{Notify, Readiness, RefreshRequest, Timing, Update};
-use crate::windows::companion::state::{Waiting as SurfaceWaiting, WaitingOption, WaitingRequest};
+use crate::windows::companion::{SurfaceWaiting, SurfaceWaitingOption, SurfaceWaitingRequest};
 use crate::{
     core_connection::ReadyConnection,
     presence::{
@@ -257,7 +257,7 @@ impl Waiting {
                 .iter()
                 .filter(|request| Some(request.thread_id.as_str()) == thread)
                 .take(8)
-                .map(|request| WaitingRequest {
+                .map(|request| SurfaceWaitingRequest {
                     thread_id: request.thread_id.clone(),
                     request_id: request.request_id.clone(),
                     title: request.title.chars().take(240).collect(),
@@ -265,7 +265,7 @@ impl Waiting {
                         .options
                         .iter()
                         .take(8)
-                        .map(|option| WaitingOption {
+                        .map(|option| SurfaceWaitingOption {
                             option_id: option.option_id.clone(),
                             name: option.name.chars().take(80).collect(),
                             kind: option.kind.clone(),

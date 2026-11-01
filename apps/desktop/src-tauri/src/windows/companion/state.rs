@@ -1,33 +1,6 @@
 #[cfg(test)]
 use super::SurfacePreview;
-use super::{SurfaceAgent, SurfaceAppearance, SurfacePanel, SurfacePresence};
-
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WaitingOption {
-    pub option_id: String,
-    pub name: String,
-    pub kind: String,
-}
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WaitingRequest {
-    pub thread_id: String,
-    pub request_id: String,
-    pub title: String,
-    pub options: Vec<WaitingOption>,
-}
-/// Requests waiting for the person: the count across AYLUL, the bound conversation's own.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
-pub struct Waiting {
-    pub count: u32,
-    pub bound: Vec<WaitingRequest>,
-}
-impl Waiting {
-    pub fn is_empty(&self) -> bool {
-        self.count == 0 && self.bound.is_empty()
-    }
-}
+use super::{SurfaceAgent, SurfaceAppearance, SurfacePanel, SurfacePresence, SurfaceWaiting};
 
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,8 +25,8 @@ pub struct CompanionState {
     pub appearance: Option<SurfaceAppearance>,
     #[serde(skip_serializing_if = "SurfacePanel::is_empty")]
     pub panel: SurfacePanel,
-    #[serde(skip_serializing_if = "Waiting::is_empty")]
-    pub waiting: Waiting,
+    #[serde(skip_serializing_if = "SurfaceWaiting::is_empty")]
+    pub waiting: SurfaceWaiting,
 }
 pub struct Model {
     pub view: CompanionState,
@@ -69,7 +42,7 @@ impl Default for Model {
                 revision: 0,
                 appearance: None,
                 panel: SurfacePanel::default(),
-                waiting: Waiting::default(),
+                waiting: SurfaceWaiting::default(),
                 composer: ComposerView::default(),
                 visible: false,
                 render_allowed: false,

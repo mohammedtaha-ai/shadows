@@ -32,6 +32,7 @@ fn main() {
                 "aylul_call",
                 "companion_state",
                 "companion_panel",
+                "answer_companion_permission",
                 "companion_send",
                 "companion_input",
                 "companion_ready",

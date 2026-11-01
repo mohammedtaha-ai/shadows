@@ -7,6 +7,7 @@ public_api:
   setCompanionPanel: Companion-only panel open/close invocation; validate the returned bounded panel projection.
   PanelView/PanelAgent: Closed/empty default for an absent panel; at most 64 bounded opaque agent records with scalar-safe name/description lengths. Malformed present panels refuse the whole update.
   MainTarget: Closed typed targets for deliberate native navigation; omission preserves bound behavior.
+  answerCompanionPermission: Typed companion-only answer to a waiting permission request; the fixed error code reaches the caller unchanged.
   selectCompanionAgent: Typed companion selection through the same native operation used by main; no client-side binding rule.
   setCompanionInput: Request explicit companion-only open or close and validate the returned native state.
   sendFromCompanion: Supply only text, command identity and native context; return thread/operation identity.

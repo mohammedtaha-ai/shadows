@@ -45,6 +45,7 @@ managed_state :: commands/companion.rs :: tauri::State #6
 managed_state :: commands/companion.rs :: tauri::State #7
 managed_state :: commands/companion.rs :: tauri::State #8
 managed_state :: commands/companion.rs :: tauri::State #9
+managed_state :: commands/companion.rs :: tauri::State #10
 managed_state :: commands/desktop.rs :: tauri::State #1
 managed_state :: commands/desktop.rs :: tauri::State #10
 managed_state :: commands/desktop.rs :: tauri::State #11
@@ -61,6 +62,7 @@ managed_state :: commands/mod.rs :: tauri::State #2
 managed_state :: commands/mod.rs :: tauri::State #3
 managed_state :: commands/preferences.rs :: tauri::State #1
 managed_state :: commands/preferences.rs :: tauri::State #2
+owner_edge :: commands/companion.rs :: presence::PermissionAnswerReply #1
 owner_edge :: commands/companion.rs :: presence::send::Sent #1
 owner_edge :: commands/companion.rs :: presence::send::Submission #1
 owner_edge :: commands/companion.rs :: windows::companion #1
@@ -117,6 +119,7 @@ private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #
 private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #2
 private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #3
 private_access :: commands/mod.rs :: auth::service::View #1
+private_access :: lib.rs :: commands::companion::answer_companion_permission #1
 private_access :: lib.rs :: commands::companion::companion_failed #1
 private_access :: lib.rs :: commands::companion::companion_input #1
 private_access :: lib.rs :: commands::companion::companion_panel #1

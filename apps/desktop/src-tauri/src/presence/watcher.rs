@@ -60,7 +60,7 @@ pub struct Update {
     pub projection: PresenceProjection,
     pub appearance: Option<super::CompanionAppearance>,
     pub republish_only: bool,
-    pub waiting: crate::windows::companion::state::Waiting,
+    pub waiting: crate::windows::companion::SurfaceWaiting,
     acknowledgement: Option<Acknowledgement>,
     epoch: u64,
     current: Arc<AtomicU64>,

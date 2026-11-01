@@ -183,6 +183,12 @@
           "markdownDescription": "Enables the ack_navigation command without any pre-configured scope."
         },
         {
+          "description": "Enables the answer_companion_permission command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-answer-companion-permission",
+          "markdownDescription": "Enables the answer_companion_permission command without any pre-configured scope."
+        },
+        {
           "description": "Enables the auth_action command without any pre-configured scope.",
           "type": "string",
           "const": "allow-auth-action",
@@ -355,6 +361,12 @@
           "type": "string",
           "const": "deny-ack-navigation",
           "markdownDescription": "Denies the ack_navigation command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the answer_companion_permission command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-answer-companion-permission",
+          "markdownDescription": "Denies the answer_companion_permission command without any pre-configured scope."
         },
         {
           "description": "Denies the auth_action command without any pre-configured scope.",
