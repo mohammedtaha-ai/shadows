@@ -38,3 +38,7 @@ sandbox/persistence-delta/results/
 /apps/desktop/playwright-report/
 /.superpowers/
 /output/runtime/
+
+# Scratch output from local tools
+/tmp-aistudio-sync/
+/.playwright-cli/
