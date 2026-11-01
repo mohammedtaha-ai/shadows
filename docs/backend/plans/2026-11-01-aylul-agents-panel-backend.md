@@ -144,6 +144,10 @@ architecture ratchet already allows both for `core-extensions`.
   - `Harness::waiting_permissions() -> Vec<WaitingPermission>` over every live
     `aylul` session, oldest `asked_at` first, request id as tie break.
   - Closing or terminating a session, and `close_all`, call `refuse_held` first.
+  - A prepared adapter answer holds a settlement gate while the command commits.
+    Cancellation and closure wait on that gate; dropping a failed preparation
+    leaves the request waiting. This prevents an answer from racing cancellation
+    between the durable record and the adapter response, without blocking dispatch.
   - A held request trips no timeout: the idle close already skips a held slot,
     and nothing else may end it.
 

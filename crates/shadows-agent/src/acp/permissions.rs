@@ -48,12 +48,14 @@ struct State {
 #[derive(Clone)]
 pub(super) struct Permissions {
     state: Arc<Mutex<State>>,
+    pub(super) settlement: Arc<tokio::sync::Mutex<()>>,
     events: Arc<dyn Fn(HarnessEvent) + Send + Sync>,
 }
 impl Permissions {
     pub(super) fn new(events: impl Fn(HarnessEvent) + Send + Sync + 'static) -> Self {
         Self {
             state: Arc::default(),
+            settlement: Arc::default(),
             events: Arc::new(events),
         }
     }
@@ -156,10 +158,65 @@ impl Connection {
             .map(|h| h.waiting.clone())
             .collect()
     }
-    pub fn answer_permission(&self, request: &str, option: &str) -> Result<(), PermissionError> {
-        self.permissions.answer(request, option)
+    pub async fn prepare_permission_answer(
+        &self,
+        request: &str,
+        option: &str,
+    ) -> Result<PreparedPermissionAnswer, PermissionError> {
+        let guard = self.permissions.settlement.clone().lock_owned().await;
+        let state = self.permissions.state.lock().unwrap();
+        let held = state.waiting.get(request).ok_or_else(|| {
+            if state.settled.contains(request) {
+                PermissionError::Settled
+            } else {
+                PermissionError::Unknown
+            }
+        })?;
+        let choice = held
+            .waiting
+            .options
+            .iter()
+            .find(|choice| choice.option_id == option)
+            .cloned()
+            .ok_or(PermissionError::OptionNotOffered)?;
+        Ok(PreparedPermissionAnswer {
+            permissions: self.permissions.clone(),
+            request: request.into(),
+            choice,
+            _guard: guard,
+        })
     }
-    pub fn refuse_held(&self, reason: &str) {
+    pub async fn answer_permission(
+        &self,
+        request: &str,
+        option: &str,
+    ) -> Result<(), PermissionError> {
+        self.prepare_permission_answer(request, option)
+            .await?
+            .commit()
+    }
+    pub async fn refuse_held(&self, reason: &str) {
+        let _guard = self.permissions.settlement.lock().await;
         self.permissions.refuse_matching(reason, |_| true);
+    }
+}
+
+/// Pins an offered option while its owner durably records the person's command.
+/// Dropping it without commit leaves the request waiting.
+pub struct PreparedPermissionAnswer {
+    permissions: Permissions,
+    request: String,
+    choice: PermissionOption,
+    _guard: tokio::sync::OwnedMutexGuard<()>,
+}
+
+impl PreparedPermissionAnswer {
+    pub fn option(&self) -> &PermissionOption {
+        &self.choice
+    }
+
+    pub fn commit(self) -> Result<(), PermissionError> {
+        self.permissions
+            .answer(&self.request, &self.choice.option_id)
     }
 }

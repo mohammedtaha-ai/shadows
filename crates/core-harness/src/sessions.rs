@@ -213,7 +213,7 @@ impl Sessions {
     }
 
     /// A copy of the map, so each slot is locked after the map's lock is gone.
-    async fn slots(&self) -> HashMap<ThreadId, Slot> {
+    pub(super) async fn slots(&self) -> HashMap<ThreadId, Slot> {
         self.live.lock().await.clone()
     }
 
@@ -288,6 +288,7 @@ impl Sessions {
         let slot = self.slot(thread).await;
         let mut live = slot.lock().await;
         if let Some(item) = live.as_mut() {
+            item.opened.connection.refuse_held("closed").await;
             Self::stop_handle(&mut item.handle).await?;
         }
         *live = None;
@@ -306,6 +307,7 @@ impl Sessions {
         let slot = self.slot(thread).await;
         let mut live = slot.lock().await;
         if let Some(item) = same_adapter(&mut live, opened) {
+            item.opened.connection.refuse_held("closed").await;
             Self::stop_handle(&mut item.handle).await?;
             *live = None;
             self.forget(thread).await;
@@ -318,6 +320,7 @@ impl Sessions {
         for (thread, slot) in self.slots().await {
             let mut live = slot.lock().await;
             let Some(item) = live.as_mut() else { continue };
+            item.opened.connection.refuse_held("stopped").await;
             match Self::stop_handle(&mut item.handle).await {
                 Ok(()) => {
                     *live = None;
@@ -340,7 +343,9 @@ impl Sessions {
                 continue;
             };
             let Some(item) = live.as_mut().filter(|item| {
-                item.events.is_some() && item.last_used.elapsed() >= self.config.idle_after
+                item.events.is_some()
+                    && item.opened.connection.held_permissions().is_empty()
+                    && item.last_used.elapsed() >= self.config.idle_after
             }) else {
                 continue;
             };

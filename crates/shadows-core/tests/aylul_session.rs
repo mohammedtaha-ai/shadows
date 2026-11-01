@@ -8,6 +8,9 @@ use shadows_core::{
 use std::sync::Arc;
 use std::time::Duration;
 
+#[path = "aylul_session/permissions.rs"]
+mod permissions;
+
 struct World {
     home: std::path::PathBuf,
     storage: Arc<Storage>,

@@ -66,12 +66,15 @@ name: harness
 # environment values are omitted from MCP setup Debug output.
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
-# Harness opens every adapter with PermissionPolicy::Refuse; Planner refusal remains pinned
-# by planner_turn's permission-refusal test.
+# Harness opens AYLUL with PermissionPolicy::Ask and Planner with Refuse.
+# Permission answers are recorded before settling the adapter request; cancellation
+# and close serialize against that write. A failed write leaves the request waiting.
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
 # The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1
 modules:
+  permissions.rs: live permission commands
+  store/permission.rs: permission answer command persistence
   mode.rs: durable conversation mode commands
   fork.rs: atomic conversation fork composition
   store/mode.rs: conversation permission persistence
@@ -103,6 +106,10 @@ source: crates/core-harness/src
 
 
 shapes:
+  WaitingPermission:
+    note: Thread and agent identity, request id, title, normalized options and UTC asked_at.
+  PermissionAnswer:
+    note: The command's immutable thread, request, option, kind and answered_at result.
   AylulOwners:
     source: owners.rs
     note: Harness declares its providers, agents, extensions and person dependencies; AppCore constructs them.
@@ -209,6 +216,12 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
+    answer_permission:
+      signature: "(&self, command_id: String, thread: &ThreadId, request: &str, option: &str) -> Result<PermissionAnswer, HarnessError>"
+      note: Replay first, validate a live AYLUL request and offered option, durably record, then answer; only one settlement wins.
+    waiting_permissions:
+      signature: "(&self) -> Vec<WaitingPermission>"
+      note: Current AYLUL requests sorted by UTC asked_at then request id; empty without configuration.
     fork_thread:
       signature: "(&self, command_id, source, at) -> Result<PlanningThread, HarnessError>"
       # Replay first, Operations eligibility, Threads fork, then mode copy in one write.
@@ -489,6 +502,12 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: AYLUL holds permission requests for offered-option answers; replay returns its first result after session close, while Planner refuses immediately.
+    tested_by: [an_aylul_request_waits_and_is_listed, answering_runs_the_tool_and_records_by_you, a_rejected_request_ends_rejected_and_the_turn_goes_on, an_option_not_offered_is_refused, a_second_answer_is_settled, an_equal_replay_answers_the_first_result]
+  - rule: Cancellation and session closure refuse waiting requests before stopping the adapter; project events carry the durable change.
+    tested_by: [cancelling_while_asked_ends_refused_and_publishes, closing_the_session_while_asked_ends_refused, permissions_changed_reaches_the_aylul_project_stream, waiting_is_listed_oldest_first_across_agents]
+  - rule: A failed durable answer leaves the request waiting; shutdown refuses requests before stopping their adapters.
+    tested_by: [a_failed_permission_record_leaves_the_request_waiting, stopping_all_sessions_refuses_waiting_requests, a_prepared_answer_serializes_with_cancel_and_drop_keeps_it_waiting]
   - rule: AYLUL opening writes stored or template instructions atomically under the home lock, leaving unimported files untouched; the same library snapshot supplies enabled MCP servers and excludes Shadows' grant.
     tested_by: [opening_writes_the_stored_instructions, opening_writes_the_template_for_empty_instructions, opening_leaves_an_unimported_home_file, opening_sends_only_enabled_mcp_items, an_aylul_opening_never_receives_shadows_mcp, mcp_values_reach_the_session_as_hashes_only]
   - rule: >

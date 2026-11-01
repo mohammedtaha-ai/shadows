@@ -16,6 +16,9 @@ use core_turns::StartError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    PermissionNotFound,
+    PermissionSettled,
+    PermissionOptionNotOffered,
     ExtensionNotFound,
     ExtensionNameConflict,
     /// Desktop identity was not configured; HTTP readiness only.
@@ -90,6 +93,12 @@ pub enum ErrorCode {
 /// MCP — and the codes and texts clients see stay exactly what they were.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
+    #[error("permission request is unknown")]
+    PermissionNotFound,
+    #[error("permission request is settled")]
+    PermissionSettled,
+    #[error("permission option was not offered")]
+    PermissionOptionNotOffered,
     #[error("{message}")]
     ValidationFailed {
         message: String,
@@ -195,6 +204,9 @@ impl CoreError {
     pub fn code(&self) -> ErrorCode {
         let e = self;
         match e {
+            CoreError::PermissionNotFound => ErrorCode::PermissionNotFound,
+            CoreError::PermissionSettled => ErrorCode::PermissionSettled,
+            CoreError::PermissionOptionNotOffered => ErrorCode::PermissionOptionNotOffered,
             CoreError::ValidationFailed { .. } => ErrorCode::WorkflowValidationFailed,
             CoreError::ReasonMissing | CoreError::Unavailable(_) => ErrorCode::StorageUnavailable,
             CoreError::ExtensionNotFound => ErrorCode::ExtensionNotFound,
@@ -454,6 +466,9 @@ impl From<core_harness::HarnessError> for CoreError {
     fn from(error: core_harness::HarnessError) -> Self {
         use core_harness::HarnessError;
         match error {
+            HarnessError::PermissionNotFound => Self::PermissionNotFound,
+            HarnessError::PermissionSettled => Self::PermissionSettled,
+            HarnessError::PermissionOptionNotOffered => Self::PermissionOptionNotOffered,
             HarnessError::AylulProfileNotFound(value) => Self::AylulProfileNotFound(value),
             HarnessError::AylulKeyMissing(value) => Self::AylulKeyMissing(value),
             HarnessError::ProfileInvalid(value) => Self::ProfileInvalid(value),

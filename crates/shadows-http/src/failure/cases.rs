@@ -39,6 +39,12 @@ impl Case {
         use ErrorCode as E;
         let database = "the daemon could not read or write its database";
         let mut cases = vec![
+            Self::same(C::PermissionNotFound, E::PermissionNotFound, 404,
+                "permission request is unknown"),
+            Self::same(C::PermissionSettled, E::PermissionSettled, 409,
+                "permission request is settled"),
+            Self::same(C::PermissionOptionNotOffered, E::PermissionOptionNotOffered, 422,
+                "permission option was not offered"),
             Self::same(
                 C::ValidationFailed {
                     message: "internal".into(),

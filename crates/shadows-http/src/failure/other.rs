@@ -19,6 +19,19 @@ impl From<CoreError> for Failure {
     fn from(e: CoreError) -> Self {
         let code = e.code();
         let mut failure = match e {
+            CoreError::PermissionNotFound
+            | CoreError::PermissionSettled
+            | CoreError::PermissionOptionNotOffered => Failure {
+                status: match code {
+                    ErrorCode::PermissionNotFound => StatusCode::NOT_FOUND,
+                    ErrorCode::PermissionSettled => StatusCode::CONFLICT,
+                    _ => StatusCode::UNPROCESSABLE_ENTITY,
+                },
+                code,
+                message: e.to_string(),
+                cause: None,
+                detail: Detail::default(),
+            },
             CoreError::ValidationFailed { problems, .. } => Failure {
                 status: StatusCode::UNPROCESSABLE_ENTITY,
                 code: ErrorCode::WorkflowValidationFailed,

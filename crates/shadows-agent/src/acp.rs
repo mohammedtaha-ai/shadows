@@ -6,7 +6,9 @@ mod prompt;
 mod session;
 
 use agent_client_protocol::{Agent, ConnectionTo};
-pub use permissions::{PermissionError, PermissionPolicy, WaitingPermission};
+pub use permissions::{
+    PermissionError, PermissionPolicy, PreparedPermissionAnswer, WaitingPermission,
+};
 pub use prompt::{ImageBlock, PromptBlock, PromptCapabilities, PromptResult, Steer, TurnEnd};
 pub use session::{McpServerSpec, Opened, SessionSetup, SessionStart};
 

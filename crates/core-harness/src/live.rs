@@ -97,6 +97,7 @@ impl Sessions {
                 resume = Some(expected.session_id.clone());
                 current.usable = false;
                 current.opened.generation = self.generations.fetch_add(1, Ordering::Relaxed);
+                current.opened.connection.refuse_held("closed").await;
                 Self::stop_handle(&mut current.handle)
                     .await
                     .map_err(|error| OpenError::Start(error.to_string()))?;
@@ -112,6 +113,7 @@ impl Sessions {
                     current.last_used = Instant::now();
                     return Ok(current.opened.clone());
                 }
+                current.opened.connection.refuse_held("closed").await;
                 Self::stop_handle(&mut current.handle)
                     .await
                     .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
@@ -181,7 +183,11 @@ impl Sessions {
                     deadline,
                     Connection::open(
                         &mut handle,
-                        shadows_agent::acp::PermissionPolicy::Refuse,
+                        if context.harness == policy::AYLUL {
+                            shadows_agent::acp::PermissionPolicy::Ask
+                        } else {
+                            shadows_agent::acp::PermissionPolicy::Refuse
+                        },
                         events,
                     ),
                 )
@@ -278,6 +284,7 @@ impl Sessions {
                     let current = live.as_mut().expect("opened adapter");
                     current.usable = false;
                     current.opened.generation = self.generations.fetch_add(1, Ordering::Relaxed);
+                    current.opened.connection.refuse_held("closed").await;
                     Self::stop_handle(&mut current.handle)
                         .await
                         .map_err(|error| OpenError::Start(error.to_string()))?;

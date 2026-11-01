@@ -428,7 +428,7 @@ async fn a_held_request_waits_for_its_answer() {
     let options = serde_json::to_value(&c.held_permissions()[0].options).unwrap();
     assert_eq!(options[0]["option_id"], "allow_once");
     assert!(options[0].get("optionId").is_none());
-    c.answer_permission(&request, "allow_once").unwrap();
+    c.answer_permission(&request, "allow_once").await.unwrap();
     assert!(c.held_permissions().is_empty());
     assert!(matches!(
         ev.recv().await,
@@ -444,11 +444,11 @@ async fn an_option_not_offered_is_refused_and_the_request_stays() {
     let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
     let (_, request, turn) = ask(&c, &mut ev).await;
     assert!(matches!(
-        c.answer_permission(&request, "bogus"),
+        c.answer_permission(&request, "bogus").await,
         Err(PermissionError::OptionNotOffered)
     ));
     assert_eq!(c.held_permissions().len(), 1);
-    c.refuse_held("closed");
+    c.refuse_held("closed").await;
     turn.await.unwrap().unwrap();
 }
 
@@ -456,13 +456,13 @@ async fn an_option_not_offered_is_refused_and_the_request_stays() {
 async fn a_second_answer_finds_the_request_settled() {
     let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
     let (_, request, turn) = ask(&c, &mut ev).await;
-    c.answer_permission(&request, "reject_once").unwrap();
+    c.answer_permission(&request, "reject_once").await.unwrap();
     assert!(matches!(
-        c.answer_permission(&request, "reject_once"),
+        c.answer_permission(&request, "reject_once").await,
         Err(PermissionError::Settled)
     ));
     assert!(matches!(
-        c.answer_permission("unknown", "reject_once"),
+        c.answer_permission("unknown", "reject_once").await,
         Err(PermissionError::Unknown)
     ));
     turn.await.unwrap().unwrap();
@@ -483,12 +483,37 @@ async fn cancel_refuses_held_requests_before_cancelling() {
 }
 
 #[tokio::test]
+async fn a_prepared_answer_serializes_with_cancel_and_drop_keeps_it_waiting() {
+    let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
+    let (session, request, turn) = ask(&c, &mut ev).await;
+    let prepared = c
+        .prepare_permission_answer(&request, "allow_once")
+        .await
+        .unwrap();
+    drop(prepared);
+    assert_eq!(c.held_permissions().len(), 1);
+    let prepared = c
+        .prepare_permission_answer(&request, "allow_once")
+        .await
+        .unwrap();
+    c.cancel(&session);
+    tokio::task::yield_now().await;
+    assert_eq!(c.held_permissions().len(), 1);
+    prepared.commit().unwrap();
+    assert!(matches!(
+        ev.recv().await,
+        Some(HarnessEvent::PermissionAnswered { .. })
+    ));
+    turn.await.unwrap().unwrap();
+}
+
+#[tokio::test]
 async fn refuse_held_ends_every_waiting_request() {
     let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
     let (_, request, turn) = ask(&c, &mut ev).await;
     let (_, second, other_turn) = ask(&c, &mut ev).await;
     assert_eq!(c.held_permissions().len(), 2);
-    c.refuse_held("stopped");
+    c.refuse_held("stopped").await;
     let mut ids = Vec::new();
     for _ in 0..2 {
         if let Some(HarnessEvent::PermissionRefused {

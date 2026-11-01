@@ -157,9 +157,14 @@ impl Connection {
         }
     }
     pub fn cancel(&self, session: &str) {
-        self.permissions.refuse_session(session, "cancelled");
-        let cx = self.cx.clone();
+        let connection = self.clone();
         let session = session.to_string();
-        let _ = cx.send_notification(CancelNotification::new(session));
+        tokio::spawn(async move {
+            let _guard = connection.permissions.settlement.lock().await;
+            connection.permissions.refuse_session(&session, "cancelled");
+            let _ = connection
+                .cx
+                .send_notification(CancelNotification::new(session));
+        });
     }
 }

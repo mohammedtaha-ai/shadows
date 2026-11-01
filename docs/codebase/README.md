@@ -66,6 +66,8 @@ pattern to follow, not merely an example.
 | `crates/core-plans/src/signal.rs` | live plan-show vocabulary | `crates/core-plans/contract.yaml` |
 | `crates/core-harness/src/owners.rs` | harness configuration dependencies | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/live.rs` | live adapter opening | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/permissions.rs` | live permission commands | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/store/permission.rs` | permission command persistence | `crates/core-harness/contract.yaml` |
 | `crates/core-providers/src/lib.rs` | provider configuration boundary | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/` | AYLUL provider configuration | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/model.rs` | public provider metadata | `crates/core-providers/contract.yaml` |

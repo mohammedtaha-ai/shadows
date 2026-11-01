@@ -41,7 +41,7 @@ pub use core_extensions::{
 pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use core_harness::{
     AylulConfig, AylulUsageSnapshot, Harness, HarnessError, HarnessInfo, LeaseError, OpenError,
-    OpenSession, RememberedSettings,
+    OpenSession, PermissionAnswer, PermissionOption, RememberedSettings, WaitingPermission,
 };
 pub use core_instructions::{Instructions, InstructionsVersion};
 pub use core_operations::{

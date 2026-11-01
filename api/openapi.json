@@ -1915,6 +1915,9 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\n`Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "PERMISSION_NOT_FOUND",
+          "PERMISSION_SETTLED",
+          "PERMISSION_OPTION_NOT_OFFERED",
           "EXTENSION_NOT_FOUND",
           "EXTENSION_NAME_CONFLICT",
           "RUNTIME_NOT_CONFIGURED",

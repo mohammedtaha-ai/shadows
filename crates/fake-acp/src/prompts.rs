@@ -266,32 +266,43 @@ pub(crate) async fn answer(
             chunk(cx, id, "m1", "exiting")?;
             std::process::exit(3);
         }
-        "ask-permission" => {
-            let call: ToolCallUpdate = serde_json::from_value(json!({
-                "toolCallId": "p1",
-                "title": "Run echo probe",
-            }))
-            .unwrap();
-            let req = RequestPermissionRequest::new(
-                id.to_owned(),
-                call,
-                vec![
-                    PermissionOption::new("allow_once", "Allow", PermissionOptionKind::AllowOnce),
-                    PermissionOption::new(
-                        "reject_once",
-                        "Reject",
-                        PermissionOptionKind::RejectOnce,
-                    ),
-                ],
-            );
-            let answer = cx.send_request(req).block_task().await?;
-            let chosen = match answer.outcome {
-                agent_client_protocol::schema::v1::RequestPermissionOutcome::Selected(x) => {
-                    x.option_id.to_string()
-                }
-                _ => "cancelled".into(),
-            };
-            chunk(cx, id, "m1", &format!("permission: {chosen}"))?;
+        "ask-permission" | "two-permissions" => {
+            for index in 1..=if prompt == "two-permissions" { 2 } else { 1 } {
+                let call: ToolCallUpdate = serde_json::from_value(json!({
+                    "toolCallId": format!("p{index}"),
+                    "title": "Run echo probe",
+                }))
+                .unwrap();
+                let req = RequestPermissionRequest::new(
+                    id.to_owned(),
+                    call,
+                    vec![
+                        PermissionOption::new(
+                            "allow_once",
+                            "Allow",
+                            PermissionOptionKind::AllowOnce,
+                        ),
+                        PermissionOption::new(
+                            "reject_once",
+                            "Reject",
+                            PermissionOptionKind::RejectOnce,
+                        ),
+                    ],
+                );
+                let answer = cx.send_request(req).block_task().await?;
+                let chosen = match answer.outcome {
+                    agent_client_protocol::schema::v1::RequestPermissionOutcome::Selected(x) => {
+                        x.option_id.to_string()
+                    }
+                    _ => "cancelled".into(),
+                };
+                chunk(
+                    cx,
+                    id,
+                    &format!("m{index}"),
+                    &format!("permission: {chosen}"),
+                )?;
+            }
         }
         "turn-usage" | "turn-usage-second" | "turn-usage-refused" | "turn-usage-cancelled" => {
             let amount = if prompt == "turn-usage-second" {

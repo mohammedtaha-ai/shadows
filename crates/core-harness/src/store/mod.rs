@@ -3,6 +3,7 @@ mod invocation;
 mod invocations;
 mod limits;
 mod mode;
+mod permission;
 mod preferences;
 mod reads;
 mod thread;
