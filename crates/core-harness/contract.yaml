@@ -502,6 +502,8 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: The connection settles a prompt session's outstanding requests before returning its result or disconnect error, so Turns drains and journals their end in the same turn.
+    tested_by: [ending_a_turn_settles_its_unanswered_requests, disconnecting_settles_requests_before_the_turn_is_collected]
   - rule: AYLUL holds permission requests for offered-option answers; replay returns its first result after session close, while Planner refuses immediately.
     tested_by: [an_aylul_request_waits_and_is_listed, answering_runs_the_tool_and_records_by_you, a_rejected_request_ends_rejected_and_the_turn_goes_on, an_option_not_offered_is_refused, a_second_answer_is_settled, an_equal_replay_answers_the_first_result]
   - rule: Cancellation and session closure refuse waiting requests before stopping the adapter; project events carry the durable change.

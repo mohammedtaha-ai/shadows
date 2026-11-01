@@ -87,6 +87,8 @@ shared_in_transaction:
   remove_agent_in: Agent enablements removed in the caller write.
 
 obligations:
+  - rule: Bundled sources use a fresh owned temporary directory and exclusive file creation; stale linked staging paths never redirect or overwrite files.
+    tested_by: [bundled_staging_does_not_overwrite_linked_files, bundled_staging_does_not_follow_a_linked_parent]
   - rule: Embedded items import once, start disabled, and stay absent after deletion.
     tested_by: [bundled_items_import_once_at_start, a_restart_replays_the_bundled_import, a_deleted_bundled_item_is_declined, a_bundled_item_starts_switched_off, no_aylul_configuration_imports_nothing]
   - rule: Imports copy owned data with UUID ids and return no source path.

@@ -3,6 +3,7 @@ use crate::{ExtensionKind, Extensions, ExtensionsError};
 use core_db::CommandContext;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use std::io::Write;
 
 include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
 
@@ -40,16 +41,23 @@ impl Extensions {
                 hash.update(bytes);
             }
             let digest = format!("{:x}", hash.finalize());
-            let source = home
-                .join(".bundled-stage")
-                .join(format!("{}-{name}-{digest}", kind.as_str()));
+            let home = dunce::canonicalize(home)
+                .map_err(|_| ExtensionsError::Invalid("bundled staging unavailable".into()))?;
+            let stage = tempfile::Builder::new()
+                .prefix(".bundled-")
+                .tempdir_in(&home)
+                .map_err(|_| ExtensionsError::Invalid("bundled staging unavailable".into()))?;
+            let source = stage.path().to_path_buf();
             for (path, bytes) in files {
                 let target = source.join(path);
-                tokio::fs::create_dir_all(target.parent().expect("bundled parent"))
-                    .await
+                std::fs::create_dir_all(target.parent().expect("bundled parent"))
                     .map_err(|_| ExtensionsError::Invalid("bundled staging unavailable".into()))?;
-                tokio::fs::write(target, bytes)
-                    .await
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(target)
+                    .map_err(|_| ExtensionsError::Invalid("bundled staging unavailable".into()))?;
+                file.write_all(bytes)
                     .map_err(|_| ExtensionsError::Invalid("bundled staging unavailable".into()))?;
             }
             let command = CommandContext::user(

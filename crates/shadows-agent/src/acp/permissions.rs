@@ -172,6 +172,9 @@ impl Connection {
                 PermissionError::Unknown
             }
         })?;
+        if self.is_closed() {
+            return Err(PermissionError::Settled);
+        }
         let choice = held
             .waiting
             .options

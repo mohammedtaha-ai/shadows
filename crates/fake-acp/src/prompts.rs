@@ -266,6 +266,25 @@ pub(crate) async fn answer(
             chunk(cx, id, "m1", "exiting")?;
             std::process::exit(3);
         }
+        "end-with-permission" => {
+            let request = RequestPermissionRequest::new(
+                id.to_owned(),
+                serde_json::from_value(json!({"toolCallId":"pending", "title":"Pending"})).unwrap(),
+                vec![PermissionOption::new(
+                    "allow_once",
+                    "Allow",
+                    PermissionOptionKind::AllowOnce,
+                )],
+            );
+            let client = cx.clone();
+            tokio::spawn(async move {
+                let _ = client.send_request(request).block_task().await;
+            });
+            while !s.cwd.join("end-permission-turn").exists() {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            chunk(cx, id, "m1", "turn ended with a pending request")?;
+        }
         "ask-permission" | "two-permissions" => {
             for index in 1..=if prompt == "two-permissions" { 2 } else { 1 } {
                 let call: ToolCallUpdate = serde_json::from_value(json!({

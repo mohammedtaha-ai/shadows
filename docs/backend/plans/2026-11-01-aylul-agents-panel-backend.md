@@ -150,6 +150,10 @@ architecture ratchet already allows both for `core-extensions`.
     between the durable record and the adapter response, without blocking dispatch.
   - A held request trips no timeout: the idle close already skips a held slot,
     and nothing else may end it.
+  - A prompt's result or disconnect settles any remaining requests of that session
+    before returning to Turns: `ended` on a result, `closed` on disconnect. Turns
+    then drains their reports before finishing entries; requests from other sessions
+    on the same ACP connection are left to their own prompts.
 
 ### 2.5 Extensions: MCP items (§7.2) — B-29
 
@@ -196,6 +200,9 @@ architecture ratchet already allows both for `core-extensions`.
   path as `add_extension`, under command id `bundled:<kind>:<name>:<digest>`,
   unless the name is already in the library or is declined. Without AYLUL
   configuration it does nothing.
+  Staging is a fresh owned temporary directory under the canonical home root;
+  files are created exclusively. Existing predictable staging paths are never
+  reused. The existing workspace `tempfile` library supplies this infrastructure.
 - Column `aylul_extension.bundled` (B-24); `Item` answers it.
 - Deleting a bundled item records `(kind, name)` in `aylul_extension_declined`
   in the same write.

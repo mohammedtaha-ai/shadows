@@ -111,6 +111,57 @@ async fn bundled_items_import_once_at_start() {
 }
 
 #[tokio::test]
+async fn bundled_staging_does_not_overwrite_linked_files() {
+    use sha2::{Digest, Sha256};
+    let w = world().await;
+    let bytes = include_bytes!("../assets/library/skills/aylul-hello/SKILL.md");
+    let relative = "SKILL.md";
+    let mut hash = Sha256::new();
+    hash.update((relative.len() as u64).to_le_bytes());
+    hash.update(relative.as_bytes());
+    hash.update((bytes.len() as u64).to_le_bytes());
+    hash.update(bytes);
+    let stage = w
+        ._tmp
+        .path()
+        .join("home/.bundled-stage")
+        .join(format!("skill-aylul-hello-{:x}", hash.finalize()));
+    std::fs::create_dir_all(&stage).unwrap();
+    let victim = w._tmp.path().join("outside-home.txt");
+    std::fs::write(&victim, "keep this file").unwrap();
+    std::fs::hard_link(&victim, stage.join("SKILL.md")).unwrap();
+    w.extensions.import_bundled().await.unwrap();
+    assert_eq!(std::fs::read_to_string(victim).unwrap(), "keep this file");
+}
+
+#[tokio::test]
+async fn bundled_staging_does_not_follow_a_linked_parent() {
+    let w = world().await;
+    let outside = w._tmp.path().join("outside-home");
+    std::fs::create_dir(&outside).unwrap();
+    let stage = w._tmp.path().join("home").join(".bundled-stage");
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("cmd.exe")
+            .args(["/C", "mklink", "/J"])
+            .arg(&stage)
+            .arg(&outside)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, &stage).unwrap();
+    let result = w.extensions.import_bundled().await;
+    assert_eq!(std::fs::read_dir(&outside).unwrap().count(), 0);
+    result.unwrap();
+}
+
+#[tokio::test]
 async fn a_restart_replays_the_bundled_import() {
     let w = world().await;
     w.extensions.import_bundled().await.unwrap();

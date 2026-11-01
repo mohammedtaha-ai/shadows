@@ -46,6 +46,78 @@ async fn close(w: &World) {
 }
 
 #[tokio::test]
+async fn ending_a_turn_settles_its_unanswered_requests() {
+    let w = world().await;
+    let mut turn = request("fake-large", "high");
+    turn.prompt = "end-with-permission".into();
+    let op = w.core.turns().send(w.thread.clone(), turn).await.unwrap();
+    waiting(&w, 1).await;
+    std::fs::write(w.home.join("end-permission-turn"), "release").unwrap();
+    ended(&w, &op).await;
+    let entries = w.core.threads().entries(&w.thread).await.unwrap();
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry.kind == ThreadEntryKind::PermissionAsked)
+    );
+    assert!(w.core.harness().waiting_permissions().await.is_empty());
+    assert!(entries.iter().any(|entry| {
+        entry
+            .card
+            .as_ref()
+            .is_some_and(|card| card["reason"] == "ended")
+    }));
+    close(&w).await;
+}
+
+#[tokio::test]
+async fn disconnecting_settles_requests_before_the_turn_is_collected() {
+    use shadows_agent::acp::{SessionSetup, SessionStart};
+    let w = world().await;
+    let opened = w.sessions.open(&w.thread).await.unwrap();
+    let other = opened
+        .connection()
+        .start_session(&w.home, SessionStart::New, &SessionSetup::default())
+        .await
+        .unwrap();
+    let op = start_ask(&w, &w.thread).await;
+    let ask = waiting(&w, 1).await.remove(0);
+    assert!(
+        opened
+            .connection()
+            .prompt(&other.session_id, "exit", &[])
+            .await
+            .is_err()
+    );
+    assert!(matches!(
+        opened
+            .connection()
+            .answer_permission(&ask.request_id, "allow_once")
+            .await,
+        Err(shadows_agent::acp::PermissionError::Settled)
+    ));
+    ended(&w, &op).await;
+    assert!(w.core.harness().waiting_permissions().await.is_empty());
+    let entries = w.core.threads().entries(&w.thread).await.unwrap();
+    assert!(entries.iter().any(|entry| {
+        entry
+            .card
+            .as_ref()
+            .is_some_and(|card| card["request_id"] == ask.request_id && card["reason"] == "closed")
+    }));
+    let project = w.core.agents().assistant_project().await.unwrap();
+    let events = w
+        .core
+        .events()
+        .read_project_events_after(core_events::EventCursor(0), &project, 100)
+        .await
+        .unwrap();
+    assert!(events.iter().any(|event| event.kind == "PermissionsChanged"
+        && serde_json::from_str::<Value>(&event.payload_json).unwrap()["state"] == "refused"));
+    close(&w).await;
+}
+
+#[tokio::test]
 async fn concurrent_equal_answers_replay_the_winner() {
     let w = world().await;
     let op = start_ask(&w, &w.thread).await;

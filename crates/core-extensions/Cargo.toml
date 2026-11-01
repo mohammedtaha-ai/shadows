@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
@@ -32,4 +33,3 @@ yaml-rust2 = { workspace = true }
 core-db = { path = "../core-db", features = ["test-support"] }
 core-projects = { path = "../core-projects" }
 shadows-process = { path = "../shadows-process" }
-tempfile = { workspace = true }
