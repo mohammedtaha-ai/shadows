@@ -2,6 +2,8 @@ import {invoke} from '@tauri-apps/api/core';
 import {getCurrentWebviewWindow} from '@tauri-apps/api/webviewWindow';
 import {acceptState,connectState,type CompanionState,type CompanionTransport} from './companion-state.ts';
 export type {CompanionState} from './companion-state.ts';
+export type {PanelAgent} from './companion-state.ts';
+export type MainTarget='bound'|'agentSettings'|'newAgent'|'settings'|'oldestWaiting';
 const nativeTransport:CompanionTransport={
   listen:handler=>getCurrentWebviewWindow().listen<unknown>('companion-state',event=>handler(event.payload)),
   snapshot:()=>invoke('companion_state'),ready:()=>invoke('companion_ready'),
@@ -19,4 +21,4 @@ export async function sendFromCompanion(text:string,commandId:string,context:str
 }
 export function dragCompanion():Promise<void>{return invoke('drag_companion');}
 export function reportCompanionFailure():Promise<CompanionState>{return invoke('companion_failed');}
-export function openMainFromCompanion():Promise<void>{return invoke('open_main_from_companion');}
+export function openMainFromCompanion(target?:MainTarget):Promise<void>{return target===undefined?invoke('open_main_from_companion'):invoke('open_main_from_companion',{target});}

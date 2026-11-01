@@ -33,7 +33,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/assistant/` | Retained native assistant service primitives without main IPC registration | Colocated `contract.yaml` |
 | `apps/desktop/src/api/generated/` | Backend-generated wire artifacts and input hash | Backend TypeBox owner; `provenance.json` |
 | `apps/desktop/src/app/` | Independent companion entry | Colocated `contract.yaml` |
-| `apps/desktop/src/platform/` | Typed companion-only invocation wrappers | Colocated `contract.yaml` |
+| `apps/desktop/src/platform/` | Typed companion-only invocation wrappers | Colocated `contract.yaml`; bounded panel projections and closed navigation targets |
 | `apps/desktop/src/platform/companion-state.test.ts` | Companion projection validation regressions | Platform contract; co-located unit test |
 | `apps/desktop/src/features/companion/renderer/index.ts` | Public character and scene drawing entry | Companion contract; explicit current-consumer exports |
 | `apps/desktop/src/features/companion/animation/index.ts` | Public motion, scheduling, viewport and message entry | Companion contract; explicit current-consumer exports |

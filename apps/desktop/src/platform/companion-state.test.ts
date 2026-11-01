@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {acceptState, connectState} from './companion-state.ts';
 const composer={open:false,revision:0,scope:null,context:null,agent:null};
-const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple',outfit:'default'};
+const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple',outfit:'default',panel:{open:false,agents:[]}};
 test('composer view is validated and never optional',()=>{
   const {composer:ignored,...missing}=hidden;
   assert.throws(()=>acceptState(null,missing));
@@ -53,4 +53,20 @@ test('outfit ids are copied opaque with a bounded default',()=>{
   for(const outfit of [undefined,null,'','x'.repeat(33),7])assert.equal(acceptState(null,{...hidden,appearance:{outfit}}).outfit,'default');
   const current=acceptState(null,{...hidden,revision:9,appearance:{outfit:'headphones'}});
   assert.strictEqual(acceptState(current,{...hidden,revision:8,appearance:{outfit:'crown'}}),current);
+});
+test('panel agents are bounded and an absent panel is closed and empty',()=>{
+  const {panel:ignored,...legacy}=hidden;
+  assert.deepEqual(acceptState(null,legacy).panel,{open:false,agents:[]});
+  const agent={slug:'work',name:'Work',description:'Builds things',color:'purple',outfit:'headphones',bound:true};
+  const panel={open:true,agents:[agent]};
+  assert.deepEqual(acceptState(null,{...hidden,panel}).panel,panel);
+  const unicode={...agent,name:'名'.repeat(128),description:'🌿'.repeat(200)};
+  assert.deepEqual(acceptState(null,{...hidden,panel:{...panel,agents:[unicode]}}).panel.agents,[unicode]);
+  for(const invalid of [null,{open:'yes',agents:[]},{open:true,agents:Array(65).fill(agent)},
+    {open:true,agents:[{...agent,name:'x'.repeat(129)}]},
+    {open:true,agents:[{...agent,description:'x'.repeat(201)}]},
+    {open:true,agents:[{...agent,bound:1}]},
+    {open:true,agents:[{...agent,outfit:''}]}]){
+    assert.throws(()=>acceptState(null,{...hidden,panel:invalid}));
+  }
 });

@@ -4,7 +4,9 @@ status: current
 source: apps/desktop/src/platform
 responsibility: Isolate credential-free native companion presentation invocations.
 public_api:
-  setCompanionPanel: Thin companion-only panel open/close invocation; U-6 consumes the returned panel projection.
+  setCompanionPanel: Companion-only panel open/close invocation; validate the returned bounded panel projection.
+  PanelView/PanelAgent: Closed/empty default for an absent panel; at most 64 bounded opaque agent records with scalar-safe name/description lengths. Malformed present panels refuse the whole update.
+  MainTarget: Closed typed targets for deliberate native navigation; omission preserves bound behavior.
   selectCompanionAgent: Typed companion selection through the same native operation used by main; no client-side binding rule.
   setCompanionInput: Request explicit companion-only open or close and validate the returned native state.
   sendFromCompanion: Supply only text, command identity and native context; return thread/operation identity.

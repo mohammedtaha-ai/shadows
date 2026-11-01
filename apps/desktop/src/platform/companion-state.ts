@@ -3,7 +3,23 @@ export type PresenceProjection={
   status:string;preview:{id:string;text:string;expiresAtMs:number}|null;
 };
 export type ComposerView={open:boolean;revision:number;scope:string|null;context:string|null;agent:string|null};
-export type CompanionState = {composer:ComposerView;revision:number;visible:boolean;renderAllowed:boolean;paused:boolean;error:string|null;presence?:PresenceProjection;color:string;outfit:string};
+export type PanelAgent={slug:string;name:string;description:string;color:string;outfit:string;bound:boolean};
+export type PanelView={open:boolean;agents:PanelAgent[]};
+export type CompanionState = {composer:ComposerView;revision:number;visible:boolean;renderAllowed:boolean;paused:boolean;error:string|null;presence?:PresenceProjection;color:string;outfit:string;panel:PanelView};
+function acceptPanel(raw:unknown):PanelView {
+  if(raw===undefined)return {open:false,agents:[]};
+  if(!raw||typeof raw!=='object')throw Error('companion_panel_invalid');
+  const panel=raw as Record<string,unknown>;
+  if(typeof panel.open!=='boolean'||!Array.isArray(panel.agents)||panel.agents.length>64)throw Error('companion_panel_invalid');
+  const text=(value:unknown,max:number,empty=false):value is string=>typeof value==='string'&&(empty||value.length>0)&&[...value].length<=max;
+  const agents=panel.agents.map(raw=>{
+    if(!raw||typeof raw!=='object')throw Error('companion_panel_invalid');
+    const agent=raw as Record<string,unknown>;
+    if(!text(agent.slug,128)||!text(agent.name,128)||!text(agent.description,200,true)||!text(agent.color,32)||!text(agent.outfit,32)||typeof agent.bound!=='boolean')throw Error('companion_panel_invalid');
+    return {slug:agent.slug,name:agent.name,description:agent.description,color:agent.color,outfit:agent.outfit,bound:agent.bound};
+  });
+  return {open:panel.open,agents};
+}
 function acceptPresence(raw:unknown):PresenceProjection{
  if(!raw||typeof raw!=='object')throw Error('companion_presence_invalid');
  const value=raw as PresenceProjection;
@@ -32,7 +48,7 @@ export function acceptState(current:CompanionState|null,raw:unknown):CompanionSt
   const color=typeof candidate==='string'&&candidate.length>=1&&candidate.length<=32?candidate:'purple';
   const outfitId=appearance&&typeof appearance==='object'?(appearance as Record<string,unknown>).outfit:undefined;
   const outfit=typeof outfitId==='string'&&outfitId.length>=1&&outfitId.length<=32?outfitId:'default';
-  return {composer:{...composer},revision:value.revision as number,visible:value.visible,renderAllowed:value.renderAllowed,paused:value.paused,error:value.error as string|null,color,outfit,...presence};
+  return {composer:{...composer},revision:value.revision as number,visible:value.visible,renderAllowed:value.renderAllowed,paused:value.paused,error:value.error as string|null,color,outfit,panel:acceptPanel(value.panel),...presence};
 }
 export function connectState(transport:CompanionTransport,onState:(state:CompanionState)=>void,onError:(reason:string)=>void,ready=false):()=>void {
   let disposed=false, unlisten:(()=>void)|undefined, current:CompanionState|null=null;

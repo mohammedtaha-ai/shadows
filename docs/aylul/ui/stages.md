@@ -27,7 +27,7 @@ input, the shared dashboard, U-W1 to U-W3 and H-2 are at `8580306`.
 - Done when: From `apps/desktop/`: `node --test src/platform/companion-state.test.ts` passes (outfit copied opaque; absent, empty or over 32 characters reads `default`; colour behaviour unchanged), then `npm run build` and `npm run typecheck:tests` pass.
 
 ### U-6 · Panel state and panel actions in the platform layer
-- Status: blocked (waits for N-23 and N-24)
+- Status: done (9 platform tests, companion unit suite, desktop build and test typecheck passed)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#u-6
 - Read: `docs/aylul/shared/requests/2026-11-01-companion-panel.md` (`panel`, `companion_panel`, `select_companion_agent`, `open_main_from_companion`); `apps/desktop/src/platform/contract.yaml`
 - Touch: apps/desktop/src/platform/companion-state.ts, apps/desktop/src/platform/companion-state.test.ts, apps/desktop/src/platform/companion.ts, apps/desktop/src/platform/contract.yaml, docs/aylul/codebase/README.md, docs/aylul/ui/stages.md
@@ -35,7 +35,7 @@ input, the shared dashboard, U-W1 to U-W3 and H-2 are at `8580306`.
 - Done when: From `apps/desktop/`: `node --test src/platform/companion-state.test.ts` passes (panel agents parsed with their bounds; over-long or malformed entries refuse the state; an absent panel reads closed and empty) and `npm run test:companion:unit` passes, then `npm run build` and `npm run typecheck:tests` pass.
 
 ### U-7 · The panel: top bar, card, agent grid
-- Status: blocked (waits for U-6 and C-9)
+- Status: todo (U-6 and C-9 are built)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#u-7
 - Read: design §4, §7.6; `apps/desktop/src/features/companion/contract.yaml`; `docs/aylul/native/specs/2026-10-26-desktop-architecture-design.md` "Companion TypeScript entries"; `apps/desktop/tests/companion/boundaries.test.ts` (how the import ratchet reads)
 - Touch: apps/desktop/src/features/companion/panel/CompanionPanel.tsx (new), apps/desktop/src/features/companion/panel/AgentTile.tsx (new), apps/desktop/src/features/companion/panel/panel.css (new), apps/desktop/src/features/companion/DesktopCompanion.tsx, apps/desktop/src/features/companion/desktop-gesture.ts, apps/desktop/src/features/companion/desktop-gesture.test.ts, apps/desktop/src/features/companion/contract.yaml, apps/desktop/tests/companion/fakes.ts, apps/desktop/tests/companion/panel.spec.ts (new), apps/desktop/tests/companion/desktop-window.spec.ts, docs/aylul/codebase/README.md, docs/aylul/ui/stages.md
