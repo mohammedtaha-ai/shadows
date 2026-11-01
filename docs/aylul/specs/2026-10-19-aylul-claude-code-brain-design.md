@@ -140,9 +140,12 @@ its limit, AYLUL keeps working on its own provider and key.
   Acceptance needs the chosen value to reach the session, not a visible
   quality difference.
 - **Permissions:** the profile's `settings.json` denies Read, Edit and Write on
-  `C:\Users\Mohammed\.claude` and `.claude.json`; other permission requests go
-  through the web client's existing prompt, as Planner turns do. A full
-  sandbox around Bash is out of scope; deny rules do not fence shell commands.
+  `C:\Users\Mohammed\.claude` and `.claude.json`. Other permission requests
+  were refused at once, as Planner turns are (harness controls §12.2); no
+  prompt existed. Since 2026-11-01 they are put to Mohammed
+  ([AYLUL agents and panel §7.8](2026-11-01-aylul-agents-and-panel-design.md)).
+  A full sandbox around Bash is out of scope; deny rules do not fence shell
+  commands.
 - **First task is a probe through the real adapter.** Every measurement so far
   used the `claude` CLI directly. The ACP adapter (SDK, Node) must be shown to
   honour `CLAUDE_CONFIG_DIR`, `settingSources: ["user"]` and the process-env

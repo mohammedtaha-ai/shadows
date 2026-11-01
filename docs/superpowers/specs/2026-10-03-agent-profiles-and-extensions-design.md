@@ -117,6 +117,12 @@ boundaries; hooks or nested agents that bypass these boundaries cannot be
 enabled for bounded execution. Harness hooks are not the authoritative
 delivery mechanism for Shadows' durable workflow rules.
 
+For AYLUL agents, the shared library, MCP tools enabled per agent and their
+secrets are owned by
+[AYLUL agents and panel §7.2](../../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md)
+and [settings backend §7](../../backend/specs/2026-10-21-settings-dialog-backend-design.md);
+this section still owns Planner and executor profiles.
+
 ## 19.5 Provider connections and credentials
 
 The person can configure provider endpoint/protocol, a model and an API-key
