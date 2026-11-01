@@ -9,13 +9,17 @@ import { useOpenSettings } from '@/app/navigation'
 export function AgentExtensions({ slug }: { slug: string }) {
   const state = useQuery(agentExtensionsQuery(slug))
   const open = useOpenSettings()
-  return <section role="group" aria-label="Plugins & Skills" className="space-y-3">
-    <h2 className="font-medium">Plugins & Skills</h2>
-    {state.isPending ? <p role="status">Loading plugins and skills…</p> : state.error ? <div className="space-y-3"><ErrorLine error={state.error} /><Button type="button" variant="outline" disabled={state.isFetching} onClick={() => { void state.refetch() }}>Retry plugins and skills</Button></div> :
-      state.data.plugins.length + state.data.skills.length === 0 ? <div><p>No plugins or skills yet.</p><Button type="button" variant="link" onClick={() => open('plugins')}>Open Plugins & Skills</Button></div> : <>
+  return <section role="group" aria-label="Capabilities" className="space-y-3">
+    <h2 className="font-medium">Capabilities</h2>
+    {state.isPending ? <p role="status">Loading capabilities…</p> : state.error ? <div className="space-y-3"><ErrorLine error={state.error} /><Button type="button" variant="outline" disabled={state.isFetching} onClick={() => { void state.refetch() }}>Retry capabilities</Button></div> :
+      state.data.plugins.length + state.data.skills.length + (state.data.mcp?.length ?? 0) === 0 ? <p>No capabilities yet.</p> : <>
         <p className="text-xs text-muted-foreground">Changes apply when the next conversation session opens.</p>
-        {(['plugin', 'skill'] as const).map(kind => <div key={kind} className="space-y-3">{(kind === 'plugin' ? state.data.plugins : state.data.skills).map(item => <ExtensionSwitch key={`${slug}:${kind}:${item.id}`} slug={slug} kind={kind} item={item} />)}</div>)}
+        {(['skill', 'plugin', 'mcp'] as const).map(kind => <div key={kind} className="space-y-3">
+          <h3 className="text-sm text-muted-foreground">{kind === 'skill' ? 'Skills' : kind === 'plugin' ? 'Plugins' : 'MCP tools'}</h3>
+          {(kind === 'plugin' ? state.data.plugins : kind === 'skill' ? state.data.skills : state.data.mcp ?? []).map(item => <ExtensionSwitch key={`${slug}:${kind}:${item.id}`} slug={slug} kind={kind} item={item} />)}
+        </div>)}
       </>}
+    <Button type="button" variant="link" onClick={() => open('plugins')}>Add to library</Button>
   </section>
 }
 

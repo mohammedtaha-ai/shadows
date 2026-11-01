@@ -30,6 +30,21 @@ it("the form lists the library's items for this agent", async () => {
   expect(a.text()).toContain('Git tools.'); expect(a.text()).toContain('Review changes.')
   expect(agentExtensionsQuery('ay').queryKey).not.toEqual(agentExtensionsQuery('zed').queryKey)
 })
+it('capabilities include MCP switches and Add to library even when nonempty', async () => {
+  let enabled = false
+  const tool = { id: 'm1', name: 'research', description: 'Research tools', transport: { type: 'http', url: 'https://example.com', headers: [] } }
+  const a = await open({
+    'GET /api/aylul/agents/ay/extensions': () => Response.json({ ...view(), mcp: [{ ...tool, enabled }] }),
+    'PUT /api/aylul/agents/ay/extensions/mcp/m1': async (request: Request) => { enabled = (await request.json()).enabled; return Response.json({ ...tool, enabled }) },
+  })
+  expect(document.querySelector('[role=group][aria-label=Capabilities]')).not.toBeNull()
+  expect(switchOf('research').checked).toBe(false)
+  act(() => switchOf('research').click()); await until(() => enabled && !switchOf('research').disabled)
+  expect(a.calls).toContain('PUT /api/aylul/agents/ay/extensions/mcp/m1')
+  expect(a.queryClient.getQueryData<AgentExtensions>(agentExtensionsQuery('ay').queryKey)?.mcp[0].enabled).toBe(true)
+  act(() => a.button('Add to library')!.click())
+  await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Plugins & Skills')
+})
 it('a switch saves at once', async () => {
   let resolve!: (response: Response) => void, enabled = false
   const a = await open({ 'GET /api/aylul/agents/ay/extensions': () => Response.json(view(enabled)),
@@ -86,15 +101,15 @@ it('a new agent shows the part after it is created', async () => {
 })
 it('an empty library links to the section', async () => {
   const a = app = await startApp('/?settings=agents&agent=ay', { ...routes(), 'GET /api/aylul/agents/ay/extensions': { plugins: [], skills: [] } })
-  await until(() => a.text().includes('No plugins or skills yet.'))
-  act(() => a.button('Open Plugins & Skills')!.click())
+  await until(() => a.text().includes('No capabilities yet.'))
+  act(() => a.button('Add to library')!.click())
   await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Plugins & Skills')
   expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1); expect(a.path()).toBe('/')
 })
 it('an extension load failure is local', async () => {
   const a = app = await startApp('/?settings=agents&agent=ay', { ...routes(), 'GET /api/aylul/agents/ay/extensions': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Extensions unavailable.' }, { status: 500 }) })
   await until(() => a.text().includes('Extensions unavailable.'))
-  expect(a.text()).not.toContain('No plugins or skills yet.')
+  expect(a.text()).not.toContain('No capabilities yet.')
   expect(a.button('Save agent')?.disabled).toBe(false)
 })
 it('library removal clears every agent view', async () => {
@@ -109,10 +124,10 @@ it('library removal clears every agent view', async () => {
   act(() => a.button('Remove')!.click()); act(() => a.buttons('Remove').at(-1)!.click())
   await until(() => a.text().includes('No plugins yet.'))
   act(() => a.button('Agents')!.click()); await until(() => a.buttons('Edit').length === 2)
-  act(() => a.buttons('Edit')[1].click()); await until(() => a.text().includes('No plugins or skills yet.'))
+  act(() => a.buttons('Edit')[1].click()); await until(() => a.text().includes('No capabilities yet.'))
   expect(switchOf('git')).toBeNull()
   act(() => a.button('Back')!.click()); await until(() => a.buttons('Edit').length === 2)
-  act(() => a.buttons('Edit')[0].click()); await until(() => a.text().includes('No plugins or skills yet.'))
+  act(() => a.buttons('Edit')[0].click()); await until(() => a.text().includes('No capabilities yet.'))
   expect(switchOf('git')).toBeNull()
 })
 

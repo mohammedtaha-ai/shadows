@@ -49,11 +49,12 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npm run gen:api` first, then `npx vitest run src/api/extensions.test.ts src/app/settings/mcp-form.test.tsx src/app/settings/plugins.test.tsx` pass (add `http` and `stdio` items with `{ name, value }` pairs typed in password fields; values never shown back, a pair with `set` shows "Set"; an edit keeps the id and sends a pair without `value` to keep it; Core's 400/409/503 messages shown; a `bundled` item is marked; delete), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass.
 
 ### F-65 · Capabilities in the agent form: skills, plugins and MCP tools
-- Status: todo (F-63 and F-64 are built)
+- Status: done (18 focused tests; typecheck, lint, build and 82 codemap/architecture checks passed; browser screenshot captured)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-65
 - Read: design §7.5 item 5; `web/src/app/agents/contract.yaml`
 - Touch: web/src/api/extensions.ts, web/src/app/agents/agent-extensions.tsx, web/src/app/agents/agent-extensions.test.tsx, web/src/app/agents/agent-settings.tsx, web/src/app/agents/contract.yaml, docs/frontend/stages.md
 - Needs: F-63 and F-64 done
+- Additional Touch: web/src/api/contract.yaml (records the third switch-cache kind in the same commit as its owner).
 - Done when: From `web/`: `npx vitest run src/app/agents/agent-extensions.test.tsx src/app/agents/agent-form.test.tsx` pass (three kinds with switches; an MCP switch saves through the `mcp` kind; "Add to library" opens Settings → Plugins & Skills), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshot attached.
 
 ### F-66 · Permission card in the conversation

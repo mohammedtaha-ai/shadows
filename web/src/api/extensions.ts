@@ -46,7 +46,7 @@ export function setAgentExtension(slug: string, kind: ExtensionKind, id: string,
 }
 
 export function saveAgentExtensionAnswer(client: QueryClient, slug: string, kind: ExtensionKind, saved: AgentItem) {
-  const field = kind === 'plugin' ? 'plugins' : 'skills'
+  const field = kind === 'plugin' ? 'plugins' : kind === 'skill' ? 'skills' : 'mcp'
   return writeSaved<AgentExtensions>(client, extensionKeys.agent(slug), current => current
     ? { ...current, [field]: current[field].map(value => value.id === saved.id ? saved : value) } : current)
 }

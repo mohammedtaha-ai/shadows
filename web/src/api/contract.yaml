@@ -72,6 +72,7 @@ mcp_library:
   save: "saveMcp(id, commandId, McpInput): POST for new items, PUT by stable id for edits; preserves absent secret values"
   remove: "removeExtension uses the existing mcp kind route"
   types: "McpItem, McpInput and McpValueInput alias generated schemas"
+  agent_switches: "saveAgentExtensionAnswer maps plugin/skill/mcp to plugins/skills/mcp and writes the saved answer after cancelling stale reads"
 
 agent_instructions_template:
   owner: aylul-profiles.ts

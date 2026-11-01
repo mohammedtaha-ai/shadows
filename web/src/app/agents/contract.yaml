@@ -25,7 +25,7 @@ components:
     note: Manifest-ordered studio previews form an accessible radio group; unknown ids select default.
   AgentExtensions:
     signature: "({ slug: string }) => JSX.Element"
-    note: Saved-agent extension switches live outside the Save agent form; failed extension reads do not disable ordinary fields.
+    note: Saved-agent Capabilities lists skills, plugins and MCP switches outside the Save agent form; Add to library always opens Plugins & Skills. Failed extension reads do not disable ordinary fields.
   ColorSwatches:
     signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
     note: Radio group in shared table order with per-entry label, title, colour and selected ring.
