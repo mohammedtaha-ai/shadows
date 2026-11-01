@@ -6,6 +6,7 @@ responsibility: Isolate credential-free native companion presentation invocation
 public_api:
   setCompanionPanel: Companion-only panel open/close invocation; validate the returned bounded panel projection.
   PanelView/PanelAgent: Closed/empty default for an absent panel; at most 64 bounded opaque agent records with scalar-safe name/description lengths. Malformed present panels refuse the whole update.
+  WaitingView/WaitingRequest: Read from the state's waiting record into PanelView.waiting; absent reads as count 0 and no requests. At most 8 requests and 8 options each, bounded title and option names; a malformed present record refuses the whole update.
   MainTarget: Closed typed targets for deliberate native navigation; omission preserves bound behavior.
   answerCompanionPermission: Typed companion-only answer to a waiting permission request; the fixed error code reaches the caller unchanged.
   selectCompanionAgent: Typed companion selection through the same native operation used by main; no client-side binding rule.

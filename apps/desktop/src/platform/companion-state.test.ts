@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {acceptState, connectState} from './companion-state.ts';
 const composer={open:false,revision:0,scope:null,context:null,agent:null};
-const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple',outfit:'default',panel:{open:false,agents:[]}};
+const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple',outfit:'default',panel:{open:false,agents:[],waiting:{count:0,bound:[]}}};
 test('composer view is validated and never optional',()=>{
   const {composer:ignored,...missing}=hidden;
   assert.throws(()=>acceptState(null,missing));
@@ -56,10 +56,10 @@ test('outfit ids are copied opaque with a bounded default',()=>{
 });
 test('panel agents are bounded and an absent panel is closed and empty',()=>{
   const {panel:ignored,...legacy}=hidden;
-  assert.deepEqual(acceptState(null,legacy).panel,{open:false,agents:[]});
+  assert.deepEqual(acceptState(null,legacy).panel,{open:false,agents:[],waiting:{count:0,bound:[]}});
   const agent={slug:'work',name:'Work',description:'Builds things',color:'purple',outfit:'headphones',bound:true};
   const panel={open:true,agents:[agent]};
-  assert.deepEqual(acceptState(null,{...hidden,panel}).panel,panel);
+  assert.deepEqual(acceptState(null,{...hidden,panel}).panel,{...panel,waiting:{count:0,bound:[]}});
   const unicode={...agent,name:'名'.repeat(128),description:'🌿'.repeat(200)};
   assert.deepEqual(acceptState(null,{...hidden,panel:{...panel,agents:[unicode]}}).panel.agents,[unicode]);
   for(const invalid of [null,{open:'yes',agents:[]},{open:true,agents:Array(65).fill(agent)},
@@ -68,5 +68,19 @@ test('panel agents are bounded and an absent panel is closed and empty',()=>{
     {open:true,agents:[{...agent,bound:1}]},
     {open:true,agents:[{...agent,outfit:''}]}]){
     assert.throws(()=>acceptState(null,{...hidden,panel:invalid}));
+  }
+});
+test('waiting requests are bounded and absence reads as none',()=>{
+  const option={optionId:'allow',name:'Allow once',kind:'allow_once'};
+  const request={threadId:'t1',requestId:'r1',title:'Run a command',options:[option]};
+  const waiting={count:2,bound:[request]};
+  assert.deepEqual(acceptState(null,{...hidden,waiting}).panel.waiting,waiting);
+  assert.deepEqual(acceptState(null,hidden).panel.waiting,{count:0,bound:[]});
+  for(const invalid of [null,{count:-1,bound:[]},{count:1.5,bound:[]},{count:1,bound:Array(9).fill(request)},
+    {count:1,bound:[{...request,title:'x'.repeat(241)}]},
+    {count:1,bound:[{...request,options:Array(9).fill(option)}]},
+    {count:1,bound:[{...request,options:[{...option,name:'x'.repeat(81)}]}]},
+    {count:1,bound:[{...request,requestId:''}]}]){
+    assert.throws(()=>acceptState(null,{...hidden,waiting:invalid}));
   }
 });

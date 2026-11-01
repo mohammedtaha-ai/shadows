@@ -4,10 +4,34 @@ export type PresenceProjection={
 };
 export type ComposerView={open:boolean;revision:number;scope:string|null;context:string|null;agent:string|null};
 export type PanelAgent={slug:string;name:string;description:string;color:string;outfit:string;bound:boolean};
-export type PanelView={open:boolean;agents:PanelAgent[]};
+export type WaitingOption={optionId:string;name:string;kind:string};
+export type WaitingRequest={threadId:string;requestId:string;title:string;options:WaitingOption[]};
+export type WaitingView={count:number;bound:WaitingRequest[]};
+export type PanelView={open:boolean;agents:PanelAgent[];waiting:WaitingView};
 export type CompanionState = {composer:ComposerView;revision:number;visible:boolean;renderAllowed:boolean;paused:boolean;error:string|null;presence?:PresenceProjection;color:string;outfit:string;panel:PanelView};
-function acceptPanel(raw:unknown):PanelView {
-  if(raw===undefined)return {open:false,agents:[]};
+function acceptWaiting(raw:unknown):WaitingView {
+  if(raw===undefined)return {count:0,bound:[]};
+  if(!raw||typeof raw!=='object')throw Error('companion_panel_invalid');
+  const value=raw as Record<string,unknown>;
+  if(typeof value.count!=='number'||!Number.isSafeInteger(value.count)||value.count<0||value.count>4294967295||!Array.isArray(value.bound)||value.bound.length>8)throw Error('companion_panel_invalid');
+  const text=(item:unknown,max:number):item is string=>typeof item==='string'&&item.length>0&&[...item].length<=max;
+  const bound=value.bound.map(entry=>{
+    if(!entry||typeof entry!=='object')throw Error('companion_panel_invalid');
+    const request=entry as Record<string,unknown>;
+    if(!text(request.threadId,512)||!text(request.requestId,512)||!text(request.title,240)||!Array.isArray(request.options)||request.options.length>8)throw Error('companion_panel_invalid');
+    const options=request.options.map(choice=>{
+      if(!choice||typeof choice!=='object')throw Error('companion_panel_invalid');
+      const option=choice as Record<string,unknown>;
+      if(!text(option.optionId,512)||!text(option.name,80)||!text(option.kind,64))throw Error('companion_panel_invalid');
+      return {optionId:option.optionId,name:option.name,kind:option.kind};
+    });
+    return {threadId:request.threadId,requestId:request.requestId,title:request.title,options};
+  });
+  return {count:value.count,bound};
+}
+function acceptPanel(raw:unknown,waitingRaw:unknown):PanelView {
+  const waiting=acceptWaiting(waitingRaw);
+  if(raw===undefined)return {open:false,agents:[],waiting};
   if(!raw||typeof raw!=='object')throw Error('companion_panel_invalid');
   const panel=raw as Record<string,unknown>;
   if(typeof panel.open!=='boolean'||!Array.isArray(panel.agents)||panel.agents.length>64)throw Error('companion_panel_invalid');
@@ -18,7 +42,7 @@ function acceptPanel(raw:unknown):PanelView {
     if(!text(agent.slug,128)||!text(agent.name,128)||!text(agent.description,200,true)||!text(agent.color,32)||!text(agent.outfit,32)||typeof agent.bound!=='boolean')throw Error('companion_panel_invalid');
     return {slug:agent.slug,name:agent.name,description:agent.description,color:agent.color,outfit:agent.outfit,bound:agent.bound};
   });
-  return {open:panel.open,agents};
+  return {open:panel.open,agents,waiting};
 }
 function acceptPresence(raw:unknown):PresenceProjection{
  if(!raw||typeof raw!=='object')throw Error('companion_presence_invalid');
@@ -48,7 +72,7 @@ export function acceptState(current:CompanionState|null,raw:unknown):CompanionSt
   const color=typeof candidate==='string'&&candidate.length>=1&&candidate.length<=32?candidate:'purple';
   const outfitId=appearance&&typeof appearance==='object'?(appearance as Record<string,unknown>).outfit:undefined;
   const outfit=typeof outfitId==='string'&&outfitId.length>=1&&outfitId.length<=32?outfitId:'default';
-  return {composer:{...composer},revision:value.revision as number,visible:value.visible,renderAllowed:value.renderAllowed,paused:value.paused,error:value.error as string|null,color,outfit,panel:acceptPanel(value.panel),...presence};
+  return {composer:{...composer},revision:value.revision as number,visible:value.visible,renderAllowed:value.renderAllowed,paused:value.paused,error:value.error as string|null,color,outfit,panel:acceptPanel(value.panel,value.waiting),...presence};
 }
 export function connectState(transport:CompanionTransport,onState:(state:CompanionState)=>void,onError:(reason:string)=>void,ready=false):()=>void {
   let disposed=false, unlisten:(()=>void)|undefined, current:CompanionState|null=null;

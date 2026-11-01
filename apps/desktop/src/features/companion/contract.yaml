@@ -56,9 +56,18 @@ obligations:
   - rule: Top-bar Settings and New agent, and the card's Settings and Open, call open_main_from_companion with settings, newAgent, agentSettings and bound; native resolves each target.
     tested_by: apps/desktop/tests/companion/panel.spec.ts
     test: Settings New agent and Open request their closed native destinations
-  - rule: Talk and Chat open the existing composer; Sound turns the existing interaction tones on or off for the session only, and the tone controller is disposed with the desktop companion. The status pill reads Ready until waiting permissions are published.
+  - rule: Talk and Chat open the existing composer; Sound turns the existing interaction tones on or off for the session only, and the tone controller is disposed with the desktop companion.
     tested_by: apps/desktop/tests/companion/panel.spec.ts
     test: Talk and Chat open the composer and Sound toggles tones
+  - rule: The status pill reads Ready at zero waiting requests and the count otherwise; a click on it asks native to open main on oldestWaiting. It never invents a count when native publishes none.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: the pill reads Ready at zero and the count otherwise, and a click asks for the oldest waiting
+  - rule: When the bound agent's conversation has a waiting request the card shows its title and one button per option, labelled with the option's name, and no text answer. A click answers through answerCompanionPermission with a command id.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: the card answers a waiting request with one button per option and no text field
+  - rule: A retry of the same option after companion_core_unavailable reuses the command id; a new answer after success or any other outcome makes a new one. permission_settled, permission_not_found and permission_option_not_offered show Already answered, No longer waiting and That option is no longer offered.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: a retry after an unreachable Core reuses the command id and a new answer makes a new one
   - rule: The bound agent's opaque outfit resolves through catalog.outfitOf; unknown ids draw default in the desktop and reusable Companion.
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: the companion window draws the state's outfit

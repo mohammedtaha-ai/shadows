@@ -1,5 +1,6 @@
 import type {CompanionState,MainTarget} from '../../../platform/companion';
 import {AgentPreview,AgentTile} from './AgentTile';
+import {PermissionPrompt} from './PermissionPrompt';
 import './panel.css';
 
 export function CompanionPanel({panel,status,onClose,onNavigate,onChat,onSelect,selecting,sound,soundPending,onSound,error}:{
@@ -8,10 +9,11 @@ export function CompanionPanel({panel,status,onClose,onNavigate,onChat,onSelect,
   onSound:()=>void;error:string;
 }){
   const bound=panel.agents.find(agent=>agent.bound);
+  const {count,bound:requests}=panel.waiting;
   return <section className="aylul-panel" aria-label="AYLUL panel">
     <header className="aylul-panel-head">
       <strong>AYLUL</strong>
-      <span className="aylul-panel-pill" aria-label="Waiting requests">Ready</span>
+      <button type="button" className={count>0?'aylul-panel-pill aylul-panel-pill-waiting':'aylul-panel-pill'} aria-label="Waiting requests" disabled={count===0} onClick={()=>onNavigate('oldestWaiting')}>{count===0?'Ready':`${count} waiting`}</button>
       <button type="button" className="aylul-panel-close" aria-label="Close panel" onClick={onClose}>×</button>
     </header>
     <nav className="aylul-panel-topbar" aria-label="Panel navigation">
@@ -22,12 +24,13 @@ export function CompanionPanel({panel,status,onClose,onNavigate,onChat,onSelect,
       <button type="button" aria-pressed={sound} disabled={soundPending} onClick={onSound}>Sound</button>
     </nav>
     <div className="aylul-panel-body">
-      <section className="aylul-bound-card" aria-label="Bound agent">
+      <section className={requests[0]?'aylul-bound-card aylul-bound-card-asking':'aylul-bound-card'} aria-label="Bound agent">
         {bound?<>
-          <AgentPreview color={bound.color} outfit={bound.outfit} size={112}/>
+          <AgentPreview color={bound.color} outfit={bound.outfit} size={requests[0]?64:112}/>
           <h2 dir="auto">{bound.name}</h2>
           {bound.description&&<p dir="auto">{bound.description}</p>}
           <span className="aylul-panel-status">{status}</span>
+          {requests[0]&&<PermissionPrompt request={requests[0]}/>}
           <div className="aylul-bound-actions">
             <button type="button" className="aylul-panel-primary" onClick={onChat}>Talk</button>
             <button type="button" aria-label="Agent settings" onClick={()=>onNavigate('agentSettings')}>Settings</button>

@@ -59,3 +59,51 @@ test('Talk and Chat open the composer and Sound toggles tones',async({page})=>{
   await page.getByRole('button',{name:'Chat',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'Message AYLUL',exact:true})).toBeVisible();
 });
+const request={threadId:'thread-1',requestId:'request-1',title:'Run npm test in the project?',options:[{optionId:'allow',name:'Allow once',kind:'allow_once'},{optionId:'deny',name:'Deny',kind:'reject_once'}]};
+const answers=(page:import('@playwright/test').Page)=>page.evaluate(()=>(window as any).__composerFx.calls.filter((call:any)=>call.command==='answer_companion_permission').map((call:any)=>call.args));
+test('the pill reads Ready at zero and the count otherwise, and a click asks for the oldest waiting',async({page})=>{
+  await openPanel(page);
+  const pill=page.getByRole('button',{name:'Waiting requests',exact:true});
+  await expect(pill).toHaveText('Ready');
+  await page.evaluate(req=>(window as any).__composerFx.publish({waiting:{count:3,bound:[req]}}),request);
+  await expect(pill).toHaveText('3 waiting');
+  await pill.click();
+  expect(await page.evaluate(()=>(window as any).__composerFx.calls.at(-1))).toEqual({command:'open_main_from_companion',args:{target:'oldestWaiting'}});
+});
+test('the card answers a waiting request with one button per option and no text field',async({page})=>{
+  await openPanel(page);
+  await page.evaluate(req=>(window as any).__composerFx.publish({waiting:{count:1,bound:[req]}}),request);
+  const prompt=page.getByRole('region',{name:'Permission request',exact:true});
+  await expect(prompt).toContainText('Run npm test in the project?');
+  await expect(prompt.getByRole('button')).toHaveText(['Allow once','Deny']);
+  await expect(prompt.getByRole('textbox')).toHaveCount(0);
+  await page.screenshot({path:'test-results/panel-waiting.png'});
+  await prompt.getByRole('button',{name:'Allow once',exact:true}).click();
+  await expect(prompt).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Waiting requests',exact:true})).toHaveText('Ready');
+  const [sent]=await answers(page);
+  expect(sent).toMatchObject({threadId:'thread-1',requestId:'request-1',optionId:'allow'});
+  expect(typeof sent.commandId).toBe('string');
+});
+test('a retry after an unreachable Core reuses the command id and a new answer makes a new one',async({page})=>{
+  await openPanel(page);
+  await page.evaluate(req=>{const fx=(window as any).__composerFx;fx.answerErrors.push('companion_core_unavailable');fx.publish({waiting:{count:2,bound:[req,{...req,requestId:'request-2'}]}});},request);
+  const prompt=page.getByRole('region',{name:'Permission request',exact:true});
+  await prompt.getByRole('button',{name:'Deny',exact:true}).click();
+  await expect(prompt.getByRole('status')).toContainText('could not be reached');
+  await prompt.getByRole('button',{name:'Deny',exact:true}).click();
+  const [first,second]=await answers(page);
+  expect(second.commandId).toBe(first.commandId);
+  await prompt.getByRole('button',{name:'Allow once',exact:true}).click();
+  const third=(await answers(page))[2];
+  expect(third.requestId).toBe('request-2');
+  expect(third.commandId).not.toBe(first.commandId);
+});
+for(const [code,line] of [['permission_settled','Already answered'],['permission_not_found','No longer waiting'],['permission_option_not_offered','That option is no longer offered']]){
+  test(`${code} shows its line`,async({page})=>{
+    await openPanel(page);
+    await page.evaluate(([req,error])=>{const fx=(window as any).__composerFx;fx.answerErrors.push(error);fx.publish({waiting:{count:1,bound:[req]}});},[request,code] as const);
+    await page.getByRole('button',{name:'Allow once',exact:true}).click();
+    await expect(page.getByRole('region',{name:'Permission request',exact:true}).getByRole('status')).toHaveText(line);
+  });
+}
