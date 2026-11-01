@@ -19,7 +19,7 @@ input, the shared dashboard, U-W1 to U-W3 and H-2 are at `8580306`.
 ## Tasks
 
 ### U-5 · Read the bound agent's outfit from the companion state
-- Status: blocked (waits for N-22)
+- Status: todo (N-22 completed in `c79475c2`)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#u-5
 - Read: `docs/aylul/shared/requests/2026-11-01-companion-panel.md` (`appearance.outfit`); `apps/desktop/src/platform/contract.yaml`
 - Touch: apps/desktop/src/platform/companion-state.ts, apps/desktop/src/platform/companion-state.test.ts, apps/desktop/src/platform/contract.yaml, docs/aylul/ui/stages.md

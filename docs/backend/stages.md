@@ -42,6 +42,9 @@ B-24 to B-34 on `feature/aylul-agents-panel`. Order and parallel runs: plan §4.
 request that accepts plan §3 (`docs/shared/requests/2026-11-01-aylul-agents-panel.md`) was
 accepted on 2026-11-01, so no task waits on it.
 
+B-24 to B-34 are implemented on this branch. Focused automated gates passed;
+the real desktop acceptance in plan §5 remains for the complete UI/native slice.
+
 ## Tasks
 
 ### B-24 · Migration 0039: agent profile columns, MCP tables, bundled flag, declined names
