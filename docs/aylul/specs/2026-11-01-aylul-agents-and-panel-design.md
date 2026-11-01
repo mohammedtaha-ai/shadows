@@ -293,6 +293,20 @@ Planner keeps today's refusal; harness controls §12.2 is amended to say so.
 - **Web:** the conversation shows a waiting request as a card in the turn,
   with the options as buttons; once answered it shows the choice and "by you".
 - While a request waits, the character's state is `blocked` for that agent.
+- **Buttons only** (Mohammed, 2026-11-01). A request is answered by a click,
+  in the conversation or on the panel card, and only a click is recorded as
+  "by you". Answering by typing or by voice belongs to the messaging design.
+- **The panel lives under the UI side** (Mohammed, 2026-11-01): its tasks are
+  U- tasks; the character side owns only the drawing inside it.
+
+> **OPEN: an agent pressing the button.** An AYLUL agent has a shell, runs as
+> the same Windows user and can reach the daemon's port, so it could send the
+> answer request itself and be recorded as "by you". Approval authority §24.3
+> protects the Planner only because it has no shell; its OPEN on executors
+> names the same gap. A client token does not close it, because the agent can
+> read what the desktop reads. Accepted as known for this branch (Mohammed,
+> 2026-11-01). **Closes when** §17's executor sandbox, a shell that cannot
+> reach the daemon's port, is applied to AYLUL agents too.
 
 ## 8. Open
 
