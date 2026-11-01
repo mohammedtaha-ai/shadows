@@ -13,14 +13,21 @@
  * or follows the system, through the root class and data-theme attribute.
  *
  * Fonts never come from a CDN — the client must work offline against a local
- * daemon. Sans is Geist, bundled through npm; serif (the reply voice) and mono
- * are system stacks.
+ * daemon. Plus Jakarta Sans and JetBrains Mono are bundled through npm. The
+ * design has one voice, so serif is the sans face too; Geist stays as the
+ * fallback while the font files load.
  */
 
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
 
 /* Streamdown (the reply renderer) and its code-highlighting plugin ship their
  * Tailwind classes in their bundles; per their docs, Tailwind must scan them. */
@@ -33,70 +40,63 @@
 :root {
   color-scheme: dark;
 
-  --palette-background: #0c0914;
-  --palette-sidebar: #120c20;
-  --palette-card: #21172f;
-  --palette-border: #514064;
-  --palette-input: #140e20;
+  --palette-background: #07050f;
+  --palette-sidebar: #0c0918;
+  --palette-card: #130e24;
+  --palette-border: #2c214a;
+  --palette-input: #0b0816;
 
-  --palette-text: #eceaf2;
-  --palette-text-secondary: #c4b9d4;
-  --palette-text-muted: #a89ab9;
+  --palette-text: #f4f1ff;
+  --palette-text-secondary: #a99fc4;
+  --palette-text-muted: #736891;
 
-  --palette-accent: #8736ce;
-  --palette-accent-line: #c68aff;
-  --palette-accent-soft: #43215f;
-  --palette-accent-softer: #29183d;
-  --palette-accent-text: #f0dfff;
-  --palette-glow: #bb5aff40;
-  --palette-sheen: #e9caff14;
+  --palette-accent: #7c3aed;
+  --palette-accent-line: #a855f7;
+  --palette-accent-soft: #281b4d;
+  --palette-accent-softer: #191233;
+  --palette-accent-text: #e9d5ff;
   --palette-warning: #ffd384;
-  --palette-primary-text: #ffffff;
 
-  --palette-danger: #e24b4a;
-  --palette-danger-border: #791f1f;
-  --palette-danger-text: #f09595;
-  --palette-success: #1d9e75;
-  --palette-overlay: #050408b3;
+  --palette-danger: #ef4444;
+  --palette-danger-border: #7f1d1d;
+  --palette-danger-text: #fca5a5;
+  --palette-success: #10b981;
+  --palette-overlay: #04020ab8;
 
-  --typeface-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --typeface-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino,
-    Georgia, serif;
-  --typeface-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas,
+  --typeface-sans: "Plus Jakarta Sans", "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --typeface-serif: var(--typeface-sans);
+  --typeface-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
 }
 
 html[data-theme="light"] {
   color-scheme: light;
-  --palette-background: #f8f7fb;
-  --palette-sidebar: #f0edf5;
+  --palette-background: #f7f5fc;
+  --palette-sidebar: #efeaf8;
   --palette-card: #ffffff;
-  --palette-border: #d7d0e0;
+  --palette-border: #d8cfe8;
   --palette-input: #ffffff;
-  --palette-text: #241f30;
-  --palette-text-secondary: #5e566e;
-  --palette-text-muted: #6d637b;
-  --palette-accent: #5145a7;
-  --palette-accent-line: #6253bb;
-  --palette-accent-soft: #ede9f7;
-  --palette-accent-softer: #f2eff9;
-  --palette-accent-text: #3e326f;
-  --palette-danger: #b52242;
-  --palette-danger-border: #ecc0cb;
-  --palette-danger-text: #a11535;
-  --palette-success: #137850;
-  --palette-overlay: #17112670;
-  --palette-glow: #8736ce24;
-  --palette-sheen: #ffffff80;
+  --palette-text: #1e1630;
+  --palette-text-secondary: #594e70;
+  --palette-text-muted: #766a8f;
+  --palette-accent: #6d28d9;
+  --palette-accent-line: #7c3aed;
+  --palette-accent-soft: #ede9fe;
+  --palette-accent-softer: #f3f0ff;
+  --palette-accent-text: #4c1d95;
   --palette-warning: #845000;
-  --palette-primary-text: #ffffff;
+  --palette-danger: #dc2626;
+  --palette-danger-border: #fecaca;
+  --palette-danger-text: #991b1b;
+  --palette-success: #059669;
+  --palette-overlay: #17112670;
   --primary-foreground: #ffffff;
   --sidebar-primary-foreground: #ffffff;
 }
 
 /* 2. shadcn's tokens, and this product's additions, from the palette. */
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
   --background: var(--palette-background);
   --foreground: var(--palette-text);
@@ -106,7 +106,7 @@ html[data-theme="light"] {
   --popover-foreground: var(--palette-text);
 
   --primary: var(--palette-accent);
-  --primary-foreground: var(--palette-primary-text);
+  --primary-foreground: var(--palette-text);
   --secondary: var(--palette-accent-soft);
   --secondary-foreground: var(--palette-accent-text);
   --accent: var(--palette-accent-soft);
@@ -215,55 +215,63 @@ html[data-theme="light"] {
   html {
     @apply font-sans;
   }
+  /* Two soft accent glows behind the page, mixed from the palette so the light
+   * theme gets pale ones instead of dark-only literals. */
   body {
     @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -15%,
+        color-mix(in srgb, var(--palette-accent-line) 16%, transparent), transparent 70%),
+      radial-gradient(ellipse 60% 45% at 15% 105%,
+        color-mix(in srgb, var(--palette-accent) 10%, transparent), transparent 65%);
+    background-attachment: fixed;
   }
 }
 
-/* Shared visual hierarchy; feature state remains with its owner. */
-@layer components {
-  [data-slot="button"][data-variant="default"] {
-    border-color: var(--accent-line);
-    background-image: linear-gradient(var(--palette-sheen), transparent);
-    box-shadow: inset 0 1px 0 var(--palette-sheen), 0 0 16px var(--palette-glow);
-  }
-  [data-slot="button"][data-variant="default"]:hover:not(:disabled) {
-    box-shadow: inset 0 1px 0 var(--palette-sheen), 0 0 24px var(--palette-glow);
-  }
-  [data-slot="dialog-content"], .neon-surface {
-    background-image: linear-gradient(135deg, var(--palette-sheen), transparent 48%);
-    box-shadow: inset 0 1px 0 var(--palette-sheen), 0 8px 28px var(--palette-overlay);
-  }
-  [data-slot="input"], textarea, select {
-    transition: border-color 140ms ease, box-shadow 140ms ease;
-  }
-  :is([data-slot="input"], textarea, select):hover:not(:disabled) {
-    border-color: var(--accent-line);
-  }
-  [role="tab"][aria-selected="true"], button[aria-current="page"] {
-    box-shadow: inset 0 0 0 1px var(--accent-line), 0 0 14px var(--palette-glow);
-  }
-  .neon-choice:has(input:checked) {
-    filter: drop-shadow(0 0 7px var(--palette-glow));
-  }
-  .neon-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    border: 1px solid currentColor;
-    border-radius: 9999px;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-  }
+/* Surfaces. Each is mixed from palette entries, so one rule holds in both
+ * themes; the drop shadow is the overlay colour, dark in dark and a soft violet
+ * in light. */
+.surface-panel {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--palette-card) 90%, transparent),
+    color-mix(in srgb, var(--palette-card) 96%, var(--palette-input)));
+  border: 1px solid color-mix(in srgb, var(--palette-accent-line) 22%, transparent);
+  box-shadow: 0 10px 32px -8px var(--palette-overlay),
+    inset 0 1px 0 0 color-mix(in srgb, var(--palette-text) 6%, transparent);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  [data-slot="button"], [data-slot="input"], textarea, select {
-    transition: none;
-  }
+/* A panel that asks for attention: a stronger border and an accent glow. */
+.surface-glow {
+  background: linear-gradient(165deg,
+    color-mix(in srgb, var(--palette-accent-softer) 82%, transparent),
+    color-mix(in srgb, var(--palette-card) 92%, transparent));
+  border: 1px solid color-mix(in srgb, var(--palette-accent-line) 28%, transparent);
+  box-shadow: 0 8px 28px -6px var(--palette-overlay),
+    0 0 24px -8px color-mix(in srgb, var(--palette-accent-line) 40%, transparent),
+    inset 0 1px 0 0 color-mix(in srgb, var(--palette-text) 8%, transparent);
 }
 
+/* The selected item in a row of choices. */
+.pill-active {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--palette-accent-line) 42%, transparent),
+    color-mix(in srgb, var(--palette-accent) 32%, transparent));
+  border: 1px solid color-mix(in srgb, var(--palette-accent-line) 55%, transparent);
+  box-shadow: 0 0 18px -2px color-mix(in srgb, var(--palette-accent-line) 35%, transparent),
+    inset 0 1px 0 0 color-mix(in srgb, var(--palette-text) 18%, transparent);
+  color: var(--palette-accent-text);
+}
+
+.grid-backdrop {
+  background-image:
+    radial-gradient(circle at 50% 0%,
+      color-mix(in srgb, var(--palette-accent-line) 12%, transparent), transparent 60%),
+    linear-gradient(to right,
+      color-mix(in srgb, var(--palette-accent-line) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom,
+      color-mix(in srgb, var(--palette-accent-line) 4%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px, 28px 28px;
+}
 
 /* The Planner's reply, block by block in its own direction (`bidi.ts` marks
  * each block `dir="auto"`). Unlayered, so these beat Streamdown's physical
