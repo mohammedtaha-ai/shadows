@@ -17,6 +17,7 @@ test.beforeEach(async({page})=>{
     if(command==='plugin:event|listen'){listener=args.handler;return listener;}
     if(command==='plugin:event|unlisten')return;
     if(command==='companion_ready'||command==='companion_state')return state;
+    if(command==='companion_panel')return state;
     if(command==='companion_failed')return {...state,renderAllowed:false,error:'companion_render_failed'};
     if(command==='open_main_from_companion'||command==='drag_companion')return;
     throw Error('Unexpected fixture command '+command);
@@ -53,15 +54,16 @@ test('native hide stops drawing and showing cannot revive an expired preview',as
  await page.evaluate(()=>(window as any).__fx.publish({visible:true,renderAllowed:true}));
  await expect(page.getByRole('status',{name:'AYLUL message',exact:true})).toHaveCount(0);
 });
-test('paused and reduced-motion status remains readable, keyboard opens and drag consumes the click',async({page})=>{
+test('paused and reduced-motion status remains readable, keyboard opens the panel and drag consumes the click',async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.goto('/companion.html');await expect(page.locator('canvas')).toBeVisible();
  await page.evaluate(()=>(window as any).__fx.publish({paused:true,presence:{expression:'working',status:'Working',preview:null}}));
  await expect(page.getByRole('status',{name:'AYLUL status',exact:true})).toHaveText('Working');
- const action=page.getByRole('button',{name:'Open NYLRA or drag AYLUL',exact:true});
+ const action=page.getByRole('button',{name:'Open AYLUL panel or drag AYLUL',exact:true});
  await action.focus();await action.press('Enter');await action.press('Space');
- expect(await page.evaluate(()=>(window as any).__fx.calls.filter((name:string)=>name==='open_main_from_companion').length)).toBe(2);
+ expect(await page.evaluate(()=>(window as any).__fx.calls.filter((name:string)=>name==='companion_panel').length)).toBe(2);
  await page.mouse.move(120,120);await page.mouse.down();await page.mouse.move(145,120);await page.mouse.up();
- expect(await page.evaluate(()=>(window as any).__fx.calls.filter((name:string)=>name==='open_main_from_companion').length)).toBe(2);
+ expect(await page.evaluate(()=>(window as any).__fx.calls.filter((name:string)=>name==='companion_panel').length)).toBe(2);
  expect(await page.evaluate(()=>(window as any).__fx.calls)).toContain('drag_companion');
+ expect(await page.evaluate(()=>(window as any).__fx.calls)).not.toContain('open_main_from_companion');
 });

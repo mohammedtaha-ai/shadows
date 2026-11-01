@@ -89,7 +89,7 @@ obligations:
   - rule: An in-flight send keeps the textarea focusable but read-only so Escape can close the editor without changing or cancelling the submission.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
     test: pending send retains keyboard focus so Escape can close the editor
-  - rule: Ready is an accessible native editor toggle; artwork alone owns drag and main navigation.
+  - rule: Ready is an accessible native editor toggle; artwork alone owns drag and opening the panel.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
     test: Ready click and keyboard toggle input without main or drag
   - rule: Uncertain Retry keeps its text read-only and command identity even when a later retry finds Core unavailable.
@@ -110,9 +110,9 @@ obligations:
   - rule: Native hide stops draws and showing cannot revive an expired preview.
     tested_by: apps/desktop/tests/companion/live-presence.spec.ts
     test: native hide stops drawing and showing cannot revive an expired preview
-  - rule: Pause and reduced motion preserve readable status; keyboard opens main and dragging consumes the click.
+  - rule: Pause and reduced motion preserve readable status; Enter and Space open the panel and dragging consumes the click.
     tested_by: apps/desktop/tests/companion/live-presence.spec.ts
-    test: paused and reduced-motion status remains readable, keyboard opens and drag consumes the click
+    test: paused and reduced-motion status remains readable, keyboard opens the panel and drag consumes the click
   - rule: Recoverable gesture errors preserve the Canvas and renderer failures report to the native retry owner.
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: drawing failure after readiness reports to native recovery owner
