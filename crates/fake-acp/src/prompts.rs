@@ -165,6 +165,9 @@ pub(crate) async fn answer(
             let matches = std::env::var("ANTHROPIC_AUTH_TOKEN").is_ok_and(|v| v == expected);
             chunk(cx, id, "m1", if matches { "true" } else { "false" })?;
         }
+        "report-mcp" => {
+            chunk(cx, id, "m1", &s.setup.mcp_servers.to_string())?;
+        }
         "report" => {
             let bearer_hash = s
                 .setup

@@ -174,3 +174,54 @@ fn a_failed_update_carries_its_text_and_raw_output() {
     assert_eq!(facts.texts, Some(vec!["error text".into()]));
     assert_eq!(facts.output, Some(serde_json::json!({"exit": 1})));
 }
+
+#[test]
+fn mcp_servers_carry_http_headers_and_stdio_env() {
+    let setup = SessionSetup {
+        mcp: vec![
+            McpServerSpec::Http {
+                name: "remote".into(),
+                url: "https://example.test".into(),
+                headers: vec![("Authorization".into(), "secret-header".into())],
+            },
+            McpServerSpec::Stdio {
+                name: "local".into(),
+                command: "server".into(),
+                args: vec!["--run".into()],
+                env: vec![("TOKEN".into(), "secret-env".into())],
+            },
+        ],
+        ..Default::default()
+    };
+    let actual = serde_json::to_value(setup.mcp_servers()).unwrap();
+    assert_eq!(
+        actual,
+        serde_json::json!([
+            {"type":"http", "name":"remote", "url":"https://example.test",
+             "headers":[{"name":"Authorization", "value":"secret-header"}]},
+            {"name":"local", "command":"server", "args":["--run"],
+             "env":[{"name":"TOKEN", "value":"secret-env"}]}
+        ])
+    );
+}
+
+#[test]
+fn mcp_spec_debug_never_prints_values() {
+    let specs = vec![
+        McpServerSpec::Http {
+            name: "remote".into(),
+            url: "url".into(),
+            headers: vec![("auth".into(), "secret-header".into())],
+        },
+        McpServerSpec::Stdio {
+            name: "local".into(),
+            command: "server".into(),
+            args: vec!["secret-arg".into()],
+            env: vec![("key".into(), "secret-env".into())],
+        },
+    ];
+    let debug = format!("{specs:?}");
+    assert!(debug.contains("remote") && debug.contains("local"));
+    assert!(!debug.contains("secret-header") && !debug.contains("secret-env"));
+    assert!(!debug.contains("secret-arg"));
+}

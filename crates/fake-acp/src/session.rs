@@ -49,6 +49,7 @@ pub(crate) struct Session {
 #[derive(Clone, Default)]
 pub(crate) struct Setup {
     pub(crate) mcp: Value,
+    pub(crate) mcp_servers: Value,
     pub(crate) url: Option<String>,
     pub(crate) bearer: Option<String>,
     pub(crate) append: Option<String>,
@@ -58,7 +59,7 @@ pub(crate) struct Setup {
 
 pub(crate) fn setup_of(servers: &[McpServer], meta: Option<&Meta>) -> Setup {
     let http = servers.iter().find_map(|s| match s {
-        McpServer::Http(h) => Some(h),
+        McpServer::Http(h) if h.name == "shadows" => Some(h),
         _ => None,
     });
     let auth = http.and_then(|h| h.headers.iter().find(|x| x.name == "Authorization"));
@@ -73,6 +74,21 @@ pub(crate) fn setup_of(servers: &[McpServer], meta: Option<&Meta>) -> Setup {
         mcp: http
             .map(|h| json!({"name":h.name,"url":h.url}))
             .unwrap_or(Value::Null),
+        mcp_servers: Value::Array(servers.iter().filter_map(|server| match server {
+            McpServer::Http(h) => Some(json!({
+                "name": h.name, "transport": "http", "url": h.url,
+                "headers": h.headers.iter().map(|h| json!({
+                    "name": h.name, "value_hash": shadows_core::testing::Token::hash_token(&h.value)
+                })).collect::<Vec<_>>()
+            })),
+            McpServer::Stdio(s) => Some(json!({
+                "name": s.name, "transport": "stdio", "command": s.command,
+                "env": s.env.iter().map(|e| json!({
+                    "name": e.name, "value_hash": shadows_core::testing::Token::hash_token(&e.value)
+                })).collect::<Vec<_>>()
+            })),
+            _ => None,
+        }).collect()),
         url: http.map(|h| h.url.clone()),
         bearer: auth
             .and_then(|x| x.value.strip_prefix("Bearer "))
@@ -182,5 +198,48 @@ pub(crate) fn make_session(cwd: PathBuf, how: &'static str, setup: Setup) -> Ses
         steer: Arc::new(watch::channel(None).0),
         steerable: Arc::new(AtomicBool::new(false)),
         setup,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agent_client_protocol::schema::v1::{
+        EnvVariable, HttpHeader, McpServerHttp, McpServerStdio,
+    };
+
+    #[test]
+    fn report_mcp_records_hashes_and_finds_shadows() {
+        let servers = vec![
+            McpServer::Http(
+                McpServerHttp::new("other", "https://other")
+                    .headers(vec![HttpHeader::new("Key", "http-secret")]),
+            ),
+            McpServer::Stdio(
+                McpServerStdio::new("local", "server")
+                    .env(vec![EnvVariable::new("TOKEN", "env-secret")]),
+            ),
+            McpServer::Http(
+                McpServerHttp::new("shadows", "https://shadows").headers(vec![HttpHeader::new(
+                    "Authorization",
+                    "Bearer planner-secret",
+                )]),
+            ),
+        ];
+        let setup = setup_of(&servers, None);
+        let report = setup.mcp_servers.to_string();
+        assert_eq!(setup.url.as_deref(), Some("https://shadows"));
+        assert_eq!(setup.bearer.as_deref(), Some("planner-secret"));
+        assert_eq!(
+            setup.mcp_servers[0]["headers"][0]["value_hash"],
+            shadows_core::testing::Token::hash_token("http-secret")
+        );
+        assert_eq!(
+            setup.mcp_servers[1]["env"][0]["value_hash"],
+            shadows_core::testing::Token::hash_token("env-secret")
+        );
+        assert!(!report.contains("http-secret"));
+        assert!(!report.contains("env-secret"));
+        assert!(!report.contains("planner-secret"));
     }
 }

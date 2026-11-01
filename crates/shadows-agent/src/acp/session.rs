@@ -1,8 +1,9 @@
 //! Session opening configuration and option requests.
 use super::{AcpError, Connection};
 use agent_client_protocol::schema::v1::{
-    ForkSessionRequest, HttpHeader, McpServer, McpServerHttp, Meta, NewSessionRequest,
-    ResumeSessionRequest, SessionConfigOptionValue, SetSessionConfigOptionRequest,
+    EnvVariable, ForkSessionRequest, HttpHeader, McpServer, McpServerHttp, McpServerStdio, Meta,
+    NewSessionRequest, ResumeSessionRequest, SessionConfigOptionValue,
+    SetSessionConfigOptionRequest,
 };
 use serde_json::Value;
 use std::path::Path;
@@ -20,8 +21,8 @@ pub enum SessionStart {
 /// `mcp_servers` again, so a new adapter's grant reaches it.
 #[derive(Debug, Clone, Default)]
 pub struct SessionSetup {
-    /// Shadows' own MCP server.
-    pub mcp: Option<McpServerSpec>,
+    /// MCP servers supplied to the session.
+    pub mcp: Vec<McpServerSpec>,
     /// Appended to Claude Code's prompt, which is kept (`_meta.systemPrompt`).
     pub append: Option<String>,
     /// Pre-approved tools (`_meta.claudeCode.options.allowedTools`).
@@ -33,21 +34,36 @@ pub struct SessionSetup {
     pub setting_sources: Option<Vec<String>>,
 }
 
-/// One HTTP MCP server, reached with `Authorization: Bearer <bearer>`.
+/// One MCP server configuration. Values are never included in Debug output.
 #[derive(Clone)]
-pub struct McpServerSpec {
-    pub name: String,
-    pub url: String,
-    pub bearer: String,
+pub enum McpServerSpec {
+    Http {
+        name: String,
+        url: String,
+        headers: Vec<(String, String)>,
+    },
+    Stdio {
+        name: String,
+        command: String,
+        args: Vec<String>,
+        env: Vec<(String, String)>,
+    },
 }
 
-/// The bearer is a live grant's token: never in a log line.
 impl std::fmt::Debug for McpServerSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("McpServerSpec")
-            .field("name", &self.name)
-            .field("url", &self.url)
-            .finish_non_exhaustive()
+        match self {
+            Self::Http { name, url, .. } => f
+                .debug_struct("Http")
+                .field("name", name)
+                .field("url", url)
+                .finish_non_exhaustive(),
+            Self::Stdio { name, command, .. } => f
+                .debug_struct("Stdio")
+                .field("name", name)
+                .field("command", command)
+                .finish_non_exhaustive(),
+        }
     }
 }
 
@@ -55,9 +71,27 @@ impl SessionSetup {
     pub(super) fn mcp_servers(&self) -> Vec<McpServer> {
         self.mcp
             .iter()
-            .map(|m| {
-                let auth = HttpHeader::new("Authorization", format!("Bearer {}", m.bearer));
-                McpServer::Http(McpServerHttp::new(&m.name, &m.url).headers(vec![auth]))
+            .map(|m| match m {
+                McpServerSpec::Http { name, url, headers } => McpServer::Http(
+                    McpServerHttp::new(name, url).headers(
+                        headers
+                            .iter()
+                            .map(|(name, value)| HttpHeader::new(name, value))
+                            .collect(),
+                    ),
+                ),
+                McpServerSpec::Stdio {
+                    name,
+                    command,
+                    args,
+                    env,
+                } => McpServer::Stdio(
+                    McpServerStdio::new(name, command).args(args.clone()).env(
+                        env.iter()
+                            .map(|(name, value)| EnvVariable::new(name, value))
+                            .collect(),
+                    ),
+                ),
             })
             .collect()
     }

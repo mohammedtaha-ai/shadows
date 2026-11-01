@@ -15,7 +15,7 @@ pub struct AylulConfig {
 impl Sessions {
     fn aylul_setup() -> SessionSetup {
         SessionSetup {
-            mcp: None,
+            mcp: vec![],
             append: None,
             allowed_tools: vec![],
             tools: None,

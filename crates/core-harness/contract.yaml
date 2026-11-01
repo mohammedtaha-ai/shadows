@@ -61,6 +61,9 @@
 name: harness
 # Planner instructions reserve generated contracts and SHADOWS.md for Shadows;
 # Create structure remains a person's HTTP action, never a Planner tool.
+# Every new, resumed or forked Planner session sends its Shadows HTTP MCP server
+# in the ACP server list; AYLUL sends an empty list. HTTP headers and stdio
+# environment values are omitted from MCP setup Debug output.
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
 # Permission refusal remains pinned by planner_turn's permission-refusal test.

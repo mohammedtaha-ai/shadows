@@ -74,7 +74,7 @@ accepted on 2026-11-01, so no task waits on it.
 - Done when: `cargo test -p core-secrets --test secret_env mcp_` runs and passes `mcp_names_follow_their_own_rule`, `mcp_scope_refuses_reserved_names`, `mcp_values_round_trip_under_their_scope`, `mcp_value_absent_from_db_and_command_record`; the whole `cargo test -p core-secrets` still passes.
 
 ### B-27 · ACP session setup carries a list of MCP servers (http or stdio)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#23-the-acp-sessions-mcp-list-72-delivery--b-27
 - Read: `crates/shadows-agent/src/acp/session.rs`; `crates/core-harness/contract.yaml` (`opening`, Planner MCP lines); code-map rows for `shadows-agent` and `fake-acp` in `docs/codebase/README.md`.
 - Touch: `crates/shadows-agent/src/acp/session.rs`; `crates/shadows-agent/src/acp_tests.rs`; `crates/core-harness/src/setup.rs`; `crates/core-harness/src/assistant.rs` (`aylul_setup`: empty list); `crates/core-harness/contract.yaml`; `crates/fake-acp/src/session.rs`; `crates/fake-acp/src/prompts.rs` (a `report-mcp` prompt answering names, transports and value hashes).
