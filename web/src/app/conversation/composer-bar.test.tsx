@@ -72,7 +72,7 @@ it.each(['Close', 'Escape'])('Plugins opens this conversations AYLUL agent setti
   const box = textarea(app)
   typeInto(box, 'Keep this message')
   await choose(app, 'Add', 'Plugins')
-  await until(() => document.querySelector('[role="group"][aria-label="Plugins & Skills"]') !== null)
+  await until(() => document.querySelector('[role="group"][aria-label="Capabilities"]') !== null)
   expect(new URLSearchParams(window.location.search).get('settings')).toBe('agents')
   expect(new URLSearchParams(window.location.search).get('agent')).toBe('work')
   expect(document.querySelector<HTMLInputElement>('input[aria-label="Agent name"]')?.value).toBe('Work')
