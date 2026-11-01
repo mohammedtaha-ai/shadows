@@ -249,9 +249,30 @@ impl Agents {
         if input
             .character_color
             .as_deref()
-            .is_some_and(|color| !valid_color(color))
+            .is_some_and(|color| !valid_id(color))
         {
             return Err(AgentsError::Invalid("invalid character color".into()));
+        }
+        if input
+            .outfit
+            .as_deref()
+            .is_some_and(|outfit| !valid_id(outfit))
+        {
+            return Err(AgentsError::Invalid("invalid outfit".into()));
+        }
+        if let Some(description) = input.description.as_mut() {
+            *description = description.trim().into();
+            if description.chars().count() > 200 || description.contains(['\n', '\r']) {
+                return Err(AgentsError::Invalid("invalid description".into()));
+            }
+        }
+        if let Some(text) = input.instructions.as_mut() {
+            if text.len() > 32 * 1024 || text.contains('\0') {
+                return Err(AgentsError::Invalid("invalid instructions".into()));
+            }
+            if text == home::TEMPLATE {
+                text.clear();
+            }
         }
         input.name = input.name.trim().into();
         if input.name.is_empty() || input.name.len() > 256 {
@@ -261,7 +282,8 @@ impl Agents {
     }
 }
 
-fn valid_color(color: &str) -> bool {
+/// The id rule colours and outfits share.
+fn valid_id(color: &str) -> bool {
     let bytes = color.as_bytes();
     (1..=32).contains(&bytes.len())
         && bytes[0].is_ascii_lowercase()

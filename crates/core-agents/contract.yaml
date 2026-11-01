@@ -18,7 +18,7 @@ source: crates/core-agents/src
 modules:
   lib.rs: agent reads, writes, provider use and environment
   model.rs: public agent metadata
-  home.rs: agent home seeding
+  home.rs: agent home seeding, the instructions template and the one-time import of the home file
   error.rs: agent refusals
   store/: agent SQL
   ../assets/aylul-profile/CLAUDE.md: bundled home instructions
@@ -50,8 +50,14 @@ shapes:
   Agent:
     deleted: Permanent identity tombstone
     character_color: Opaque color id; clients own palettes
+    description: One trimmed line of at most 200 characters
+    instructions: Empty when the agent follows the template or its home file is not imported
+    outfit: Opaque id of the same shape as a color id; clients own the wardrobe
   AgentInput:
     character_color: Optional; absent keeps the stored color or defaults to purple
+    description: Optional; absent keeps the stored line or defaults to empty
+    instructions: Optional; absent keeps the stored text or defaults to empty; at most 32 KiB, no NUL
+    outfit: Optional; absent keeps the stored id or defaults to default
   AgentWorkspace:
     project_id: The hidden assistant project
     agents: Live agents
@@ -72,6 +78,9 @@ functions:
   home: public; the agent's isolated home under the configured root, which Harness opens in.
   require_live_in: public; refuse an unknown or deleted agent in the caller's write.
   delete_in: public; classify agent.delete, tombstone a live agent and remove its variables in the caller's write.
+  instructions_template: public; the bundled instructions a new agent's form starts from.
+  home_instructions: public; the one rule for what the home CLAUDE.md says: the stored text, the template for an empty text, None before the import.
+  import_home_instructions: public; once at start, store each live agent's never-imported home CLAUDE.md (absent or equal to the template is empty; text without NUL as read) and return the slugs left unimported.
   seed_home: private; write each default home file the home lacks, never replacing one.
 
 called_by_other_services:
@@ -96,6 +105,15 @@ obligations:
     tested_by: [deleted_agent_slug_is_never_reused, delete_agent_removes_its_variables]
   - rule: Command replay requires the same normalized input.
     tested_by: [replay_with_other_input_conflicts]
+
+  - rule: Description is one trimmed line of at most 200 characters; instructions are at most 32 KiB without NUL; an outfit has a color id's shape; unknown well-formed ids are kept.
+    tested_by: [description_is_one_trimmed_line_of_200, instructions_are_bounded_and_refuse_nul, outfit_shape_is_checked_and_unknown_is_kept]
+  - rule: Instructions equal to the template are stored empty, so the agent keeps following the template.
+    tested_by: [instructions_equal_to_the_template_are_stored_empty]
+  - rule: Absent profile fields on update keep the stored values before fingerprinting; existing agents migrate with an empty profile.
+    tested_by: [update_without_profile_fields_keeps_them, existing_agents_migrate_with_an_empty_profile]
+  - rule: The home file is imported once per agent; an unreadable file stays unimported.
+    tested_by: [home_instructions_import_once_and_never_again, an_unreadable_home_file_stays_unimported]
 
 agreements:
   - between: [Agent, AgentInput]

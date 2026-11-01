@@ -88,6 +88,9 @@ fn provider(name: &str) -> ProviderInput {
 fn agent(name: &str) -> AgentInput {
     AgentInput {
         character_color: None,
+        description: None,
+        instructions: None,
+        outfit: None,
         name: name.into(),
         provider: "provider".into(),
         default_model: "model-a".into(),

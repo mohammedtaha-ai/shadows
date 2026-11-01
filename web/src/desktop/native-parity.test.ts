@@ -4,7 +4,22 @@ const {navigate,listen,nativeCall}=vi.hoisted(()=>({navigate:vi.fn(),listen:vi.f
 vi.mock('@tauri-apps/api/event',()=>({listen}))
 vi.mock('./native',()=>({nativeCall}))
 import {parseBinding,parsePresence} from './presence'
-import {parseNavigation,connectNavigation} from './navigation'
+import {parseNavigation,connectNavigation,panelNavigationRoute} from './navigation'
+it('parses panel destinations and maps them to settings routes',()=>{
+  const cases=[
+    [{kind:'agentSettings',agent:'my-agent'},{to:'/aylul',search:{settings:'agents',agent:'my-agent'}}],
+    [{kind:'newAgent'},{to:'/aylul',search:{settings:'agents',agent:'new'}}],
+    [{kind:'settings'},{to:'/aylul',search:{settings:'general'}}],
+  ] as const
+  for(const [destination,route] of cases){
+    expect(parseNavigation({revision:1,destination}).destination).toEqual(destination)
+    expect(panelNavigationRoute(destination)).toEqual(route)
+  }
+  for(const agent of ['', '../bad', 'Bad', 'a'.repeat(129)]){
+    expect(()=>parseNavigation({revision:1,destination:{kind:'agentSettings',agent}})).toThrow('navigation_invalid')
+  }
+  expect(()=>parseNavigation({revision:1,destination:{kind:'unknown'}})).toThrow('navigation_invalid')
+})
 it('consumes actual Rust-serialized binding and closed navigation projections',()=>{
   for(const value of [fixture.unbound,fixture.binding,fixture.target])expect(parseBinding(value)).toEqual(value)
   for(const value of fixture.destinations)expect(parseNavigation(value)).toEqual(value)

@@ -99,7 +99,18 @@
           "deleted": {
             "type": "boolean"
           },
+          "description": {
+            "type": "string"
+          },
+          "instructions": {
+            "description": "Empty when the agent follows the bundled template or its home file was not imported.",
+            "type": "string"
+          },
           "name": {
+            "type": "string"
+          },
+          "outfit": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}$",
             "type": "string"
           },
           "provider": {
@@ -118,6 +129,9 @@
           "provider",
           "default_model",
           "character_color",
+          "description",
+          "instructions",
+          "outfit",
           "deleted",
           "created_at",
           "updated_at"
@@ -175,8 +189,27 @@
           "default_model": {
             "type": "string"
           },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "name": {
             "type": "string"
+          },
+          "outfit": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}$",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "provider": {
             "type": "string"
@@ -206,6 +239,17 @@
             "type": "object"
           }
         ]
+      },
+      "AgentTemplate": {
+        "properties": {
+          "instructions": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "instructions"
+        ],
+        "type": "object"
       },
       "AgentWorkspace": {
         "properties": {
@@ -5908,6 +5952,26 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/aylul/agent-template": {
+      "get": {
+        "operationId": "agent_template",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplate"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
     "/api/aylul/agents": {
       "get": {
         "operationId": "agents",

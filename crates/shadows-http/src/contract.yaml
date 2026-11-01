@@ -23,7 +23,7 @@ modules:
   plan_design.rs: Plans service design association HTTP translation
   standards.rs: Standards service HTTP translation
   aylul_providers.rs: Providers service HTTP translation
-  aylul_agents.rs: Agents service HTTP translation
+  aylul_agents.rs: Agents service HTTP translation, including the agent template
   aylul_threads.rs: Threads service agent listing
   aylul_person.rs: PersonSettings service HTTP translation
   aylul_usage.rs: Usage service HTTP translation

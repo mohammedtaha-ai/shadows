@@ -133,6 +133,7 @@ fn the_document_names_every_route() {
             "DELETE /api/projects/{id}/code/links/{linked}",
             "DELETE /api/threads/{id}",
             "DELETE /api/threads/{id}/queue/{qid}",
+            "GET /api/aylul/agent-template",
             "GET /api/aylul/agents",
             "GET /api/aylul/agents/{slug}/env",
             "GET /api/aylul/agents/{slug}/extensions",

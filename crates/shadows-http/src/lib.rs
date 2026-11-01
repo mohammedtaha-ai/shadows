@@ -168,6 +168,7 @@ fn routes() -> OpenApiRouter<AppState> {
             aylul_providers::remove_key
         ))
         .routes(routes!(aylul_agents::agents, aylul_agents::create_agent))
+        .routes(routes!(aylul_agents::agent_template))
         .routes(routes!(aylul_agents::update_agent, harness::delete_agent))
         .routes(routes!(aylul_threads::threads))
         .routes(routes!(aylul_env::list))

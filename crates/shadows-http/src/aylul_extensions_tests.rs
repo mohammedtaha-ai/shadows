@@ -22,6 +22,9 @@ async fn extension_routes_round_trip() {
                 provider: "minimax".into(),
                 default_model: "m".into(),
                 character_color: None,
+                description: None,
+                instructions: None,
+                outfit: None,
             },
         )
         .await

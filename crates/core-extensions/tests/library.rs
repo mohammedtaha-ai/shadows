@@ -44,6 +44,9 @@ async fn world() -> World {
                 provider: "provider".into(),
                 default_model: "model".into(),
                 character_color: None,
+                description: None,
+                instructions: None,
+                outfit: None,
             },
         )
         .await

@@ -81,3 +81,16 @@ pub(super) async fn update_agent(
             .await?,
     ))
 }
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub(super) struct AgentTemplate {
+    instructions: String,
+}
+
+#[utoipa::path(get, path="/api/aylul/agent-template", tag="aylul",
+    responses((status=200,body=AgentTemplate)))]
+pub(super) async fn agent_template(State(s): State<AppState>) -> Json<AgentTemplate> {
+    Json(AgentTemplate {
+        instructions: s.core.agents().instructions_template().into(),
+    })
+}

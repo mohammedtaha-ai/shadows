@@ -313,6 +313,9 @@ impl AppCore {
             config.aylul.as_ref().map(|c| c.home_root.clone()),
             projects.clone(),
         );
+        for slug in owners.agents.import_home_instructions().await? {
+            tracing::warn!(slug, "agent.instructions_import_skipped");
+        }
         let instructions = Instructions::new(storage.clone());
         let standards = Standards::new(storage.clone());
         let sessions = Harness::with_owners(

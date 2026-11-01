@@ -109,6 +109,9 @@ async fn world() -> World {
 fn agent(name: &str) -> AgentInput {
     AgentInput {
         character_color: None,
+        description: None,
+        instructions: None,
+        outfit: None,
         name: name.into(),
         provider: "test-2".into(),
         default_model: "fake-large".into(),
