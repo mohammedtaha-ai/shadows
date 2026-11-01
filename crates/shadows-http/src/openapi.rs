@@ -26,7 +26,9 @@ use utoipa::OpenApi;
         shadows_core::ToolCallCard, shadows_core::DiffHunk, shadows_core::DiffLine,
         shadows_core::DiffOp, shadows_core::CallKind, shadows_core::CallStatus,
         shadows_core::TodoListCard, shadows_core::TodoItem, shadows_core::TodoStatus,
-        shadows_core::ToolLive
+        shadows_core::ToolLive,
+        shadows_core::WaitingPermission, shadows_core::PermissionAnswer,
+        shadows_core::PermissionOption
     )),
     tags(
         (name = "aylul", description = "AYLUL agents, providers and write-only credentials"),

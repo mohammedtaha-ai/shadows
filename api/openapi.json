@@ -674,6 +674,21 @@
         ],
         "type": "object"
       },
+      "AnswerPermission": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "option_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "option_id"
+        ],
+        "type": "object"
+      },
       "ApprovalRequest": {
         "properties": {
           "entry_id": {
@@ -3546,6 +3561,53 @@
         ],
         "type": "object"
       },
+      "PermissionAnswer": {
+        "properties": {
+          "answered_at": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "option_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "thread_id",
+          "request_id",
+          "option_id",
+          "kind",
+          "answered_at"
+        ],
+        "type": "object"
+      },
+      "PermissionOption": {
+        "description": "A reported adapter option in the spelling used by entries and waiting lists.",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "option_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "option_id",
+          "name",
+          "kind"
+        ],
+        "type": "object"
+      },
       "Person": {
         "properties": {
           "aylul_calls_me": {
@@ -6126,6 +6188,40 @@
         ],
         "type": "object"
       },
+      "WaitingPermission": {
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "asked_at": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionOption"
+            },
+            "type": "array"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id",
+          "agent",
+          "request_id",
+          "title",
+          "options",
+          "asked_at"
+        ],
+        "type": "object"
+      },
       "WorkflowId": {
         "format": "uuid",
         "type": "string"
@@ -7235,6 +7331,30 @@
             "description": ""
           }
         },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/permissions": {
+      "get": {
+        "operationId": "waiting_permissions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WaitingPermission"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Live AYLUL permission requests, oldest first; empty without AYLUL configuration.",
         "tags": [
           "aylul"
         ]
@@ -10246,7 +10366,7 @@
             "description": "Unknown or removed project"
           }
         },
-        "summary": "A project's plan/design notifications, replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.",
+        "summary": "A project's plan/design notifications, replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.\nPermissionsChanged names a request_id and waiting/answered/refused state on\nthe AYLUL project; clients refetch GET /api/aylul/permissions for current options.",
         "tags": [
           "stream"
         ]
@@ -12594,6 +12714,97 @@
           }
         },
         "summary": "Sets the thread's session to `model` as soon as a person picks it, opening the session first if\nit is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. The change itself writes nothing durable and no `command_id` is\ncarried: setting the same model twice is the same state, and a turn\nrecords its model in its own invocation. An opening it causes writes what\n`POST .../session` writes (the thread's MCP grant and its events). The\nremembered settings do not move; when the session moves to the\nmodel, it is set to that model's remembered effort if still offered.\nA running turn's session is not changed (`THREAD_BUSY`).",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/session/permissions/{request_id}": {
+      "post": {
+        "operationId": "answer_permission",
+        "parameters": [
+          {
+            "description": "The request's thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "description": "The waiting request",
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerPermission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionAnswer"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PERMISSION_NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PERMISSION_SETTLED; COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PERMISSION_OPTION_NOT_OFFERED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Records the person's offered-option answer before settling the adapter request.",
         "tags": [
           "threads"
         ]

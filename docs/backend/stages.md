@@ -142,7 +142,8 @@ accepted on 2026-11-01, so no task waits on it.
 - Done when: `cargo test -p shadows-core --test aylul_session permissions::` passes `an_aylul_request_waits_and_is_listed`, `answering_runs_the_tool_and_records_by_you`, `a_rejected_request_ends_rejected_and_the_turn_goes_on`, `an_option_not_offered_is_refused`, `a_second_answer_is_settled`, `an_equal_replay_answers_the_first_result`, `cancelling_while_asked_ends_refused_and_publishes`, `closing_the_session_while_asked_ends_refused`, `waiting_is_listed_oldest_first_across_agents`, `permissions_changed_reaches_the_aylul_project_stream`; `cargo test -p shadows --test planner_turn` (the Planner still refuses at once); `cargo test -p shadows-http failure` passes; openapi regenerated and `cargo test -p shadows --test openapi`.
 
 ### B-34 · HTTP: list and answer permission requests
-- Status: todo (shared request accepted 2026-11-01)
+- Status: done
+- Additional Touch: `crates/shadows/tests/openapi.rs` (exhaustive route list). The HTTP contract path in Read and Touch is `crates/shadows-http/src/contract.yaml`, replacing the nonexistent crate-root contract.
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#33-permission-requests
 - Read: `crates/shadows-http/contract.yaml`; `crates/core-harness/contract.yaml` (`answer_permission`, `waiting_permissions`); plan §3.3.
 - Touch: `crates/shadows-http/src/harness.rs` (`GET /api/aylul/permissions`, `POST /api/threads/{id}/session/permissions/{request_id}`); `crates/shadows-http/src/lib.rs`; `crates/shadows-http/src/openapi.rs`; `crates/shadows-http/src/sse.rs` (doc text of the project stream only); `crates/shadows-http/contract.yaml`; `crates/shadows/tests/permission_routes.rs` (new); `api/openapi.json`.

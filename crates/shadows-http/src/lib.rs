@@ -211,6 +211,10 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(queue::unqueue))
         .routes(routes!(queue::send_now))
         .routes(routes!(harness::list_harnesses))
+        .routes(routes!(
+            harness::waiting_permissions,
+            harness::answer_permission
+        ))
         .routes(routes!(harness::open_session))
         .routes(routes!(harness::change_model))
         .routes(routes!(harness::change_effort))

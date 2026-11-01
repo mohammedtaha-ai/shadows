@@ -19,6 +19,7 @@ version: 1
 status: current
 source: crates/shadows-http/src
 modules:
+  harness.rs: Harness session HTTP translation
   design.rs: Design service HTTP translation
   plan_design.rs: Plans service design association HTTP translation
   standards.rs: Standards service HTTP translation
@@ -31,6 +32,9 @@ modules:
   transport.rs: shared HTTP request execution
   sse.rs: Events stream framing through private handlers
 agreements:
+  - between: [harness::waiting_permissions, harness::answer_permission]
+    must: Read and answer only through AppCore.harness; Harness owns option validation, replay and provenance.
+    tested_by: [waiting_requests_are_listed_oldest_first, answering_over_http_answers_the_adapter, unknown_settled_and_not_offered_answer_their_codes, a_replayed_answer_answers_the_first_result, no_aylul_lists_nothing]
   - between: [aylul_extensions::remove, aylul_extensions::remove_mcp]
     must: Delete through the same Extensions operation for every kind, including the static MCP path.
     tested_by: [mcp_routes_answer_names_never_values, extension_routes_round_trip]

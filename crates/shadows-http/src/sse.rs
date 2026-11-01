@@ -30,6 +30,8 @@ pub(super) struct ProjectSubscribeQuery {
 /// Archive notifications name the plan's latest version to refetch.
 /// ProjectDesignChanged carries project_id, revision, changed_parts,
 /// changed_outcomes and vision_changed, never the vision content.
+/// PermissionsChanged names a request_id and waiting/answered/refused state on
+/// the AYLUL project; clients refetch GET /api/aylul/permissions for current options.
 #[utoipa::path(
     get, path = "/api/projects/{id}/events", tag = "stream",
     params(("id" = ProjectId, Path, description = "The project"), ProjectSubscribeQuery),
