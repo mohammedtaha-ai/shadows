@@ -42,7 +42,7 @@ pub enum HarnessEvent {
     PermissionAsked {
         request: String,
         title: String,
-        options: Vec<agent_client_protocol::schema::v1::PermissionOption>,
+        options: Vec<PermissionOption>,
         asked_at: u128,
     },
     PermissionAnswered {
@@ -80,6 +80,28 @@ pub enum HarnessEvent {
         subtype: &'static str,
         stop_reason: Option<String>,
     },
+}
+
+/// A reported adapter option in the spelling used by entries and waiting lists.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PermissionOption {
+    pub option_id: String,
+    pub name: String,
+    pub kind: String,
+}
+
+impl From<agent_client_protocol::schema::v1::PermissionOption> for PermissionOption {
+    fn from(option: agent_client_protocol::schema::v1::PermissionOption) -> Self {
+        Self {
+            option_id: option.option_id.to_string(),
+            name: option.name,
+            kind: serde_json::to_value(option.kind)
+                .expect("permission kind serializes")
+                .as_str()
+                .expect("permission kind is a string")
+                .to_owned(),
+        }
+    }
 }
 
 /// One entry of the harness's `/` list: a skill, a plugin

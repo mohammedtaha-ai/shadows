@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 
-use shadows_agent::events::{HarnessEvent, SubagentCard, TodoItem, ToolCallCard, ToolLive};
+use shadows_agent::events::{
+    HarnessEvent, PermissionOption, SubagentCard, TodoItem, ToolCallCard, ToolLive,
+};
 
 use crate::tools::Tools;
 
@@ -19,6 +21,22 @@ pub enum Durable {
     /// A subagent's card; its steps are no entries of their own.
     Subagent(Box<SubagentCard>),
     PermissionRefused(String),
+    PermissionAsked {
+        request: String,
+        title: String,
+        options: Vec<PermissionOption>,
+    },
+    PermissionAnswered {
+        request: String,
+        option: String,
+        kind: String,
+        name: String,
+    },
+    HeldPermissionRefused {
+        request: String,
+        title: String,
+        reason: String,
+    },
 }
 
 fn card(card: SubagentCard) -> Durable {
@@ -32,6 +50,7 @@ pub struct Collector {
     tools: Tools,
     subagents: Subagents,
     todos: Option<Vec<TodoItem>>,
+    permissions: Vec<(String, String)>,
 }
 
 impl Collector {
@@ -113,11 +132,52 @@ impl Collector {
                     &core_db::Storage::now(),
                 );
             }
-            HarnessEvent::PermissionAsked { .. } | HarnessEvent::PermissionAnswered { .. } => {}
-            HarnessEvent::PermissionRefused { title, .. } => {
+            HarnessEvent::PermissionAsked {
+                request,
+                title,
+                options,
+                ..
+            } => {
                 self.flush_message(&mut out);
                 self.flush_tools(&mut out);
-                if !title.is_empty() {
+                self.permissions.push((request.clone(), title.clone()));
+                out.push(Durable::PermissionAsked {
+                    request: request.clone(),
+                    title: title.clone(),
+                    options: options.clone(),
+                });
+            }
+            HarnessEvent::PermissionAnswered {
+                request,
+                option,
+                kind,
+                name,
+            } => {
+                self.flush_message(&mut out);
+                self.flush_tools(&mut out);
+                self.permissions.retain(|(id, _)| id != request);
+                out.push(Durable::PermissionAnswered {
+                    request: request.clone(),
+                    option: option.clone(),
+                    kind: kind.clone(),
+                    name: name.clone(),
+                });
+            }
+            HarnessEvent::PermissionRefused {
+                title,
+                request,
+                reason,
+            } => {
+                self.flush_message(&mut out);
+                self.flush_tools(&mut out);
+                if let Some(request) = request {
+                    self.permissions.retain(|(id, _)| id != request);
+                    out.push(Durable::HeldPermissionRefused {
+                        request: request.clone(),
+                        title: title.clone(),
+                        reason: reason.clone().unwrap_or_else(|| "ended".into()),
+                    });
+                } else if !title.is_empty() {
                     out.push(Durable::PermissionRefused(title.clone()));
                 }
             }
@@ -171,6 +231,13 @@ impl Collector {
                     card: Box::new(card),
                 }),
         );
+        out.extend(self.permissions.drain(..).map(|(request, title)| {
+            Durable::HeldPermissionRefused {
+                request,
+                title,
+                reason: "ended".into(),
+            }
+        }));
         if let Some(todos) = self.todos.take().filter(|items| !items.is_empty()) {
             out.push(Durable::TodoList(todos));
         }

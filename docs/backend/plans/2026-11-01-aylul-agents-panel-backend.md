@@ -123,6 +123,12 @@ architecture ratchet already allows both for `core-extensions`.
     and the web watch the hidden AYLUL project (`AgentWorkspace.project_id`) and
     refetch the waiting list on each frame. The Harness changes its live list
     before it emits the event, so the refetch already sees the change.
+- The report's `PermissionOption` is normalized once in `shadows-agent`, so entry
+  cards and the waiting list use `option_id` rather than ACP's `optionId`.
+  Turns reads the project through `Threads::get_in` inside the entry transaction;
+  the project notification and entry therefore commit together without another
+  retained project field in `TurnWatch`. AYLUL entry authors use the opened
+  session's agent identity; Planner entries retain their Planner author.
 - `Harness` (B-33):
   - Chooses the policy at opening: `Ask` for an `aylul` thread, `Refuse`
     otherwise. Harness controls §12.2 is amended in place to say so.

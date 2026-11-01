@@ -425,6 +425,9 @@ async fn a_held_request_waits_for_its_answer() {
     let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
     let (_, request, turn) = ask(&c, &mut ev).await;
     assert_eq!(c.held_permissions().len(), 1);
+    let options = serde_json::to_value(&c.held_permissions()[0].options).unwrap();
+    assert_eq!(options[0]["option_id"], "allow_once");
+    assert!(options[0].get("optionId").is_none());
     c.answer_permission(&request, "allow_once").unwrap();
     assert!(c.held_permissions().is_empty());
     assert!(matches!(

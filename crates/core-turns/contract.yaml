@@ -1,4 +1,6 @@
-# PermissionAsked and PermissionAnswered are ignored; PermissionRefused keeps its existing entry.
+# Turns records permission lifecycle entries; a Planner refusal keeps its null card.
+# Each held-permission entry and its PermissionsChanged journal event share one write;
+# Threads supplies the project's identity inside that transaction.
 # Design values and transaction APIs are imported from core-design.
 # Harness invocation and session APIs are imported from core-harness.
 # Operations lifecycle and transactions are imported from core-operations.
@@ -581,6 +583,8 @@ called_by_other_services:
 
 
 obligations:
+  - rule: Permission asks and answers become ordered entries; unfinished asks end refused and Planner refusal stays unchanged.
+    tested_by: [permission_asked_and_answered_become_entries, an_open_ask_is_refused_at_finish, the_planner_refusal_entry_is_unchanged]
   - rule: >
       A turn writes its last nonempty task list after its other entries, with
       Markdown body and TodoListCard. No update or an empty final list writes none.

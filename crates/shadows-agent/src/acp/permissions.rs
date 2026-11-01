@@ -4,11 +4,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::Connection;
-use crate::events::HarnessEvent;
+use crate::events::{HarnessEvent, PermissionOption};
 use agent_client_protocol::Responder;
 use agent_client_protocol::schema::v1::{
-    PermissionOption, RequestPermissionOutcome, RequestPermissionRequest,
-    RequestPermissionResponse, SelectedPermissionOutcome,
+    RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse,
+    SelectedPermissionOutcome,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,7 +66,11 @@ impl Permissions {
             request: uuid::Uuid::new_v4().to_string(),
             session: request.session_id.to_string(),
             title: request.tool_call.fields.title.unwrap_or_default(),
-            options: request.options,
+            options: request
+                .options
+                .into_iter()
+                .map(PermissionOption::from)
+                .collect(),
             asked_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -97,14 +101,11 @@ impl Permissions {
             .waiting
             .options
             .iter()
-            .find(|o| o.option_id.to_string() == option)
+            .find(|o| o.option_id == option)
             .ok_or(PermissionError::OptionNotOffered)?;
         let id = choice.option_id.clone();
         let name = choice.name.clone();
-        let kind = serde_json::to_value(choice.kind)
-            .ok()
-            .and_then(|v| v.as_str().map(str::to_owned))
-            .unwrap_or_default();
+        let kind = choice.kind.clone();
         let held = state.waiting.remove(request).unwrap();
         state.settled.insert(request.to_owned());
         (self.events)(HarnessEvent::PermissionAnswered {

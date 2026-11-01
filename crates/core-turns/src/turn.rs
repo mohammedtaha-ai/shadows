@@ -24,7 +24,7 @@
 //! `LiveHandles`, plus the two facts `LiveTurn` carries — is only reviewable if
 //! both sides are read together.
 //!
-use core_db::{Actor, StorageError};
+use core_db::{Actor, JournalEntry, StorageError};
 
 use super::{
     entries::{Collector, Durable},
@@ -77,10 +77,15 @@ pub(crate) struct TurnWatch {
     pub span: tracing::Span,
 }
 
-fn planner() -> Actor {
+fn turn_agent(w: &TurnWatch) -> Actor {
     Actor {
         kind: "Agent".into(),
-        id: "Planner".into(),
+        id: w
+            .opened
+            .aylul_usage
+            .as_ref()
+            .map(|usage| usage.agent_slug.clone())
+            .unwrap_or_else(|| "Planner".into()),
     }
 }
 
@@ -88,7 +93,9 @@ impl PlannerTurn {
     pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
         for entry in entries {
             let (kind, author, body, card) = match entry {
-                Durable::Message(body) => (ThreadEntryKind::AgentMessage, planner(), body, None),
+                Durable::Message(body) => {
+                    (ThreadEntryKind::AgentMessage, turn_agent(w), body, None)
+                }
                 Durable::TodoList(entries) => {
                     let body = entries
                         .iter()
@@ -103,19 +110,19 @@ impl PlannerTurn {
                         .collect::<Vec<_>>()
                         .join("\n");
                     let card = serde_json::to_value(TodoListCard { entries }).ok();
-                    (ThreadEntryKind::TodoList, planner(), body, card)
+                    (ThreadEntryKind::TodoList, turn_agent(w), body, card)
                 }
 
                 Durable::Tool { title, card } => (
                     ThreadEntryKind::ToolCall,
-                    planner(),
+                    turn_agent(w),
                     title,
                     serde_json::to_value(&*card).ok(),
                 ),
                 // Cards are stored as one structured entry, keeping their steps together.
                 Durable::Subagent(card) => (
                     ThreadEntryKind::Subagent,
-                    planner(),
+                    turn_agent(w),
                     card.title.clone(),
                     serde_json::to_value(&*card).ok(),
                 ),
@@ -125,7 +132,50 @@ impl PlannerTurn {
                     body,
                     None,
                 ),
+                Durable::PermissionAsked {
+                    request,
+                    title,
+                    options,
+                } => (
+                    ThreadEntryKind::PermissionAsked,
+                    turn_agent(w),
+                    title,
+                    Some(serde_json::json!({"request_id":request,"options":options})),
+                ),
+                Durable::PermissionAnswered {
+                    request,
+                    option,
+                    kind,
+                    name,
+                } => (
+                    ThreadEntryKind::PermissionAnswered,
+                    Actor::user("local"),
+                    name,
+                    Some(serde_json::json!({"request_id":request,"option_id":option,
+                        "kind":kind,"by":{"agent":"human","principal":"user:local"}})),
+                ),
+                Durable::HeldPermissionRefused {
+                    request,
+                    title,
+                    reason,
+                } => (
+                    ThreadEntryKind::PermissionRefused,
+                    Actor::system(),
+                    title,
+                    Some(serde_json::json!({"request_id":request,"reason":reason})),
+                ),
             };
+            let permission_change = match kind {
+                ThreadEntryKind::PermissionAsked => Some("waiting"),
+                ThreadEntryKind::PermissionAnswered => Some("answered"),
+                ThreadEntryKind::PermissionRefused if card.is_some() => Some("refused"),
+                _ => None,
+            }
+            .map(|state| {
+                serde_json::json!({
+                    "request_id":card.as_ref().unwrap()["request_id"], "state":state
+                })
+            });
             let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
             let ts = core_db::Storage::now();
             if let Err(error) = w
@@ -137,7 +187,7 @@ impl PlannerTurn {
                             &thread,
                             NewThreadEntry {
                                 kind,
-                                author,
+                                author: author.clone(),
                                 body: &body,
                                 refs: &[],
                                 card: card.as_ref(),
@@ -145,7 +195,29 @@ impl PlannerTurn {
                             },
                             &ts,
                         )
-                        .await
+                        .await?;
+                        if let Some(payload) = permission_change {
+                            let project = core_threads::Threads::get_in(conn, &thread)
+                                .await?
+                                .project_id;
+                            JournalEntry::append_event(
+                                conn,
+                                JournalEntry {
+                                    event_id: uuid::Uuid::new_v4().to_string(),
+                                    kind: "PermissionsChanged".into(),
+                                    project_id: Some(project.as_str().into()),
+                                    thread_id: Some(thread.as_str().into()),
+                                    operation_id: Some(operation.as_str().into()),
+                                    actor: author,
+                                    causation: None,
+                                    correlation_id: None,
+                                    payload_json: payload.to_string(),
+                                },
+                                &ts,
+                            )
+                            .await?;
+                        }
+                        Ok(())
                     })
                 })
                 .await

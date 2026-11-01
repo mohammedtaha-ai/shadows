@@ -129,6 +129,10 @@ pub enum ThreadEntryKind {
     Subagent,
     /// A permission the harness asked for and Shadows refused.
     PermissionRefused,
+    /// A permission waiting for a person's offered-option answer.
+    PermissionAsked,
+    /// The person's answer to a permission request.
+    PermissionAnswered,
     /// A plan shown in the conversation at the person's request.
     PlanView,
     /// A plan version approved.
@@ -150,6 +154,8 @@ impl ThreadEntryKind {
             Self::TodoList => "TodoList",
             Self::Subagent => "Subagent",
             Self::PermissionRefused => "PermissionRefused",
+            Self::PermissionAsked => "PermissionAsked",
+            Self::PermissionAnswered => "PermissionAnswered",
             Self::PlanView => "PlanView",
             Self::PlanApproved => "PlanApproved",
             Self::VisionProposal => "VisionProposal",
@@ -167,6 +173,8 @@ impl ThreadEntryKind {
             Self::TodoList,
             Self::Subagent,
             Self::PermissionRefused,
+            Self::PermissionAsked,
+            Self::PermissionAnswered,
             Self::PlanView,
             Self::PlanApproved,
             Self::VisionProposal,

@@ -5584,6 +5584,8 @@
           "TodoList",
           "Subagent",
           "PermissionRefused",
+          "PermissionAsked",
+          "PermissionAnswered",
           "PlanView",
           "PlanApproved",
           "VisionProposal",

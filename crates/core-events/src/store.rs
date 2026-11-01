@@ -55,7 +55,7 @@ impl EventsStore {
                                'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
                                'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved',
                                'VisionProposed','MapProposed','ProjectStructureWritten',
-                               'RoadmapProposed','RoadmapApproved')
+                               'RoadmapProposed','RoadmapApproved','PermissionsChanged')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())
@@ -112,6 +112,19 @@ impl EventsStore {
 }
 
 impl Events {
+    /// Project replay through the same owner used by live subscriptions.
+    #[cfg(feature = "test-support")]
+    pub async fn read_project_events_after_for_test(
+        storage: Arc<Storage>,
+        cursor: EventCursor,
+        project: &ProjectId,
+        limit: i64,
+    ) -> Result<Vec<StoredEvent>, StorageError> {
+        EventsStore::with_storage(storage)
+            .read_project_events_after(cursor, project, limit)
+            .await
+    }
+
     /// The journal cursor for fixture assertions, without exposing a domain Storage method.
     #[cfg(feature = "test-support")]
     pub async fn current_cursor_for_test(storage: &Storage) -> Result<EventCursor, StorageError> {

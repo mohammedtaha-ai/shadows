@@ -123,7 +123,8 @@ accepted on 2026-11-01, so no task waits on it.
 - Done when: `cargo test -p shadows-core --test aylul_session` passes incl. `opening_writes_the_stored_instructions`, `opening_writes_the_template_for_empty_instructions`, `opening_leaves_an_unimported_home_file`, `opening_sends_only_enabled_mcp_items`, `an_aylul_opening_never_receives_shadows_mcp`, `mcp_values_reach_the_session_as_hashes_only`; `cargo test -p shadows --test planner_mcp` and `cargo test -p shadows --test acp_log_safety` pass.
 
 ### B-32 · Turns: permission entries and the `PermissionsChanged` event
-- Status: todo (shared request accepted 2026-11-01)
+- Status: done
+- Additional Touch: `crates/shadows-agent/src/events.rs`, `crates/shadows-agent/src/acp/permissions.rs` (one normalized permission-option report shared by entries and later waiting-list reads); `crates/shadows-core/tests/acp_connection.rs` (wire compatibility); `crates/shadows/tests/thread_contract.rs` (entry-kind round trips).
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#24-holding-a-permission-request-78--b-28-b-32-b-33
 - Read: `crates/core-turns/contract.yaml` (entries, `persist`); `crates/core-threads/contract.yaml` (`ThreadEntryKind`); `crates/core-events/contract.yaml` (`subscribe_project`); plan §3.3 entry table.
 - Touch: `crates/core-threads/src/model.rs` (`PermissionAsked`, `PermissionAnswered`); `crates/core-threads/contract.yaml`; `crates/core-turns/src/entries.rs`; `crates/core-turns/src/turn.rs` (`persist`, the project id on `TurnWatch`); `crates/core-turns/src/spawn.rs` (only to fill that project id); `crates/core-turns/contract.yaml`; `crates/core-turns/tests/entries.rs`; `crates/core-events/src/store.rs` (allowlist `PermissionsChanged`); `crates/core-events/contract.yaml`; `crates/core-events/tests/cursor.rs` (or a new `crates/core-events/tests/project_permissions.rs`); `api/openapi.json`.
