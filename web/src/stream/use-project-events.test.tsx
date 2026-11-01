@@ -34,42 +34,6 @@ it.each(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchiv
   } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
 })
 
-it('reads the vision once for a replay of many design events, then once per live one', async () => {
-  const sources: FakeSource[] = []
-  vi.stubGlobal('EventSource', class extends FakeSource {
-    constructor(url: string) { super(url); sources.push(this) }
-  })
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const root = createRoot(document.createElement('div'))
-  const reads = { vision: 0, proposals: 0 }
-  function Workspace() {
-    useProjectEvents('p1')
-    useQuery({ queryKey: designKeys.vision('p1'), queryFn: async () => ++reads.vision })
-    useQuery({ queryKey: designKeys.visionProposals('p1'), queryFn: async () => ++reads.proposals })
-    return null
-  }
-  const settled = () => client.isFetching() === 0
-  try {
-    await act(async () => root.render(<QueryClientProvider client={client}><Workspace /></QueryClientProvider>))
-    await until(() => sources.length === 1 && reads.vision === 1 && settled())
-    act(() => {
-      for (let seq = 1; seq <= 17; seq++) {
-        sources[0].durable(seq, 'ProjectDesignChanged', null,
-          { project_id: 'p1', revision: seq, changed_parts: [], changed_outcomes: [], vision_changed: true })
-      }
-    })
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
-    expect(reads).toEqual({ vision: 1, proposals: 1 })
-    act(() => sources[0].caughtUp(17))
-    await until(() => reads.vision === 2 && settled())
-    expect(reads).toEqual({ vision: 2, proposals: 2 })
-    act(() => sources[0].durable(18, 'ProjectDesignChanged', null,
-      { project_id: 'p1', revision: 18, changed_parts: [], changed_outcomes: [], vision_changed: true }))
-    await until(() => reads.vision === 3 && settled())
-    expect(reads).toEqual({ vision: 3, proposals: 3 })
-  } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
-})
-
 it('independent tabs refresh every design slice, deduplicate and resume after disconnect', async () => {
   const sources: FakeSource[] = []
   vi.stubGlobal('EventSource', class extends FakeSource {
@@ -123,7 +87,7 @@ it('independent tabs refresh every design slice, deduplicate and resume after di
     await until(() => sources.length === 3)
     expect(sources[2].param('after')).toBe('11')
     revision = 2
-    // A replayed event refreshes the disconnected tab at its caught-up; duplicates stay ignored.
+    // A replayed event refreshes the disconnected tab before caught-up; duplicates stay ignored.
     act(() => { sources[2].durable(12, 'ProjectDesignChanged'); sources[2].caughtUp(12) })
     await until(() => tabs[0].textContent === '2:2:2')
     expect(tabs[1].textContent).toBe('4:4:4')

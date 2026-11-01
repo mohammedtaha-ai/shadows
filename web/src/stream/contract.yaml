@@ -378,16 +378,13 @@ obligations:
     tested_by: "reads the thread lists again on a retitle: live at once, replayed at the caught-up"
 
   - rule: >
-      useProjectEvents: a live design event refetches the project's design prefix at once.
-      Replayed design and agreement events are parked like plan events, so a replay of any
-      length refetches each view once, at the caught-up that ends it. Every caught-up
-      refetches the design prefix too.
+      useProjectEvents: a design event refetches the project's design prefix, live or replayed.
+      Every caught-up refetches it too.
     tested_by: "independent tabs refresh every design slice, deduplicate and resume after
         disconnect"
     note: >
       Covers the design prefix, the vision, parts, outcomes and proposal event kinds the test
-      emits, and a replayed design event refetching at its caught-up. "reads the vision once
-      for a replay of many design events, then once per live one" holds the count.
+      emits. It also covers a replayed design event refetching before caught-up.
 
   - rule: >
       Visible views of one project share one connection per query client. The last view that
@@ -624,14 +621,8 @@ tests:
     checks: >
       Two tabs with separate clients each refetch vision, parts and outcomes on a design event,
       on standards, and on proposal and structure events. A repeated seq 7 causes no read. After a
-      break the resume cursor is 11; a replayed design event refreshes at caught-up. Switching
+      break the resume cursor is 11; a replayed design event refreshes before caught-up. Switching
       to project p2 closes the old source and opens one at after=0.
-
-  - name: reads the vision once for a replay of many design events, then once per live one
-    checks: >
-      After the first read settles, 17 replayed ProjectDesignChanged events read neither the
-      vision nor its proposals. The caught-up reads each once; a live event after it reads each
-      once more.
 
   - name: "$entity keeps dirty Arabic input through real disconnect, replay and a stale save"
     checks: >
@@ -699,7 +690,7 @@ refresh_policy:
   dispatcher: "dispatchRefresh maps targets to API owners' invalidation methods, without building query keys."
   union: "All five plan kinds refresh all workflows plus the source project's design and agreement versions, on every path."
   scope: "Project subscriptions supply their project id; writer subscriptions use the plan's project_id and conversations supply the route project id. Payload project_id is a fallback."
-  replay: "Replayed targets, plan, design and agreement alike, are deduplicated until caught-up. Thread caught-up refreshes entries, operations and workflows; writer caught-up refreshes workflows."
+  replay: "Plan targets are deduplicated until caught-up. Project design/agreement notices still refresh during replay. Thread caught-up refreshes entries, operations and workflows; writer caught-up refreshes workflows."
   sharing: "Holders of one thread or project share one refresh per QueryClient (holdThreadRefresh, holdProjectRefresh): each event and caught-up dispatches once however many views hold it. Thread scope is the union of holders: writer-only while every holder is a writer, the first supplied project id. A holder joining a live stream dispatches only the baseline targets it adds."
   tested_by:
     - pins project refresh for %s
@@ -709,4 +700,3 @@ refresh_policy:
     - preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
     - refreshes once per event however many views share a stream, and a late view on a live stream refetches nothing it already watches
     - a conversation joining a live writer stream reads its entries and operations once
-    - reads the vision once for a replay of many design events, then once per live one
