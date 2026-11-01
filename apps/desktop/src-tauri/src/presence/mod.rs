@@ -39,6 +39,7 @@ struct Model {
     view: BindingView,
     error: Option<&'static str>,
     ticket: u64,
+    panel_ticket: u64,
     send: send::State,
 }
 pub struct Presence {
@@ -48,6 +49,14 @@ pub struct Presence {
     notifier: Mutex<Option<Notify>>,
     workflows: OnceLock<workflows::Dependencies>,
     watcher: OnceLock<Arc<watcher::PresenceWatcher>>,
+}
+pub struct PanelAgent {
+    pub slug: String,
+    pub name: String,
+    pub description: String,
+    pub color: String,
+    pub outfit: String,
+    pub bound: bool,
 }
 impl Presence {
     pub fn new(root: PathBuf, connection: Arc<Connection>) -> Arc<Self> {
@@ -74,6 +83,7 @@ impl Presence {
                 view,
                 error,
                 ticket: 0,
+                panel_ticket: 0,
             }),
             notifier: Mutex::new(None),
             workflows: OnceLock::new(),

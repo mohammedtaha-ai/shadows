@@ -4,6 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/app.rs
 responsibility: Assemble the nine native lifetime owners behind one managed DesktopApp.
 public_api:
+  panel_surface: Composition injects one Handle-captured native panel action into Presence.WindowActions; the companion retains selection and publication checks.
   native_test_manifest: build.rs embeds Common Controls v6 for Windows executable targets, including unit test harnesses so linked native dialog entry points load before the test runner starts.
   DesktopApp::start: Build existing owners and wire their notifiers inside Tauri setup; hand the observer publication callback to Presence for startup; inject navigation and native window actions; inject configured-origin reads and main webview options into MainWindow; forward editor-context reads and UI-dispatched publications to that owner; return one Arc for managed registration before window setup.
   DesktopApp::preferences/auth/companion/main_window/presence/navigation/connection/paths/sidecar: Typed access to private owned values; preferences exposes DesktopPreferences with its private store and injected OS adapter. The nine fields are core_connection, companion, companion_window, main_window, navigation, desktop_preferences, account, activity and app_paths. The companion accessor returns the public opaque window Handle while its Store remains private to composition and window code; other accessors return their owner types. The observer is held only by Presence.

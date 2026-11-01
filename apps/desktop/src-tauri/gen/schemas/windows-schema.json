@@ -219,6 +219,12 @@
           "markdownDescription": "Enables the companion_input command without any pre-configured scope."
         },
         {
+          "description": "Enables the companion_panel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-companion-panel",
+          "markdownDescription": "Enables the companion_panel command without any pre-configured scope."
+        },
+        {
           "description": "Enables the companion_ready command without any pre-configured scope.",
           "type": "string",
           "const": "allow-companion-ready",
@@ -385,6 +391,12 @@
           "type": "string",
           "const": "deny-companion-input",
           "markdownDescription": "Denies the companion_input command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the companion_panel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-companion-panel",
+          "markdownDescription": "Denies the companion_panel command without any pre-configured scope."
         },
         {
           "description": "Denies the companion_ready command without any pre-configured scope.",

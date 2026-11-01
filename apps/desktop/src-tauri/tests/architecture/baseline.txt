@@ -11,6 +11,10 @@ construction :: core_connection/connection_tests.rs :: core_connection::Connecti
 construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #4
 construction :: core_connection/connection_tests.rs :: core_connection::Connection::new #5
 construction :: core_connection/mod.rs :: core_connection::Connection::new #1
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #1
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #2
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #3
+construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #4
 construction :: navigation.rs :: navigation::Navigation::default #1
 construction :: presence/appearance_tests.rs :: presence::watcher::PresenceWatcher::with_timing #1
 construction :: presence/appearance_tests.rs :: presence::watcher::PresenceWatcher::with_timing #2
@@ -31,10 +35,6 @@ construction :: sidecar/mod.rs :: sidecar::Sidecar::start #2
 construction :: sidecar/mod.rs :: sidecar::SidecarState #1
 construction :: sidecar/mod.rs :: sidecar::SidecarState #2
 construction :: sidecar/mod.rs :: sidecar::SidecarState #3
-construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #1
-construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #2
-construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #3
-construction :: desktop_preferences/tests.rs :: desktop_preferences::DesktopPreferences::new #4
 coverage :: main.rs :: missing composition map
 managed_state :: commands/companion.rs :: tauri::State #1
 managed_state :: commands/companion.rs :: tauri::State #2
@@ -44,6 +44,7 @@ managed_state :: commands/companion.rs :: tauri::State #5
 managed_state :: commands/companion.rs :: tauri::State #6
 managed_state :: commands/companion.rs :: tauri::State #7
 managed_state :: commands/companion.rs :: tauri::State #8
+managed_state :: commands/companion.rs :: tauri::State #9
 managed_state :: commands/desktop.rs :: tauri::State #1
 managed_state :: commands/desktop.rs :: tauri::State #10
 managed_state :: commands/desktop.rs :: tauri::State #11
@@ -84,6 +85,7 @@ owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState
 owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #5
 owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #6
 owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #7
+owner_edge :: commands/companion.rs :: windows::companion::state::CompanionState #8
 owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #1
 owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #2
 owner_edge :: commands/desktop.rs :: core_connection::ConnectionView #3
@@ -110,12 +112,14 @@ private_access :: commands/companion.rs :: windows::companion::state::CompanionS
 private_access :: commands/companion.rs :: windows::companion::state::CompanionState #5
 private_access :: commands/companion.rs :: windows::companion::state::CompanionState #6
 private_access :: commands/companion.rs :: windows::companion::state::CompanionState #7
+private_access :: commands/companion.rs :: windows::companion::state::CompanionState #8
 private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #1
 private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #2
 private_access :: commands/desktop.rs :: core_connection::config::LaunchConfig #3
 private_access :: commands/mod.rs :: auth::service::View #1
 private_access :: lib.rs :: commands::companion::companion_failed #1
 private_access :: lib.rs :: commands::companion::companion_input #1
+private_access :: lib.rs :: commands::companion::companion_panel #1
 private_access :: lib.rs :: commands::companion::companion_ready #1
 private_access :: lib.rs :: commands::companion::companion_send #1
 private_access :: lib.rs :: commands::companion::companion_state #1

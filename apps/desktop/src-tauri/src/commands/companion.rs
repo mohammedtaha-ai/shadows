@@ -2,8 +2,9 @@ use crate::windows::companion::{self, state::CompanionState};
 use tauri::Manager;
 pub fn allowed_caller(label: &str, command: &str) -> bool {
     match command {
-        "companion_state" => matches!(label, "main" | "companion"),
+        "companion_state" | "select_companion_agent" => matches!(label, "main" | "companion"),
         "companion_send"
+        | "companion_panel"
         | "companion_input"
         | "companion_ready"
         | "companion_failed"
@@ -15,7 +16,6 @@ pub fn allowed_caller(label: &str, command: &str) -> bool {
         | "aylul_call"
         | "cancel_login"
         | "companion_binding"
-        | "select_companion_agent"
         | "target_companion_thread"
         | "set_companion_previews"
         | "navigation_snapshot"
@@ -27,7 +27,7 @@ pub fn allowed_caller(label: &str, command: &str) -> bool {
         _ => false,
     }
 }
-fn guard(window: &tauri::WebviewWindow, name: &str) -> Result<(), String> {
+pub(super) fn guard(window: &tauri::WebviewWindow, name: &str) -> Result<(), String> {
     if !allowed_caller(window.label(), name) {
         return Err("surface_refused".into());
     }
@@ -41,6 +41,15 @@ fn guard(window: &tauri::WebviewWindow, name: &str) -> Result<(), String> {
         }
     }
     Ok(())
+}
+#[tauri::command]
+pub async fn companion_panel(
+    window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+    open: bool,
+) -> Result<CompanionState, String> {
+    guard(&window, "companion_panel")?;
+    desktop.presence().companion_panel(open).await
 }
 #[tauri::command]
 pub async fn companion_state(
@@ -151,6 +160,7 @@ mod tests {
         for label in ["main", "companion", "unknown"] {
             for name in [
                 "companion_send",
+                "companion_panel",
                 "companion_input",
                 "companion_ready",
                 "companion_failed",
@@ -174,8 +184,11 @@ mod tests {
                 "set_desktop_preferences",
             ] {
                 let expected = match name {
-                    "companion_state" => label == "main" || label == "companion",
+                    "companion_state" | "select_companion_agent" => {
+                        label == "main" || label == "companion"
+                    }
                     "companion_send"
+                    | "companion_panel"
                     | "companion_input"
                     | "companion_ready"
                     | "companion_failed"

@@ -1,6 +1,6 @@
 #[cfg(test)]
 use super::SurfacePreview;
-use super::{SurfaceAppearance, SurfacePresence};
+use super::{SurfaceAgent, SurfaceAppearance, SurfacePanel, SurfacePresence};
 
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,6 +23,8 @@ pub struct CompanionState {
     pub presence: SurfacePresence,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub appearance: Option<SurfaceAppearance>,
+    #[serde(skip_serializing_if = "SurfacePanel::is_empty")]
+    pub panel: SurfacePanel,
 }
 pub struct Model {
     pub view: CompanionState,
@@ -37,6 +39,7 @@ impl Default for Model {
             view: CompanionState {
                 revision: 0,
                 appearance: None,
+                panel: SurfacePanel::default(),
                 composer: ComposerView::default(),
                 visible: false,
                 render_allowed: false,
@@ -65,6 +68,7 @@ impl Model {
         });
     }
     pub fn begin_document(&mut self) -> u64 {
+        self.blur();
         self.generation += 1;
         self.initialized = false;
         self.change(|v| {
@@ -75,11 +79,29 @@ impl Model {
     }
     pub fn input(&mut self, open: bool) {
         self.change(|v| {
+            if open {
+                v.panel.open = false;
+            }
             if v.composer.open != open {
                 v.composer.open = open;
                 v.composer.revision += 1;
             }
         });
+    }
+    pub fn panel(&mut self, open: bool, agents: Vec<SurfaceAgent>) {
+        self.change(|view| {
+            view.panel.open = open;
+            if open {
+                view.panel.agents = agents;
+                if view.composer.open {
+                    view.composer.open = false;
+                    view.composer.revision += 1;
+                }
+            }
+        });
+    }
+    pub fn blur(&mut self) {
+        self.change(|view| view.panel.open = false);
     }
     pub fn composer_context(
         &mut self,
@@ -88,6 +110,9 @@ impl Model {
         agent: Option<String>,
     ) {
         self.change(|v| {
+            for entry in &mut v.panel.agents {
+                entry.bound = agent.as_deref() == Some(entry.slug.as_str());
+            }
             if (
                 v.composer.scope.as_ref(),
                 v.composer.context.as_ref(),
@@ -105,6 +130,7 @@ impl Model {
         self.requested = visible;
         if !visible {
             self.input(false);
+            self.blur();
         }
     }
     pub fn initialize(&mut self, generation: u64) -> bool {
@@ -144,6 +170,51 @@ impl Model {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn panel_closes_on_blur_hide_and_editor_open_without_granting_rendering() {
+        let mut model = Model::default();
+        model.panel(true, vec![]);
+        assert!(model.view.panel.open);
+        assert!(!model.view.render_allowed);
+        model.blur();
+        assert!(!model.view.panel.open);
+        model.panel(true, vec![]);
+        model.input(true);
+        assert!(!model.view.panel.open);
+        model.panel(true, vec![]);
+        model.request_visible(false);
+        assert!(!model.view.panel.open);
+    }
+    #[test]
+    fn panel_wire_is_pinned_and_binding_changes_mark_the_selected_agent() {
+        let mut model = Model::default();
+        model.panel(
+            true,
+            vec![SurfaceAgent {
+                slug: "agent-a".into(),
+                name: "AYLUL".into(),
+                description: "Builds".into(),
+                color: "blue".into(),
+                outfit: "headphones".into(),
+                bound: false,
+            }],
+        );
+        assert_eq!(
+            serde_json::to_value(&model.view).unwrap()["panel"],
+            serde_json::json!({
+                "open":true,"agents":[{"slug":"agent-a","name":"AYLUL","description":"Builds",
+                    "color":"blue","outfit":"headphones","bound":false}]
+            })
+        );
+        model.composer_context(
+            Some("scope".into()),
+            Some("context".into()),
+            Some("agent-a".into()),
+        );
+        assert!(model.view.panel.agents[0].bound);
+        model.composer_context(None, None, None);
+        assert!(!model.view.panel.agents[0].bound);
+    }
     #[test]
     fn hide_closes_input_and_unhide_keeps_it_closed() {
         let mut model = Model::default();

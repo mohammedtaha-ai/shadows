@@ -58,11 +58,11 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/app.rs` | Assemble the nine native owners with explicit window handles and live close/tray callbacks | `src-tauri/src/contract.yaml` |
 | `apps/desktop/src-tauri/build.rs` | Generate native command permissions | Composition contract; Windows tests declare Common Controls v6 |
 | `apps/desktop/src-tauri/src/windows/` | MainWindow construction/opening with injected tray/close callbacks and physical placement | Colocated `contract.yaml` |
-| `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit editor focus with physical bounds through the supplied window Handle | Companion window contract |
+| `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit companion surface focus with physical bounds through the supplied window Handle | Companion window contract; editor/panel mutual exclusion and compact restoration |
 | `apps/desktop/src-tauri/src/windows/companion/surface.rs` | Window-owned presentation DTOs | Companion window contract; producers map outside window code |
 | `apps/desktop/src-tauri/src/windows/companion/state.rs` | Revisioned companion surface state | Companion window contract; exact unbound, bound, previewing and failed payloads cover command answers and events |
 | `apps/desktop/src-tauri/src/windows/companion/` | Independent native companion lifecycle through a shared opaque Handle, explicit render permission, no-activation show and complete-rectangle fitting | Colocated `contract.yaml`; excluded from parent scope |
-| `apps/desktop/src-tauri/src/commands/` | Main-only native action IPC boundary | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/commands/` | Surface-scoped native action IPC boundary | Colocated `contract.yaml`; main and owned-companion admission |
 | `apps/desktop/src-tauri/src/native_login/` | Local return/verifier/browser/DPAPI primitives | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/auth/` | Protected account backend client with captured-session assistant verification | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/sidecar/` | Node sidecar process lifetime and stdio calls | Colocated `contract.yaml` |

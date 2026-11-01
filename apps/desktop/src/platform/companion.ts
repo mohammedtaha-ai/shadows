@@ -10,6 +10,8 @@ export function connectCompanion(onState:(state:CompanionState)=>void,onError:(r
   return connectState(transport,onState,onError,ready);
 }
 export async function setCompanionInput(open:boolean):Promise<CompanionState>{return acceptState(null,await invoke('companion_input',{open}));}
+export async function setCompanionPanel(open:boolean):Promise<CompanionState>{return acceptState(null,await invoke('companion_panel',{open}));}
+export async function selectCompanionAgent(agent:string):Promise<void>{await invoke('select_companion_agent',{agent});}
 export async function sendFromCompanion(text:string,commandId:string,context:string):Promise<{threadId:string;operationId:string}>{
  const value=await invoke<{threadId:string;operationId:string}>('companion_send',{submission:{text,commandId,context}});
  if(!value||typeof value.threadId!=='string'||typeof value.operationId!=='string')throw Error('companion_send_uncertain');

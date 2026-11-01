@@ -52,6 +52,7 @@ impl DesktopApp {
         let selection_store = companion.handle();
         let republish_store = companion.handle();
         let presentation_store = companion.handle();
+        let panel_store = companion.handle();
         presence.attach_workflows(
             navigation.clone(),
             presence::WindowActions {
@@ -74,6 +75,9 @@ impl DesktopApp {
                         projection,
                         appearance,
                     )
+                }),
+                panel: Arc::new(move |app, open, agents| {
+                    windows::companion::set_panel(app, &panel_store, open, agents)
                 }),
             },
         );

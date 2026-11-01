@@ -9,6 +9,15 @@ type ShowForSelection = Arc<dyn Fn(&tauri::AppHandle, u64) -> Result<(), String>
 
 type Present =
     Arc<dyn Fn(companion::SurfacePresence, Option<companion::SurfaceAppearance>) + Send + Sync>;
+type Panel = Arc<
+    dyn Fn(
+            &tauri::AppHandle,
+            bool,
+            Vec<companion::SurfaceAgent>,
+        ) -> Result<companion::CompanionState, String>
+        + Send
+        + Sync,
+>;
 
 /// Callbacks keep native surface lifetime and dispatch with its composition adapter.
 pub struct WindowActions {
@@ -17,6 +26,7 @@ pub struct WindowActions {
     pub show_for_selection: ShowForSelection,
     pub republish: Arc<dyn Fn() + Send + Sync>,
     pub present: Present,
+    pub panel: Panel,
 }
 
 pub(super) struct Dependencies {
@@ -25,6 +35,77 @@ pub(super) struct Dependencies {
 }
 
 impl Presence {
+    pub async fn companion_panel(
+        self: &Arc<Self>,
+        open: bool,
+    ) -> Result<companion::CompanionState, String> {
+        let ticket = {
+            let mut model = self.inner.lock().unwrap();
+            model.panel_ticket += 1;
+            model.panel_ticket
+        };
+        let visibility = (self.workflows().window.visibility_token)();
+        let binding = if open {
+            self.snapshot().map_err(str::to_owned)?
+        } else {
+            self.view()
+        };
+        let ready = if open {
+            Some(
+                self.connection
+                    .ready()
+                    .ok_or("companion_core_unavailable")?,
+            )
+        } else {
+            None
+        };
+        let agents = if let Some(ready) = ready.as_ref() {
+            let client =
+                super::core_client::Client::new(ready.clone(), std::time::Duration::from_secs(10))
+                    .map_err(|_| "companion_core_unavailable")?;
+            client
+                .panel_agents(&binding)
+                .await
+                .map_err(|_| "companion_core_unavailable")?
+        } else {
+            vec![]
+        };
+        let agents = agents
+            .into_iter()
+            .map(|agent| companion::SurfaceAgent {
+                slug: agent.slug,
+                name: agent.name,
+                description: agent.description,
+                color: agent.color,
+                outfit: agent.outfit,
+                bound: agent.bound,
+            })
+            .collect();
+        let owner = self.clone();
+        let panel = self.workflows().window.panel.clone();
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        (self.workflows().window.on_ui)(Box::new(move |app| {
+            let ticket_matches = owner.inner.lock().unwrap().panel_ticket == ticket;
+            let valid = ticket_matches
+                && (!open || owner.view().generation == binding.generation)
+                && (!open || (owner.workflows().window.visibility_token)() == visibility)
+                && ready.as_ref().is_none_or(|captured| {
+                    owner.connection.ready().is_some_and(|current| {
+                        current.runtime_id == captured.runtime_id
+                            && current.configuration_id == captured.configuration_id
+                    })
+                });
+            let result = if valid {
+                panel(app, open, agents)
+            } else {
+                Err("companion_binding_changed".into())
+            };
+            let _ = sender.send(result);
+            Ok(())
+        }))
+        .await?;
+        receiver.await.map_err(|_| "companion_panel_unavailable")?
+    }
     pub fn attach_workflows(&self, navigation: Arc<Navigation>, window: WindowActions) {
         // Publication uses these dependencies on the UI thread.
         assert!(

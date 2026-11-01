@@ -4,11 +4,13 @@ status: current
 source: apps/desktop/src-tauri/src/commands
 responsibility: Restrict native account and sidecar actions to main and companion navigation/readiness/drag actions to the owned local surface.
 public_api:
+  companion_panel: Owned companion-only open/close; one Presence operation supplies bounded metadata and serializes the native panel state.
   open_main_from_companion: Companion-only closed optional MainTarget, default bound; resolve through Presence before Navigation restores main.
   desktop_preferences: Main-only no-argument full native preference read with actual OS login-item state.
   set_desktop_preferences: Main-only flat optional launchAtLogin/closeToTray patch; return full camelCase view only after saving.
   refresh_companion_appearance: Main-only no-argument metadata reread; return { ok true } only after guarded companion-state publication.
-  companion_binding/select_companion_agent/target_companion_thread/set_companion_previews: Main-only configuration-scoped binding operations; validation reads precede mutation; target waits at most two seconds for scoped observer readiness and rechecks generation afterward.
+  companion_binding/target_companion_thread/set_companion_previews: Main-only configuration-scoped binding operations; validation reads precede mutation; target waits at most two seconds for scoped observer readiness and rechecks generation afterward.
+  select_companion_agent: Main or owned companion calls the same configuration-scoped Presence selection workflow; companion callers are checked against the current native window handle.
   navigation_snapshot/ack_navigation: Main-only closed pending navigation; exact revision acknowledgement.
   desktop_connection: Main-only verified lifecycle projection.
   desktop_connection_config: Main-only saved nonsecret path references.

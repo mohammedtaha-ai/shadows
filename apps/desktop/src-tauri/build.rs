@@ -31,6 +31,7 @@ fn main() {
                 "cancel_login",
                 "aylul_call",
                 "companion_state",
+                "companion_panel",
                 "companion_send",
                 "companion_input",
                 "companion_ready",

@@ -4,6 +4,8 @@ status: current
 source: apps/desktop/src/platform
 responsibility: Isolate credential-free native companion presentation invocations.
 public_api:
+  setCompanionPanel: Thin companion-only panel open/close invocation; U-6 consumes the returned panel projection.
+  selectCompanionAgent: Typed companion selection through the same native operation used by main; no client-side binding rule.
   setCompanionInput: Request explicit companion-only open or close and validate the returned native state.
   sendFromCompanion: Supply only text, command identity and native context; return thread/operation identity.
   acceptState: Validate required bounded composer fields and credential-free native projection; retain the newest safe revision; optional presence for legacy fixtures validates expressions, scalar bounds and absolute expiry; carry optional appearance.color unread when it is a string of 1 to 32 characters, otherwise purple.

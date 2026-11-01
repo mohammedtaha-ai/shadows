@@ -4,6 +4,8 @@ status: current
 source: apps/desktop/src-tauri/src/presence
 responsibility: Operate the bound companion conversation through its owned observer, injected native surface actions and navigation.
 public_api:
+  companion_panel: Capture an ordered panel action, fetch bounded agent metadata through the private client on open, recheck generation/runtime/intent at UI dispatch, then call the injected surface action. Close needs no Core read.
+  PanelAgent: Bounded public companion metadata; private Core client verifies runtime and configuration before producing at most 64 live agents.
   start_watcher: Start and retain the private observer once with the publication callback supplied by composition; the callback retains only a weak Presence reference.
   sync_watcher: Forward binding and verified connection updates to the owned observer without changing notification order.
   stop: Stop the owned observer before composition stops activity.

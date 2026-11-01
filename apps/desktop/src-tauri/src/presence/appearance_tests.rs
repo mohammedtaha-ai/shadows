@@ -100,6 +100,56 @@ async fn appearance_check_copies_opaque_outfit_and_defaults_absent() {
         server.abort();
     }
 }
+#[tokio::test]
+async fn panel_metadata_is_bounded_and_marks_only_the_current_agent() {
+    use axum::{routing::get, Json, Router};
+    use serde_json::json;
+    let agents: Vec<_> = (0..70)
+        .map(|index| {
+            json!({
+                "slug":format!("agent-{index}"), "provider":"provider-a", "deleted":index==0,
+                "name":"名".repeat(140), "description":"🌿".repeat(220),
+                "character_color":"blue", "outfit":"headphones"
+            })
+        })
+        .collect();
+    let app = Router::new()
+        .route(
+            "/api/runtime",
+            get(|| async { Json(json!({"runtime_id":RUNTIME,"configuration_id":CONFIG})) }),
+        )
+        .route(
+            "/api/aylul/agents",
+            get(move || {
+                let agents = agents.clone();
+                async move { Json(json!({"project_id":PROJECT,"agents":agents})) }
+            }),
+        );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let client = Client::new(
+        ReadyConnection {
+            origin,
+            configuration_id: CONFIG.into(),
+            runtime_id: RUNTIME.into(),
+        },
+        Duration::from_secs(1),
+    )
+    .unwrap();
+    let mut view = binding(false);
+    view.agent = Some("agent-1".into());
+    let agents = client.panel_agents(&view).await.unwrap();
+    assert_eq!(agents.len(), 64);
+    assert_eq!(agents[0].slug, "agent-1");
+    assert!(agents[0].bound);
+    assert_eq!(agents.iter().filter(|agent| agent.bound).count(), 1);
+    assert_eq!(agents[0].name.chars().count(), 128);
+    assert_eq!(agents[0].description.chars().count(), 200);
+    assert_eq!(agents[0].color, "blue");
+    assert_eq!(agents[0].outfit, "headphones");
+    server.abort();
+}
 
 #[tokio::test]
 async fn appearance_check_copies_opaque_colour() {

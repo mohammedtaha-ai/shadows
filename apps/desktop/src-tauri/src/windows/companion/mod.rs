@@ -4,9 +4,12 @@ mod placement;
 pub mod state;
 mod surface;
 
-pub use surface::{EditorContext, SurfaceAppearance, SurfacePresence, SurfacePreview};
+pub use surface::{
+    EditorContext, SurfaceAgent, SurfaceAppearance, SurfacePanel, SurfacePresence, SurfacePreview,
+};
 
-use state::{CompanionState, Model};
+pub use state::CompanionState;
+use state::Model;
 use std::sync::{Arc, Mutex, OnceLock};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -198,6 +201,9 @@ pub fn setup_companion(app: &tauri::AppHandle, handle: &Handle) -> Result<(), St
                     api.prevent_close();
                     let _ = set_visible(&owner, handle, false);
                 }
+                tauri::WindowEvent::Focused(false) => {
+                    let _ = input::set_panel(&owner, handle, false, vec![]);
+                }
                 tauri::WindowEvent::Moved(_)
                 | tauri::WindowEvent::Resized(_)
                 | tauri::WindowEvent::ScaleFactorChanged { .. } => {
@@ -246,6 +252,7 @@ pub fn set_visible(
         .visibility_intent
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     if !visible {
+        input::set_panel(app, handle, false, vec![])?;
         input::set_input(app, handle, false)?;
     }
     model(handle, |m| m.request_visible(visible));
@@ -325,6 +332,14 @@ pub fn show_for_selection(
 
 pub fn republish(app: &tauri::AppHandle, handle: &Handle) {
     publish(app, handle);
+}
+pub fn set_panel(
+    app: &tauri::AppHandle,
+    handle: &Handle,
+    open: bool,
+    agents: Vec<SurfaceAgent>,
+) -> Result<CompanionState, String> {
+    input::set_panel(app, handle, open, agents)
 }
 pub fn present(
     app: &tauri::AppHandle,

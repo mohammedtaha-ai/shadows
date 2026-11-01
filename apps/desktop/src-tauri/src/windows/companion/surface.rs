@@ -37,3 +37,24 @@ pub struct EditorContext {
     pub context: Option<String>,
     pub agent: Option<String>,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct SurfaceAgent {
+    pub slug: String,
+    pub name: String,
+    pub description: String,
+    pub color: String,
+    pub outfit: String,
+    pub bound: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+pub struct SurfacePanel {
+    pub open: bool,
+    pub agents: Vec<SurfaceAgent>,
+}
+impl SurfacePanel {
+    pub fn is_empty(&self) -> bool {
+        !self.open && self.agents.is_empty()
+    }
+}
