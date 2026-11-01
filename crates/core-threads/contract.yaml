@@ -83,8 +83,6 @@ dependencies:
 
 
 shapes:
-  PermissionEntryKinds:
-    note: PermissionAsked and PermissionAnswered are stored by their variant names; PermissionRefused keeps held and Planner refusal history.
   OperationRef: Opaque operation provenance with the existing OperationId wire schema.
   WorkflowRef: Opaque workflow provenance with the existing WorkflowId wire schema.
   TaskRef: Opaque task provenance with the existing TaskId wire schema.
@@ -154,7 +152,7 @@ shapes:
     ToolCall: unit # The title is in body and the tool card is structured.
     TodoList: unit # The body is Markdown tasks and the card is structured.
     Subagent: unit # Structured subagent card.
-    PermissionRefused: unit
+    PermissionRefused: unit # Held and Planner refusal history.
     PermissionAsked: request id and offered options in its card
     PermissionAnswered: the person's offered-option answer with human provenance
     PlanView: unit

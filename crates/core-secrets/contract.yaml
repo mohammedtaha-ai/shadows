@@ -43,7 +43,7 @@ functions:
   provider_scope: public; the one place that names the provider key scope `provider/{slug}`; the key name is a private constant.
   mcp_scope: public; the one place that names an MCP server's scope `mcp/{id}`.
   mcp_value_write: public; seal one value under the MCP scope with the MCP name rule, before any transaction.
-  EnvWrite.value_mac: public; expose only the prepared write's keyed value fingerprint to its owning command.
+  value_mac: public; expose only the prepared write's keyed value fingerprint to its owning command.
   mcp_value_removal: public; check the key and the MCP name shape and build the secret_env.remove command for the MCP scope.
   resolve_provider_key: Decrypted provider key for trusted provider probes and harness openings; None when unset or empty.
   new: Build a shared service over injected storage and an optional master key.
@@ -51,7 +51,7 @@ functions:
   set_env: Validate and encrypt a value of any scope, atomically classify/write/record one user command; checks no owner.
   remove_env: Atomically classify/delete/record one user command of any scope, replay without deleting again; checks no owner.
   resolve_env: Decrypt all profile pairs for a new harness opening; public for trusted harness openings and owner tests.
-  validate_mcp_name: public; the MCP name rule beside validate_env_name, also checking a name whose value Extensions keeps unsent: 1..=128 of A-Z a-z 0-9 - _, reserved names refused.
+  validate_mcp_name: public; the MCP name rule beside validate_env_name, also checking a name whose value Extensions keeps unsent; 1..=128 of A-Z a-z 0-9 - _, reserved names refused.
   validate_env_name: Shared uppercase name validation including reserved names; removal checks the shape only.
 obligations:
   - rule: A shared per-user OS file lock covers read, create and readback across daemon databases.

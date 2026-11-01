@@ -476,6 +476,8 @@ called_by_other_services:
 
 
 shared_in_transaction:
+  permission_replay: Private store read; Harness classifies a permission answer's command before acting.
+  record_permission_answer: Private store write of a classified permission answer and its command record.
   change_mode: Private store command; Harness owns permission persistence and replay.
   check_mode_in: Private store policy guard within the caller's transaction.
   forget_mode: Private store cleanup during a failed opening.

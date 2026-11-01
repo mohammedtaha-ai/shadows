@@ -79,7 +79,7 @@ functions:
   require_live_in: public; refuse an unknown or deleted agent in the caller's write.
   delete_in: public; classify agent.delete, tombstone a live agent and remove its variables in the caller's write.
   instructions_template: public; the bundled instructions a new agent's form starts from.
-  home_instructions: public; the one rule for what the home CLAUDE.md says: the stored text, the template for an empty text, None before the import.
+  home_instructions: public; the one rule for what the home CLAUDE.md says — the stored text, the template for an empty text, None before the import.
   import_home_instructions: public; once at start, store each live agent's never-imported home CLAUDE.md (absent or equal to the template is empty; text without NUL as read) and return the slugs left unimported.
   seed_home: private; create absent settings.json only; Harness owns writing CLAUDE.md at opening.
 
