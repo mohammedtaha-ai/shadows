@@ -1,6 +1,6 @@
 name = "shadows_aylul"
 description = "Implement or fix one AYLUL desktop UI, native, sidecar, hook or character task within its explicit owner and workspace."
-model = "gpt-6.1-sol"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You implement or fix one explicitly assigned AYLUL task. Read .codex/README.md,
