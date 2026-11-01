@@ -107,6 +107,29 @@ impl Secrets {
     }
 }
 
+/// An MCP name: 1..=128 of A-Z a-z 0-9 - _, and never a reserved environment name.
+fn validate_mcp_name(name: &str) -> Result<(), SecretsError> {
+    if Secrets::reserved_env_name(name) {
+        return Err(SecretsError::NameReserved(name.into()));
+    }
+    validate_mcp_format(name)
+}
+
+fn validate_mcp_format(name: &str) -> Result<(), SecretsError> {
+    let valid = (1..=128).contains(&name.len())
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+    if valid {
+        Ok(())
+    } else {
+        Err(SecretsError::NameInvalid(name.into()))
+    }
+}
+
+/// An MCP server's values live in the scope `mcp/{id}`.
+const MCP_SCOPE_PREFIX: &str = "mcp/";
+
 /// A provider key lives in the scope `provider/{slug}` under one fixed name.
 const PROVIDER_SCOPE_PREFIX: &str = "provider/";
 const PROVIDER_KEY_NAME: &str = "PROVIDER_API_KEY";
@@ -139,8 +162,19 @@ impl Secrets {
     /// `profile`/`name`. Runs before the write transaction, so a refused value
     /// never reaches one and the transaction sees only database failures.
     pub fn seal(&self, profile: &str, name: &str, value: &str) -> Result<SealedEnv, SecretsError> {
+        self.seal_named(profile, name, value, Self::validate_env_name)
+    }
+
+    /// `seal` with the name rule of the scope's kind.
+    fn seal_named(
+        &self,
+        profile: &str,
+        name: &str,
+        value: &str,
+        check_name: fn(&str) -> Result<(), SecretsError>,
+    ) -> Result<SealedEnv, SecretsError> {
         let keys = self.keys()?;
-        Self::validate_env_name(name)?;
+        check_name(name)?;
         validate_value(name, value)?;
         let sealed = keys
             .aead
@@ -164,6 +198,10 @@ impl Secrets {
         value: &str,
     ) -> Result<EnvWrite, SecretsError> {
         let value = self.seal(profile, name, value)?;
+        Ok(Self::write_command(command_id, profile, name, value))
+    }
+
+    fn write_command(command_id: String, profile: &str, name: &str, value: SealedEnv) -> EnvWrite {
         let command = CommandContext::user(
             command_id,
             "secret_env.set",
@@ -171,7 +209,41 @@ impl Secrets {
                 "profile": profile, "name": name, "value_mac": value.value_mac(),
             }),
         );
-        Ok(EnvWrite { command, value })
+        EnvWrite { command, value }
+    }
+
+    /// The scope an MCP server's header and environment values are stored under.
+    pub fn mcp_scope(id: &str) -> String {
+        format!("{MCP_SCOPE_PREFIX}{id}")
+    }
+
+    /// Seals one MCP value under its server's scope, with the MCP name rule.
+    pub fn mcp_value_write(
+        &self,
+        command_id: String,
+        id: &str,
+        name: &str,
+        value: &str,
+    ) -> Result<EnvWrite, SecretsError> {
+        let scope = Self::mcp_scope(id);
+        let value = self.seal_named(&scope, name, value, validate_mcp_name)?;
+        Ok(Self::write_command(command_id, &scope, name, value))
+    }
+
+    /// The removal of one MCP value; the name's shape alone is checked, as for variables.
+    pub fn mcp_value_removal(
+        &self,
+        command_id: String,
+        id: &str,
+        name: &str,
+    ) -> Result<EnvRemoval, SecretsError> {
+        self.keys()?;
+        validate_mcp_format(name)?;
+        Ok(Self::removal_command(
+            command_id,
+            &Self::mcp_scope(id),
+            name,
+        ))
     }
 
     /// The provider key write: its scope and name are this service's.
@@ -194,6 +266,10 @@ impl Secrets {
     ) -> Result<EnvRemoval, SecretsError> {
         self.keys()?;
         validate_env_format(name)?;
+        Ok(Self::removal_command(command_id, profile, name))
+    }
+
+    fn removal_command(command_id: String, profile: &str, name: &str) -> EnvRemoval {
         let command = CommandContext::user(
             command_id,
             "secret_env.remove",
@@ -201,11 +277,11 @@ impl Secrets {
                 "profile": profile, "name": name,
             }),
         );
-        Ok(EnvRemoval {
+        EnvRemoval {
             command,
             profile: profile.into(),
             name: name.into(),
-        })
+        }
     }
 
     /// The provider key removal.

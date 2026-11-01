@@ -64,10 +64,11 @@ accepted on 2026-11-01, so no task waits on it.
 - Done when, each by name in `cargo test -p core-agents --test agents`: `existing_agents_migrate_with_an_empty_profile`, `description_is_one_trimmed_line_of_200`, `instructions_are_bounded_and_refuse_nul`, `instructions_equal_to_the_template_are_stored_empty`, `outfit_shape_is_checked_and_unknown_is_kept`, `update_without_profile_fields_keeps_them`, `home_instructions_import_once_and_never_again`, `an_unreadable_home_file_stays_unimported`; and `cargo test -p shadows-http agent_template_is_served`, `cargo test -p shadows-http agent_profile_fields_round_trip`; then `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` and `cargo test -p shadows --test openapi`.
 
 ### B-26 · Secrets: the `mcp/<id>` scope and its name rule
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#22-secrets-72--b-26
 - Read: `crates/core-secrets/contract.yaml`; design §7.2 (secret bullets).
 - Touch: `crates/core-secrets/src/lib.rs`; `crates/core-secrets/src/model.rs` (only if a type changes); `crates/core-secrets/contract.yaml`; `crates/core-secrets/tests/secret_env.rs`.
+- Note: also adds `mcp_value_removal`, the MCP-name removal that `env_removal` (upper-case names) cannot do; plan section 2.2 names only `remove_in`.
 - Needs: nothing.
 - Contract lines: functions `mcp_scope` (the one place naming `mcp/{id}`), `mcp_value_write`, the MCP name rule beside `validate_env_name`; obligation "MCP names are 1..=128 of A-Z a-z 0-9 - _; reserved names are refused in every scope".
 - Done when: `cargo test -p core-secrets --test secret_env mcp_` runs and passes `mcp_names_follow_their_own_rule`, `mcp_scope_refuses_reserved_names`, `mcp_values_round_trip_under_their_scope`, `mcp_value_absent_from_db_and_command_record`; the whole `cargo test -p core-secrets` still passes.

@@ -255,3 +255,109 @@ async fn reserved_name_can_be_removed() {
 
     w.storage.close().await.unwrap();
 }
+
+async fn put_mcp(w: &World, command: &str, id: &str, name: &str) -> Result<(), SecretsError> {
+    let write = w.secrets.mcp_value_write(command.into(), id, name, VALUE)?;
+    w.storage
+        .write_txn_as::<_, _, SecretsError>(move |conn| {
+            Box::pin(async move {
+                Secrets::put_in(conn, write).await?;
+                Ok(())
+            })
+        })
+        .await
+}
+
+#[tokio::test]
+async fn mcp_names_follow_their_own_rule() {
+    let w = world().await;
+    let long = "b".repeat(128);
+    for (i, name) in ["Authorization", "x-api_key-9", "a", long.as_str()]
+        .into_iter()
+        .enumerate()
+    {
+        put_mcp(&w, &format!("ok{i}"), "m1", name).await.unwrap();
+    }
+    let too_long = "b".repeat(129);
+    for (i, name) in ["", "a b", "a.b", "é", too_long.as_str()]
+        .into_iter()
+        .enumerate()
+    {
+        assert!(matches!(
+            put_mcp(&w, &format!("bad{i}"), "m1", name).await,
+            Err(SecretsError::NameInvalid(_))
+        ));
+    }
+
+    w.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn mcp_scope_refuses_reserved_names() {
+    let w = world().await;
+    assert_eq!(Secrets::mcp_scope("m1"), "mcp/m1");
+    for name in [
+        "ANTHROPIC_API_KEY",
+        "CLAUDE_CONFIG_DIR",
+        "ANTHROPIC_BASE_URL",
+    ] {
+        assert!(matches!(
+            put_mcp(&w, "r", "m1", name).await,
+            Err(SecretsError::NameReserved(_))
+        ));
+    }
+
+    w.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn mcp_values_round_trip_under_their_scope() {
+    let w = world().await;
+    put_mcp(&w, "a", "m1", "Authorization").await.unwrap();
+    put_mcp(&w, "b", "m2", "token").await.unwrap();
+    let scope = Secrets::mcp_scope("m1");
+    let values = w.secrets.resolve_env(&scope).await.unwrap();
+    assert_eq!(values, [("Authorization".to_string(), VALUE.to_string())]);
+    assert!(w.secrets.list_env("m1").await.unwrap().is_empty());
+    let removal = w
+        .secrets
+        .mcp_value_removal("rm".into(), "m1", "Authorization")
+        .unwrap();
+    w.storage
+        .write_txn_as::<_, _, SecretsError>(move |conn| {
+            Box::pin(async move {
+                Secrets::remove_in(conn, removal).await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+    assert!(w.secrets.list_env(&scope).await.unwrap().is_empty());
+    let other = Secrets::mcp_scope("m2");
+    assert_eq!(w.secrets.list_env(&other).await.unwrap().len(), 1);
+
+    w.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn mcp_value_absent_from_db_and_command_record() {
+    let w = world().await;
+    put_mcp(&w, "a", "m1", "Authorization").await.unwrap();
+    let rows: Vec<(String, String)> =
+        sqlx::query_as("SELECT request_fingerprint, outcome_ref FROM command_record")
+            .fetch_all(w.storage.reader())
+            .await
+            .unwrap();
+    assert!(!rows.is_empty());
+    assert!(
+        rows.iter()
+            .all(|(a, b)| !a.contains(VALUE) && !b.contains(VALUE))
+    );
+    let bytes: Vec<u8> = sqlx::query_scalar("SELECT ciphertext FROM secret_env")
+        .fetch_one(w.storage.reader())
+        .await
+        .unwrap();
+    assert!(!bytes.windows(VALUE.len()).any(|v| v == VALUE.as_bytes()));
+
+    w.storage.close().await.unwrap();
+}

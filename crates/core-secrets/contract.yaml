@@ -40,12 +40,16 @@ functions:
   remove_in: public; delete one value and record its command in the caller's write.
   remove_scope_in: public; delete one scope in the caller transaction; returns StorageError.
   provider_scope: public; the one place that names the provider key scope `provider/{slug}`; the key name is a private constant.
+  mcp_scope: public; the one place that names an MCP server's scope `mcp/{id}`.
+  mcp_value_write: public; seal one value under the MCP scope with the MCP name rule, before any transaction.
+  mcp_value_removal: public; check the key and the MCP name shape and build the secret_env.remove command for the MCP scope.
   resolve_provider_key: Decrypted provider key for trusted provider probes and harness openings; None when unset or empty.
   new: Build a shared service over injected storage and an optional master key.
   list_env: Return metadata ordered by name, never values.
   set_env: Validate and encrypt a value of any scope, atomically classify/write/record one user command; checks no owner.
   remove_env: Atomically classify/delete/record one user command of any scope, replay without deleting again; checks no owner.
   resolve_env: Decrypt all profile pairs for a new harness opening; public for trusted harness openings and owner tests.
+  validate_mcp_name: private; the MCP name rule beside validate_env_name: 1..=128 of A-Z a-z 0-9 - _, reserved names refused.
   validate_env_name: Shared uppercase name validation including reserved names; removal checks the shape only.
 obligations:
   - rule: A shared per-user OS file lock covers read, create and readback across daemon databases.
@@ -67,6 +71,10 @@ obligations:
     tested_by: [no_key_refuses_every_method, other_master_key_lists_but_cannot_resolve]
   - rule: A reserved name is refused at set but can be removed, so a row the opening names can go.
     tested_by: [lower_case_bad_and_reserved_names_are_refused, reserved_name_can_be_removed]
+  - rule: MCP names are 1..=128 of A-Z a-z 0-9 - _; reserved names are refused in every scope.
+    tested_by: [mcp_names_follow_their_own_rule, mcp_scope_refuses_reserved_names]
+  - rule: MCP values live under mcp/{id}, resolve with resolve_env and never enter the database in clear or a command record.
+    tested_by: [mcp_values_round_trip_under_their_scope, mcp_value_absent_from_db_and_command_record]
 agreements:
   - between: [set_env, provider_key_write]
     must: Validate names and values through the same rules before storing ciphertext; both go through env_write and put_in.
