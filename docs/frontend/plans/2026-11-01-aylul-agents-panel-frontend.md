@@ -5,10 +5,9 @@ Branch `feature/aylul-agents-panel`. Serves the accepted design
 (Mohammed, 2026-11-01). That design owns every decision; this plan only cuts the client half
 into tasks. The backend half is Hamoud's
 (`docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`); where this plan needs an HTTP
-shape the design does not fix, it is written under [Shapes we assume](#shapes-we-assume-from-the-backend)
-so the two plans can be checked against each other.
+shape the design does not fix, this plan uses the names of his §3 (see [Backend shapes](#backend-shapes)).
 
-The desktop IPC between the native side and the companion UI is asked in
+The desktop IPC between the native side and the companion UI is accepted in
 [`docs/aylul/shared/requests/2026-11-01-companion-panel.md`](../../aylul/shared/requests/2026-11-01-companion-panel.md).
 
 ## Scope
@@ -74,8 +73,8 @@ backend C (permissions)   ──────► F-66                            
                           ──────► N-25 (after N-23, N-24) ──────────────┘
 ```
 
-- **Run now, in parallel** (different files): C-8, F-67; N-22 too once the AYLUL request is
-  accepted (every N- and U- task waits on that acceptance).
+- **Run now, in parallel** (different files): C-8, F-67, N-22. Both requests are accepted
+  (2026-11-01).
 - **Then, in parallel:** F-62 (after C-8), N-23 (after F-67), U-5 (after N-22), N-24 (after N-22).
 - C-9 after U-5. U-6 after N-23 and N-24. U-7 after U-6 and C-9.
 - **Wait on backend shape A** (agent `description`, `instructions`, `outfit`): F-63. N-22 and
@@ -91,62 +90,45 @@ backend C (permissions)   ──────► F-66                            
   `web/src/desktop/native-parity.test.ts` parses, so the web parser has to accept the new
   kinds first.
 
-## Shapes we assume from the backend
+## Backend shapes
 
-Names are proposals; Hamoud's plan wins on names, and this section is then corrected in place.
-Every write carries `command_id` under the usual replay rules; every error is the usual error body.
+The shapes are Hamoud's: `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3
+(committed at `e4001500`), accepted for the frontend in
+[`docs/shared/requests/2026-11-01-aylul-agents-panel.md`](../../shared/requests/2026-11-01-aylul-agents-panel.md).
+His names win; this plan and its tasks use them. Shape letters below are this plan's labels
+for the three parts of his §3.
 
-### A. Agent identity (§7.1, §7.3)
-
-- `Agent` gains `description: string` (`""` when none) and `outfit: string` (same pattern as
-  `character_color`, `default` for new and migrated agents). **`instructions` is not in `Agent`**:
-  the companion reads `GET /api/aylul/agents` every 10 s, and 32 KiB per agent does not belong there.
-- `AgentInput` gains `description?: string | null`, `outfit?: string | null`,
-  `instructions?: string | null`. Absent or `null` keeps the stored value, as `character_color`
-  does today. `instructions: ""` means "use the bundled template"; `description: ""` clears it.
-- `GET /api/aylul/agents/{slug}/instructions` → `AgentInstructions { instructions: string }`,
-  the stored text (`""` when the template is used).
-- `GET /api/aylul/agent-template` → `AgentInstructions { instructions: string }`, the bundled
-  template, to prefill the form of a new agent.
-- A description over 200 characters or with a line break, instructions over 32 KiB or with NUL,
-  or an outfit id outside the pattern is a 422; the form shows Core's message.
-
-### B. MCP items (§7.2)
-
-- `ExtensionKind` gains `"mcp"`.
-- `McpTransport = { kind: "http", url: string, headers: string[] } | { kind: "stdio", command: string, args: string[], env: string[] }`
-  (`headers` and `env` are names only).
-- `McpItem { id, name, description, transport: McpTransport, values_set: string[] }`:
-  `values_set` names the header/env names whose secret is stored. No value is ever returned.
-- `ExtensionLibrary` gains `mcp: McpItem[]`; `AgentExtensions` gains `mcp: AgentItem[]`.
-- `POST /api/aylul/extensions/mcp`, body `McpInput { command_id, name, transport, values: { [name]: string } }`
-  → `McpItem`.
-- `PUT /api/aylul/extensions/mcp/{id}`, body `McpInput`; `values` holds only the names whose
-  value changes, a name left out keeps its value, a name removed from the transport drops its value.
-  The id stays, so every agent keeps its switch.
-- The per-agent switch and the deletion reuse the existing routes with `kind = mcp`.
-  `POST /api/aylul/extensions` (folder import) refuses `mcp`.
-- A `stdio` item on a daemon that cannot run one (§8 OPEN) is refused with a 422 the form shows.
-
-### C. Permissions (§7.8)
-
-- `ThreadEntryKind` gains `PermissionAsked` and `PermissionAnswered`.
-- `PermissionAsked.card` is `PermissionAskedCard { request_id, title, options: PermissionOption[] }`,
-  `PermissionOption { id, label, kind }` with `kind` the adapter's (`allow_once`,
-  `allow_always`, `reject_once`, `reject_always`), passed through.
-- `PermissionAnswered.card` is `PermissionAnsweredCard { request_id, option_id, label }`;
-  `author` is the human actor (the client shows "by you" from it).
-- Both card schemas are named in `api/openapi.json`, so the client types them without reading
-  an untyped object by hand.
-- `GET /api/aylul/permissions` → `WaitingPermissions { waiting: WaitingPermission[] }`, oldest
-  first, `WaitingPermission { project_id, thread_id, agent, request_id, title, options, asked_at }`.
-  This list is the only authority on what still waits; neither client infers it from entries.
-- `POST /api/threads/{id}/permissions/{request_id}`, body `{ command_id, option_id }` →
-  `PermissionAnsweredCard`. 404 when the request no longer waits, 409 when it was already
-  answered (a second surface lost the race), 422 when the option was not offered.
-- A durable event `PermissionsChanged { thread_id }` is published on the thread's
-  `/api/subscribe` and on the AYLUL project's `/api/projects/{project_id}/events`, where
-  `project_id` is the one `GET /api/aylul/agents` returns. Both clients re-read the waiting list on it.
+- **A = his §3.1 (agents).** `Agent` gains `description`, `instructions` (`""` when the agent
+  follows the template, including a text equal to it) and `outfit`. `AgentInput` gains the same
+  three, optional; absent on update keeps the stored value. `GET /api/aylul/agent-template` →
+  `{ instructions }` prefills a new agent. Errors: 400 `PROFILE_INVALID`.
+- **B = his §3.2 (MCP).** `ExtensionKind` gains `mcp`; `Item` gains `bundled`. `McpTransport`
+  is tagged by `type`: `{ type: "http", url, headers: [{ name, set }] }` or
+  `{ type: "stdio", command, args, env: [{ name, set }] }`. `McpItem { id, name, description, transport }`;
+  values are never answered. `ExtensionLibrary.mcp: McpItem[]`, `AgentExtensions.mcp:
+  (McpItem & { enabled })[]`. `POST /api/aylul/extensions/mcp` (201) and
+  `PUT /api/aylul/extensions/mcp/{id}` take `{ command_id, name, description?, transport }` with
+  `headers`/`env` as `[{ name, value }]`; on update a pair's `value` may be absent to keep the
+  stored one. Switch and delete reuse the existing routes with kind `mcp`. Errors as his §3.2
+  (`PROFILE_INVALID`, `SECRET_NAME_INVALID`, `SECRET_VALUE_INVALID`, `SECRET_NAME_RESERVED`,
+  `EXTENSION_NAME_CONFLICT`, `EXTENSION_NOT_FOUND`, `COMMAND_CONFLICT`, `SECRETS_UNAVAILABLE`).
+- **C = his §3.3 (permissions).** `PermissionOption { option_id, name, kind }`.
+  `GET /api/aylul/permissions` → `WaitingPermission[]` oldest first
+  (`{ thread_id, agent, request_id, title, options, asked_at }`, no `project_id`; `[]` when AYLUL
+  is not configured). This list is the only authority on what still waits; neither client infers
+  it from entries. `POST /api/threads/{id}/session/permissions/{request_id}` with
+  `{ command_id, option_id }` → `{ thread_id, request_id, option_id, kind, answered_at }`;
+  errors 404 `PERMISSION_NOT_FOUND`, 409 `PERMISSION_SETTLED`, 422
+  `PERMISSION_OPTION_NOT_OFFERED`, 409 `COMMAND_CONFLICT`; an equal replay answers the first
+  result. Entries: `PermissionAsked` (body: the tool's title; card `{ request_id, options }`),
+  `PermissionAnswered` (body: the option's name; card `{ request_id, option_id, kind, by: { agent:
+  "human", principal } }`), `PermissionRefused` for a held request (card `{ request_id, reason }`).
+  Live: a durable `PermissionsChanged` frame (`thread_id` set, payload `{ request_id, state }`) on
+  `GET /api/projects/{project_id}/events` of the AYLUL project, whose id is
+  `AgentWorkspace.project_id` from `GET /api/aylul/agents`; both clients refetch the waiting
+  list on it. The thread stream keeps sending `ThreadEntryAppended` for the entries.
+- **Approvals are buttons only** (design §7.8, Mohammed 2026-11-01): a request is answered by a
+  click in the conversation or on the panel card. No surface in this plan answers by typing or voice.
 
 ## Task notes
 
@@ -166,8 +148,8 @@ outfit, its label as the accessible name. Not yet wired into the form.
 
 Regenerate the API for shape A. The form follows design §7.5's order: outfit picker and
 colour, name and description, provider and default model, instructions (a large text area;
-for a new agent prefilled from `GET /api/aylul/agent-template`, for an existing one loaded from
-`GET /api/aylul/agents/{slug}/instructions`), then the existing sections. The note "Changes
+for a new agent prefilled from `GET /api/aylul/agent-template`, for an existing one its
+`Agent.instructions`, or the template when that is `""`), then the existing sections. The note "Changes
 apply to new and resumed conversations." stays under the save button, and a line under the
 instructions says the form is the place to edit them (a hand edit in the home is overwritten).
 `instructions` is sent only when its text changed (absent keeps it), so an untouched 32 KiB
@@ -178,12 +160,13 @@ sidebar shows the description under the agent's name. After a save of the bound 
 ### F-64
 
 Regenerate the API for shape B. Settings → Plugins & Skills gains an MCP tools list beside
-plugins and skills, and an "Add MCP tool" form: name; transport `http` (URL, header rows) or
-`stdio` (command, arguments, environment rows, with the note "Runs on this machine's daemon
-only", §8); each header/env row is a name plus a password field. An item opens the same form to
-edit: names show, values never do ("Set" when in `values_set`, an empty password field replaces
-it). URL, name and value rules are Core's: the form shows Core's 422, it checks nothing itself.
-Deleting reuses `ExtensionList`.
+plugins and skills, and an "Add MCP tool" form: name, optional description; transport `http`
+(URL, header rows) or `stdio` (command, arguments, environment rows, with the note "Runs on this
+machine's daemon only", §8); each header/env row is a name plus a password field. An item opens
+the same form to edit: names show, values never do (a row with `set` shows "Set"; leaving its
+password field empty sends the pair without `value`, which keeps it). URL, name and value rules
+are Core's: the form shows Core's error message (400/409/503 of his §3.2), it checks nothing
+itself. Deleting reuses `ExtensionList`. A `bundled` item is marked "Included with AYLUL".
 
 ### F-65
 
@@ -195,11 +178,14 @@ shows capabilities after it is created, as today (switches need its slug).
 ### F-66
 
 Regenerate the API for shape C. `web/src/api/permissions.ts` owns the waiting query and the
-answer call. In the conversation, a `PermissionAsked` entry is a card with the title and the
-adapter's options as buttons, enabled only while the waiting list holds its `request_id`; a
-click answers with a command id and keeps the attempt for a retry. A `PermissionAnswered` entry
-shows the chosen label and "by you". A 409 or 404 refreshes the list and shows Core's message.
-`refresh.ts` refreshes the waiting list on `PermissionsChanged` and on any `Permission*` entry.
+answer call (`POST /api/threads/{id}/session/permissions/{request_id}`). In the
+conversation, a `PermissionAsked` entry is a card with its body (the tool's title) and the
+adapter's options as buttons labelled with their `name`, enabled only while the waiting list
+holds its `request_id`; a click answers with that `option_id` and a command id, and keeps the
+attempt for a retry. Buttons are the only way to answer. A `PermissionAnswered` entry shows its
+body (the option's name) and "by you"; a `PermissionRefused` with a card shows its reason.
+`PERMISSION_SETTLED` or `PERMISSION_NOT_FOUND` refetches the list and shows Core's message.
+`refresh.ts` refetches the waiting list on a `PermissionsChanged` frame of the project stream.
 
 ### F-67
 
@@ -221,7 +207,8 @@ committed. A node test (`tests/companion/outfit-manifest.test.ts`, added to
 ### N-22
 
 `CompanionAppearance` and `SurfaceAppearance` gain `outfit`, copied opaque from the bound agent
-in `/api/aylul/agents` exactly as `color` is (absent field → absent; no validation, no native
+in `/api/aylul/agents` exactly as `color` is (the list now also carries `instructions`, up to
+32 KiB per agent; the native read ignores the field and stays within its 16 MiB cap) (absent field → absent; no validation, no native
 list). The surface wire pin and the appearance tests cover it; the presence fixture is rewritten.
 
 ### U-5
@@ -256,12 +243,14 @@ generation, and the "first message creates the thread" rule stay exactly as they
 ### N-25
 
 Waiting permissions. The private Core client reads `GET /api/aylul/permissions` and follows
-`PermissionsChanged` on the AYLUL project's event stream (a second, read-only feed owned by the
+`PermissionsChanged` on `/api/projects/{project_id}/events`, with `project_id` from
+`AgentWorkspace.project_id` (a second, read-only feed owned by the
 same watcher, with the existing deadlines and caps). `Companion` publishes the waiting count and
 the requests of the bound agent's conversation (title, options; bounded). A request waiting on
 the bound thread makes the projection's expression `blocked` with status "Waiting for you".
-`answer_companion_permission { threadId, requestId, optionId, commandId }` posts the answer
-through `core_client` and returns Core's outcome; `open_main_from_companion` gains the target
+`answer_companion_permission { threadId, requestId, optionId, commandId }` posts to
+`POST /api/threads/{id}/session/permissions/{request_id}` through `core_client` and maps
+`PERMISSION_SETTLED`, `PERMISSION_NOT_FOUND` and `PERMISSION_OPTION_NOT_OFFERED` to fixed codes; `open_main_from_companion` gains the target
 `oldestWaiting`, which resolves to the first entry's conversation.
 
 ### U-6
@@ -287,17 +276,16 @@ The panel holds no list, form or setting beyond this (anti-goal §4).
 
 The pill shows the waiting count ("Ready" at zero); clicking it opens main on the oldest waiting
 conversation. When the bound agent's conversation has a request waiting, the card shows its title
-and the options as buttons; a click answers it with a fresh command id, a retry reuses it, and
+and the options as buttons (labelled with their `name`; buttons are the only way to answer); a click answers it with a fresh command id, a retry reuses it, and
 Core's refusal (already answered, ended) shows as a short line. The character's `blocked` comes
 from native (N-25), never from the panel.
 
 ## Points raised on the design
 
-Reported to the controller on 2026-11-01; none is changed here.
+Reported to the controller on 2026-11-01; none changes the design.
 
-1. **The panel's folder.** §7.6 puts the panel in `features/companion/`, which
-   `docs/aylul/character/AGENTS.md` gives to the character side (only the colour was ruled
-   UI-owned). U-7 and U-8 wait for the teacher's ruling.
+1. **The panel's folder.** Ruled 2026-11-01 (design §7.8): the panel is UI-owned (U- tasks);
+   the character side owns only the drawing inside it.
 2. **"The studio writes into `web/`'s assets."** The studio is a browser page and can only
    download. C-8 writes the files from an opt-in Playwright run that calls the studio's export,
    as `EXPORT_COLORS` does.
@@ -305,9 +293,8 @@ Reported to the controller on 2026-11-01; none is changed here.
    shows the chosen colour on the swatches, not on the preview.
 4. **"Without polling" across every AYLUL thread.** The companion follows one thread today; the
    pill needs a second, project-wide feed (N-25) and the `PermissionsChanged` event of shape C.
-5. **Prefilled template.** A new agent saved with the prefilled template stores it as its own
-   text, so a later template change does not reach it. Core could store `""` when the text equals
-   the template; that is Hamoud's call, the form sends what the box holds.
+5. **Prefilled template.** Settled by Hamoud's §3.1: Core stores `""` for a text equal to the
+   template, so the form sends what the box holds.
 6. **Capabilities of a new agent** appear after it is created: a switch needs the agent's slug,
    unless Core accepts switches in the create body.
 7. **Sound** is session-only: the native companion has no tone preference to keep it.

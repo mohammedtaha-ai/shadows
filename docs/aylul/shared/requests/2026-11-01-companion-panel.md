@@ -1,6 +1,6 @@
 # Companion panel, outfit and waiting permissions
 
-- Status: asked
+- Status: accepted (by the controller on Mohammed's behalf, 2026-11-01)
 - Asked by: masada, 2026-11-01
 - Owner: native-lead
 - Serves: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md (design
@@ -21,7 +21,7 @@ tasks N-22 to N-25 build it; UI tasks U-5 to U-8 consume it.
 |---|---|---|
 | `companion-state` event and `companion_state` (existing) | | adds `appearance.outfit: string` (opaque, omitted when absent, as `color`) |
 | same | | adds `panel: { open: bool, agents: [{ slug, name, description, color, outfit, bound: bool }] }` (≤ 64 agents; name ≤ 128, description ≤ 200 characters) |
-| same | | adds `waiting: { count: u32, bound: [{ threadId, requestId, title, options: [{ id, label, kind }] }] }` (the bound agent's conversation only; ≤ 8 requests, ≤ 8 options each, title ≤ 240, label ≤ 80 characters) |
+| same | | adds `waiting: { count: u32, bound: [{ threadId, requestId, title, options: [{ optionId, name, kind }] }] }` (the bound agent's conversation only; ≤ 8 requests, ≤ 8 options each, title ≤ 240, name ≤ 80 characters; answered by a button only) |
 | `companion_panel` (new, companion only) | `{ open: bool }` | `CompanionState` |
 | `select_companion_agent` (existing, now companion as well as main) | `{ agent: string }` | `BindingView`, same rules as from main |
 | `open_main_from_companion` (existing) | `{ target?: "bound" \| "agentSettings" \| "newAgent" \| "settings" \| "oldestWaiting" }`, `bound` when absent | `()` |
@@ -32,13 +32,18 @@ tasks N-22 to N-25 build it; UI tasks U-5 to U-8 consume it.
 
 | When | The asking side does |
 |---|---|
-| `answer_companion_permission` → `permission_already_answered` / `permission_not_waiting` | Shows "Already answered" / "No longer waiting"; the next state drops the request |
+| `answer_companion_permission` → `permission_settled` (Core 409 `PERMISSION_SETTLED`) / `permission_not_found` (404 `PERMISSION_NOT_FOUND`) / `permission_option_not_offered` (422) | Shows "Already answered" / "No longer waiting" / "That option is no longer offered"; the next state drops a settled request |
 | `answer_companion_permission` → `companion_core_unavailable` | Keeps the command id; the button retries with it |
 | `select_companion_agent` refused | Shows the fixed error line the main surface shows today |
 | `open_main_from_companion` with a target that no longer resolves | Native falls back to `companionSettings`, as today |
 
 ## Answer
 
+Accepted as asked by the controller on Mohammed's behalf, 2026-11-01 (no native-lead session
+ran). HTTP names follow `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3.
+
 ## Reply
+
+Accepted (masada, 2026-11-01).
 
 ## Ruling
