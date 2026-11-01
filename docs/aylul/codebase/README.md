@@ -45,6 +45,8 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/composer.test.ts` | Co-located draft and retry regressions | Companion contract |
 | `apps/desktop/src/features/companion/desktop-gesture.test.ts` | Co-located desktop gesture regressions | Companion contract |
 | `apps/desktop/tests/companion/fakes.ts` | Native composer browser test support | Companion contract; used by `composer.spec.ts` |
+| `apps/desktop/tests/companion/outfit-export.spec.ts` | Opt-in studio outfit preview export | Studio contract; writes the web preview assets |
+| `apps/desktop/tests/companion/outfit-manifest.test.ts` | Outfit preview catalog consistency | Studio contract; checks labels order and image presence |
 | `apps/desktop/src/features/companion/renderer/palette.test.ts` | Character colour palette regressions | Companion contract; co-located unit test |
 | `apps/desktop/tests/companion/boundaries.test.ts` | Parser-backed companion import ratchet | Desktop architecture section 6; exact per-import baseline and adversarial fixtures in `fixtures/boundaries/`; production reachability starts at `src/app/companion.tsx` |
 | `apps/desktop/src/features/companion/CompanionComposer.tsx` | Compact scoped text submission | Companion contract; unavailable Retry retains pending identity |

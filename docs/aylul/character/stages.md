@@ -18,10 +18,10 @@ acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-accep
 `0187365`.
 
 ### C-8 · Studio export of outfit previews for the web form, and the manifest test
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#c-8
 - Read: design §7.3; `apps/desktop/src/features/companion/studio/contract.yaml`; `apps/desktop/tests/companion/renderer.spec.ts` test "export colour review stills" (the opt-in precedent)
-- Touch: apps/desktop/src/features/companion/studio/export.ts, apps/desktop/src/features/companion/studio/contract.yaml, apps/desktop/tests/companion/outfit-export.spec.ts (new), apps/desktop/tests/companion/outfit-manifest.test.ts (new), apps/desktop/package.json (adds the manifest test to `test:companion:unit`), web/src/assets/outfits/manifest.json (new, generated), web/src/assets/outfits/*.png (new, generated, one per outfit), docs/aylul/codebase/README.md, docs/aylul/character/stages.md
+- Touch: apps/desktop/src/features/companion/studio/export.ts, apps/desktop/src/features/companion/studio/contract.yaml, apps/desktop/tests/companion/outfit-export.spec.ts (new), apps/desktop/tests/companion/outfit-manifest.test.ts (new), apps/desktop/package.json (adds the manifest test to `test:companion:unit`), web/src/assets/outfits/manifest.json (new, generated), web/src/assets/outfits/*.png (new, generated, one per outfit), assets/aylul/README.md (preview visual review), docs/aylul/codebase/README.md, docs/aylul/character/stages.md
 - Needs: none
 - Done when: from `apps/desktop/`, `EXPORT_OUTFITS=1 npx playwright test tests/companion/outfit-export.spec.ts` writes ten 160 px PNGs and the manifest; `node --test tests/companion/outfit-manifest.test.ts` passes, and fails when an id, a label, the order or an image differs from `OUTFITS` (shown by a fixture case); `npx playwright test tests/companion/studio.spec.ts`, `npm run test:companion:unit`, `npm run build` and `npm run typecheck:tests` pass. The ten images are attached to the report.
 

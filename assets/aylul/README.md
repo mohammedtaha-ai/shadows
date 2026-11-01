@@ -16,6 +16,10 @@ The current Canvas companion was extracted from the supplied `ayl.html` into
 `apps/desktop/src/features/companion/`. Its design and implementation plan live in
 `docs/aylul/character/`. The renderer does not load the historical PNGs.
 
+The studio exports outfit previews into `web/src/assets/outfits/`. Review all ten
+generated previews visually when changing them; automated export and manifest
+checks do not replace the person's visual acceptance.
+
 After the renderer was accepted, the original standalone HTML was moved on
 2026-10-17 to ignored local `archive/aylul-source-2026-10-17/ayl.html` so it no
 longer remains loose at the repository root. Its SHA-256 remains

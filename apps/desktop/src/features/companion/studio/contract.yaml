@@ -10,7 +10,15 @@ exports:
     file: apps/desktop/src/features/companion/studio/simulation.ts
   - name: exportCharacterPNG
     file: apps/desktop/src/features/companion/studio/export.ts
+  - name: exportOutfitPreview
+    file: apps/desktop/src/features/companion/studio/export.ts
 obligations:
+  - rule: Outfit previews export the idle front base-colour character through the studio renderer as 160 px PNGs.
+    tested_by: apps/desktop/tests/companion/outfit-export.spec.ts
+    test: export outfit previews
+  - rule: The web preview manifest follows the outfit catalog in id label and order with an image for each entry.
+    tested_by: apps/desktop/tests/companion/outfit-manifest.test.ts
+    test: outfit manifest matches the catalog and every image exists
   - rule: Studio reaches drawing and motion internals only through renderer/index.ts and animation/index.ts.
     tested_by: apps/desktop/tests/companion/boundaries.test.ts
     test: companion import boundaries match the exact shrinking baseline
