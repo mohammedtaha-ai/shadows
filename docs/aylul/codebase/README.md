@@ -50,6 +50,10 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/renderer/palette.test.ts` | Character colour palette regressions | Companion contract; co-located unit test |
 | `apps/desktop/tests/companion/boundaries.test.ts` | Parser-backed companion import ratchet | Desktop architecture section 6; exact per-import baseline and adversarial fixtures in `fixtures/boundaries/`; production reachability starts at `src/app/companion.tsx` |
 | `apps/desktop/src/features/companion/CompanionComposer.tsx` | Compact scoped text submission | Companion contract; unavailable Retry retains pending identity |
+| `apps/desktop/src/features/companion/panel/CompanionPanel.tsx` | Companion panel presentation | Companion contract; typed platform actions only |
+| `apps/desktop/src/features/companion/panel/AgentTile.tsx` | Still agent previews on the panel | Companion contract; public renderer and animation entries |
+| `apps/desktop/src/features/companion/panel/panel.css` | Companion panel neon appearance | Companion contract |
+| `apps/desktop/tests/companion/panel.spec.ts` | Companion panel browser acceptance | Companion contract; synthetic native IPC |
 | `apps/desktop/src/features/companion/composer-model.ts` | Draft and retry identity rules | Companion contract |
 | `apps/desktop/src/features/companion/native-presentation.ts` | Absolute-expiry native reply presentation | Companion contract |
 | `apps/desktop/src/features/companion/` | Compact desktop character/gestures plus reusable presence, procedural Canvas renderer and explicit drawing permission | Colocated `contract.yaml`; excludes separately owned studio |

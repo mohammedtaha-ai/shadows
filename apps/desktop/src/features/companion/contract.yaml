@@ -2,8 +2,14 @@ name: companion-presentation
 version: 1
 status: current
 source: apps/desktop/src/features/companion
-responsibility: Present procedural AYLUL with isolated motion and explicit native rendering permission; desktop gestures invoke narrow platform wrappers. Reusable in-window presence owns message lifetime and optional tones. Development studio is separately owned.
+responsibility: Present procedural AYLUL with isolated motion and explicit native rendering permission; desktop gestures invoke narrow platform wrappers. The companion panel (panel/) presents the bound agent and the agent grid from native state and reaches native only through platform wrappers. Reusable in-window presence owns message lifetime and optional tones. Development studio is separately owned.
 exports:
+  - name: CompanionPanel
+    file: apps/desktop/src/features/companion/panel/CompanionPanel.tsx
+  - name: AgentTile
+    file: apps/desktop/src/features/companion/panel/AgentTile.tsx
+  - name: AgentPreview
+    file: apps/desktop/src/features/companion/panel/AgentTile.tsx
   - name: paletteFor
     file: apps/desktop/src/features/companion/renderer/palette.ts
   - name: rgba
@@ -38,6 +44,21 @@ entries:
   - file: apps/desktop/src/features/companion/animation/index.ts
     exposes: the motion, frame loop, viewport and message operations presence uses, of which studio takes createMotion and readFrame; no test support.
 obligations:
+  - rule: A click or Enter on the character asks native to open the panel (companion_panel) instead of the main window; Escape asks native to close it. Blur and outside clicks are native's to close.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: click and Enter open the panel and Escape closes it
+  - rule: The grid shows every published agent as a still renderer frame in its colour and outfit (one frame per agent, no animation loop each), marks the bound one with aria-pressed, ends with a New agent tile, and a tile click calls select_companion_agent only; native owns the binding rules.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: the grid draws agents and selection uses the native binding operation
+  - rule: More than eight agents scroll inside the grid; the panel keeps its native 392 by 520 rectangle.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: nine agents scroll within the grid
+  - rule: Top-bar Settings and New agent, and the card's Settings and Open, call open_main_from_companion with settings, newAgent, agentSettings and bound; native resolves each target.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: Settings New agent and Open request their closed native destinations
+  - rule: Talk and Chat open the existing composer; Sound turns the existing interaction tones on or off for the session only, and the tone controller is disposed with the desktop companion. The status pill reads Ready until waiting permissions are published.
+    tested_by: apps/desktop/tests/companion/panel.spec.ts
+    test: Talk and Chat open the composer and Sound toggles tones
   - rule: The bound agent's opaque outfit resolves through catalog.outfitOf; unknown ids draw default in the desktop and reusable Companion.
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: the companion window draws the state's outfit

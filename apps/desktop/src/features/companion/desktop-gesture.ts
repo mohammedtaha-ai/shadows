@@ -14,7 +14,7 @@ export function createDesktopGesture(actions:{drag:()=>Promise<void>;open:()=>Pr
     up(event:Pointer){
       if(disposed||!active||event.pointerId!==active.start.pointerId||event.button!==0)return;
       const gesture=active;active=null;
-      if(!gesture.dragged&&Math.hypot(event.x-gesture.start.x,event.y-gesture.start.y)<8)perform(actions.open,'Unable to open NYLRA.');
+      if(!gesture.dragged&&Math.hypot(event.x-gesture.start.x,event.y-gesture.start.y)<8)perform(actions.open,'Unable to open the AYLUL panel.');
     },
     cancel(){active=null;},
     dispose(){disposed=true;active=null;},

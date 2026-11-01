@@ -1,0 +1,42 @@
+.aylul-panel {
+  --panel-bg:#170e25;--panel-surface:#261537;--panel-line:#795093;
+  --panel-accent:#b965ff;--panel-text:#f8edff;--panel-muted:#c5b0d5;
+  position:absolute;left:0;top:0;width:392px;height:520px;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:10px;padding:14px;
+  border:1px solid var(--panel-accent);border-radius:20px;
+  background:linear-gradient(145deg,#35204499,transparent 52%),var(--panel-bg);
+  box-shadow:inset 0 1px 0 #f1ceff30,0 0 24px #ad3dff30;
+  color:var(--panel-text);font:13px/1.45 system-ui;user-select:text;touch-action:auto;
+}
+.aylul-panel button {display:inline-flex;justify-content:center;align-items:center;gap:6px;min-height:30px;padding:5px 8px;border:1px solid var(--panel-line);border-radius:9px;background:#2b193b;color:var(--panel-text);font:inherit;cursor:pointer;transition:background 140ms,border-color 140ms,box-shadow 140ms;}
+.aylul-panel button:hover {background:#45205c;border-color:var(--panel-accent);}
+.aylul-panel button:disabled {opacity:.5;cursor:default;}
+.aylul-panel button:focus-visible {outline:2px solid #e5b5ff;outline-offset:2px;}
+.aylul-panel button[aria-current=page],.aylul-panel button[aria-pressed=true] {border-color:#d49bff;background:#542271;box-shadow:inset 0 1px 0 #f1ceff30,0 0 12px #ad3dff40;}
+.aylul-panel .aylul-panel-primary {background:linear-gradient(#a749e8,#7225b2);border-color:#d898ff;box-shadow:0 0 15px #ad3dff50;}
+.aylul-panel-head {display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.aylul-panel-head strong {font-size:17px;letter-spacing:.06em;}
+.aylul-panel-pill {margin-inline-start:auto;padding:3px 10px;border:1px solid #6fd9a3aa;border-radius:999px;background:#163326;color:#a7efc8;font-size:11px;font-weight:600;}
+.aylul-panel .aylul-panel-close {min-height:28px;width:28px;padding:0;font-size:17px;line-height:1;}
+.aylul-panel-topbar {display:flex;gap:6px;flex-shrink:0;}
+.aylul-panel-topbar button {flex:1;padding:4px 2px;font-size:12px;white-space:nowrap;}
+.aylul-panel-body {display:flex;gap:10px;flex:1;min-height:0;}
+.aylul-bound-card {display:flex;flex-direction:column;align-items:center;gap:6px;width:146px;flex-shrink:0;box-sizing:border-box;padding:10px;border:1px solid #9760bc;border-radius:14px;background:linear-gradient(160deg,#58227355,transparent),var(--panel-surface);box-shadow:inset 0 1px 0 #f1ceff20;text-align:center;}
+.aylul-panel .aylul-bound-card canvas {width:112px;height:112px;flex-shrink:0;}
+.aylul-bound-card h2 {margin:0;max-width:100%;font-size:16px;line-height:1.25;overflow-wrap:anywhere;}
+.aylul-bound-card p {margin:0;color:var(--panel-muted);font-size:12px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;}
+.aylul-panel-status {max-width:100%;color:#a7efc8;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.aylul-bound-actions {display:flex;flex-direction:column;gap:6px;width:100%;margin-top:auto;}
+.aylul-panel-agents {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:112px;gap:8px;align-content:start;flex:1;min-width:0;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--panel-line) transparent;padding:2px;}
+.aylul-panel .aylul-agent-tile {display:flex;flex-direction:column;gap:0;padding:4px;overflow:hidden;}
+.aylul-panel .aylul-agent-tile canvas {width:72px;height:72px;max-width:100%;flex-shrink:0;}
+.aylul-agent-tile span {max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.aylul-agent-tile small {color:var(--panel-muted);font-size:10px;}
+.aylul-panel .aylul-agent-new {border-style:dashed;color:var(--panel-muted);}
+.aylul-agent-plus {font-size:30px;line-height:1;color:var(--panel-accent);}
+.aylul-desktop .aylul-panel .aylul-panel-error {flex-shrink:0;margin:0;padding:8px;background:#542140;color:#ffd4df;border-radius:8px;font-size:12px;}
+.aylul-desktop.aylul-panel-open .aylul-artwork {top:140px;left:400px;transform:none;width:240px;height:240px;}
+.aylul-desktop.aylul-panel-open .aylul-live-status {top:353px;left:410px;right:10px;}
+.aylul-desktop.aylul-panel-open .aylul-bubble-compact {top:146px;left:410px;right:10px;}
+@media(max-width:639px) {.aylul-panel{width:min(392px,100%);height:min(520px,100%);}.aylul-desktop.aylul-panel-open .aylul-artwork,.aylul-desktop.aylul-panel-open .aylul-live-status,.aylul-desktop.aylul-panel-open .aylul-bubble-compact{visibility:hidden;}}
+@media(prefers-reduced-motion:reduce) {.aylul-panel button {transition:none;}}

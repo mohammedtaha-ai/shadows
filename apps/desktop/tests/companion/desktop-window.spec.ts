@@ -13,6 +13,7 @@ test.beforeEach(async({page})=>{
         if(command==='plugin:event|listen')return args.handler;
         if(command==='plugin:event|unlisten')return;
         if(command==='companion_ready'||command==='companion_state')return state;
+        if(command==='companion_panel')return state;
         if(command==='companion_failed')return {...state,revision:2,renderAllowed:false,error:'companion_render_failed'};
         if(command==='drag_companion'||command==='open_main_from_companion')return;
         throw Error('Unexpected native call '+command);
@@ -27,7 +28,7 @@ test('desktop entry draws transparent character without account or studio',async
   expect(await page.evaluate(()=>({x:document.documentElement.scrollWidth,y:document.documentElement.scrollHeight}))).toEqual({x:240,y:240});
   await expect(page.getByRole('heading',{name:'Account',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>(window as any).nativeCalls)).not.toContain('auth_action');
-  await page.mouse.click(120,120);await expect.poll(()=>page.evaluate(()=>(window as any).nativeCalls.includes('open_main_from_companion'))).toBe(true);
+  await page.mouse.click(120,120);await expect.poll(()=>page.evaluate(()=>(window as any).nativeCalls.includes('companion_panel'))).toBe(true);
   await page.screenshot({path:'test-results/desktop-240.png'});
 });
 test('desktop Canvas failure stays local and does not report readiness',async({page})=>{
