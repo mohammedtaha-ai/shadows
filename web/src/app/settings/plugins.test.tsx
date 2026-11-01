@@ -25,7 +25,7 @@ it('the library has tabs and no switches', async () => {
   act(() => a.button('Skills')!.click())
   expect(a.text()).toContain('Review changes.'); expect(document.querySelector('[role="switch"]')).toBeNull()
   expect(a.calls.filter(call => call === 'GET /api/aylul/extensions')).toHaveLength(1)
-  a.queryClient.setQueryData(extensionsQuery.queryKey, { plugins: [], skills: [] })
+  a.queryClient.setQueryData(extensionsQuery.queryKey, { mcp: [], plugins: [], skills: [] })
   await until(() => a.text().includes('No skills yet.'))
   act(() => a.button('Plugins')!.click()); expect(a.text()).toContain('No plugins yet.')
 })
@@ -84,7 +84,7 @@ it('a failed Remove can be retried', async () => {
       return removed ? new Response(null, { status: 204 }) : Response.json({ code: 'COMMAND_CONFLICT', message: 'Remove failed.' }, { status: 409 })
     },
   })
-  for (const slug of ['ay', 'zed']) a.queryClient.setQueryData(agentExtensionsQuery(slug).queryKey, { plugins: [{ ...plugin, enabled: true }], skills: [] })
+  for (const slug of ['ay', 'zed']) a.queryClient.setQueryData(agentExtensionsQuery(slug).queryKey, { mcp: [], plugins: [{ ...plugin, enabled: true }], skills: [] })
   act(() => a.button('Remove')!.click()); confirm(a)
   await until(() => a.text().includes('Remove failed.') && a.buttons('Remove').at(-1)?.disabled === false)
   expect(ids).toHaveLength(1); expect(a.text()).toContain('Git tools.')

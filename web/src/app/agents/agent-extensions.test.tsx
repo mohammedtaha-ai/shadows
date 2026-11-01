@@ -7,7 +7,7 @@ import { startApp, until, typeInto, type TestApp, type Answer } from '@/test/tes
 
 const plugin = { id: '11111111-1111-4111-8111-111111111111', name: 'git', description: 'Git tools.' }
 const skill = { id: '22222222-2222-4222-8222-222222222222', name: 'review', description: 'Review changes.' }
-const view = (enabled = false): AgentExtensions => ({ plugins: [{ ...plugin, enabled: true }], skills: [{ ...skill, enabled }] })
+const view = (enabled = false): AgentExtensions => ({ mcp: [], plugins: [{ ...plugin, enabled: true }], skills: [{ ...skill, enabled }] })
 const agent = { slug: 'ay', name: 'AYLUL', provider: 'p', default_model: 'm1', character_color: 'purple', deleted: false, created_at: 'now', updated_at: 'now' }
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null; window.localStorage.clear() })
