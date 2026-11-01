@@ -89,7 +89,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/desktop/native-parity.test.ts` passes (`agentSettings` with a valid slug, `newAgent` and `settings` parse; a bad slug and unknown kinds are refused; each maps to its route), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass.
 
 ### F-69 · Palette, type and surfaces from the AI Studio design
-- Status: blocked (waits for M-0 and for Mohammed's approval of the two `@fontsource` packages)
+- Status: blocked (waits for M-0; Mohammed approved `@fontsource/plus-jakarta-sans` and `@fontsource/jetbrains-mono` on 2026-11-02)
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-69)
 - Read: the export's `src/index.css`; ours `web/src/index.css`; evidence Report D "242984d8" and "Token and class gap"
 - Touch: web/src/index.css, web/package.json, web/package-lock.json, web/src/app/conversation/permission-card.tsx, web/src/app/agents/agent-extensions.tsx, web/src/app/agents/outfit-picker.tsx, web/src/app/agents/agent-settings.tsx, web/src/app/agents/contract.yaml, web/src/app/conversation/contract.yaml, docs/frontend/stages.md
