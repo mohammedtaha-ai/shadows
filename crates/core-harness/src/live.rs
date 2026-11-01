@@ -177,11 +177,17 @@ impl Sessions {
             let mut image_refusal = None;
             let deadline = Instant::now() + self.config.setup_wait;
             let setup = async {
-                let connection =
-                    tokio::time::timeout_at(deadline, Connection::open(&mut handle, events))
-                        .await
-                        .map_err(|_| "harness setup timed out".to_string())?
-                        .map_err(|e| e.to_string())?;
+                let connection = tokio::time::timeout_at(
+                    deadline,
+                    Connection::open(
+                        &mut handle,
+                        shadows_agent::acp::PermissionPolicy::Refuse,
+                        events,
+                    ),
+                )
+                .await
+                .map_err(|_| "harness setup timed out".to_string())?
+                .map_err(|e| e.to_string())?;
                 if let Err(error) = super::Harness::check_images(&connection, has_images) {
                     let reason = error.to_string();
                     image_refusal = Some(error);

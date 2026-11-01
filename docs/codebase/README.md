@@ -314,6 +314,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/acp/connection.rs` | ACP transport initialization | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/session.rs` | ACP session configuration | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/prompt.rs` | ACP prompt lifecycle | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp/permissions.rs` | held ACP permission requests | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/mapping.rs` | ordered ACP event translation | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/events/tool.rs` | tool activity reports | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/events/subagent.rs` | subagent metadata | `crates/shadows-agent/src/events.rs` |

@@ -1,3 +1,4 @@
+# PermissionAsked and PermissionAnswered are ignored; PermissionRefused keeps its existing entry.
 # Design values and transaction APIs are imported from core-design.
 # Harness invocation and session APIs are imported from core-harness.
 # Operations lifecycle and transactions are imported from core-operations.

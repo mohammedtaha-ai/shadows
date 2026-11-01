@@ -113,7 +113,8 @@ impl Collector {
                     &core_db::Storage::now(),
                 );
             }
-            HarnessEvent::PermissionRefused { title } => {
+            HarnessEvent::PermissionAsked { .. } | HarnessEvent::PermissionAnswered { .. } => {}
+            HarnessEvent::PermissionRefused { title, .. } => {
                 self.flush_message(&mut out);
                 self.flush_tools(&mut out);
                 if !title.is_empty() {

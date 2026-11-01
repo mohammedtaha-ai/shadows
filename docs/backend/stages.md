@@ -82,7 +82,8 @@ accepted on 2026-11-01, so no task waits on it.
 - Done when: `cargo test -p shadows-agent mcp_` passes `mcp_servers_carry_http_headers_and_stdio_env` and `mcp_spec_debug_never_prints_values`; `cargo test -p shadows --test planner_mcp` and `cargo test -p shadows-core --test planner_isolation` pass unchanged; `cargo test -p shadows-core --test aylul_session opening_uses_agent_and_provider` passes (AYLUL: no MCP).
 
 ### B-28 · ACP connection: hold, answer and refuse permission requests
-- Status: todo
+- Status: done
+- Additional Touch: `crates/core-harness/contract.yaml`, `crates/core-turns/contract.yaml` (only B-28's explicit refusal policy and ignored permission-event shapes; no B-32 or B-33 behavior); `Cargo.lock` (Cargo-generated dependency edge for the planned workspace `uuid` dependency only).
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#24-holding-a-permission-request-78--b-28-b-32-b-33
 - Read: `crates/shadows-agent/src/acp/connection.rs` (`open`); `crates/shadows-agent/src/acp/prompt.rs` (`cancel`); `crates/shadows-agent/src/events.rs`; design §7.8.
 - Touch: `crates/shadows-agent/src/acp.rs`; `crates/shadows-agent/src/acp/connection.rs`; `crates/shadows-agent/src/acp/permissions.rs` (new: the held map, `PermissionPolicy`); `crates/shadows-agent/src/acp/prompt.rs`; `crates/shadows-agent/src/events.rs` (`PermissionAsked`, `PermissionAnswered`, `PermissionRefused { title, request, reason }`); `crates/shadows-agent/Cargo.toml` (only if `uuid` is not yet a dependency: workspace library, infrastructure); `crates/core-harness/src/live.rs` (pass `PermissionPolicy::Refuse` everywhere for now); `crates/core-turns/src/entries.rs` (new variants ignored, refusal keeps today's entry); `crates/shadows-core/tests/acp_connection.rs`; `crates/shadows-core/tests/aylul_extensions/live.rs`; `docs/codebase/README.md` (row for `acp/permissions.rs`).

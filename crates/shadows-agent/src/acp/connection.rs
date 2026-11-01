@@ -1,6 +1,7 @@
 //! Adapter transport initialization and stderr draining.
 use super::mapping::Mapping;
-use super::{AcpError, Connection, PromptCapabilities};
+use super::permissions::Permissions;
+use super::{AcpError, Connection, PermissionPolicy, PromptCapabilities};
 use crate::events::HarnessEvent;
 use agent_client_protocol::schema::{
     ProtocolVersion,
@@ -27,11 +28,14 @@ impl Connection {
     /// end before its last update arrived.
     pub async fn open(
         handle: &mut ProcessHandle,
+        policy: PermissionPolicy,
         events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
     ) -> Result<Self, AcpError> {
         let (stdin, stdout, stderr) = handle.take_stdio().ok_or(AcpError::Closed)?;
         forward_stderr(stderr);
         let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+        let permissions = Permissions::new(events.clone());
+        let dispatch_permissions = permissions.clone();
         let notify = events.clone();
         let costs = crate::usage::Costs::default();
         let dispatch_costs = costs.clone();
@@ -54,8 +58,14 @@ impl Connection {
                 )
                 .on_receive_request(
                     async move |r: RequestPermissionRequest, responder, _cx| {
+                        if policy == PermissionPolicy::Ask {
+                            dispatch_permissions.hold(r, responder);
+                            return Ok(());
+                        }
                         events(HarnessEvent::PermissionRefused {
                             title: r.tool_call.fields.title.clone().unwrap_or_default(),
+                            request: None,
+                            reason: None,
                         });
                         let choice = r
                             .options
@@ -108,6 +118,7 @@ impl Connection {
             cx,
             costs,
             capabilities,
+            permissions,
         })
     }
 }

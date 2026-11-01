@@ -157,6 +157,7 @@ impl Connection {
         }
     }
     pub fn cancel(&self, session: &str) {
+        self.permissions.refuse_session(session, "cancelled");
         let cx = self.cx.clone();
         let session = session.to_string();
         let _ = cx.send_notification(CancelNotification::new(session));

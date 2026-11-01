@@ -60,11 +60,15 @@ async fn commands(home: &std::path::Path) -> Vec<String> {
     .unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let result = tokio::time::timeout(Duration::from_secs(120), async {
-        let connection = Connection::open(&mut process, move |event| {
-            if let HarnessEvent::Commands(v) = event {
-                let _ = tx.send(v);
-            }
-        })
+        let connection = Connection::open(
+            &mut process,
+            shadows_agent::acp::PermissionPolicy::Refuse,
+            move |event| {
+                if let HarnessEvent::Commands(v) = event {
+                    let _ = tx.send(v);
+                }
+            },
+        )
         .await
         .map_err(|_| "initialize failed")?;
         let session = connection

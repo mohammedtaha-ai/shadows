@@ -39,8 +39,22 @@ pub enum HarnessEvent {
     Subagent(SubagentCard),
     Tool(ToolLive),
     Todos(Vec<TodoItem>),
+    PermissionAsked {
+        request: String,
+        title: String,
+        options: Vec<agent_client_protocol::schema::v1::PermissionOption>,
+        asked_at: u128,
+    },
+    PermissionAnswered {
+        request: String,
+        option: String,
+        kind: String,
+        name: String,
+    },
     PermissionRefused {
         title: String,
+        request: Option<String>,
+        reason: Option<String>,
     },
     Usage {
         used: u64,

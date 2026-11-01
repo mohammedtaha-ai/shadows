@@ -1,10 +1,12 @@
 //! One ACP client connection to one managed adapter process.
 mod connection;
 mod mapping;
+mod permissions;
 mod prompt;
 mod session;
 
 use agent_client_protocol::{Agent, ConnectionTo};
+pub use permissions::{PermissionError, PermissionPolicy, WaitingPermission};
 pub use prompt::{ImageBlock, PromptBlock, PromptCapabilities, PromptResult, Steer, TurnEnd};
 pub use session::{McpServerSpec, Opened, SessionSetup, SessionStart};
 
@@ -21,6 +23,7 @@ pub struct Connection {
     cx: ConnectionTo<Agent>,
     capabilities: PromptCapabilities,
     costs: crate::usage::Costs,
+    permissions: permissions::Permissions,
 }
 
 #[cfg(test)]

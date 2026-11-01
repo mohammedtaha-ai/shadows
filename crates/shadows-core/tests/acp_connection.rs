@@ -1,7 +1,10 @@
 use std::{path::PathBuf, time::Duration};
 
 use shadows_agent::{
-    acp::{AcpError, Connection, SessionSetup, SessionStart, TurnEnd},
+    acp::{
+        AcpError, Connection, PermissionError, PermissionPolicy, SessionSetup, SessionStart,
+        TurnEnd,
+    },
     claude::ClaudeAdapter,
     events::HarnessEvent,
 };
@@ -17,6 +20,16 @@ async fn open_fake() -> (
     Connection,
     mpsc::UnboundedReceiver<HarnessEvent>,
 ) {
+    open_with_policy(PermissionPolicy::Refuse).await
+}
+
+async fn open_with_policy(
+    policy: PermissionPolicy,
+) -> (
+    ProcessHandle,
+    Connection,
+    mpsc::UnboundedReceiver<HarnessEvent>,
+) {
     let executable = shadows_core::testing::fake_acp_path();
     let mut handle = process::spawn(ProcessSpec {
         executable,
@@ -28,7 +41,7 @@ async fn open_fake() -> (
     })
     .unwrap();
     let (tx, rx) = mpsc::unbounded_channel();
-    let connection = Connection::open(&mut handle, move |e| {
+    let connection = Connection::open(&mut handle, policy, move |e| {
         let _ = tx.send(e);
     })
     .await
@@ -127,7 +140,7 @@ async fn a_permission_request_is_refused_and_reported() {
     c.prompt(&s, "ask-permission", &[]).await.unwrap();
     let got = drain(&mut ev);
     assert!(got.iter().any(
-        |e| matches!(e, HarnessEvent::PermissionRefused { title } if title == "Run echo probe")
+        |e| matches!(e, HarnessEvent::PermissionRefused { title, .. } if title == "Run echo probe")
     ));
     assert!(got.iter().any(
         |e| matches!(e, HarnessEvent::Chunk { text, .. } if text == "permission: reject_once")
@@ -358,4 +371,136 @@ async fn prompt_returns_raw_turn_usage() {
         (10, 4, 20, 30, 64)
     );
     assert!(c.prompt(&s, "hi", &[]).await.unwrap().usage.is_none());
+}
+
+async fn ask(
+    c: &Connection,
+    ev: &mut mpsc::UnboundedReceiver<HarnessEvent>,
+) -> (
+    String,
+    String,
+    tokio::task::JoinHandle<Result<shadows_agent::acp::PromptResult, AcpError>>,
+) {
+    let session = c
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
+        .await
+        .unwrap()
+        .session_id;
+    let connection = c.clone();
+    let id = session.clone();
+    let turn = tokio::spawn(async move { connection.prompt(&id, "ask-permission", &[]).await });
+    let request = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if let Some(HarnessEvent::PermissionAsked { request, .. }) = ev.recv().await {
+                break request;
+            }
+        }
+    })
+    .await
+    .unwrap();
+    (session, request, turn)
+}
+
+#[tokio::test]
+async fn a_refusing_connection_rejects_at_once() {
+    let (_h, c, mut ev) = open_fake().await;
+    let session = c
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
+        .await
+        .unwrap()
+        .session_id;
+    c.prompt(&session, "ask-permission", &[]).await.unwrap();
+    assert!(drain(&mut ev).iter().any(|e| matches!(
+        e,
+        HarnessEvent::PermissionRefused {
+            request: None,
+            reason: None,
+            ..
+        }
+    )));
+}
+
+#[tokio::test]
+async fn a_held_request_waits_for_its_answer() {
+    let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
+    let (_, request, turn) = ask(&c, &mut ev).await;
+    assert_eq!(c.held_permissions().len(), 1);
+    c.answer_permission(&request, "allow_once").unwrap();
+    assert!(c.held_permissions().is_empty());
+    assert!(matches!(
+        ev.recv().await,
+        Some(HarnessEvent::PermissionAnswered { .. })
+    ));
+    turn.await.unwrap().unwrap();
+    assert!(drain(&mut ev).iter().any(|e| matches!(e,
+        HarnessEvent::Chunk { text, .. } if text == "permission: allow_once")));
+}
+
+#[tokio::test]
+async fn an_option_not_offered_is_refused_and_the_request_stays() {
+    let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
+    let (_, request, turn) = ask(&c, &mut ev).await;
+    assert!(matches!(
+        c.answer_permission(&request, "bogus"),
+        Err(PermissionError::OptionNotOffered)
+    ));
+    assert_eq!(c.held_permissions().len(), 1);
+    c.refuse_held("closed");
+    turn.await.unwrap().unwrap();
+}
+
+#[tokio::test]
+async fn a_second_answer_finds_the_request_settled() {
+    let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
+    let (_, request, turn) = ask(&c, &mut ev).await;
+    c.answer_permission(&request, "reject_once").unwrap();
+    assert!(matches!(
+        c.answer_permission(&request, "reject_once"),
+        Err(PermissionError::Settled)
+    ));
+    assert!(matches!(
+        c.answer_permission("unknown", "reject_once"),
+        Err(PermissionError::Unknown)
+    ));
+    turn.await.unwrap().unwrap();
+}
+
+#[tokio::test]
+async fn cancel_refuses_held_requests_before_cancelling() {
+    let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
+    let (session, request, turn) = ask(&c, &mut ev).await;
+    c.cancel(&session);
+    assert!(
+        matches!(ev.recv().await, Some(HarnessEvent::PermissionRefused {
+        request: Some(id), reason: Some(reason), ..
+    }) if id == request && reason == "cancelled")
+    );
+    assert!(c.held_permissions().is_empty());
+    turn.await.unwrap().unwrap();
+}
+
+#[tokio::test]
+async fn refuse_held_ends_every_waiting_request() {
+    let (_h, c, mut ev) = open_with_policy(PermissionPolicy::Ask).await;
+    let (_, request, turn) = ask(&c, &mut ev).await;
+    let (_, second, other_turn) = ask(&c, &mut ev).await;
+    assert_eq!(c.held_permissions().len(), 2);
+    c.refuse_held("stopped");
+    let mut ids = Vec::new();
+    for _ in 0..2 {
+        if let Some(HarnessEvent::PermissionRefused {
+            request: Some(id),
+            reason: Some(reason),
+            ..
+        }) = ev.recv().await
+        {
+            assert_eq!(reason, "stopped");
+            ids.push(id);
+        }
+    }
+    assert!(ids.contains(&request));
+    assert!(ids.contains(&second));
+    assert!(c.held_permissions().is_empty());
+    turn.await.unwrap().unwrap();
+    other_turn.await.unwrap().unwrap();
 }
