@@ -172,6 +172,8 @@ struct Waiting {
     cursor: i64,
     failures: u32,
     requests: Vec<WaitingPermission>,
+    /// A `PermissionsChanged` frame was taken but its re-read has not finished.
+    owed: bool,
 }
 impl Waiting {
     const LIST: usize = 256;
@@ -196,6 +198,7 @@ impl Waiting {
                 self.project = Some(project);
                 self.feed = Some(feed);
                 self.failures = 0;
+                self.owed = false;
                 self.replace(requests)
             }
             Err(_) => self.lose(),
@@ -213,39 +216,51 @@ impl Waiting {
         self.replace(vec![])
     }
     /// Waits for the next project frame; true when the requests changed.
+    ///
+    /// Callers race this against timers in `select!`, so the re-read is owed
+    /// across a cancellation: the frame is already consumed and would be lost.
     async fn change(&mut self, client: &Client) -> bool {
+        if !self.owed {
+            if let Some(changed) = self.frame().await {
+                return changed;
+            }
+            self.owed = true;
+        }
+        let requests = client.permissions().await;
+        self.owed = false;
+        match requests {
+            Ok(requests) => self.replace(requests),
+            Err(_) => self.lose(),
+        }
+    }
+    /// The next frame's effect, or `None` when it asks for a re-read.
+    async fn frame(&mut self) -> Option<bool> {
         let Some(feed) = self.feed.as_mut() else {
             return std::future::pending().await;
         };
         let Some(Ok(frame)) = feed.next().await else {
-            return self.lose();
+            return Some(self.lose());
         };
         match frame.event.as_str() {
             "caught-up" => match serde_json::from_str::<CaughtUp>(&frame.data) {
                 Ok(value) => {
                     self.cursor = self.cursor.max(value.seq);
-                    false
+                    Some(false)
                 }
-                Err(_) => self.lose(),
+                Err(_) => Some(self.lose()),
             },
             "durable" => {
                 let Ok(value) = serde_json::from_str::<Durable>(&frame.data) else {
-                    return self.lose();
+                    return Some(self.lose());
                 };
                 if value.seq <= self.cursor {
-                    return false;
+                    return Some(false);
                 }
                 self.cursor = value.seq;
-                if value.kind != "PermissionsChanged" {
-                    return false;
-                }
-                match client.permissions().await {
-                    Ok(requests) => self.replace(requests),
-                    Err(_) => self.lose(),
-                }
+                (value.kind != "PermissionsChanged").then_some(false)
             }
-            "lagged" | "fatal" => self.lose(),
-            _ => false,
+            "lagged" | "fatal" => Some(self.lose()),
+            _ => Some(false),
         }
     }
     /// What the companion shows: every request counted, the bound thread's listed within bounds.

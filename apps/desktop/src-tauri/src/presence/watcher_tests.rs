@@ -423,15 +423,15 @@ async fn waiting_permissions_are_read_at_start_and_reread_on_a_project_frame() {
     api.permission(THREAD_B, "other", "Elsewhere");
     let (watcher, mut rx, connection) = watch(&api);
     watcher.replace(binding(1, THREAD_A, "agent-a"), connection);
-    let start = wait(&mut rx, |update| update.waiting.count == 1).await;
+    // One wait: the count and the Ready status may arrive in the same update.
+    let start = wait(&mut rx, |update| {
+        update.projection.status == "Ready" && update.waiting.count == 1
+    })
+    .await;
     assert!(
         start.waiting.bound.is_empty(),
         "another thread never blocks the bound one"
     );
-    wait(&mut rx, |update| {
-        update.projection.status == "Ready" && update.waiting.count == 1
-    })
-    .await;
     api.permission(THREAD_A, "bound", "Run curl");
     api.permissions_changed(THREAD_A, "bound", "waiting");
     let waiting = wait(&mut rx, blocked).await;
