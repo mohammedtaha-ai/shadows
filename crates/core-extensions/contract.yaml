@@ -14,6 +14,9 @@ modules:
   model.rs: public extension metadata
   files.rs: bounded library file copies
   mcp.rs: MCP configuration commands and validation
+  bundled.rs: embedded library import
+  ../build.rs: embedded library file index
+  ../assets/library/: bundled library source items
   error.rs: library refusals
   store/: extension configuration SQL
 
@@ -42,6 +45,7 @@ shapes:
     values: Plugin, Skill, Mcp
   Item:
     note: Immutable library metadata without source paths
+    bundled: Whether the item was imported from embedded library assets.
   AgentItem:
     note: Item with one agent's enabled switch
   ExtensionLibrary:
@@ -57,6 +61,7 @@ functions:
   new: "public: (storage: Arc<Storage>, secrets: Arc<Secrets>, home_root: Option<PathBuf>) -> Arc<Extensions>"
   extensions: List the shared extension library ordered by name and id.
   add_extension: Import a bounded immutable local copy under one replayable command.
+  import_bundled: Import embedded items at startup unless present or previously declined; no-op without AYLUL.
   add_mcp: Create replayable MCP configuration with write-only values in the same transaction.
   update_mcp: Replace configuration without changing its id or switches; omitted values are retained.
   agent_mcp_servers: Resolve only enabled MCP configurations for a trusted opening.
@@ -78,6 +83,8 @@ shared_in_transaction:
   remove_agent_in: Agent enablements removed in the caller write.
 
 obligations:
+  - rule: Embedded items import once, start disabled, and stay absent after deletion.
+    tested_by: [bundled_items_import_once_at_start, a_restart_replays_the_bundled_import, a_deleted_bundled_item_is_declined, a_bundled_item_starts_switched_off, no_aylul_configuration_imports_nothing]
   - rule: Imports copy owned data with UUID ids and return no source path.
     tested_by: [extension_import_copies_and_redacts_source]
   - rule: Inputs are bounded and contained; intrinsic kind/name duplicates conflict.

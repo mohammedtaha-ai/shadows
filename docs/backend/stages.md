@@ -103,7 +103,8 @@ accepted on 2026-11-01, so no task waits on it.
 - Done when: `cargo test -p core-extensions --test library mcp_` passes `mcp_item_is_configuration_with_write_only_values`, `mcp_input_is_checked`, `mcp_edit_keeps_its_id_switches_and_unsent_values`, `mcp_delete_removes_switches_and_scope_in_one_write`, `mcp_commands_replay_and_conflict`, `mcp_values_never_leave_secrets`, `agent_mcp_servers_resolve_only_enabled_items`; the rest of `--test library` passes; `cargo test -p shadows-http aylul_extensions` passes incl. `mcp_routes_answer_names_never_values` and `folder_import_refuses_mcp`; openapi regenerated and `cargo test -p shadows --test openapi` passes; `cargo test -p shadows --test architecture` passes.
 
 ### B-30 · Extensions: bundled library items, imported at start, declined when deleted
-- Status: todo (shared request accepted 2026-11-01)
+- Status: done
+- Additional Touch: `crates/core-extensions/src/files.rs` (normal imports start with `bundled: false`), `docs/codebase/README.md` (bundled source, assets and build-script owner rows).
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#26-extensions-bundled-items-74--b-30
 - Read: `crates/core-extensions/contract.yaml`; design §7.4; plan §2.6.
 - Touch: `crates/core-extensions/assets/library/skills/aylul-hello/SKILL.md` (new); `crates/core-extensions/build.rs` (new); `crates/core-extensions/Cargo.toml` (`build`); `crates/core-extensions/src/bundled.rs` (new); `crates/core-extensions/src/{lib.rs,model.rs,store/mod.rs}`; `crates/core-extensions/contract.yaml` (modules incl. the assets folder); `crates/core-extensions/tests/library.rs`; `crates/shadows-core/src/app.rs` (call `extensions.import_bundled()` in `start`, after owners); `api/openapi.json`.

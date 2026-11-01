@@ -22,6 +22,8 @@ pub struct Item {
     pub id: String,
     pub name: String,
     pub description: String,
+    #[serde(default)]
+    pub bundled: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct AgentItem {

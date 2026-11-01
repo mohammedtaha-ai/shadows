@@ -316,6 +316,7 @@ impl AppCore {
         for slug in owners.agents.import_home_instructions().await? {
             tracing::warn!(slug, "agent.instructions_import_skipped");
         }
+        owners.extensions.import_bundled().await?;
         let instructions = Instructions::new(storage.clone());
         let standards = Standards::new(storage.clone());
         let sessions = Harness::with_owners(

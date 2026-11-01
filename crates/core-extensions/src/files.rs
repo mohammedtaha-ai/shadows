@@ -111,6 +111,7 @@ fn metadata(root: &Path, kind: ExtensionKind, id: &str) -> Result<Item, Extensio
         id: id.into(),
         name,
         description,
+        bundled: false,
     })
 }
 

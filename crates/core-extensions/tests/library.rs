@@ -91,6 +91,82 @@ fn source(w: &World, kind: ExtensionKind, name: &str) -> std::path::PathBuf {
 }
 
 #[tokio::test]
+async fn bundled_items_import_once_at_start() {
+    let w = world().await;
+    w.extensions.import_bundled().await.unwrap();
+    let library = w.extensions.extensions().await.unwrap();
+    assert_eq!(library.skills.len(), 1);
+    let skill = &library.skills[0];
+    assert_eq!(skill.name, "aylul-hello");
+    assert!(skill.bundled);
+    let text = std::fs::read_to_string(
+        w._tmp
+            .path()
+            .join("home/library")
+            .join(&skill.id)
+            .join("SKILL.md"),
+    )
+    .unwrap();
+    assert!(text.contains("name: aylul-hello"));
+}
+
+#[tokio::test]
+async fn a_restart_replays_the_bundled_import() {
+    let w = world().await;
+    w.extensions.import_bundled().await.unwrap();
+    let first = w.extensions.extensions().await.unwrap().skills[0]
+        .id
+        .clone();
+    let restart = Extensions::new(
+        w.storage.clone(),
+        w.secrets.clone(),
+        Some(w._tmp.path().join("home")),
+    );
+    restart.import_bundled().await.unwrap();
+    let skills = restart.extensions().await.unwrap().skills;
+    assert_eq!(skills.len(), 1);
+    assert_eq!(skills[0].id, first);
+}
+
+#[tokio::test]
+async fn a_deleted_bundled_item_is_declined() {
+    let w = world().await;
+    w.extensions.import_bundled().await.unwrap();
+    let item = w.extensions.extensions().await.unwrap().skills.remove(0);
+    w.extensions
+        .delete_extension("delete-bundled".into(), ExtensionKind::Skill, &item.id)
+        .await
+        .unwrap();
+    w.extensions.import_bundled().await.unwrap();
+    assert!(w.extensions.extensions().await.unwrap().skills.is_empty());
+    let declined: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM aylul_extension_declined WHERE kind='skill' AND name='aylul-hello'",
+    )
+    .fetch_one(w.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(declined, 1);
+}
+
+#[tokio::test]
+async fn a_bundled_item_starts_switched_off() {
+    let w = world().await;
+    w.extensions.import_bundled().await.unwrap();
+    let items = w.extensions.agent_extensions("aylul").await.unwrap().skills;
+    assert_eq!(items.len(), 1);
+    assert!(!items[0].enabled);
+}
+
+#[tokio::test]
+async fn no_aylul_configuration_imports_nothing() {
+    let w = world().await;
+    let unconfigured = Extensions::new(w.storage.clone(), w.secrets.clone(), None);
+    unconfigured.import_bundled().await.unwrap();
+    assert!(unconfigured.extensions().await.unwrap().skills.is_empty());
+    assert!(!w._tmp.path().join("home/.bundled-stage").exists());
+}
+
+#[tokio::test]
 async fn extension_import_copies_and_redacts_source() {
     let w = world().await;
     for (kind, name) in [

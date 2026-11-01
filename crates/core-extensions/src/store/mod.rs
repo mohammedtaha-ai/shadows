@@ -18,6 +18,7 @@ fn item(row: &sqlx::sqlite::SqliteRow) -> Item {
         id: row.get("id"),
         name: row.get("name"),
         description: row.get("description"),
+        bundled: row.get("bundled"),
     }
 }
 
@@ -27,6 +28,23 @@ pub(super) struct ExtensionsStore {
 }
 
 impl ExtensionsStore {
+    pub(super) async fn bundled_present_or_declined(
+        &self,
+        kind: ExtensionKind,
+        name: &str,
+    ) -> Result<bool, ExtensionsError> {
+        Ok(sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM aylul_extension WHERE kind=? AND name=?)
+             OR EXISTS(SELECT 1 FROM aylul_extension_declined WHERE kind=? AND name=?)",
+        )
+        .bind(kind.as_str())
+        .bind(name)
+        .bind(kind.as_str())
+        .bind(name)
+        .fetch_one(self.storage.reader())
+        .await?)
+    }
+
     pub(super) fn new(storage: Arc<Storage>) -> Self {
         Self { storage }
     }
@@ -107,6 +125,7 @@ impl ExtensionsStore {
         kind: ExtensionKind,
         source: PathBuf,
         library: PathBuf,
+        bundled: bool,
     ) -> Result<Item, ExtensionsError> {
         let created = std::sync::Arc::new(std::sync::Mutex::new(None));
         let cleanup = created.clone();
@@ -121,11 +140,12 @@ impl ExtensionsStore {
                     }
                     let id = uuid::Uuid::new_v4().to_string();
                     let destination = library.join(&id);
-                    let (item, digest) = tokio::task::spawn_blocking(move || {
+                    let (mut item, digest) = tokio::task::spawn_blocking(move || {
                         Extensions::publish(&source, &library, kind, &id)
                     })
                     .await
                     .map_err(|_| StorageError::Unavailable("extension copy".into()))??;
+                    item.bundled = bundled;
                     *created.lock().expect("import ownership") = Some(destination);
                     let exists: bool = sqlx::query_scalar(
                         "SELECT EXISTS(SELECT 1 FROM aylul_extension
@@ -139,8 +159,9 @@ impl ExtensionsStore {
                         return Err(ExtensionsError::NameConflict);
                     }
                     sqlx::query(
-                        "INSERT INTO aylul_extension(id,kind,name,description,digest,created_at)
-            VALUES (?,?,?,?,?,?)",
+                        "INSERT INTO aylul_extension
+                         (id,kind,name,description,digest,created_at,bundled)
+                         VALUES (?,?,?,?,?,?,?)",
                     )
                     .bind(&item.id)
                     .bind(kind.as_str())
@@ -148,6 +169,7 @@ impl ExtensionsStore {
                     .bind(&item.description)
                     .bind(digest)
                     .bind(Storage::now())
+                    .bind(bundled)
                     .execute(&mut *conn)
                     .await?;
                     Self::record(conn, &c, &serde_json::to_string(&item)?).await?;
@@ -204,6 +226,14 @@ impl ExtensionsStore {
                     if !exists {
                         return Err(ExtensionsError::NotFound);
                     }
+                    sqlx::query(
+                        "INSERT OR IGNORE INTO aylul_extension_declined(kind,name,declined_at)
+                         SELECT kind,name,? FROM aylul_extension WHERE id=? AND bundled=1",
+                    )
+                    .bind(Storage::now())
+                    .bind(&id)
+                    .execute(&mut *conn)
+                    .await?;
                     sqlx::query("DELETE FROM aylul_agent_extension WHERE extension_id=?")
                         .bind(&id)
                         .execute(&mut *conn)
@@ -256,6 +286,7 @@ impl ExtensionsStore {
                                 id: mcp.id,
                                 name: mcp.name,
                                 description: mcp.description,
+                                bundled: false,
                             },
                             enabled,
                             transport: Some(mcp.transport),

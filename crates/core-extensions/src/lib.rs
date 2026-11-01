@@ -1,4 +1,5 @@
 //! The shared extension library and each agent's switches over it.
+mod bundled;
 mod error;
 mod files;
 mod mcp;
@@ -87,7 +88,7 @@ impl Extensions {
             .as_ref()
             .ok_or(ExtensionsError::NotConfigured)?
             .join("library");
-        self.store.add(c, kind, source, root).await
+        self.store.add(c, kind, source, root, false).await
     }
 
     pub async fn delete_extension(

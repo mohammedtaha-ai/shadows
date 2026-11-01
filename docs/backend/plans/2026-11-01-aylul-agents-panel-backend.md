@@ -181,7 +181,8 @@ architecture ratchet already allows both for `core-extensions`.
 - A `build.rs` in `core-extensions` lists the files and embeds them with
   `include_bytes!` (our code; no new dependency). At start
   (`AppCore::start`, after owners) `Extensions::import_bundled()` writes each item
-  to a staging folder under the library root and imports it through the same
+  to a staging folder under the home root, beside the library (normal imports
+  refuse sources inside the destination library), and imports it through the same
   path as `add_extension`, under command id `bundled:<kind>:<name>:<digest>`,
   unless the name is already in the library or is declined. Without AYLUL
   configuration it does nothing.

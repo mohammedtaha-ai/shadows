@@ -2478,6 +2478,9 @@
       },
       "Item": {
         "properties": {
+          "bundled": {
+            "type": "boolean"
+          },
           "description": {
             "type": "string"
           },
