@@ -83,6 +83,8 @@ pure:
     signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
 
 obligations:
+  - rule: An edited agent identity shows Unsaved changes; reverting every identity field and instructions clears it. The shared neon palette owns visual emphasis.
+    tested_by: ["unsaved identity changes are visible and reverting clears the indicator"]
   - rule: Agent forms load the bundled instructions through api/aylul-profiles; only edited instructions are sent, and Core's validation message preserves the draft.
     tested_by: ["a new agent is prefilled from the template and saves outfit and description", "untouched large instructions are not sent and changed instructions are sent", "editing and reverting instructions omits them from the save", "the form follows the design order and displays Core profile errors", "a delayed template does not overwrite other edits or allow an early save", "a template failure is shown and cannot silently create an uninitialized agent"]
   - rule: Every manifest outfit has a labelled radio and its exported preview; unknown ids select default and disabled controls cannot change it.

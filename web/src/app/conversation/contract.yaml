@@ -36,6 +36,7 @@ refresh_pinning:
   conversation: "pins conversation refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."
 
 permission_cards:
+  presentation: "Shared neon surface and a text-labelled warning pill distinguish a live request; palette and effects remain in index.css."
   owner: permission-card.tsx
   authority: "Only a matching thread/request in the live waiting list offers option buttons; malformed and historical cards offer no actions. The project stream refreshes the list without polling."
   answers: "A button sends its offered option id; one answer stays in flight. Equal retries reuse the command id; a settled/not-found error refetches and keeps Core's message."

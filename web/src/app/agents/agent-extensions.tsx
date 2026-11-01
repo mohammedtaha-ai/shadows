@@ -41,7 +41,7 @@ function ExtensionSwitch({ slug, kind, item }: { slug: string; kind: ExtensionKi
     },
     onSettled: () => { locked.current = false; setOptimistic(null) },
   })
-  return <div className="space-y-2 rounded border border-border p-3">
+  return <div className="neon-surface space-y-2 rounded-lg border border-border bg-card p-3">
     <label className="flex items-center justify-between gap-3 text-sm"><span>{item.name}</span><input type="checkbox" role="switch" aria-label={item.name} checked={optimistic ?? item.enabled} disabled={toggle.isPending} onChange={event => {
       if (locked.current) return
       locked.current = true; setOptimistic(event.target.checked); toggle.mutate(event.target.checked)

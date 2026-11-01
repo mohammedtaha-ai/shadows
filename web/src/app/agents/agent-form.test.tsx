@@ -68,6 +68,16 @@ it('editing and reverting instructions omits them from the save', async () => {
   await until(() => a.calls.includes('PUT /api/aylul/agents/work'))
   expect(a.bodies.at(-1)).not.toHaveProperty('instructions')
 })
+it('unsaved identity changes are visible and reverting clears the indicator', async () => {
+  const a = await open('work', 'Original instructions')
+  expect(a.text()).not.toContain('Unsaved changes')
+  typeInto(field('Agent description'), 'New purpose')
+  expect(a.text()).toContain('Unsaved changes')
+  typeInto(field('Agent description'), 'Builds things')
+  expect(a.text()).not.toContain('Unsaved changes')
+  typeInto(field('Agent instructions'), 'New instructions')
+  expect(a.text()).toContain('Unsaved changes')
+})
 
 it('a delayed template does not overwrite other edits or allow an early save', async () => {
   let release!: (response: Response) => void

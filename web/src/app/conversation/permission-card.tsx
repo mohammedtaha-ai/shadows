@@ -30,7 +30,8 @@ export function PermissionCard({ entry, projectId }: { entry: ThreadEntry; proje
     },
     onSettled: () => { locked.current = false },
   })
-  return <section aria-label="Permission request" className="space-y-3 rounded-lg border border-border bg-card p-4">
+  return <section aria-label="Permission request" className="neon-surface space-y-3 rounded-lg border border-border bg-card p-4">
+    {request && !answer.isSuccess && <p className="neon-status text-warning">Waiting for your approval</p>}
     <p dir="auto" className="text-sm font-medium whitespace-pre-wrap">{entry.body}</p>
     {waiting.isPending && requestId !== null && <p role="status" className="text-xs text-muted-foreground">Checking request…</p>}
     {request && !answer.isSuccess && <div className="flex flex-wrap gap-2">{request.options.map(option => <Button

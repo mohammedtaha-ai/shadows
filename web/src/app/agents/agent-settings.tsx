@@ -43,9 +43,12 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
   const initialInstructions = original?.instructions || template.data?.instructions || ''
   const pending = useRef<Attempt | null>(null)
   const first = providers.data?.[0]
-  const value: AgentInput = edited ?? (original === undefined
+  const initialValue: AgentInput = original === undefined
     ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0]?.id ?? '', character_color: colorOf(null).id, outfit: 'default', description: '' }
-    : { name: original.name, provider: original.provider, default_model: original.default_model, character_color: colorOf(original.character_color).id, outfit: original.outfit ?? 'default', description: original.description ?? '' })
+    : { name: original.name, provider: original.provider, default_model: original.default_model, character_color: colorOf(original.character_color).id, outfit: original.outfit ?? 'default', description: original.description ?? '' }
+  const value = edited ?? initialValue
+  const dirty = (['name', 'provider', 'default_model', 'character_color', 'outfit', 'description'] as const)
+    .some(key => value[key] !== initialValue[key]) || instructions !== null && instructions !== initialInstructions
   const provider = providers.data?.find((p) => p.slug === value.provider)
 
   const save = useMutation({
@@ -128,6 +131,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
         </Field>
         {template.error !== null && <ErrorLine error={template.error} />}
         {save.error !== null && <ErrorLine error={save.error} />}
+        {dirty && <p role="status" className="text-xs font-medium text-warning">Unsaved changes</p>}
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={value.provider === '' || value.default_model === '' || (!original?.instructions && template.data === undefined)}>
             {save.isPending ? 'Saving…' : slug === null ? 'Create agent' : 'Save agent'}

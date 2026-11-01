@@ -23,6 +23,14 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
+### F-68 · Neon clarity across existing shared controls
+- Status: done (20 focused tests; typecheck, lint, build, 82 codemap/architecture checks; dark/light/reduced-motion browser review)
+- Plan: docs/frontend/plans/2026-11-01-neon-clarity.md
+- Read: docs/frontend/specs/2026-11-01-neon-clarity.md; existing feature contracts
+- Touch: exactly the files listed in that plan
+- Needs: neon direction approved by Mohammed on 2026-11-01
+- Done when: focused identity/outfit/permission tests, typecheck, lint, build, codemap and architecture pass; browser review covers dark, light and reduced motion.
+
 ### F-62 · Outfit picker drawn from the studio's exported previews
 - Status: done (picker tests 3/3; typecheck, lint, build, codemap/architecture passed; browser preview captured)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-62
