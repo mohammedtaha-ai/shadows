@@ -200,11 +200,30 @@ impl Extensions {
         &self,
         slug: &str,
     ) -> Result<Vec<McpServerConfig>, ExtensionsError> {
-        let _guard = self.extension_guard().await;
+        Ok(self.opening_snapshot(slug).await?.mcp)
+    }
+
+    pub async fn opening_snapshot(
+        &self,
+        slug: &str,
+    ) -> Result<crate::AgentExtensionSnapshot, ExtensionsError> {
+        let guard = self.extension_guard().await;
         let list = self.store.agent_library(slug).await?;
+        let mcp = self.resolve_mcp_servers(&list).await?;
+        Ok(crate::AgentExtensionSnapshot {
+            library: list,
+            mcp,
+            _guard: guard,
+        })
+    }
+
+    async fn resolve_mcp_servers(
+        &self,
+        list: &crate::AgentExtensions,
+    ) -> Result<Vec<McpServerConfig>, ExtensionsError> {
         let mut out = Vec::new();
-        for agent_item in list.mcp.into_iter().filter(|item| item.enabled) {
-            let item = agent_item.item;
+        for agent_item in list.mcp.iter().filter(|item| item.enabled) {
+            let item = agent_item.item.clone();
             let values = self
                 .secrets
                 .resolve_env(&core_secrets::Secrets::mcp_scope(&item.id))

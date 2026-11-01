@@ -198,6 +198,9 @@ architecture ratchet already allows both for `core-extensions`.
   `Agents::home_instructions` (nothing when it is `None`), then put
   `Extensions::agent_mcp_servers` into `SessionSetup.mcp`. An AYLUL setup never
   holds the `shadows` grant.
+  `Extensions::opening_snapshot` retains the library guard with its agent library
+  and resolved servers through home projection. `agent_mcp_servers` uses the same
+  resolver; the Harness does not reacquire the library lock while holding it.
 
 ## 3. Shapes the frontend relies on
 

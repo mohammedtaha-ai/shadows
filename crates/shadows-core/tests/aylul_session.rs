@@ -155,12 +155,13 @@ fn request(model: &str, effort: &str) -> SendTurn {
 }
 
 async fn reply(w: &World, thread: &ThreadId, model: &str, effort: &str) -> Value {
-    let op = w
-        .core
-        .turns()
-        .send(thread.clone(), request(model, effort))
-        .await
-        .unwrap();
+    reply_to(w, thread, model, effort, "report").await
+}
+
+async fn reply_to(w: &World, thread: &ThreadId, model: &str, effort: &str, prompt: &str) -> Value {
+    let mut turn = request(model, effort);
+    turn.prompt = prompt.into();
+    let op = w.core.turns().send(thread.clone(), turn).await.unwrap();
     tokio::time::timeout(Duration::from_secs(15), async {
         loop {
             let op = shadows_core::Turns::get_operation_for_test(&w.storage, &op)

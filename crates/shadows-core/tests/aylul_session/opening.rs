@@ -1,5 +1,113 @@
 use super::*;
 
+async fn configured_mcp(w: &World, name: &str, transport: Value, enabled: bool) {
+    let item = w
+        .core
+        .extensions()
+        .add_mcp(
+            format!("add-{name}"),
+            serde_json::from_value(json!({"name":name,"transport":transport})).unwrap(),
+        )
+        .await
+        .unwrap();
+    if enabled {
+        w.core
+            .extensions()
+            .set_agent_extension(
+                format!("enable-{name}"),
+                "aylul",
+                shadows_core::ExtensionKind::Mcp,
+                &item.id,
+                true,
+            )
+            .await
+            .unwrap();
+    }
+}
+
+#[tokio::test]
+async fn opening_sends_only_enabled_mcp_items() {
+    let w = world().await;
+    for (name, enabled) in [("enabled", true), ("disabled", false)] {
+        configured_mcp(
+            &w,
+            name,
+            json!({"type":"http","url":"https://example.com/mcp",
+            "headers":[]}),
+            enabled,
+        )
+        .await;
+    }
+    let report = reply_to(&w, &w.thread, "fake-large", "high", "report-mcp").await;
+    assert_eq!(report.as_array().unwrap().len(), 1);
+    assert_eq!(report[0]["name"], "enabled");
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn an_aylul_opening_never_receives_shadows_mcp() {
+    let w = world().await;
+    configured_mcp(
+        &w,
+        "custom",
+        json!({"type":"http","url":"https://example.com/mcp",
+        "headers":[]}),
+        true,
+    )
+    .await;
+    let report = reply_to(&w, &w.thread, "fake-large", "high", "report-mcp").await;
+    let servers = report.as_array().unwrap();
+    assert!(!servers.is_empty());
+    assert!(servers.iter().all(|server| server["name"] != "shadows"));
+    let planner_report = reply(&w, &w.thread, "fake-large", "high").await;
+    assert!(planner_report["mcp"].is_null());
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn mcp_values_reach_the_session_as_hashes_only() {
+    let w = world().await;
+    configured_mcp(
+        &w,
+        "http",
+        json!({"type":"http","url":"https://example.com/mcp",
+        "headers":[{"name":"Authorization","value":"synthetic-http-value"}]}),
+        true,
+    )
+    .await;
+    configured_mcp(
+        &w,
+        "local",
+        json!({"type":"stdio","command":"example-server",
+        "args":[],"env":[{"name":"API_KEY","value":"synthetic-env-value"}]}),
+        true,
+    )
+    .await;
+    let report = reply_to(&w, &w.thread, "fake-large", "high", "report-mcp").await;
+    assert_eq!(
+        report[0]["headers"][0]["value_hash"],
+        testing::Token::hash_token("synthetic-http-value")
+    );
+    assert_eq!(
+        report[1]["env"][0]["value_hash"],
+        testing::Token::hash_token("synthetic-env-value")
+    );
+    let entries = w.core.threads().entries(&w.thread).await.unwrap();
+    let rendered = serde_json::to_string(&entries).unwrap();
+    assert!(!rendered.contains("synthetic-http-value"));
+    assert!(!rendered.contains("synthetic-env-value"));
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 #[tokio::test]
 async fn opening_uses_agent_and_provider() {
     let w = world().await;

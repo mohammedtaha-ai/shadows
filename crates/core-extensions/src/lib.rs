@@ -28,6 +28,13 @@ pub struct Extensions {
     home_root: Option<PathBuf>,
 }
 
+/// The agent's library and resolved servers, pinned until home projection finishes.
+pub struct AgentExtensionSnapshot {
+    pub library: AgentExtensions,
+    pub mcp: Vec<McpServerConfig>,
+    _guard: tokio::sync::OwnedMutexGuard<()>,
+}
+
 impl Extensions {
     pub fn new(
         storage: Arc<Storage>,

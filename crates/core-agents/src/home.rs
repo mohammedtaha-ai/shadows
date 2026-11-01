@@ -12,13 +12,10 @@ impl Agents {
     pub(super) fn seed_home(home: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(home)
             .map_err(|_| StorageError::Unavailable("agent home".into()))?;
-        for (name, content) in [
-            ("CLAUDE.md", TEMPLATE),
-            (
-                "settings.json",
-                include_str!("../assets/aylul-profile/settings.json"),
-            ),
-        ] {
+        for (name, content) in [(
+            "settings.json",
+            include_str!("../assets/aylul-profile/settings.json"),
+        )] {
             match std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)

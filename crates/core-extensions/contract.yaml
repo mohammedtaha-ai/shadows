@@ -56,6 +56,8 @@ shapes:
     note: MCP configuration and value names only; values are never returned.
   McpServerConfig:
     note: Resolved configuration for trusted openings; Debug redacts values.
+  AgentExtensionSnapshot:
+    note: Agent library and resolved MCP servers with a private guard held through home projection.
 
 functions:
   new: "public: (storage: Arc<Storage>, secrets: Arc<Secrets>, home_root: Option<PathBuf>) -> Arc<Extensions>"
@@ -65,6 +67,7 @@ functions:
   add_mcp: Create replayable MCP configuration with write-only values in the same transaction.
   update_mcp: Replace configuration without changing its id or switches; omitted values are retained.
   agent_mcp_servers: Resolve only enabled MCP configurations for a trusted opening.
+  opening_snapshot: Resolve the agent's library and MCP servers under one retained library guard.
   delete_extension: Remove the item and every enablement in one transaction; MCP deletion removes its secret scope.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
@@ -75,6 +78,7 @@ functions:
   retire: private; remove a deleted item's owned folder; failure leaves an inert copy.
 
 called_by_other_services:
+  opening_snapshot: Harness pins library items and MCP values through one home projection.
   extension_guard: Harness serializes library snapshot projection against library mutations.
   copy_tree: Harness copies bounded regular library files into a managed snapshot.
   remove_agent_in: Harness::delete_agent, in the same write as Agents::delete_in.

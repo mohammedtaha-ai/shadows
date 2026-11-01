@@ -62,7 +62,7 @@ name: harness
 # Planner instructions reserve generated contracts and SHADOWS.md for Shadows;
 # Create structure remains a person's HTTP action, never a Planner tool.
 # Every new, resumed or forked Planner session sends its Shadows HTTP MCP server
-# in the ACP server list; AYLUL sends an empty list. HTTP headers and stdio
+# in the ACP server list; AYLUL sends only its enabled MCP items. HTTP headers and stdio
 # environment values are omitted from MCP setup Debug output.
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
@@ -489,6 +489,8 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: AYLUL opening writes stored or template instructions atomically under the home lock, leaving unimported files untouched; the same library snapshot supplies enabled MCP servers and excludes Shadows' grant.
+    tested_by: [opening_writes_the_stored_instructions, opening_writes_the_template_for_empty_instructions, opening_leaves_an_unimported_home_file, opening_sends_only_enabled_mcp_items, an_aylul_opening_never_receives_shadows_mcp, mcp_values_reach_the_session_as_hashes_only]
   - rule: >
       Deleting an agent is Harness's: the tombstone, its variables and its
       extension switches commit in one write through Agents and Extensions,
@@ -731,7 +733,7 @@ agreements:
     must: Apply session modes through Sessions::set_mode; a leased running turn keeps its settings.
     holds: true
     tested_by: [running_turn_keeps_its_mode_and_next_turn_uses_the_pick]
-  - between: [write_extensions, extensions::agent_extensions]
+  - between: [write_extensions, extensions::opening_snapshot]
     must: Snapshot per-agent enablement under the library mutation guard before projecting owned files.
     holds: true
     tested_by: [opening_projects_only_enabled_extensions, extension_deletions_remove_enablement_atomically]

@@ -112,7 +112,9 @@ accepted on 2026-11-01, so no task waits on it.
 - Done when: `cargo test -p core-extensions --test library bundled_` passes `bundled_items_import_once_at_start`, `a_restart_replays_the_bundled_import`, `a_deleted_bundled_item_is_declined`, `a_bundled_item_starts_switched_off`, `no_aylul_configuration_imports_nothing`; openapi regenerated and `cargo test -p shadows --test openapi`; `cargo test -p shadows --test codemap` passes.
 
 ### B-31 · Harness opening: write CLAUDE.md, send the agent's MCP servers
-- Status: todo (after B-25, B-27, B-29)
+- Status: done
+- Additional checks: agent, extension-library, AYLUL profile and extension-projection suites cover the moved home-file writer and lock-held opening snapshot.
+- Additional Touch: `crates/core-agents/src/home.rs`, `crates/core-agents/contract.yaml`, `crates/core-agents/tests/agents.rs` (move instruction-file writing to opening); `crates/core-extensions/src/lib.rs`, `crates/core-extensions/src/mcp.rs`, `crates/core-extensions/contract.yaml` (one lock-held opening snapshot); `crates/shadows-core/tests/aylul_session.rs` (shared report prompt fixture).
 - Plan: docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md#27-the-opening-71-72--b-31
 - Read: `crates/core-harness/contract.yaml` (`opening`, extension projection obligations, `write_extensions` agreement); `crates/core-agents/contract.yaml` (`home_instructions`); `crates/core-extensions/contract.yaml` (`agent_mcp_servers`).
 - Note: removes the `CLAUDE.md` write from `core-agents` `seed_home` (add `crates/core-agents/src/home.rs` to Touch) when the opening takes over that file.

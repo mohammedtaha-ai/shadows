@@ -90,8 +90,15 @@ impl Sessions {
             .filter(|model| models.iter().any(|id| id == model))
             .unwrap_or(&agent.default_model);
         let window = super::Harness::model_window(&provider, model)?;
-        self.homes
-            .write_extensions(&self.owners.extensions, &config.home_root, &home, slug)
+        let mcp = self
+            .homes
+            .write_extensions(
+                &self.owners.agents,
+                &self.owners.extensions,
+                &config.home_root,
+                &home,
+                slug,
+            )
             .await?;
         self.homes
             .write_models(&home, &models, &agent.default_model)
@@ -136,6 +143,7 @@ impl Sessions {
             .map_err(|_| HarnessError::AylulKeyMissing(provider.slug))?;
         let person = self.owners.person.person().await?;
         let mut setup = Self::aylul_setup();
+        setup.mcp = mcp;
         if let Some(name) = person.aylul_calls_me.or(person.name) {
             let quoted = serde_json::to_string(&name)
                 .map_err(|_| HarnessError::ProfileInvalid("invalid person name".into()))?;

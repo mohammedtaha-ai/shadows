@@ -81,9 +81,10 @@ functions:
   instructions_template: public; the bundled instructions a new agent's form starts from.
   home_instructions: public; the one rule for what the home CLAUDE.md says: the stored text, the template for an empty text, None before the import.
   import_home_instructions: public; once at start, store each live agent's never-imported home CLAUDE.md (absent or equal to the template is empty; text without NUL as read) and return the slugs left unimported.
-  seed_home: private; write each default home file the home lacks, never replacing one.
+  seed_home: private; create absent settings.json only; Harness owns writing CLAUDE.md at opening.
 
 called_by_other_services:
+  home_instructions: Harness writes the owner's selected instructions under its home opening lock.
   require_live_in: Threads checks an agent thread's agent and Extensions checks a switch's agent inside their writes.
   delete_in: Harness::delete_agent, in the same write as Extensions::remove_agent_in.
   home: Harness asks for the home an opening runs in.

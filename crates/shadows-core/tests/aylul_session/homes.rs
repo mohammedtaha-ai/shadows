@@ -1,5 +1,61 @@
 use super::*;
 
+#[tokio::test]
+async fn opening_writes_the_stored_instructions() {
+    let w = world().await;
+    let mut input = agent("AYLUL");
+    input.instructions = Some("Use the stored agent instructions.".into());
+    w.core
+        .agents()
+        .update_agent("instructions".into(), "aylul", input)
+        .await
+        .unwrap();
+    std::fs::write(w.home.join("CLAUDE.md"), "stale home file").unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(
+        std::fs::read_to_string(w.home.join("CLAUDE.md")).unwrap(),
+        "Use the stored agent instructions."
+    );
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn opening_writes_the_template_for_empty_instructions() {
+    let w = world().await;
+    std::fs::write(w.home.join("CLAUDE.md"), "stale home file").unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(
+        std::fs::read_to_string(w.home.join("CLAUDE.md")).unwrap(),
+        w.core.agents().instructions_template()
+    );
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn opening_leaves_an_unimported_home_file() {
+    let w = world().await;
+    sqlx::query("UPDATE aylul_agent SET instructions=NULL WHERE slug='aylul'")
+        .execute(w.storage.reader())
+        .await
+        .unwrap();
+    std::fs::write(w.home.join("CLAUDE.md"), "legacy instructions").unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(
+        std::fs::read_to_string(w.home.join("CLAUDE.md")).unwrap(),
+        "legacy instructions"
+    );
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 fn settings(w: &World, value: Value) {
     std::fs::write(
         w.home.join("settings.json"),

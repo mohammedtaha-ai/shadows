@@ -404,7 +404,7 @@ async fn home_instructions_import_once_and_never_again() {
         )
         .await;
         let path = home.join(slug).join("CLAUDE.md");
-        std::fs::remove_file(&path).unwrap();
+        assert!(!path.exists(), "the opening owns CLAUDE.md creation");
         match file {
             Some("T") => std::fs::write(&path, w.agents.instructions_template()).unwrap(),
             Some(text) => std::fs::write(&path, text).unwrap(),
