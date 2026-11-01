@@ -84,12 +84,8 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
       }
       if (scope.threadId === undefined) targets = targets.filter(target => target.kind !== 'thread-lists')
       if (live) dispatchRefresh(client, targets)
-      else for (const target of targets) {
-        // Project design and agreement notices must reach dirty editors during replay.
-        if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' && !PLAN_EVENTS.has(event.kind)) {
-          dispatchRefresh(client, [target])
-        } else pending.set(JSON.stringify(target), target)
-      }
+      // A replay of N events refetching N times would cancel and restart each read it touches.
+      else for (const target of targets) pending.set(JSON.stringify(target), target)
     },
     onCaughtUp: () => {
       const targets = new Map(baseline(current()).map(target => [JSON.stringify(target), target]))
