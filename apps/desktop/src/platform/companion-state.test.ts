@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {acceptState, connectState} from './companion-state.ts';
 const composer={open:false,revision:0,scope:null,context:null,agent:null};
-const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple'};
+const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple',outfit:'default'};
 test('composer view is validated and never optional',()=>{
   const {composer:ignored,...missing}=hidden;
   assert.throws(()=>acceptState(null,missing));
@@ -47,4 +47,10 @@ test('an older revision cannot change the colour',()=>{
   const current=acceptState(null,{...hidden,revision:5,appearance:{color:'blue'}});
   assert.strictEqual(acceptState(current,{...hidden,revision:4,appearance:{color:'pink'}}),current);
   assert.equal(current.color,'blue');
+});
+test('outfit ids are copied opaque with a bounded default',()=>{
+  for(const outfit of ['headphones','future-outfit'])assert.equal(acceptState(null,{...hidden,appearance:{outfit}}).outfit,outfit);
+  for(const outfit of [undefined,null,'','x'.repeat(33),7])assert.equal(acceptState(null,{...hidden,appearance:{outfit}}).outfit,'default');
+  const current=acceptState(null,{...hidden,revision:9,appearance:{outfit:'headphones'}});
+  assert.strictEqual(acceptState(current,{...hidden,revision:8,appearance:{outfit:'crown'}}),current);
 });

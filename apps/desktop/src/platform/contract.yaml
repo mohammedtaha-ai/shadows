@@ -12,6 +12,8 @@ public_api:
   reportCompanionFailure: Notify the native recovery owner of a fixed local rendering failure without transmitting error text.
   openMainFromCompanion: Request deliberate main navigation from companion.
 obligations:
+  - rule: Optional appearance.outfit passes through as an opaque string of 1 to 32 characters; missing or malformed values use default, and older revisions cannot replace it.
+    tested_by: apps/desktop/src/platform/companion-state.test.ts
   - rule: Missing or malformed appearance falls back to purple without rejecting the state; valid opaque colour IDs pass through and older revisions cannot replace them.
     tested_by: apps/desktop/src/platform/companion-state.test.ts
     note: appearance colour is carried into the state; missing or malformed appearance reads as purple; an older revision cannot change the colour
