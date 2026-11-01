@@ -15,6 +15,7 @@ import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
 import { TodoCard } from './todo-card'
 import { subagentOf } from './tool-text'
+import { PermissionCard } from './permission-card'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -76,6 +77,9 @@ export function Entry({
     )
   }
   if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
+  if (entry.kind === 'PermissionAsked') return <PermissionCard entry={entry} projectId={projectId} />
+  if (entry.kind === 'PermissionAnswered') return <p className="text-xs text-muted-foreground"><span dir="auto">{entry.body}</span> · by you</p>
+  if (entry.kind === 'PermissionRefused' && typeof entry.card?.reason === 'string') return <p className="text-xs text-muted-foreground"><span dir="auto">{entry.body}</span> · {entry.card.reason}</p>
   if (entry.kind === 'VisionProposal') return <VisionProposalCard entry={entry} projectId={projectId} />
   if (entry.kind === 'MapProposal') return <MapProposalCard entry={entry} projectId={projectId} />
   if (entry.kind === 'RoadmapProposal') return <RoadmapProposalCard entry={entry} projectId={projectId} />

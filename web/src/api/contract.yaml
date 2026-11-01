@@ -67,6 +67,12 @@ client_core:
   DAEMON_URL: "string; verified native origin frozen before module import; browser VITE_SHADOWS_URL or http://127.0.0.1:4318"
   client: "openapi-fetch client<paths>; fetch looked up per call"
 
+permissions:
+  owner: permissions.ts
+  query: "waitingPermissionsQuery; GET /api/aylul/permissions; permissionKeys.waiting() = ['aylul-permissions']; no polling"
+  answer: "answerPermission(threadId, requestId, optionId, commandId) forwards one button choice to the generated POST route"
+  refresh: "invalidatePermissions reconciles the live list after answers, settled/not-found errors and project PermissionsChanged events"
+
 mcp_library:
   owner: extensions.ts
   save: "saveMcp(id, commandId, McpInput): POST for new items, PUT by stable id for edits; preserves absent secret values"

@@ -35,6 +35,13 @@ source: web/src/app/conversation
 refresh_pinning:
   conversation: "pins conversation refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."
 
+permission_cards:
+  owner: permission-card.tsx
+  authority: "Only a matching thread/request in the live waiting list offers option buttons; malformed and historical cards offer no actions. The project stream refreshes the list without polling."
+  answers: "A button sends its offered option id; one answer stays in flight. Equal retries reuse the command id; a settled/not-found error refetches and keeps Core's message."
+  entries: "entry.tsx renders PermissionAsked through PermissionCard, PermissionAnswered with its body and by you, and held PermissionRefused with its reason; Planner's legacy mode hint remains for unstructured refusals."
+  tested_by: ["only a live matching request offers option buttons and a click answers it", "an uncertain failed answer retries with the same command id", "the project event removes a request settled by another surface", "one answer stays in flight and every option is disabled until it settles"]
+
 
 # ── shapes ───────────────────────────────────────────────────────────────────
 

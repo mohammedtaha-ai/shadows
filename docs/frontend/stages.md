@@ -5,9 +5,9 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Open: F-64 to F-66, the web half of the AYLUL agents and panel design
+F-62 to F-67 are implemented: the web half of the AYLUL agents and panel design
 ([plan](plans/2026-11-01-aylul-agents-panel-frontend.md)), on `feature/aylul-agents-panel`.
-Runnable now: F-64 and F-66; U-5, N-23 and N-24 on the AYLUL side. Shapes: `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`
+Runnable next: U-5, N-23 and N-24 on the AYLUL side. Web focused gates and synthetic browser checks passed; real desktop/provider acceptance remains. Shapes: `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`
 §3, accepted in `docs/shared/requests/2026-11-01-aylul-agents-panel.md`. The desktop half is U-5 to U-8 in `docs/aylul/ui/stages.md`, C-8 and C-9 in
 `docs/aylul/character/stages.md`, N-22 to N-25 in `docs/aylul/native/stages.md`. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
@@ -58,7 +58,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/agents/agent-extensions.test.tsx src/app/agents/agent-form.test.tsx` pass (three kinds with switches; an MCP switch saves through the `mcp` kind; "Add to library" opens Settings → Plugins & Skills), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshot attached.
 
 ### F-66 · Permission card in the conversation
-- Status: todo (backend §3.3 is built)
+- Status: done (23 focused tests; typecheck, lint, build and 82 codemap/architecture checks passed; browser permission click verified with synthetic API responses)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-66
 - Read: design §7.8; `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3.3; `web/src/app/conversation/contract.yaml`; `web/src/stream/contract.yaml`; `web/src/api/contract.yaml`
 - Touch: web/src/api/schema.d.ts (only through `npm run gen:api`), web/src/api/permissions.ts (new), web/src/api/permissions.test.ts (new), web/src/api/contract.yaml, web/src/stream/refresh.ts, web/src/stream/refresh.test.tsx, web/src/stream/contract.yaml, web/src/app/conversation/permission-card.tsx (new), web/src/app/conversation/permission-card.test.tsx (new), web/src/app/conversation/entry.tsx, web/src/app/conversation/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md

@@ -4,11 +4,12 @@ import { invalidateDesign } from '@/api/design'
 import { invalidateAgreements, invalidateAgreementVersions } from '@/api/agreements'
 import { invalidateProjects } from '@/api/projects'
 import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '@/api/threads'
+import { invalidatePermissions } from '@/api/permissions'
 import type { DurableEvent } from './frames'
 import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
 
 export type RefreshTarget =
-  | { kind: 'workflows' | 'projects' | 'thread-lists' }
+  | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' }
   | { kind: 'design' | 'agreements' | 'agreement-versions' | 'project-workflows'; projectId: string }
   | { kind: 'entries' | 'operations'; threadId: string }
 
@@ -34,6 +35,7 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
     if (REACH_EVENTS.has(event.kind)) targets.push({ kind: 'project-workflows', projectId })
   }
   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
+  if (event.kind === 'PermissionsChanged' && projectId !== undefined) targets.push({ kind: 'permissions' })
   if (event.threadId !== null) {
     // Which operation events end a turn is Core's lifecycle; every one refreshes rather than
     // the client keeping a copy of the terminal kinds.
@@ -54,6 +56,7 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
       case 'agreements': invalidateAgreements(client, target.projectId); break
       case 'agreement-versions': invalidateAgreementVersions(client, target.projectId); break
       case 'projects': invalidateProjects(client); break
+      case 'permissions': void invalidatePermissions(client); break
       case 'entries': invalidateEntries(client, target.threadId); break
       case 'operations': invalidateOperations(client, target.threadId); break
       case 'thread-lists': invalidateThreadLists(client); break
@@ -65,7 +68,7 @@ interface RefreshScope { projectId?: string; threadId?: string; plansOnly?: bool
 
 function baseline(scope: RefreshScope): RefreshTarget[] {
   return scope.threadId === undefined
-    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }]
+    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }, { kind: 'permissions' }]
     : scope.plansOnly ? [{ kind: 'workflows' }]
     : [{ kind: 'workflows' }, { kind: 'entries', threadId: scope.threadId }, { kind: 'operations', threadId: scope.threadId }]
 }
