@@ -1,5 +1,5 @@
 //! Async Core requests for observation: metadata checks, snapshots and SSE.
-use super::RuntimeIdentity;
+use super::{RuntimeIdentity, WaitingPermission};
 use crate::{
     core_connection::ReadyConnection,
     presence::{
@@ -273,15 +273,42 @@ impl Client {
             entries,
         })
     }
+    pub async fn permissions(&self) -> Result<Vec<WaitingPermission>, Problem> {
+        tokio::time::timeout(self.timeout, self.read("/api/aylul/permissions"))
+            .await
+            .map_err(|_| Problem::Transport)?
+    }
+    pub async fn project_id(&self, binding: &BindingView) -> Result<String, Problem> {
+        let workspace = tokio::time::timeout(self.timeout, self.workspace(binding))
+            .await
+            .map_err(|_| Problem::Transport)??;
+        Ok(workspace.project_id)
+    }
     pub async fn subscribe(&self, thread: &str, after: i64) -> Result<Feed, Problem> {
         uuid::Uuid::parse_str(thread).map_err(|_| Problem::Invalid)?;
-        let request = self
-            .http
-            .get(format!("{}/api/subscribe", self.ready.origin))
-            .query(&[
+        self.stream(
+            "/api/subscribe".into(),
+            &[
                 ("thread_id", thread.to_owned()),
                 ("after", after.to_string()),
-            ]);
+            ],
+        )
+        .await
+    }
+    /// The AYLUL project's durable notifications, read-only like the thread feed.
+    pub async fn subscribe_project(&self, project: &str, after: i64) -> Result<Feed, Problem> {
+        uuid::Uuid::parse_str(project).map_err(|_| Problem::Invalid)?;
+        self.stream(
+            format!("/api/projects/{project}/events"),
+            &[("after", after.to_string())],
+        )
+        .await
+    }
+    async fn stream(&self, path: String, query: &[(&str, String)]) -> Result<Feed, Problem> {
+        let request = self
+            .http
+            .get(format!("{}{path}", self.ready.origin))
+            .query(query);
         // Only the header handshake has a deadline; a healthy SSE body has none.
         let response = tokio::time::timeout(self.timeout, request.send())
             .await

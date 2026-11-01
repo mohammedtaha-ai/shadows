@@ -5,6 +5,7 @@ source: apps/desktop/src-tauri/src/windows/companion
 responsibility: Own the independent local companion window, revisioned rendering permission, physical fitting and no-activation show adapter.
 public_api:
   set_panel: Explicit panel focus and full-rectangle fitting through the supplied Handle; editor and panel are mutually exclusive. Closing or blur restores compact bounds and prior external focus when appropriate.
+  Waiting: Bounded waiting-permission count and the bound conversation's requests (at most 8, each at most 8 options); carried by SurfacePresence, serialized as the state's own waiting field and omitted when empty.
   SurfacePanel/SurfaceAgent: Window-owned bounded panel wire values; an empty closed panel is omitted for compatibility.
   input::refresh: Read the composition-injected editor context callback synchronously; a changed scope closes editor without activating main; an absent or superseded context skips publication.
   EditorContext: Explicit optional scope, context and agent supplied by composition.

@@ -1,10 +1,11 @@
 //! One bound conversation's read loop: validate, subscribe, reconcile, project.
 use super::{Notify, Readiness, RefreshRequest, Timing, Update};
+use crate::windows::companion::state::{Waiting as SurfaceWaiting, WaitingOption, WaitingRequest};
 use crate::{
     core_connection::ReadyConnection,
     presence::{
         binding::BindingView,
-        core_client::{Client, Problem},
+        core_client::{Client, Feed, Problem, WaitingPermission},
         projection::{Observation, PresenceInput, PresenceProjection, Projection, Scope},
     },
 };
@@ -26,6 +27,7 @@ fn now() -> u64 {
         .min(u64::MAX as u128) as u64
 }
 struct Session {
+    waiting: Waiting,
     appearance: Option<crate::presence::CompanionAppearance>,
     scope: Scope,
     projection: Projection,
@@ -68,6 +70,7 @@ impl Session {
                 projection,
                 appearance: self.appearance.clone(),
                 republish_only: false,
+                waiting: self.waiting.view(self.scope.thread_id.as_deref()),
                 acknowledgement: None,
                 epoch: self.epoch,
                 current: self.current.clone(),
@@ -78,11 +81,24 @@ impl Session {
         let appearance = client.validate_appearance(binding).await?;
         let changed = self.appearance != appearance;
         self.appearance = appearance;
+        if self.waiting.feed.is_none() && self.waiting.connect(client, binding).await {
+            self.waiting_changed();
+        }
         self.apply(Observation::Ready);
         if changed {
             self.publish(self.projection.value());
         }
         Ok(())
+    }
+    /// The bound conversation's waiting request decides the expression; the count rides along.
+    fn waiting_changed(&mut self) {
+        let blocked = !self
+            .waiting
+            .view(self.scope.thread_id.as_deref())
+            .bound
+            .is_empty();
+        self.apply(Observation::Waiting(blocked));
+        self.publish(self.projection.value());
     }
     async fn explicit(&mut self, request: RefreshRequest, client: &Client, binding: &BindingView) {
         if request.epoch != self.epoch || self.current.load(Ordering::SeqCst) != self.epoch {
@@ -99,6 +115,7 @@ impl Session {
             projection: self.projection.value(),
             appearance: self.appearance.clone(),
             republish_only: false,
+            waiting: self.waiting.view(self.scope.thread_id.as_deref()),
             acknowledgement: Some((
                 request.reply,
                 result.map_err(|_| "companion_core_unavailable"),
@@ -120,6 +137,11 @@ impl Session {
             tokio::select! {
                 _ = &mut sleep => break,
                 Some(request) = refreshes.recv() => self.explicit(request, client, binding).await,
+                changed = self.waiting.change(client) => {
+                    if changed {
+                        self.waiting_changed();
+                    }
+                }
             }
         }
     }
@@ -138,6 +160,120 @@ impl Session {
             live_completed,
         });
         Ok(())
+    }
+}
+/// Open permission requests for the AYLUL project, kept current by a second
+/// read-only feed. A broken feed clears the requests and is reopened on the next
+/// metadata check, at most ten times in a row.
+#[derive(Default)]
+struct Waiting {
+    project: Option<String>,
+    feed: Option<Feed>,
+    cursor: i64,
+    failures: u32,
+    requests: Vec<WaitingPermission>,
+}
+impl Waiting {
+    const LIST: usize = 256;
+    const FAILURES: u32 = 10;
+    /// Subscribe before the read, so a change between them is not lost. True when the requests changed.
+    async fn connect(&mut self, client: &Client, binding: &BindingView) -> bool {
+        if self.failures >= Self::FAILURES {
+            return false;
+        }
+        let attempt = async {
+            let project = match self.project.clone() {
+                Some(project) => project,
+                None => client.project_id(binding).await?,
+            };
+            let feed = client.subscribe_project(&project, self.cursor).await?;
+            let requests = client.permissions().await?;
+            Ok::<_, Problem>((project, feed, requests))
+        }
+        .await;
+        match attempt {
+            Ok((project, feed, requests)) => {
+                self.project = Some(project);
+                self.feed = Some(feed);
+                self.failures = 0;
+                self.replace(requests)
+            }
+            Err(_) => self.lose(),
+        }
+    }
+    fn replace(&mut self, mut requests: Vec<WaitingPermission>) -> bool {
+        requests.truncate(Self::LIST);
+        let changed = self.requests != requests;
+        self.requests = requests;
+        changed
+    }
+    fn lose(&mut self) -> bool {
+        self.feed = None;
+        self.failures += 1;
+        self.replace(vec![])
+    }
+    /// Waits for the next project frame; true when the requests changed.
+    async fn change(&mut self, client: &Client) -> bool {
+        let Some(feed) = self.feed.as_mut() else {
+            return std::future::pending().await;
+        };
+        let Some(Ok(frame)) = feed.next().await else {
+            return self.lose();
+        };
+        match frame.event.as_str() {
+            "caught-up" => match serde_json::from_str::<CaughtUp>(&frame.data) {
+                Ok(value) => {
+                    self.cursor = self.cursor.max(value.seq);
+                    false
+                }
+                Err(_) => self.lose(),
+            },
+            "durable" => {
+                let Ok(value) = serde_json::from_str::<Durable>(&frame.data) else {
+                    return self.lose();
+                };
+                if value.seq <= self.cursor {
+                    return false;
+                }
+                self.cursor = value.seq;
+                if value.kind != "PermissionsChanged" {
+                    return false;
+                }
+                match client.permissions().await {
+                    Ok(requests) => self.replace(requests),
+                    Err(_) => self.lose(),
+                }
+            }
+            "lagged" | "fatal" => self.lose(),
+            _ => false,
+        }
+    }
+    /// What the companion shows: every request counted, the bound thread's listed within bounds.
+    fn view(&self, thread: Option<&str>) -> SurfaceWaiting {
+        SurfaceWaiting {
+            count: self.requests.len() as u32,
+            bound: self
+                .requests
+                .iter()
+                .filter(|request| Some(request.thread_id.as_str()) == thread)
+                .take(8)
+                .map(|request| WaitingRequest {
+                    thread_id: request.thread_id.clone(),
+                    request_id: request.request_id.clone(),
+                    title: request.title.chars().take(240).collect(),
+                    options: request
+                        .options
+                        .iter()
+                        .take(8)
+                        .map(|option| WaitingOption {
+                            option_id: option.option_id.clone(),
+                            name: option.name.chars().take(80).collect(),
+                            kind: option.kind.clone(),
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
     }
 }
 /// Where one run publishes: its epoch and the channels its updates go out on.
@@ -176,6 +312,7 @@ pub(super) async fn run(
     };
     let projection = Projection::new(scope.clone(), binding.agent.is_some(), binding.previews);
     let mut state = Session {
+        waiting: Waiting::default(),
         appearance: None,
         scope,
         projection,
@@ -284,6 +421,11 @@ async fn session(
     loop {
         tokio::select! {
             Some(request) = refreshes.recv() => state.explicit(request, client, binding).await,
+            changed = state.waiting.change(client) => {
+                if changed {
+                    state.waiting_changed();
+                }
+            }
             _ = &mut caught_up_deadline, if !caught_up => return Err(Problem::Transport),
             _ = liveness.tick() => {
                 state.metadata(client, binding).await?;

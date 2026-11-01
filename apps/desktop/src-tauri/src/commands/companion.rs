@@ -5,6 +5,7 @@ pub fn allowed_caller(label: &str, command: &str) -> bool {
         "companion_state" | "select_companion_agent" => matches!(label, "main" | "companion"),
         "companion_send"
         | "companion_panel"
+        | "answer_companion_permission"
         | "companion_input"
         | "companion_ready"
         | "companion_failed"
@@ -50,6 +51,21 @@ pub async fn companion_panel(
 ) -> Result<CompanionState, String> {
     guard(&window, "companion_panel")?;
     desktop.presence().companion_panel(open).await
+}
+#[tauri::command]
+pub async fn answer_companion_permission(
+    window: tauri::WebviewWindow,
+    desktop: tauri::State<'_, std::sync::Arc<crate::app::DesktopApp>>,
+    thread_id: String,
+    request_id: String,
+    option_id: String,
+    command_id: String,
+) -> Result<crate::presence::PermissionAnswerReply, String> {
+    guard(&window, "answer_companion_permission")?;
+    desktop
+        .presence()
+        .answer_companion_permission(thread_id, request_id, option_id, command_id)
+        .await
 }
 #[tauri::command]
 pub async fn companion_state(
@@ -161,6 +177,7 @@ mod tests {
             for name in [
                 "companion_send",
                 "companion_panel",
+                "answer_companion_permission",
                 "companion_input",
                 "companion_ready",
                 "companion_failed",
@@ -189,6 +206,7 @@ mod tests {
                     }
                     "companion_send"
                     | "companion_panel"
+                    | "answer_companion_permission"
                     | "companion_input"
                     | "companion_ready"
                     | "companion_failed"

@@ -1,5 +1,5 @@
 //! Companion coordination across the observer, native surface and main navigation.
-use super::{BindingView, Presence, RefreshAppearanceReply};
+use super::{BindingView, PermissionAnswerReply, Presence, RefreshAppearanceReply};
 use crate::{navigation::Navigation, windows::companion};
 use std::{future::Future, pin::Pin, sync::Arc};
 
@@ -166,6 +166,52 @@ impl Presence {
         Ok(result)
     }
 
+    /// Only the bound conversation's request is answered, through the one private Core client.
+    pub async fn answer_companion_permission(
+        self: &Arc<Self>,
+        thread_id: String,
+        request_id: String,
+        option_id: String,
+        command_id: String,
+    ) -> Result<PermissionAnswerReply, String> {
+        let command_id = uuid::Uuid::parse_str(&command_id).map_err(|_| "permission_invalid")?;
+        if request_id.is_empty()
+            || request_id.len() > 128
+            || !request_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+            || option_id.is_empty()
+            || option_id.len() > 200
+        {
+            return Err("permission_invalid".into());
+        }
+        let binding = self.snapshot().map_err(str::to_owned)?;
+        if binding
+            .target
+            .as_ref()
+            .map(|target| target.thread_id.as_str())
+            != Some(&thread_id)
+        {
+            return Err("companion_binding_changed".into());
+        }
+        let ready = self
+            .connection
+            .ready()
+            .ok_or("companion_core_unavailable")?;
+        tauri::async_runtime::spawn_blocking(move || {
+            super::core_client::Blocking::new(&ready).answer_permission(
+                &thread_id,
+                &request_id,
+                &option_id,
+                command_id,
+            )
+        })
+        .await
+        .map_err(|_| "companion_core_unavailable")?
+        .map_err(str::to_owned)?;
+        Ok(PermissionAnswerReply { ok: true })
+    }
+
     pub async fn refresh_appearance(&self) -> Result<RefreshAppearanceReply, &'static str> {
         self.watcher().refresh_appearance(&self.view()).await
     }
@@ -231,11 +277,13 @@ impl Presence {
             }
         }
         let window = &self.workflows().window;
+        let mut surface = update.projection.clone().into_surface();
+        surface.waiting = update.waiting.clone();
         if update.republish_only {
             (window.republish)();
         } else {
             (window.present)(
-                update.projection.clone().into_surface(),
+                surface,
                 update
                     .appearance
                     .clone()

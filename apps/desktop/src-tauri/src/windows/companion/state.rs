@@ -2,6 +2,33 @@
 use super::SurfacePreview;
 use super::{SurfaceAgent, SurfaceAppearance, SurfacePanel, SurfacePresence};
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WaitingOption {
+    pub option_id: String,
+    pub name: String,
+    pub kind: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WaitingRequest {
+    pub thread_id: String,
+    pub request_id: String,
+    pub title: String,
+    pub options: Vec<WaitingOption>,
+}
+/// Requests waiting for the person: the count across AYLUL, the bound conversation's own.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+pub struct Waiting {
+    pub count: u32,
+    pub bound: Vec<WaitingRequest>,
+}
+impl Waiting {
+    pub fn is_empty(&self) -> bool {
+        self.count == 0 && self.bound.is_empty()
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposerView {
@@ -25,6 +52,8 @@ pub struct CompanionState {
     pub appearance: Option<SurfaceAppearance>,
     #[serde(skip_serializing_if = "SurfacePanel::is_empty")]
     pub panel: SurfacePanel,
+    #[serde(skip_serializing_if = "Waiting::is_empty")]
+    pub waiting: Waiting,
 }
 pub struct Model {
     pub view: CompanionState,
@@ -40,6 +69,7 @@ impl Default for Model {
                 revision: 0,
                 appearance: None,
                 panel: SurfacePanel::default(),
+                waiting: Waiting::default(),
                 composer: ComposerView::default(),
                 visible: false,
                 render_allowed: false,
@@ -61,8 +91,14 @@ impl Model {
             self.view.revision += 1;
         }
     }
-    pub fn present(&mut self, presence: SurfacePresence, appearance: Option<SurfaceAppearance>) {
+    pub fn present(
+        &mut self,
+        mut presence: SurfacePresence,
+        appearance: Option<SurfaceAppearance>,
+    ) {
+        let waiting = std::mem::take(&mut presence.waiting);
         self.change(|view| {
+            view.waiting = waiting;
             view.presence = presence;
             view.appearance = appearance;
         });
@@ -293,6 +329,7 @@ mod presence_tests {
                 expression: "success".into(),
                 status: "Reply ready".into(),
                 preview: None,
+                waiting: Default::default(),
             },
             None,
         );
@@ -367,6 +404,7 @@ mod wire_tests {
                 expression: "idle".into(),
                 status: "Ready".into(),
                 preview: None,
+                waiting: Default::default(),
             },
             None,
         );
@@ -388,6 +426,7 @@ mod wire_tests {
                     text: "مرحبا \"world\"\n".into(),
                     expires_at_ms: u64::MAX,
                 }),
+                waiting: Default::default(),
             },
             Some(SurfaceAppearance {
                 color: "opaque(🌿)".into(),

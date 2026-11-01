@@ -236,11 +236,33 @@ impl Presence {
         self.destination_for(MainTarget::Bound)
     }
 
+    /// The first waiting request's conversation, or the closed fallback when it no longer resolves.
+    fn oldest_waiting(&self) -> MainDestination {
+        let resolve = || -> Result<MainDestination, &'static str> {
+            let ready = self
+                .connection
+                .ready()
+                .ok_or("companion_core_unavailable")?;
+            let first = core_client::Blocking::new(&ready)
+                .permissions()?
+                .into_iter()
+                .next()
+                .ok_or("permission_not_found")?;
+            let workspace = binding::workspace(&ready)?;
+            let target = binding::target(&ready, &workspace, &first.agent, &first.thread_id)?;
+            Ok(MainDestination::Conversation {
+                project_id: target.project_id,
+                thread_id: target.thread_id,
+            })
+        };
+        resolve().unwrap_or(MainDestination::CompanionSettings)
+    }
+
     pub fn destination_for(&self, target: MainTarget) -> MainDestination {
         match target {
             MainTarget::NewAgent => return MainDestination::NewAgent,
             MainTarget::Settings => return MainDestination::Settings,
-            MainTarget::OldestWaiting => return MainDestination::CompanionSettings,
+            MainTarget::OldestWaiting => return self.oldest_waiting(),
             MainTarget::Bound | MainTarget::AgentSettings => (),
         }
         let destination = || -> Result<MainDestination, &'static str> {
@@ -288,6 +310,10 @@ pub struct CompanionAppearance {
     pub color: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outfit: Option<String>,
+}
+#[derive(Debug, serde::Serialize)]
+pub struct PermissionAnswerReply {
+    pub ok: bool,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefreshAppearanceReply {

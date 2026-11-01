@@ -37,7 +37,9 @@ public_api:
   previews: Persist the person's preview opt-in without conversation content.
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve bound through destination_for; named targets return Settings, NewAgent, live bound AgentSettings or validated Conversation, with CompanionSettings as the closed fallback. No thread is created.
-  MainTarget: Closed deserialized companion navigation targets; omitted target means bound. OldestWaiting resolves when waiting observation is installed by N-25.
+  MainTarget: Closed deserialized companion navigation targets; omitted target means bound. OldestWaiting resolves the first entry of Core's waiting list to its conversation with reads only, else CompanionSettings.
+  answer_companion_permission: Answer a request of the bound conversation through core_client with the caller's command id; maps Core's refusals to permission_settled, permission_not_found, permission_option_not_offered and permission_failed, and transport failure to companion_core_unavailable.
+  Waiting feed: The observer reads GET /api/aylul/permissions and follows PermissionsChanged on the AYLUL project's events; a request waiting on the bound thread makes the expression blocked (Waiting for you), and its end restores the actual status. A broken feed clears the list and is reopened at the next metadata check, at most ten times in a row; it never changes the thread projection otherwise.
 obligations:
   - rule: Presence starts, synchronizes and stops its observer; DesktopApp retains no observer field.
     tested_by: [companion_owns_observer_start_sync_and_stop, desktop_registers_one_private_composition_root]
@@ -87,6 +89,8 @@ obligations:
     tested_by: [terminal_before_final_entry_waits, fork_provenance_is_not_a_new_reply, greatest_matching_durable_ordinal_wins_and_disabled_previews_stay_empty]
   - rule: Preview is at most 240 scalars, expires after eight seconds and repeated IDs cannot extend it; success lasts two seconds.
     tested_by: [unicode_preview_is_bounded, hidden_expiry_does_not_revive_and_repeat_id_cannot_extend_it, state_table_uses_actual_operation_status_and_terminal_precedence]
+  - rule: A waiting request on the bound thread blocks the expression, answers go once per call to the one Core route, and the project feed recovers and stays bounded.
+    tested_by: [a_waiting_request_blocks_the_expression_and_its_end_restores_the_actual_status, waiting_permissions_are_read_at_start_and_reread_on_a_project_frame, lagged_project_feed_recovers_like_the_thread_feed, waiting_lists_are_bounded, permission_answers_post_once_with_the_command_id_and_map_core_errors_to_fixed_codes, oldest_waiting_resolves_the_first_entry_and_falls_back_when_it_does_not_resolve]
 gaps:
   - at: native Windows journey
     gap: HTTP fixtures prove native feed behavior; actual hidden-main/character rendering acceptance belongs to Tasks 8 and 9.

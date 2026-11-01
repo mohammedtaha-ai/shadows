@@ -13,6 +13,9 @@ pub struct SurfacePresence {
     pub expression: String,
     pub status: String,
     pub preview: Option<SurfacePreview>,
+    /// Carried to the state's own `waiting` field, never serialized under `presence`.
+    #[serde(skip)]
+    pub waiting: super::state::Waiting,
 }
 
 impl Default for SurfacePresence {
@@ -21,6 +24,7 @@ impl Default for SurfacePresence {
             expression: "idle".into(),
             status: "Choose an agent".into(),
             preview: None,
+            waiting: Default::default(),
         }
     }
 }

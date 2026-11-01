@@ -60,6 +60,7 @@ pub struct Update {
     pub projection: PresenceProjection,
     pub appearance: Option<super::CompanionAppearance>,
     pub republish_only: bool,
+    pub waiting: crate::windows::companion::state::Waiting,
     acknowledgement: Option<Acknowledgement>,
     epoch: u64,
     current: Arc<AtomicU64>,
@@ -178,6 +179,7 @@ impl PresenceWatcher {
                         projection: request.stopped.clone(),
                         appearance: None,
                         republish_only: false,
+                        waiting: Default::default(),
                         acknowledgement: None,
                         epoch: request.epoch,
                         current: generation.clone(),
@@ -192,6 +194,7 @@ impl PresenceWatcher {
                                     guard: Some(refresh.guard), scope: None,
                                     projection: request.stopped.clone(), appearance: None,
                                     republish_only: true,
+                                    waiting: Default::default(),
                                     acknowledgement: Some((refresh.reply, if refresh.unbound {Ok(())} else {Err("companion_core_unavailable")})),
                                     epoch: request.epoch, current: generation.clone(),
                                 });

@@ -413,3 +413,85 @@ async fn replayed_history_reconciles_once_at_caught_up() {
     assert!(reads <= 2, "40 replayed frames read {reads} snapshots");
     watcher.stop();
 }
+
+fn blocked(update: &Update) -> bool {
+    update.projection.expression == "blocked" && update.projection.status == "Waiting for you"
+}
+#[tokio::test]
+async fn waiting_permissions_are_read_at_start_and_reread_on_a_project_frame() {
+    let api = Fixture::new().await;
+    api.permission(THREAD_B, "other", "Elsewhere");
+    let (watcher, mut rx, connection) = watch(&api);
+    watcher.replace(binding(1, THREAD_A, "agent-a"), connection);
+    let start = wait(&mut rx, |update| update.waiting.count == 1).await;
+    assert!(
+        start.waiting.bound.is_empty(),
+        "another thread never blocks the bound one"
+    );
+    wait(&mut rx, |update| {
+        update.projection.status == "Ready" && update.waiting.count == 1
+    })
+    .await;
+    api.permission(THREAD_A, "bound", "Run curl");
+    api.permissions_changed(THREAD_A, "bound", "waiting");
+    let waiting = wait(&mut rx, blocked).await;
+    assert_eq!(waiting.waiting.count, 2);
+    assert_eq!(waiting.waiting.bound.len(), 1);
+    assert_eq!(waiting.waiting.bound[0].request_id, "bound");
+    assert_eq!(waiting.waiting.bound[0].title, "Run curl");
+    assert_eq!(waiting.waiting.bound[0].options[0].option_id, "allow_once");
+    api.settle("bound");
+    api.permissions_changed(THREAD_A, "bound", "answered");
+    let restored = wait(&mut rx, |update| {
+        update.waiting.count == 1 && update.projection.status == "Ready"
+    })
+    .await;
+    assert!(restored.waiting.bound.is_empty());
+    let requests = api.data.requests.lock().unwrap().clone();
+    assert!(requests
+        .iter()
+        .any(|request| request.contains(&format!("/api/projects/{PROJECT}/events"))));
+    assert!(requests.iter().all(|request| request.starts_with("GET ")));
+    watcher.stop();
+}
+#[tokio::test]
+async fn lagged_project_feed_recovers_like_the_thread_feed() {
+    let api = Fixture::new().await;
+    api.permission(THREAD_A, "first", "Run ls");
+    let (watcher, mut rx, connection) = watch(&api);
+    watcher.replace(binding(1, THREAD_A, "agent-a"), connection);
+    wait(&mut rx, blocked).await;
+    api.settle("first");
+    api.permission(THREAD_A, "second", "Run pwd");
+    api.project_emit("lagged");
+    let recovered = wait(&mut rx, |update| {
+        blocked(update)
+            && update
+                .waiting
+                .bound
+                .first()
+                .is_some_and(|item| item.request_id == "second")
+    })
+    .await;
+    assert_eq!(recovered.waiting.count, 1);
+    watcher.stop();
+}
+#[tokio::test]
+async fn waiting_lists_are_bounded() {
+    let api = Fixture::new().await;
+    for index in 0..12 {
+        api.permission(THREAD_A, &format!("r{index}"), &"t".repeat(400));
+    }
+    api.data.permissions.lock().unwrap()[0]["options"] = serde_json::json!((0..12)
+        .map(|index| serde_json::json!({"option_id":format!("o{index}"),"name":"n".repeat(200),"kind":"allow_once"}))
+        .collect::<Vec<_>>());
+    let (watcher, mut rx, connection) = watch(&api);
+    watcher.replace(binding(1, THREAD_A, "agent-a"), connection);
+    let update = wait(&mut rx, blocked).await;
+    assert_eq!(update.waiting.count, 12);
+    assert_eq!(update.waiting.bound.len(), 8);
+    assert_eq!(update.waiting.bound[0].title.chars().count(), 240);
+    assert_eq!(update.waiting.bound[0].options.len(), 8);
+    assert_eq!(update.waiting.bound[0].options[0].name.chars().count(), 80);
+    watcher.stop();
+}

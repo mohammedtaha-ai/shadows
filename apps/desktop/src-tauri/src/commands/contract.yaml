@@ -4,6 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/commands
 responsibility: Restrict native account and sidecar actions to main and companion navigation/readiness/drag actions to the owned local surface.
 public_api:
+  answer_companion_permission: Companion-only answer to a waiting permission request of the bound conversation; one Presence operation validates and posts it, returning ok or a fixed code.
   companion_panel: Owned companion-only open/close; one Presence operation supplies bounded metadata and serializes the native panel state.
   open_main_from_companion: Companion-only closed optional MainTarget, default bound; resolve through Presence before Navigation restores main.
   desktop_preferences: Main-only no-argument full native preference read with actual OS login-item state.
