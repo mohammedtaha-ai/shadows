@@ -146,6 +146,7 @@ impl Presence {
                     .clone()
                     .map(|appearance| companion::SurfaceAppearance {
                         color: appearance.color,
+                        outfit: appearance.outfit,
                     }),
             );
         }

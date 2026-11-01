@@ -284,7 +284,15 @@ fn write_presence_fixture() {
             expires_at_ms: 10_000,
         }),
     };
-    let fixture = serde_json::json!({"unbound":unbound,"binding":binding,"target":target,"destinations":destinations,"companion":crate::windows::companion::state::Model::default().view,"activePresence":active_presence});
+    let mut companion = crate::windows::companion::state::Model::default();
+    companion.present(
+        Default::default(),
+        Some(crate::windows::companion::SurfaceAppearance {
+            color: "blue".into(),
+            outfit: Some("opaque outfit".into()),
+        }),
+    );
+    let fixture = serde_json::json!({"unbound":unbound,"binding":binding,"target":target,"destinations":destinations,"companion":companion.view,"activePresence":active_presence});
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../web/src/test/native-presence.json");
     if std::env::var("UPDATE_NATIVE_FIXTURES").as_deref() == Ok("1") {

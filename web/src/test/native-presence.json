@@ -17,6 +17,10 @@
     "target": null
   },
   "companion": {
+    "appearance": {
+      "color": "blue",
+      "outfit": "opaque outfit"
+    },
     "composer": {
       "agent": null,
       "context": null,
@@ -32,7 +36,7 @@
       "status": "Choose an agent"
     },
     "renderAllowed": false,
-    "revision": 0,
+    "revision": 1,
     "visible": false
   },
   "destinations": [

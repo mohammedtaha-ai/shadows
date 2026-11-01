@@ -16,9 +16,9 @@ public_api:
   open_main_from_companion: Validate the captured destination on a blocking worker, then ask the injected Navigation to publish the pending request and restore main on the UI thread.
   WindowActions: Explicit native surface dependency containing UI dispatch, visibility, show, present and republish callbacks; native application-handle and explicit companion Handle lifetimes stay in the composition adapter, including the captured selection-show callback; workflows perform no managed-state lookup.
   Submission/Sent: Public companion submission request and result values, reexported from the private send module.
-  CompanionAppearance: Opaque agent character colour copied without validation; absent when unbound or unavailable.
+  CompanionAppearance: Opaque agent character colour and optional outfit copied without validation; absent when unbound or unavailable.
   core_client: The companion's one private Core HTTP client. Blocking reads and writes for binding, navigation and submission; async snapshots, metadata checks and SSE for observation. No other companion module builds a Core request.
-  Client::validate_appearance: Reuse bounded metadata validation to return the optional colour.
+  Client::validate_appearance: Reuse bounded metadata validation to return the optional appearance, defaulting a missing outfit to absent.
   eligible_agent / Thread::eligible: The one agent and thread eligibility rule, called by binding validation and observer metadata checks.
   PresenceWatcher::refresh_appearance: Serialized explicit metadata recheck acknowledged after guarded UI publication; no SSE restart.
   send: Admit an explicit context-scoped text submission to the captured Core thread; unchanged uncertain Retry reuses its complete turn body.
@@ -46,8 +46,8 @@ obligations:
     tested_by: [validation_rejects_deleted_unknown_and_wrong_thread, missing_key_and_removed_target_are_discovered_by_read_only_liveness]
   - rule: Projection-to-window mapping copies expression, status, optional preview text and absolute expiry exactly, including Unicode and the full u64 expiry range.
     tested_by: surface_mapping_preserves_projection_bytes
-  - rule: Selection and periodic metadata checks copy all string colours unchanged; no native palette or persisted colour exists.
-    tested_by: [appearance_check_copies_opaque_colour, appearance_selection_and_liveness_publish_colour]
+  - rule: Selection and periodic metadata checks copy string colours and outfits unchanged; no native palette or persisted appearance exists.
+    tested_by: [appearance_check_copies_opaque_colour, appearance_check_copies_opaque_outfit_and_defaults_absent, appearance_selection_and_liveness_publish_colour]
   - rule: Unbound, unavailable or disconnected appearance is absent; a later successful check restores it.
     tested_by: [appearance_unbound_and_unavailable_are_absent, appearance_refresh_failure_is_fixed_and_polling_recovers]
   - rule: Explicit refresh waits for UI publication, uses reads only, and cannot publish a superseded binding or restart the stream.

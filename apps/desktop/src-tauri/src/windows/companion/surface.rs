@@ -28,6 +28,8 @@ impl Default for SurfacePresence {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct SurfaceAppearance {
     pub color: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outfit: Option<String>,
 }
 
 pub struct EditorContext {

@@ -31,7 +31,7 @@ external_types:
 obligations:
   - rule: Surface model and placement use the explicit Handle at existing UI dispatch points; paths arrive as composition-supplied webview options and editor context through an injected callback. Window code names no DesktopApp and performs no managed-state lookup.
     tested_by: native_architecture_ratchet
-  - rule: Command answers and companion-state events serialize the same CompanionState; unbound, bound, previewing and failed states pin field order, nulls, omitted appearance, opaque colour and full-u64 preview expiry to exact bytes.
+  - rule: Command answers and companion-state events serialize the same CompanionState; unbound, bound, previewing and failed states pin field order, nulls, omitted appearance, opaque colour and outfit, and full-u64 preview expiry to exact bytes. Missing outfit is omitted.
     tested_by: companion_surface_wire_is_pinned
   - rule: Colour-only updates advance one revision without changing render permission, error, visibility, pause or composer; absent appearance is omitted on the wire.
     tested_by: appearance_changes_revision_without_render_permission

@@ -153,6 +153,8 @@ impl Client {
             deleted: bool,
             #[serde(default)]
             character_color: Option<String>,
+            #[serde(default)]
+            outfit: Option<String>,
         }
         #[derive(Deserialize)]
         struct Workspace {
@@ -217,7 +219,10 @@ impl Client {
         Ok(agent
             .character_color
             .clone()
-            .map(|color| CompanionAppearance { color }))
+            .map(|color| CompanionAppearance {
+                color,
+                outfit: agent.outfit.clone(),
+            }))
     }
     pub async fn snapshot(&self, thread: &str) -> Result<Snapshot, Problem> {
         tokio::time::timeout(self.timeout, self.snapshot_inner(thread))

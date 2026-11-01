@@ -254,6 +254,8 @@ mod appearance_tests;
 #[serde(rename_all = "camelCase")]
 pub struct CompanionAppearance {
     pub color: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outfit: Option<String>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefreshAppearanceReply {

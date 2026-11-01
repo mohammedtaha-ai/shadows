@@ -20,15 +20,15 @@ Earlier finished work: N-6 and N-7 (the settings dialog request, PR #40) are in 
 ## Tasks
 
 ### N-22 · Companion publishes the bound agent's outfit
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#n-22
 - Read: design §7.7; `docs/aylul/shared/requests/2026-11-01-companion-panel.md` (`appearance.outfit`); `apps/desktop/src-tauri/src/presence/contract.yaml`; `apps/desktop/src-tauri/src/windows/companion/contract.yaml`
-- Touch: apps/desktop/src-tauri/src/presence/mod.rs, apps/desktop/src-tauri/src/presence/core_client/observer.rs, apps/desktop/src-tauri/src/presence/appearance_tests.rs, apps/desktop/src-tauri/src/presence/binding_tests.rs, apps/desktop/src-tauri/src/presence/contract.yaml, apps/desktop/src-tauri/src/windows/companion/surface.rs, apps/desktop/src-tauri/src/windows/companion/state.rs, apps/desktop/src-tauri/src/windows/companion/contract.yaml, web/src/test/native-presence.json (rewritten by `write_presence_fixture`), docs/aylul/native/stages.md
+- Touch: apps/desktop/src-tauri/src/presence/mod.rs, apps/desktop/src-tauri/src/presence/core_client/observer.rs, apps/desktop/src-tauri/src/presence/workflows.rs, apps/desktop/src-tauri/src/presence/appearance_tests.rs, apps/desktop/src-tauri/src/presence/binding_tests.rs, apps/desktop/src-tauri/src/presence/contract.yaml, apps/desktop/src-tauri/src/windows/companion/surface.rs, apps/desktop/src-tauri/src/windows/companion/state.rs, apps/desktop/src-tauri/src/windows/companion/contract.yaml, web/src/test/native-presence.json (rewritten by `write_presence_fixture`), docs/aylul/native/stages.md
 - Needs: docs/aylul/shared/requests/2026-11-01-companion-panel.md (accepted). It reads `outfit` with a default, so it builds before backend §3.1; its real-app check waits on it.
 - Done when: `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml appearance` and `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion_surface_wire_is_pinned` pass (outfit copied opaque beside colour; absent when the agent has none, when unbound or when unavailable), `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test architecture` passes, and from `web/` `npx vitest run src/desktop/native-parity.test.ts` passes on the rewritten fixture.
 
 ### N-23 · Main destinations the panel opens
-- Status: blocked (waits for F-67)
+- Status: todo
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#n-23
 - Read: design §7.6; `docs/aylul/shared/requests/2026-11-01-companion-panel.md` (`open_main_from_companion`, `main-navigation`); `apps/desktop/src-tauri/src/presence/contract.yaml` (`destination`, `open_main_from_companion`)
 - Touch: apps/desktop/src-tauri/src/navigation.rs, apps/desktop/src-tauri/src/presence/mod.rs, apps/desktop/src-tauri/src/presence/workflows.rs, apps/desktop/src-tauri/src/presence/binding_tests.rs, apps/desktop/src-tauri/src/presence/contract.yaml, apps/desktop/src-tauri/src/commands/companion.rs, apps/desktop/src-tauri/src/commands/contract.yaml, web/src/test/native-presence.json (rewritten by `write_presence_fixture`), docs/aylul/native/stages.md
