@@ -20,6 +20,9 @@ external:
   EnvEntry: web/src/api/schema.d.ts components.schemas.EnvEntry
 
 components:
+  OutfitPicker:
+    signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
+    note: Manifest-ordered studio previews form an accessible radio group; unknown ids select default.
   AgentExtensions:
     signature: "({ slug: string }) => JSX.Element"
     note: Saved-agent extension switches live outside the Save agent form; failed extension reads do not disable ordinary fields.
@@ -63,6 +66,9 @@ components:
     signature: "(props: ComponentProps<'textarea'>) => JSX.Element"
 
 pure:
+  outfitOf:
+    signature: "(id: string | null | undefined) => outfit; unknown or missing ids resolve to default"
+    file: web/src/app/agents/outfits.ts
   colorOf:
     signature: "(id: string | null | undefined) => CharacterColor; unknown or missing ids resolve to the shared table base"
     file: web/src/app/agents/character-colors.ts
@@ -76,6 +82,8 @@ pure:
     signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
 
 obligations:
+  - rule: Every manifest outfit has a labelled radio and its exported preview; unknown ids select default and disabled controls cannot change it.
+    tested_by: ["every manifest outfit is a radio with its label and image", "an unknown id selects default", "choosing an outfit reports its id and a disabled picker cannot change"]
   - rule: Enter (with or without Shift) in the manual model field uses the Add action without submitting the provider form, including when the id is invalid; an Enter that confirms an IME composition does nothing. Saving with an unadded id shows an explicit alert and preserves the draft; adding or clearing the id removes the alert.
     tested_by:
       - Enter adds a model without submitting the new provider
@@ -145,7 +153,7 @@ extension_cache_owner: "api/extensions.ts owns saved switch merges and cancels s
 
 profile_query_owner: "api/aylul-profiles.ts owns provider and agent query factories"
 
-feature_entry: "index.ts exposes providerTitle, colorOf, ColorDot, AgentForm, DeleteAgent, ProviderForm, ProviderPicker, presetOf, presetGroups, PresetGroup."
+feature_entry: "index.ts exposes providerTitle, colorOf, outfitOf, OutfitPicker, ColorDot, AgentForm, DeleteAgent, ProviderForm, ProviderPicker, presetOf, presetGroups, PresetGroup."
 
 feature_imports: "Cross-feature production imports use declared public entries."
 

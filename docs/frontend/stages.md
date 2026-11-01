@@ -24,7 +24,7 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-62 · Outfit picker drawn from the studio's exported previews
-- Status: todo (C-8 completed in `f3dff32b`)
+- Status: done (picker tests 3/3; typecheck, lint, build, codemap/architecture passed; browser preview captured)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-62
 - Read: design §7.3; `web/src/app/agents/contract.yaml`; `character-colors.ts` and `color-swatches.tsx` (the pattern to follow)
 - Touch: web/src/app/agents/outfits.ts (new), web/src/app/agents/outfit-picker.tsx (new), web/src/app/agents/outfit-picker.test.tsx (new), web/src/app/agents/index.ts, web/src/app/agents/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
@@ -32,7 +32,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/agents/outfit-picker.test.tsx` passes (every manifest outfit is a radio with its label and image; an unknown id selects `default`), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshot of the picker attached to the report.
 
 ### F-63 · Agent form: outfit, description and instructions, in the design's order
-- Status: blocked (waits for F-62; backend §3.1 is built)
+- Status: todo (F-62 and backend §3.1 are built)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-63
 - Read: design §7.1, §7.3, §7.5; `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3.1; `web/src/app/agents/contract.yaml`; `web/src/api/contract.yaml`; `web/src/app/sidebar/contract.yaml`
 - Touch: web/src/api/schema.d.ts (only through `npm run gen:api`), web/src/api/aylul-profiles.ts, web/src/api/aylul-profiles.test.ts, web/src/api/contract.yaml, web/src/app/agents/agent-settings.tsx, web/src/app/agents/agent-form.test.tsx (new), web/src/app/agents/contract.yaml, web/src/app/sidebar/agent-list.tsx, web/src/app/sidebar/sidebar.test.tsx, web/src/app/sidebar/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md

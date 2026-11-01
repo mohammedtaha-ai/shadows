@@ -171,6 +171,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/provider-models.tsx` | Provider model selection | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/character-colors.ts` | Shared character colour lookup | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/color-swatches.tsx` | Character colour controls | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/outfits.ts` | Studio outfit preview lookup | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/outfit-picker.tsx` | Outfit selection controls | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/outfit-picker.test.tsx` | Outfit selection checks | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-test.ts` | Provider test outcome messages | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agreements/agreement-document.ts` | Reads OpenAPI object fields for the editor | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreement-editor.tsx` | Editor for one agreement version | `web/src/app/agreements/contract.yaml` |

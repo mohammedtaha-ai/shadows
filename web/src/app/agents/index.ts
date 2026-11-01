@@ -1,6 +1,8 @@
 // Public lazy route modules: home.tsx.
 export { providerTitle } from './provider-presets'
 export { colorOf } from './character-colors'
+export { outfitOf } from './outfits'
+export { OutfitPicker } from './outfit-picker'
 export { ColorDot } from './color-swatches'
 export { AgentForm } from './agent-settings'
 export { DeleteAgent } from './agent-settings'
