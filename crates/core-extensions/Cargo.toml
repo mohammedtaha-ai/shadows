@@ -14,6 +14,8 @@ workspace = true
 [dependencies]
 core-db = { path = "../core-db" }
 core-agents = { path = "../core-agents" }
+core-providers = { path = "../core-providers" }
+core-secrets = { path = "../core-secrets" }
 dunce = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -28,7 +30,5 @@ yaml-rust2 = { workspace = true }
 [dev-dependencies]
 core-db = { path = "../core-db", features = ["test-support"] }
 core-projects = { path = "../core-projects" }
-core-providers = { path = "../core-providers" }
-core-secrets = { path = "../core-secrets" }
 shadows-process = { path = "../shadows-process" }
 tempfile = { workspace = true }

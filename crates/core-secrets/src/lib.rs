@@ -48,6 +48,13 @@ pub struct EnvWrite {
     value: SealedEnv,
 }
 
+impl EnvWrite {
+    /// The keyed value fingerprint for an owning command's replay record.
+    pub fn value_mac(&self) -> &str {
+        self.value.value_mac()
+    }
+}
+
 /// One removal under its user command, ready for a write transaction.
 pub struct EnvRemoval {
     command: CommandContext,

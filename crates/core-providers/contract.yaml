@@ -80,7 +80,7 @@ functions:
   preset: private; the one preset lookup by id.
   preset_at: private; the preset whose URL is exactly the base URL, which decides its listing.
   preset_listing: private; where a preset lists its models.
-  validate_url: private; https, or http on a loopback host, without credentials or controls.
+  validate_url: public; https, or http on a loopback host, without credentials or controls.
   models_in: public; a provider's model ids in the caller's write, refusing an unknown provider.
   update_in: public; replace a known provider in the caller's write.
   delete_in: public; remove a known provider and its key scope in the caller's write.

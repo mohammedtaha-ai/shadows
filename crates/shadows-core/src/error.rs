@@ -385,6 +385,7 @@ impl From<core_extensions::ExtensionsError> for CoreError {
             ExtensionsError::Invalid(reason) => Self::ProfileInvalid(reason),
             ExtensionsError::NotConfigured => Self::AylulNotConfigured,
             ExtensionsError::Agent(error) => error.into(),
+            ExtensionsError::Secrets(error) => error.into(),
             ExtensionsError::Storage(error) => error.into(),
         }
     }

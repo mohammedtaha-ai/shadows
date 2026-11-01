@@ -27,9 +27,13 @@ modules:
   aylul_threads.rs: Threads service agent listing
   aylul_person.rs: PersonSettings service HTTP translation
   aylul_usage.rs: Usage service HTTP translation
+  aylul_extensions.rs: Extensions library HTTP translation
   transport.rs: shared HTTP request execution
   sse.rs: Events stream framing through private handlers
 agreements:
+  - between: [aylul_extensions::remove, aylul_extensions::remove_mcp]
+    must: Delete through the same Extensions operation for every kind, including the static MCP path.
+    tested_by: [mcp_routes_answer_names_never_values, extension_routes_round_trip]
   - between: [plans::get, plans::get_for]
     must: Preserve stored values within scope; grant reads independently enforce project reach.
     tested_by: [plan_adapter_pairs_keep_their_authorization_boundaries,

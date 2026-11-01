@@ -5,7 +5,16 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
 };
-use shadows_core::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item};
+use shadows_core::{
+    AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item, McpInput, McpItem,
+};
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct McpRequest {
+    command_id: String,
+    #[serde(flatten)]
+    input: McpInput,
+}
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct Import {
@@ -47,6 +56,48 @@ pub(super) async fn import(
                 .await?,
         ),
     ))
+}
+
+#[utoipa::path(post,path="/api/aylul/extensions/mcp",tag="aylul",operation_id="add_mcp",
+    request_body=McpRequest,responses((status=201,body=McpItem),(status=400,body=ErrorBody),
+    (status=409,body=ErrorBody),(status=503,body=ErrorBody)))]
+pub(super) async fn add_mcp(
+    State(s): State<AppState>,
+    EnvJson(b): EnvJson<McpRequest>,
+) -> Result<(StatusCode, Json<McpItem>), Failure> {
+    Ok((
+        StatusCode::CREATED,
+        Json(s.core.extensions().add_mcp(b.command_id, b.input).await?),
+    ))
+}
+
+#[utoipa::path(put,path="/api/aylul/extensions/mcp/{id}",tag="aylul",operation_id="update_mcp",
+    params(("id"=String,Path)),request_body=McpRequest,responses((status=200,body=McpItem),
+    (status=400,body=ErrorBody),(status=404,body=ErrorBody),(status=409,body=ErrorBody),
+    (status=503,body=ErrorBody)))]
+pub(super) async fn update_mcp(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    EnvJson(b): EnvJson<McpRequest>,
+) -> Result<Json<McpItem>, Failure> {
+    Ok(Json(
+        s.core
+            .extensions()
+            .update_mcp(b.command_id, &id, b.input)
+            .await?,
+    ))
+}
+
+pub(super) async fn remove_mcp(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    Query(b): Query<Delete>,
+) -> Result<StatusCode, Failure> {
+    s.core
+        .extensions()
+        .delete_extension(b.command_id, ExtensionKind::Mcp, &id)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 #[utoipa::path(delete,path="/api/aylul/extensions/{kind}/{id}",tag="aylul",
     operation_id="remove_extension",

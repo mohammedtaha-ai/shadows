@@ -140,6 +140,7 @@ pub(super) fn source(w: &World, kind: ExtensionKind, name: &str) -> std::path::P
             )
             .unwrap();
         }
+        ExtensionKind::Mcp => panic!("MCP items have no folder"),
     }
     path
 }

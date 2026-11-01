@@ -102,6 +102,7 @@ fn metadata(root: &Path, kind: ExtensionKind, id: &str) -> Result<Item, Extensio
                 doc["description"].as_str().ok_or_else(invalid)?.to_owned(),
             )
         }
+        ExtensionKind::Mcp => return Err(invalid()),
     };
     if !name_valid(&name) || description.trim().is_empty() || description.len() > 4096 {
         return Err(invalid());

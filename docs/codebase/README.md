@@ -85,6 +85,7 @@ pattern to follow, not merely an example.
 | `crates/core-extensions/src/` | the shared extension library | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/model.rs` | public extension metadata | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/files.rs` | bounded library file copies | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/mcp.rs` | MCP configuration commands | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/error.rs` | extension library refusals | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/store/` | extension configuration SQL | `crates/core-extensions/contract.yaml` |
 | `crates/core-usage/src/` | measured AYLUL usage | `crates/core-usage/contract.yaml` |

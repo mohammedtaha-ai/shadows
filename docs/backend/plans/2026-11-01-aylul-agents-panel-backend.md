@@ -157,6 +157,8 @@ architecture ratchet already allows both for `core-extensions`.
   the item row, and each value through `Secrets::put_in` (command id
   `<command_id>:<name>`). The item's fingerprint holds the configuration and the
   keyed fingerprint of each value sent, never a value.
+  `EnvWrite::value_mac()` exposes that prepared write's existing keyed fingerprint
+  by reference; sealing and secret material stay private to Secrets.
   - Item names: `^[a-z][a-z0-9_-]{0,63}$`, not `shadows` (the Planner's server),
     unique among MCP items.
   - HTTP URL: `Providers::validate_url`, made public; Extensions answers its own

@@ -150,6 +150,12 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(aylul_providers::provider_presets))
         .routes(routes!(aylul_usage::usage))
         .routes(routes!(aylul_extensions::library, aylul_extensions::import))
+        .routes(routes!(aylul_extensions::add_mcp))
+        .routes(routes!(aylul_extensions::update_mcp))
+        .route(
+            "/api/aylul/extensions/mcp/{id}",
+            axum::routing::delete(aylul_extensions::remove_mcp),
+        )
         .routes(routes!(aylul_extensions::remove))
         .routes(routes!(aylul_extensions::agent))
         .routes(routes!(aylul_extensions::toggle))

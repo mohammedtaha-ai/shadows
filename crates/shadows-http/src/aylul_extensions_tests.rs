@@ -92,3 +92,47 @@ async fn extension_routes_round_trip() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn mcp_routes_answer_names_never_values() {
+    let w = world(true, true).await;
+    let body = json!({"command_id":"mcp-add","name":"github","transport":{
+        "type":"http","url":"https://example.com/mcp",
+        "headers":[{"name":"Authorization","value":"synthetic-route-secret"}]}})
+    .to_string();
+    let (status, text) = request(&w, "POST", "/api/aylul/extensions/mcp", &body).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert!(text.contains("Authorization"));
+    assert!(!text.contains("synthetic-route-secret"));
+    let item: Value = serde_json::from_str(&text).unwrap();
+    let path = format!("/api/aylul/extensions/mcp/{}", item["id"].as_str().unwrap());
+    let edit = json!({"command_id":"mcp-edit","name":"github","transport":{
+        "type":"http","url":"https://example.com/mcp","headers":[{"name":"Authorization"}]}})
+    .to_string();
+    let (status, text) = request(&w, "PUT", &path, &edit).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!text.contains("synthetic-route-secret"));
+    let delete = format!("{path}?command_id=mcp-delete");
+    assert_eq!(
+        request(&w, "DELETE", &delete, "").await.0,
+        StatusCode::NO_CONTENT
+    );
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn folder_import_refuses_mcp() {
+    let w = world(true, true).await;
+    let body = json!({"command_id":"folder","kind":"mcp","path":"/tmp"}).to_string();
+    assert_eq!(
+        request(&w, "POST", "/api/aylul/extensions", &body).await.0,
+        StatusCode::BAD_REQUEST
+    );
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}

@@ -13,17 +13,21 @@ modules:
   lib.rs: library commands and the projection guard
   model.rs: public extension metadata
   files.rs: bounded library file copies
+  mcp.rs: MCP configuration commands and validation
   error.rs: library refusals
   store/: extension configuration SQL
 
 dependencies:
   agents: crates/core-agents/contract.yaml
+  secrets: crates/core-secrets/contract.yaml
+  providers: crates/core-providers/contract.yaml
 
 shapes:
   Extensions:
     store: private ExtensionsStore over the shared storage handle
     lock: Library mutation guard shared with harness projection
     home_root: Optional isolated home root holding the library
+    secrets: Shared Secrets service for write-only MCP values.
   ExtensionsStore:
     storage: Arc<Storage> # Private to extensions; shares the existing pool.
   ExtensionsError:
@@ -32,9 +36,10 @@ shapes:
     Invalid: String # ProfileInvalid for a caller
     NotConfigured: AYLUL configuration is absent
     Agent: AgentsError
+    Secrets: SecretsError
     Storage: StorageError
   ExtensionKind:
-    values: Plugin, Skill
+    values: Plugin, Skill, Mcp
   Item:
     note: Immutable library metadata without source paths
   AgentItem:
@@ -43,16 +48,23 @@ shapes:
     note: Shared library without enabled flags
   AgentExtensions:
     note: Whole library with per-agent switches
+  McpItem:
+    note: MCP configuration and value names only; values are never returned.
+  McpServerConfig:
+    note: Resolved configuration for trusted openings; Debug redacts values.
 
 functions:
-  new: "public: (storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Extensions>"
+  new: "public: (storage: Arc<Storage>, secrets: Arc<Secrets>, home_root: Option<PathBuf>) -> Arc<Extensions>"
   extensions: List the shared extension library ordered by name and id.
   add_extension: Import a bounded immutable local copy under one replayable command.
-  delete_extension: Remove the item and every enablement in one transaction, then retire its files.
+  add_mcp: Create replayable MCP configuration with write-only values in the same transaction.
+  update_mcp: Replace configuration without changing its id or switches; omitted values are retained.
+  agent_mcp_servers: Resolve only enabled MCP configurations for a trusted opening.
+  delete_extension: Remove the item and every enablement in one transaction; MCP deletion removes its secret scope.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
   extension_guard: public; the library mutation guard the harness holds while projecting.
-  remove_agent_in: public; remove every switch of an agent in the caller's write.
+  remove_agent_in: public; remove every folder and MCP switch of an agent in the caller's write.
   copy_tree: public; copy one library item's bounded regular files into a managed snapshot.
   publish: private; copy a bounded source into the library and answer its metadata and digest.
   retire: private; remove a deleted item's owned folder; failure leaves an inert copy.
@@ -76,3 +88,13 @@ obligations:
     tested_by: [extension_enablement_is_per_agent]
   - rule: Item or agent deletion removes its enablement atomically.
     tested_by: [extension_deletions_remove_enablement_atomically]
+  - rule: MCP configuration carries names only; Secrets owns values and their keyed fingerprints.
+    tested_by: [mcp_item_is_configuration_with_write_only_values, mcp_values_never_leave_secrets]
+  - rule: MCP edits retain omitted values and switches, remove dropped names and refuse new names without values.
+    tested_by: [mcp_input_is_checked, mcp_edit_keeps_its_id_switches_and_unsent_values]
+  - rule: MCP deletion removes the item, switches and secret scope in the same transaction.
+    tested_by: [mcp_delete_removes_switches_and_scope_in_one_write]
+  - rule: MCP commands replay equal fingerprints and refuse changed inputs.
+    tested_by: [mcp_commands_replay_and_conflict]
+  - rule: Trusted openings receive only enabled MCP servers and Debug redacts their values.
+    tested_by: [agent_mcp_servers_resolve_only_enabled_items]

@@ -361,3 +361,28 @@ async fn mcp_value_absent_from_db_and_command_record() {
 
     w.storage.close().await.unwrap();
 }
+
+#[tokio::test]
+async fn mcp_write_fingerprint_is_keyed_and_value_sensitive() {
+    let w = world().await;
+    let a = w
+        .secrets
+        .mcp_value_write("one".into(), "server", "Token", "synthetic-a")
+        .unwrap();
+    let b = w
+        .secrets
+        .mcp_value_write("two".into(), "server", "Token", "synthetic-a")
+        .unwrap();
+    let c = w
+        .secrets
+        .mcp_value_write("three".into(), "server", "Token", "synthetic-b")
+        .unwrap();
+    let other = Secrets::new(w.storage.clone(), Some(SecretKey::from_bytes([9; 32])));
+    let other_write = other
+        .mcp_value_write("four".into(), "server", "Token", "synthetic-a")
+        .unwrap();
+    assert_eq!(a.value_mac(), b.value_mac());
+    assert_ne!(a.value_mac(), c.value_mac());
+    assert_ne!(a.value_mac(), other_write.value_mac());
+    assert!(!a.value_mac().contains("synthetic-a"));
+}

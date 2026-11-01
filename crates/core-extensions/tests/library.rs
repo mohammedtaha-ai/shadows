@@ -11,6 +11,7 @@ use std::sync::Arc;
 struct World {
     storage: Arc<Storage>,
     extensions: Arc<Extensions>,
+    secrets: Arc<Secrets>,
     _tmp: tempfile::TempDir,
 }
 
@@ -32,7 +33,7 @@ async fn world() -> World {
     let agents = Agents::new(
         storage.clone(),
         providers,
-        secrets,
+        secrets.clone(),
         Projects::new(storage.clone()),
         Some(root.clone()),
     );
@@ -52,7 +53,8 @@ async fn world() -> World {
         .await
         .unwrap();
     World {
-        extensions: Extensions::new(storage.clone(), Some(root)),
+        extensions: Extensions::new(storage.clone(), secrets.clone(), Some(root)),
+        secrets,
         storage,
         _tmp: tmp,
     }
@@ -83,6 +85,7 @@ fn source(w: &World, kind: ExtensionKind, name: &str) -> std::path::PathBuf {
             )
             .unwrap();
         }
+        ExtensionKind::Mcp => panic!("MCP items have no folder"),
     }
     path
 }
@@ -294,4 +297,328 @@ async fn extension_input_is_contained() {
     }
 
     w.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn mcp_item_is_configuration_with_write_only_values() {
+    let w = world().await;
+    let input = serde_json::from_value(json!({
+        "name": "github", "transport": {"type": "http", "url": "https://example.com/mcp",
+            "headers": [{"name": "Authorization", "value": "synthetic-secret"}]}
+    }))
+    .unwrap();
+    let item = w.extensions.add_mcp("mcp-add".into(), input).await.unwrap();
+    let out = serde_json::to_string(&item).unwrap();
+    assert!(out.contains("Authorization"));
+    assert!(!out.contains("synthetic-secret"));
+    assert_eq!(w.extensions.extensions().await.unwrap().mcp.len(), 1);
+}
+
+fn mcp_input(name: &str, values: serde_json::Value) -> core_extensions::McpInput {
+    serde_json::from_value(json!({"name":name,"transport":{
+        "type":"stdio","command":"server","args":["--test"],"env":values}}))
+    .unwrap()
+}
+
+#[tokio::test]
+async fn mcp_input_is_checked() {
+    let w = world().await;
+    for name in ["shadows", "Bad", "a.b", "", " server "] {
+        assert!(
+            w.extensions
+                .add_mcp(format!("bad-{name}"), mcp_input(name, json!([])))
+                .await
+                .is_err()
+        );
+    }
+    for values in [
+        json!([{"name":"TOKEN"}]),
+        json!([{"name":"a","value":"one"},{"name":"a","value":"two"}]),
+        json!([{"name":"bad.name","value":"one"}]),
+        json!([{"name":"ANTHROPIC_API_KEY","value":"one"}]),
+    ] {
+        assert!(
+            w.extensions
+                .add_mcp(uuid::Uuid::new_v4().to_string(), mcp_input("valid", values))
+                .await
+                .is_err()
+        );
+    }
+    let invalid = serde_json::from_value(json!({
+        "name": "server", "transport": {
+            "type": "http", "url": "http://remote.example/mcp", "headers": []
+        }
+    }))
+    .unwrap();
+    assert!(
+        w.extensions
+            .add_mcp("bad-url".into(), invalid)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn mcp_edit_keeps_its_id_switches_and_unsent_values() {
+    let w = world().await;
+    let item = w
+        .extensions
+        .add_mcp(
+            "create".into(),
+            mcp_input(
+                "server",
+                json!([
+        {"name":"KEEP","value":"synthetic-keep"},{"name":"DROP","value":"synthetic-drop"}]),
+            ),
+        )
+        .await
+        .unwrap();
+    w.extensions
+        .set_agent_extension("switch".into(), "aylul", ExtensionKind::Mcp, &item.id, true)
+        .await
+        .unwrap();
+    let updated = w
+        .extensions
+        .update_mcp(
+            "edit".into(),
+            &item.id,
+            mcp_input(
+                "renamed",
+                json!([
+        {"name":"KEEP"},{"name":"NEW","value":"synthetic-new"}]),
+            ),
+        )
+        .await
+        .unwrap();
+    assert_eq!(updated.id, item.id);
+    let failed = w
+        .extensions
+        .update_mcp(
+            "bad-edit".into(),
+            &item.id,
+            mcp_input("bad-change", json!([{"name":"MISSING"}])),
+        )
+        .await;
+    assert!(failed.is_err());
+    assert_eq!(
+        w.extensions.extensions().await.unwrap().mcp[0].name,
+        "renamed"
+    );
+    assert!(w.extensions.agent_extensions("aylul").await.unwrap().mcp[0].enabled);
+    let values = w
+        .secrets
+        .resolve_env(&Secrets::mcp_scope(&item.id))
+        .await
+        .unwrap();
+    assert_eq!(
+        values,
+        [
+            ("KEEP".into(), "synthetic-keep".into()),
+            ("NEW".into(), "synthetic-new".into())
+        ]
+    );
+}
+
+#[tokio::test]
+async fn mcp_delete_removes_switches_and_scope_in_one_write() {
+    let w = world().await;
+    let item = w
+        .extensions
+        .add_mcp(
+            "create".into(),
+            mcp_input("server", json!([{"name":"TOKEN","value":"synthetic"}])),
+        )
+        .await
+        .unwrap();
+    w.extensions
+        .set_agent_extension("on".into(), "aylul", ExtensionKind::Mcp, &item.id, true)
+        .await
+        .unwrap();
+    w.storage
+        .write_txn_as::<_, _, core_db::StorageError>(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "CREATE TRIGGER reject_secret_delete BEFORE DELETE ON secret_env
+            BEGIN SELECT RAISE(ABORT, 'refused'); END",
+                )
+                .execute(conn)
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+    assert!(
+        w.extensions
+            .delete_extension("delete".into(), ExtensionKind::Mcp, &item.id)
+            .await
+            .is_err()
+    );
+    assert!(w.extensions.agent_extensions("aylul").await.unwrap().mcp[0].enabled);
+    assert_eq!(
+        w.secrets
+            .list_env(&Secrets::mcp_scope(&item.id))
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    w.storage
+        .write_txn_as::<_, _, core_db::StorageError>(|conn| {
+            Box::pin(async move {
+                sqlx::query("DROP TRIGGER reject_secret_delete")
+                    .execute(conn)
+                    .await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+    w.extensions
+        .delete_extension("delete".into(), ExtensionKind::Mcp, &item.id)
+        .await
+        .unwrap();
+    assert!(
+        w.extensions
+            .agent_extensions("aylul")
+            .await
+            .unwrap()
+            .mcp
+            .is_empty()
+    );
+    assert!(
+        w.secrets
+            .list_env(&Secrets::mcp_scope(&item.id))
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM aylul_agent_mcp")
+        .fetch_one(w.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+}
+
+#[tokio::test]
+async fn mcp_commands_replay_and_conflict() {
+    let w = world().await;
+    let values = json!([{"name":"TOKEN","value":"synthetic-one"}]);
+    let first = w
+        .extensions
+        .add_mcp("create".into(), mcp_input("server", values.clone()))
+        .await
+        .unwrap();
+    let replay = w
+        .extensions
+        .add_mcp("create".into(), mcp_input("server", values))
+        .await
+        .unwrap();
+    assert_eq!(first.id, replay.id);
+    assert!(
+        w.extensions
+            .add_mcp(
+                "create".into(),
+                mcp_input("server", json!([{"name":"TOKEN","value":"synthetic-two"}]))
+            )
+            .await
+            .is_err()
+    );
+    w.extensions
+        .delete_extension("delete".into(), ExtensionKind::Mcp, &first.id)
+        .await
+        .unwrap();
+    let replay = w
+        .extensions
+        .add_mcp(
+            "create".into(),
+            mcp_input("server", json!([{"name":"TOKEN","value":"synthetic-one"}])),
+        )
+        .await
+        .unwrap();
+    assert_eq!(first.id, replay.id);
+}
+
+#[tokio::test]
+async fn mcp_values_never_leave_secrets() {
+    let w = world().await;
+    let marker = "synthetic-private-mcp-value";
+    let item = w
+        .extensions
+        .add_mcp(
+            "create".into(),
+            mcp_input("server", json!([{"name":"TOKEN","value":marker}])),
+        )
+        .await
+        .unwrap();
+    assert!(!serde_json::to_string(&item).unwrap().contains(marker));
+    let rows: Vec<(String, String)> =
+        sqlx::query_as("SELECT request_fingerprint,outcome_ref FROM command_record")
+            .fetch_all(w.storage.reader())
+            .await
+            .unwrap();
+    assert!(
+        rows.iter().all(
+            |(fingerprint, outcome)| !fingerprint.contains(marker) && !outcome.contains(marker)
+        )
+    );
+    let config: String = sqlx::query_scalar("SELECT config_json FROM aylul_mcp_server WHERE id=?")
+        .bind(&item.id)
+        .fetch_one(w.storage.reader())
+        .await
+        .unwrap();
+    assert!(!config.contains(marker));
+    let bytes: Vec<u8> = sqlx::query_scalar("SELECT ciphertext FROM secret_env WHERE profile=?")
+        .bind(Secrets::mcp_scope(&item.id))
+        .fetch_one(w.storage.reader())
+        .await
+        .unwrap();
+    assert!(
+        !bytes
+            .windows(marker.len())
+            .any(|window| window == marker.as_bytes())
+    );
+    for filename in ["test.db", "test.db-wal", "test.db-shm"] {
+        if let Ok(bytes) = std::fs::read(w._tmp.path().join(filename)) {
+            assert!(
+                !bytes
+                    .windows(marker.len())
+                    .any(|window| window == marker.as_bytes())
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn agent_mcp_servers_resolve_only_enabled_items() {
+    let w = world().await;
+    let on = w
+        .extensions
+        .add_mcp(
+            "one".into(),
+            mcp_input("one", json!([{"name":"TOKEN","value":"synthetic-one"}])),
+        )
+        .await
+        .unwrap();
+    w.extensions
+        .add_mcp(
+            "two".into(),
+            mcp_input("two", json!([{"name":"TOKEN","value":"synthetic-two"}])),
+        )
+        .await
+        .unwrap();
+    w.extensions
+        .set_agent_extension("on".into(), "aylul", ExtensionKind::Mcp, &on.id, true)
+        .await
+        .unwrap();
+    let servers = w.extensions.agent_mcp_servers("aylul").await.unwrap();
+    assert_eq!(servers.len(), 1);
+    assert!(!format!("{servers:?}").contains("synthetic-one"));
+    match &servers[0] {
+        core_extensions::McpServerConfig::Stdio { name, env, .. } => {
+            assert_eq!(name, "one");
+            assert_eq!(env, &[("TOKEN".into(), "synthetic-one".into())]);
+        }
+        _ => panic!("wrong transport"),
+    }
 }
