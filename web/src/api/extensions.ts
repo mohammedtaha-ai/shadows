@@ -9,6 +9,15 @@ export type AgentItem = components['schemas']['AgentItem']
 export type ExtensionLibrary = components['schemas']['ExtensionLibrary']
 export type AgentExtensions = components['schemas']['AgentExtensions']
 export type ExtensionImport = components['schemas']['Import']
+export type McpItem = components['schemas']['McpItem']
+export type McpInput = components['schemas']['McpInput']
+export type McpValueInput = components['schemas']['McpValueInput']
+
+export function saveMcp(id: string | null, commandId: string, input: McpInput): Promise<McpItem> {
+  const body = { command_id: commandId, ...input }
+  return id === null ? unwrap(client.POST('/api/aylul/extensions/mcp', { body }))
+    : unwrap(client.PUT('/api/aylul/extensions/mcp/{id}', { params: { path: { id } }, body }))
+}
 
 export const extensionKeys = {
   library: () => ['aylul-extensions'],

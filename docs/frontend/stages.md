@@ -41,7 +41,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npm run gen:api` first, then `npx vitest run src/api/aylul-profiles.test.ts src/app/agents/agent-form.test.tsx src/app/sidebar/sidebar.test.tsx` pass (new agent prefilled from `GET /api/aylul/agent-template`; an existing agent shows `Agent.instructions`, or the template when it is `""`; untouched instructions are not sent; outfit and description saved; Core's 400 `PROFILE_INVALID` message shown; the sidebar shows the description), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshot of the form attached.
 
 ### F-64 · MCP tools in the library, with secret fields
-- Status: todo (backend §3.2 is built)
+- Status: done (17 focused tests; typecheck, lint, build and 82 codemap/architecture checks passed)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-64
 - Read: design §7.2, §8 (stdio OPEN); `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3.2; `web/src/app/settings/contract.yaml`; `web/src/api/contract.yaml`
 - Touch: web/src/api/schema.d.ts (only through `npm run gen:api`), web/src/api/extensions.ts, web/src/api/extensions.test.ts (new), web/src/api/contract.yaml, web/src/app/settings/mcp-form.tsx (new), web/src/app/settings/mcp-form.test.tsx (new), web/src/app/settings/sections/plugins.tsx, web/src/app/settings/extension-list.tsx, web/src/app/settings/plugins.test.tsx, web/src/app/settings/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
@@ -49,7 +49,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npm run gen:api` first, then `npx vitest run src/api/extensions.test.ts src/app/settings/mcp-form.test.tsx src/app/settings/plugins.test.tsx` pass (add `http` and `stdio` items with `{ name, value }` pairs typed in password fields; values never shown back, a pair with `set` shows "Set"; an edit keeps the id and sends a pair without `value` to keep it; Core's 400/409/503 messages shown; a `bundled` item is marked; delete), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass.
 
 ### F-65 · Capabilities in the agent form: skills, plugins and MCP tools
-- Status: blocked (waits for F-64; F-63 is built)
+- Status: todo (F-63 and F-64 are built)
 - Plan: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md#f-65
 - Read: design §7.5 item 5; `web/src/app/agents/contract.yaml`
 - Touch: web/src/api/extensions.ts, web/src/app/agents/agent-extensions.tsx, web/src/app/agents/agent-extensions.test.tsx, web/src/app/agents/agent-settings.tsx, web/src/app/agents/contract.yaml, docs/frontend/stages.md

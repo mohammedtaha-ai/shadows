@@ -29,6 +29,34 @@ it('the library has tabs and no switches', async () => {
   await until(() => a.text().includes('No skills yet.'))
   act(() => a.button('Plugins')!.click()); expect(a.text()).toContain('No plugins yet.')
 })
+it('bundled items are marked and MCP tools edit and delete through the library', async () => {
+  let removed = false
+  const tool = { id: 'm1', name: 'research', description: 'Research tools', transport: { type: 'http', url: 'https://example.com', headers: [{ name: 'Authorization', set: true }] } }
+  const a = await open({
+    'GET /api/aylul/extensions': () => Response.json({ plugins: [{ ...plugin, bundled: true }], skills: [], mcp: removed ? [] : [tool] }),
+    'PUT /api/aylul/extensions/mcp/m1': () => Response.json(tool),
+    'DELETE /api/aylul/extensions/mcp/m1': () => { removed = true; return new Response(null, { status: 204 }) },
+  })
+  expect(a.text()).toContain('Included with AYLUL')
+  act(() => a.button('MCP tools')!.click())
+  expect(a.text()).toContain('Research tools')
+  act(() => a.button('Edit')!.click())
+  expect(document.querySelector<HTMLInputElement>('[aria-label="Secret value 1"]')?.value).toBe('')
+  expect(a.text()).toContain('Set')
+  act(() => a.button('Save MCP tool')!.click())
+  await until(() => a.button('Add MCP tool') !== undefined)
+  expect(a.calls).toContain('PUT /api/aylul/extensions/mcp/m1')
+  act(() => a.button('Remove')!.click()); confirm(a)
+  await until(() => a.text().includes('No MCP tools yet.'))
+})
+it('library keyboard navigation includes the MCP tab', async () => {
+  await open()
+  const pluginTab = document.querySelector<HTMLElement>('[role="tab"][data-kind="plugin"]')!
+  act(() => pluginTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })))
+  expect(document.querySelector('[role="tab"][aria-selected=true]')?.textContent).toBe('MCP tools')
+  act(() => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(document.querySelector('[role="tab"][aria-selected=true]')?.textContent).toBe('Plugins')
+})
 it('Add imports a folder on the daemon', async () => {
   let items: Item[] = []
   const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: [], skills: items }),

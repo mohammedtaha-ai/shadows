@@ -29,11 +29,14 @@ external:
 components:
   PluginsSection:
     signature: "() => JSX.Element"
-    note: Accessible Plugins/Skills tabs; Add replaces the body without another dialog.
+    note: Accessible Plugins/Skills/MCP tools tabs; Add and MCP Edit replace the body without another dialog.
+  McpForm:
+    signature: "({ item: McpItem | null, onDone: () => void }) => JSX.Element"
+    note: HTTP headers and stdio environment values use password inputs, never read values. An empty value on edit omits value to retain it. Arguments are explicit rows. Core owns validation; failed attempts retain command identity, success clears secret drafts and invalidates library plus agent capabilities.
   ExtensionImport:
     signature: "({ kind: ExtensionKind, onDone: () => void }) => JSX.Element"
   ExtensionList:
-    signature: "({ kind: ExtensionKind, items: Item[] }) => JSX.Element"
+    signature: "({ kind: ExtensionKind, items: (Item | McpItem)[], onEdit?: (item: McpItem) => void }) => JSX.Element"
     note: ConfirmPanel renders the inline confirmation with non-submitting buttons; ExtensionList owns the selected item, mutation, per-item command attempts, invalidations and locked ref.
   UsageSection:
     signature: "() => JSX.Element"

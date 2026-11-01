@@ -67,6 +67,12 @@ client_core:
   DAEMON_URL: "string; verified native origin frozen before module import; browser VITE_SHADOWS_URL or http://127.0.0.1:4318"
   client: "openapi-fetch client<paths>; fetch looked up per call"
 
+mcp_library:
+  owner: extensions.ts
+  save: "saveMcp(id, commandId, McpInput): POST for new items, PUT by stable id for edits; preserves absent secret values"
+  remove: "removeExtension uses the existing mcp kind route"
+  types: "McpItem, McpInput and McpValueInput alias generated schemas"
+
 agent_instructions_template:
   owner: aylul-profiles.ts
   query: "agentTemplateQuery; GET /api/aylul/agent-template; profileKeys.template() = ['aylul-agent-template']; immutable bundled template"

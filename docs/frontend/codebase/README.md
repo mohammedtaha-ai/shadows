@@ -173,6 +173,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/character-colors.ts` | Shared character colour lookup | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/color-swatches.tsx` | Character colour controls | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/outfits.ts` | Studio outfit preview lookup | `web/src/app/agents/contract.yaml` |
+| `web/src/api/extensions.test.ts` | MCP library transport checks | `web/src/api/contract.yaml` |
+| `web/src/app/settings/mcp-form.tsx` | MCP configuration editing | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/mcp-form.test.tsx` | MCP configuration form checks | `web/src/app/settings/contract.yaml` |
 | `web/src/app/agents/outfit-picker.tsx` | Outfit selection controls | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/outfit-picker.test.tsx` | Outfit selection checks | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-test.ts` | Provider test outcome messages | `web/src/app/agents/contract.yaml` |
