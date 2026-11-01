@@ -12,6 +12,13 @@ Runnable next: U-5, N-23 and N-24 on the AYLUL side. Web focused gates and synth
 `docs/aylul/character/stages.md`, N-22 to N-25 in `docs/aylul/native/stages.md`. Still open outside any task: the light palette and the real desktop
 login-item behaviour need their own app and OS acceptance.
 
+Next on this branch: F-69 to F-77, the AI Studio UI migration
+([plan](plans/2026-11-02-ai-studio-ui-migration.md); facts in
+`docs/evidence/2026-11-02-ai-studio-ui-analysis.md`). Masada's step M-0 (amend the
+neon-clarity spec) comes first. These tasks touch no `apps/` file and never touch
+`web/src/test/native-presence.json`, so U-8 and N-25 can run before them or alongside them.
+F-69 replaces F-68's look. F-68's unsaved indicator and its test stay.
+
 Finished work: F-50 to F-61 (branch `feature/web-polish`, PR #48) are in this file at `ce31036d`;
 F-45 to F-49 (W-11, with B-14 to B-18, PR #47) are in this file at `4f23c717`;
 F-28 (each settings form saves only the fields it changed, with the glass
@@ -80,3 +87,75 @@ settings dialog, PR #40) at `1a2b601`.
 - Touch: web/src/desktop/navigation.ts, web/src/desktop/native-parity.test.ts, web/src/desktop/contract.yaml, web/src/main.tsx, docs/frontend/stages.md
 - Needs: none (must land before N-23)
 - Done when: From `web/`: `npx vitest run src/desktop/native-parity.test.ts` passes (`agentSettings` with a valid slug, `newAgent` and `settings` parse; a bad slug and unknown kinds are refused; each maps to its route), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass.
+
+### F-69 · Palette, type and surfaces from the AI Studio design
+- Status: blocked (waits for M-0 and for Mohammed's approval of the two `@fontsource` packages)
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-69)
+- Read: the export's `src/index.css`; ours `web/src/index.css`; evidence Report D "242984d8" and "Token and class gap"
+- Touch: web/src/index.css, web/package.json, web/package-lock.json, web/src/app/conversation/permission-card.tsx, web/src/app/agents/agent-extensions.tsx, web/src/app/agents/outfit-picker.tsx, web/src/app/agents/agent-settings.tsx, web/src/app/agents/contract.yaml, web/src/app/conversation/contract.yaml, docs/frontend/stages.md
+- Needs: M-0 done; Mohammed approves `@fontsource/plus-jakarta-sans` and `@fontsource/jetbrains-mono`
+- Done when: From `web/`: `npx vitest run src/app/agents/agent-form.test.tsx src/app/agents/outfit-picker.test.tsx src/app/agents/agent-extensions.test.tsx src/app/conversation/permission-card.test.tsx` passes, then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. The home and agent form screenshots, in dark and light, are compared with the export.
+
+### F-70 · Shared primitives: `Panel` and the `Planned` marker
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-70)
+- Read: `docs/frontend/codebase/README.md` (the `components/ui` invariant); `web/src/components/ui/button.tsx` (the `cva` pattern); evidence Report C (c) 3
+- Touch: web/src/components/ui/panel.tsx (new), web/src/components/ui/planned.tsx (new), web/src/components/ui/planned.test.tsx (new), docs/frontend/codebase/README.md, docs/frontend/stages.md
+- Needs: F-69 done
+- Done when: From `web/`: `npx vitest run src/components/ui/planned.test.tsx` passes (it shows the badge and the reason; a button inside cannot be focused or clicked; the region has an accessible name), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass.
+
+### F-71 · Conversation cards and entries
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-71)
+- Read: `web/src/app/conversation/contract.yaml`; the export's files of the same names; evidence Report D "f747f296", Report B item 10 and "Acceptable"
+- Touch: web/src/app/conversation/entry.tsx, web/src/app/conversation/messages.tsx, web/src/app/conversation/plan-card.tsx, web/src/app/conversation/plan-side-panel.tsx, web/src/app/conversation/map-proposal-card.tsx, web/src/app/conversation/roadmap-proposal-card.tsx, web/src/app/conversation/vision-proposal-card.tsx, web/src/app/conversation/status-badge.tsx, web/src/app/conversation/subagent-card.tsx, web/src/app/conversation/subagent-panel.tsx, web/src/app/conversation/todo-card.tsx, web/src/app/conversation/tool-diff.tsx, web/src/app/conversation/tool-group.tsx, web/src/app/conversation/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
+- Needs: F-70 done
+- Done when: From `web/`: `npx vitest run src/app/conversation/conversation.test.tsx src/app/conversation/permission-card.test.tsx src/app/conversation/waiting-messages.test.tsx src/app/conversation/todo-card.test.tsx src/app/conversation/tool-group.test.tsx src/app/conversation/tool-diff.test.tsx src/app/conversation/subagent-card.test.tsx src/app/conversation/map-proposal-card.test.tsx src/app/conversation/roadmap-proposal-card.test.tsx src/app/conversation/plan-in-conversation.test.tsx src/stream/refresh.test.tsx` passes, then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
+
+### F-72 · Composer, draft and context ring
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-72)
+- Read: `web/src/app/conversation/contract.yaml` (Composer, ContextRing); the export's files of the same names; evidence Report B item 14
+- Touch: web/src/app/conversation/composer.tsx, web/src/app/conversation/composer-bar.tsx, web/src/app/conversation/draft.tsx, web/src/app/conversation/context-ring.tsx, web/src/app/conversation/context-ring.test.tsx, web/src/app/conversation/contract.yaml, docs/frontend/stages.md
+- Needs: F-70 done
+- Done when: From `web/`: `npx vitest run src/app/conversation/composer-bar.test.tsx src/app/conversation/composer-focus.test.tsx src/app/conversation/draft.test.tsx src/app/conversation/context-ring.test.tsx` passes (a new case: the popover shows only the figures Core gave), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
+
+### F-73 · Sidebar, with its search filter
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-73)
+- Read: `web/src/app/sidebar/contract.yaml`; the export's sidebar files; evidence Report B item 12
+- Touch: web/src/app/sidebar/sidebar.tsx, web/src/app/sidebar/agent-list.tsx, web/src/app/sidebar/project-list.tsx, web/src/app/sidebar/thread-list.tsx, web/src/app/sidebar/workspace-switcher.tsx, web/src/app/sidebar/sidebar.test.tsx, web/src/app/sidebar/project-list.test.tsx, web/src/app/sidebar/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
+- Needs: F-70 done
+- Done when: From `web/`: `npx vitest run src/app/sidebar/sidebar.test.tsx src/app/sidebar/project-list.test.tsx src/app/sidebar/workflow-list.test.tsx` passes. New cases: the filter narrows projects by name and directory, and agents by name and description; no match shows the empty line; Escape closes the search and clears it. Then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
+
+### F-74 · Home pages, design header, settings dialog, status lines
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-74)
+- Read: the export's `app/home.tsx`, `app/agents/home.tsx`, `app/design/workspace-page.tsx`, `app/desktop/activity.tsx`, `app/daemon-status.tsx`, `app/settings/settings-dialog.tsx`; their folders' `contract.yaml`; evidence Report A features 4, 5 and 7, and Report B items 5, 6 and 13
+- Touch: web/src/app/home.tsx, web/src/app/agents/home.tsx, web/src/app/design/workspace-page.tsx, web/src/app/desktop/activity.tsx, web/src/app/daemon-status.tsx, web/src/app/settings/settings-dialog.tsx, web/src/app/settings/sections/plugins.tsx, web/src/app/settings/extension-list.tsx, web/src/app/settings/mcp-form.tsx, web/src/app/agents/aylul.test.tsx, web/src/app/agents/contract.yaml, web/src/app/settings/contract.yaml, web/src/app/design/contract.yaml, web/src/app/desktop/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
+- Needs: F-70 done
+- Done when: From `web/`: `npx vitest run src/app/agents/aylul.test.tsx src/app/settings/settings-dialog.test.tsx src/app/settings/plugins.test.tsx src/app/settings/mcp-form.test.tsx src/app/desktop/native-sections.test.tsx` passes (a new case: the agents home lists each agent with its provider and model; the planned blocks are marked and inert), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
+
+### F-75 · Plan map: staggered columns, nodes, edges, page, inspect panel
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-75)
+- Read: `web/src/app/workflows/contract.yaml` (the "box dagre spaced" trap); the export's `layout.ts`, `task-node.tsx`, `plan-edge.tsx`, `plan-page.tsx`, `inspect-panel.tsx`; evidence Report A features 1 and 2, Report B items 2, 3, 7 and 11, and "Masada's own view"
+- Touch: web/src/app/workflows/layout.ts, web/src/app/workflows/layout.test.ts, web/src/app/workflows/task-node.tsx, web/src/app/workflows/plan-edge.tsx, web/src/app/workflows/plan-page.tsx, web/src/app/workflows/plan-page.test.tsx, web/src/app/workflows/inspect-panel.tsx, web/src/app/workflows/contract.yaml, docs/frontend/stages.md
+- Needs: F-70 done
+- Done when: From `web/`: `npx vitest run src/app/workflows/layout.test.ts src/app/workflows/plan-page.test.tsx src/app/workflows/plan-graph.test.tsx src/app/workflows/plan-map.test.tsx src/app/workflows/plan-frames.test.tsx` passes. New cases: single-task columns alternate above and below; a two-task column and the start do not move; no boxes overlap; every edge ends on its drawn box; the progress block is marked planned, shows the real count and no percent. Then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. A plan of five or more tasks is screenshot in both themes and compared.
+
+### F-76 · Agent Mode: the execution board beside the chat
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-76)
+- Read: `web/src/app/conversation/contract.yaml` (Messages); `activity-rows.ts`, `usage.ts`, `turn-state.ts`; the export's `conversation.tsx` lines 100-1037; evidence Report A feature 3, Report B item 4, and the tsc errors in Report C
+- Touch: web/src/app/conversation/conversation.tsx, web/src/app/conversation/agent-board.tsx (new), web/src/app/conversation/agent-console.tsx (new), web/src/app/conversation/agent-board.test.tsx (new), web/src/app/conversation/activity-rows.ts, web/src/app/conversation/activity-rows.test.ts, web/src/app/conversation/messages.tsx, web/src/app/conversation/index.ts, web/src/app/conversation/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
+- Needs: F-71 and F-72 done
+- Done when: From `web/`: `npx vitest run src/app/conversation/agent-board.test.tsx src/app/conversation/activity-rows.test.ts src/app/conversation/conversation.test.tsx` passes. Cases: the switch shows the board and switches back; the board lists the real steps and todos; with no steps it shows an empty state and no percent; the stepper is marked planned and inert; Messages draws the same rows as before. Then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. A running turn and a finished turn are screenshot in Agent Mode, in both themes, and compared.
+
+### F-77 · The whole web client, once, after the migration
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-77)
+- Read: the plan; the rules in `docs/frontend/AGENTS.md`
+- Touch: docs/frontend/stages.md (status only; any fix goes to frontend-fixer as its own task)
+- Needs: F-69 to F-76 done
+- Done when: From `web/`: `npm test`, `npm run typecheck`, `npm run lint` and `npm run build` pass. A grep of the changed `.tsx` files for hex values, `rgba`, raw palette classes and `text-[1` finds nothing. Screenshots are attached for home, the sidebar, the conversation (both modes), the plan page, the agents home and settings, each in both themes.
