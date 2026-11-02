@@ -20,8 +20,7 @@ screenshots of home, the sidebar, the conversation in both modes, the plan page,
 home and settings, each in both themes.
 
 Still open outside any task: the light palette and the real desktop login-item behaviour need
-their own app and OS acceptance. The real desktop and provider acceptance of the AYLUL agents
-panel remains (see [backend stages](../backend/stages.md) "Now").
+their own app and OS acceptance.
 
 Finished work: F-50 to F-61 (branch `feature/web-polish`, PR #48) are in this file at `ce31036d`;
 F-45 to F-49 (W-11, with B-14 to B-18, PR #47) are in this file at `4f23c717`;

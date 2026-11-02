@@ -44,9 +44,9 @@ The plan was `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` at `b
 Agent identity and background tasks ([tool activity §6](specs/2026-10-31-tool-activity-design.md#6-background-tasks)):
 B-35 to B-37 shipped in PR #51 (`2790473b`); their entries are in this file at `16da6b8c`.
 
-Still open from that plan:
-- The real-app acceptance of the design's §10 (items 1–9): a person runs `shadows serve` with
-  the desktop, and reads the logs for any MCP value, header or env value.
+The real-app acceptance of the design's §10 is done (Mohammed, 2026-11-03, in the desktop app): an
+HTTP MCP tool with a header token (Context7) answered in a conversation, and its token was found in
+no database, WAL, log, agent home or session file.
 
 ## Tasks
 
