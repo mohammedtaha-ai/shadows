@@ -1,6 +1,6 @@
 # Tool activity: what each tool call did, live and kept
 
-- Status: accepted 2026-10-31 (the request is accepted); built in B-19 to B-22 (`docs/backend/stages.md` at `ce31036d`)
+- Status: accepted 2026-10-31 (the request is accepted); built in B-19 to B-22 (`docs/backend/stages.md` at `ce31036d`); §6 built in B-36, B-37 and F-79 (PR #51, at `16da6b8c`)
 - Request: tool activity (`docs/shared/requests/2026-10-31-tool-activity.md` at `f1459dcc`)
 - Frontend plan: shell and activity (`docs/frontend/plans/2026-10-31-shell-and-activity.md` at `f1459dcc`)
 - Plan: `docs/backend/plans/2026-10-31-tool-activity.md` at `ce31036d`

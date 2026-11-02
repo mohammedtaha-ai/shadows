@@ -124,8 +124,8 @@ executors' (§17). Decided with Mohammed on 2026-10-12.
 > protect them. **Closes when** §17 specifies their sandbox: a shell that
 > cannot reach the daemon's port.
 
-AYLUL agents have a shell too. Whether one may answer its own permission request
-is an OPEN owned by
+AYLUL agents have a shell too. That one never answers its own permission request is
+decided in
 [AYLUL agents and panel §7.8](../../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md).
 
 ## 24.4 What this does not stop

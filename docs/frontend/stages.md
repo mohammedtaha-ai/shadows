@@ -12,6 +12,9 @@ and the neon plan (`docs/frontend/plans/2026-11-01-neon-clarity.md` at `b40e077b
 The AI Studio plan, `docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md`, stays until F-77 is closed.
 The migration's facts are in `docs/evidence/2026-11-02-ai-studio-ui-analysis.md` at `f1459dcc`.
 
+F-78 and F-79 (the agent form starts empty; the background tasks panel) shipped in PR #51
+(`2790473b`); their entries are in this file at `16da6b8c`.
+
 Open: F-77, the whole web client check after the migration. Its Done when still asks for
 screenshots of home, the sidebar, the conversation in both modes, the plan page, the agents
 home and settings, each in both themes.
@@ -30,22 +33,6 @@ file at `4d5c022d`; F-16, F-17, F-26, F-27 and F-29 to F-32 (W-1 to W-8, PR #43)
 settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
-
-### F-78 · The agent form: instructions start empty
-- Status: done
-- Spec: [AYLUL agents and panel](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md) §7.1 and the form's item 4
-- Read: `web/src/app/agents/agent-settings.tsx` and its test; the agents contract.
-- Touch: `web/src/app/agents/agent-settings.tsx`; its test; the agents contract.
-- Needs: none.
-- Done when: a new agent's instructions field starts empty with a placeholder naming what goes there (style, method, rules), and saving it empty sends no instructions; the description field's hint reads "Main role in one line, e.g. English teacher"; the form no longer waits on the template query. `npm test -- agent-form` (`web/src/app/agents/agent-form.test.tsx`, the form's test), `npm run typecheck` and `npm run lint` pass.
-
-### F-79 · Background tasks: a header button and its panel
-- Status: done
-- Spec: [tool activity §6](../backend/specs/2026-10-31-tool-activity-design.md#6-background-tasks)
-- Read: `web/src/app/conversation/contract.yaml`; the conversation header (the Chat Mode / Agent Mode row); how the `tool` and `todos` frames are read; `web/src/components/ui/panel.tsx`; `docs/frontend/AGENTS.md` (tokens only).
-- Touch: `web/src/app/conversation/` (a new `background-tasks.tsx` and its test, the header); its contract; `docs/frontend/codebase/README.md` if a row changes. Widened while building: the frame reader lives in `web/src/stream/` (`frames.ts`, `thread-stream.ts`, `thread-registry.ts`, `index.ts`, its contract), and the stop call is `stopTask` in `web/src/api/sessions.ts` (its contract).
-- Needs: B-37 (`web/src/api` regenerated).
-- Done when: the conversation header has a button showing the count of running tasks, hidden while the session has had none; it opens a right-side panel listing running tasks (name or description, elapsed time, a stop button that calls the route) and finished ones under them with their state; the list follows the `tasks` frame. `npm test -- background-tasks`, `npm run typecheck`, `npm run lint` and `npm run build` pass.
 
 ### F-77 · The whole web client, once, after the migration
 - Status: todo

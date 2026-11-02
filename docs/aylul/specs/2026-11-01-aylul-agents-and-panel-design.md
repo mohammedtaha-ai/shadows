@@ -320,23 +320,11 @@ Mohammed instead, as below.
 - **The panel lives under the UI side** (Mohammed, 2026-11-01): its tasks are
   U- tasks; the character side owns only the drawing inside it.
 
-> **OPEN: may an AYLUL agent answer its own permission request?** This spec owns
-> the question. The answer route is plain HTTP on localhost, so an AYLUL agent (it
-> has a shell, runs as the same Windows user, and can reach the daemon's port)
-> could send the answer itself and be recorded as "by you". Approval authority
-> §24.3 keeps this from the Planner only because the Planner has no shell; its
-> OPEN on executors (`docs/core/specs/2026-10-08-approval-authority-design.md`,
-> line 126) names the same gap and says §17's executors need a sandbox, a shell
-> that cannot reach the daemon's port. That §17 is not in that file; the sandbox
-> it names is what closes this question for AYLUL agents too.
-> Accepted as known for this branch (Mohammed, 2026-11-01).
-> A ruling is needed. Option raised in `docs/backend/stages.md` (Still open): a
-> per-daemon client token that the web client and the desktop hold and an agent's
-> home does not. The earlier note in this spec said a token does not close it,
-> because the agent can read what the desktop reads. Both points are open; the
-> ruling decides whether the home can hold the token.
-> **Closes when** the teacher rules on the token, or the executor sandbox (a shell
-> that cannot reach the daemon's port) is applied to AYLUL agents.
+**Closed (Mohammed, 2026-11-03): an AYLUL agent never answers its own permission request.**
+In Auto mode Claude Code's classifier decides: routine actions run, risky ones (an agent calling
+the answer route for itself among them) are refused or come to Mohammed on the panel or in the
+conversation. In the asking modes every request comes to him. A mode that skips permissions has
+no such guard; choosing it for an agent is his call.
 
 ## 8. Open
 

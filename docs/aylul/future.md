@@ -17,6 +17,25 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Personal profile | Email, YouTube and personal preferences | idea | [current direction](./vision.md#current-direction-2026-10-19) |
 | Voice | Speech in and out, separate from the reasoning model, falls back to text | idea | [vision §14](./vision.md#14-voice-must-be-decoupled-from-reasoning) |
 
+### Voice: where the talk stopped (2026-11-02)
+
+Notes for the voice design when it starts; they decide nothing.
+
+- **What Mohammed wants:** to speak to AYLUL on the desktop as in ChatGPT Live ("open YouTube
+  and play …"), and AYLUL to tell him by voice when Claude finishes.
+- **No new SDK.** The Claude Agent SDK is already under `harness/claude` (`claude-agent-acp`);
+  voice is a layer over the turn's streamed text, not a second brain or entry path.
+- **Kept from a ChatGPT proposal:** voice separate from reasoning; tool events are shown, never
+  spoken; stopping speech is not stopping the turn; Silero VAD locally with echo cancelling
+  (AEC); MiniMax bidirectional streaming TTS (`task_cancel`, `task_flush`) for streamed replies;
+  voice cloning or design for AYLUL's own voice; MiniMax's `(laughs)`/`(sighs)` tags.
+- **Not taken:** a TypeScript `packages/` layer beside Core; a second "conversation mode" model
+  before measuring.
+- **Open:** where the MiniMax connection lives (the desktop holds the microphone, Core holds the
+  key); the first step is a spike measuring the time from the end of his speech to AYLUL's first
+  spoken word through Claude Code and MiniMax.
+- **Order:** after the work profile and the personal profile.
+
 ## Working with Shadows
 
 | Feature | What it gives Mohammed | Status | Why |
