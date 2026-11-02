@@ -1,5 +1,8 @@
 # AYLUL desktop architecture
 
+Status: built (PR #43, `ca618f89`). The native owners listed here replace the owner list in
+the [independent companion design](2026-10-16-independent-companion-design.md) §4.
+
 Owner of the desktop's structure: the native top object, its owners, the allowed dependency
 directions, the sidecar shape and the companion TypeScript entries. The checks that hold it are
 the native ratchet (`apps/desktop/src-tauri/tests/architecture/`, its README holds the owner
@@ -7,7 +10,7 @@ table) and the companion boundary test (`apps/desktop/tests/companion/boundaries
 
 Decided 2026-10-25 (D-0). It was built by tasks N-8 to N-21, U-4 and C-7; the task plan and
 its inventory are in `docs/aylul/native/plans/2026-10-25-desktop-architecture.md` at
-`ca618f89`, and the gate run in `docs/evidence/2026-10-26-desktop-architecture-gate.md`.
+`ca618f89`, and the gate run in `docs/evidence/2026-10-26-desktop-architecture-gate.md` at `f1459dcc`.
 
 ## Decision
 

@@ -2,7 +2,7 @@
 
 - Status: asked
 - Asked by: Masada, 2026-11-02
-- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-75 (inspect panel, Acceptance section)
+- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-75 (`docs/frontend/stages.md` at `b40e077b`; inspect panel, Acceptance section)
 
 ## Need
 

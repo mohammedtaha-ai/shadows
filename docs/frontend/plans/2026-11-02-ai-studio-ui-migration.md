@@ -4,16 +4,16 @@ Branch `feature/aylul-agents-panel` (Mohammed, 2026-11-02). Moves the web design
 Studio built (export at `E:\Globalprojects\ui-modernizer-nov`, outside the repository) into
 `web/src`, without losing the five web commits made since the export's base `dc2ae544`, and
 without breaking the client's rules. The facts this plan rests on are in
-[`docs/evidence/2026-11-02-ai-studio-ui-analysis.md`](../../evidence/2026-11-02-ai-studio-ui-analysis.md)
+`docs/evidence/2026-11-02-ai-studio-ui-analysis.md` at `f1459dcc`
 (four analyst reports and Masada's own reading).
 
 The visual direction is owned by [`docs/frontend/specs/2026-11-01-visual-direction.md`](../specs/2026-11-01-visual-direction.md).
-Mohammed chose AI Studio's look over Codex's neon hierarchy (242984d8, F-68). Masada amends
+Mohammed chose AI Studio's look over Codex's neon hierarchy (242984d8; F-68 in `docs/frontend/stages.md` at `b40e077b`). Masada amends
 that spec in place before F-69 starts (step M-0 below); this plan does not decide the look.
 
 ## Decisions Mohammed gave
 
-- He likes everything AI Studio built. Its look replaces F-68's palette and neon surfaces.
+- He likes everything AI Studio built. Its look replaces the palette and neon surfaces of F-68 (`docs/frontend/stages.md` at `b40e077b`).
 - Features AI Studio built without a backend stay visible in the UI, clearly marked as
   planned. Their backend comes later.
 - `lucide-react` is approved. It is already in `web/package.json` (^1.47.0), and every icon
@@ -58,7 +58,7 @@ that spec in place before F-69 starts (step M-0 below); this plan does not decid
 
 ## Order against the branch's open work
 
-U-8 (`apps/desktop/src/…`) and N-25 (`apps/desktop/src-tauri/…`) touch no `web/` file and use no
+U-8 (`docs/aylul/ui/stages.md` at `b40e077b`; `apps/desktop/src/…`) and N-25 (`docs/aylul/native/stages.md` at `b40e077b`; `apps/desktop/src-tauri/…`) touch no `web/` file and use no
 web token; the companion panel has its own `panel.css`. The migration therefore neither blocks
 nor breaks them, and they can run first or alongside. The one shared file,
 `web/src/test/native-presence.json`, is never touched here. Runs are serialized: one build at a
@@ -72,7 +72,7 @@ Amend `docs/frontend/specs/2026-11-01-visual-direction.md` in place: AI Studio's
 type and surfaces replace the neon hierarchy; planned features may show, inside the `Planned`
 marker, with no invented value (this replaces the blanket ban on "artificial progress
 percentages, model state, memory metrics or runtime capabilities", which now reads: none is
-computed in the client); fonts ship locally. Mark the neon-clarity plan superseded by this one.
+computed in the client); fonts ship locally. The neon-clarity plan (`docs/frontend/plans/2026-11-01-neon-clarity.md` at `b40e077b`) is superseded by this one.
 
 ## Shared requests (Masada writes them; the UI does not wait)
 

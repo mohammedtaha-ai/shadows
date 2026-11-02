@@ -7,7 +7,7 @@ then the owning service's contract and implementation. That table is the Core
 navigation authority, including internal owners without an accessor. The rows
 below retain checked module coverage; use them to locate modules within the
 owner selected through `AppCore`, or to navigate crates outside Core. The target
-and its staged migration are owned by [section 14.12](../superpowers/specs/2026-09-26-application-core-design.md#1412-service-ownership-and-staged-crate-extraction);
+and its staged migration are owned by [section 14.12](../core/specs/2026-09-26-application-core-design.md#1412-service-ownership-and-staged-crate-extraction);
 planned crates are not current owners until their implementation moves.
 
 Two kinds of file, split by what can be checked:
@@ -17,7 +17,7 @@ Two kinds of file, split by what can be checked:
 | `crates/shadows-http/src/aylul_providers.rs` | provider HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_profiles_tests.rs` | AYLUL configuration route acceptance tests | `crates/shadows-http/src/contract.yaml` |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
-| each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
+| each service's `contract.yaml` | written by hand, next to its code in `crates/core-<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
 
 `cargo test -p shadows --test codemap` fails when this file names a path that
 does not exist or misses a module that does, and
@@ -117,7 +117,7 @@ pattern to follow, not merely an example.
 | `crates/core-secrets/src/model.rs` | secret environment metadata | `crates/core-secrets/src/model.rs` |
 | `crates/core-secrets/src/store/` | encrypted environment SQL | `crates/core-secrets/src/store/` |
 | `crates/core-secrets/src/crypto.rs` | authenticated environment encryption | `crates/core-secrets/src/crypto.rs` |
-| `crates/core-grants/src/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
+| `crates/core-grants/src/approval.rs` | transaction-local approval provenance | `docs/core/specs/2026-10-08-approval-authority-design.md` |
 | `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/core-design/src/map_proposals.rs` | map proposal service entry points | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/map_proposals.rs` | recording map proposals | `crates/core-design/contract.yaml` |
@@ -135,7 +135,7 @@ pattern to follow, not merely an example.
 | `crates/core-design/src/store/roadmap_approval.rs` | committing approved roadmap proposals | `crates/core-design/contract.yaml` |
 | `crates/shadows/src/main.rs` | the one binary Shadows ships | `crates/shadows/src/cli/mod.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
-| `crates/shadows/src/desktop_runtime.rs` | desktop launch identity | `docs/aylul/specs/2026-10-20-aylul-desktop-web-companion-design.md` |
+| `crates/shadows/src/desktop_runtime.rs` | desktop launch identity | `docs/aylul/native/specs/2026-10-20-aylul-desktop-web-companion-design.md` |
 | `crates/shadows/src/runtime_record.rs` | private runtime record publication | `crates/shadows/src/runtime_record.rs` |
 | `crates/shadows/src/runtime_record_tests.rs` | private record replacement tests | `crates/shadows/src/runtime_record.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
@@ -178,7 +178,7 @@ pattern to follow, not merely an example.
 | `crates/core-db/src/derive.rs` | command ids Shadows derives when a caller names none | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/journal.rs` | durable journal publication | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/id.rs` | the UUID id newtype pattern | `crates/core-db/contract.yaml` |
-| `crates/core-db/src/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/superpowers/specs/2026-09-21-persistence-api-and-migrations-design.md` |
+| `crates/core-db/src/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/core/specs/2026-09-21-persistence-api-and-migrations-design.md` |
 | `crates/core-db/src/lib.rs` | shared SQLite lifetime | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/error.rs` | database failure vocabulary | `crates/core-db/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
@@ -191,7 +191,7 @@ pattern to follow, not merely an example.
 | `crates/core-projects/src/store/` | a project's rows | `crates/core-projects/src/store/` |
 | `crates/core-projects/src/harness_policy.rs` | which harness a thread or a project's modes may name | `crates/core-projects/src/harness_policy.rs` |
 | `crates/core-projects/src/browse.rs` | showing a person the directories they can choose from | `crates/core-projects/src/browse.rs` |
-| `crates/core-threads/src/` | the planning threads, what they recorded included | `crates/core-threads/src/mod.rs` |
+| `crates/core-threads/src/` | the planning threads, what they recorded included | `crates/core-threads/src/lib.rs` |
 | `crates/core-threads/src/error.rs` | stable thread refusals | `crates/core-threads/contract.yaml` |
 | `crates/core-threads/src/testing.rs` | test-only thread command contexts | `crates/core-threads/contract.yaml` |
 | `crates/core-threads/src/store/records.rs` | snapshot-local thread facts | `crates/core-threads/contract.yaml` |
@@ -258,7 +258,7 @@ pattern to follow, not merely an example.
 | `crates/core-plans/src/rules.rs` | what makes a plan invalid or unready | `crates/core-plans/src/rules.rs` |
 | `crates/core-plans/src/scope.rs` | plan calls made under an MCP grant | `crates/core-plans/src/scope.rs` |
 | `crates/core-plans/src/conversation.rs` | the plan in the conversation | `crates/core-plans/src/conversation.rs` |
-| `crates/core-grants/src/` | grant authorization | `crates/core-grants/src/mod.rs` |
+| `crates/core-grants/src/` | grant authorization | `crates/core-grants/src/lib.rs` |
 | `crates/core-grants/src/model.rs` | the grant types callers meet | `crates/core-grants/src/model.rs` |
 | `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
 | `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
@@ -367,7 +367,7 @@ real.
 
 **This table is a working summary, not authority.** `CLAUDE.md` owns the
 crates' single-ownership rules and the file-size rules; the specs indexed by
-[`specs/README.md`](../superpowers/specs/README.md) own the design. Where this
+[`specs/README.md`](../core/specs/README.md) own the design. Where this
 file disagrees with either, they are right and this file is the defect.
 
 ## What is deliberately not here

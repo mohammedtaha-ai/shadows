@@ -1,9 +1,10 @@
 # Settings dialog
 
-- Status: proposed with Mohammed on 2026-10-20 (mockups in the brainstorm session; not kept)
-- Owner: Masada (frontend). Backend needs: [settings dialog request](../../shared/requests/2026-10-20-settings-dialog.md)
-- Replaces: the single scrolling Settings page (`web/src/app/settings/settings-page.tsx` with
-  `web/src/app/desktop/native-settings.tsx` under it), both at `1a2b601^1`
+- Status: decided with Mohammed on 2026-10-20; built in PR #40 (`1a2b601`). Core's rules are in the
+  [settings backend spec](../../backend/specs/2026-10-21-settings-dialog-backend-design.md)
+- Owner: Masada (frontend). Backend needs: settings dialog request (`docs/shared/requests/2026-10-20-settings-dialog.md` at `f1459dcc`)
+- Replaces: the single scrolling Settings page (`web/src/app/settings/settings-page.tsx` at `4a9cc002` with
+  `web/src/app/desktop/native-settings.tsx` at `0bb98847` under it), both at `1a2b601^1`
 
 ## Why
 
@@ -58,13 +59,13 @@ not here.
 - The right side shows the chosen section with its title at the top.
 - My call: the open section is kept in the URL (`?settings=<section>`), so reload and the native
   bootstrap's jump to Settings (`web/src/desktop/bootstrap.tsx`, which opens Local Core when the
-  Core is unreachable) land on the right section. `/settings` keeps working and opens the dialog.
+  Core is unreachable) land on the right section. `/settings` redirects to `/?settings=general`, which opens the dialog.
 - Mohammed's ruling (2026-10-21): the **Providers button leaves the app sidebar**, and the
   separate Providers page (`/aylul/providers`) goes. Providers live only in this dialog; the AYLUL
   home's "add a provider" button opens the dialog on Providers.
 - Mohammed's ruling (2026-10-21): an agent's **Agent settings** in the app sidebar opens this
   dialog on Agents, with that agent's form open. The separate agent pages (`/aylul/agents/...`)
-  go. My call, following it: **+ New agent** in the app sidebar opens the dialog on Agents with
+  go; only the new-conversation draft (`/aylul/agents/$slug/new`) stays a route. My call, following it: **+ New agent** in the app sidebar opens the dialog on Agents with
   an empty form.
 - On the browser (not the desktop), sections that are desktop-only (AYLUL character, Local Core,
   and the account actions that need the native shell) are not listed, as today.
@@ -76,7 +77,7 @@ not here.
 The person's own data comes first, then the account state, then only the actions that state allows.
 
 - **You:** their name, and **what AYLUL calls them** (the name AYLUL uses when it speaks to them).
-  Both are kept by Core with the person and work without an account. *(needs backend)*
+  Both are kept by Core with the person and work without an account.
 - **State and actions**, from today's account states (`account-panel.tsx` at `1a2b601^1`):
 
   | State | Shown | Actions |
@@ -105,7 +106,7 @@ The person's own data comes first, then the account state, then only the actions
 - **Language and theme** are stored by Core with the person (with "You", `/api/me` in the
   request), so they are the same in the browser and on the desktop (Mohammed's ruling,
   2026-10-21). **Start AYLUL with Windows** and **closing the window hides it to the tray** are
-  native, desktop only. *(needs backend / native: none of these is stored today)*. The Arabic interface itself (its
+  native, desktop only. The Arabic interface itself (its
   translations and right-to-left layout) is its own piece of work; this section only offers the
   choice once it exists.
 
@@ -119,27 +120,23 @@ The person's own data comes first, then the account state, then only the actions
      cards by name.
   2. **Set up:** the provider is fixed (its name is the primary name and cannot be typed over).
      - **Label** (optional): tells two keys of the same provider apart; shown in parentheses
-       everywhere, in Providers and in Usage. *(needs backend)*
-     - **API key**, write-only, with **Test connection** beside it. *(needs backend)*
+       everywhere, in Providers and in Usage.
+     - **API key**, write-only, with **Test connection** beside it.
      - After a successful test, **the models the key can use are listed at once**, each with a
        checkbox; the person ticks the ones to add and marks one as default. A model missing from
-       the list can still be **added by hand** by its id. *(listing needs backend)*
+       the list can still be **added by hand** by its id.
      - **URL is not shown** for a known provider: the preset supplies it. It is shown, and
        required, only for Custom.
      - **Region** (Mohammed's ruling, 2026-10-21): MiniMax and Moonshot (Kimi) each offer two,
-       picked here: **International** (the default) or **China**. MiniMax International
-       `https://api.minimax.io/anthropic`, China `https://api.minimaxi.com/anthropic`; Moonshot
-       International `https://api.moonshot.ai/anthropic`, China `https://api.moonshot.cn/anthropic`.
-       A preset with one URL shows no region. The list names a China key "MiniMax China (label)".
+       picked here: **International** (the default) or **China**. The URLs are the settings
+       backend spec's §1.1. A preset with one URL shows no region. The list names a China key "MiniMax China (label)".
        The backend lists one preset per region (`minimax`, `minimax-china`, ...; request answer);
        the screen groups them by name into one card.
      - The context window comes with each model instead of one number typed for the provider.
-       *(needs backend)*
+      
      - Save says how many models it adds ("Add 2 models").
 - Edit opens the same set-up step for an existing provider; removing the key and deleting the
   provider keep today's confirmations (`delete-zone.tsx`).
-- Until the backend parts exist, the set-up step keeps today's fields: name (prefilled from the
-  preset), URL (prefilled, hidden for presets), key, models typed one per line, context window.
 
 ### Agents
 
@@ -150,7 +147,7 @@ The person's own data comes first, then the account state, then only the actions
   companion agent, from a row of swatches; purple is today's look and the default. The colours
   are **dynamic** (Mohammed's ruling, 2026-10-21): they come from one colour table, and adding a
   colour later needs no backend or native change. The first table holds blue, green, purple,
-  orange, pink. *(needs backend: the colour id is stored with the agent)*
+  orange, pink.
 
 #### Character colour
 
@@ -245,7 +242,7 @@ U-2 (in `docs/aylul/ui/stages.md`) and U-3 (at `1a2b601`).
   saves at once (not with Save agent), since each is its own call. A new agent shows the part
   only once it is created; it starts with everything off. With an empty library the part says
   "No plugins or skills yet." with a link that opens this section.
-- *(needs backend: nothing lists, toggles or assigns them today)*
+-
 
 ### Usage
 
@@ -253,12 +250,12 @@ U-2 (in `docs/aylul/ui/stages.md`) and U-3 (at `1a2b601`).
 - **By provider:** one row per provider key, named "Provider (label)", with requests, tokens and
   cost, and a bar comparing them.
 - **By model:** one row per model with its provider, requests, tokens and cost.
-- *(needs backend: nothing records usage today)*
+-
 
 ### AYLUL character
 
 Today's controls, as switches instead of buttons: show AYLUL on the desktop, motion, short reply
-preview. Below them the companion agent picker, its connection tag and **Retry connection**.
+preview. Below them the companion agent picker, its connection tag and a **Retry** button.
 
 ### Local Core
 
@@ -269,9 +266,8 @@ of today's `connection-settings.tsx` move under a closed **Advanced** part, sinc
 
 - Component split, styling within the existing tokens, dialog primitive (the app already has a
   dialog for New project: `web/src/app/new-project/`; reuse its pattern).
-- How each "needs backend" part shows before its endpoint exists: hidden, not a fake control.
 
 ## OPEN
 
-> **OPEN — the preset list.** The known providers and their URLs are written from memory and not
-> checked. Closed when the request's answer names the URLs the backend accepts for each preset.
+Closed: the preset list and its URLs are owned by the settings backend spec §1.1 (the request's
+answer, 2026-10-21).

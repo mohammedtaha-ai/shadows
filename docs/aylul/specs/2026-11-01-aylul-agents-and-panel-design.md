@@ -1,6 +1,6 @@
 # AYLUL agents you can shape, and a panel to reach them
 
-Date: 2026-11-01. Status: **design for review. Nothing implemented.** Decided in
+Date: 2026-11-01. Status: **built** (PR #49, `b40e077b`). Decided in
 conversation with Mohammed on 2026-10-31 and 2026-11-01, branch
 `feature/aylul-agents-panel`.
 
@@ -56,7 +56,7 @@ its character and artwork are not ours to use (its `LICENSE-ASSETS.md`).
 
 - Watching Claude Code, Codex or Claude Desktop sessions, and answering them
   from AYLUL. That is the messaging design; its facts are in
-  [the messaging probe](../../evidence/2026-11-01-agent-messaging-probe.md).
+  the messaging probe (`docs/evidence/2026-11-01-agent-messaging-probe.md` at `f1459dcc`).
 - Voice.
 - Hermes skills and Hermes plugins. Hermes plugins are Python inside Hermes and
   do not run in Claude Code; its skills are not ours.
@@ -85,13 +85,14 @@ its character and artwork are not ours to use (its `LICENSE-ASSETS.md`).
 - **Library items reach only enabled agents.** One library, a switch per agent,
   projected into the home at each opening; a switched-off item leaves at the
   next opening (settings backend §7.1, proved by
-  [the extensions probe](../../evidence/2026-10-21-agent-home-extensions-probe.md)).
+  the extensions probe (`docs/evidence/2026-10-21-agent-home-extensions-probe.md` at `f1459dcc`)).
 - **Edits apply at the next opening.** A live adapter keeps what it started
   with (brain design §10). The form says so.
 - **MCP already reaches a session through ACP.** `core-harness/src/setup.rs`
   builds one `McpServerSpec` (HTTP, with headers) into the ACP session setup
   (`shadows-agent/src/acp/session.rs`, field `mcp: Option<McpServerSpec>`):
-  Shadows' own `/mcp` for the Planner. AYLUL agents receive none today.
+  Shadows' own `/mcp` for the Planner. AYLUL agents receive their switched-on
+  library MCP items at each opening (§7.2), never Shadows' own `/mcp`.
 - **Records stay machine-independent** (settings backend §8.2): ids are
   strings, answers carry no absolute path.
 - **Colours are opaque ids; clients own palettes** (settings backend §4). The
@@ -295,17 +296,32 @@ Mohammed instead, as below.
 - **Buttons only** (Mohammed, 2026-11-01). A request is answered by a click,
   in the conversation or on the panel card, and only a click is recorded as
   "by you". Answering by typing or by voice belongs to the messaging design.
+- **Answer outcomes on the panel** (from the 2026-11-01 interface request, folded
+  here): `PERMISSION_SETTLED` (409) shows "Already answered"; `PERMISSION_NOT_FOUND`
+  (404) shows "No longer waiting"; an option not offered (422) shows "That option
+  is no longer offered"; `companion_core_unavailable` keeps the command id and the
+  button retries with it. The next state drops a settled request. The wire shape is
+  in `apps/desktop/src-tauri/src/commands/contract.yaml`.
 - **The panel lives under the UI side** (Mohammed, 2026-11-01): its tasks are
   U- tasks; the character side owns only the drawing inside it.
 
-> **OPEN: an agent pressing the button.** An AYLUL agent has a shell, runs as
-> the same Windows user and can reach the daemon's port, so it could send the
-> answer request itself and be recorded as "by you". Approval authority §24.3
-> protects the Planner only because it has no shell; its OPEN on executors
-> names the same gap. A client token does not close it, because the agent can
-> read what the desktop reads. Accepted as known for this branch (Mohammed,
-> 2026-11-01). **Closes when** §17's executor sandbox, a shell that cannot
-> reach the daemon's port, is applied to AYLUL agents too.
+> **OPEN: may an AYLUL agent answer its own permission request?** This spec owns
+> the question. The answer route is plain HTTP on localhost, so an AYLUL agent (it
+> has a shell, runs as the same Windows user, and can reach the daemon's port)
+> could send the answer itself and be recorded as "by you". Approval authority
+> §24.3 keeps this from the Planner only because the Planner has no shell; its
+> OPEN on executors (`docs/core/specs/2026-10-08-approval-authority-design.md`,
+> line 126) names the same gap and says §17's executors need a sandbox, a shell
+> that cannot reach the daemon's port. That §17 is not in that file; the sandbox
+> it names is what closes this question for AYLUL agents too.
+> Accepted as known for this branch (Mohammed, 2026-11-01).
+> A ruling is needed. Option raised in `docs/backend/stages.md` (Still open): a
+> per-daemon client token that the web client and the desktop hold and an agent's
+> home does not. The earlier note in this spec said a token does not close it,
+> because the agent can read what the desktop reads. Both points are open; the
+> ruling decides whether the home can hold the token.
+> **Closes when** the teacher rules on the token, or the executor sandbox (a shell
+> that cannot reach the daemon's port) is applied to AYLUL agents.
 
 ## 8. Open
 

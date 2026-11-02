@@ -1,9 +1,9 @@
 # Settings dialog: the backend's part
 
-- Status: proposed by Hamoud, 2026-10-21; waits on the request's acceptance
-- Request: [settings dialog](../../shared/requests/2026-10-20-settings-dialog.md)
+- Status: accepted 2026-10-21; built in PR #40 (`1a2b601`); the person record became a partial update in PR #46 (`e95b79c3`)
+- Request: settings dialog (`docs/shared/requests/2026-10-20-settings-dialog.md` at `f1459dcc`)
 - Frontend design: [settings dialog design](../../frontend/specs/2026-10-20-settings-dialog-design.md)
-- Facts: [provider presets research](../../evidence/2026-10-21-provider-presets-research.md)
+- Facts: provider presets research (`docs/evidence/2026-10-21-provider-presets-research.md` at `f1459dcc`)
 - Plan: `docs/backend/plans/2026-10-21-settings-dialog-backend.md` at `1a2b601` (delivered by PR #40; the plan is deleted from the tree)
 
 ## What this decides
@@ -15,20 +15,17 @@ account server and device management are a separate piece of work (section 8).
 
 | Part | Lives in | Service |
 |---|---|---|
-| Provider presets, label, per-model context window | daemon | `profiles` |
-| Testing a key, listing its models | daemon | `profiles` |
-| Agent character colour | daemon | `profiles` |
-| The person: name, what AYLUL calls them, language, theme | daemon | `profiles` |
-| Usage per provider and model | daemon | `turns` records, `profiles` reports (after a probe) |
-| Plugins and skills: one library, enabled per agent | daemon | `profiles` (after a probe) |
+| Provider presets, label, per-model context window | daemon | `Providers` (`core-providers`) |
+| Testing a key, listing its models | daemon | `Providers` |
+| Agent character colour | daemon | `Agents` (`core-agents`) |
+| The person: name, what AYLUL calls them, language, theme | daemon | `PersonSettings` (`core-person`) |
+| Usage per provider and model | daemon | `Turns` records, `Usage` (`core-usage`) reports |
+| Plugins and skills: one library, enabled per agent | daemon | `Extensions` (`core-extensions`) |
 | Devices on the account | out of scope (section 8) | - |
 | Start with Windows, hide to tray on close | native shell | not Core |
 
-`profiles` owns "AYLUL agent configuration"; everything above is configuration
-of AYLUL's agents or of the person they serve, so no new service is created
-(no layer before its first user). If `profiles` passes 500 lines in one file,
-the split goes by domain inside the folder (`presets.rs`, `probe.rs`,
-`person.rs`), never into a second facade.
+These five services were one `profiles` service when this was written; the
+architecture plan's A-14 split it by job. Each is listed on `AppCore`.
 
 ## 1. Provider presets
 
@@ -55,7 +52,9 @@ and search results, not read on an English guide (evidence file).
 
 1.2 A provider with a preset takes its `base_url` and `name` from the preset.
 The input may omit both; a sent `base_url` or `name` that differs from the
-preset's is refused (`ProfileInvalid`), so a preset's URL is never typed over.
+preset's is refused (`PROFILE_INVALID`), so a preset's URL is never typed over.
+A refusal about one input names it in the error's `field` (errors §3), so the
+form marks that input and copies none of Core's rules (2026-10-29).
 `preset: null` is Custom: `name` and `base_url` are required and checked by
 today's URL rule (https, or http to loopback).
 
@@ -106,6 +105,10 @@ tokens. Per preset:
 | `moonshot-china` | as `moonshot`, host `api.moonshot.cn` | Bearer | `data[].id` | `context_length` |
 | Custom | `GET <base_url>/v1/models` | `x-api-key` and Bearer, `anthropic-version` | `data[].id` | `max_input_tokens` if present |
 
+The routes are `POST /api/aylul/providers/test` (an unsaved provider),
+`POST /api/aylul/providers/{slug}/test` (a saved one) and
+`GET /api/aylul/provider-presets`.
+
 OpenRouter's catalogue is not scoped to the key, so its key check is
 `/api/v1/key`; the catalogue is filtered to models that take tools, since
 Claude Code cannot work without them. Anthropic-format pagination
@@ -130,8 +133,8 @@ passes the same URL rule as saving. Testing a saved provider without a new key
 uses its stored key, read the way the harness reads it (`secrets`' scope
 `provider/<slug>`, name `PROVIDER_API_KEY`).
 
-3.4 The HTTP client is `reqwest` with rustls, already in the workspace for
-tests: infrastructure, allowed. Parsing the five answers is product logic,
+3.4 The HTTP client is `reqwest` with rustls, a production dependency of
+`core-providers`: infrastructure, allowed. Parsing the five answers is product logic,
 written here.
 
 > **OPEN — the live answers.** OpenRouter and MiniMax (international) passed B-3's
@@ -149,7 +152,11 @@ optional: absent on create is `purple`, absent on update keeps the stored
 value; normalization happens before the replay fingerprint.
 
 4.2 The colours and their palettes belong to the web client and the character
-renderer; each draws purple for an id it does not know. Adding a colour needs no
+renderer; each draws purple for an id it does not know. On the desktop, the colour
+table `assets/aylul/character-colors.json` and the renderer's palette
+(`apps/desktop/src/features/companion/renderer/palette.ts` and the colour values in
+the other `renderer/` files) belong to the AYLUL UI side, not the character side
+(Mohammed, 2026-10-21). Adding a colour needs no
 Core change. This is the agreement with the frontend; Core never refuses a
 well-formed id it has not heard of.
 
@@ -163,9 +170,11 @@ fetches and publishes it as `appearance.color`; that, and the main-only
 (each optional, trimmed, at most 64 characters, no control characters or line
 breaks, empty is `null`), `language` (optional; a tag of 2..=3 lowercase
 letters, optionally `-` and 2..=8 letters or digits; Core keeps no list) and
-`theme` (`dark` | `light` | `system`, default `system`). `PUT` replaces the
-record under a `command_id` with replay rules; `GET` answers the defaults
-before the first write.
+`theme` (`dark` | `light` | `system`, default `system`). `PATCH /api/me` updates
+only the fields it sends, under a `command_id` with replay rules; a field it
+omits keeps its value, and `null` clears a name. Each settings form sends only
+what it changed, so two saves close together cannot write back an older value
+(2026-10-26). `GET /api/me` answers the defaults before the first write.
 
 5.2 At an AYLUL opening, when `aylul_calls_me` (else `name`) is set, the
 session's system prompt append carries one line naming it; the agent home's
@@ -182,9 +191,9 @@ feature, the turn's `PromptResponse.usage` token counts. Usage is recorded per
 turn, in the turn's ending transaction, as `{ thread, agent, provider_slug,
 model, tokens_in, tokens_out, cost, currency, recorded_at }`, and reported by
 period grouped by provider and by model. `cost` is `null` unless the adapter
-sent one and it is trusted for that preset: `anthropic` (Claude Code prices by
-Anthropic model name), and `openrouter` if B-6 shows the number is
-OpenRouter's own charge. Mohammed (2026-10-21) set no spending limit on
+sent one and it is trusted for that preset: `anthropic` only (Claude Code
+prices by Anthropic model name; B-6 below). The report is
+`GET /api/aylul/usage?from&to`, each row with its `currency`. Mohammed (2026-10-21) set no spending limit on
 probes and live tests.
 
 > **CLOSED by B-6, 2026-10-21.** The pinned adapter sends end-turn
@@ -194,7 +203,7 @@ probes and live tests.
 > cachedReadTokens plus cachedWriteTokens; tokens_out is outputTokens.
 > Record one end-turn result, never sum context usage notifications. Missing
 > usage must remain unknown internally rather than fabricated. See
-> [raw usage evidence](../../evidence/2026-10-21-acp-usage-probe.md).
+> raw usage evidence (`docs/evidence/2026-10-21-acp-usage-probe.md` at `f1459dcc`).
 
 ## 7. Plugins and skills
 
@@ -220,7 +229,7 @@ write; removing an item from the library removes every agent's enablement of it.
 > This proves discovery, not arbitrary plugin execution. At the next opening,
 > projection must also disable previously managed plugin ids and remove stale
 > managed files, preserving unrelated user settings. See
-> [raw extension evidence](../../evidence/2026-10-21-agent-home-extensions-probe.md).
+> raw extension evidence (`docs/evidence/2026-10-21-agent-home-extensions-probe.md` at `f1459dcc`).
 
 ## 8. Out of scope, and what this plan must not break
 
@@ -242,7 +251,7 @@ or the daemon there. So nothing in this plan may assume the daemon is only local
   answer an id and a name, not their folder; a folder is input only.
 - The person record (section 5) is the daemon's record of its person. Whether
   the server's daemon and the local one share it is the account work's
-  decision; this plan keeps it one row behind one `profiles` method pair, so
+  decision; this plan keeps it one row behind one `PersonSettings` method pair, so
   that work can route or sync it without a second store.
 - The key test (section 3) runs on whichever daemon receives it and needs only
   outbound HTTPS. The Custom URL rule's loopback exception means the loopback of

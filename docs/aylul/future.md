@@ -4,7 +4,7 @@ What AYLUL is meant to do and does not do yet, one line each. It decides nothing
 nothing: each line points to the part of [the vision](./vision.md) that says why, and a feature
 that gets a design points to its spec. Where the long-form vision names NYLRA, Hermes or a cloud
 brain, [the current direction](./vision.md#current-direction-2026-10-19) replaces it: AYLUL's
-brain is Claude Code run by Shadows Core. Shadows' own list is [`../future.md`](../future.md).
+brain is Claude Code run by Shadows Core. Shadows' own list is [`../future.md`](../core/future.md).
 
 **Status:** `next` (chosen to start soon) · `planned` (has a spec or a plan) · `idea` (nothing
 written beyond the vision). A feature leaves this list when it is delivered.
@@ -13,7 +13,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 
 | Feature | What it gives Mohammed | Status | Why |
 |---|---|---|---|
-| Work profile | Watches the agents through hooks, explains their work, alerts | next | [current direction](./vision.md#current-direction-2026-10-19) |
+| Work profile | Watches the agents through hooks, explains their work, alerts. Sessions, requests and refusal rules for Claude Code are built ([hook design](native/specs/2026-10-13-aylul-hook-laptop-design.md)); explaining and alerting are not | next | [current direction](./vision.md#current-direction-2026-10-19) |
 | Personal profile | Email, YouTube and personal preferences | idea | [current direction](./vision.md#current-direction-2026-10-19) |
 | Voice | Speech in and out, separate from the reasoning model, falls back to text | idea | [vision §14](./vision.md#14-voice-must-be-decoupled-from-reasoning) |
 
@@ -44,10 +44,13 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Feature | What it gives Mohammed | Status | Why |
 |---|---|---|---|
 | AYLUL's own MCP tools | Core gives each agent tools for AYLUL's screen: set the character's state, show a task list | idea | [current direction](./vision.md#current-direction-2026-10-19) |
-| Glanceable desktop presence | Live agent status, quick approvals, drag-and-drop context, short spoken briefings | idea | [vision §18](./vision.md#18-desktop-companion) |
+| Glanceable desktop presence | Drag-and-drop context and short spoken briefings (live status and quick approvals are built in the panel) | planned | [vision §18](./vision.md#18-desktop-companion) |
+| Companion click-through and saved position | Clicks pass through the character's empty space; its position survives a restart | idea | [independent companion design §7](native/specs/2026-10-16-independent-companion-design.md) |
+| Distribution and installer | A packaged desktop with an installer, its activity kept for a set time, its stored identity renamed | planned | [desktop architecture, OPEN blocks](native/specs/2026-10-26-desktop-architecture-design.md) |
+| Marketplace sources | Agent extensions added from a marketplace, not only a folder | idea | [agents and panel §8](specs/2026-11-01-aylul-agents-and-panel-design.md) |
 | Personal memory with controls | Preferences remembered, correctable and forgettable; never used as project truth | idea | [vision §10](./vision.md#10-two-kinds-of-memory), [§37](./vision.md#37-the-liaison-as-a-personal-representative) |
-| Cost and token visibility | Model spend and token savings shown beside a decision | idea | [vision §12](./vision.md#12-token-efficiency-as-a-product-feature), [§46](./vision.md#46-cost-and-budget-awareness) |
-| Delegated policies | Explicit, scoped, reversible permission to approve small things without him | idea | [vision §38](./vision.md#38-delegated-policies) |
+| Cost and token visibility | Model spend and token savings shown beside a decision (usage by provider and model is built in Settings) | idea | [vision §12](./vision.md#12-token-efficiency-as-a-product-feature), [§46](./vision.md#46-cost-and-budget-awareness) |
+| Delegated policies | Explicit, scoped, reversible permission to approve small things without him | planned | [§24.6](../core/specs/2026-10-08-approval-authority-design.md#246-external-human-confirmation-and-assessment), [vision §38](./vision.md#38-delegated-policies) |
 
 ## Beyond one machine
 
@@ -55,6 +58,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 |---|---|---|---|
 | Account server and devices | Sign-in, his devices, the same daemon locally and on the server | idea | [vision §20](./vision.md#20-pairing-model), [§21](./vision.md#21-secure-relay-architecture) |
 | Teams | Roles and approval routing to the right person | idea | [vision §39](./vision.md#39-multi-user-and-team-mode) |
+| Remote daemon | The desktop reaches a daemon on another machine, with settings that follow the person | idea | [desktop and companion design §10](native/specs/2026-10-20-aylul-desktop-web-companion-design.md) |
 | Systems beyond Shadows | Adapters for CI, issue trackers and other agent systems | idea | [vision §41](./vision.md#41-integration-beyond-shadows) |
 | Production companion | Explains incidents from linked AWS environments and follows up after the action | idea | [vision §46](./vision.md#46-cost-and-budget-awareness) |
 

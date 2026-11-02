@@ -24,6 +24,10 @@ code. A request is the agreement that code must then satisfy.
    Masada's tasks that need it stay `blocked` until his side is done and
    `api/openapi.json` shows it.
 
+7. Once both sides are merged, the request is deleted. Its rules live in the owner
+   spec it names, and its exact shapes in `api/openapi.json` and the `contract.yaml`
+   files; a reference to it cites `<path> at <commit>`.
+
 A message between sessions is only a notice. What counts is written in the
 request file.
 

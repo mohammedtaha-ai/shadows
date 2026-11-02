@@ -12,9 +12,9 @@ Rust 1.94+, SQLx 0.9, SQLite.
 | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns. Read before writing code. |
 | [docs/frontend/codebase/README.md](./docs/frontend/codebase/README.md) | The `web/src` code map |
 | `<module>/contract.yaml` | What one module does, as the code behaves. Shape: [TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml) |
-| [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | Which spec owns which decision |
+| [docs/core/specs/README.md](docs/core/specs/README.md) | Which spec owns which decision |
 | `docs/<side>/stages.md` | What is left on the current branch |
-| [docs/future.md](./docs/future.md) · [docs/aylul/future.md](./docs/aylul/future.md) | Meant, not built. Decides nothing. |
+| [docs/core/future.md](docs/core/future.md) · [docs/aylul/future.md](./docs/aylul/future.md) | Meant, not built. Decides nothing. |
 | [docs/backend/AGENTS.md](./docs/backend/AGENTS.md) · [docs/frontend/AGENTS.md](./docs/frontend/AGENTS.md) | The two sides, their builders and fixers |
 
 Where this file and an owner spec disagree, the spec is right and this file is the defect.
@@ -29,7 +29,7 @@ Where this file and an owner spec disagree, the spec is right and this file is t
 | Runtime (deferred) | `runtime/` | Our own agent runtime, which replaces ACP step by step. Core calls it as a library. |
 | Code intelligence (deferred) | `code-intelligence/` | `shadows-index`, which depends on no Shadows crate |
 
-The two deferred workspaces wait for the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own ([docs/future.md](./docs/future.md),
+The two deferred workspaces wait for the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own ([docs/core/future.md](docs/core/future.md),
 "Housekeeping"). Until then their crates stay in Core's workspace under `crates/`, with one
 build cache.
 
@@ -71,13 +71,7 @@ with hard boundaries. The compiler holds the boundaries, not good intentions.
    foundation    core-db: the pool, the transaction, the journal
 ```
 
-Dependencies point down only, and Cargo refuses a cycle. **Today** the services
-are folders inside `shadows-core`; the architecture plan
-([docs/backend/plans/2026-10-21-architecture.md](docs/backend/plans/2026-10-21-architecture.md))
-first establishes private service stores and explicit dependencies in place,
-then extracts crates in the verified dependency order. A task number is not
-proof of that order. Until a service has moved, its folder follows the same
-ownership rules, enforced by module privacy and the architecture ratchet.
+Dependencies point down only, and Cargo refuses a cycle.
 
 > **STRICT RULE: AppCore is the map and the owner. Start there, every time.**
 > Every task in Core begins at `crates/shadows-core/src/app.rs`. `AppCore` names
@@ -191,7 +185,7 @@ reads a request, calls one method, and shapes the answer.
 
 - Every decision has one owner spec, amended in place. Others link to it. New specs
   and plans follow their product: `docs/backend/`, `docs/frontend/`, `docs/aylul/`,
-  `docs/code-intelligence/`. `docs/superpowers/` is read and amended, never added to.
+  `docs/code-intelligence/`. `docs/core/specs/` (the earlier Core decisions, §0–§24) is read and amended, never added to.
 - No ADR, design note or plan for a struct shape, a library call or a test fix: amend the owner spec.
 - An open question is an **OPEN** block in its owner spec, with the trigger that closes it.
 - Evidence (`docs/evidence/`) is dated fact, never authority. A spike's code is

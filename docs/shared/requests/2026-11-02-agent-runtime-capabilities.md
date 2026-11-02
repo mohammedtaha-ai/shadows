@@ -2,7 +2,7 @@
 
 - Status: asked
 - Asked by: Masada, 2026-11-02
-- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-74 (AYLUL agents home, "Agent Runtime Capabilities")
+- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-74 (`docs/frontend/stages.md` at `b40e077b`; AYLUL agents home, "Agent Runtime Capabilities")
 
 ## Need
 
@@ -11,7 +11,7 @@ Terminal Execution, Multi-Model Handoff, Subagent Delegation), each marked avail
 Today that list is static text inside `Planned`; the web cannot claim a capability Core does not
 report. The web needs Core's list for the runtime an agent runs on, and whether each is on. This
 is not the agent's extensions (plugins, skills, MCP tools), which
-[the agents panel request](2026-11-01-aylul-agents-panel.md) already serves.
+the agents panel request (`docs/shared/requests/2026-11-01-aylul-agents-panel.md` at `f1459dcc`) already serves.
 
 ## Fields
 

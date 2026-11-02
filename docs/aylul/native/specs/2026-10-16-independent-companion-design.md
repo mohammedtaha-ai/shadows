@@ -1,7 +1,8 @@
 # Independent AYLUL desktop window
 
 Date: 2026-10-16.
-Status: approved; implemented in development/debug on 2026-10-17. Device and optimized performance limits are recorded in the dated acceptance report.
+Status: built (2026-10-17). The device and performance acceptance still open is C-6 in
+[character stages](../../character/stages.md).
 Owner: Native, with Character and Desktop UI integration.
 
 ## 1. Intent and existing decisions
@@ -24,9 +25,6 @@ still owns the extracted artwork and studio. This specification supersedes its
 exclusion of a floating surface only for this newly authorized integration.
 It does not declare the historical N0/N1b acceptance gates closed.
 
-Work stays in the original checkout on `codex/aylul-companion-in-window`.
-The user prohibits worktrees and previously selected inline implementation.
-No branch switch, push, merge or deployment is included.
 
 ## 2. Approach selection
 
@@ -58,15 +56,19 @@ primary monitor work area with a margin near the lower right corner. Main startu
 and its deliberate tray/shortcut/single-instance open behavior remain unchanged.
 Show the companion after its local presentation has mounted successfully.
 
-Closing main hides main only. Closing the companion hides that surface only.
-The tray provides Open NYLRA, Show/Hide AYLUL, and Quit NYLRA. Main offers the same
+Closing main hides it while `closeToTray` is on (the default on a fresh install);
+with it off, closing main quits the desktop. The setting is native's, stored on
+this machine, not in Core (2026-10-21). Closing the companion hides that surface
+only. The tray provides Open NYLRA, a Show AYLUL toggle and Quit NYLRA; Quit always
+quits. Main offers the same
 explicit Show/Hide AYLUL control and motion pause control. Tray Show restores
 AYLUL without activating main or changing the foreground application. Quit exits
-the application, including both surfaces and any already-owned background work;
-this slice adds no sidecar or cloud transport.
+the application, including both surfaces and any already-owned background work,
+the hook sidecar included (desktop architecture owns it).
 
-A short primary click on the character opens/focuses main as an explicit user
-action. A primary drag crossing an 8 logical pixel threshold starts native
+A short primary click on the character opens the companion panel
+([AYLUL agents and panel §7.6](../../specs/2026-11-01-aylul-agents-and-panel-design.md));
+the panel's **Open** focuses main. A primary drag crossing an 8 logical pixel threshold starts native
 window dragging once and suppresses the corresponding click. Cancellation,
 pointer loss and release reset the gesture. Ignore secondary-button gestures.
 Do not chase the cursor or inspect other applications' windows.
@@ -91,10 +93,10 @@ pause state, tray labels and the application lifetime. React owns drawing and
 gesture presentation. The native state is a local UI projection, not a cloud
 domain model, identity projection or approval state.
 
-Agree the narrow interface in the
-[shared request](../../shared/requests/2026-10-16-independent-companion-window.md)
-before dependent source edits. Its proposed operations cover surface readiness
-and state, companion visibility, pause, native drag and explicit main open.
+The narrow interface (surface readiness and state, companion visibility, pause,
+native drag and explicit main open) is in
+`apps/desktop/src-tauri/src/commands/contract.yaml` and
+`apps/desktop/src-tauri/src/windows/companion/contract.yaml`.
 Use typed wrappers in `src/platform/`; feature rendering never invokes raw IPC.
 
 Each state update has a monotonic revision within the process. Subscribe before
@@ -122,8 +124,8 @@ of running a duplicate production character animation.
 
 Reuse `CompanionCanvas` and the existing motion/renderer directly for the compact
 surface. Keep its background transparent and place account, sound and studio
-controls in main. The production character remains idle without a real owning
-service presentation; no simulated listening, speaking or operational success.
+controls in main. The production character follows the presence feed (desktop and companion
+design §8); there is no simulated listening, speaking or operational success.
 Native errors are local plain text. Any visual fallback must fit the small
 surface and retain the tray/main recovery route.
 
@@ -197,15 +199,9 @@ evidence report. Do not relabel the old probe results as product acceptance.
 
 ## 7. Review boundary and deferred work
 
-The user approved the conversational approach and instructed work to begin.
-The user subsequently approved this written specification with an instruction
-to begin. Prepare the implementation plan and its stage tasks before product
-edits. Preserve the previously requested inline execution method and
-no-worktree constraint; do not ask the user to choose these again.
 
 | Deferred decision | Owner and closing trigger |
 | --- | --- |
 | Silhouette click-through | Native + Character; separately agree on a non-disruptive hit-test strategy and prove fast pointer crossings and drag races |
 | Cross-restart position/preferences | Native + Desktop UI; add only with an explicit preference lifecycle and restore tests |
-| Real operational expressions/messages | Owning service + Character; connect inspected service outcomes through an accepted interface |
 | Physical lifecycle gates not exercised here | Native evidence report; close only with the named hardware/device observations |

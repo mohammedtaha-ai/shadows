@@ -15,7 +15,7 @@ state.
   `web/src/index.css`. The warning tokens stay. A tint the design needs and the palette
   lacks becomes one token, defined in both themes; no colour is written in a component.
 - Radius: the design's `--radius` (`.75rem`).
-- Type: Plus Jakarta Sans for text and JetBrains Mono for code.
+- Type: Plus Jakarta Sans for text and JetBrains Mono for code; Geist (variable) is loaded as the fallback.
 - Surfaces: the design's panel, glow, active-pill and grid-backdrop treatments, built on
   the palette tokens so they hold in light mode.
 - Motion: bounded; no continuous decorative animation. Reduced motion is respected.

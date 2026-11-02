@@ -23,17 +23,12 @@ email and music. It must keep working when one agent's subscription runs out.
   section. The character stays a separate native window.
 - **Where it works:** from its own home, never inside a project. It learns about
   work through hooks and reads what it needs when asked.
-- **Order:** brain; work profile (watching agents, explaining, alerting);
-  personal profile (email, YouTube, preferences); voice. Remote alerts (for
-  example Telegram) later.
+- **Order:** set by the brain design, [brain §6](specs/2026-10-19-aylul-claude-code-brain-design.md#6-decided-by-mohammed).
+  Planned work and its status are in [future list](future.md).
 - **Shadows flow it serves later:** the planner hands tasks to executors; an
   executor fixes what is inside its task and reports the rest to the planner;
   the planner adjusts or escalates to Mohammed; when he is away, AYLUL relays
   the question and his answer.
-- **Later, not planned yet (Mohammed, 2026-10-21):** Core gives each AYLUL agent its own
-  MCP tools for AYLUL's screen, the way the Claude desktop app gives Claude Code its tools
-  for the task list and the next-step box: for example, set the character's state, or show
-  a task list in the conversation. It gets its own spec and plan when it is picked up.
 
 The sections below are the original long-form vision. Where they name Hermes,
 a cloud brain, or a separate NYLRA backend, the direction above replaces them.
@@ -267,7 +262,7 @@ Personal projects and preferences are not exposed through team membership.
 Sign-in does not upload projects. Linking is not backup, team publication, code
 sync or execution transfer. An offline personal computer cannot run a new Planner
 turn; retained explanations are visibly cached. The authoritative decisions are in
-[Shadows §1.7](../superpowers/specs/2026-09-21-architecture-design.md#17-workspace-authority-and-deployment),
+[Shadows §1.7](../core/specs/2026-09-21-architecture-design.md#17-workspace-authority-and-deployment),
 with the [sharing inventory](../../../shadows-backend/docs/architecture.md#what-lives-where)
 specifying what crosses into the cloud.
 
@@ -537,7 +532,7 @@ This event can then be accepted by Shadows.
 
 This conceptual record is not sufficient proof by itself. The trusted client
 binds a deliberate confirmation to the exact displayed operation/proposal.
-[Shadows §24.6](../superpowers/specs/2026-10-08-approval-authority-design.md#246-external-human-confirmation-and-assessment)
+[Shadows §24.6](../core/specs/2026-10-08-approval-authority-design.md#246-external-human-confirmation-and-assessment)
 owns enforcement, Planner-versus-human attribution and assessment write limits.
 Voice prepares the response; voice-only confirmation needs separately reviewed
 proof before it can replace the deliberate client confirmation action.
@@ -1713,7 +1708,7 @@ was the change ineffective, or is more evidence required? Scaling, reducing unus
 capacity, investigating a slow query and identifying a bad release are possible
 outcomes. NYLRA reports unknown/stale evidence and pending actions honestly.
 
-[Shadows §17.12](../superpowers/specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension)
+[Shadows §17.12](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension)
 owns observation-to-action authority and verification. NYLRA owns explanation,
 attention and the human interaction. The feature remains part of the product
 regardless of competition entry. Voice and AWS are integrations, not new owners

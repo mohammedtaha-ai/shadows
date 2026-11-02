@@ -1,8 +1,9 @@
 # Inspected source map
 
-Updated: 2026-10-20 (shared dashboard and bound companion). Paths below are relative to the
-Shadows repository root. Desktop, hook and sidecar retain independent builds;
-no AYLUL module was added to AppCore. The main Windows surface hosts `web/`;
+Updated: 2026-11-02 (the companion panel of 2026-11-01 included). Paths below are relative to the
+Shadows repository root. Desktop, hook and sidecar retain independent builds.
+AYLUL's Core side is AppCore services (`Agents`, `Providers`, `Secrets`, `Extensions`,
+`Usage`, `PersonSettings`); it is mapped in `docs/codebase/README.md`, not here. The main Windows surface hosts `web/`;
 native owns verified Core startup and the independent companion watcher.
 Account login, the Claude Code hook and local sidecar remain native functions.
 Mobile and semantic project-context integration remain future paths.
@@ -18,7 +19,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission admission regressions | Presence contract |
 | `apps/desktop/src-tauri/src/presence/` | Operate the configuration-scoped companion conversation with its owned observer | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/presence/workflows.rs` | Coordinate companion actions through the owned observer, injected native surface operations and Navigation | Presence contract; selection/show, retarget/readiness, publication admission and open-main workflows |
-| `apps/desktop/src-tauri/src/navigation.rs` | Deliver closed pending main navigation before opening main | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
+| `apps/desktop/src-tauri/src/navigation.rs` | Deliver closed pending main navigation before opening main | Presence contract; desktop and companion design §7 |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
 | `apps/desktop/src-tauri/src/core_connection/` | Verified local Core lifecycle | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/desktop_preferences/` | Native desktop preference coordination | Colocated `contract.yaml`; private store and injected OS login-item adapter |
@@ -53,7 +54,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/panel/CompanionPanel.tsx` | Companion panel presentation | Companion contract; typed platform actions only |
 | `apps/desktop/src/features/companion/panel/PermissionPrompt.tsx` | Answers the bound agent's waiting request by option buttons | Companion contract; typed platform action only |
 | `apps/desktop/src/features/companion/panel/AgentTile.tsx` | Still agent previews on the panel | Companion contract; public renderer and animation entries |
-| `apps/desktop/src/features/companion/panel/panel.css` | Companion panel neon appearance | Companion contract |
+| `apps/desktop/src/features/companion/panel/panel.css` | Companion panel appearance | Companion contract |
 | `apps/desktop/tests/companion/panel.spec.ts` | Companion panel browser acceptance | Companion contract; synthetic native IPC |
 | `apps/desktop/src/features/companion/composer-model.ts` | Draft and retry identity rules | Companion contract |
 | `apps/desktop/src/features/companion/native-presentation.ts` | Absolute-expiry native reply presentation | Companion contract |

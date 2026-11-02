@@ -17,7 +17,7 @@ not this side merely because they also run background code.
 |---|---|
 | `crates/`, `api/openapi.json` | `web/` (Masada's side) |
 | `docs/backend/` (plans, specs, stages) | `docs/frontend/` |
-| `docs/codebase/` (the backend code map) and every `crates/**/contract.yaml` | `docs/superpowers/` (history: read it, add nothing new) |
+| `docs/codebase/` (the backend code map) and every `crates/**/contract.yaml` | `docs/superpowers/` at `f1459dcc` (history: read it, add nothing new) |
 | answers in `docs/shared/requests/` | another side's files, even to "help" |
 
 ## Where things are
@@ -30,10 +30,10 @@ not this side merely because they also run background code.
    refused in review.
 1. [`docs/codebase/README.md`](../codebase/README.md): what each crate outside
    Core owns.
-2. `crates/shadows-core/src/<service>/contract.yaml`: what must stay true of
+2. `crates/core-<service>/contract.yaml`: what must stay true of
    that service. Read it before changing the service.
 3. `docs/backend/specs/`: decisions for new backend work.
-   Older decisions stay in `docs/superpowers/specs/` (the index is its
+   Older decisions stay in `docs/core/specs/` (the index is its
    `README.md`).
 4. `docs/backend/plans/`: one plan per piece of work, broken into tasks.
 5. [`docs/backend/stages.md`](./stages.md): where the work is now, and the next

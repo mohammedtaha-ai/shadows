@@ -1,0 +1,467 @@
+# Section 17 — Executable Task Contracts and Evidence
+
+- **Date:** 2026-10-01
+- **Status:** Draft for owner review.
+- **Idea:** `docs/core/vision.md` §§2–5: agents work within explicit task boundaries,
+  report evidence when the plan is wrong, and completion is established by
+  verification rather than by an agent's claim.
+- **Related:** §13 (Planner and task links), §15 (code index), §16 (project-owned
+  plans and versions).
+
+This section moves a plan from a list of tasks to a contract an executor can
+follow and the runtime can check. Planning, execution, verification and human
+decisions remain distinct kinds of state.
+
+## 17.1 Scope
+
+The work is delivered in two runnable stages. Stage 2 depends on Stage 1.
+
+**Stage 1: task contract and rationale.**
+
+- Enrich task content with implementation and interface constraints (§17.2).
+- Project decisions with their rationale (§17.3). A version's reason and the
+  writer of every edit are §16.3's.
+- Keep plan approval separate from execution readiness (§17.4).
+- Extend the plan and task views to show the contract, changed fields, and
+  version rationale (§17.7).
+
+**Stage 2: bounded execution and evidence.**
+
+- Compile an immutable, bounded packet from a frozen version and one ready
+  task (§17.5).
+- Record a task run, deterministic verification, and review outcomes (§17.6).
+- Show runs, evidence, failures and gate actions in the Web client (§17.7).
+
+These are this section's two delivery slices, not the numbering of the
+project-planning roadmap. That roadmap schedules this owner at its execution
+stage; specialized diagrams are not a prerequisite.
+
+**Not here:** selecting multiple executor vendors, running overlapping tasks
+in one working directory, worktree management, automatic waiting-test
+scheduling, project teams, remote execution, and general-purpose semantic
+memory. These need separate designs. In particular, parallel execution stays
+off until write-scope conflict handling is designed and proven.
+
+## 17.2 The task contract
+
+`TaskContent` remains the canonical task content stored in a plan version.
+Existing fields `number`, `title`, `goal`, `reads`, `writes`, and `acceptance`
+remain. The following fields are added:
+
+| Field | Meaning |
+|---|---|
+| `target_symbols` | Known functions, types, routes, or other symbols in scope. |
+| `interface_contract` | Inputs, outputs, and externally visible behavior this task owns. |
+| `implementation_steps` | Ordered, reviewable steps; executor choices inside a step stay local. |
+| `invariants` | Properties that must remain true after the change. |
+| `error_semantics` | Required error outcomes and the conditions that produce them. |
+| `forbidden_changes` | Explicit changes the executor must not make. |
+| `allowed_capabilities` | Narrow, typed runtime capabilities needed to perform the task. |
+
+All fields are serialized in the versioned plan content and included in its
+canonical digest. `reads` and `writes` are repository-relative paths; malformed
+or escaping paths are refused. An empty `writes` list authorizes no file
+changes. Unknown permission names fail closed. A task's writable paths are a
+scope boundary, not a prompt suggestion. Capabilities come from a
+server-owned typed registry; wildcard capabilities such as `filesystem` or
+`shell` are not valid. An empty list grants no capabilities. A task is not
+executable unless its selected adapter can enforce each requested capability
+with an exact mapping; otherwise readiness is refused.
+
+Each acceptance item remains a sentence that can be checked. The contract may
+refer to a deterministic command, but merely naming a command does not prove
+that it passed. Plan validation checks structural completeness; executable
+readiness additionally checks that the task has a usable write boundary,
+acceptance criteria, and all declared dependencies satisfied.
+
+## 17.3 Version rationale and edit provenance
+
+**A superseding version's `change_reason`** is §16.3's, built with §16: it
+is required from v2 on, and a version from before it reads "Reason not
+recorded". This section adds nothing to it.
+
+Every `WorkflowEdited` event continues to record its actor and a concise
+machine-readable change summary. A revision conflict still refuses the whole
+edit; the editor must reread the latest revision and rebuild its command.
+
+When an edit settles or reverses a project decision, its rationale must be
+recorded as a project decision with status `Proposed`, `Accepted`, or
+`Superseded`, its author, references, and rationale. An agent may propose a
+decision but cannot accept or supersede one; those transitions require a
+person's command. Until the person-authority boundary in §17.11 is closed,
+decision records can be proposed and read, but transitions to `Accepted` or
+`Superseded` are unavailable. Execution packets include only accepted
+decisions selected as relevant to the task. Decision identity and history are
+project-scoped and do not depend on a conversation's lifetime.
+
+The Web version history shows the version number, writer, creation time, and
+`change_reason`. Each edit event can be inspected for its actor, changed task
+numbers, and summary. Detailed decision history is linked from the task or
+version that references it.
+
+## 17.4 Plan approval and execution readiness
+
+A plan version has the planning states already defined by §16: `Draft` and
+`Frozen` (shown as Approved). Freezing approves immutable planning content; it
+does not claim that a task has run or passed verification.
+
+Execution is a separate record bound to one frozen plan version. A task run
+advances only through valid transitions:
+
+```text
+Prepared → Running → Executed → Verified
+                  ↘ Failed
+```
+
+`Failed` and `Verified` are terminal for that attempt. Retrying creates a new
+run; the runtime never resets a failed run to `Prepared`. A crash or lost
+external outcome is represented as unknown until reconciled, never reported as
+a confirmed failure or success without evidence.
+
+A gate is a durable pause over a declared set of tasks and checks. It becomes
+eligible only when required task results and verification evidence exist. Once
+the person-authority boundary is closed, a person chooses one explicit action:
+`CONTINUE`, `REPLAN`, `PATCH`, `ROLLBACK`, or `ABORT`. The stored review outcome
+is one of `PASS`, `PASS_WITH_NOTES`,
+`FAIL_IMPLEMENTATION`, or `FAIL_PLAN`. `FAIL_PLAN` returns control to planning;
+it does not authorize an executor to rewrite the frozen contract.
+
+The first execution stage is serial. Readiness is checked immediately before a
+run using the frozen version, current project binding, task dependencies, and
+write scope. If two tasks declare intersecting write paths, they are not
+eligible to run concurrently until a later design defines a safe conflict
+policy.
+
+## 17.5 Bounded execution packet
+
+The packet replaces repeated project discovery. It gives the executor the
+local purpose and approved obligations needed to implement one task, not the
+whole plan, sibling tasks, or the Planner's conversation history. A compact
+ownership overview explains where this task fits without copying other scopes.
+
+`TaskContextCompiler` produces an immutable `ExecutionPacket` for one ready
+task. It contains:
+
+- the project, plan version, task number, run identity, and source revision;
+- the task contract and the dependency contracts required by its links;
+- accepted project decisions selected for this task, each with provenance;
+- the selected repository binding and base revision;
+- bounded repository context selected from declared reads and relevant code
+  index results, with path and content digests;
+- the exact write scope, allowed capabilities, timeout/resource budget, and
+  instructions;
+- a canonical digest over every packet field.
+
+Locations pair a repository-relative path and symbol with the captured source
+revision and file digest; line numbers are hints at that revision. For a new
+symbol, the packet names the owning module and insertion responsibility.
+The executor validates the surrounding declaration before editing. Stale or
+ambiguous locations require resolution, never a guessed edit at the old line.
+
+The compiler refuses a mutable or unapproved plan, an unready task, unresolved
+dependencies, a missing or ambiguous project binding, paths outside the
+project, invalid scope patterns, unavailable required inputs, and context over
+budget. It reads from one captured repository revision; if that revision
+changes during compilation, it refuses rather than mixing snapshots.
+
+The packet is persisted or referenced immutably by its digest. A retry uses the
+same packet only when it is the same logical run; a new attempt compiles and
+records a new packet. Provider-native conversation history is not canonical
+task context.
+
+### Focused questions during a run
+
+Within its declared reads, capabilities and budget, an executor may ask for a
+named definition, relevant references or a bounded outline without escalating
+each lookup. It opens the relevant source region, widening to necessary types,
+invariants and tests when the question requires them. It must understand its
+change; a narrow packet is not permission to guess. Repository-wide discovery
+is not the default response to a missing answer.
+
+§15's index answers locations, not code. Name-matched references remain
+labelled as such; they are not a proven call graph. Semantic LSP results may
+be used when an adapter supplies them with provenance, but no LSP integration
+is claimed by this draft. No match, incomplete indexing or ambiguity means
+uncertainty, not proof that an implementation is absent.
+
+Additional reads must resolve against the packet's captured source, or the
+attempt's recorded edits to it. A live index hit is only a candidate until
+checked against that source. Each supplied result records the question,
+path/symbol, source digest and bounded response in the run's evidence; it does
+not mutate the packet. If the source cannot be reconciled, stop for refresh.
+Expanding declared reads, write scope or capability requires a newly approved
+task version and packet; a manager reply cannot silently expand them.
+
+The context budget includes tool results, repeated turns and inherited harness
+instructions/history, not just the initial packet. An adapter must expose how
+these inputs are supplied and measured; unavailable usage is labelled unknown.
+On budget exhaustion or a missing out-of-scope dependency, return a bounded
+problem report instead of crawling the repository. Read minimization is a
+context policy, not a claim of OS-level read isolation.
+
+### Problems returned to the controller
+
+A report names task/attempt, packet and agreement versions, the precise
+obstacle, evidence, attempted remedies, known affected dependencies and a
+proposed action if available. The first serial release returns it to the
+person/Planner. A later agentic manager can investigate and direct repairs
+within delegated authority; it cannot alter frozen obligations or certify its
+own proposed plan change. §17.4 and §18 retain approval ownership.
+
+> **OPEN — manager authority and recovery.** Before an autonomous manager
+> dispatches repairs, accepts escalations or controls runs, its owner spec must
+> define allowed actions, cost/retry limits, durable problem identities,
+> stop/resume behavior and escalation to Planner/person. The role direction is
+> in `docs/core/vision.md` §5. This does not block serial execution with a person
+> controlling it; no manager service is introduced by this section.
+
+## 17.6 Execution evidence and verification
+
+The executor receives the packet and returns structured execution evidence:
+run identity, changed paths, process outcome, and bounded artifact references.
+Provider text saying “done” is not a successful run result. Diagnostics are
+bounded and secret-redacted.
+
+The adapter must enforce the packet's capabilities and write scope before it
+starts. After execution, the verifier independently compares the observed
+changes with the frozen write scope. If the adapter cannot enforce the exact
+scope, the run is refused before launch; a post-run check alone is not treated
+as containment.
+
+`Verifier` checks the run against the frozen packet and a baseline captured at
+the packet's base revision. It records:
+
+- the packet and verification-contract digests;
+- the baseline identity and changed paths;
+- each deterministic check's command identity, exit status, and bounded result;
+- scope violations, baseline discrepancies, and the resulting verdict;
+- verifier identity and timestamp.
+
+The verifier is deterministic and does not decide whether the plan itself was
+correct. A separate Reviewer evaluates implementation evidence against the
+task contract and can return the four review outcomes in §17.4. Review output
+is attributable and immutable. Until a semantic Reviewer exists, the UI says
+“verification passed” and does not imply “review passed.”
+
+§19 owns the Dashboard-selected critic profile and durable post-implementation
+dispatch rule. Its review binds to this attempt's exact result; a later repair
+does not inherit the earlier verdict. Profile configuration does not change
+the verification or person-authority rules in this section.
+
+Verification or review failure does not mutate a frozen version. A plan
+failure creates a proposed change for the Planner and, if accepted, a new plan
+version with a required reason. An implementation failure leaves the run and
+its evidence available and requires a new attempt or an explicit gate action.
+
+## 17.7 The Web client
+
+The project landing page is an overview of current work: active plans, ready,
+running and blocked tasks, latest verification results, and items that need a
+person's decision. It offers direct actions to continue planning, inspect a
+task, or start an eligible task.
+
+The plan page offers both a graph and a task list. Selecting a task opens its
+contract, dependencies, accepted decisions, declared read/write paths, and
+acceptance items. Version history shows the author and `change_reason`.
+
+The execution view groups runs by plan and task. It shows the executor, current
+state, stop/retry availability, changed paths, checks, verifier verdict,
+review outcome, and gate actions. Color is never the only indication of state.
+Arabic and English content keeps the existing per-block RTL/LTR behavior.
+
+Approval and gate actions are issued only through the person-facing API
+authority. An agent cannot approve a plan, accept a decision, or choose a gate
+action. These authority checks are enforced by the backend, not only hidden in
+the UI.
+
+## 17.8 Interfaces and persistence
+
+The plan/task contract changes update the owning `plans` contract, MCP schemas,
+HTTP/OpenAPI schemas, generated Web types, canonical serialization, and digest
+tests together.
+
+The migration preserves existing plan, workflow, task, event, and thread IDs.
+Legacy task fields receive explicit empty defaults only where that remains a
+valid non-executable Draft. Existing frozen versions remain readable; they do
+not become execution-ready until the required contract fields are supplied in
+a new version. How a version with no recorded reason is stored and read is
+§16.9's.
+
+New persistence is project-scoped for decisions and plan versions, and
+version-scoped for packets, runs, checks, and review outcomes. Foreign project
+or version references are refused before writes. Retention does not delete the
+evidence needed to explain a terminal run or a gate decision.
+
+## 17.9 Order of work
+
+**Stage 1:**
+
+1. Add typed task-contract fields, canonical serialization, validation, and
+   migration defaults.
+2. Add a project-scoped, person-accepted decision record with provenance
+   (`change_reason` is built with §16).
+3. Update MCP and HTTP contracts, generated Web types, plan/task pages, and
+   focused acceptance coverage.
+
+**Stage 2:**
+
+4. Add execution, task-run, packet, check, and review persistence with
+   immutable transitions and idempotent commands.
+5. Add the bounded context compiler and packet digest verification.
+6. Add one serial executor path and backend-enforced task write scope.
+7. Add deterministic verification and separate review outcomes.
+8. Add project overview, task/run views, evidence display, and explicit gate
+   actions.
+
+Each stage ends with a runnable path and independent review before the next
+stage begins.
+
+## 17.10 Tests and acceptance
+
+1. A malformed task contract, escaping path, unknown capability, or empty
+   executable write scope is refused before persistence or execution.
+2. A superseding version keeps the old frozen content byte for byte (its
+   reason and writer are tested with §16, §16.12).
+3. A stale `expected_revision` refuses the entire batch with no partial task,
+   link, decision, or event write.
+4. Before the person-authority boundary is closed, acceptance and supersession
+   are refused for every caller. After it closes, an agent can propose but
+   cannot accept or supersede a decision; an authorized person can, and the
+   transition is durable and replayable.
+5. The same frozen task and repository snapshot produce the same packet digest;
+   changing any contract, decision, selected file, scope, or base revision
+   changes the digest.
+6. Packet compilation refuses a dirty or changing snapshot, unresolved
+   dependency, invalid binding, and over-budget context.
+7. A run cannot skip lifecycle states, be claimed twice, or be reset after
+   `Failed`; process loss with unknown outcome is not silently retried.
+8. A write outside the frozen task scope is detected and cannot be reported as
+   verified.
+9. A deterministic verifier records a repeatable verdict from the same
+   baseline, packet, and check results. Reviewer outcomes remain distinct from
+   verifier verdicts.
+10. The Web client distinguishes plan approval, execution readiness,
+    verification, and review; it shows reasons, evidence, and gate choices
+    without relying on color alone.
+11. A task starts from bounded context without the parent transcript; a needed
+    in-scope lookup reads targeted source and records its provenance.
+    Ambiguous/name-only results are not presented as semantic proof; a moved
+    symbol cannot direct an edit to a stale line.
+12. An out-of-scope question, unreconciled source or exhausted context budget
+    returns a problem report without silently widening access or changing the
+    packet. A fresh attempt retains the previous evidence.
+
+Acceptance covers Windows and Linux with disposable repositories and
+databases. Credentialed CLI acceptance is recorded separately from automated
+tests; no platform or real-user run is claimed without its own evidence.
+
+## 17.11 Changes to other documents
+
+After this specification is approved, update the canonical owners in the same
+implementation stage that makes each statement true:
+
+- **§13:** task contract and version rationale, with references here;
+- **§16:** plan-owned task contracts and the project overview, with references
+  here;
+- **§4, §6 and §7:** decision, packet, run, verification, and review records;
+- **`docs/core/vision.md`:** Today lines and links to the implemented stages;
+- **`docs/core/future.md`:** a stage's row leaves the list once it is delivered.
+
+This file owns the design in §17. Other documents link here instead of copying
+its decisions.
+
+> **OPEN — person authority for decisions and gates.** The current local HTTP
+> boundary does not prove that a request came from the person rather than a
+> process running as the same user (§13.2). **Trigger:** before a decision can
+> become `Accepted` or `Superseded`, or a gate action is enabled. Until then,
+> agents may propose decisions, but the person-only transitions and gate actions
+> stay unavailable. This does not block task-contract or packet work.
+
+## 17.12 Production operations extension
+
+Product direction confirmed 2026-10-10; detailed implementation remains draft.
+This section owns the future production action lifecycle. It extends execution
+and verification rather than creating another executor. §1.7 owns workspace and
+worker placement; §24.6 owns external confirmation. Competition participation
+does not define or narrow this capability.
+
+### Environments and resources
+
+A project can have Development, Staging and Production environments independently
+of personal/team workspace ownership. Each environment binds explicit provider,
+account, region, resource identities, deployed revision and operating policy.
+Deploying an application does not migrate its Shadows workspace to the cloud.
+Application resources are separate from resources hosting Shadows or NYLRA.
+
+AWS is the first intended integration. Resource selection follows inspected
+application needs and measured workload: RDS for a required managed relational
+database, S3 for object storage when needed, plus suitable compute and observability.
+No mode switch automatically provisions a fixed AWS bundle. Existing resources
+are discovered and associated explicitly; tags/names alone do not grant ownership.
+Infrastructure code belongs to the target application's repository, with reviewed
+changes and resource replacement effects visible before execution.
+
+### Observe, diagnose, propose, act, verify
+
+1. Collect scoped metrics, logs, traces, deployment changes and available usage
+   evidence. Preserve timestamps, windows, units, source references and missing
+   data. Application latency/errors and dependencies matter alongside CPU/load.
+2. Correlate a sustained symptom with the project's topology and recent changes.
+   A high CPU alarm is a symptom, not proof that scaling is the correct remedy.
+   Distinguish observed facts, suspected causes and confidence; gather more evidence
+   when a bottleneck could be application code, queries, traffic or a dependency.
+3. Propose a bounded action: resource targets, expected benefit, alternatives,
+   cost assumptions, prerequisites, risks, observation window and recovery path.
+   Options include scale out/in, a configuration change, a code fix, rollback,
+   investigation or no action. Resource-specific constraints remain explicit.
+4. Obtain exact human confirmation or match a previously explicit, bounded policy.
+   An inferred preference or generated recommendation is not an execution grant.
+5. Revalidate current resource state and authority, execute through an assigned
+   worker, and record the provider's operation identity. A timeout means unknown
+   outcome until reconciliation, not permission to repeat a non-idempotent action.
+6. Verify both provider state and application behavior over the declared window.
+   Report success, failure, no demonstrated improvement or insufficient evidence.
+   Recovery itself follows its approved boundary. Database/data changes are not
+   assumed reversible merely because an application release can be rolled back.
+
+The action records its evidence basis, proposal, approver/policy, attempt and
+observed result. Implementation chooses exact states under this lifecycle; no
+new service/module exists until its first runnable operation needs it.
+
+### Authority and continuous operation
+
+Observation and mutation use separate capabilities. Scope each to account,
+environment and resources. Mutations require explicit allowed actions, capacity
+and spending bounds, expiry and cooldown. Automatic policies must include a stop
+condition and escalation after ineffective attempts; avoid scale-up/scale-down
+oscillation. Native autoscaling remains authoritative for its configured loop;
+Shadows must inspect and coordinate with it, not compete with another controller.
+Destructive actions and policy-boundary changes need separate explicit approval.
+
+Continuous monitoring runs on an explicitly assigned always-on collector. For a
+personal local owner, an optional cloud collector may observe and send scoped
+alerts while the computer is off, but cannot adopt new plans or execute owner
+commands. Owner-dependent diagnosis may wait; cached advice shows its age.
+Unattended remediation requires an always-on authoritative runtime or a separately
+specified durable grant under §1.7; a cloud NYLRA conversation is not such a grant.
+
+NYLRA explains the incident and action, asks the person when required, and reports
+observed outcomes. It never directly acquires unrestricted AWS execution power.
+Its message should answer what changed, which service is affected, why the proposed
+action helps, what it costs under stated assumptions, and whether it actually helped.
+
+### Delivery and proof
+
+Start with read-only observation for one explicit environment and a sourced NYLRA
+incident explanation. Then prove one reversible operation in a disposable test
+environment with confirmation and post-action checks. Expand to reviewed automated
+policies and resource types only after that path works. Production is a future
+product extension, not a prerequisite for completing the local roadmap.
+
+> **OPEN — operational implementation.** Close before live mutation by specifying
+> provider adapters, resource inventory, least-privilege boundaries, durable incident
+> ownership, always-on collector lifecycle, action deduplication/reconciliation,
+> cost estimation freshness, policy limits and recovery. Acceptance must cover stale
+> evidence, revoked authority, duplicate alerts, ambiguous provider timeouts,
+> competing autoscaling, lack of improvement and loss of the owning runtime.
+> A successful demo deployment does not establish production readiness.
