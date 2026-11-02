@@ -268,14 +268,14 @@ fn corrupt_preferences_fail_without_silently_replacing_them() {
 fn click_destination_is_closed_and_does_not_create_a_thread() {
     let (_api, _root, presence) = fixture();
     assert_eq!(
-        presence.destination(),
+        presence.destination_for(MainTarget::Bound),
         crate::navigation::MainDestination::CompanionSettings
     );
     presence
         .select(presence.request(None).unwrap(), Some("agent-a".into()))
         .unwrap();
     assert_eq!(
-        presence.destination(),
+        presence.destination_for(MainTarget::Bound),
         crate::navigation::MainDestination::AgentDraft {
             agent: "agent-a".into()
         }
@@ -288,7 +288,7 @@ fn click_destination_is_closed_and_does_not_create_a_thread() {
         )
         .unwrap();
     assert_eq!(
-        presence.destination(),
+        presence.destination_for(MainTarget::Bound),
         crate::navigation::MainDestination::Conversation {
             project_id: PROJECT.into(),
             thread_id: THREAD.into()
@@ -319,10 +319,6 @@ fn named_destinations_resolve_with_reads_only_and_closed_fallbacks() {
         MainDestination::AgentSettings {
             agent: "agent-a".into()
         }
-    );
-    assert_eq!(
-        presence.destination_for(MainTarget::Bound),
-        presence.destination()
     );
     assert_eq!(
         presence.destination_for(MainTarget::OldestWaiting),

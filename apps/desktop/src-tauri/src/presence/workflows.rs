@@ -226,15 +226,10 @@ impl Presence {
             .map_err(|_| "navigation_invalid")?
             .unwrap_or_default();
         let presence = self.clone();
-        let destination = tauri::async_runtime::spawn_blocking(move || {
-            if matches!(target, super::MainTarget::Bound) {
-                presence.destination()
-            } else {
-                presence.destination_for(target)
-            }
-        })
-        .await
-        .map_err(|_| "main_open_failed")?;
+        let destination =
+            tauri::async_runtime::spawn_blocking(move || presence.destination_for(target))
+                .await
+                .map_err(|_| "main_open_failed")?;
         let dependencies = self.workflows();
         let navigation = dependencies.navigation.clone();
         (dependencies.window.on_ui)(Box::new(move |app| navigation.open_main(app, destination)))

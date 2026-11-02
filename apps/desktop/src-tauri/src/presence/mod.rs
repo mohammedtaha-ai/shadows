@@ -232,10 +232,6 @@ impl Presence {
         self.notify();
         Ok(view)
     }
-    pub fn destination(&self) -> MainDestination {
-        self.destination_for(MainTarget::Bound)
-    }
-
     /// The first waiting request's conversation, or the closed fallback when it no longer resolves.
     fn oldest_waiting(&self) -> MainDestination {
         let resolve = || -> Result<MainDestination, &'static str> {
