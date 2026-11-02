@@ -133,6 +133,25 @@ pub struct Opened {
 }
 
 impl Connection {
+    /// Asks the adapter to stop one background task; the turn and the other
+    /// tasks go on. Answers the adapter's `stopped`.
+    pub async fn stop_task(&self, session: &str, task: &str) -> Result<bool, AcpError> {
+        let request = agent_client_protocol::UntypedMessage::new(
+            "_session/async_task/stop",
+            serde_json::json!({"sessionId": session, "asyncTaskId": task}),
+        )
+        .map_err(AcpError::from_rpc)?;
+        let answer = self
+            .cx
+            .send_request(request)
+            .block_task()
+            .await
+            .map_err(AcpError::from_rpc)?;
+        answer
+            .get("stopped")
+            .and_then(Value::as_bool)
+            .ok_or_else(|| AcpError::Rpc("invalid task stop response".into()))
+    }
     pub async fn start_session(
         &self,
         cwd: &Path,

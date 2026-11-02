@@ -183,6 +183,8 @@ it is that folder's `contract.yaml`.
 | `web/src/api/extensions.test.ts` | MCP library transport checks | `web/src/api/contract.yaml` |
 | `web/src/api/permissions.ts` | Waiting permission transport | `web/src/api/contract.yaml` |
 | `web/src/api/permissions.test.ts` | Permission transport checks | `web/src/api/contract.yaml` |
+| `web/src/app/conversation/background-tasks.tsx` | Background task side panel | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/background-tasks.test.tsx` | Background task interaction test | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-card.tsx` | Permission request interaction | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-card.test.tsx` | Permission request interaction checks | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/settings/mcp-form.tsx` | MCP configuration editing | `web/src/app/settings/contract.yaml` |

@@ -547,3 +547,21 @@ function object(event: string, data: string): Record<string, unknown> {
   }
   return Object.fromEntries(Object.entries(value))
 }
+
+export interface BackgroundTask {
+  id: string; name: string; description: string; task_type: string
+  state: 'running' | 'completed' | 'failed' | 'stopped'
+  started_at: number; ended_at: number | null; summary: string | null; can_stop: boolean
+}
+
+export function parseTasks(data: string): BackgroundTask[] {
+  const frame = object('tasks', data)
+  if (!(frame.op === null || typeof frame.op === 'string') || !Array.isArray(frame.tasks)) throw new FrameError('tasks', data)
+  for (const t of frame.tasks) {
+    if (!isRecord(t) || typeof t.id !== 'string' || typeof t.name !== 'string' || typeof t.description !== 'string' ||
+      typeof t.task_type !== 'string' || !['running', 'completed', 'failed', 'stopped'].includes(t.state as string) ||
+      typeof t.started_at !== 'number' || !(t.ended_at === null || typeof t.ended_at === 'number') ||
+      !(t.summary === null || typeof t.summary === 'string') || typeof t.can_stop !== 'boolean') throw new FrameError('tasks', data)
+  }
+  return frame.tasks as BackgroundTask[]
+}

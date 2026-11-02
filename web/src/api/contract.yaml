@@ -801,3 +801,5 @@ transport_boundary:
   callers: "Features import domain entries under api/*; public_entry refuses imports under api/transport/ (fixture: rejects a feature import of the API transport)"
   error_import: "error.ts re-exports from the transport, so importing ApiError evaluates the transport and freezes DAEMON_URL; a start-up entry may import it only as a type"
   startup: "startup_api rejects static transport reachability from main.tsx and the desktop startup entries"
+
+background_task_stop: "sessions.ts stopTask posts the selected task stop request; the stream supplies the resulting state."

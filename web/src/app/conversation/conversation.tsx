@@ -1,5 +1,5 @@
 // One job: the open conversation's pane — header, messages, composer, and
-// the plan or subagent shown beside them.
+// the plan, subagent or background tasks shown beside them.
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
@@ -19,6 +19,7 @@ import { ErrorLine } from '../error-line'
 import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { AgentBoard } from './agent-board'
+import { BackgroundTasks } from './background-tasks'
 import { Composer } from './composer'
 import { ContextRing } from './context-ring'
 import { DeletedConversation } from './deleted-conversation'
@@ -86,11 +87,13 @@ function Conversation({
   const [side, setSide] = useState<SideShown | null>(null)
   const [pointed, setPointed] = useState<PointedTask | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
+  const [tasksOpen, setTasksOpen] = useState(false)
   const [view, setView] = useState<'chat' | 'agent'>('chat')
   // Only a live `plan-show` for this tab arrives here (see `useConversation`).
   const showHere = (show: PlanShowFrame) => {
     if (show.place === 'side') {
       setAgent(null)
+      setTasksOpen(false)
       setSide({ workflowId: show.workflowId, taskNumber: show.taskNumber })
     } else if (show.place === 'page') {
       void navigate({
@@ -128,6 +131,7 @@ function Conversation({
       : label
   const openAgent = useCallback((id: string) => {
     setSide(null)
+    setTasksOpen(false)
     setAgent(id)
   }, [])
 
@@ -174,6 +178,9 @@ function Conversation({
                 </button>
               ))}
             </div>
+            {c.stream.tasks.length > 0 && <button type="button" aria-expanded={tasksOpen} onClick={() => { setSide(null); setAgent(null); setTasksOpen(true) }} className="text-xs text-muted-foreground hover:text-foreground">
+              Background tasks: {c.stream.tasks.filter(task => task.state === 'running').length} running
+            </button>}
             <CliPicker
               projectId={projectId}
               threadId={threadId}
@@ -257,6 +264,7 @@ function Conversation({
           onPointed={(done) => setPointed((now) => (now === done ? null : now))}
         />
       </div>
+      {tasksOpen && <BackgroundTasks threadId={threadId} tasks={c.stream.tasks} onClose={() => setTasksOpen(false)} />}
       {side !== null && (
         <PlanSidePanel
           // Another version is another graph, fitted afresh.

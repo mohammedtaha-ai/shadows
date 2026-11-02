@@ -114,6 +114,7 @@ pub(super) struct Sessions {
     pub(super) live: LiveMap,
     pub(super) offers: Arc<Offers>,
     pub(super) commands: Arc<Commands>,
+    pub(super) tasks: Arc<super::tasks::Tasks>,
     pub(super) generations: AtomicU64,
     pub(super) setups: Setups,
 }
@@ -146,6 +147,7 @@ impl Sessions {
             live: Mutex::new(HashMap::new()),
             offers: Arc::new(Offers::new()),
             commands: Arc::new(Commands::new()),
+            tasks: Arc::new(super::tasks::Tasks::new()),
             generations: AtomicU64::new(0),
         });
         let reaper = Arc::downgrade(&sessions);
@@ -183,11 +185,12 @@ impl Sessions {
         Ok(())
     }
 
-    /// Drops what a closed or failed session left: its offer, its `/` list
-    /// and its grant.
+    /// Drops what a closed or failed session left: its offer, its `/` list,
+    /// its background tasks and its grant.
     pub(super) async fn forget(&self, thread: &ThreadId) {
         self.offers.forget(thread);
         self.commands.forget(thread);
+        self.tasks.forget(thread);
         self.setups.forget(thread).await;
     }
 

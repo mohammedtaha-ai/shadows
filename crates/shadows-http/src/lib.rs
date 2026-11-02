@@ -216,6 +216,7 @@ fn routes() -> OpenApiRouter<AppState> {
             harness::answer_permission
         ))
         .routes(routes!(harness::open_session))
+        .routes(routes!(harness::stop_task))
         .routes(routes!(harness::change_model))
         .routes(routes!(harness::change_effort))
         .routes(routes!(harness::change_mode))

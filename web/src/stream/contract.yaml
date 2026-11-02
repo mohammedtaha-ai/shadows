@@ -701,3 +701,5 @@ refresh_policy:
     - preserves project and writer delivery with overlapping sequences, batching replayed archive and unarchive
     - refreshes once per event however many views share a stream, and a late view on a live stream refetches nothing it already watches
     - a conversation joining a live writer stream reads its entries and operations once
+
+background_tasks: "The tasks frame replaces the open session's list, including between turns. A disconnect clears it; the next caught-up is followed by the current nonempty snapshot."

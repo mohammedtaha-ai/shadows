@@ -330,7 +330,7 @@ async fn instructions_equal_to_the_template_are_stored_empty() {
         .unwrap();
     assert_eq!(a.instructions, "");
     let home = w.agents.home_instructions(&a.slug).await.unwrap();
-    assert_eq!(home.as_deref(), Some(template));
+    assert_eq!(home, Some(format!("Your name is Work.\n\n{template}")));
 
     w.storage.close().await.unwrap();
 }
@@ -459,5 +459,39 @@ async fn an_unreadable_home_file_stays_unimported() {
     std::fs::write(&path, "a\0b").unwrap();
     assert_eq!(w.agents.import_home_instructions().await.unwrap(), ["work"]);
 
+    w.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn home_instructions_open_with_the_name_and_role() {
+    let w = seeded().await;
+    w.agents
+        .create_agent(
+            "c".into(),
+            profile(serde_json::json!({
+                "description": "Finds sources", "instructions": "Check carefully."
+            })),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        w.agents.home_instructions("work").await.unwrap().unwrap(),
+        "Your name is Work.\nYour role: Finds sources.\n\nCheck carefully."
+    );
+    w.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_empty_description_writes_no_role_line() {
+    let w = seeded().await;
+    w.agents
+        .create_agent("c".into(), agent("Work"))
+        .await
+        .unwrap();
+    let text = w.agents.home_instructions("work").await.unwrap().unwrap();
+    assert_eq!(
+        text,
+        format!("Your name is Work.\n\n{}", w.agents.instructions_template())
+    );
     w.storage.close().await.unwrap();
 }

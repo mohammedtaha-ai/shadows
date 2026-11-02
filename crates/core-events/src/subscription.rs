@@ -31,7 +31,7 @@ use tokio::sync::{broadcast, watch};
 
 use super::store::EventsStore;
 use super::{EventCursor, StoredEvent};
-use core_harness::Harness;
+use core_harness::{BackgroundTask, Harness};
 use core_operations::OperationId;
 use core_plans::UiSignal;
 use core_projects::ProjectId;
@@ -44,6 +44,12 @@ const BATCH: i64 = 500;
 /// One frame of a thread's stream, in the order the subscriber must see it.
 #[derive(Debug)]
 pub enum Delivery {
+    /// The open session's background tasks, whole, after `caught-up` when
+    /// not empty and after each change. Transient.
+    Tasks {
+        op: Option<OperationId>,
+        tasks: Vec<BackgroundTask>,
+    },
     /// One journal event, once each, in `seq` order.
     Durable(StoredEvent),
     /// The replay is over; `seq` is the last one it delivered.
@@ -134,6 +140,12 @@ pub struct Subscription {
     /// `caught-up` was just sent on a thread stream: the running turn's open
     /// calls and task list follow, before the `/` list.
     activity_due: bool,
+    /// `caught-up` was just sent on a thread stream: the session's task list
+    /// follows when it is not empty, before the running turn's activity.
+    tasks_due: bool,
+    tasks: broadcast::Receiver<(ThreadId, u64, Vec<BackgroundTask>)>,
+    /// The revision of the list last sent; a queued older change is skipped.
+    task_revision: u64,
     /// Activity frames read and not yet delivered.
     activity: VecDeque<Delivery>,
     /// Why the stream is over, once it is.
@@ -149,6 +161,7 @@ impl Subscription {
         turns: Option<Turns>,
         live: Live,
     ) -> Self {
+        let tasks = harness.watch_tasks();
         Self {
             scope,
             store,
@@ -161,6 +174,9 @@ impl Subscription {
             caught_up: false,
             commands_due: false,
             activity_due: false,
+            tasks_due: false,
+            tasks,
+            task_revision: 0,
             activity: VecDeque::new(),
             over: None,
         }
@@ -194,9 +210,24 @@ impl Subscription {
                     self.caught_up = true;
                     self.commands_due = matches!(self.scope, Scope::Thread(_));
                     self.activity_due = self.commands_due;
+                    self.tasks_due = self.commands_due;
                     return Ok(Delivery::CaughtUp { seq: self.last_seq });
                 }
                 continue;
+            }
+            if self.tasks_due {
+                self.tasks_due = false;
+                if let Scope::Thread(thread) = &self.scope {
+                    let (revision, tasks) = self.harness.task_snapshot(thread);
+                    self.task_revision = revision;
+                    if !tasks.is_empty() {
+                        let op = match &self.turns {
+                            Some(turns) => turns.live_activity(thread).await.map(|a| a.op),
+                            None => None,
+                        };
+                        return Ok(Delivery::Tasks { op, tasks });
+                    }
+                }
             }
             if self.activity_due {
                 self.activity_due = false;
@@ -289,6 +320,7 @@ impl Subscription {
             received = self.live.bus.recv() => Woke::Bus(received),
             offered = self.live.options.recv() => Woke::Options(offered),
             listed = self.live.commands.recv() => Woke::Commands(listed),
+            tasks = self.tasks.recv() => Woke::Tasks(tasks),
             signal = self.live.signals.recv() => Woke::Signal(signal),
         };
         match woke {
@@ -334,19 +366,38 @@ impl Subscription {
             {
                 Some(Ok(Delivery::Commands { thread, commands }))
             }
+            Woke::Tasks(Ok((thread, revision, tasks)))
+                if matches!(
+                    &self.scope,
+                    Scope::Thread(own) if own == &thread
+                ) =>
+            {
+                if revision <= self.task_revision {
+                    return None;
+                }
+                self.task_revision = revision;
+                let op = match &self.turns {
+                    Some(turns) => turns.live_activity(&thread).await.map(|a| a.op),
+                    None => None,
+                };
+                Some(Ok(Delivery::Tasks { op, tasks }))
+            }
             Woke::Bus(Ok(_))
             | Woke::Options(Ok(_))
             | Woke::Commands(Ok(_))
+            | Woke::Tasks(Ok(_))
             | Woke::Signal(Ok(_)) => None,
             // Spec A subscriber falling behind or disconnecting
             // never cancels work. It resubscribes with its last seq.
             Woke::Bus(Err(RecvError::Lagged(_)))
             | Woke::Options(Err(RecvError::Lagged(_)))
             | Woke::Commands(Err(RecvError::Lagged(_)))
+            | Woke::Tasks(Err(RecvError::Lagged(_)))
             | Woke::Signal(Err(RecvError::Lagged(_))) => Some(Ok(Delivery::Lagged)),
             Woke::Bus(Err(RecvError::Closed)) => Some(self.end("shutdown: bus closed")),
             Woke::Options(Err(RecvError::Closed)) => Some(self.end("shutdown: options closed")),
             Woke::Commands(Err(RecvError::Closed)) => Some(self.end("shutdown: commands closed")),
+            Woke::Tasks(Err(RecvError::Closed)) => Some(self.end("shutdown: tasks closed")),
             Woke::Signal(Err(RecvError::Closed)) => Some(self.end("shutdown: signals closed")),
         }
     }
@@ -395,5 +446,6 @@ enum Woke {
     Bus(Result<(ThreadId, OperationId, HarnessEvent), RecvError>),
     Options(Result<(ThreadId, Offered), RecvError>),
     Commands(Result<(ThreadId, Vec<SlashCommand>), RecvError>),
+    Tasks(Result<(ThreadId, u64, Vec<BackgroundTask>), RecvError>),
     Signal(Result<UiSignal, RecvError>),
 }

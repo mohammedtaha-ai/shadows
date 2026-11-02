@@ -27,9 +27,9 @@ async function open(slug = 'new', instructions = '', extra = {}) {
   return app
 }
 
-it('a new agent is prefilled from the template and saves outfit and description', async () => {
+it('a new agent starts empty and saves outfit and description', async () => {
   const a = await open()
-  await until(() => field('Agent instructions').value === 'Bundled instructions')
+  expect(field('Agent instructions').value).toBe('')
   typeInto(field('Agent name'), 'New agent')
   typeInto(field('Agent description'), 'Answers questions')
   act(() => document.querySelector<HTMLInputElement>('input[aria-label="Moon"]')!.click())
@@ -39,9 +39,9 @@ it('a new agent is prefilled from the template and saves outfit and description'
   expect(a.bodies.at(-1)).not.toHaveProperty('instructions')
 })
 
-it.each(['Saved instructions', ''])('an existing agent shows its instructions or the template: %s', async text => {
+it.each(['Saved instructions', ''])('an existing agent shows its stored instructions: %s', async text => {
   await open('work', text)
-  await until(() => field('Agent instructions').value === (text || 'Bundled instructions'))
+  await until(() => field('Agent instructions').value === text)
   expect(field('Agent description').value).toBe('Builds things')
   expect(document.querySelector<HTMLInputElement>('input[aria-label="Crown"]')!.checked).toBe(true)
 })
@@ -79,31 +79,18 @@ it('unsaved identity changes are visible and reverting clears the indicator', as
   expect(a.text()).toContain('Unsaved changes')
 })
 
-it('a delayed template does not overwrite other edits or allow an early save', async () => {
-  let release!: (response: Response) => void
-  const response = new Promise<Response>(resolve => { release = resolve })
-  const a = await open('new', '', { 'GET /api/aylul/agent-template': () => response })
-  typeInto(field('Agent name'), 'My agent')
-  expect(a.button('Create agent')!.disabled).toBe(true)
-  await act(async () => release(Response.json({ instructions: 'Delayed instructions' })))
-  await until(() => field('Agent instructions').value === 'Delayed instructions')
-  expect(field('Agent name').value).toBe('My agent')
+it('does not request the template or block saving', async () => {
+  const a = await open()
+  expect(a.calls).not.toContain('GET /api/aylul/agent-template')
   expect(a.button('Create agent')!.disabled).toBe(false)
-})
-
-it('a template failure is shown and cannot silently create an uninitialized agent', async () => {
-  const a = await open('new', '', {
-    'GET /api/aylul/agent-template': () => Response.json({ code: 'AYLUL_UNAVAILABLE', message: 'Template is unavailable.' }, { status: 503 }),
-  })
-  await until(() => a.text().includes('Template is unavailable.'))
-  expect(a.button('Create agent')!.disabled).toBe(true)
+  expect(field('Agent instructions').getAttribute('placeholder')).toContain('style')
+  expect(field('Agent description').getAttribute('placeholder')).toBe('Main role in one line, e.g. English teacher')
 })
 
 it('the form follows the design order and displays Core profile errors', async () => {
   const a = await open('work', '', {
     'PUT /api/aylul/agents/work': () => Response.json({ code: 'PROFILE_INVALID', message: 'Description is too long.' }, { status: 400 }),
   })
-  await until(() => field('Agent instructions').value === 'Bundled instructions')
   const controls = [...document.querySelector('form')!.querySelectorAll('[aria-label]')]
     .map(node => node.getAttribute('aria-label'))
   const order = ['Outfit', 'Character colour', 'Agent name', 'Agent description', 'Provider', 'Default model', 'Agent instructions']

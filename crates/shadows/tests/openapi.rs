@@ -211,6 +211,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/queue/{qid}/send-now",
             "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/session/permissions/{request_id}",
+            "POST /api/threads/{id}/session/tasks/{task_id}/stop",
             "POST /api/threads/{id}/turns",
             "POST /api/workflows/{id}/approve",
             "POST /api/workflows/{id}/bindings",

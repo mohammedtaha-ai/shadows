@@ -198,6 +198,10 @@ turn's tool call, whole, after each change; `status` is `pending`, `in_progress`
 ends. After `caught-up`, each call still open is sent again. Transient.\n\
 - `todos` — `{op, entries}`: a running turn's task list, whole, after each update, each \
 entry `{content, status}`. After `caught-up` the turn's list is sent again. Transient.\n\
+- `tasks` — `{op, tasks}`: the open session's background tasks, in start order. \
+`op` is the active turn or null. Sent after `caught-up` when nonempty and on changes. \
+Each task carries `{id, name, description, task_type, state, started_at, ended_at, \
+summary, can_stop}`. Times are Unix milliseconds. Transient.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
 - `usage` — `{thread_id, context_used, context_window, limits}`: the session's \
 context use and the account's limits as the harness last reported them; each is \
@@ -289,6 +293,10 @@ fn frame(delivery: Delivery) -> Event {
         Delivery::Options { thread, choices } => Event::default()
             .event("options")
             .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
+        // The open session's background tasks, whole.
+        Delivery::Tasks { op, tasks } => Event::default()
+            .event("tasks")
+            .data(serde_json::json!({ "op": op, "tasks": tasks }).to_string()),
         // The harness's `/` list.
         Delivery::Commands { thread, commands } => Event::default()
             .event("commands")

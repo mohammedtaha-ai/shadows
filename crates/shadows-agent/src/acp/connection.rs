@@ -11,7 +11,7 @@ use agent_client_protocol::schema::{
         SessionNotification, SessionUpdate,
     },
 };
-use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo};
+use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo, UntypedMessage};
 use serde_json::Value;
 use shadows_process::{ChildErr, ProcessHandle};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -43,15 +43,8 @@ impl Connection {
             let _ = Client
                 .builder()
                 .on_receive_notification(
-                    async move |n: SessionNotification, _cx| {
-                        if let SessionUpdate::UsageUpdate(u) = &n.update {
-                            let value = serde_json::to_value(&u.cost).unwrap_or(Value::Null);
-                            dispatch_costs.record(
-                                &n.session_id.to_string(),
-                                serde_json::from_value(value).ok(),
-                            );
-                        }
-                        Mapping::forward(&notify, n.update);
+                    async move |raw: UntypedMessage, _cx| {
+                        dispatch_notification(&notify, &dispatch_costs, raw);
                         Ok(())
                     },
                     agent_client_protocol::on_receive_notification!(),
@@ -123,6 +116,33 @@ impl Connection {
     }
 }
 
+/// Reads every notification untyped, because ACP's typed `SessionUpdate`
+/// refuses the adapter's `async_task_*` kinds: an update that does not decode
+/// typed goes to `Mapping::forward_raw`, so one unknown kind drops only itself.
+pub(super) fn dispatch_notification(
+    notify: &impl Fn(HarnessEvent),
+    costs: &crate::usage::Costs,
+    raw: UntypedMessage,
+) {
+    if raw.method != "session/update" {
+        return;
+    }
+    let Ok(n) = serde_json::from_value::<SessionNotification>(raw.params.clone()) else {
+        if let Some(update) = raw.params.get("update") {
+            Mapping::forward_raw(notify, update.clone());
+        }
+        return;
+    };
+    if let SessionUpdate::UsageUpdate(u) = &n.update {
+        let value = serde_json::to_value(&u.cost).unwrap_or(Value::Null);
+        costs.record(
+            &n.session_id.to_string(),
+            serde_json::from_value(value).ok(),
+        );
+    }
+    Mapping::forward(notify, n.update);
+}
+
 impl AcpError {
     pub(super) fn from_rpc(error: agent_client_protocol::Error) -> AcpError {
         if agent_client_protocol::is_incoming_transport_closed(&error) {
@@ -154,10 +174,11 @@ fn forward_stderr(stderr: ChildErr) {
 
 /// The client capabilities `initialize` advertises: the Claude adapter's
 /// `recommendedValue` extension, under which it offers no effort or model
-/// `default` and starts each model's effort at a level it reports.
-fn capabilities() -> ClientCapabilities {
+/// `default` and starts each model's effort at a level it reports, and
+/// `asyncTasks`, under which it reports background tasks and stops one on request.
+pub(super) fn capabilities() -> ClientCapabilities {
     let air = serde_json::json!({
-        "jetbrains": { "air": { "version": 1, "capabilities": ["recommendedValue"] } }
+        "jetbrains": { "air": { "version": 1, "capabilities": ["recommendedValue", "asyncTasks"] } }
     });
     let mut caps = ClientCapabilities::default();
     caps.meta = air.as_object().cloned();
