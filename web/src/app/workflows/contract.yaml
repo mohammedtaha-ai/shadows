@@ -347,6 +347,18 @@ obligations:
       closes with its Close button.
     tested_by: none
 
+  - rule: >
+      A column holding one task alternates above and below the line (placeGraph's
+      stagger); the start and any column of two or more do not move. Boxes never
+      overlap and an edge's ends stay within its boxes.
+    tested_by: the staggered columns (layout.test.ts)
+
+  - rule: >
+      The plan's progress block and the inspect panel's acceptance bar sit inside
+      Planned: PlanTask has no status and acceptance ticks are not saved, so they
+      show the real task count and an empty bar, never a percent or a client-side guess.
+    tested_by: marks the progress block planned with the real task count and no percent
+
 
 # ── agreements ───────────────────────────────────────────────────────────────
 

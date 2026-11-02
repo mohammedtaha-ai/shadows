@@ -105,7 +105,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/components/ui/planned.test.tsx` passes (it shows the badge and the reason; a button inside cannot be focused or clicked; the region has an accessible name), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass.
 
 ### F-71 · Conversation cards and entries
-- Status: todo
+- Status: done (75 Done-when tests, codemap and architecture passed)
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-71)
 - Read: `web/src/app/conversation/contract.yaml`; the export's files of the same names; evidence Report D "f747f296", Report B item 10 and "Acceptable"
 - Touch: web/src/app/conversation/entry.tsx, web/src/app/conversation/messages.tsx, web/src/app/conversation/plan-card.tsx, web/src/app/conversation/plan-side-panel.tsx, web/src/app/conversation/map-proposal-card.tsx, web/src/app/conversation/roadmap-proposal-card.tsx, web/src/app/conversation/vision-proposal-card.tsx, web/src/app/conversation/status-badge.tsx, web/src/app/conversation/subagent-card.tsx, web/src/app/conversation/subagent-panel.tsx, web/src/app/conversation/todo-card.tsx, web/src/app/conversation/tool-diff.tsx, web/src/app/conversation/tool-group.tsx, web/src/app/conversation/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
@@ -113,7 +113,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/conversation/conversation.test.tsx src/app/conversation/permission-card.test.tsx src/app/conversation/waiting-messages.test.tsx src/app/conversation/todo-card.test.tsx src/app/conversation/tool-group.test.tsx src/app/conversation/tool-diff.test.tsx src/app/conversation/subagent-card.test.tsx src/app/conversation/map-proposal-card.test.tsx src/app/conversation/roadmap-proposal-card.test.tsx src/app/conversation/plan-in-conversation.test.tsx src/stream/refresh.test.tsx` passes, then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
 
 ### F-72 · Composer, draft and context ring
-- Status: todo
+- Status: done (36 tests passed, two new context-ring cases)
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-72)
 - Read: `web/src/app/conversation/contract.yaml` (Composer, ContextRing); the export's files of the same names; evidence Report B item 14
 - Touch: web/src/app/conversation/composer.tsx, web/src/app/conversation/composer-bar.tsx, web/src/app/conversation/draft.tsx, web/src/app/conversation/context-ring.tsx, web/src/app/conversation/context-ring.test.tsx, web/src/app/conversation/contract.yaml, docs/frontend/stages.md
@@ -121,7 +121,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/conversation/composer-bar.test.tsx src/app/conversation/composer-focus.test.tsx src/app/conversation/draft.test.tsx src/app/conversation/context-ring.test.tsx` passes (a new case: the popover shows only the figures Core gave), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
 
 ### F-73 · Sidebar, with its search filter
-- Status: todo
+- Status: done (16 sidebar tests passed, local search filter)
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-73)
 - Read: `web/src/app/sidebar/contract.yaml`; the export's sidebar files; evidence Report B item 12
 - Touch: web/src/app/sidebar/sidebar.tsx, web/src/app/sidebar/agent-list.tsx, web/src/app/sidebar/project-list.tsx, web/src/app/sidebar/thread-list.tsx, web/src/app/sidebar/workspace-switcher.tsx, web/src/app/sidebar/sidebar.test.tsx, web/src/app/sidebar/project-list.test.tsx, web/src/app/sidebar/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
@@ -129,7 +129,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/sidebar/sidebar.test.tsx src/app/sidebar/project-list.test.tsx src/app/sidebar/workflow-list.test.tsx` passes. New cases: the filter narrows projects by name and directory, and agents by name and description; no match shows the empty line; Escape closes the search and clears it. Then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
 
 ### F-74 · Home pages, design header, settings dialog, status lines
-- Status: todo
+- Status: done (129 tests passed, planned blocks without values)
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-74)
 - Read: the export's `app/home.tsx`, `app/agents/home.tsx`, `app/design/workspace-page.tsx`, `app/desktop/activity.tsx`, `app/daemon-status.tsx`, `app/settings/settings-dialog.tsx`; their folders' `contract.yaml`; evidence Report A features 4, 5 and 7, and Report B items 5, 6 and 13
 - Touch: web/src/app/home.tsx, web/src/app/agents/home.tsx, web/src/app/design/workspace-page.tsx, web/src/app/desktop/activity.tsx, web/src/app/daemon-status.tsx, web/src/app/settings/settings-dialog.tsx, web/src/app/settings/sections/plugins.tsx, web/src/app/settings/extension-list.tsx, web/src/app/settings/mcp-form.tsx, web/src/app/agents/aylul.test.tsx, web/src/app/agents/contract.yaml, web/src/app/settings/contract.yaml, web/src/app/design/contract.yaml, web/src/app/desktop/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md
@@ -137,7 +137,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/agents/aylul.test.tsx src/app/settings/settings-dialog.test.tsx src/app/settings/plugins.test.tsx src/app/settings/mcp-form.test.tsx src/app/desktop/native-sections.test.tsx` passes (a new case: the agents home lists each agent with its provider and model; the planned blocks are marked and inert), then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. Screenshots compared.
 
 ### F-75 · Plan map: staggered columns, nodes, edges, page, inspect panel
-- Status: todo
+- Status: done (38 workflow tests passed, staggered layout)
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-75)
 - Read: `web/src/app/workflows/contract.yaml` (the "box dagre spaced" trap); the export's `layout.ts`, `task-node.tsx`, `plan-edge.tsx`, `plan-page.tsx`, `inspect-panel.tsx`; evidence Report A features 1 and 2, Report B items 2, 3, 7 and 11, and "Masada's own view"
 - Touch: web/src/app/workflows/layout.ts, web/src/app/workflows/layout.test.ts, web/src/app/workflows/task-node.tsx, web/src/app/workflows/plan-edge.tsx, web/src/app/workflows/plan-page.tsx, web/src/app/workflows/plan-page.test.tsx, web/src/app/workflows/inspect-panel.tsx, web/src/app/workflows/contract.yaml, docs/frontend/stages.md

@@ -244,6 +244,19 @@ describe('the plan page', () => {
     expect(a.text()).toContain('the users table')
   })
 
+  it('marks the progress block planned with the real task count and no percent', async () => {
+    const plan = planFixture({ tasks: [planTask(1, 'Schema'), planTask(2, 'API'), planTask(3, 'Screen')] })
+    const a = (app = await startApp(PAGE, answers({ plan })))
+    await until(() => a.text().includes('Plan progress'))
+
+    const block = document.querySelector('section[aria-label="Plan progress (planned)"]')
+    expect(block?.textContent).toContain('Planned')
+    expect(block?.textContent).toContain('3 tasks')
+    expect(block?.textContent).toContain('task status')
+    expect(block?.textContent).not.toContain('%')
+    expect(document.querySelector('[role="progressbar"]')).toBeNull()
+  })
+
   it('an Arabic task title renders with dir auto', async () => {
     const title = 'شاشة تسجيل الدخول'
     const plan = planFixture({ tasks: [planTask(1, 'Schema'), planTask(2, title)] })

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
-import { Archive, ChevronDown, Lock } from 'lucide-react'
+import { Archive, ChevronDown, Layers, Lock } from 'lucide-react'
 import { useState } from 'react'
 import { type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
 import { planVersionsQuery, workflowsKey } from '@/api/workflows'
+import { Planned } from '@/components/ui/planned'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -45,11 +46,11 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
   const task = p.tasks.find((t) => t.number === inspected)
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col bg-background">
       <Header plan={p} projectId={projectId} />
       {p.plan_state === 'Archived' ? (
-        <p className="flex items-center gap-2 border-b border-border/80 bg-accent-softer/80 px-6 py-2 text-xs text-secondary-foreground">
-          <Archive className="size-3.5 text-muted-foreground" aria-hidden />
+        <p className="flex items-center gap-2 border-b border-accent-line/15 bg-accent-line/10 px-6 py-2 text-xs text-secondary-foreground">
+          <Archive className="size-3.5 text-accent-line" aria-hidden />
           Archived · read only
         </p>
       ) : p.state === 'Frozen' ? (
@@ -115,17 +116,21 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
   const error = archive.error ?? unarchive.error
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
+    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-accent-line/15 bg-background/85 px-6 py-3 backdrop-blur-xl">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent-line/35 bg-accent-line/15">
+          <Layers aria-hidden className="size-4 text-accent-line" />
+        </div>
       <div className="min-w-0 space-y-1">
         <div className="flex items-center gap-2">
-          <h1 dir="auto" className="truncate text-sm font-medium">
+          <h1 dir="auto" className="truncate text-sm font-semibold">
             {plan.title}
           </h1>
           <span
-            className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors ${
+            className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
               plan.state === 'Frozen'
-                ? 'bg-secondary text-secondary-foreground shadow-2xs'
-                : 'border border-border/80 bg-card/40 text-muted-foreground'
+                ? 'border border-success/30 bg-success/10 text-success'
+                : 'border border-accent-line/25 bg-accent-line/10 text-accent-line'
             }`}
           >
             {stateLabel(plan)}
@@ -139,6 +144,23 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
         />
         {error !== null && <ErrorLine error={error} />}
       </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <Planned
+          title="Plan progress"
+          reason="Waits for the shared request: task status on a plan task."
+          className="min-w-52"
+        >
+          <p className="text-xs tabular-nums">{plan.tasks.length} {plan.tasks.length === 1 ? 'task' : 'tasks'} · — done</p>
+          <div className="h-1.5 w-full rounded-full bg-muted ring-1 ring-accent-line/20" />
+          <div className="flex flex-wrap gap-1">
+            {plan.tasks.map((t) => (
+              <button key={t.id} type="button" disabled className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px]">
+                T{t.number}
+              </button>
+            ))}
+          </div>
+        </Planned>
       <div className="flex items-center gap-2">
         <nav aria-label="Versions" className="flex items-center gap-1 text-xs">
           <DropdownMenu>
@@ -186,6 +208,7 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
         >
           {isArchived ? 'Unarchive' : 'Archive'}
         </Button>
+      </div>
       </div>
     </header>
   )
