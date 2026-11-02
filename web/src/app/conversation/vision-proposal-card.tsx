@@ -26,10 +26,10 @@ export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; p
   if (snapshot === null) return <p dir="auto">{entry.body}</p>
   const label = {purpose:'purpose',users:'user',goals:'goal',boundaries:'boundary',technical_direction:'technical direction'}[snapshot.field]
   const action = { add: 'Add', edit: 'Edit', remove: 'Remove' }[snapshot.action]
-  return <article data-vision-proposal={snapshot.id} className="rounded-lg border bg-card p-4 space-y-3">
-    <h3 className="text-sm font-medium">{action} {label}{snapshot.item_id ? ` · ${snapshot.item_id}` : ''}</h3>
-    {snapshot.action === 'edit' && <del dir="auto" className="block whitespace-pre-wrap text-muted-foreground">{snapshot.old_text}</del>}
-    <p dir="auto" className="whitespace-pre-wrap">{snapshot.action === 'remove' ? snapshot.old_text : snapshot.text}</p>
+  return <article data-vision-proposal={snapshot.id} className="surface-panel rounded-2xl p-4 space-y-3">
+    <h3 className="text-sm font-semibold text-foreground">{action} {label}{snapshot.item_id ? ` · ${snapshot.item_id}` : ''}</h3>
+    {snapshot.action === 'edit' && <del dir="auto" className="block rounded-lg bg-destructive/10 px-2.5 py-1.5 whitespace-pre-wrap text-muted-foreground">{snapshot.old_text}</del>}
+    <p dir="auto" className="whitespace-pre-wrap text-sm text-foreground">{snapshot.action === 'remove' ? snapshot.old_text : snapshot.text}</p>
     <ProposalApproval approval={approval} buttonLabel="Approve" textClass="text-xs text-muted-foreground" />
   </article>
 }

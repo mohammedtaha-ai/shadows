@@ -2,7 +2,7 @@
 // steps; a lone call is drawn as its own line.
 
 import { useLocation } from '@tanstack/react-router'
-import { Ban, ChevronRight, LoaderCircle, X } from 'lucide-react'
+import { Ban, CheckCircle2, ChevronRight, LoaderCircle, Terminal, X } from 'lucide-react'
 import { memo, useEffect, useState } from 'react'
 import type { ToolStep } from './activity-rows'
 import { groupSummary, stepLine } from './activity-text'
@@ -54,10 +54,10 @@ function ErrorText({ text, indent }: { text: string; indent: string }) {
   const long = text.split('\n').length > CLAMPED_LINES || text.length > CLAMPED_CHARS
   const [all, setAll] = useState(false)
   return (
-    <div className={indent}>
+    <div className={`mt-1.5 ${indent}`}>
       <pre
         dir="auto"
-        className={`font-mono text-xs break-words whitespace-pre-wrap text-destructive ${long && !all ? 'line-clamp-6' : ''}`}
+        className={`rounded-lg border border-destructive-border/60 bg-destructive/10 px-3 py-2 font-mono text-xs break-words whitespace-pre-wrap text-destructive-foreground ${long && !all ? 'line-clamp-6' : ''}`}
       >
         {text}
       </pre>
@@ -65,7 +65,7 @@ function ErrorText({ text, indent }: { text: string; indent: string }) {
         <button
           type="button"
           onClick={() => setAll(!all)}
-          className="text-xs text-muted-foreground underline"
+          className="mt-1 text-xs font-medium text-accent-line underline underline-offset-2"
         >
           {all ? 'Show less' : 'Show all'}
         </button>
@@ -79,7 +79,7 @@ function StatusMark({ step }: { step: ToolStep }) {
     return (
       <LoaderCircle
         aria-label="Running"
-        className="mt-px size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+        className="mt-px size-3.5 shrink-0 animate-spin text-accent-line motion-reduce:animate-none"
       />
     )
   }
@@ -87,9 +87,9 @@ function StatusMark({ step }: { step: ToolStep }) {
     return <X aria-label="Failed" className="mt-px size-3.5 shrink-0 text-destructive" />
   }
   if (step.status === 'stopped') {
-    return <Ban aria-label="Stopped" className="mt-px size-3.5 shrink-0" />
+    return <Ban aria-label="Stopped" className="mt-px size-3.5 shrink-0 text-faint-foreground" />
   }
-  return <span aria-hidden className="size-3.5 shrink-0" />
+  return <CheckCircle2 aria-hidden className="mt-px size-3.5 shrink-0 text-success/90" />
 }
 
 function StepLine({
@@ -107,8 +107,14 @@ function StepLine({
   const drawable =
     step.kind === 'edit' &&
     ((step.diff?.length ?? 0) > 0 || step.added !== null || step.removed !== null)
+  const isBusy = running(step)
   return (
-    <div id={step.ordinal === null || number === null ? undefined : `entry-${step.ordinal}`}>
+    <div
+      id={step.ordinal === null || number === null ? undefined : `entry-${step.ordinal}`}
+      className={`rounded-lg px-2 py-1 transition-colors ${
+        isBusy ? 'border border-accent-line/35 bg-accent/15' : 'hover:bg-muted/40'
+      }`}
+    >
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         {/* Every numbered step keeps the chevron's column, so the numbers line up. */}
         {!drawable && number !== null && <span aria-hidden className="size-3.5 shrink-0" />}
@@ -118,19 +124,33 @@ function StepLine({
             aria-expanded={shown}
             aria-label="Show diff"
             onClick={() => setShown(!shown)}
-            className="shrink-0 hover:text-foreground"
+            className="shrink-0 rounded text-accent-line transition-colors hover:bg-accent/25 hover:text-foreground"
           >
             <ChevronRight className={`size-3.5 transition-transform ${shown ? 'rotate-90' : ''}`} />
           </button>
         )}
-        {number !== null && <span className="w-4 shrink-0 text-end tabular-nums">{number}.</span>}
+        {number !== null && (
+          <span className="w-4 shrink-0 font-mono text-end text-faint-foreground tabular-nums">
+            {number}.
+          </span>
+        )}
         <StatusMark step={step} />
-        <span dir="auto" className="min-w-0 break-words">
+        <span dir="auto" className="min-w-0 break-words text-foreground/90">
           {line.text}
-          {line.counts !== null && <span className="ms-1.5 tabular-nums">{line.counts}</span>}
-          {step.status === 'failed' && <span className="ms-1.5 text-destructive">failed</span>}
+          {line.counts !== null && (
+            <span className="ms-2 rounded-md border border-accent-line/30 bg-accent-softer/90 px-1.5 py-0.5 font-mono text-[11px] font-medium text-accent-line tabular-nums">
+              {line.counts}
+            </span>
+          )}
+          {step.status === 'failed' && (
+            <span className="ms-1.5 font-medium text-destructive">failed</span>
+          )}
         </span>
-        {time !== null && <span className="ms-auto shrink-0 tabular-nums">{time}</span>}
+        {time !== null && (
+          <span className="ms-auto shrink-0 font-mono text-[11px] text-faint-foreground tabular-nums">
+            {time}
+          </span>
+        )}
       </p>
       {step.status === 'failed' && step.error !== null && step.error !== '' && (
         <ErrorText
@@ -193,30 +213,43 @@ export const ToolGroup = memo(function ToolGroup({
   return (
     <>
       {only !== undefined ? (
-        <div id={only.ordinal === null ? undefined : `entry-${only.ordinal}`}>
+        <div
+          id={only.ordinal === null ? undefined : `entry-${only.ordinal}`}
+          className="surface-panel rounded-xl px-3 py-2"
+        >
           <StepLine step={{ ...only, ordinal: null }} number={null} now={now} />
         </div>
       ) : (
-        <div>
+        <div className="surface-panel rounded-xl p-3">
           <button
             type="button"
             aria-expanded={open}
             onClick={() => setChosen(!open)}
-            className="flex w-full items-center gap-2 text-start text-xs text-muted-foreground hover:text-foreground"
+            className="flex w-full items-center gap-2.5 text-start text-xs font-medium text-secondary-foreground transition-colors hover:text-foreground"
           >
-            <ChevronRight className={`size-3.5 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
-            {busy && (
+            <ChevronRight
+              className={`size-4 shrink-0 text-accent-line transition-transform duration-150 ${open ? 'rotate-90' : ''}`}
+            />
+            {busy ? (
               <LoaderCircle
                 aria-label="Running"
-                className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+                className="size-3.5 shrink-0 animate-spin text-accent-line motion-reduce:animate-none"
               />
+            ) : (
+              <Terminal aria-hidden className="size-3.5 shrink-0 text-accent-line/85" />
             )}
-            <span dir="auto">{groupSummary(steps)}</span>
-            {failed > 0 && <span className="text-destructive">· {failed} failed</span>}
-            {time !== null && <span className="ms-auto tabular-nums">{time}</span>}
+            <span dir="auto" className="font-medium text-foreground">
+              {groupSummary(steps)}
+            </span>
+            {failed > 0 && <span className="font-medium text-destructive">· {failed} failed</span>}
+            {time !== null && (
+              <span className="ms-auto rounded-full border border-border/70 bg-background/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground tabular-nums">
+                {time}
+              </span>
+            )}
           </button>
           {open && (
-            <ol className="mt-1.5 space-y-1.5">
+            <ol className="mt-2.5 space-y-1 border-t border-border/60 pt-2.5">
               {steps.map((step, index) => (
                 <li key={step.key}>
                   <StepLine step={step} number={index + 1} now={now} />

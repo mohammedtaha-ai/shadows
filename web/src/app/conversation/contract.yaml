@@ -283,7 +283,8 @@ components:
     # chose; a link to a member's ordinal opens it. A failed step's `error` shows under its
     # line, clamped to six lines with Show all. Copy takes each step's line. An edit step with a diff
     # (or counts without one) has its own chevron that opens `ToolDiff`; every numbered step keeps
-    # that chevron's column, so the numbers line up.
+    # that chevron's column, so the numbers line up. A step that ended well shows a check where a
+    # running one shows a spinner.
   ToolDiff:
     signature: "(props: { diff: readonly DiffHunk[] | null }) => JSX.Element"
     # Lines with old and new numbers (none when a hunk has no start), added on green and removed on
@@ -291,8 +292,9 @@ components:
     # reads 'Diff too long to show'.
   TodoCard:
     signature: "(props: { items: readonly TodoItem[] }) => JSX.Element"
-    # Heading 'Tasks · D of N done'; a check for completed (text muted), a spinner for in progress, an
-    # empty circle for pending. `Messages` draws the stream's live `todos` of an operation after the
+    # Heading 'Tasks · D of N done'; a check for completed (text muted and struck through), a spinner
+    # for in progress, an empty circle for pending, and a bar with the percent of completed items
+    # (counted from the items, nothing else). `Messages` draws the stream's live `todos` of an operation after the
     # reply until the entries hold a `TodoList` entry of that operation, which `Entry` draws instead
     # (never both); an unreadable card shows its body.
   ReplyText:
@@ -334,7 +336,7 @@ components:
     # Shown on hover and focus. Fork exists only where `forkPoint` was given.
   ContextRing:
     signature: "(props: { usage: ContextFigures | null; limits: Limits | null }) => JSX.Element"
-    # Opens at once from the figures held and makes no daemon request; one muted line points to the /context slash command.
+    # Opens at once from the figures held and makes no daemon request; the context line gets a usage bar only when Core gave figures; one muted line points to the /context slash command.
   DeletedConversation:
     signature: "(props: { thread: PlanningThread; projectId: string }) => JSX.Element"
     # Read-only history; never opens a session, so it holds no live frames and passes empty

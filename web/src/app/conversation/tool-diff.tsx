@@ -5,9 +5,9 @@ import type { DiffHunk } from '@/api/threads'
 
 const MARKS = { add: '+', remove: '−', context: ' ' } as const
 const TINTS = {
-  add: 'bg-green-500/15',
-  remove: 'bg-red-500/15',
-  context: '',
+  add: 'bg-success/15 text-foreground',
+  remove: 'bg-destructive/15 text-foreground',
+  context: 'text-foreground/85',
 } as const
 
 /** The numbers a hunk's lines carry: `null` where the hunk has no start. */
@@ -29,18 +29,24 @@ export function ToolDiff({ diff }: { diff: readonly DiffHunk[] | null }) {
     return <p className="ps-6 text-xs text-muted-foreground">Diff too long to show</p>
   }
   return (
-    <div dir="ltr" className="ms-6 overflow-x-auto rounded border border-border font-mono text-xs">
+    <div
+      dir="ltr"
+      className="ms-6 mt-1.5 overflow-x-auto rounded-xl border border-accent-line/25 bg-background py-1 font-mono text-xs"
+    >
       {diff.map((hunk, index) => {
         const before = diff[index - 1]
         return (
           <Fragment key={index}>
             {before !== undefined && before.path === hunk.path && (
-              <div aria-label="Gap" className="px-2 text-muted-foreground">
+              <div
+                aria-label="Gap"
+                className="border-y border-border/40 bg-accent-softer/40 px-3 py-0.5 text-center text-muted-foreground"
+              >
                 ⋯
               </div>
             )}
             {before !== undefined && before.path !== hunk.path && (
-              <div className="border-t border-border px-2 py-0.5 text-muted-foreground">
+              <div className="border-y border-border/70 bg-accent-softer px-3 py-1 font-semibold text-accent-line">
                 {hunk.path}
               </div>
             )}
@@ -48,19 +54,19 @@ export function ToolDiff({ diff }: { diff: readonly DiffHunk[] | null }) {
               <div
                 key={at}
                 data-diff={line.op}
-                className={`flex whitespace-pre ${TINTS[line.op]}`}
+                className={`flex whitespace-pre px-1.5 py-0.5 ${TINTS[line.op]}`}
               >
                 {(hunk.old_start != null || hunk.new_start != null) && (
                   <>
-                    <span className="w-9 shrink-0 pe-1 text-end text-muted-foreground tabular-nums select-none">
+                    <span className="w-9 shrink-0 pe-1.5 text-end text-faint-foreground tabular-nums select-none">
                       {old}
                     </span>
-                    <span className="w-9 shrink-0 pe-1 text-end text-muted-foreground tabular-nums select-none">
+                    <span className="w-9 shrink-0 pe-1.5 text-end text-faint-foreground tabular-nums select-none">
                       {next}
                     </span>
                   </>
                 )}
-                <span aria-hidden className="w-4 shrink-0 text-center select-none">
+                <span aria-hidden className="w-5 shrink-0 text-center font-bold select-none">
                   {MARKS[line.op]}
                 </span>
                 <span>{line.text}</span>

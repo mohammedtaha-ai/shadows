@@ -27,9 +27,9 @@ export function RoadmapProposalCard({entry,projectId}: {entry:ThreadEntry;projec
     proposalsQuery: roadmapProposalsQuery(projectId), approveProposal: approveRoadmapProposal,
   })
   if (!proposed) return <p dir="auto">{entry.body}</p>
-  return <article data-roadmap-proposal={proposed.id} className="space-y-4 rounded-lg border bg-card p-4">
-    <h3 className="font-medium">{titles[proposed.action]}</h3>
-    {proposed.old && <section aria-label="Current outcome" className="rounded border p-3 text-sm">
+  return <article data-roadmap-proposal={proposed.id} className="surface-panel space-y-4 rounded-2xl p-4">
+    <h3 className="font-semibold text-foreground">{titles[proposed.action]}</h3>
+    {proposed.old && <section aria-label="Current outcome" className="rounded-xl border border-accent-line/20 bg-background/70 p-3 text-sm">
       <h4>{proposed.action==='remove' ? 'Outcome to remove' : 'Current outcome'}</h4>
       <OutcomeText content={proposed.old} />
     </section>}
@@ -44,9 +44,9 @@ export function RoadmapProposalCard({entry,projectId}: {entry:ThreadEntry;projec
 
 function OutcomeText({content}: {content:OutcomeContent}) {
   return <>
-    <p dir="auto" className="font-medium">{content.title}</p>
+    <p dir="auto" className="font-medium text-foreground">{content.title}</p>
     <p dir="auto" className="whitespace-pre-wrap">{content.intended_result}</p>
-    {content.acceptance.length>0 && <ul className="list-disc ps-5 text-sm">
+    {content.acceptance.length>0 && <ul className="list-disc ps-5 text-sm text-muted-foreground">
       {content.acceptance.map((a,i) => <li key={i} dir="auto">{a}</li>)}</ul>}
   </>
 }
@@ -65,7 +65,7 @@ function PartTitle({projectId,partId}: {projectId:string;partId:string}) {
 function OutcomeTree({outcomes,projectId,first,parent=null,depth=0}: {
   outcomes:RoadmapProposal['outcomes'];projectId:string;first:boolean;parent?:string | null;depth?:number}) {
   if (depth>outcomes.length) return null
-  return <ul className="space-y-3 border-l pl-3">{outcomes.filter(o => !first || (o.parent_key ?? null)===parent)
+  return <ul className="space-y-3 border-l border-accent-line/25 pl-3">{outcomes.filter(o => !first || (o.parent_key ?? null)===parent)
     .map(o => <li key={o.key} className="space-y-2">
       <OutcomeText content={o.content} />
       <section aria-label="Referenced parts" className="text-sm"><h5>Parts</h5>

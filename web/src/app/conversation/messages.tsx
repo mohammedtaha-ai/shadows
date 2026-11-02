@@ -2,7 +2,7 @@
 // whatever the running turn is saying.
 
 import { AnimatePresence, motion } from 'motion/react'
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle, Sparkles } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
@@ -166,18 +166,23 @@ export function Messages({
       }}
       className="min-h-0 flex-1 overflow-y-auto"
     >
-      <ol className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+      <ol className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-8">
         {loading && (
-          <li className="flex items-center gap-2 text-xs text-faint-foreground">
-            <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />
+          <li className="flex items-center gap-2 rounded-xl border border-accent-line/20 bg-accent/10 px-3.5 py-2 text-xs text-accent-foreground">
+            <LoaderCircle className="size-3.5 animate-spin text-accent-line motion-reduce:animate-none" />
             Loading history
           </li>
         )}
         {!loading && shown.length === 0 && reply === null && !running && (
-          <li className="py-16 text-center text-sm text-faint-foreground">
-            {harness === AYLUL_HARNESS
-              ? 'Ask AYLUL anything.'
-              : 'Ask the Planner something about this project.'}
+          <li className="surface-panel my-12 flex flex-col items-center justify-center gap-3 rounded-2xl px-6 py-14 text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl border border-accent-line/35 bg-accent/15">
+              <Sparkles aria-hidden className="size-5 text-accent-line" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">
+              {harness === AYLUL_HARNESS
+                ? 'Ask AYLUL anything.'
+                : 'Ask the Planner something about this project.'}
+            </p>
           </li>
         )}
         <AnimatePresence initial={false}>
@@ -224,18 +229,18 @@ export function Messages({
             </motion.li>
           ))}
           {thinking && (
-            <motion.li key="waiting" {...appear} className="flex items-center gap-2">
+            <motion.li key="waiting" {...appear} className="inline-flex w-fit items-center gap-2.5 rounded-full border border-accent-line/30 bg-accent/10 px-3.5 py-1.5">
               <span className="size-2 animate-pulse rounded-full bg-accent-line motion-reduce:animate-none" />
-              <span className="text-xs text-faint-foreground">Thinking</span>
+              <span className="text-xs font-medium text-accent-foreground">Thinking</span>
             </motion.li>
           )}
           {running && operational !== null && (
             <motion.li
               key="label"
               {...appear}
-              className="flex items-center gap-2 text-xs text-faint-foreground"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-accent-line/20 bg-card px-3 py-1 text-xs text-accent-foreground"
             >
-              <operational.icon className="size-3.5" />
+              <operational.icon className="size-3.5 text-accent-line" />
               {operational.text}
             </motion.li>
           )}
@@ -260,7 +265,7 @@ function ToolRow({
   forkEntryId?: string
 }) {
   return (
-    <motion.li {...appear} data-entry-kind='tool' className='group space-y-1'>
+    <motion.li {...appear} data-entry-kind='tool' className='group space-y-1.5'>
       <ToolGroup
         steps={row.steps}
         ordinals={row.steps.flatMap((step) => (step.ordinal === null ? [] : [step.ordinal])).join(',')}
@@ -325,7 +330,7 @@ const EntryRow = memo(function EntryRow({
       {...appear}
       initial={handedOver ? false : appear.initial}
       data-entry-kind={entry.kind}
-      className="group space-y-1"
+      className="group space-y-1.5"
     >
       <Entry
         entry={entry}

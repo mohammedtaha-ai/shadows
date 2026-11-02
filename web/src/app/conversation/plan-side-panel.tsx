@@ -31,7 +31,7 @@ export function PlanSidePanel({
       type="button"
       onClick={onClose}
       aria-label="Close plan"
-      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      className="rounded-lg border border-accent-line/20 bg-accent/10 p-1 text-muted-foreground transition-colors hover:bg-accent/25 hover:text-foreground"
     >
       <X className="size-3.5" />
     </button>
@@ -40,7 +40,7 @@ export function PlanSidePanel({
   return (
     <aside
       aria-label="Plan beside the conversation"
-      className="flex w-[min(40rem,45%)] min-w-80 shrink-0 flex-col border-l border-border bg-card"
+      className="flex w-[min(40rem,45%)] min-w-80 shrink-0 flex-col border-l border-accent-line/20 bg-card/95 backdrop-blur-xl"
     >
       {p === undefined ? (
         <div className="flex items-start justify-between gap-2 px-4 py-3">

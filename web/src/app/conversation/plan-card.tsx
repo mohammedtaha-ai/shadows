@@ -1,6 +1,6 @@
 
 import { Link } from '@tanstack/react-router'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Layers } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Plan, PlanTask } from '@/api/workflows'
 import type { ThreadEntry } from '@/api/threads'
@@ -71,7 +71,7 @@ function LiveCard({
     <section
       data-plan-card={workflowId}
       aria-label={body}
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      className="overflow-hidden surface-panel rounded-2xl"
     >
       {p === undefined ? (
         <div className="space-y-2 px-4 py-3">
@@ -111,23 +111,28 @@ export function PlanHeading({
   children?: ReactNode
 }) {
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
-      <div className="min-w-0">
-        <h2 dir="auto" className="truncate text-sm font-medium text-card-foreground">
-          {plan.title}
-        </h2>
-        <p dir="auto" className="text-xs text-faint-foreground">
-          Plan v{plan.version} · revision {plan.revision}
-          {plan.state === 'Frozen' && ' · Approved'}
-        </p>
-        {plan.state === 'Frozen' && <p className="text-xs text-faint-foreground">
-          <ApprovedBy by={plan.approved_by} projectId={projectId} /></p>}
+    <header className="flex items-center justify-between gap-3 border-b border-accent-line/15 bg-accent/10 px-4 py-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-accent-line/30 bg-accent/15">
+          <Layers aria-hidden className="size-3.5 text-accent-line" />
+        </div>
+        <div className="min-w-0">
+          <h2 dir="auto" className="truncate text-sm font-semibold text-card-foreground">
+            {plan.title}
+          </h2>
+          <p dir="auto" className="text-xs text-faint-foreground">
+            Plan v{plan.version} · revision {plan.revision}
+            {plan.state === 'Frozen' && ' · Approved'}
+          </p>
+          {plan.state === 'Frozen' && <p className="text-xs text-faint-foreground">
+            <ApprovedBy by={plan.approved_by} projectId={projectId} /></p>}
+        </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <Link
           to="/projects/$projectId/workflows/$workflowId"
           params={{ projectId, workflowId: plan.id }}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-lg border border-accent-line/25 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent/25 hover:text-foreground"
         >
           <ExternalLink aria-hidden className="size-3" />
           <span dir="auto">Open plan</span>
