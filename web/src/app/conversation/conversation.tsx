@@ -3,6 +3,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { Code2, MessageSquare } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { agentsQuery } from '@/api/aylul-profiles'
 import type { Plan, PlanTask } from '@/api/workflows'
@@ -16,6 +17,7 @@ import {UseWithCompanion} from '@/app/desktop'
 import { ErrorLine } from '../error-line'
 import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
+import { AgentBoard } from './agent-board'
 import { Composer } from './composer'
 import { ContextRing } from './context-ring'
 import { DeletedConversation } from './deleted-conversation'
@@ -83,6 +85,7 @@ function Conversation({
   const [side, setSide] = useState<SideShown | null>(null)
   const [pointed, setPointed] = useState<PointedTask | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
+  const [view, setView] = useState<'chat' | 'agent'>('chat')
   // Only a live `plan-show` for this tab arrives here (see `useConversation`).
   const showHere = (show: PlanShowFrame) => {
     if (show.place === 'side') {
@@ -117,6 +120,11 @@ function Conversation({
   const limits = c.limits ?? (info?.limits == null ? null : toLimits(info.limits))
   const live = Object.values(c.stream.subagents)
   const agentCard = agent === null ? null : cardOf(agent, c.entries.data ?? [], live)
+  const modelLabel =
+    session.state === 'ready'
+      ? (session.choices.models.find((m) => m.id === session.choices.current.model)?.label ??
+        session.choices.current.model)
+      : label
   const openAgent = useCallback((id: string) => {
     setSide(null)
     setAgent(id)
@@ -137,6 +145,22 @@ function Conversation({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <div role="group" aria-label="Mode" className="flex items-center rounded-xl border border-accent-line/25 bg-card p-0.5">
+              {([['chat', 'Chat Mode', MessageSquare], ['agent', 'Agent Mode', Code2]] as const).map(([id, text, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={view === id}
+                  onClick={() => setView(id)}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    view === id ? 'pill-active' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon aria-hidden className="size-3.5" />
+                  <span>{text}</span>
+                </button>
+              ))}
+            </div>
             <CliPicker
               projectId={projectId}
               threadId={threadId}
@@ -160,24 +184,43 @@ function Conversation({
             <ErrorLine error={c.entries.error} />
           </div>
         )}
-        <Messages
-          entries={c.entries.data}
-          loading={!c.stream.caughtUp}
-          reply={c.reply}
-          running={c.running !== null}
-          thinking={c.thinking}
-          label={c.label}
-          operations={c.operations}
-          models={session.state === 'ready' ? session.choices.models : []}
-          harness={harness}
-          forkFrom={c.known && c.running === null ? { projectId, threadId } : null}
-          projectId={projectId}
-          onPointAt={onPointAt}
-          subagents={live}
-          tools={c.stream.tools}
-          todos={c.stream.todos}
-          onOpenSubagent={openAgent}
-        />
+        {view === 'agent' ? (
+          <AgentBoard
+            title={thread?.title ?? 'Conversation'}
+            projectName={project?.name ?? '…'}
+            agentLabel={harness === 'aylul' ? agentLabel : label}
+            modelLabel={modelLabel}
+            entries={c.entries.data}
+            tools={c.stream.tools}
+            todos={c.stream.todos}
+            subagents={live}
+            running={c.running}
+            latest={c.latest}
+            thinking={c.thinking}
+            label={c.label}
+            context={c.context}
+            onOpenSubagent={openAgent}
+          />
+        ) : (
+          <Messages
+            entries={c.entries.data}
+            loading={!c.stream.caughtUp}
+            reply={c.reply}
+            running={c.running !== null}
+            thinking={c.thinking}
+            label={c.label}
+            operations={c.operations}
+            models={session.state === 'ready' ? session.choices.models : []}
+            harness={harness}
+            forkFrom={c.known && c.running === null ? { projectId, threadId } : null}
+            projectId={projectId}
+            onPointAt={onPointAt}
+            subagents={live}
+            tools={c.stream.tools}
+            todos={c.stream.todos}
+            onOpenSubagent={openAgent}
+          />
+        )}
         <WaitingMessages threadId={threadId} running={c.running !== null} />
         <Composer
           to={{ threadId }}

@@ -3,7 +3,7 @@
 // Core said and works out no status, target or diff of its own.
 
 import type { CallKind, CallStatus, DiffHunk, ThreadEntry } from '@/api/threads'
-import { type ToolFrame, readToolCard } from '@/stream'
+import { type TodoItem, type ToolFrame, readTodoList, readToolCard } from '@/stream'
 import { toolText } from './tool-text'
 
 export type ToolStatus = CallStatus
@@ -166,4 +166,45 @@ export function liveSteps(
       startedAt: frame.startedAt,
       finishedAt: null,
     }))
+}
+
+/** The written rows with the turn's unwritten calls on the end. They are the
+ * turn's newest: they join its last group when nothing came after it, else
+ * form one there, before the text still streaming (Core cuts the message at
+ * each call). */
+export function withLiveSteps(
+  written: readonly Row[],
+  live: readonly ToolStep[],
+  shown: readonly ThreadEntry[],
+  turnOp: string | undefined,
+): Row[] {
+  if (live.length === 0) return [...written]
+  const last = written.at(-1)
+  const lastKey = last?.kind === 'tools' ? last.steps.at(-1)?.key : undefined
+  const lastOp = shown.find((entry) => entry.id === lastKey)?.operation_id
+  if (last?.kind === 'tools' && lastOp === turnOp && !last.steps.some((step) => step.kind === null)) {
+    return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
+  }
+  return [...written, { kind: 'tools', key: 'live-tools', steps: [...live] }]
+}
+
+/** Every tool step the rows hold, in order. */
+export function stepsOf(rows: readonly Row[]): ToolStep[] {
+  return rows.flatMap((row) => (row.kind === 'tools' ? row.steps : []))
+}
+
+/** The running turn's newest task list while it has items, else the last one
+ * an entry holds. */
+export function currentTodos(
+  live: Readonly<Record<string, readonly TodoItem[]>>,
+  entries: readonly ThreadEntry[],
+): readonly TodoItem[] {
+  const streamed = Object.values(live).at(-1)
+  if (streamed !== undefined && streamed.length > 0) return streamed
+  for (const entry of entries.toReversed()) {
+    if (entry.kind !== 'TodoList') continue
+    const card = readTodoList(entry.card)
+    if (card !== null && card.entries.length > 0) return card.entries
+  }
+  return []
 }

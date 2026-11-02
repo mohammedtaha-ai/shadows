@@ -16,7 +16,7 @@ import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
 import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
 import { TodoCard } from './todo-card'
-import { type Row, activityRows, liveSteps } from './activity-rows'
+import { type Row, activityRows, liveSteps, withLiveSteps } from './activity-rows'
 import { ToolGroup } from './tool-group'
 import type { Cut, ShownReply } from './reply'
 import { SubagentCardView } from './subagent-card'
@@ -132,19 +132,8 @@ export function Messages({
     () => (turnOp === undefined ? [] : liveSteps(frames, entries ?? NO_ENTRIES, turnOp, !running)),
     [frames, entries, turnOp, running],
   )
-  // Calls not yet written are the turn's newest: they join its last group
-  // when nothing came after it, else form one there, before the text still
-  // streaming (Core cuts the message at each call).
-  const rows = useMemo((): Row[] => {
-    if (live.length === 0) return written
-    const last = written.at(-1)
-    const lastKey = last?.kind === 'tools' ? last.steps.at(-1)?.key : undefined
-    const lastOp = shown.find((entry) => entry.id === lastKey)?.operation_id
-    if (last?.kind === 'tools' && lastOp === turnOp && !last.steps.some((step) => step.kind === null)) {
-      return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
-    }
-    return [...written, { kind: 'tools', key: 'live-tools', steps: live }]
-  }, [written, live, shown, turnOp])
+  // The turn's unwritten calls join the written rows.
+  const rows = useMemo(() => withLiveSteps(written, live, shown, turnOp), [written, live, shown, turnOp])
   // A list the entries already hold draws as that entry, never twice.
   const liveLists = Object.entries(todos).filter(
     ([op]) => !(entries ?? NO_ENTRIES).some((e) => e.kind === 'TodoList' && e.operation_id === op),

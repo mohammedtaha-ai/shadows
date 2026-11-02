@@ -297,6 +297,23 @@ components:
     # (counted from the items, nothing else). `Messages` draws the stream's live `todos` of an operation after the
     # reply until the entries hold a `TodoList` entry of that operation, which `Entry` draws instead
     # (never both); an unreadable card shows its body.
+  AgentBoard:
+    signature: "(props: { title: string; projectName: string; agentLabel: string; modelLabel: string;
+      entries: readonly ThreadEntry[] | undefined; tools: Readonly<Record<string, ToolFrame>>; todos:
+      Readonly<Record<string, readonly TodoItem[]>>; subagents: readonly SubagentCard[]; running: Turn |
+      null; latest: Turn | null; thinking: boolean; label: string | undefined; context: ContextFigures |
+      null; onOpenSubagent: (id: string) => void }) => JSX.Element"
+    # Agent Mode, chosen by the Chat/Agent switch (`aria-pressed`) in the header. Draws only what the
+    # client holds: the latest user message as the prompt (none when there is none), the steps
+    # `Messages` draws (one function, `withLiveSteps`), the live task list else the last written one
+    # (`currentTodos`), subagents, the model, and the context figures the turn reported. The steps
+    # percent counts completed steps and shows only when there are steps. The run stages, the context per
+    # operation and the active tools sit inside `Planned`, inert, naming the shared request each waits
+    # for; nothing in them is computed.
+  AgentConsole:
+    signature: "(props: { steps: readonly ToolStep[] }) => JSX.Element"
+    # Tabs Diff (edit steps, `ToolDiff`), Terminal (`execute` steps, filter by status), Files (steps
+    # with a target) and Logs (failed or stopped steps with their error). Copy is `CopyButton`.
   ReplyText:
     signature: "(props: { text: string; live?: boolean }) => JSX.Element"
     # Declared in entry.tsx as a lazy wrapper around reply-text.tsx's renderer.

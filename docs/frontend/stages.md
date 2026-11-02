@@ -145,7 +145,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/workflows/layout.test.ts src/app/workflows/plan-page.test.tsx src/app/workflows/plan-graph.test.tsx src/app/workflows/plan-map.test.tsx src/app/workflows/plan-frames.test.tsx` passes. New cases: single-task columns alternate above and below; a two-task column and the start do not move; no boxes overlap; every edge ends on its drawn box; the progress block is marked planned, shows the real count and no percent. Then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. A plan of five or more tasks is screenshot in both themes and compared.
 
 ### F-76 · Agent Mode: the execution board beside the chat
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-76)
 - Read: `web/src/app/conversation/contract.yaml` (Messages); `activity-rows.ts`, `usage.ts`, `turn-state.ts`; the export's `conversation.tsx` lines 100-1037; evidence Report A feature 3, Report B item 4, and the tsc errors in Report C
 - Touch: web/src/app/conversation/conversation.tsx, web/src/app/conversation/agent-board.tsx (new), web/src/app/conversation/agent-console.tsx (new), web/src/app/conversation/agent-board.test.tsx (new), web/src/app/conversation/activity-rows.ts, web/src/app/conversation/activity-rows.test.ts, web/src/app/conversation/messages.tsx, web/src/app/conversation/index.ts, web/src/app/conversation/contract.yaml, docs/frontend/codebase/README.md, docs/frontend/stages.md

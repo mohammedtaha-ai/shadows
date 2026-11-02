@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolFrame } from '@/stream'
 import { agentEntry, toolCardEntry, toolCardFixture, toolEntry } from '@/test/contract-fixtures'
-import { activityRows, liveSteps } from './activity-rows'
+import { activityRows, currentTodos, liveSteps, stepsOf, withLiveSteps } from './activity-rows'
 
 const call = (id: string, op = 'op1') =>
   toolCardEntry(`e-${id}`, `Read ${id}`, toolCardFixture({ id, target: id }), op)
@@ -70,5 +70,27 @@ describe('activity rows', () => {
     expect(liveSteps([frame('a', { status: 'pending' })], [], 'op1', true)[0]?.status).toBe(
       'stopped',
     )
+  })
+})
+
+describe('the rows a view shares', () => {
+  it('joins the unwritten calls of the turn to its last group, or starts one', () => {
+    const a = call('a')
+    const written = activityRows([a])
+    const live = liveSteps([frame('b')], [a], 'op1')
+    const joined = withLiveSteps(written, live, [a], 'op1')
+    expect(stepsOf(joined).map((s) => s.key)).toEqual(['e-a', 'live-b'])
+    expect(joined).toHaveLength(1)
+    const after = [a, agentEntry('m', 'done')]
+    const split = withLiveSteps(activityRows(after), live, after, 'op1')
+    expect(split.map((r) => r.kind)).toEqual(['tools', 'entry', 'tools'])
+  })
+
+  it('takes the live task list while it has items, else the last written one', () => {
+    const written = { ...agentEntry('t', 'x'), kind: 'TodoList' as const, card: { entries: [{ content: 'Old', status: 'pending' }] } }
+    const live = { op1: [{ content: 'New', status: 'in_progress' as const }] }
+    expect(currentTodos(live, [written]).map((i) => i.content)).toEqual(['New'])
+    expect(currentTodos({ op1: [] }, [written]).map((i) => i.content)).toEqual(['Old'])
+    expect(currentTodos({}, [])).toEqual([])
   })
 })

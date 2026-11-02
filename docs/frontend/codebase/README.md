@@ -208,11 +208,13 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/focus-chip.tsx` | Chip naming the task a turn points at | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/map-proposal-card.tsx` | Card for an immutable map proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/message-actions.tsx` | Hover actions under one message: copy, fork | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/activity-rows.ts` | Groups consecutive tool calls into rows | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/activity-rows.ts` | Groups tool calls into rows, joins live calls, picks the current task list | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/activity-text.ts` | Words a tool group with its steps | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-group.tsx` | A run of tool calls drawn as one line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-diff.tsx` | An edit's hunks drawn with line numbers | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/todo-card.tsx` | The agent's task list drawn as a checklist | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/agent-board.tsx` | Agent Mode's board: prompt, steps, task list, subagents, context | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/agent-console.tsx` | The board's console, one tab per kind of step | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/messages.tsx` | Ordered durable entries, then the running turn's text | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/operational-label.ts` | Maps a harness meta label to a person's line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/plan-card.tsx` | Plan version shown as a card in the conversation | `web/src/app/conversation/contract.yaml` |
