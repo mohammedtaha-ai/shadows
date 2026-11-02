@@ -19,7 +19,7 @@ function Handles() {
 export function StartNodeView({ data }: NodeProps<StartNode>) {
   return (
     <div className="box-border flex h-full w-full flex-col overflow-hidden rounded-xl surface-glow px-3 py-2.5">
-      <span dir="auto" className="h-4 text-[11px] leading-4 font-semibold tracking-wider text-accent-line uppercase">
+      <span dir="auto" className="h-4 text-2xs leading-4 font-semibold tracking-wider text-accent-line uppercase">
         Plan
       </span>
       <p dir="auto" className="mt-1 h-5 truncate text-sm leading-5 font-semibold text-foreground">
@@ -49,7 +49,7 @@ export function TaskNodeView({ data, selected }: NodeProps<TaskNodeType>) {
         changed ? 'bg-secondary' : 'bg-card'
       } ${outline}`}
     >
-      <div className="flex h-4 items-center justify-between text-[11px] leading-4">
+      <div className="flex h-4 items-center justify-between text-2xs leading-4">
         <span dir="auto" className="rounded bg-accent-line/15 px-1.5 font-mono font-semibold text-accent-line">
           T{task.number}
         </span>
@@ -66,7 +66,7 @@ export function TaskNodeView({ data, selected }: NodeProps<TaskNodeType>) {
         {task.goal}
       </p>
       {(data.writes.length > 0 || data.needs !== null || data.waits.length > 0) && (
-        <div className="mt-1.5 text-[11px] leading-4">
+        <div className="mt-1.5 text-2xs leading-4">
           {data.writes.map((path) => (
             <p key={path} dir="auto" title={path} className="h-4 truncate font-mono text-faint-foreground">
               {path}

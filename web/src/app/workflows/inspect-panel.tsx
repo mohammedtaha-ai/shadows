@@ -26,7 +26,7 @@ export function InspectPanel({
     >
       <header className="mb-3 flex items-start justify-between gap-2 border-b border-border/50 pb-2.5">
         <div className="min-w-0">
-          <span dir="auto" className="inline-block rounded bg-accent-line/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-accent-line">
+          <span dir="auto" className="inline-block rounded bg-accent-line/15 px-1.5 py-0.5 font-mono text-2xs font-semibold text-accent-line">
             T{task.number}
           </span>
           <h2 dir="auto" className="mt-1 font-semibold leading-snug">
@@ -73,7 +73,7 @@ export function InspectPanel({
                     {item.text}
                   </span>
                   {after.length > 0 && (
-                    <span dir="auto" className="mt-1 block text-[11px] text-warning italic">
+                    <span dir="auto" className="mt-1 block text-2xs text-warning italic">
                       waits for {after.join(', ')}
                     </span>
                   )}
@@ -91,9 +91,9 @@ function Section({ name, badge, children }: { name: string; badge?: number; chil
   return (
     <section className="mb-4">
       <div className="mb-1.5 flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold tracking-wider text-faint-foreground uppercase">{name}</h3>
+        <h3 className="text-2xs font-semibold tracking-wider text-faint-foreground uppercase">{name}</h3>
         {badge !== undefined && (
-          <span className="rounded bg-accent-line/15 px-1.5 py-0.5 font-mono text-[10px] text-accent-line">{badge}</span>
+          <span className="rounded bg-accent-line/15 px-1.5 py-0.5 font-mono text-2xs text-accent-line">{badge}</span>
         )}
       </div>
       {children}

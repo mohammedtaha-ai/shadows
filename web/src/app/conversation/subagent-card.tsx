@@ -46,13 +46,13 @@ export function SubagentCardView({
             {state.text}
           </span>
           {who !== '' && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-accent-line/25 bg-card px-2 py-0.5 font-mono text-[11px] text-accent-foreground">
+            <span className="inline-flex items-center gap-1 rounded-md border border-accent-line/25 bg-card px-2 py-0.5 font-mono text-2xs text-accent-foreground">
               <ArrowLeftRight aria-hidden className="size-3 text-accent-line" />
               {who}
             </span>
           )}
           {said !== '' && (
-            <span className="rounded-md border border-accent-line/15 bg-background/50 px-1.5 py-0.5 font-mono text-[11px] tabular-nums">
+            <span className="rounded-md border border-accent-line/15 bg-background/50 px-1.5 py-0.5 font-mono text-2xs tabular-nums">
               {said}
             </span>
           )}

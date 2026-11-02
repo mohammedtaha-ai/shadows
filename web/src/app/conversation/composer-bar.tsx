@@ -143,7 +143,7 @@ export function ComposerBar({
             title={directory}
           >
             <Folder aria-hidden className="size-3.5 shrink-0 text-accent-line/80" />
-            <span className="truncate font-mono text-[11px] text-faint-foreground">
+            <span className="truncate font-mono text-2xs text-faint-foreground">
               <span className="sr-only">Runs in </span>
               {directory}
             </span>

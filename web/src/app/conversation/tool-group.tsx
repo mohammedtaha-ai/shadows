@@ -138,7 +138,7 @@ function StepLine({
         <span dir="auto" className="min-w-0 break-words text-foreground/90">
           {line.text}
           {line.counts !== null && (
-            <span className="ms-2 rounded-md border border-accent-line/30 bg-accent-softer/90 px-1.5 py-0.5 font-mono text-[11px] font-medium text-accent-line tabular-nums">
+            <span className="ms-2 rounded-md border border-accent-line/30 bg-accent-softer/90 px-1.5 py-0.5 font-mono text-2xs font-medium text-accent-line tabular-nums">
               {line.counts}
             </span>
           )}
@@ -147,7 +147,7 @@ function StepLine({
           )}
         </span>
         {time !== null && (
-          <span className="ms-auto shrink-0 font-mono text-[11px] text-faint-foreground tabular-nums">
+          <span className="ms-auto shrink-0 font-mono text-2xs text-faint-foreground tabular-nums">
             {time}
           </span>
         )}
@@ -243,7 +243,7 @@ export const ToolGroup = memo(function ToolGroup({
             </span>
             {failed > 0 && <span className="font-medium text-destructive">· {failed} failed</span>}
             {time !== null && (
-              <span className="ms-auto rounded-full border border-border/70 bg-background/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground tabular-nums">
+              <span className="ms-auto rounded-full border border-border/70 bg-background/60 px-2 py-0.5 font-mono text-2xs text-muted-foreground tabular-nums">
                 {time}
               </span>
             )}

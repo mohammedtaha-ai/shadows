@@ -77,8 +77,9 @@ export function AgentBoard({
   }, [all, subagents])
   const prompt = all.findLast((e) => e.kind === 'UserMessage' && e.body.trim() !== '')?.body ?? null
 
+  // A count of the steps Core reported, never a percent: a turn's steps are not
+  // known ahead, so a share of them done would claim a progress Core never sent.
   const done = steps.filter((s) => s.status === 'completed').length
-  const percent = steps.length === 0 ? null : Math.round((done / steps.length) * 100)
   const active =
     steps.find((s) => s.key === picked) ??
     steps.find((s) => s.status === 'in_progress' || s.status === 'pending') ??
@@ -101,10 +102,10 @@ export function AgentBoard({
                   <h2 dir="auto" className="truncate text-base font-semibold tracking-tight text-foreground">
                     {title}
                   </h2>
-                  <span className="rounded-md border border-accent-line/25 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
+                  <span className="rounded-md border border-accent-line/25 bg-accent/10 px-2 py-0.5 text-2xs font-medium text-accent-foreground">
                     {projectName}
                   </span>
-                  <span className="rounded-md border border-border bg-card px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+                  <span className="rounded-md border border-border bg-card px-2 py-0.5 font-mono text-2xs text-muted-foreground">
                     {agentLabel}
                   </span>
                 </div>
@@ -139,7 +140,7 @@ export function AgentBoard({
                   <CircleDot aria-hidden className="size-4 shrink-0 text-accent-line/50" />
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{stage}</span>
-                    <span className="block truncate text-[10px] opacity-75">Stage {index + 1}</span>
+                    <span className="block truncate text-2xs opacity-75">Stage {index + 1}</span>
                   </span>
                 </li>
               ))}
@@ -157,9 +158,9 @@ export function AgentBoard({
                     Agent Execution
                   </h3>
                 </div>
-                {percent !== null && (
-                  <span className="rounded-md border border-accent-line/20 bg-accent/10 px-2 py-0.5 font-mono text-[11px] text-accent-foreground">
-                    {done} / {steps.length} steps ({percent}%)
+                {steps.length > 0 && (
+                  <span className="rounded-md border border-accent-line/20 bg-accent/10 px-2 py-0.5 font-mono text-2xs text-accent-foreground">
+                    {done} of {steps.length} steps done
                   </span>
                 )}
               </div>
@@ -206,7 +207,7 @@ export function AgentBoard({
                               </span>
                             </span>
                             {ms !== null && ms >= 100 && (
-                              <span className="shrink-0 font-mono text-[10px] text-faint-foreground">
+                              <span className="shrink-0 font-mono text-2xs text-faint-foreground">
                                 {duration(ms)}
                               </span>
                             )}
@@ -219,7 +220,7 @@ export function AgentBoard({
                   <div className="rounded-xl border border-accent-line/25 bg-card/90 p-3.5 md:col-span-6">
                     {active !== null && (
                       <div className="space-y-2.5">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-accent-line/30 bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-accent-line/30 bg-accent/15 px-2 py-0.5 text-2xs font-medium text-accent-foreground">
                           <Code2 aria-hidden className="size-3" />
                           Current Step
                         </span>
@@ -227,20 +228,12 @@ export function AgentBoard({
                           {stepLine(active).text}
                         </p>
                         {active.target !== null && (
-                          <p className="truncate rounded-lg border border-accent-line/15 bg-background px-2.5 py-1.5 font-mono text-[11px] text-accent-foreground">
+                          <p className="truncate rounded-lg border border-accent-line/15 bg-background px-2.5 py-1.5 font-mono text-2xs text-accent-foreground">
                             {active.target}
                           </p>
                         )}
                         {operational !== undefined && (
-                          <p className="text-[11px] text-muted-foreground">Status: {operational}</p>
-                        )}
-                        {percent !== null && (
-                          <div aria-hidden className="h-2 w-full overflow-hidden rounded-full bg-background p-0.5">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-accent to-accent-line transition-all duration-300"
-                              style={{ width: `${percent}%` }}
-                            />
-                          </div>
+                          <p className="text-2xs text-muted-foreground">Status: {operational}</p>
                         )}
                       </div>
                     )}

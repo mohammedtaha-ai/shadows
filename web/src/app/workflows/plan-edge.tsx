@@ -63,7 +63,7 @@ export function LinkEdge({
             data-link={id}
             dir="auto"
             title={label}
-            className="nodrag nopan pointer-events-auto absolute max-w-36 truncate rounded-md border border-accent-line/30 bg-background/95 px-2 py-0.5 font-mono text-[10px] leading-4 text-accent-line shadow-2xs backdrop-blur-xs"
+            className="nodrag nopan pointer-events-auto absolute max-w-36 truncate rounded-md border border-accent-line/30 bg-background/95 px-2 py-0.5 font-mono text-2xs leading-4 text-accent-line shadow-2xs backdrop-blur-xs"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             {label}

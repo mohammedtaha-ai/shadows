@@ -90,7 +90,7 @@ it('a new agent shows the part after it is created', async () => {
   const a = app = await startApp('/?settings=agents&agent=new', { ...routes(),
     'GET /api/aylul/agents': () => Response.json({ project_id: 'p1', agents }),
     'POST /api/aylul/agents': async (request: Request) => { const created = { ...agent, ...await request.json(), slug: 'new-one' }; agents = [...agents, created]; return Response.json(created, { status: 201 }) },
-    'GET /api/aylul/agents/new-one/env': [], 'GET /api/aylul/agents/new-one/extensions': { plugins: [{ ...plugin, enabled: false }], skills: [{ ...skill, enabled: false }] },
+    'GET /api/aylul/agents/new-one/env': [], 'GET /api/aylul/agents/new-one/extensions': { plugins: [{ ...plugin, enabled: false }], skills: [{ ...skill, enabled: false }], mcp: [] },
   })
   await until(() => document.querySelector('input[aria-label="Agent name"]') !== null)
   expect(switchOf('review')).toBeNull(); expect(a.calls.some(call => call.includes('/extensions'))).toBe(false)
@@ -100,7 +100,7 @@ it('a new agent shows the part after it is created', async () => {
   expect(switchOf('git').checked).toBe(false); expect(switchOf('review').checked).toBe(false)
 })
 it('an empty library links to the section', async () => {
-  const a = app = await startApp('/?settings=agents&agent=ay', { ...routes(), 'GET /api/aylul/agents/ay/extensions': { plugins: [], skills: [] } })
+  const a = app = await startApp('/?settings=agents&agent=ay', { ...routes(), 'GET /api/aylul/agents/ay/extensions': { plugins: [], skills: [], mcp: [] } })
   await until(() => a.text().includes('No capabilities yet.'))
   act(() => a.button('Add to library')!.click())
   await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Plugins & Skills')
@@ -114,9 +114,9 @@ it('an extension load failure is local', async () => {
 })
 it('library removal clears every agent view', async () => {
   let removed = false
-  const current = () => removed ? { plugins: [], skills: [] } : view()
+  const current = () => removed ? { plugins: [], skills: [], mcp: [] } : view()
   const a = await open({ 'GET /api/aylul/agents/ay/extensions': () => Response.json(current()), 'GET /api/aylul/agents/zed/extensions': () => Response.json(current()),
-    'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: removed ? [] : [skill] }),
+    'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: removed ? [] : [skill], mcp: [] }),
     [`DELETE /api/aylul/extensions/plugin/${plugin.id}`]: () => { removed = true; return new Response(null, { status: 204 }) },
   })
   a.queryClient.setQueryData(agentExtensionsQuery('zed').queryKey, view())

@@ -88,6 +88,9 @@ pub(super) async fn update_mcp(
     ))
 }
 
+/// The static `/mcp/{id}` path that `update_mcp` registers wins over `/{kind}/{id}`, so a
+/// DELETE there needs its own handler; it is the same operation as `remove`, and the
+/// document lists it once, under `remove`.
 pub(super) async fn remove_mcp(
     State(s): State<AppState>,
     Path(id): Path<String>,

@@ -61,7 +61,7 @@ export function Home() {
               <FolderGit2 aria-hidden className="size-6 text-accent-line" />
             </div>
             <div className="space-y-1">
-              <span className="inline-flex items-center gap-1 rounded-full border border-accent-line/35 bg-accent-line/15 px-2.5 py-0.5 text-[11px] font-semibold tracking-wider text-accent-line uppercase">
+              <span className="inline-flex items-center gap-1 rounded-full border border-accent-line/35 bg-accent-line/15 px-2.5 py-0.5 text-2xs font-semibold tracking-wider text-accent-line uppercase">
                 <Sparkles aria-hidden className="size-3" />
                 NYLRA · Shadows Planner
               </span>
@@ -78,7 +78,7 @@ export function Home() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <h2 dir="auto" className="truncate text-sm font-semibold text-foreground">{project.name}</h2>
-                    <span className="rounded-md border border-accent-line/25 bg-accent-line/10 px-2 py-0.5 text-[10px] font-medium text-accent-line">
+                    <span className="rounded-md border border-accent-line/25 bg-accent-line/10 px-2 py-0.5 text-2xs font-medium text-accent-line">
                       Workspace
                     </span>
                   </div>

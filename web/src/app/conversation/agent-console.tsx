@@ -67,7 +67,7 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
                   type="button"
                   aria-pressed={s.key === edit.key}
                   onClick={() => setPickedEdit(s.key)}
-                  className={`max-w-48 truncate rounded-md border px-2 py-0.5 font-mono text-[11px] ${
+                  className={`max-w-48 truncate rounded-md border px-2 py-0.5 font-mono text-2xs ${
                     s.key === edit.key
                       ? 'border-accent-line/45 bg-accent/15 text-foreground'
                       : 'border-border/60 text-muted-foreground hover:text-foreground'
@@ -100,7 +100,7 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
                   type="button"
                   aria-pressed={filter === f}
                   onClick={() => setFilter(f)}
-                  className={`rounded-md px-2 py-0.5 text-[11px] capitalize ${
+                  className={`rounded-md px-2 py-0.5 text-2xs capitalize ${
                     filter === f ? 'pill-active' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -117,7 +117,7 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
                     </code>
                     <CopyButton text={s.title} size="icon-xs" />
                   </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{s.status}</p>
+                  <p className="mt-0.5 text-2xs text-muted-foreground">{s.status}</p>
                   {s.error !== null && (
                     <p className="mt-1 font-mono text-xs break-words whitespace-pre-wrap text-destructive">
                       {s.error}
@@ -142,7 +142,7 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
                 <code dir="ltr" className="min-w-0 font-mono break-all">
                   {s.target}
                 </code>
-                <span className="shrink-0 text-[11px] text-muted-foreground">{s.kind ?? 'tool'}</span>
+                <span className="shrink-0 text-2xs text-muted-foreground">{s.kind ?? 'tool'}</span>
               </li>
             ))}
           </ul>

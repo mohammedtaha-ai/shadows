@@ -307,7 +307,8 @@ components:
     # client holds: the latest user message as the prompt (none when there is none), the steps
     # `Messages` draws (one function, `withLiveSteps`), the live task list else the last written one
     # (`currentTodos`), subagents, the model, and the context figures the turn reported. The steps
-    # percent counts completed steps and shows only when there are steps. The run stages, the context per
+    # header counts completed steps ("n of m steps done") only when there are steps, never as a
+    # percent or a bar: a turn's steps are not known ahead. The run stages, the context per
     # operation and the active tools sit inside `Planned`, inert, naming the shared request each waits
     # for; nothing in them is computed.
   AgentConsole:

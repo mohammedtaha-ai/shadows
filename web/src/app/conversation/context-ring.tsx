@@ -62,7 +62,7 @@ export function ContextRing({
             <p className="text-faint-foreground">updated {clock(limits.observedAt)}</p>
           </section>
         )}
-        <p className="border-t border-border/70 pt-2.5 text-[11px] text-muted-foreground">
+        <p className="border-t border-border/70 pt-2.5 text-2xs text-muted-foreground">
           Type /context in the conversation for the full breakdown.
         </p>
       </PopoverContent>

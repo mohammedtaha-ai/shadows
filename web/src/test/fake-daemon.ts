@@ -114,8 +114,8 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
     'GET /api/aylul/agent-template': { instructions: 'Synthetic bundled agent instructions.' },
-    'GET /api/aylul/extensions': { plugins: [], skills: [] },
-    ...Object.fromEntries(['work', 'aylul', 'agent-a'].map(slug => [`GET /api/aylul/agents/${slug}/extensions`, { plugins: [], skills: [] }])),
+    'GET /api/aylul/extensions': { plugins: [], skills: [], mcp: [] },
+    ...Object.fromEntries(['work', 'aylul', 'agent-a'].map(slug => [`GET /api/aylul/agents/${slug}/extensions`, { plugins: [], skills: [], mcp: [] }])),
     'GET /api/aylul/usage': o.usage ?? { by_provider: [], by_model: [] },
     'GET /api/me': typeof o.person === 'function' ? o.person : () => Response.json(person),
     'PATCH /api/me': async (request: Request) => {

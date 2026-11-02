@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Agent Mode: the switch shows the board and back; the board lists the real
-// steps and task list; an empty one shows no percent; the stages are planned.
+// steps and task list, counted, never as a percent; the stages are planned.
 
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -51,7 +51,7 @@ afterEach(() => {
 })
 
 describe('AgentBoard', () => {
-  it('lists the real steps and the task list, with the percent of finished steps', () => {
+  it('lists the real steps and the task list, with a count of finished steps and no percent', () => {
     const host = draw(
       <AgentBoard
         {...props}
@@ -64,7 +64,8 @@ describe('AgentBoard', () => {
       />,
     )
     expect(host.textContent).toContain('Fix the bug')
-    expect(host.textContent).toContain('1 / 2 steps (50%)')
+    expect(host.textContent).toContain('1 of 2 steps done')
+    expect(host.querySelector('[aria-label="Agent execution"]')?.textContent).not.toMatch(/\d+%/)
     expect(host.querySelectorAll('[aria-label="Agent execution"] li').length).toBe(2)
     expect(host.textContent).toContain('Tasks · 1 of 2 done')
   })

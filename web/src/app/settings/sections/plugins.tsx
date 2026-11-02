@@ -28,7 +28,7 @@ export function PluginsSection() {
     <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${kind}`} className="space-y-4">
       {library.isPending ? <p role="status">Loading library…</p> : library.error ? <div className="space-y-3"><ErrorLine error={library.error} /><Button type="button" variant="outline" disabled={library.isFetching} onClick={() => { void library.refetch() }}>Retry</Button></div> : <>
         <Button type="button" onClick={() => setAdding(true)}>{kind === 'mcp' ? 'Add MCP tool' : 'Add'}</Button>
-        <ExtensionList kind={kind} items={kind === 'plugin' ? library.data.plugins : kind === 'skill' ? library.data.skills : library.data.mcp ?? []} onEdit={setEditing} />
+        <ExtensionList kind={kind} items={kind === 'plugin' ? library.data.plugins : kind === 'skill' ? library.data.skills : library.data.mcp} onEdit={setEditing} />
       </>}
     </div>
   </div>

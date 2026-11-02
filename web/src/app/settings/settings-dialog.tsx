@@ -37,7 +37,7 @@ export function SettingsDialog() {
             const items = sections.filter(section => section.group === group)
             return items.length > 0 && (
               <div key={group} className="mb-5 space-y-1">
-                <h2 className="px-2.5 pb-1 text-[11px] font-semibold tracking-wider text-faint-foreground uppercase">{group}</h2>
+                <h2 className="px-2.5 pb-1 text-2xs font-semibold tracking-wider text-faint-foreground uppercase">{group}</h2>
                 {items.map(section => (
                   <button key={section.id} type="button" disabled={unsaved && selected?.id !== section.id} aria-current={selected?.id === section.id ? 'page' : undefined}
                     className={`w-full rounded-xl px-2.5 py-2 text-left text-sm transition-all disabled:opacity-50 ${selected?.id === section.id ? 'pill-active font-medium' : 'text-muted-foreground hover:bg-accent-line/10 hover:text-foreground'}`}

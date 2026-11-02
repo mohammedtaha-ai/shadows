@@ -155,7 +155,7 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
           <div className="h-1.5 w-full rounded-full bg-muted ring-1 ring-accent-line/20" />
           <div className="flex flex-wrap gap-1">
             {plan.tasks.map((t) => (
-              <button key={t.id} type="button" disabled className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px]">
+              <button key={t.id} type="button" disabled className="rounded border border-border px-1.5 py-0.5 font-mono text-2xs">
                 T{t.number}
               </button>
             ))}

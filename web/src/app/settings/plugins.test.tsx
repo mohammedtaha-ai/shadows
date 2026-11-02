@@ -11,7 +11,7 @@ let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null; window.localStorage.clear() })
 const pathInput = () => document.querySelector<HTMLInputElement>('input[aria-label="Folder path"]')!
 async function open(overrides: Record<string, Answer> = {}) {
-  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': { plugins: [plugin], skills: [skill] }, ...overrides })
+  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': { plugins: [plugin], skills: [skill], mcp: [] }, ...overrides })
   await until(() => a.button('Add') !== undefined)
   return a
 }
@@ -59,7 +59,7 @@ it('library keyboard navigation includes the MCP tab', async () => {
 })
 it('Add imports a folder on the daemon', async () => {
   let items: Item[] = []
-  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: [], skills: items }),
+  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: [], skills: items, mcp: [] }),
     'POST /api/aylul/extensions': () => { items = [skill]; return Response.json(skill, { status: 201 }) },
   })
   act(() => a.button('Skills')!.click()); await add(a)
@@ -93,7 +93,7 @@ it('Back discards an unsubmitted import', async () => {
 })
 it('Remove confirms its library-wide effect', async () => {
   let removed = false, request: Request | undefined
-  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [] }),
+  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [], mcp: [] }),
     [`DELETE /api/aylul/extensions/plugin/${plugin.id}`]: (incoming: Request) => { request = incoming; removed = true; return new Response(null, { status: 204 }) },
   })
   act(() => a.button('Remove')!.click())
@@ -106,7 +106,7 @@ it('Remove confirms its library-wide effect', async () => {
 })
 it('a failed Remove can be retried', async () => {
   const ids: string[] = []; let removed = false
-  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [] }),
+  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [], mcp: [] }),
     [`DELETE /api/aylul/extensions/plugin/${plugin.id}`]: (incoming: Request) => {
       ids.push(new URL(incoming.url).searchParams.get('command_id')!); removed = ids.length > 1
       return removed ? new Response(null, { status: 204 }) : Response.json({ code: 'COMMAND_CONFLICT', message: 'Remove failed.' }, { status: 409 })
@@ -122,7 +122,7 @@ it('a failed Remove can be retried', async () => {
 })
 it('library load failure is not empty', async () => {
   let fail = true
-  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': () => fail ? Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Library unavailable.' }, { status: 500 }) : Response.json({ plugins: [], skills: [] }) })
+  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': () => fail ? Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Library unavailable.' }, { status: 500 }) : Response.json({ plugins: [], skills: [], mcp: [] }) })
   await until(() => a.text().includes('Library unavailable.'))
   expect(a.text()).not.toContain('No plugins yet.')
   fail = false; act(() => a.button('Retry')!.click()); await until(() => a.text().includes('No plugins yet.'))

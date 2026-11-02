@@ -147,6 +147,10 @@ html[data-theme="light"] {
   --font-serif: var(--typeface-serif);
   --font-mono: var(--typeface-mono);
 
+  /* The design's small badge and caption size, one step under Tailwind's `text-xs`. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

@@ -48,7 +48,7 @@ export function AylulHome() {
                 <Code2 aria-hidden className="size-6 text-accent-line" />
               </div>
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1 rounded-full border border-accent-line/35 bg-accent-line/15 px-2.5 py-0.5 text-[11px] font-semibold tracking-wider text-accent-line uppercase">
+                <span className="inline-flex items-center gap-1 rounded-full border border-accent-line/35 bg-accent-line/15 px-2.5 py-0.5 text-2xs font-semibold tracking-wider text-accent-line uppercase">
                   <Sparkles aria-hidden className="size-3" />
                   NYLRA · AYLUL Agent Mode
                 </span>
@@ -77,7 +77,7 @@ export function AylulHome() {
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-foreground">{stage.title}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{stage.subtitle}</p>
+                    <p className="truncate text-2xs text-muted-foreground">{stage.subtitle}</p>
                   </div>
                 </div>
               ))}
@@ -108,7 +108,7 @@ export function AylulHome() {
                         <ArrowUpRight aria-hidden className="size-3.5" />
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3 text-[11px]">
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3 text-2xs">
                       <span className="rounded-md border border-border bg-input-background px-2 py-0.5 text-muted-foreground">
                         Provider: <strong className="text-foreground">{provider?.name ?? agent.provider}</strong>
                       </span>

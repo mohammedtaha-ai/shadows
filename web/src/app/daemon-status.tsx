@@ -29,7 +29,7 @@ export function ConnectionIndicator() {
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
       <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
-      <span className="truncate font-mono text-[11px]">
+      <span className="truncate font-mono text-2xs">
         {label} · {DAEMON_HOST}
       </span>
     </p>

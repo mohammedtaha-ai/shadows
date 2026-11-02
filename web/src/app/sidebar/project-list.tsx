@@ -129,7 +129,7 @@ function ProjectRow({
               {project.name}
             </span>
             {project.directory != null && (
-              <span className="block truncate font-mono text-[11px] font-normal text-faint-foreground">
+              <span className="block truncate font-mono text-2xs font-normal text-faint-foreground">
                 {project.directory}
               </span>
             )}
