@@ -30,12 +30,12 @@ pub async fn fixture() -> (tempfile::TempDir, Arc<Storage>, Arc<Harness>) {
         agents: Agents::new(
             storage.clone(),
             providers.clone(),
-            secrets,
+            secrets.clone(),
             projects.clone(),
             None,
         ),
         providers,
-        extensions: Extensions::new(storage.clone(), None),
+        extensions: Extensions::new(storage.clone(), secrets, None),
         person: PersonSettings::new(storage.clone()),
     };
     let executable = std::env::current_exe().unwrap();

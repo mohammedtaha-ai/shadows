@@ -12,6 +12,33 @@ pub(super) struct Homes {
 }
 
 impl Homes {
+    /// Called while the opening holds the home lock and the library snapshot.
+    pub(super) fn write_instructions(
+        &self,
+        home: &Path,
+        instructions: &str,
+    ) -> Result<(), HarnessError> {
+        let target = home.join("CLAUDE.md");
+        let temp = home.join(format!(".instructions-{}.tmp", uuid::Uuid::new_v4()));
+        let result = (|| -> std::io::Result<()> {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temp)?;
+            file.write_all(instructions.as_bytes())?;
+            file.sync_all()?;
+            drop(file);
+            std::fs::rename(&temp, target)
+        })();
+        if result.is_err() {
+            let _ = std::fs::remove_file(temp);
+            return Err(HarnessError::ProfileInvalid(
+                "cannot write CLAUDE.md".into(),
+            ));
+        }
+        Ok(())
+    }
+
     /// The home's settings, refusing what would override the routing Core sets.
     pub(super) fn check(home: &Path) -> Result<serde_json::Value, HarnessError> {
         let bytes = std::fs::read(home.join("settings.json"))

@@ -198,6 +198,11 @@ probes and live tests.
 
 ## 7. Plugins and skills
 
+MCP tools join this library as a third kind, editable configuration rather
+than copied files, and bundled items ship from the repository; both are owned
+by [AYLUL agents and panel §7.2 and §7.4](../../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md).
+Marketplace sources are its OPEN block.
+
 7.1 Mohammed's ruling (2026-10-21): one library shared by every AYLUL agent;
 each agent uses only the items the person enabled for that agent. An item is
 added from a folder on the daemon's machine (a skill folder holding `SKILL.md`,

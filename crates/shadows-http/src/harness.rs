@@ -18,6 +18,50 @@ use shadows_core::ThreadId;
 use shadows_core::{HarnessInfo, SessionChoices};
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct AnswerPermission {
+    command_id: String,
+    option_id: String,
+}
+
+/// Live AYLUL permission requests, oldest first; empty without AYLUL configuration.
+#[utoipa::path(
+    get, path = "/api/aylul/permissions", tag = "aylul",
+    responses((status = 200, body = Vec<shadows_core::WaitingPermission>))
+)]
+pub(super) async fn waiting_permissions(
+    State(s): State<AppState>,
+) -> Json<Vec<shadows_core::WaitingPermission>> {
+    Json(s.core.harness().waiting_permissions().await)
+}
+
+/// Records the person's offered-option answer before settling the adapter request.
+#[utoipa::path(
+    post, path = "/api/threads/{id}/session/permissions/{request_id}", tag = "threads",
+    params(("id" = ThreadId, Path, description = "The request's thread"),
+        ("request_id" = String, Path, description = "The waiting request")),
+    request_body = AnswerPermission,
+    responses((status = 200, body = shadows_core::PermissionAnswer),
+        (status = 404, description = "PERMISSION_NOT_FOUND", body = ErrorBody),
+        (status = 409, description = "PERMISSION_SETTLED; COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "PERMISSION_OPTION_NOT_OFFERED", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody))
+)]
+pub(super) async fn answer_permission(
+    State(s): State<AppState>,
+    Path((thread, request)): Path<(ThreadId, String)>,
+    Json(body): Json<AnswerPermission>,
+) -> Result<Json<shadows_core::PermissionAnswer>, Failure> {
+    let answer = Transport::detached(async move {
+        Ok(s.core
+            .harness()
+            .answer_permission(body.command_id, &thread, &request, &body.option_id)
+            .await?)
+    })
+    .await?;
+    Ok(Json(answer))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct ChangeMode {
     command_id: String,
     mode: String,

@@ -5,12 +5,14 @@ use std::{
     net::TcpListener,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     thread,
 };
 struct Api {
     origin: String,
+    permissions: Arc<Mutex<serde_json::Value>>,
+    posts: Arc<Mutex<Vec<(String, serde_json::Value)>>>,
     stop: Arc<AtomicBool>,
     worker: Option<thread::JoinHandle<()>>,
 }
@@ -21,6 +23,9 @@ impl Api {
         let origin = format!("http://{}", socket.local_addr().unwrap());
         let stop = Arc::new(AtomicBool::new(false));
         let cancelled = stop.clone();
+        let permissions = Arc::new(Mutex::new(serde_json::json!([])));
+        let posts = Arc::new(Mutex::new(vec![]));
+        let (listed, recorded) = (permissions.clone(), posts.clone());
         let worker = thread::spawn(move || {
             while !cancelled.load(Ordering::Relaxed) {
                 let Ok((mut stream, _)) = socket.accept() else {
@@ -31,12 +36,50 @@ impl Api {
                 stream
                     .set_read_timeout(Some(std::time::Duration::from_secs(1)))
                     .unwrap();
-                let mut bytes = [0u8; 8192];
-                let count = stream.read(&mut bytes).unwrap();
-                let request = String::from_utf8_lossy(&bytes[..count]);
-                assert!(request.starts_with("GET "));
-                let path = request.split_whitespace().nth(1).unwrap();
-                let body=if path=="/api/runtime" {serde_json::json!({"runtime_id":"00000000-0000-4000-8000-000000000009","configuration_id":CONFIG})} else if path=="/api/aylul/agents" {
+                let mut raw = Vec::new();
+                let mut chunk = [0u8; 8192];
+                let (head, body) = loop {
+                    let count = stream.read(&mut chunk).unwrap();
+                    raw.extend_from_slice(&chunk[..count]);
+                    let text = String::from_utf8_lossy(&raw).into_owned();
+                    if let Some((head, rest)) = text.split_once("\r\n\r\n") {
+                        let length = head
+                            .lines()
+                            .find_map(|line| {
+                                line.to_lowercase()
+                                    .strip_prefix("content-length:")
+                                    .and_then(|value| value.trim().parse::<usize>().ok())
+                            })
+                            .unwrap_or(0);
+                        if rest.len() >= length {
+                            break (head.to_owned(), rest.to_owned());
+                        }
+                    }
+                };
+                let method = head.split_whitespace().next().unwrap().to_owned();
+                let path = head.split_whitespace().nth(1).unwrap().to_owned();
+                let path = path.as_str();
+                let mut status = 200;
+                if method == "POST" {
+                    recorded.lock().unwrap().push((
+                        path.to_owned(),
+                        serde_json::from_str(&body).unwrap_or_default(),
+                    ));
+                }
+                let body=if method == "POST" {
+                    let code = path.rsplit('/').next().unwrap();
+                    let (code_status, error) = match code {
+                        "settled" => (409, "PERMISSION_SETTLED"),
+                        "missing" => (404, "PERMISSION_NOT_FOUND"),
+                        "unoffered" => (422, "PERMISSION_OPTION_NOT_OFFERED"),
+                        "broken" => (500, "STORAGE_UNAVAILABLE"),
+                        _ => (200, ""),
+                    };
+                    status = code_status;
+                    if error.is_empty() { serde_json::json!({"request_id":code}) } else { serde_json::json!({"code":error,"message":"SECRET MUST NOT ESCAPE"}) }
+                } else if path=="/api/aylul/permissions" {
+                    listed.lock().unwrap().clone()
+                } else if path=="/api/runtime" {serde_json::json!({"runtime_id":"00000000-0000-4000-8000-000000000009","configuration_id":CONFIG})} else if path=="/api/aylul/agents" {
     serde_json::json!({"project_id":PROJECT,"agents":[
      {"slug":"agent-a","deleted":false},{"slug":"agent-b","deleted":false},{"slug":"deleted","deleted":true}
     ]})
@@ -44,11 +87,13 @@ impl Api {
     let id=path.rsplit('/').next().unwrap();
     serde_json::json!({"id":id,"project_id":PROJECT,"harness":if id==WRONG{"claude"}else{"aylul"},"profile":if id==OTHER{"agent-b"}else{"agent-a"},"removed_at":if id==REMOVED{Some("2026-10-20")}else{None}})
    }.to_string();
-                write!(stream,"HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
+                write!(stream,"HTTP/1.1 {status} OK\r\nContent-Length: {}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
             }
         });
         Self {
             origin,
+            permissions,
+            posts,
             stop,
             worker: Some(worker),
         }
@@ -223,14 +268,14 @@ fn corrupt_preferences_fail_without_silently_replacing_them() {
 fn click_destination_is_closed_and_does_not_create_a_thread() {
     let (_api, _root, presence) = fixture();
     assert_eq!(
-        presence.destination(),
+        presence.destination_for(MainTarget::Bound),
         crate::navigation::MainDestination::CompanionSettings
     );
     presence
         .select(presence.request(None).unwrap(), Some("agent-a".into()))
         .unwrap();
     assert_eq!(
-        presence.destination(),
+        presence.destination_for(MainTarget::Bound),
         crate::navigation::MainDestination::AgentDraft {
             agent: "agent-a".into()
         }
@@ -243,12 +288,137 @@ fn click_destination_is_closed_and_does_not_create_a_thread() {
         )
         .unwrap();
     assert_eq!(
-        presence.destination(),
+        presence.destination_for(MainTarget::Bound),
         crate::navigation::MainDestination::Conversation {
             project_id: PROJECT.into(),
             thread_id: THREAD.into()
         }
     );
+}
+#[test]
+fn named_destinations_resolve_with_reads_only_and_closed_fallbacks() {
+    use crate::navigation::MainDestination;
+    let (_api, _root, presence) = fixture();
+    assert_eq!(
+        presence.destination_for(MainTarget::NewAgent),
+        MainDestination::NewAgent
+    );
+    assert_eq!(
+        presence.destination_for(MainTarget::Settings),
+        MainDestination::Settings
+    );
+    assert_eq!(
+        presence.destination_for(MainTarget::AgentSettings),
+        MainDestination::CompanionSettings
+    );
+    presence
+        .select(presence.request(None).unwrap(), Some("agent-a".into()))
+        .unwrap();
+    assert_eq!(
+        presence.destination_for(MainTarget::AgentSettings),
+        MainDestination::AgentSettings {
+            agent: "agent-a".into()
+        }
+    );
+    assert_eq!(
+        presence.destination_for(MainTarget::OldestWaiting),
+        MainDestination::CompanionSettings
+    );
+    presence.configuration_changed(Some("other".into()));
+    assert_eq!(
+        presence.destination_for(MainTarget::AgentSettings),
+        MainDestination::CompanionSettings
+    );
+}
+#[test]
+fn oldest_waiting_resolves_the_first_entry_and_falls_back_when_it_does_not_resolve() {
+    use crate::navigation::MainDestination;
+    let (api, _root, presence) = fixture();
+    assert_eq!(
+        presence.destination_for(MainTarget::OldestWaiting),
+        MainDestination::CompanionSettings
+    );
+    *api.permissions.lock().unwrap() = serde_json::json!([
+        {"thread_id":THREAD,"agent":"agent-a","request_id":"first","title":"Run","options":[]},
+        {"thread_id":OTHER,"agent":"agent-b","request_id":"second","title":"Run","options":[]}
+    ]);
+    assert_eq!(
+        presence.destination_for(MainTarget::OldestWaiting),
+        MainDestination::Conversation {
+            project_id: PROJECT.into(),
+            thread_id: THREAD.into()
+        }
+    );
+    *api.permissions.lock().unwrap() = serde_json::json!([
+        {"thread_id":WRONG,"agent":"agent-a","request_id":"first","title":"Run","options":[]}
+    ]);
+    assert_eq!(
+        presence.destination_for(MainTarget::OldestWaiting),
+        MainDestination::CompanionSettings
+    );
+}
+#[test]
+fn permission_answers_post_once_with_the_command_id_and_map_core_errors_to_fixed_codes() {
+    let (api, _root, presence) = fixture();
+    presence
+        .select(presence.request(None).unwrap(), Some("agent-a".into()))
+        .unwrap();
+    presence
+        .retarget(presence.request(None).unwrap(), THREAD.into())
+        .unwrap();
+    let command = uuid::Uuid::new_v4().to_string();
+    let answer = |thread: &str, request: &str, command: &str| {
+        tauri::async_runtime::block_on(presence.answer_companion_permission(
+            thread.into(),
+            request.into(),
+            "allow_once".into(),
+            command.into(),
+        ))
+    };
+    assert!(answer(THREAD, "granted", &command).unwrap().ok);
+    {
+        let posts = api.posts.lock().unwrap();
+        assert_eq!(posts.len(), 1);
+        assert_eq!(
+            posts[0].0,
+            format!("/api/threads/{THREAD}/session/permissions/granted")
+        );
+        assert_eq!(
+            posts[0].1,
+            serde_json::json!({"command_id":command,"option_id":"allow_once"})
+        );
+    }
+    for (request, code) in [
+        ("settled", "permission_settled"),
+        ("missing", "permission_not_found"),
+        ("unoffered", "permission_option_not_offered"),
+        ("broken", "permission_failed"),
+    ] {
+        assert_eq!(answer(THREAD, request, &command).unwrap_err(), code);
+    }
+    let posts = api.posts.lock().unwrap().len();
+    for (thread, request, command) in [
+        (OTHER, "granted", command.as_str()),
+        (THREAD, "../granted", command.as_str()),
+        (THREAD, "granted", "not-a-uuid"),
+    ] {
+        assert!(answer(thread, request, command).is_err());
+    }
+    assert_eq!(
+        api.posts.lock().unwrap().len(),
+        posts,
+        "refused answers send nothing"
+    );
+}
+#[tokio::test]
+async fn navigation_rejects_unknown_targets_before_window_work() {
+    let (_api, _root, presence) = fixture();
+    for target in ["", "url", "https://example.com", "../settings"] {
+        assert_eq!(
+            presence.open_main_from_companion(Some(target.into())).await,
+            Err("navigation_invalid".into())
+        );
+    }
 }
 
 #[test]
@@ -274,6 +444,11 @@ fn write_presence_fixture() {
             project_id: PROJECT.into(),
             thread_id: THREAD.into(),
         }),
+        navigation.request(crate::navigation::MainDestination::AgentSettings {
+            agent: "agent-a".into(),
+        }),
+        navigation.request(crate::navigation::MainDestination::NewAgent),
+        navigation.request(crate::navigation::MainDestination::Settings),
     ];
     let active_presence = super::projection::PresenceProjection {
         expression: "success".into(),
@@ -284,7 +459,15 @@ fn write_presence_fixture() {
             expires_at_ms: 10_000,
         }),
     };
-    let fixture = serde_json::json!({"unbound":unbound,"binding":binding,"target":target,"destinations":destinations,"companion":crate::windows::companion::state::Model::default().view,"activePresence":active_presence});
+    let mut companion = crate::windows::companion::state::Model::default();
+    companion.present(
+        Default::default(),
+        Some(crate::windows::companion::SurfaceAppearance {
+            color: "blue".into(),
+            outfit: Some("opaque outfit".into()),
+        }),
+    );
+    let fixture = serde_json::json!({"unbound":unbound,"binding":binding,"target":target,"destinations":destinations,"companion":companion.view,"activePresence":active_presence});
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../web/src/test/native-presence.json");
     if std::env::var("UPDATE_NATIVE_FIXTURES").as_deref() == Ok("1") {

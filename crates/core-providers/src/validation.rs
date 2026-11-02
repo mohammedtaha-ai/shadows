@@ -85,7 +85,7 @@ impl Providers {
         Ok(input)
     }
 
-    pub(super) fn validate_url(url: &str) -> Result<(), ProvidersError> {
+    pub fn validate_url(url: &str) -> Result<(), ProvidersError> {
         let (scheme, rest) = url.split_once("://").unwrap_or(("", ""));
         let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
         let host = if authority.starts_with('[') {

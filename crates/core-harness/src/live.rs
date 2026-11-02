@@ -97,6 +97,7 @@ impl Sessions {
                 resume = Some(expected.session_id.clone());
                 current.usable = false;
                 current.opened.generation = self.generations.fetch_add(1, Ordering::Relaxed);
+                current.opened.connection.refuse_held("closed").await;
                 Self::stop_handle(&mut current.handle)
                     .await
                     .map_err(|error| OpenError::Start(error.to_string()))?;
@@ -112,6 +113,7 @@ impl Sessions {
                     current.last_used = Instant::now();
                     return Ok(current.opened.clone());
                 }
+                current.opened.connection.refuse_held("closed").await;
                 Self::stop_handle(&mut current.handle)
                     .await
                     .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
@@ -177,11 +179,21 @@ impl Sessions {
             let mut image_refusal = None;
             let deadline = Instant::now() + self.config.setup_wait;
             let setup = async {
-                let connection =
-                    tokio::time::timeout_at(deadline, Connection::open(&mut handle, events))
-                        .await
-                        .map_err(|_| "harness setup timed out".to_string())?
-                        .map_err(|e| e.to_string())?;
+                let connection = tokio::time::timeout_at(
+                    deadline,
+                    Connection::open(
+                        &mut handle,
+                        if context.harness == policy::AYLUL {
+                            shadows_agent::acp::PermissionPolicy::Ask
+                        } else {
+                            shadows_agent::acp::PermissionPolicy::Refuse
+                        },
+                        events,
+                    ),
+                )
+                .await
+                .map_err(|_| "harness setup timed out".to_string())?
+                .map_err(|e| e.to_string())?;
                 if let Err(error) = super::Harness::check_images(&connection, has_images) {
                     let reason = error.to_string();
                     image_refusal = Some(error);
@@ -272,6 +284,7 @@ impl Sessions {
                     let current = live.as_mut().expect("opened adapter");
                     current.usable = false;
                     current.opened.generation = self.generations.fetch_add(1, Ordering::Relaxed);
+                    current.opened.connection.refuse_held("closed").await;
                     Self::stop_handle(&mut current.handle)
                         .await
                         .map_err(|error| OpenError::Start(error.to_string()))?;

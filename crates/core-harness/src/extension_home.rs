@@ -274,14 +274,18 @@ fn project(
 impl Homes {
     pub(super) async fn write_extensions(
         &self,
+        agents: &core_agents::Agents,
         extensions: &Extensions,
         root: &Path,
         home: &Path,
         slug: &str,
-    ) -> Result<(), HarnessError> {
-        let _library = extensions.extension_guard().await;
+    ) -> Result<Vec<shadows_agent::acp::McpServerSpec>, HarnessError> {
+        let snapshot = extensions.opening_snapshot(slug).await?;
         let _home = self.lock_home(home).await?;
-        let items = extensions.agent_extensions(slug).await?;
+        if let Some(instructions) = agents.home_instructions(slug).await? {
+            self.write_instructions(home, &instructions)?;
+        }
+        let items = snapshot.library;
         let skills = items
             .skills
             .into_iter()
@@ -295,6 +299,26 @@ impl Homes {
             .map(|i| i.item)
             .collect();
         // No imported code is executed by projection.
-        project(root, home, skills, plugins)
+        project(root, home, skills, plugins)?;
+        Ok(snapshot
+            .mcp
+            .into_iter()
+            .map(|server| match server {
+                core_extensions::McpServerConfig::Http { name, url, headers } => {
+                    shadows_agent::acp::McpServerSpec::Http { name, url, headers }
+                }
+                core_extensions::McpServerConfig::Stdio {
+                    name,
+                    command,
+                    args,
+                    env,
+                } => shadows_agent::acp::McpServerSpec::Stdio {
+                    name,
+                    command,
+                    args,
+                    env,
+                },
+            })
+            .collect())
     }
 }

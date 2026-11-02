@@ -59,6 +59,8 @@ export const LINE_HEIGHT = 16
 /** Border, padding, the "Plan" row, the title and three lines of goal. */
 const START_HEIGHT = 114
 const MAX_WRITES = 3
+/** How far a lone column's box moves off the line, up or down. */
+const STAGGER = 46
 
 export function taskNodeId(number: number): string {
   return `t${number}`
@@ -148,11 +150,12 @@ function edge(source: string, target: string, id: string, kind: LinkData['kind']
 export function placeGraph(nodes: Node[], edges: PlanEdge[]): void {
   const graph = new dagre.graphlib.Graph()
   // Wide rank gaps: an edge's label sits halfway between two columns.
-  graph.setGraph({ rankdir: 'LR', nodesep: 48, ranksep: 160, marginx: 0, marginy: 0 })
+  graph.setGraph({ rankdir: 'LR', nodesep: 68, ranksep: 172, marginx: 0, marginy: 0 })
   graph.setDefaultEdgeLabel(() => ({}))
   for (const node of nodes) graph.setNode(node.id, { width: node.width, height: node.height })
   for (const e of edges) graph.setEdge(e.source, e.target)
   dagre.layout(graph)
+  stagger(nodes, (id) => graph.node(id) as { x: number; y: number })
 
   const nodeMap = new Map<string, { x: number; y: number; width: number; height: number }>()
   for (const node of nodes) {
@@ -237,6 +240,25 @@ export function placeGraph(nodes: Node[], edges: PlanEdge[]): void {
         e.data.stepPosition = count === 1 ? 0.5 : 0.2 + (0.6 * (idx + 0.5)) / count
       }
     })
+  }
+}
+
+/** A column holding one task alternates above and below the line, so a long
+ * chain does not sit on one flat row. The start and any column of two or more
+ * stay where dagre put them; a lone box has the whole column to itself, so
+ * moving it cannot overlap another. */
+function stagger(nodes: Node[], centre: (id: string) => { x: number; y: number }): void {
+  const columns = new Map<number, Node[]>()
+  for (const node of nodes) {
+    const key = Math.round(centre(node.id).x)
+    columns.set(key, [...(columns.get(key) ?? []), node])
+  }
+  let index = 0
+  for (const [, column] of [...columns.entries()].sort((a, b) => a[0] - b[0])) {
+    const [only] = column
+    if (column.length !== 1 || only === undefined || only.id === 'start') continue
+    index += 1
+    centre(only.id).y += index % 2 === 1 ? -STAGGER : STAGGER
   }
 }
 

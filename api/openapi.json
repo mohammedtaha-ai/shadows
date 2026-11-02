@@ -99,7 +99,18 @@
           "deleted": {
             "type": "boolean"
           },
+          "description": {
+            "type": "string"
+          },
+          "instructions": {
+            "description": "Empty when the agent follows the bundled template or its home file was not imported.",
+            "type": "string"
+          },
           "name": {
+            "type": "string"
+          },
+          "outfit": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}$",
             "type": "string"
           },
           "provider": {
@@ -118,6 +129,9 @@
           "provider",
           "default_model",
           "character_color",
+          "description",
+          "instructions",
+          "outfit",
           "deleted",
           "created_at",
           "updated_at"
@@ -144,6 +158,12 @@
       },
       "AgentExtensions": {
         "properties": {
+          "mcp": {
+            "items": {
+              "$ref": "#/components/schemas/AgentMcpItem"
+            },
+            "type": "array"
+          },
           "plugins": {
             "items": {
               "$ref": "#/components/schemas/AgentItem"
@@ -159,7 +179,8 @@
         },
         "required": [
           "plugins",
-          "skills"
+          "skills",
+          "mcp"
         ],
         "type": "object"
       },
@@ -175,8 +196,27 @@
           "default_model": {
             "type": "string"
           },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "name": {
             "type": "string"
+          },
+          "outfit": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}$",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "provider": {
             "type": "string"
@@ -198,6 +238,16 @@
             "properties": {
               "enabled": {
                 "type": "boolean"
+              },
+              "transport": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/McpTransport"
+                  }
+                ]
               }
             },
             "required": [
@@ -206,6 +256,35 @@
             "type": "object"
           }
         ]
+      },
+      "AgentMcpItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/McpItem"
+          },
+          {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AgentTemplate": {
+        "properties": {
+          "instructions": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "instructions"
+        ],
+        "type": "object"
       },
       "AgentWorkspace": {
         "properties": {
@@ -592,6 +671,21 @@
           "more",
           "suggestions",
           "status"
+        ],
+        "type": "object"
+      },
+      "AnswerPermission": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "option_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "option_id"
         ],
         "type": "object"
       },
@@ -1836,6 +1930,9 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\n`Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "PERMISSION_NOT_FOUND",
+          "PERMISSION_SETTLED",
+          "PERMISSION_OPTION_NOT_OFFERED",
           "EXTENSION_NOT_FOUND",
           "EXTENSION_NAME_CONFLICT",
           "RUNTIME_NOT_CONFIGURED",
@@ -1891,12 +1988,19 @@
       "ExtensionKind": {
         "enum": [
           "plugin",
-          "skill"
+          "skill",
+          "mcp"
         ],
         "type": "string"
       },
       "ExtensionLibrary": {
         "properties": {
+          "mcp": {
+            "items": {
+              "$ref": "#/components/schemas/McpItem"
+            },
+            "type": "array"
+          },
           "plugins": {
             "items": {
               "$ref": "#/components/schemas/Item"
@@ -1912,7 +2016,8 @@
         },
         "required": [
           "plugins",
-          "skills"
+          "skills",
+          "mcp"
         ],
         "type": "object"
       },
@@ -2391,6 +2496,9 @@
       },
       "Item": {
         "properties": {
+          "bundled": {
+            "type": "boolean"
+          },
           "description": {
             "type": "string"
           },
@@ -2820,6 +2928,222 @@
         ],
         "type": "object"
       },
+      "McpInput": {
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "transport": {
+            "$ref": "#/components/schemas/McpTransportInput"
+          }
+        },
+        "required": [
+          "name",
+          "transport"
+        ],
+        "type": "object"
+      },
+      "McpItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "transport": {
+            "$ref": "#/components/schemas/McpTransport"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "transport"
+        ],
+        "type": "object"
+      },
+      "McpRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/McpInput"
+          },
+          {
+            "properties": {
+              "command_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "McpTransport": {
+        "oneOf": [
+          {
+            "properties": {
+              "headers": {
+                "items": {
+                  "$ref": "#/components/schemas/McpValue"
+                },
+                "type": "array"
+              },
+              "type": {
+                "enum": [
+                  "http"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "headers",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "args": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "command": {
+                "type": "string"
+              },
+              "env": {
+                "items": {
+                  "$ref": "#/components/schemas/McpValue"
+                },
+                "type": "array"
+              },
+              "type": {
+                "enum": [
+                  "stdio"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "command",
+              "args",
+              "env",
+              "type"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "McpTransportInput": {
+        "oneOf": [
+          {
+            "properties": {
+              "headers": {
+                "items": {
+                  "$ref": "#/components/schemas/McpValueInput"
+                },
+                "type": "array"
+              },
+              "type": {
+                "enum": [
+                  "http"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "headers",
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "args": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "command": {
+                "type": "string"
+              },
+              "env": {
+                "items": {
+                  "$ref": "#/components/schemas/McpValueInput"
+                },
+                "type": "array"
+              },
+              "type": {
+                "enum": [
+                  "stdio"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "command",
+              "args",
+              "env",
+              "type"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "McpValue": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "set": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "set"
+        ],
+        "type": "object"
+      },
+      "McpValueInput": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "ModelUsage": {
         "properties": {
           "cost": {
@@ -3234,6 +3558,53 @@
           "part",
           "ancestors",
           "plans"
+        ],
+        "type": "object"
+      },
+      "PermissionAnswer": {
+        "properties": {
+          "answered_at": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "option_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "thread_id",
+          "request_id",
+          "option_id",
+          "kind",
+          "answered_at"
+        ],
+        "type": "object"
+      },
+      "PermissionOption": {
+        "description": "A reported adapter option in the spelling used by entries and waiting lists.",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "option_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "option_id",
+          "name",
+          "kind"
         ],
         "type": "object"
       },
@@ -5278,6 +5649,8 @@
           "TodoList",
           "Subagent",
           "PermissionRefused",
+          "PermissionAsked",
+          "PermissionAnswered",
           "PlanView",
           "PlanApproved",
           "VisionProposal",
@@ -5815,6 +6188,40 @@
         ],
         "type": "object"
       },
+      "WaitingPermission": {
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "asked_at": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionOption"
+            },
+            "type": "array"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id",
+          "agent",
+          "request_id",
+          "title",
+          "options",
+          "asked_at"
+        ],
+        "type": "object"
+      },
       "WorkflowId": {
         "format": "uuid",
         "type": "string"
@@ -5908,6 +6315,26 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/aylul/agent-template": {
+      "get": {
+        "operationId": "agent_template",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplate"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
     "/api/aylul/agents": {
       "get": {
         "operationId": "agents",
@@ -6690,6 +7117,146 @@
         ]
       }
     },
+    "/api/aylul/extensions/mcp": {
+      "post": {
+        "operationId": "add_mcp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpItem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/extensions/mcp/{id}": {
+      "put": {
+        "operationId": "update_mcp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpItem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
     "/api/aylul/extensions/{kind}/{id}": {
       "delete": {
         "operationId": "remove_extension",
@@ -6764,6 +7331,30 @@
             "description": ""
           }
         },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/permissions": {
+      "get": {
+        "operationId": "waiting_permissions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WaitingPermission"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Live AYLUL permission requests, oldest first; empty without AYLUL configuration.",
         "tags": [
           "aylul"
         ]
@@ -9775,7 +10366,7 @@
             "description": "Unknown or removed project"
           }
         },
-        "summary": "A project's plan/design notifications, replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.",
+        "summary": "A project's plan/design notifications, replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.\nPermissionsChanged names a request_id and waiting/answered/refused state on\nthe AYLUL project; clients refetch GET /api/aylul/permissions for current options.",
         "tags": [
           "stream"
         ]
@@ -12123,6 +12714,97 @@
           }
         },
         "summary": "Sets the thread's session to `model` as soon as a person picks it, opening the session first if\nit is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. The change itself writes nothing durable and no `command_id` is\ncarried: setting the same model twice is the same state, and a turn\nrecords its model in its own invocation. An opening it causes writes what\n`POST .../session` writes (the thread's MCP grant and its events). The\nremembered settings do not move; when the session moves to the\nmodel, it is set to that model's remembered effort if still offered.\nA running turn's session is not changed (`THREAD_BUSY`).",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/session/permissions/{request_id}": {
+      "post": {
+        "operationId": "answer_permission",
+        "parameters": [
+          {
+            "description": "The request's thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "description": "The waiting request",
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerPermission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionAnswer"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PERMISSION_NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PERMISSION_SETTLED; COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PERMISSION_OPTION_NOT_OFFERED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Records the person's offered-option answer before settling the adapter request.",
         "tags": [
           "threads"
         ]

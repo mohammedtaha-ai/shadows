@@ -373,3 +373,17 @@ fn preview_preserves_inline_punctuation() {
         Some("Open chat.".into())
     );
 }
+
+#[test]
+fn a_waiting_request_blocks_the_expression_and_its_end_restores_the_actual_status() {
+    let mut state = live();
+    snapshot(&mut state, "op-1", "Running", vec![], None, 10);
+    assert_eq!(state.value().expression, "thinking");
+    let waiting = apply(&mut state, Observation::Waiting(true), 20);
+    assert_eq!(
+        (waiting.expression.as_str(), waiting.status.as_str()),
+        ("blocked", "Waiting for you")
+    );
+    let restored = apply(&mut state, Observation::Waiting(false), 30);
+    assert_eq!(restored.expression, "thinking");
+}

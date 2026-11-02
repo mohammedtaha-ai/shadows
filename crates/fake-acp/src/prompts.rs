@@ -165,6 +165,9 @@ pub(crate) async fn answer(
             let matches = std::env::var("ANTHROPIC_AUTH_TOKEN").is_ok_and(|v| v == expected);
             chunk(cx, id, "m1", if matches { "true" } else { "false" })?;
         }
+        "report-mcp" => {
+            chunk(cx, id, "m1", &s.setup.mcp_servers.to_string())?;
+        }
         "report" => {
             let bearer_hash = s
                 .setup
@@ -263,32 +266,62 @@ pub(crate) async fn answer(
             chunk(cx, id, "m1", "exiting")?;
             std::process::exit(3);
         }
-        "ask-permission" => {
-            let call: ToolCallUpdate = serde_json::from_value(json!({
-                "toolCallId": "p1",
-                "title": "Run echo probe",
-            }))
-            .unwrap();
-            let req = RequestPermissionRequest::new(
+        "end-with-permission" => {
+            let request = RequestPermissionRequest::new(
                 id.to_owned(),
-                call,
-                vec![
-                    PermissionOption::new("allow_once", "Allow", PermissionOptionKind::AllowOnce),
-                    PermissionOption::new(
-                        "reject_once",
-                        "Reject",
-                        PermissionOptionKind::RejectOnce,
-                    ),
-                ],
+                serde_json::from_value(json!({"toolCallId":"pending", "title":"Pending"})).unwrap(),
+                vec![PermissionOption::new(
+                    "allow_once",
+                    "Allow",
+                    PermissionOptionKind::AllowOnce,
+                )],
             );
-            let answer = cx.send_request(req).block_task().await?;
-            let chosen = match answer.outcome {
-                agent_client_protocol::schema::v1::RequestPermissionOutcome::Selected(x) => {
-                    x.option_id.to_string()
-                }
-                _ => "cancelled".into(),
-            };
-            chunk(cx, id, "m1", &format!("permission: {chosen}"))?;
+            let client = cx.clone();
+            tokio::spawn(async move {
+                let _ = client.send_request(request).block_task().await;
+            });
+            while !s.cwd.join("end-permission-turn").exists() {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            chunk(cx, id, "m1", "turn ended with a pending request")?;
+        }
+        "ask-permission" | "two-permissions" => {
+            for index in 1..=if prompt == "two-permissions" { 2 } else { 1 } {
+                let call: ToolCallUpdate = serde_json::from_value(json!({
+                    "toolCallId": format!("p{index}"),
+                    "title": "Run echo probe",
+                }))
+                .unwrap();
+                let req = RequestPermissionRequest::new(
+                    id.to_owned(),
+                    call,
+                    vec![
+                        PermissionOption::new(
+                            "allow_once",
+                            "Allow",
+                            PermissionOptionKind::AllowOnce,
+                        ),
+                        PermissionOption::new(
+                            "reject_once",
+                            "Reject",
+                            PermissionOptionKind::RejectOnce,
+                        ),
+                    ],
+                );
+                let answer = cx.send_request(req).block_task().await?;
+                let chosen = match answer.outcome {
+                    agent_client_protocol::schema::v1::RequestPermissionOutcome::Selected(x) => {
+                        x.option_id.to_string()
+                    }
+                    _ => "cancelled".into(),
+                };
+                chunk(
+                    cx,
+                    id,
+                    &format!("m{index}"),
+                    &format!("permission: {chosen}"),
+                )?;
+            }
         }
         "turn-usage" | "turn-usage-second" | "turn-usage-refused" | "turn-usage-cancelled" => {
             let amount = if prompt == "turn-usage-second" {

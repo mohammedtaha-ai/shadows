@@ -11,7 +11,7 @@ let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null; window.localStorage.clear() })
 const pathInput = () => document.querySelector<HTMLInputElement>('input[aria-label="Folder path"]')!
 async function open(overrides: Record<string, Answer> = {}) {
-  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': { plugins: [plugin], skills: [skill] }, ...overrides })
+  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': { plugins: [plugin], skills: [skill], mcp: [] }, ...overrides })
   await until(() => a.button('Add') !== undefined)
   return a
 }
@@ -25,13 +25,41 @@ it('the library has tabs and no switches', async () => {
   act(() => a.button('Skills')!.click())
   expect(a.text()).toContain('Review changes.'); expect(document.querySelector('[role="switch"]')).toBeNull()
   expect(a.calls.filter(call => call === 'GET /api/aylul/extensions')).toHaveLength(1)
-  a.queryClient.setQueryData(extensionsQuery.queryKey, { plugins: [], skills: [] })
+  a.queryClient.setQueryData(extensionsQuery.queryKey, { mcp: [], plugins: [], skills: [] })
   await until(() => a.text().includes('No skills yet.'))
   act(() => a.button('Plugins')!.click()); expect(a.text()).toContain('No plugins yet.')
 })
+it('bundled items are marked and MCP tools edit and delete through the library', async () => {
+  let removed = false
+  const tool = { id: 'm1', name: 'research', description: 'Research tools', transport: { type: 'http', url: 'https://example.com', headers: [{ name: 'Authorization', set: true }] } }
+  const a = await open({
+    'GET /api/aylul/extensions': () => Response.json({ plugins: [{ ...plugin, bundled: true }], skills: [], mcp: removed ? [] : [tool] }),
+    'PUT /api/aylul/extensions/mcp/m1': () => Response.json(tool),
+    'DELETE /api/aylul/extensions/mcp/m1': () => { removed = true; return new Response(null, { status: 204 }) },
+  })
+  expect(a.text()).toContain('Included with AYLUL')
+  act(() => a.button('MCP tools')!.click())
+  expect(a.text()).toContain('Research tools')
+  act(() => a.button('Edit')!.click())
+  expect(document.querySelector<HTMLInputElement>('[aria-label="Secret value 1"]')?.value).toBe('')
+  expect(a.text()).toContain('Set')
+  act(() => a.button('Save MCP tool')!.click())
+  await until(() => a.button('Add MCP tool') !== undefined)
+  expect(a.calls).toContain('PUT /api/aylul/extensions/mcp/m1')
+  act(() => a.button('Remove')!.click()); confirm(a)
+  await until(() => a.text().includes('No MCP tools yet.'))
+})
+it('library keyboard navigation includes the MCP tab', async () => {
+  await open()
+  const pluginTab = document.querySelector<HTMLElement>('[role="tab"][data-kind="plugin"]')!
+  act(() => pluginTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })))
+  expect(document.querySelector('[role="tab"][aria-selected=true]')?.textContent).toBe('MCP tools')
+  act(() => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(document.querySelector('[role="tab"][aria-selected=true]')?.textContent).toBe('Plugins')
+})
 it('Add imports a folder on the daemon', async () => {
   let items: Item[] = []
-  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: [], skills: items }),
+  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: [], skills: items, mcp: [] }),
     'POST /api/aylul/extensions': () => { items = [skill]; return Response.json(skill, { status: 201 }) },
   })
   act(() => a.button('Skills')!.click()); await add(a)
@@ -65,7 +93,7 @@ it('Back discards an unsubmitted import', async () => {
 })
 it('Remove confirms its library-wide effect', async () => {
   let removed = false, request: Request | undefined
-  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [] }),
+  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [], mcp: [] }),
     [`DELETE /api/aylul/extensions/plugin/${plugin.id}`]: (incoming: Request) => { request = incoming; removed = true; return new Response(null, { status: 204 }) },
   })
   act(() => a.button('Remove')!.click())
@@ -78,13 +106,13 @@ it('Remove confirms its library-wide effect', async () => {
 })
 it('a failed Remove can be retried', async () => {
   const ids: string[] = []; let removed = false
-  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [] }),
+  const a = await open({ 'GET /api/aylul/extensions': () => Response.json({ plugins: removed ? [] : [plugin], skills: [], mcp: [] }),
     [`DELETE /api/aylul/extensions/plugin/${plugin.id}`]: (incoming: Request) => {
       ids.push(new URL(incoming.url).searchParams.get('command_id')!); removed = ids.length > 1
       return removed ? new Response(null, { status: 204 }) : Response.json({ code: 'COMMAND_CONFLICT', message: 'Remove failed.' }, { status: 409 })
     },
   })
-  for (const slug of ['ay', 'zed']) a.queryClient.setQueryData(agentExtensionsQuery(slug).queryKey, { plugins: [{ ...plugin, enabled: true }], skills: [] })
+  for (const slug of ['ay', 'zed']) a.queryClient.setQueryData(agentExtensionsQuery(slug).queryKey, { mcp: [], plugins: [{ ...plugin, enabled: true }], skills: [] })
   act(() => a.button('Remove')!.click()); confirm(a)
   await until(() => a.text().includes('Remove failed.') && a.buttons('Remove').at(-1)?.disabled === false)
   expect(ids).toHaveLength(1); expect(a.text()).toContain('Git tools.')
@@ -94,7 +122,7 @@ it('a failed Remove can be retried', async () => {
 })
 it('library load failure is not empty', async () => {
   let fail = true
-  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': () => fail ? Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Library unavailable.' }, { status: 500 }) : Response.json({ plugins: [], skills: [] }) })
+  const a = app = await startApp('/?settings=plugins', { ...answers(), 'GET /api/aylul/extensions': () => fail ? Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Library unavailable.' }, { status: 500 }) : Response.json({ plugins: [], skills: [], mcp: [] }) })
   await until(() => a.text().includes('Library unavailable.'))
   expect(a.text()).not.toContain('No plugins yet.')
   fail = false; act(() => a.button('Retry')!.click()); await until(() => a.text().includes('No plugins yet.'))

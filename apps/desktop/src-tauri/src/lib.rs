@@ -33,6 +33,8 @@ pub fn run() {
             commands::cancel_login,
             commands::aylul_call,
             commands::companion::companion_state,
+            commands::companion::companion_panel,
+            commands::companion::answer_companion_permission,
             commands::companion::companion_send,
             commands::companion::companion_input,
             commands::companion::companion_ready,

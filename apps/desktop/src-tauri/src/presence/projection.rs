@@ -51,6 +51,7 @@ impl PresenceProjection {
                     text: preview.text,
                     expires_at_ms: preview.expires_at_ms,
                 }),
+            waiting: Default::default(),
         }
     }
     pub fn unbound() -> Self {
@@ -74,6 +75,8 @@ pub enum Observation {
     Disconnected,
     Unavailable(&'static str),
     Tick,
+    /// A request waits on the bound thread for the person's answer.
+    Waiting(bool),
     Delta(String),
     Tool(String),
     Snapshot {
@@ -92,6 +95,7 @@ pub struct Projection {
     bound: bool,
     previews: bool,
     live: bool,
+    waiting: bool,
     fault: Option<&'static str>,
     cursor: i64,
     operation: Option<Operation>,
@@ -117,6 +121,7 @@ impl Projection {
             bound,
             previews,
             live: false,
+            waiting: false,
             fault: Some("Connecting"),
             cursor: 0,
             operation: None,
@@ -164,6 +169,7 @@ impl Projection {
                 self.tool = false;
             }
             Observation::Tick => {}
+            Observation::Waiting(waiting) => self.waiting = waiting,
             Observation::Delta(id) => {
                 if self.live && self.active(&id) {
                     self.delta_at = Some(now)
@@ -284,6 +290,13 @@ impl Projection {
         }
         if !self.live {
             return PresenceProjection::unavailable("Connecting");
+        }
+        if self.waiting {
+            return PresenceProjection {
+                expression: "blocked".into(),
+                status: "Waiting for you".into(),
+                preview: None,
+            };
         }
         let (expression, status) = match self
             .operation

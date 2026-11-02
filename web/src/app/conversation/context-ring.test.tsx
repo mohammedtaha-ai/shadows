@@ -86,6 +86,22 @@ describe('the context ring', () => {
     }
   })
 
+  it('draws the usage bar from the figures Core gave', () => {
+    const given = renderRing({ usage: { contextUsed: 500_000, contextWindow: 1_000_000 }, limits: null })
+    act(() => given.trigger().click())
+    expect(given.text()).toContain('500k / 1M (50%)')
+    expect(document.querySelector<HTMLElement>('.bg-gradient-to-r[style*="width: 50%"]')).not.toBeNull()
+    expect(given.text()).toContain('Limits: no figures yet')
+    expect(given.text()).not.toContain('5-hour limit')
+  })
+
+  it('draws no usage bar when Core gave no figures', () => {
+    const none = renderRing({ usage: null, limits: null })
+    act(() => none.trigger().click())
+    expect(document.querySelector('.bg-gradient-to-r')).toBeNull()
+    expect(none.text()).not.toContain('%')
+  })
+
   it('opens with no daemon request and points to /context for the full breakdown', () => {
     const r = renderRing({ usage: { contextUsed: 126800, contextWindow: 1_000_000 }, limits: null })
     act(() => r.trigger().click())

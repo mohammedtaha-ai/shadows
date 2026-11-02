@@ -15,6 +15,8 @@ pub enum ExtensionsError {
     #[error(transparent)]
     Agent(#[from] AgentsError),
     #[error(transparent)]
+    Secrets(#[from] core_secrets::SecretsError),
+    #[error(transparent)]
     Storage(#[from] StorageError),
 }
 

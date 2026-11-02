@@ -33,7 +33,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/assistant/` | Retained native assistant service primitives without main IPC registration | Colocated `contract.yaml` |
 | `apps/desktop/src/api/generated/` | Backend-generated wire artifacts and input hash | Backend TypeBox owner; `provenance.json` |
 | `apps/desktop/src/app/` | Independent companion entry | Colocated `contract.yaml` |
-| `apps/desktop/src/platform/` | Typed companion-only invocation wrappers | Colocated `contract.yaml` |
+| `apps/desktop/src/platform/` | Typed companion-only invocation wrappers | Colocated `contract.yaml`; bounded panel projections and closed navigation targets |
 | `apps/desktop/src/platform/companion-state.test.ts` | Companion projection validation regressions | Platform contract; co-located unit test |
 | `apps/desktop/src/features/companion/renderer/index.ts` | Public character and scene drawing entry | Companion contract; explicit current-consumer exports |
 | `apps/desktop/src/features/companion/animation/index.ts` | Public motion, scheduling, viewport and message entry | Companion contract; explicit current-consumer exports |
@@ -45,21 +45,29 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/composer.test.ts` | Co-located draft and retry regressions | Companion contract |
 | `apps/desktop/src/features/companion/desktop-gesture.test.ts` | Co-located desktop gesture regressions | Companion contract |
 | `apps/desktop/tests/companion/fakes.ts` | Native composer browser test support | Companion contract; used by `composer.spec.ts` |
+| `apps/desktop/tests/companion/outfit-export.spec.ts` | Opt-in studio outfit preview export | Studio contract; writes the web preview assets |
+| `apps/desktop/tests/companion/outfit-manifest.test.ts` | Outfit preview catalog consistency | Studio contract; checks labels order and image presence |
 | `apps/desktop/src/features/companion/renderer/palette.test.ts` | Character colour palette regressions | Companion contract; co-located unit test |
 | `apps/desktop/tests/companion/boundaries.test.ts` | Parser-backed companion import ratchet | Desktop architecture section 6; exact per-import baseline and adversarial fixtures in `fixtures/boundaries/`; production reachability starts at `src/app/companion.tsx` |
 | `apps/desktop/src/features/companion/CompanionComposer.tsx` | Compact scoped text submission | Companion contract; unavailable Retry retains pending identity |
+| `apps/desktop/src/features/companion/panel/CompanionPanel.tsx` | Companion panel presentation | Companion contract; typed platform actions only |
+| `apps/desktop/src/features/companion/panel/PermissionPrompt.tsx` | Answers the bound agent's waiting request by option buttons | Companion contract; typed platform action only |
+| `apps/desktop/src/features/companion/panel/AgentTile.tsx` | Still agent previews on the panel | Companion contract; public renderer and animation entries |
+| `apps/desktop/src/features/companion/panel/panel.css` | Companion panel neon appearance | Companion contract |
+| `apps/desktop/tests/companion/panel.spec.ts` | Companion panel browser acceptance | Companion contract; synthetic native IPC |
 | `apps/desktop/src/features/companion/composer-model.ts` | Draft and retry identity rules | Companion contract |
 | `apps/desktop/src/features/companion/native-presentation.ts` | Absolute-expiry native reply presentation | Companion contract |
 | `apps/desktop/src/features/companion/` | Compact desktop character/gestures plus reusable presence, procedural Canvas renderer and explicit drawing permission | Colocated `contract.yaml`; excludes separately owned studio |
 | `apps/desktop/src/features/companion/studio/` | Development-only scenes, controlled simulations and PNG export | Colocated `contract.yaml`; excluded from parent scope |
 | `apps/desktop/src-tauri/src/lib.rs` | Register native lifetime adapters | Composition contract |
 | `apps/desktop/src-tauri/src/app.rs` | Assemble the nine native owners with explicit window handles and live close/tray callbacks | `src-tauri/src/contract.yaml` |
+| `apps/desktop/src-tauri/build.rs` | Generate native command permissions | Composition contract; Windows tests declare Common Controls v6 |
 | `apps/desktop/src-tauri/src/windows/` | MainWindow construction/opening with injected tray/close callbacks and physical placement | Colocated `contract.yaml` |
-| `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit editor focus with physical bounds through the supplied window Handle | Companion window contract |
+| `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit companion surface focus with physical bounds through the supplied window Handle | Companion window contract; editor/panel mutual exclusion and compact restoration |
 | `apps/desktop/src-tauri/src/windows/companion/surface.rs` | Window-owned presentation DTOs | Companion window contract; producers map outside window code |
 | `apps/desktop/src-tauri/src/windows/companion/state.rs` | Revisioned companion surface state | Companion window contract; exact unbound, bound, previewing and failed payloads cover command answers and events |
 | `apps/desktop/src-tauri/src/windows/companion/` | Independent native companion lifecycle through a shared opaque Handle, explicit render permission, no-activation show and complete-rectangle fitting | Colocated `contract.yaml`; excluded from parent scope |
-| `apps/desktop/src-tauri/src/commands/` | Main-only native action IPC boundary | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/commands/` | Surface-scoped native action IPC boundary | Colocated `contract.yaml`; main and owned-companion admission |
 | `apps/desktop/src-tauri/src/native_login/` | Local return/verifier/browser/DPAPI primitives | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/auth/` | Protected account backend client with captured-session assistant verification | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/sidecar/` | Node sidecar process lifetime and stdio calls | Colocated `contract.yaml` |

@@ -1,5 +1,5 @@
 //! Async Core requests for observation: metadata checks, snapshots and SSE.
-use super::RuntimeIdentity;
+use super::{RuntimeIdentity, WaitingPermission};
 use crate::{
     core_connection::ReadyConnection,
     presence::{
@@ -21,6 +21,25 @@ use std::{
 };
 const JSON_LIMIT: usize = 16 * 1024 * 1024;
 const FRAME_LIMIT: usize = 1024 * 1024;
+#[derive(Deserialize)]
+struct Agent {
+    slug: String,
+    provider: String,
+    deleted: bool,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    character_color: Option<String>,
+    #[serde(default)]
+    outfit: Option<String>,
+}
+#[derive(Deserialize)]
+struct Workspace {
+    project_id: String,
+    agents: Vec<Agent>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Problem {
     Transport,
@@ -129,10 +148,7 @@ impl Client {
             .await
             .map_err(|_| Problem::Transport)?
     }
-    async fn validate_inner(
-        &self,
-        binding: &BindingView,
-    ) -> Result<Option<CompanionAppearance>, Problem> {
+    async fn workspace(&self, binding: &BindingView) -> Result<Workspace, Problem> {
         let identity: RuntimeIdentity = self.read("/api/runtime").await.map_err(|problem| {
             if problem == Problem::Missing {
                 Problem::Changed
@@ -146,26 +162,45 @@ impl Client {
         {
             return Err(Problem::Changed);
         }
-        #[derive(Deserialize)]
-        struct Agent {
-            slug: String,
-            provider: String,
-            deleted: bool,
-            #[serde(default)]
-            character_color: Option<String>,
-        }
-        #[derive(Deserialize)]
-        struct Workspace {
-            project_id: String,
-            agents: Vec<Agent>,
-        }
-        let workspace: Workspace = self.read("/api/aylul/agents").await.map_err(|problem| {
+        self.read("/api/aylul/agents").await.map_err(|problem| {
             if problem == Problem::Missing {
                 Problem::Agent
             } else {
                 problem
             }
-        })?;
+        })
+    }
+    pub async fn panel_agents(
+        &self,
+        binding: &BindingView,
+    ) -> Result<Vec<crate::presence::PanelAgent>, Problem> {
+        let workspace = tokio::time::timeout(self.timeout, self.workspace(binding))
+            .await
+            .map_err(|_| Problem::Transport)??;
+        Ok(workspace
+            .agents
+            .into_iter()
+            .filter(|agent| !agent.deleted)
+            .take(64)
+            .map(|agent| crate::presence::PanelAgent {
+                bound: binding.agent.as_deref() == Some(agent.slug.as_str()),
+                name: if agent.name.is_empty() {
+                    agent.slug.clone()
+                } else {
+                    agent.name.chars().take(128).collect()
+                },
+                description: agent.description.chars().take(200).collect(),
+                color: agent.character_color.unwrap_or_else(|| "purple".into()),
+                outfit: agent.outfit.unwrap_or_else(|| "default".into()),
+                slug: agent.slug,
+            })
+            .collect())
+    }
+    async fn validate_inner(
+        &self,
+        binding: &BindingView,
+    ) -> Result<Option<CompanionAppearance>, Problem> {
+        let workspace = self.workspace(binding).await?;
         let agent = workspace
             .agents
             .iter()
@@ -217,7 +252,10 @@ impl Client {
         Ok(agent
             .character_color
             .clone()
-            .map(|color| CompanionAppearance { color }))
+            .map(|color| CompanionAppearance {
+                color,
+                outfit: agent.outfit.clone(),
+            }))
     }
     pub async fn snapshot(&self, thread: &str) -> Result<Snapshot, Problem> {
         tokio::time::timeout(self.timeout, self.snapshot_inner(thread))
@@ -235,15 +273,42 @@ impl Client {
             entries,
         })
     }
+    pub async fn permissions(&self) -> Result<Vec<WaitingPermission>, Problem> {
+        tokio::time::timeout(self.timeout, self.read("/api/aylul/permissions"))
+            .await
+            .map_err(|_| Problem::Transport)?
+    }
+    pub async fn project_id(&self, binding: &BindingView) -> Result<String, Problem> {
+        let workspace = tokio::time::timeout(self.timeout, self.workspace(binding))
+            .await
+            .map_err(|_| Problem::Transport)??;
+        Ok(workspace.project_id)
+    }
     pub async fn subscribe(&self, thread: &str, after: i64) -> Result<Feed, Problem> {
         uuid::Uuid::parse_str(thread).map_err(|_| Problem::Invalid)?;
-        let request = self
-            .http
-            .get(format!("{}/api/subscribe", self.ready.origin))
-            .query(&[
+        self.stream(
+            "/api/subscribe".into(),
+            &[
                 ("thread_id", thread.to_owned()),
                 ("after", after.to_string()),
-            ]);
+            ],
+        )
+        .await
+    }
+    /// The AYLUL project's durable notifications, read-only like the thread feed.
+    pub async fn subscribe_project(&self, project: &str, after: i64) -> Result<Feed, Problem> {
+        uuid::Uuid::parse_str(project).map_err(|_| Problem::Invalid)?;
+        self.stream(
+            format!("/api/projects/{project}/events"),
+            &[("after", after.to_string())],
+        )
+        .await
+    }
+    async fn stream(&self, path: String, query: &[(&str, String)]) -> Result<Feed, Problem> {
+        let request = self
+            .http
+            .get(format!("{}{path}", self.ready.origin))
+            .query(query);
         // Only the header handshake has a deadline; a healthy SSE body has none.
         let response = tokio::time::timeout(self.timeout, request.send())
             .await

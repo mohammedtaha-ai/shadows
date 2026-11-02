@@ -1,6 +1,6 @@
 #[cfg(test)]
 use super::SurfacePreview;
-use super::{SurfaceAppearance, SurfacePresence};
+use super::{SurfaceAgent, SurfaceAppearance, SurfacePanel, SurfacePresence, SurfaceWaiting};
 
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,6 +23,10 @@ pub struct CompanionState {
     pub presence: SurfacePresence,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub appearance: Option<SurfaceAppearance>,
+    #[serde(skip_serializing_if = "SurfacePanel::is_empty")]
+    pub panel: SurfacePanel,
+    #[serde(skip_serializing_if = "SurfaceWaiting::is_empty")]
+    pub waiting: SurfaceWaiting,
 }
 pub struct Model {
     pub view: CompanionState,
@@ -37,6 +41,8 @@ impl Default for Model {
             view: CompanionState {
                 revision: 0,
                 appearance: None,
+                panel: SurfacePanel::default(),
+                waiting: SurfaceWaiting::default(),
                 composer: ComposerView::default(),
                 visible: false,
                 render_allowed: false,
@@ -58,13 +64,20 @@ impl Model {
             self.view.revision += 1;
         }
     }
-    pub fn present(&mut self, presence: SurfacePresence, appearance: Option<SurfaceAppearance>) {
+    pub fn present(
+        &mut self,
+        mut presence: SurfacePresence,
+        appearance: Option<SurfaceAppearance>,
+    ) {
+        let waiting = std::mem::take(&mut presence.waiting);
         self.change(|view| {
+            view.waiting = waiting;
             view.presence = presence;
             view.appearance = appearance;
         });
     }
     pub fn begin_document(&mut self) -> u64 {
+        self.blur();
         self.generation += 1;
         self.initialized = false;
         self.change(|v| {
@@ -75,11 +88,29 @@ impl Model {
     }
     pub fn input(&mut self, open: bool) {
         self.change(|v| {
+            if open {
+                v.panel.open = false;
+            }
             if v.composer.open != open {
                 v.composer.open = open;
                 v.composer.revision += 1;
             }
         });
+    }
+    pub fn panel(&mut self, open: bool, agents: Vec<SurfaceAgent>) {
+        self.change(|view| {
+            view.panel.open = open;
+            if open {
+                view.panel.agents = agents;
+                if view.composer.open {
+                    view.composer.open = false;
+                    view.composer.revision += 1;
+                }
+            }
+        });
+    }
+    pub fn blur(&mut self) {
+        self.change(|view| view.panel.open = false);
     }
     pub fn composer_context(
         &mut self,
@@ -88,6 +119,9 @@ impl Model {
         agent: Option<String>,
     ) {
         self.change(|v| {
+            for entry in &mut v.panel.agents {
+                entry.bound = agent.as_deref() == Some(entry.slug.as_str());
+            }
             if (
                 v.composer.scope.as_ref(),
                 v.composer.context.as_ref(),
@@ -105,6 +139,7 @@ impl Model {
         self.requested = visible;
         if !visible {
             self.input(false);
+            self.blur();
         }
     }
     pub fn initialize(&mut self, generation: u64) -> bool {
@@ -144,6 +179,51 @@ impl Model {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn panel_closes_on_blur_hide_and_editor_open_without_granting_rendering() {
+        let mut model = Model::default();
+        model.panel(true, vec![]);
+        assert!(model.view.panel.open);
+        assert!(!model.view.render_allowed);
+        model.blur();
+        assert!(!model.view.panel.open);
+        model.panel(true, vec![]);
+        model.input(true);
+        assert!(!model.view.panel.open);
+        model.panel(true, vec![]);
+        model.request_visible(false);
+        assert!(!model.view.panel.open);
+    }
+    #[test]
+    fn panel_wire_is_pinned_and_binding_changes_mark_the_selected_agent() {
+        let mut model = Model::default();
+        model.panel(
+            true,
+            vec![SurfaceAgent {
+                slug: "agent-a".into(),
+                name: "AYLUL".into(),
+                description: "Builds".into(),
+                color: "blue".into(),
+                outfit: "headphones".into(),
+                bound: false,
+            }],
+        );
+        assert_eq!(
+            serde_json::to_value(&model.view).unwrap()["panel"],
+            serde_json::json!({
+                "open":true,"agents":[{"slug":"agent-a","name":"AYLUL","description":"Builds",
+                    "color":"blue","outfit":"headphones","bound":false}]
+            })
+        );
+        model.composer_context(
+            Some("scope".into()),
+            Some("context".into()),
+            Some("agent-a".into()),
+        );
+        assert!(model.view.panel.agents[0].bound);
+        model.composer_context(None, None, None);
+        assert!(!model.view.panel.agents[0].bound);
+    }
     #[test]
     fn hide_closes_input_and_unhide_keeps_it_closed() {
         let mut model = Model::default();
@@ -222,6 +302,7 @@ mod presence_tests {
                 expression: "success".into(),
                 status: "Reply ready".into(),
                 preview: None,
+                waiting: Default::default(),
             },
             None,
         );
@@ -245,6 +326,7 @@ mod appearance_tests {
             presence.clone(),
             Some(SurfaceAppearance {
                 color: "teal".into(),
+                outfit: None,
             }),
         );
         assert_eq!(model.view.revision, before.revision + 1);
@@ -253,6 +335,19 @@ mod appearance_tests {
         assert_eq!(model.view.paused, before.paused);
         assert!(!model.view.render_allowed);
         assert!(!model.view.visible);
+        assert!(serde_json::to_value(&model.view).unwrap()["appearance"]
+            .get("outfit")
+            .is_none());
+        let revision = model.view.revision;
+        model.present(
+            presence.clone(),
+            Some(SurfaceAppearance {
+                color: "teal".into(),
+                outfit: Some("opaque outfit".into()),
+            }),
+        );
+        assert_eq!(model.view.revision, revision + 1);
+        assert!(!model.view.render_allowed);
         model.present(presence, None);
         assert!(serde_json::to_value(&model.view)
             .unwrap()
@@ -282,6 +377,7 @@ mod wire_tests {
                 expression: "idle".into(),
                 status: "Ready".into(),
                 preview: None,
+                waiting: Default::default(),
             },
             None,
         );
@@ -303,14 +399,16 @@ mod wire_tests {
                     text: "مرحبا \"world\"\n".into(),
                     expires_at_ms: u64::MAX,
                 }),
+                waiting: Default::default(),
             },
             Some(SurfaceAppearance {
                 color: "opaque(🌿)".into(),
+                outfit: Some("opaque outfit".into()),
             }),
         );
         assert_eq!(
             serde_json::to_string(&model.view).unwrap(),
-            r#"{"revision":6,"composer":{"open":true,"revision":2,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":true,"paused":true,"error":null,"presence":{"expression":"success","status":"Reply ready","preview":{"id":"reply-1","text":"مرحبا \"world\"\n","expiresAtMs":18446744073709551615}},"appearance":{"color":"opaque(🌿)"}}"#
+            r#"{"revision":6,"composer":{"open":true,"revision":2,"scope":"scope-1","context":"context-1","agent":"agent-a"},"visible":true,"renderAllowed":true,"paused":true,"error":null,"presence":{"expression":"success","status":"Reply ready","preview":{"id":"reply-1","text":"مرحبا \"world\"\n","expiresAtMs":18446744073709551615}},"appearance":{"color":"opaque(🌿)","outfit":"opaque outfit"}}"#
         );
         model.input(false);
         model.fail(true);

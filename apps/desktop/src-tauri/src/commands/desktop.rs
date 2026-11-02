@@ -107,7 +107,7 @@ pub async fn select_companion_agent(
     desktop: tauri::State<'_, Arc<crate::app::DesktopApp>>,
     agent: Option<String>,
 ) -> Result<crate::presence::BindingView, String> {
-    main_only(&window)?;
+    super::companion::guard(&window, "select_companion_agent")?;
     desktop.presence().select_companion_agent(agent).await
 }
 #[tauri::command]

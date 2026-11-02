@@ -6,7 +6,7 @@ fn embedded_migrations_match_the_base_catalog() {
     let expected: Vec<_> = baseline.lines().collect();
     let embedded = sqlx::migrate!("./migrations");
     assert_eq!(embedded.iter().count(), expected.len());
-    assert_eq!(expected.len(), 38);
+    assert_eq!(expected.len(), 39);
     for (migration, record) in embedded.iter().zip(expected) {
         let (checksum, filename) = record.split_once(' ').unwrap();
         let (version, description) = filename

@@ -152,7 +152,9 @@ shapes:
     ToolCall: unit # The title is in body and the tool card is structured.
     TodoList: unit # The body is Markdown tasks and the card is structured.
     Subagent: unit # Structured subagent card.
-    PermissionRefused: unit
+    PermissionRefused: unit # Held and Planner refusal history.
+    PermissionAsked: request id and offered options in its card
+    PermissionAnswered: the person's offered-option answer with human provenance
     PlanView: unit
     PlanApproved: unit
     VisionProposal: unit # Immutable proposed content; live status belongs to Design.

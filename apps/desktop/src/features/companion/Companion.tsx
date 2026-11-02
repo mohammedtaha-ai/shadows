@@ -4,7 +4,7 @@ import type {
   CompanionPresentation,
   MotionInput,
 } from "./types.ts";
-import { DEFAULT_SETTINGS } from "./catalog.ts";
+import { DEFAULT_SETTINGS, outfitOf } from "./catalog.ts";
 import { CompanionCanvas } from "./CompanionCanvas";
 import { SpeechBubble } from "./SpeechBubble";
 import {
@@ -21,8 +21,10 @@ const idle: CompanionPresentation = {
 };
 export function Companion({
   presentation = idle,
+  outfit = 'default',
 }: {
   presentation?: CompanionPresentation;
+  outfit?: string;
 }): React.JSX.Element {
   const [paused, setPaused] = React.useState(false),
     [sound, setSound] = React.useState(false),
@@ -60,7 +62,7 @@ export function Companion({
     viewport: { width: 0, height: 0, dpr: 1 },
     presentation,
     settings: DEFAULT_SETTINGS,
-    outfit: "default",
+    outfit: outfitOf(outfit),
     scene: "studio",
     pointer: null,
     direction: null,

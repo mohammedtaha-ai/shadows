@@ -20,9 +20,12 @@ external:
   EnvEntry: web/src/api/schema.d.ts components.schemas.EnvEntry
 
 components:
+  OutfitPicker:
+    signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
+    note: Manifest-ordered studio previews form an accessible radio group; unknown ids select default.
   AgentExtensions:
     signature: "({ slug: string }) => JSX.Element"
-    note: Saved-agent extension switches live outside the Save agent form; failed extension reads do not disable ordinary fields.
+    note: Saved-agent Capabilities lists skills, plugins and MCP switches outside the Save agent form; Add to library always opens Plugins & Skills. Failed extension reads do not disable ordinary fields.
   ColorSwatches:
     signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
     note: Radio group in shared table order with per-entry label, title, colour and selected ring.
@@ -32,7 +35,9 @@ components:
   AylulHome:
     signature: "() => JSX.Element"
     # /aylul, and / while AYLUL is the stored workspace. With no provider it asks for one;
-    # with providers and no agent it asks for an agent.
+    # with providers and no agent it asks for an agent. Otherwise it lists every agent the
+    # sidebar lists, with its provider and model, and the real provider and agent counts. The
+    # run-stage strip, capability list and memory list sit inside Planned (static, inert).
   ProviderPicker:
     signature: "({ onChoose: (group: PresetGroup | null) => void }) => JSX.Element"
   ProviderForm:
@@ -45,6 +50,7 @@ components:
     signature: "({ slug: string | null, onDone: () => void }) => JSX.Element"
     # Null creates an agent; a saved agent includes its scoped environment and deletion.
     # Successful saves return to the Agents list via onDone, without changing the page.
+    note: Outfit and colour precede name and description, provider and model, then instructions. Empty stored instructions display the API template; unchanged instruction text is omitted from saves. Template loading and errors block uninitialized saves and keep other edits.
   DeleteAgent:
     signature: "({ slug, name, onDone, compact? }) => JSX.Element"
     # Reuses the same idempotent deletion from an agent form or list row.
@@ -63,6 +69,9 @@ components:
     signature: "(props: ComponentProps<'textarea'>) => JSX.Element"
 
 pure:
+  outfitOf:
+    signature: "(id: string | null | undefined) => outfit; unknown or missing ids resolve to default"
+    file: web/src/app/agents/outfits.ts
   colorOf:
     signature: "(id: string | null | undefined) => CharacterColor; unknown or missing ids resolve to the shared table base"
     file: web/src/app/agents/character-colors.ts
@@ -76,6 +85,12 @@ pure:
     signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
 
 obligations:
+  - rule: An edited agent identity shows Unsaved changes; reverting every identity field and instructions clears it.
+    tested_by: ["unsaved identity changes are visible and reverting clears the indicator"]
+  - rule: Agent forms load the bundled instructions through api/aylul-profiles; only edited instructions are sent, and Core's validation message preserves the draft.
+    tested_by: ["a new agent is prefilled from the template and saves outfit and description", "untouched large instructions are not sent and changed instructions are sent", "editing and reverting instructions omits them from the save", "the form follows the design order and displays Core profile errors", "a delayed template does not overwrite other edits or allow an early save", "a template failure is shown and cannot silently create an uninitialized agent"]
+  - rule: Every manifest outfit has a labelled radio and its exported preview; unknown ids select default and disabled controls cannot change it.
+    tested_by: ["every manifest outfit is a radio with its label and image", "an unknown id selects default", "choosing an outfit reports its id and a disabled picker cannot change"]
   - rule: Enter (with or without Shift) in the manual model field uses the Add action without submitting the provider form, including when the id is invalid; an Enter that confirms an IME composition does nothing. Saving with an unadded id shows an explicit alert and preserves the draft; adding or clearing the id removes the alert.
     tested_by:
       - Enter adds a model without submitting the new provider
@@ -145,7 +160,7 @@ extension_cache_owner: "api/extensions.ts owns saved switch merges and cancels s
 
 profile_query_owner: "api/aylul-profiles.ts owns provider and agent query factories"
 
-feature_entry: "index.ts exposes providerTitle, colorOf, ColorDot, AgentForm, DeleteAgent, ProviderForm, ProviderPicker, presetOf, presetGroups, PresetGroup."
+feature_entry: "index.ts exposes providerTitle, colorOf, outfitOf, OutfitPicker, ColorDot, AgentForm, DeleteAgent, ProviderForm, ProviderPicker, presetOf, presetGroups, PresetGroup."
 
 feature_imports: "Cross-feature production imports use declared public entries."
 

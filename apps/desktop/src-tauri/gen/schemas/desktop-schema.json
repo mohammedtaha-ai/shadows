@@ -183,6 +183,12 @@
           "markdownDescription": "Enables the ack_navigation command without any pre-configured scope."
         },
         {
+          "description": "Enables the answer_companion_permission command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-answer-companion-permission",
+          "markdownDescription": "Enables the answer_companion_permission command without any pre-configured scope."
+        },
+        {
           "description": "Enables the auth_action command without any pre-configured scope.",
           "type": "string",
           "const": "allow-auth-action",
@@ -217,6 +223,12 @@
           "type": "string",
           "const": "allow-companion-input",
           "markdownDescription": "Enables the companion_input command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the companion_panel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-companion-panel",
+          "markdownDescription": "Enables the companion_panel command without any pre-configured scope."
         },
         {
           "description": "Enables the companion_ready command without any pre-configured scope.",
@@ -351,6 +363,12 @@
           "markdownDescription": "Denies the ack_navigation command without any pre-configured scope."
         },
         {
+          "description": "Denies the answer_companion_permission command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-answer-companion-permission",
+          "markdownDescription": "Denies the answer_companion_permission command without any pre-configured scope."
+        },
+        {
           "description": "Denies the auth_action command without any pre-configured scope.",
           "type": "string",
           "const": "deny-auth-action",
@@ -385,6 +403,12 @@
           "type": "string",
           "const": "deny-companion-input",
           "markdownDescription": "Denies the companion_input command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the companion_panel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-companion-panel",
+          "markdownDescription": "Denies the companion_panel command without any pre-configured scope."
         },
         {
           "description": "Denies the companion_ready command without any pre-configured scope.",

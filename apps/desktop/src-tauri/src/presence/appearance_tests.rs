@@ -60,6 +60,98 @@ async fn colour(rx: &mut UnboundedReceiver<Update>, expected: Option<&str>) -> U
     .expect("appearance publication deadline")
 }
 #[tokio::test]
+async fn appearance_check_copies_opaque_outfit_and_defaults_absent() {
+    use axum::{routing::get, Json, Router};
+    use serde_json::json;
+
+    for outfit in [
+        None,
+        Some(""),
+        Some("opaque(🌿)"),
+        Some("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+    ] {
+        let mut agent = json!({"slug":"agent-a","provider":"provider-a","deleted":false,"character_color":"blue"});
+        if let Some(value) = outfit {
+            agent["outfit"] = value.into();
+        }
+        let app = Router::new()
+            .route("/api/runtime", get(|| async { Json(json!({"runtime_id":super::watcher_fixture::RUNTIME,"configuration_id":super::watcher_fixture::CONFIG})) }))
+            .route("/api/aylul/providers", get(|| async { Json(json!([{"slug":"provider-a","key_set":true}])) }))
+            .route("/api/aylul/agents", get(move || { let agent = agent.clone(); async move { Json(json!({"project_id":super::watcher_fixture::PROJECT,"agents":[agent]})) } }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let client = Client::new(
+            ReadyConnection {
+                origin,
+                configuration_id: super::watcher_fixture::CONFIG.into(),
+                runtime_id: super::watcher_fixture::RUNTIME.into(),
+            },
+            Duration::from_secs(1),
+        )
+        .unwrap();
+        let appearance = client
+            .validate_appearance(&binding(false))
+            .await
+            .unwrap()
+            .unwrap();
+        let value = serde_json::to_value(appearance).unwrap();
+        assert_eq!(value.get("outfit").and_then(|v| v.as_str()), outfit);
+        server.abort();
+    }
+}
+#[tokio::test]
+async fn panel_metadata_is_bounded_and_marks_only_the_current_agent() {
+    use axum::{routing::get, Json, Router};
+    use serde_json::json;
+    let agents: Vec<_> = (0..70)
+        .map(|index| {
+            json!({
+                "slug":format!("agent-{index}"), "provider":"provider-a", "deleted":index==0,
+                "name":"名".repeat(140), "description":"🌿".repeat(220),
+                "character_color":"blue", "outfit":"headphones"
+            })
+        })
+        .collect();
+    let app = Router::new()
+        .route(
+            "/api/runtime",
+            get(|| async { Json(json!({"runtime_id":RUNTIME,"configuration_id":CONFIG})) }),
+        )
+        .route(
+            "/api/aylul/agents",
+            get(move || {
+                let agents = agents.clone();
+                async move { Json(json!({"project_id":PROJECT,"agents":agents})) }
+            }),
+        );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let client = Client::new(
+        ReadyConnection {
+            origin,
+            configuration_id: CONFIG.into(),
+            runtime_id: RUNTIME.into(),
+        },
+        Duration::from_secs(1),
+    )
+    .unwrap();
+    let mut view = binding(false);
+    view.agent = Some("agent-1".into());
+    let agents = client.panel_agents(&view).await.unwrap();
+    assert_eq!(agents.len(), 64);
+    assert_eq!(agents[0].slug, "agent-1");
+    assert!(agents[0].bound);
+    assert_eq!(agents.iter().filter(|agent| agent.bound).count(), 1);
+    assert_eq!(agents[0].name.chars().count(), 128);
+    assert_eq!(agents[0].description.chars().count(), 200);
+    assert_eq!(agents[0].color, "blue");
+    assert_eq!(agents[0].outfit, "headphones");
+    server.abort();
+}
+
+#[tokio::test]
 async fn appearance_check_copies_opaque_colour() {
     let api = Fixture::new().await;
     let client = Client::new(ready(&api), Duration::from_secs(1)).unwrap();

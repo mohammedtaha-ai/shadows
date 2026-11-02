@@ -78,6 +78,9 @@ async fn seed(w: &World, name: &str) {
             format!("seed-{name}"),
             shadows_core::AgentInput {
                 character_color: None,
+                description: None,
+                instructions: None,
+                outfit: None,
                 name: name.into(),
                 provider: "test-2".into(),
                 default_model: "model-a".into(),
@@ -576,6 +579,68 @@ async fn usage_route_is_read_only() {
     ] {
         assert_eq!(call(&w, "GET", path, Value::Null).await.0, 400);
     }
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn agent_template_is_served() {
+    let w = world(true, true).await;
+    let (status, body) = call(&w, "GET", "/api/aylul/agent-template", Value::Null).await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        body["instructions"],
+        w.core.agents().instructions_template()
+    );
+
+    w.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn agent_profile_fields_round_trip() {
+    let w = world(true, true).await;
+    call(&w, "POST", "/api/aylul/providers", provider()).await;
+    let (status, a) = call(
+        &w,
+        "POST",
+        "/api/aylul/agents",
+        json!({"command_id":"agent","name":"Work","provider":"test-2",
+        "default_model":"model-a","description":" Finds sources ",
+        "instructions":"mine","outfit":"headphones"}),
+    )
+    .await;
+    assert_eq!(status, 201);
+    assert_eq!(a["description"], "Finds sources");
+    assert_eq!(a["instructions"], "mine");
+    assert_eq!(a["outfit"], "headphones");
+    let (_, list) = call(&w, "GET", "/api/aylul/agents", Value::Null).await;
+    assert_eq!(list["agents"][0]["outfit"], "headphones");
+    let (status, kept) = call(
+        &w,
+        "PUT",
+        "/api/aylul/agents/work",
+        json!({"command_id":"u","name":"Work","provider":"test-2","default_model":"model-a"}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(kept["description"], "Finds sources");
+    assert_eq!(kept["outfit"], "headphones");
+    let (status, refused) = call(
+        &w,
+        "PUT",
+        "/api/aylul/agents/work",
+        json!({"command_id":"bad","name":"Work","provider":"test-2",
+        "default_model":"model-a","outfit":"Bad Id"}),
+    )
+    .await;
+    assert_eq!(status, 400);
+    assert_eq!(refused["code"], "PROFILE_INVALID");
 
     w.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())

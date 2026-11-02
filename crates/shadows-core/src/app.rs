@@ -197,14 +197,14 @@ impl AppCore {
         let agents = Agents::new(
             storage.clone(),
             providers.clone(),
-            secrets,
+            secrets.clone(),
             projects,
             home_root.clone(),
         );
         AylulOwners {
             providers,
             agents,
-            extensions: Extensions::new(storage.clone(), home_root),
+            extensions: Extensions::new(storage.clone(), secrets, home_root),
             person: PersonSettings::new(storage),
         }
     }
@@ -313,6 +313,10 @@ impl AppCore {
             config.aylul.as_ref().map(|c| c.home_root.clone()),
             projects.clone(),
         );
+        for slug in owners.agents.import_home_instructions().await? {
+            tracing::warn!(slug, "agent.instructions_import_skipped");
+        }
+        owners.extensions.import_bundled().await?;
         let instructions = Instructions::new(storage.clone());
         let standards = Standards::new(storage.clone());
         let sessions = Harness::with_owners(

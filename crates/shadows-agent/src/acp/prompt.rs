@@ -81,7 +81,17 @@ impl Connection {
             .block_task()
             .await;
         let delta = active.finish();
-        let r = response.map_err(AcpError::from_rpc)?;
+        let response = response.map_err(AcpError::from_rpc);
+        {
+            let _guard = self.permissions.settlement.lock().await;
+            let reason = if matches!(&response, Err(AcpError::Closed)) {
+                "closed"
+            } else {
+                "ended"
+            };
+            self.permissions.refuse_session(session, reason);
+        }
+        let r = response?;
         let usage = r
             .usage
             .and_then(|u| serde_json::to_value(u).ok())
@@ -157,8 +167,14 @@ impl Connection {
         }
     }
     pub fn cancel(&self, session: &str) {
-        let cx = self.cx.clone();
+        let connection = self.clone();
         let session = session.to_string();
-        let _ = cx.send_notification(CancelNotification::new(session));
+        tokio::spawn(async move {
+            let _guard = connection.permissions.settlement.lock().await;
+            connection.permissions.refuse_session(&session, "cancelled");
+            let _ = connection
+                .cx
+                .send_notification(CancelNotification::new(session));
+        });
     }
 }

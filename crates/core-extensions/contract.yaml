@@ -13,17 +13,24 @@ modules:
   lib.rs: library commands and the projection guard
   model.rs: public extension metadata
   files.rs: bounded library file copies
+  mcp.rs: MCP configuration commands and validation
+  bundled.rs: embedded library import
+  ../build.rs: embedded library file index
+  ../assets/library/: bundled library source items
   error.rs: library refusals
   store/: extension configuration SQL
 
 dependencies:
   agents: crates/core-agents/contract.yaml
+  secrets: crates/core-secrets/contract.yaml
+  providers: crates/core-providers/contract.yaml
 
 shapes:
   Extensions:
     store: private ExtensionsStore over the shared storage handle
     lock: Library mutation guard shared with harness projection
     home_root: Optional isolated home root holding the library
+    secrets: Shared Secrets service for write-only MCP values.
   ExtensionsStore:
     storage: Arc<Storage> # Private to extensions; shares the existing pool.
   ExtensionsError:
@@ -32,32 +39,46 @@ shapes:
     Invalid: String # ProfileInvalid for a caller
     NotConfigured: AYLUL configuration is absent
     Agent: AgentsError
+    Secrets: SecretsError
     Storage: StorageError
   ExtensionKind:
-    values: Plugin, Skill
+    values: Plugin, Skill, Mcp
   Item:
     note: Immutable library metadata without source paths
+    bundled: Whether the item was imported from embedded library assets.
   AgentItem:
     note: Item with one agent's enabled switch
   ExtensionLibrary:
     note: Shared library without enabled flags
   AgentExtensions:
     note: Whole library with per-agent switches
+  McpItem:
+    note: MCP configuration and value names only; values are never returned.
+  McpServerConfig:
+    note: Resolved configuration for trusted openings; Debug redacts values.
+  AgentExtensionSnapshot:
+    note: Agent library and resolved MCP servers with a private guard held through home projection.
 
 functions:
-  new: "public: (storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Extensions>"
+  new: "public: (storage: Arc<Storage>, secrets: Arc<Secrets>, home_root: Option<PathBuf>) -> Arc<Extensions>"
   extensions: List the shared extension library ordered by name and id.
   add_extension: Import a bounded immutable local copy under one replayable command.
-  delete_extension: Remove the item and every enablement in one transaction, then retire its files.
+  import_bundled: Import embedded items at startup unless present or previously declined; no-op without AYLUL.
+  add_mcp: Create replayable MCP configuration with write-only values in the same transaction.
+  update_mcp: Replace configuration without changing its id or switches; omitted values are retained.
+  agent_mcp_servers: Resolve only enabled MCP configurations for a trusted opening.
+  opening_snapshot: Resolve the agent's library and MCP servers under one retained library guard.
+  delete_extension: Remove the item and every enablement in one transaction; MCP deletion removes its secret scope.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
   extension_guard: public; the library mutation guard the harness holds while projecting.
-  remove_agent_in: public; remove every switch of an agent in the caller's write.
+  remove_agent_in: public; remove every folder and MCP switch of an agent in the caller's write.
   copy_tree: public; copy one library item's bounded regular files into a managed snapshot.
   publish: private; copy a bounded source into the library and answer its metadata and digest.
   retire: private; remove a deleted item's owned folder; failure leaves an inert copy.
 
 called_by_other_services:
+  opening_snapshot: Harness pins library items and MCP values through one home projection.
   extension_guard: Harness serializes library snapshot projection against library mutations.
   copy_tree: Harness copies bounded regular library files into a managed snapshot.
   remove_agent_in: Harness::delete_agent, in the same write as Agents::delete_in.
@@ -66,6 +87,10 @@ shared_in_transaction:
   remove_agent_in: Agent enablements removed in the caller write.
 
 obligations:
+  - rule: Bundled sources use a fresh owned temporary directory and exclusive file creation; stale linked staging paths never redirect or overwrite files.
+    tested_by: [bundled_staging_does_not_overwrite_linked_files, bundled_staging_does_not_follow_a_linked_parent]
+  - rule: Embedded items import once, start disabled, and stay absent after deletion.
+    tested_by: [bundled_items_import_once_at_start, a_restart_replays_the_bundled_import, a_deleted_bundled_item_is_declined, a_bundled_item_starts_switched_off, no_aylul_configuration_imports_nothing]
   - rule: Imports copy owned data with UUID ids and return no source path.
     tested_by: [extension_import_copies_and_redacts_source]
   - rule: Inputs are bounded and contained; intrinsic kind/name duplicates conflict.
@@ -76,3 +101,13 @@ obligations:
     tested_by: [extension_enablement_is_per_agent]
   - rule: Item or agent deletion removes its enablement atomically.
     tested_by: [extension_deletions_remove_enablement_atomically]
+  - rule: MCP configuration carries names only; Secrets owns values and their keyed fingerprints.
+    tested_by: [mcp_item_is_configuration_with_write_only_values, mcp_values_never_leave_secrets]
+  - rule: MCP edits retain omitted values and switches, remove dropped names and refuse new names without values.
+    tested_by: [mcp_input_is_checked, mcp_edit_keeps_its_id_switches_and_unsent_values]
+  - rule: MCP deletion removes the item, switches and secret scope in the same transaction.
+    tested_by: [mcp_delete_removes_switches_and_scope_in_one_write]
+  - rule: MCP commands replay equal fingerprints and refuse changed inputs.
+    tested_by: [mcp_commands_replay_and_conflict]
+  - rule: Trusted openings receive only enabled MCP servers and Debug redacts their values.
+    tested_by: [agent_mcp_servers_resolve_only_enabled_items]

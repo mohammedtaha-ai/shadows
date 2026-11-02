@@ -25,10 +25,21 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 type Notify = Arc<dyn Fn(BindingView) + Send + Sync>;
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MainTarget {
+    #[default]
+    Bound,
+    AgentSettings,
+    NewAgent,
+    Settings,
+    OldestWaiting,
+}
 struct Model {
     view: BindingView,
     error: Option<&'static str>,
     ticket: u64,
+    panel_ticket: u64,
     send: send::State,
 }
 pub struct Presence {
@@ -38,6 +49,14 @@ pub struct Presence {
     notifier: Mutex<Option<Notify>>,
     workflows: OnceLock<workflows::Dependencies>,
     watcher: OnceLock<Arc<watcher::PresenceWatcher>>,
+}
+pub struct PanelAgent {
+    pub slug: String,
+    pub name: String,
+    pub description: String,
+    pub color: String,
+    pub outfit: String,
+    pub bound: bool,
 }
 impl Presence {
     pub fn new(root: PathBuf, connection: Arc<Connection>) -> Arc<Self> {
@@ -64,6 +83,7 @@ impl Presence {
                 view,
                 error,
                 ticket: 0,
+                panel_ticket: 0,
             }),
             notifier: Mutex::new(None),
             workflows: OnceLock::new(),
@@ -212,7 +232,35 @@ impl Presence {
         self.notify();
         Ok(view)
     }
-    pub fn destination(&self) -> MainDestination {
+    /// The first waiting request's conversation, or the closed fallback when it no longer resolves.
+    fn oldest_waiting(&self) -> MainDestination {
+        let resolve = || -> Result<MainDestination, &'static str> {
+            let ready = self
+                .connection
+                .ready()
+                .ok_or("companion_core_unavailable")?;
+            let first = core_client::Blocking::new(&ready)
+                .permissions()?
+                .into_iter()
+                .next()
+                .ok_or("permission_not_found")?;
+            let workspace = binding::workspace(&ready)?;
+            let target = binding::target(&ready, &workspace, &first.agent, &first.thread_id)?;
+            Ok(MainDestination::Conversation {
+                project_id: target.project_id,
+                thread_id: target.thread_id,
+            })
+        };
+        resolve().unwrap_or(MainDestination::CompanionSettings)
+    }
+
+    pub fn destination_for(&self, target: MainTarget) -> MainDestination {
+        match target {
+            MainTarget::NewAgent => return MainDestination::NewAgent,
+            MainTarget::Settings => return MainDestination::Settings,
+            MainTarget::OldestWaiting => return self.oldest_waiting(),
+            MainTarget::Bound | MainTarget::AgentSettings => (),
+        }
         let destination = || -> Result<MainDestination, &'static str> {
             let view = self.snapshot()?;
             let Some(agent) = view.agent else {
@@ -227,7 +275,9 @@ impl Presence {
             }
             let workspace = binding::workspace(&ready)?;
             binding::live_agent(&workspace, &agent)?;
-            let result = if let Some(target) = view.target {
+            let result = if matches!(target, MainTarget::AgentSettings) {
+                MainDestination::AgentSettings { agent }
+            } else if let Some(target) = view.target {
                 let target = binding::target(&ready, &workspace, &agent, &target.thread_id)?;
                 MainDestination::Conversation {
                     project_id: target.project_id,
@@ -254,6 +304,12 @@ mod appearance_tests;
 #[serde(rename_all = "camelCase")]
 pub struct CompanionAppearance {
     pub color: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outfit: Option<String>,
+}
+#[derive(Debug, serde::Serialize)]
+pub struct PermissionAnswerReply {
+    pub ok: bool,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefreshAppearanceReply {

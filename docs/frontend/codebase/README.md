@@ -162,6 +162,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/contract.yaml` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/agent-settings.tsx` | Agent editing form | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/agent-form.test.tsx` | Agent identity form checks | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/delete-zone.tsx` | Danger zone confirming the deletion of a provider or agent | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/form-field.tsx` | Labelled controls drawn for the AYLUL forms | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/home.tsx` | Main pane of the AYLUL workspace when no conversation is open | `web/src/app/agents/contract.yaml` |
@@ -171,6 +172,16 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/provider-models.tsx` | Provider model selection | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/character-colors.ts` | Shared character colour lookup | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/color-swatches.tsx` | Character colour controls | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/outfits.ts` | Studio outfit preview lookup | `web/src/app/agents/contract.yaml` |
+| `web/src/api/extensions.test.ts` | MCP library transport checks | `web/src/api/contract.yaml` |
+| `web/src/api/permissions.ts` | Waiting permission transport | `web/src/api/contract.yaml` |
+| `web/src/api/permissions.test.ts` | Permission transport checks | `web/src/api/contract.yaml` |
+| `web/src/app/conversation/permission-card.tsx` | Permission request interaction | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/permission-card.test.tsx` | Permission request interaction checks | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/settings/mcp-form.tsx` | MCP configuration editing | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/mcp-form.test.tsx` | MCP configuration form checks | `web/src/app/settings/contract.yaml` |
+| `web/src/app/agents/outfit-picker.tsx` | Outfit selection controls | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/outfit-picker.test.tsx` | Outfit selection checks | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-test.ts` | Provider test outcome messages | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agreements/agreement-document.ts` | Reads OpenAPI object fields for the editor | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreement-editor.tsx` | Editor for one agreement version | `web/src/app/agreements/contract.yaml` |
@@ -197,11 +208,13 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/focus-chip.tsx` | Chip naming the task a turn points at | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/map-proposal-card.tsx` | Card for an immutable map proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/message-actions.tsx` | Hover actions under one message: copy, fork | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/activity-rows.ts` | Groups consecutive tool calls into rows | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/activity-rows.ts` | Groups tool calls into rows, joins live calls, picks the current task list | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/activity-text.ts` | Words a tool group with its steps | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-group.tsx` | A run of tool calls drawn as one line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-diff.tsx` | An edit's hunks drawn with line numbers | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/todo-card.tsx` | The agent's task list drawn as a checklist | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/agent-board.tsx` | Agent Mode's board: prompt, steps, task list, subagents, context | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/agent-console.tsx` | The board's console, one tab per kind of step | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/messages.tsx` | Ordered durable entries, then the running turn's text | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/operational-label.ts` | Maps a harness meta label to a person's line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/plan-card.tsx` | Plan version shown as a card in the conversation | `web/src/app/conversation/contract.yaml` |
@@ -303,13 +316,13 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/usage-tables.tsx` | Usage report presentation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/index.ts` | Expose app/settings public capabilities | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
-| `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree narrowed by the search filter | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/open-projects.ts` | Remembers which projects the sidebar shows open | `web/src/app/sidebar/contract.yaml` |
-| `web/src/app/sidebar/project-list.tsx` | Sidebar project tree with its conversations, plans | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/project-list.tsx` | Sidebar project tree narrowed by the search filter | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/sidebar-state.ts` | Whether the sidebar shows, kept per browser | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/sidebar-toggle.tsx` | Button that hides or shows the sidebar | `web/src/app/sidebar/contract.yaml` |
-| `web/src/app/sidebar/sidebar.tsx` | Left pane holding the sidebar's sections | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/sidebar.tsx` | Left pane with a search filter over its trees | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/thread-list.tsx` | An open project's conversations in the sidebar | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workflow-list.tsx` | An open project's plans in the sidebar | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workspace-switcher.tsx` | Sidebar title as the workspace menu | `web/src/app/sidebar/contract.yaml` |
@@ -336,6 +349,8 @@ it is that folder's `contract.yaml`.
 | `web/src/components/ui/dialog.tsx` | Modal dialog built on Base UI's Dialog | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/dropdown-menu.tsx` | Dropdown menu built on Base UI's Menu | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/input.tsx` | Text input styled for the app | `web/src/components/ui/button.tsx` |
+| `web/src/components/ui/panel.tsx` | Surface box styled by its tone | `-` |
+| `web/src/components/ui/planned.tsx` | Marker around a block with no backend yet | `-` |
 | `web/src/components/ui/popover.tsx` | Popover built on Base UI's Popover | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/tooltip.tsx` | Hover label built on Base UI's Tooltip | `web/src/components/ui/button.tsx` |
 | `web/src/env.d.ts` | Declares the build-time environment variables | `web/src/main.tsx` |

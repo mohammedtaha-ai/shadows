@@ -66,6 +66,8 @@ pattern to follow, not merely an example.
 | `crates/core-plans/src/signal.rs` | live plan-show vocabulary | `crates/core-plans/contract.yaml` |
 | `crates/core-harness/src/owners.rs` | harness configuration dependencies | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/live.rs` | live adapter opening | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/permissions.rs` | live permission commands | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/store/permission.rs` | permission command persistence | `crates/core-harness/contract.yaml` |
 | `crates/core-providers/src/lib.rs` | provider configuration boundary | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/` | AYLUL provider configuration | `crates/core-providers/contract.yaml` |
 | `crates/core-providers/src/model.rs` | public provider metadata | `crates/core-providers/contract.yaml` |
@@ -85,6 +87,10 @@ pattern to follow, not merely an example.
 | `crates/core-extensions/src/` | the shared extension library | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/model.rs` | public extension metadata | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/files.rs` | bounded library file copies | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/mcp.rs` | MCP configuration commands | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/bundled.rs` | embedded library import | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/build.rs` | embedded library file index | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/assets/library/` | bundled library source items | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/error.rs` | extension library refusals | `crates/core-extensions/contract.yaml` |
 | `crates/core-extensions/src/store/` | extension configuration SQL | `crates/core-extensions/contract.yaml` |
 | `crates/core-usage/src/` | measured AYLUL usage | `crates/core-usage/contract.yaml` |
@@ -314,6 +320,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/acp/connection.rs` | ACP transport initialization | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/session.rs` | ACP session configuration | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/prompt.rs` | ACP prompt lifecycle | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp/permissions.rs` | held ACP permission requests | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/mapping.rs` | ordered ACP event translation | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/events/tool.rs` | tool activity reports | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/events/subagent.rs` | subagent metadata | `crates/shadows-agent/src/events.rs` |

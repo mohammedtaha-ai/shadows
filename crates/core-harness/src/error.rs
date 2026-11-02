@@ -4,6 +4,12 @@ use core_db::StorageError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum HarnessError {
+    #[error("permission request is unknown")]
+    PermissionNotFound,
+    #[error("permission request is settled")]
+    PermissionSettled,
+    #[error("permission option was not offered")]
+    PermissionOptionNotOffered,
     #[error("AYLUL agent not found: {0}")]
     AylulProfileNotFound(String),
     #[error("AYLUL is not configured")]

@@ -211,6 +211,8 @@ enums:
 
 
 obligations:
+  - rule: Project replay includes PermissionsChanged with its thread and unmodified request state, ordered by sequence.
+    tested_by: [project_stream_carries_permissions_changed]
   - rule: MapProposed is included in project event subscriptions with identifier-only payloads.
     tested_by: map_proposal_routes_list_and_approve
   - rule: RoadmapProposed and RoadmapApproved reach the project event tail with identifier-only payloads.

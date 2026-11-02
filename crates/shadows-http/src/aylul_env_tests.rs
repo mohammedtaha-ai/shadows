@@ -280,6 +280,9 @@ async fn agent_world(configured: bool, key: bool) -> World {
                 "seed-agent".into(),
                 shadows_core::AgentInput {
                     character_color: None,
+                    description: None,
+                    instructions: None,
+                    outfit: None,
                     name: "AYLUL".into(),
                     provider: "test-2".into(),
                     default_model: "fake-large".into(),

@@ -19,6 +19,7 @@ mod mode;
 mod model;
 mod offers;
 mod owners;
+mod permissions;
 pub use owners::AylulOwners;
 mod profile_home;
 mod sessions;
@@ -46,7 +47,9 @@ pub use setup::{ContextFacts, InvocationContext};
 
 pub use model::InvocationUsage;
 pub use model::NewInvocation;
+pub use model::{PermissionAnswer, WaitingPermission};
 use settings::SettingRefused;
+pub use shadows_agent::events::PermissionOption;
 
 use core_db::{Storage, StorageError};
 use core_extensions::Extensions;

@@ -3,6 +3,63 @@ use shadows_agent::events::HarnessEvent;
 use shadows_agent::events::{AgentFacts, SubagentCard};
 
 #[test]
+fn permission_asked_and_answered_become_entries() {
+    let mut c = Collector::new(None);
+    let asked = c.push(&HarnessEvent::PermissionAsked {
+        request: "request-1".into(),
+        title: "Run a command".into(),
+        options: vec![],
+        asked_at: 0,
+    });
+    assert!(
+        matches!(&asked[..], [Durable::PermissionAsked { request, .. }]
+        if request == "request-1")
+    );
+    let answered = c.push(&HarnessEvent::PermissionAnswered {
+        request: "request-1".into(),
+        option: "allow".into(),
+        kind: "allow_once".into(),
+        name: "Allow once".into(),
+    });
+    assert!(
+        matches!(&answered[..], [Durable::PermissionAnswered { request, option, .. }]
+        if request == "request-1" && option == "allow")
+    );
+    assert!(c.finish().is_empty());
+}
+
+#[test]
+fn an_open_ask_is_refused_at_finish() {
+    let mut c = Collector::new(None);
+    for request in ["second-id", "first-id"] {
+        c.push(&HarnessEvent::PermissionAsked {
+            request: request.into(),
+            title: "Run".into(),
+            options: vec![],
+            asked_at: 0,
+        });
+    }
+    let ended = c.finish();
+    assert!(matches!(&ended[..], [
+        Durable::HeldPermissionRefused { request: first, reason, .. },
+        Durable::HeldPermissionRefused { request: second, .. }
+    ] if first == "second-id" && second == "first-id" && reason == "ended"));
+    assert!(c.finish().is_empty());
+}
+
+#[test]
+fn the_planner_refusal_entry_is_unchanged() {
+    let mut c = Collector::new(None);
+    let entries = c.push(&HarnessEvent::PermissionRefused {
+        title: "Read".into(),
+        request: None,
+        reason: None,
+    });
+    assert_eq!(entries, [Durable::PermissionRefused("Read".into())]);
+    assert!(c.finish().is_empty());
+}
+
+#[test]
 fn the_last_plan_update_becomes_one_todo_list_entry_at_the_end() {
     use shadows_agent::events::{TodoItem, TodoStatus};
     let mut collector = Collector::new(None);

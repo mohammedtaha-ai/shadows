@@ -113,3 +113,21 @@ pub struct InvocationUsage {
     pub preset: Option<String>,
     pub model: String,
 }
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PermissionAnswer {
+    pub thread_id: core_threads::ThreadId,
+    pub request_id: String,
+    pub option_id: String,
+    pub kind: String,
+    pub answered_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct WaitingPermission {
+    pub thread_id: core_threads::ThreadId,
+    pub agent: String,
+    pub request_id: String,
+    pub title: String,
+    pub options: Vec<shadows_agent::events::PermissionOption>,
+    pub asked_at: String,
+}

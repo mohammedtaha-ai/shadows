@@ -150,6 +150,12 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(aylul_providers::provider_presets))
         .routes(routes!(aylul_usage::usage))
         .routes(routes!(aylul_extensions::library, aylul_extensions::import))
+        .routes(routes!(aylul_extensions::add_mcp))
+        .routes(routes!(aylul_extensions::update_mcp))
+        .route(
+            "/api/aylul/extensions/mcp/{id}",
+            axum::routing::delete(aylul_extensions::remove_mcp),
+        )
         .routes(routes!(aylul_extensions::remove))
         .routes(routes!(aylul_extensions::agent))
         .routes(routes!(aylul_extensions::toggle))
@@ -168,6 +174,7 @@ fn routes() -> OpenApiRouter<AppState> {
             aylul_providers::remove_key
         ))
         .routes(routes!(aylul_agents::agents, aylul_agents::create_agent))
+        .routes(routes!(aylul_agents::agent_template))
         .routes(routes!(aylul_agents::update_agent, harness::delete_agent))
         .routes(routes!(aylul_threads::threads))
         .routes(routes!(aylul_env::list))
@@ -204,6 +211,10 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(queue::unqueue))
         .routes(routes!(queue::send_now))
         .routes(routes!(harness::list_harnesses))
+        .routes(routes!(
+            harness::waiting_permissions,
+            harness::answer_permission
+        ))
         .routes(routes!(harness::open_session))
         .routes(routes!(harness::change_model))
         .routes(routes!(harness::change_effort))

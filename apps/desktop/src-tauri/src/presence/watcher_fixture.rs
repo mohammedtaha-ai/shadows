@@ -40,6 +40,9 @@ pub struct Data {
     pub active: AtomicUsize,
     pub sequence: AtomicI64,
     pub events: broadcast::Sender<(String, String)>,
+    pub permissions: Mutex<Vec<serde_json::Value>>,
+    pub project_events: broadcast::Sender<(String, String)>,
+    pub project_sequence: AtomicI64,
 }
 pub struct Fixture {
     pub origin: String,
@@ -52,6 +55,7 @@ impl Fixture {
         let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", socket.local_addr().unwrap());
         let (events, _) = broadcast::channel(64);
+        let (project_events, _) = broadcast::channel(64);
         let data = Arc::new(Data {
             colour: Mutex::new(None),
             metadata_delay: AtomicUsize::new(0),
@@ -70,6 +74,9 @@ impl Fixture {
             active: AtomicUsize::new(0),
             sequence: AtomicI64::new(0),
             events,
+            permissions: Mutex::new(vec![]),
+            project_events,
+            project_sequence: AtomicI64::new(0),
         });
         let app = Router::new().fallback(any(handle)).with_state(data.clone());
         let (stop, rx) = oneshot::channel();
@@ -103,6 +110,37 @@ impl Fixture {
     pub fn durable(&self, thread: &str, op: &str, kind: &str) {
         let seq = self.data.sequence.fetch_add(1, Ordering::SeqCst) + 1;
         self.emit("durable",serde_json::json!({"seq":seq,"kind":kind,"operation_id":op,"thread_id":thread,"payload":{}}));
+    }
+}
+impl Fixture {
+    /// A request Core holds for the person; `options` carry the adapter's own ids.
+    pub fn permission(&self, thread: &str, request: &str, title: &str) {
+        self.data
+            .permissions
+            .lock()
+            .unwrap()
+            .push(serde_json::json!({
+                "thread_id": thread, "agent": "agent-a", "request_id": request, "title": title,
+                "options": [{"option_id":"allow_once","name":"Allow","kind":"allow_once"}],
+                "asked_at": "2026-11-01T10:00:00Z"
+            }));
+    }
+    pub fn settle(&self, request: &str) {
+        self.data
+            .permissions
+            .lock()
+            .unwrap()
+            .retain(|item| item["request_id"] != request);
+    }
+    pub fn permissions_changed(&self, thread: &str, request: &str, state: &str) {
+        let seq = self.data.project_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+        let _ = self.data.project_events.send((
+            "durable".into(),
+            serde_json::json!({"seq":seq,"kind":"PermissionsChanged","operation_id":null,"thread_id":thread,"payload":{"request_id":request,"state":state}}).to_string(),
+        ));
+    }
+    pub fn project_emit(&self, name: &str) {
+        let _ = self.data.project_events.send((name.into(), "{}".into()));
     }
 }
 impl Drop for Fixture {
@@ -140,6 +178,32 @@ async fn handle(State(data): State<Arc<Data>>, request: Request) -> Response {
             agent["character_color"] = colour.into();
         }
         return axum::Json(serde_json::json!({"project_id":PROJECT,"agents":[agent,{"slug":"agent-b","provider":"provider-a","deleted":false,"character_color":"pink"}]})).into_response();
+    }
+    if path == format!("/api/projects/{PROJECT}/events") {
+        let initial = VecDeque::from([(
+            "caught-up".to_owned(),
+            serde_json::json!({"seq":data.project_sequence.load(Ordering::SeqCst)}).to_string(),
+        )]);
+        let stream = futures_util::stream::unfold(
+            (initial, data.project_events.subscribe()),
+            |(mut initial, mut events)| async move {
+                let frame = if let Some(frame) = initial.pop_front() {
+                    Some(frame)
+                } else {
+                    events.recv().await.ok()
+                };
+                frame.map(|(name, body)| {
+                    (
+                        Ok::<_, Infallible>(Event::default().event(name).data(body)),
+                        (initial, events),
+                    )
+                })
+            },
+        );
+        return Sse::new(stream).into_response();
+    }
+    if path == "/api/aylul/permissions" {
+        return axum::Json(data.permissions.lock().unwrap().clone()).into_response();
     }
     if path == "/api/subscribe" {
         if data.stall_headers.load(Ordering::SeqCst) {

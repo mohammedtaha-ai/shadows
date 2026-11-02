@@ -367,7 +367,7 @@ it("an agent's colour is shown and saved with the form", async () => {
   expect(a.calls).not.toContain('PUT /api/aylul/agents/work')
   act(() => a.button('Save agent')!.click())
   await until(() => a.calls.includes('PUT /api/aylul/agents/work'))
-  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: agent.name, provider: agent.provider, default_model: agent.default_model, character_color: next.id })
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: agent.name, provider: agent.provider, default_model: agent.default_model, character_color: next.id, outfit: 'default', description: '' })
 })
 it('an id the table does not know shows Purple and is replaced on save', async () => {
   const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(),
@@ -441,7 +441,7 @@ it('saving the companion agent refreshes the character', async () => {
 it('saving another agent does not', async () => {
   colorFixture.desktop = true; colorFixture.bound = 'other'
   const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(), 'PUT /api/aylul/agents/work': () => Response.json(agent) })
-  await until(() => a.button('Save agent') !== undefined)
+  await until(() => a.button('Save agent')?.disabled === false)
   act(() => a.button('Save agent')!.click())
   await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
   expect(refreshInvoke).not.toHaveBeenCalled()
@@ -450,10 +450,24 @@ it('a failed refresh does not fail the save', async () => {
   colorFixture.desktop = true; colorFixture.bound = 'work'
   refreshInvoke.mockRejectedValue(new Error('Core unavailable'))
   const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(), 'PUT /api/aylul/agents/work': () => Response.json(agent) })
-  await until(() => a.button('Save agent') !== undefined)
+  await until(() => a.button('Save agent')?.disabled === false)
   act(() => a.button('Save agent')!.click())
   await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
   expect(refreshInvoke).toHaveBeenCalledTimes(1)
   expect(document.querySelector('[role="alert"]')).toBeNull()
   expect(a.text()).toContain('Work')
+})
+
+it('the agents home lists each agent with its provider and model, and marks the planned blocks inert', async () => {
+  const a = open = await startApp('/aylul', table())
+  await until(() => a.text().includes('NYLRA · AYLUL Agent Mode'))
+  const card = [...document.querySelectorAll('a')].find(link => link.textContent?.includes('Work') && link.textContent.includes('Launch'))!
+  expect(card.textContent).toContain('Test provider')
+  expect(card.textContent).toContain('fake-large')
+  const planned = [...document.querySelectorAll('[data-slot="planned"]')]
+  expect(planned.map(block => block.getAttribute('aria-label'))).toEqual([
+    'Run stages (planned)', 'Agent Runtime Capabilities list (planned)', 'Context & Memory Layers list (planned)',
+  ])
+  for (const block of planned) expect(block.querySelector('[inert]')).not.toBeNull()
+  expect(a.text()).not.toContain('Ready')
 })

@@ -1,8 +1,9 @@
 // One job: the conversation's messages — the durable entries in order, then
 // whatever the running turn is saying.
 
+import { cn } from 'cn'
 import { AnimatePresence, motion } from 'motion/react'
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle, Sparkles } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
@@ -16,7 +17,7 @@ import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
 import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
 import { TodoCard } from './todo-card'
-import { type Row, activityRows, liveSteps } from './activity-rows'
+import { type Row, activityRows, liveSteps, withLiveSteps } from './activity-rows'
 import { ToolGroup } from './tool-group'
 import type { Cut, ShownReply } from './reply'
 import { SubagentCardView } from './subagent-card'
@@ -132,19 +133,8 @@ export function Messages({
     () => (turnOp === undefined ? [] : liveSteps(frames, entries ?? NO_ENTRIES, turnOp, !running)),
     [frames, entries, turnOp, running],
   )
-  // Calls not yet written are the turn's newest: they join its last group
-  // when nothing came after it, else form one there, before the text still
-  // streaming (Core cuts the message at each call).
-  const rows = useMemo((): Row[] => {
-    if (live.length === 0) return written
-    const last = written.at(-1)
-    const lastKey = last?.kind === 'tools' ? last.steps.at(-1)?.key : undefined
-    const lastOp = shown.find((entry) => entry.id === lastKey)?.operation_id
-    if (last?.kind === 'tools' && lastOp === turnOp && !last.steps.some((step) => step.kind === null)) {
-      return [...written.slice(0, -1), { ...last, steps: [...last.steps, ...live] }]
-    }
-    return [...written, { kind: 'tools', key: 'live-tools', steps: live }]
-  }, [written, live, shown, turnOp])
+  // The turn's unwritten calls join the written rows.
+  const rows = useMemo(() => withLiveSteps(written, live, shown, turnOp), [written, live, shown, turnOp])
   // A list the entries already hold draws as that entry, never twice.
   const liveLists = Object.entries(todos).filter(
     ([op]) => !(entries ?? NO_ENTRIES).some((e) => e.kind === 'TodoList' && e.operation_id === op),
@@ -166,18 +156,23 @@ export function Messages({
       }}
       className="min-h-0 flex-1 overflow-y-auto"
     >
-      <ol className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+      <ol className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-8">
         {loading && (
-          <li className="flex items-center gap-2 text-xs text-faint-foreground">
-            <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />
+          <li className="flex items-center gap-2 rounded-xl border border-accent-line/20 bg-accent/10 px-3.5 py-2 text-xs text-accent-foreground">
+            <LoaderCircle className="size-3.5 animate-spin text-accent-line motion-reduce:animate-none" />
             Loading history
           </li>
         )}
         {!loading && shown.length === 0 && reply === null && !running && (
-          <li className="py-16 text-center text-sm text-faint-foreground">
-            {harness === AYLUL_HARNESS
-              ? 'Ask AYLUL anything.'
-              : 'Ask the Planner something about this project.'}
+          <li className="surface-panel my-12 flex flex-col items-center justify-center gap-3 rounded-2xl px-6 py-14 text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl border border-accent-line/35 bg-accent/15">
+              <Sparkles aria-hidden className="size-5 text-accent-line" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">
+              {harness === AYLUL_HARNESS
+                ? 'Ask AYLUL anything.'
+                : 'Ask the Planner something about this project.'}
+            </p>
           </li>
         )}
         <AnimatePresence initial={false}>
@@ -224,18 +219,18 @@ export function Messages({
             </motion.li>
           ))}
           {thinking && (
-            <motion.li key="waiting" {...appear} className="flex items-center gap-2">
+            <motion.li key="waiting" {...appear} className="inline-flex w-fit items-center gap-2.5 rounded-full border border-accent-line/30 bg-accent/10 px-3.5 py-1.5">
               <span className="size-2 animate-pulse rounded-full bg-accent-line motion-reduce:animate-none" />
-              <span className="text-xs text-faint-foreground">Thinking</span>
+              <span className="text-xs font-medium text-accent-foreground">Thinking</span>
             </motion.li>
           )}
           {running && operational !== null && (
             <motion.li
               key="label"
               {...appear}
-              className="flex items-center gap-2 text-xs text-faint-foreground"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-accent-line/20 bg-card px-3 py-1 text-xs text-accent-foreground"
             >
-              <operational.icon className="size-3.5" />
+              <operational.icon className="size-3.5 text-accent-line" />
               {operational.text}
             </motion.li>
           )}
@@ -260,7 +255,7 @@ function ToolRow({
   forkEntryId?: string
 }) {
   return (
-    <motion.li {...appear} data-entry-kind='tool' className='group space-y-1'>
+    <motion.li {...appear} data-entry-kind='tool' className='group space-y-1.5'>
       <ToolGroup
         steps={row.steps}
         ordinals={row.steps.flatMap((step) => (step.ordinal === null ? [] : [step.ordinal])).join(',')}
@@ -325,7 +320,7 @@ const EntryRow = memo(function EntryRow({
       {...appear}
       initial={handedOver ? false : appear.initial}
       data-entry-kind={entry.kind}
-      className="group space-y-1"
+      className="group space-y-1.5"
     >
       <Entry
         entry={entry}
@@ -336,7 +331,7 @@ const EntryRow = memo(function EntryRow({
         onOpenSubagent={onOpenSubagent}
       />
       {answered !== undefined && <p className="text-xs text-faint-foreground">{answered}</p>}
-      <div className={entry.kind === 'UserMessage' ? 'flex justify-end' : undefined}>
+      <div className={cn(entry.kind === 'UserMessage' && 'flex justify-end')}>
         <MessageActions text={copyText(entry)} forkPoint={forkPoint} />
       </div>
     </motion.li>

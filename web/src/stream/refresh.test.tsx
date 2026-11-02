@@ -8,8 +8,37 @@ import { FakeSource } from '@/test/fake-event-source'
 import { usePlanEvents } from './use-plan-events'
 import { useProjectEvents } from './use-project-events'
 import { useThreadStream } from './use-thread-stream'
+import { waitingPermissionsQuery } from '@/api/permissions'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+it('PermissionsChanged on the project stream refetches the waiting list and reconnect reconciles it', async () => {
+  const client = new QueryClient()
+  const sources: FakeSource[] = []
+  vi.stubGlobal('EventSource', class extends FakeSource { constructor(url: string) { super(url); sources.push(this) } })
+  let reads = 0
+  const options = { ...waitingPermissionsQuery, queryFn: async () => { reads++; return [] } }
+  const root = createRoot(document.createElement('div'))
+  function View() { useProjectEvents('p1'); return null }
+  const observer = client.getQueryCache()
+  try {
+    await client.fetchQuery(options)
+    const { QueryObserver } = await import('@tanstack/react-query')
+    const watch = new QueryObserver(client, options)
+    const release = watch.subscribe(() => {})
+    act(() => root.render(<QueryClientProvider client={client}><View /></QueryClientProvider>))
+    const project = sources[0]
+    act(() => project.caughtUp(0)); await new Promise(resolve => setTimeout(resolve, 0))
+    const before = reads
+    act(() => project.durable(1, 'PermissionsChanged', null, { request_id: 'r1', state: 'asked' }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(reads).toBeGreaterThan(before)
+    const afterEvent = reads
+    act(() => project.caughtUp(1)); await new Promise(resolve => setTimeout(resolve, 0))
+    expect(reads).toBeGreaterThan(afterEvent)
+    release()
+  } finally { act(() => root.unmount()); observer.clear(); client.clear(); vi.unstubAllGlobals() }
+})
 
 it.each(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])('classifies the full plan refresh union for %s', kind => {
   expect(classifyRefresh({ kind, seq: 1, threadId: 't1', operationId: null, payload: {}, projectId: 'p1' })).toEqual([

@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/aylul/agent-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agent_template"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aylul/agents": {
         parameters: {
             query?: never;
@@ -132,6 +148,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/aylul/extensions/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["add_mcp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/extensions/mcp/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_mcp"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aylul/extensions/{kind}/{id}": {
         parameters: {
             query?: never;
@@ -143,6 +191,23 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["remove_extension"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live AYLUL permission requests, oldest first; empty without AYLUL configuration. */
+        get: operations["waiting_permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -791,6 +856,8 @@ export interface paths {
          *     Archive notifications name the plan's latest version to refetch.
          *     ProjectDesignChanged carries project_id, revision, changed_parts,
          *     changed_outcomes and vision_changed, never the vision content.
+         *     PermissionsChanged names a request_id and waiting/answered/refused state on
+         *     the AYLUL project; clients refetch GET /api/aylul/permissions for current options.
          */
         get: operations["subscribe_project"];
         put?: never;
@@ -1380,6 +1447,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/session/permissions/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records the person's offered-option answer before settling the adapter request. */
+        post: operations["answer_permission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/turns": {
         parameters: {
             query?: never;
@@ -1498,7 +1582,11 @@ export interface components {
             created_at: string;
             default_model: string;
             deleted: boolean;
+            description: string;
+            /** @description Empty when the agent follows the bundled template or its home file was not imported. */
+            instructions: string;
             name: string;
+            outfit: string;
             provider: string;
             slug: string;
             updated_at: string;
@@ -1507,17 +1595,28 @@ export interface components {
             command_id: string;
         };
         AgentExtensions: {
+            mcp: components["schemas"]["AgentMcpItem"][];
             plugins: components["schemas"]["AgentItem"][];
             skills: components["schemas"]["AgentItem"][];
         };
         AgentInput: {
             character_color?: string | null;
             default_model: string;
+            description?: string | null;
+            instructions?: string | null;
             name: string;
+            outfit?: string | null;
             provider: string;
         };
         AgentItem: components["schemas"]["Item"] & {
             enabled: boolean;
+            transport?: null | components["schemas"]["McpTransport"];
+        };
+        AgentMcpItem: components["schemas"]["McpItem"] & {
+            enabled: boolean;
+        };
+        AgentTemplate: {
+            instructions: string;
         };
         AgentWorkspace: {
             agents: components["schemas"]["Agent"][];
@@ -1623,6 +1722,10 @@ export interface components {
             status: components["schemas"]["ProjectStatus"][];
             /** @description Up to 10 names containing the text, only when `hits` is empty. */
             suggestions: string[];
+        };
+        AnswerPermission: {
+            command_id: string;
+            option_id: string;
         };
         ApprovalRequest: {
             entry_id: components["schemas"]["ThreadEntryId"];
@@ -1984,10 +2087,11 @@ export interface components {
          *     `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /** @enum {string} */
-        ExtensionKind: "plugin" | "skill";
+        ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
+            mcp: components["schemas"]["McpItem"][];
             plugins: components["schemas"]["Item"][];
             skills: components["schemas"]["Item"][];
         };
@@ -2141,6 +2245,7 @@ export interface components {
             token?: string | null;
         };
         Item: {
+            bundled?: boolean;
             description: string;
             id: string;
             name: string;
@@ -2245,6 +2350,52 @@ export interface components {
             thread_id: components["schemas"]["ThreadId"];
             waivers: components["schemas"]["ProposedWaiver"][];
         };
+        McpInput: {
+            description?: string | null;
+            name: string;
+            transport: components["schemas"]["McpTransportInput"];
+        };
+        McpItem: {
+            description: string;
+            id: string;
+            name: string;
+            transport: components["schemas"]["McpTransport"];
+        };
+        McpRequest: components["schemas"]["McpInput"] & {
+            command_id: string;
+        };
+        McpTransport: {
+            headers: components["schemas"]["McpValue"][];
+            /** @enum {string} */
+            type: "http";
+            url: string;
+        } | {
+            args: string[];
+            command: string;
+            env: components["schemas"]["McpValue"][];
+            /** @enum {string} */
+            type: "stdio";
+        };
+        McpTransportInput: {
+            headers: components["schemas"]["McpValueInput"][];
+            /** @enum {string} */
+            type: "http";
+            url: string;
+        } | {
+            args: string[];
+            command: string;
+            env: components["schemas"]["McpValueInput"][];
+            /** @enum {string} */
+            type: "stdio";
+        };
+        McpValue: {
+            name: string;
+            set: boolean;
+        };
+        McpValueInput: {
+            name: string;
+            value?: string | null;
+        };
         ModelUsage: {
             /** Format: double */
             cost?: number | null;
@@ -2342,6 +2493,19 @@ export interface components {
             part: components["schemas"]["Part"];
             plans: components["schemas"]["PlanId"][];
             revision: components["schemas"]["i64"];
+        };
+        PermissionAnswer: {
+            answered_at: string;
+            kind: string;
+            option_id: string;
+            request_id: string;
+            thread_id: components["schemas"]["ThreadId"];
+        };
+        /** @description A reported adapter option in the spelling used by entries and waiting lists. */
+        PermissionOption: {
+            kind: string;
+            name: string;
+            option_id: string;
         };
         Person: {
             aylul_calls_me?: string | null;
@@ -2898,7 +3062,7 @@ export interface components {
          *     Each variant uses its name for storage and serialization.
          * @enum {string}
          */
-        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PermissionAsked" | "PermissionAnswered" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
         /** Format: uuid */
         ThreadId: string;
         TodoItem: {
@@ -3034,6 +3198,14 @@ export interface components {
             /** Format: int64 */
             revision: number;
         };
+        WaitingPermission: {
+            agent: string;
+            asked_at: string;
+            options: components["schemas"]["PermissionOption"][];
+            request_id: string;
+            thread_id: components["schemas"]["ThreadId"];
+            title: string;
+        };
         /** Format: uuid */
         WorkflowId: string;
         /**
@@ -3069,6 +3241,25 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    agent_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplate"];
+                };
+            };
+        };
+    };
     agents: {
         parameters: {
             query?: never;
@@ -3655,6 +3846,110 @@ export interface operations {
             };
         };
     };
+    add_mcp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpItem"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_mcp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpItem"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     remove_extension: {
         parameters: {
             query: {
@@ -3705,6 +4000,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    waiting_permissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitingPermission"][];
                 };
             };
         };
@@ -7654,6 +7968,70 @@ export interface operations {
             };
             /** @description HARNESS_START_FAILED: the adapter did not start, or its session closed */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    answer_permission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request's thread */
+                id: components["schemas"]["ThreadId"];
+                /** @description The waiting request */
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerPermission"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionAnswer"];
+                };
+            };
+            /** @description PERMISSION_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description PERMISSION_SETTLED; COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description PERMISSION_OPTION_NOT_OFFERED */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

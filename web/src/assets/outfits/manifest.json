@@ -1,0 +1,42 @@
+[
+  {
+    "id": "default",
+    "label": "Default"
+  },
+  {
+    "id": "crown",
+    "label": "Crown"
+  },
+  {
+    "id": "moon",
+    "label": "Moon"
+  },
+  {
+    "id": "scarf",
+    "label": "Scarf"
+  },
+  {
+    "id": "starry",
+    "label": "Starry"
+  },
+  {
+    "id": "winter",
+    "label": "Winter"
+  },
+  {
+    "id": "headphones",
+    "label": "Headphones"
+  },
+  {
+    "id": "mask",
+    "label": "Mask"
+  },
+  {
+    "id": "halo",
+    "label": "Halo"
+  },
+  {
+    "id": "special",
+    "label": "Special"
+  }
+]

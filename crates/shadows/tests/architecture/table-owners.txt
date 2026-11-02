@@ -6,7 +6,10 @@ agreement_operation_identity :: design
 agreement_version :: design
 aylul_agent :: agents
 aylul_agent_extension :: extensions
+aylul_agent_mcp :: extensions
 aylul_extension :: extensions
+aylul_extension_declined :: extensions
+aylul_mcp_server :: extensions
 aylul_person :: person
 aylul_provider :: providers
 aylul_usage :: usage

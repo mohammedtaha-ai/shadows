@@ -32,6 +32,8 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
         ThreadEntryKind::AgentMessage,
         ThreadEntryKind::TodoList,
         ThreadEntryKind::PermissionRefused,
+        ThreadEntryKind::PermissionAsked,
+        ThreadEntryKind::PermissionAnswered,
         ThreadEntryKind::PlanView,
         ThreadEntryKind::PlanApproved,
     ];
@@ -70,6 +72,8 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
             "AgentMessage",
             "TodoList",
             "PermissionRefused",
+            "PermissionAsked",
+            "PermissionAnswered",
             "PlanView",
             "PlanApproved"
         ]

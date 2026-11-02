@@ -150,14 +150,14 @@ impl Setups {
                     })
                     .await
                     .map_err(|e| e.to_string())?;
-                let spec = McpServerSpec {
+                let spec = McpServerSpec::Http {
                     name: "shadows".into(),
                     url: url.clone(),
-                    bearer: token.as_str().to_string(),
+                    headers: vec![("Authorization".into(), format!("Bearer {}", token.as_str()))],
                 };
-                (Some(grant.id), Some(spec))
+                (Some(grant.id), vec![spec])
             }
-            None => (None, None),
+            None => (None, vec![]),
         };
         let instructions = current.as_ref().map(|v| v.id.clone());
         self.lock().insert(

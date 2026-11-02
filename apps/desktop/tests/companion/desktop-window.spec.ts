@@ -13,6 +13,7 @@ test.beforeEach(async({page})=>{
         if(command==='plugin:event|listen')return args.handler;
         if(command==='plugin:event|unlisten')return;
         if(command==='companion_ready'||command==='companion_state')return state;
+        if(command==='companion_panel')return state;
         if(command==='companion_failed')return {...state,revision:2,renderAllowed:false,error:'companion_render_failed'};
         if(command==='drag_companion'||command==='open_main_from_companion')return;
         throw Error('Unexpected native call '+command);
@@ -27,7 +28,7 @@ test('desktop entry draws transparent character without account or studio',async
   expect(await page.evaluate(()=>({x:document.documentElement.scrollWidth,y:document.documentElement.scrollHeight}))).toEqual({x:240,y:240});
   await expect(page.getByRole('heading',{name:'Account',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>(window as any).nativeCalls)).not.toContain('auth_action');
-  await page.mouse.click(120,120);await expect.poll(()=>page.evaluate(()=>(window as any).nativeCalls.includes('open_main_from_companion'))).toBe(true);
+  await page.mouse.click(120,120);await expect.poll(()=>page.evaluate(()=>(window as any).nativeCalls.includes('companion_panel'))).toBe(true);
   await page.screenshot({path:'test-results/desktop-240.png'});
 });
 test('desktop Canvas failure stays local and does not report readiness',async({page})=>{
@@ -65,4 +66,20 @@ test("the companion window draws the state's colour",async({page})=>{
       const delta=Math.abs(hue(pixel.slice(0,3))-expected);return Math.min(delta,360-delta);
     }).toBeLessThanOrEqual(4);
   }
+});
+test("the companion window draws the state's outfit",async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.addInitScript(()=>{Math.random=()=>0.5;});
+  const images:string[]=[];
+  for(const outfit of ['default','headphones','unknown-outfit']){
+    await page.addInitScript(outfit=>{(window as any).nativeState.appearance={outfit};},outfit);
+    await page.goto('/companion.html');
+    await expect.poll(()=>page.locator('canvas').evaluate((canvas:HTMLCanvasElement)=>canvas.getContext('2d')!.getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0))).toBe(true);
+    images.push(await page.locator('canvas').evaluate(async(canvas:HTMLCanvasElement)=>{
+      const pixels=canvas.getContext('2d')!.getImageData(0,0,canvas.width,canvas.height).data;
+      return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',pixels))).map(value=>value.toString(16).padStart(2,'0')).join('');
+    }));
+  }
+  expect(images[1]).not.toBe(images[0]);
+  expect(images[2]).toBe(images[0]);
 });

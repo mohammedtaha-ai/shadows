@@ -17,6 +17,11 @@ fn agent_row(row: sqlx::sqlite::SqliteRow) -> Agent {
         provider: row.get::<Option<String>, _>("provider").unwrap_or_default(),
         default_model: row.get("default_model"),
         character_color: row.get("character_color"),
+        description: row.get("description"),
+        instructions: row
+            .get::<Option<String>, _>("instructions")
+            .unwrap_or_default(),
+        outfit: row.get("outfit"),
         deleted: row.get::<Option<String>, _>("deleted_at").is_some(),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -60,6 +65,46 @@ impl AgentsStore {
                 .await?
                 .ok_or_else(|| AgentsError::NotFound(slug.into()))?,
         ))
+    }
+
+    /// The stored instructions; `None` while the home file is not imported.
+    pub(super) async fn instructions(&self, slug: &str) -> Result<Option<String>, AgentsError> {
+        sqlx::query_scalar("SELECT instructions FROM aylul_agent WHERE slug = ?")
+            .bind(slug)
+            .fetch_optional(self.storage.reader())
+            .await?
+            .ok_or_else(|| AgentsError::NotFound(slug.into()))
+    }
+
+    /// Live agents whose home file was never imported, in slug order.
+    pub(super) async fn unimported(&self) -> Result<Vec<String>, AgentsError> {
+        Ok(sqlx::query_scalar(
+            "SELECT slug FROM aylul_agent WHERE instructions IS NULL AND deleted_at IS NULL
+             ORDER BY slug",
+        )
+        .fetch_all(self.storage.reader())
+        .await?)
+    }
+
+    /// Stores imported text once; an agent that already has instructions is left alone.
+    pub(super) async fn import_instructions(
+        &self,
+        slug: String,
+        text: String,
+    ) -> Result<(), AgentsError> {
+        self.write(move |conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "UPDATE aylul_agent SET instructions=? WHERE slug=? AND instructions IS NULL",
+                )
+                .bind(text)
+                .bind(slug)
+                .execute(conn)
+                .await?;
+                Ok(())
+            })
+        })
+        .await
     }
 
     /// Whether the agent is live, read outside any write.
@@ -120,20 +165,7 @@ impl AgentsStore {
     ) -> Result<String, AgentsError> {
         self.write(move |conn| {
             Box::pin(async move {
-                if input.character_color.is_none() {
-                    let stored = if let Some(id) = &existing {
-                        sqlx::query_scalar::<_, String>(
-                            "SELECT character_color FROM aylul_agent WHERE slug=?",
-                        )
-                        .bind(id)
-                        .fetch_optional(&mut *conn)
-                        .await
-                        .map_err(StorageError::from)?
-                    } else {
-                        None
-                    };
-                    input.character_color = Some(stored.unwrap_or_else(|| "purple".into()));
-                }
+                Self::fill_absent_in(conn, existing.as_deref(), &mut input).await?;
                 let command = match &existing {
                     Some(id) => CommandContext::user(
                         command_id,
@@ -170,6 +202,45 @@ impl AgentsStore {
         .await
     }
 
+    /// Fills each absent profile field from the stored agent, or the create default, so
+    /// the fingerprint covers what is written.
+    async fn fill_absent_in(
+        conn: &mut SqliteConnection,
+        existing: Option<&str>,
+        input: &mut AgentInput,
+    ) -> Result<(), AgentsError> {
+        let stored: Option<(String, String, Option<String>, String)> = match existing {
+            Some(id) => sqlx::query_as(
+                "SELECT character_color, description, instructions, outfit
+                     FROM aylul_agent WHERE slug=?",
+            )
+            .bind(id)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(StorageError::from)?,
+            None => None,
+        };
+        let created = existing.is_none();
+        let (color, description, instructions, outfit) = match stored {
+            Some((c, d, i, o)) => (c, Some(d), i, o),
+            None => (
+                "purple".into(),
+                None,
+                created.then(String::new),
+                "default".into(),
+            ),
+        };
+        input.character_color.get_or_insert(color);
+        if input.description.is_none() {
+            input.description = Some(description.unwrap_or_default());
+        }
+        if input.instructions.is_none() {
+            input.instructions = instructions;
+        }
+        input.outfit.get_or_insert(outfit);
+        Ok(())
+    }
+
     async fn free_slug_in(
         conn: &mut SqliteConnection,
         base: &SlugBase,
@@ -197,11 +268,13 @@ impl AgentsStore {
         let ts = Storage::now();
         sqlx::query(
             "INSERT INTO aylul_agent
-            (slug,name,provider,default_model,created_at,updated_at,character_color)
-            VALUES (?,?,?,?,?,?,?)
+            (slug,name,provider,default_model,created_at,updated_at,character_color,
+             description,instructions,outfit)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(slug) DO UPDATE SET name=excluded.name, provider=excluded.provider,
             default_model=excluded.default_model, updated_at=excluded.updated_at,
-            character_color=excluded.character_color",
+            character_color=excluded.character_color, description=excluded.description,
+            instructions=excluded.instructions, outfit=excluded.outfit",
         )
         .bind(id)
         .bind(&input.name)
@@ -210,6 +283,9 @@ impl AgentsStore {
         .bind(&ts)
         .bind(&ts)
         .bind(&input.character_color)
+        .bind(&input.description)
+        .bind(&input.instructions)
+        .bind(&input.outfit)
         .execute(&mut *conn)
         .await?;
         Ok(())

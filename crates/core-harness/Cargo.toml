@@ -12,6 +12,7 @@ doctest = false
 workspace = true
 
 [dependencies]
+time = { workspace = true }
 core-db = { path = "../core-db" }
 core-agents = { path = "../core-agents" }
 core-extensions = { path = "../core-extensions" }

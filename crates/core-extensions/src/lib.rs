@@ -1,11 +1,17 @@
 //! The shared extension library and each agent's switches over it.
+mod bundled;
 mod error;
 mod files;
+mod mcp;
 mod model;
 mod store;
 
 pub use error::ExtensionsError;
-pub use model::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item};
+pub use mcp::McpServerConfig;
+pub use model::{
+    AgentExtensions, AgentItem, AgentMcpItem, ExtensionKind, ExtensionLibrary, Item, McpInput,
+    McpItem, McpTransport, McpTransportInput, McpValue, McpValueInput,
+};
 
 use core_db::{CommandContext, Storage};
 use sha2::{Digest, Sha256};
@@ -16,15 +22,28 @@ use store::ExtensionsStore;
 
 pub struct Extensions {
     store: ExtensionsStore,
+    secrets: Arc<core_secrets::Secrets>,
     /// Serializes library mutations against the harness's snapshot projection.
     lock: Arc<tokio::sync::Mutex<()>>,
     home_root: Option<PathBuf>,
 }
 
+/// The agent's library and resolved servers, pinned until home projection finishes.
+pub struct AgentExtensionSnapshot {
+    pub library: AgentExtensions,
+    pub mcp: Vec<McpServerConfig>,
+    _guard: tokio::sync::OwnedMutexGuard<()>,
+}
+
 impl Extensions {
-    pub fn new(storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Self> {
+    pub fn new(
+        storage: Arc<Storage>,
+        secrets: Arc<core_secrets::Secrets>,
+        home_root: Option<PathBuf>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             store: ExtensionsStore::new(storage),
+            secrets,
             lock: Arc::default(),
             home_root,
         })
@@ -45,6 +64,11 @@ impl Extensions {
         path: &Path,
     ) -> Result<Item, ExtensionsError> {
         let _guard = self.extension_guard().await;
+        if kind == ExtensionKind::Mcp {
+            return Err(ExtensionsError::Invalid(
+                "MCP items are configuration".into(),
+            ));
+        }
         if !path.is_absolute() {
             return Err(ExtensionsError::Invalid(
                 "extension source must be absolute".into(),
@@ -71,7 +95,7 @@ impl Extensions {
             .as_ref()
             .ok_or(ExtensionsError::NotConfigured)?
             .join("library");
-        self.store.add(c, kind, source, root).await
+        self.store.add(c, kind, source, root, false).await
     }
 
     pub async fn delete_extension(
@@ -86,8 +110,10 @@ impl Extensions {
             "extension.delete",
             serde_json::json!({"kind":kind,"id":id}),
         );
-        self.store.remove(c, kind, id).await?;
-        if let Some(root) = &self.home_root {
+        self.store.remove(c, kind, id, self.secrets.clone()).await?;
+        if kind != ExtensionKind::Mcp
+            && let Some(root) = &self.home_root
+        {
             Self::retire(&root.join("library"), id);
         }
         Ok(())

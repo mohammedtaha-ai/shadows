@@ -39,7 +39,10 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "attachment",
             "aylul_agent",
             "aylul_agent_extension",
+            "aylul_agent_mcp",
             "aylul_extension",
+            "aylul_extension_declined",
+            "aylul_mcp_server",
             "aylul_person",
             "aylul_provider",
             "aylul_usage",
@@ -96,7 +99,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0023 §23's map proposals, versions and waivers, \
          0026 §23.5's roadmap proposals, 0028 AYLUL's encrypted environment, \
          0033 the person, 0034 usage, 0035 the extension library and its per-agent switches, \
-         0036 the remembered conversation mode)"
+         0036 the remembered conversation mode, \
+         0039 the MCP library, its per-agent switches and declined bundled names)"
     );
 
     storage.close().await.unwrap();

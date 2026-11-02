@@ -24,7 +24,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Feature | What it gives the person | Status | Why |
 |---|---|---|---|
 | Executors | One bounded agent per task, writing only inside its task | planned | [vision §2](./vision.md#2-the-core-idea-shadows-knows-the-project-and-agents-ask-it), [§17](./superpowers/specs/2026-10-01-task-contracts-and-evidence-design.md) |
-| The manager and the escalation ladder | Executor → manager → Planner → person; the plan never changes silently | idea | [vision §5](./vision.md#5-when-the-plan-is-wrong-the-escalation-ladder) |
+| The manager and the escalation ladder | Executor → manager → Planner → person; the plan never changes silently | idea | [vision §5](./vision.md#5-when-the-plan-is-wrong-the-escalation-ladder), [messaging probe](./evidence/2026-11-01-agent-messaging-probe.md) |
 | Critic and specialists | A critic checks each result against its task; a researcher or library reviewer on demand | planned | [vision §6](./vision.md#6-executors-and-their-environment), [§19](./superpowers/specs/2026-10-03-agent-profiles-and-extensions-design.md) |
 | A model per task | Strong model plans and verifies, a cheaper one takes well-specified tasks | idea | [vision §4](./vision.md#4-models-plan-with-a-strong-one-execute-with-the-one-that-fits) |
 | Pending tests | A test waiting on task N stays linked to it and runs when N completes | idea | [vision §3](./vision.md#3-a-failing-test-that-belongs-to-another-task) |

@@ -33,6 +33,13 @@ const expanded = (name: string) => toggleOf(name)?.getAttribute('aria-expanded')
 const link = (text: string) =>
   [...document.querySelectorAll('nav a')].find((a) => a.textContent?.trim() === text)
 
+/** Types into the sidebar's filter the way a person does. */
+function typeFilter(text: string) {
+  const input = document.querySelector<HTMLInputElement>('input[aria-label="Filter sidebar"]')!
+  const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+  act(() => { set.call(input, text); input.dispatchEvent(new Event('input', { bubbles: true })) })
+}
+
 let app: TestApp | null = null
 afterEach(() => {
   app?.unmount()
@@ -86,5 +93,33 @@ describe('the project tree', () => {
     await until(() => link('Conversation 1') !== undefined)
     const query = a.queryClient.getQueryCache().find({ queryKey: threadsQuery('p1').queryKey })
     expect(query?.options).toMatchObject({ refetchInterval: 10_000 })
+  })
+
+  it('the filter narrows projects by name and by directory, and says when nothing matches', async () => {
+    app = await startApp('/', twoProjects())
+    await until(() => toggleOf('Second') !== undefined)
+    act(() => document.querySelector<HTMLButtonElement>('button[aria-label="Search sidebar"]')?.click())
+    await until(() => document.querySelector('input[aria-label="Filter sidebar"]') !== null)
+    typeFilter('sec')
+    expect(toggleOf('Demo')).toBeUndefined()
+    expect(toggleOf('Second')).toBeDefined()
+    typeFilter('work')
+    expect(toggleOf('Demo')).toBeDefined()
+    expect(toggleOf('Second')).toBeUndefined()
+    typeFilter('zzz')
+    expect(document.querySelector('nav')?.textContent).toContain('No matching projects.')
+  })
+
+  it('Escape closes the search and clears the filter', async () => {
+    app = await startApp('/', twoProjects())
+    await until(() => toggleOf('Second') !== undefined)
+    act(() => document.querySelector<HTMLButtonElement>('button[aria-label="Search sidebar"]')?.click())
+    await until(() => document.querySelector('input[aria-label="Filter sidebar"]') !== null)
+    typeFilter('sec')
+    expect(toggleOf('Demo')).toBeUndefined()
+    const input = document.querySelector('input[aria-label="Filter sidebar"]')!
+    act(() => { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+    expect(document.querySelector('input[aria-label="Filter sidebar"]')).toBeNull()
+    expect(toggleOf('Demo')).toBeDefined()
   })
 })

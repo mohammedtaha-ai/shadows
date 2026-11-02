@@ -15,6 +15,7 @@ import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
 import { TodoCard } from './todo-card'
 import { subagentOf } from './tool-text'
+import { PermissionCard } from './permission-card'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -63,12 +64,24 @@ export function Entry({
       <div className="flex justify-end">
         <div
           dir="auto"
-          className="max-w-[80%] rounded-2xl rounded-br-md border border-border bg-card px-4 py-2.5 text-start text-sm whitespace-pre-wrap text-card-foreground [unicode-bidi:plaintext]"
+          className="max-w-[82%] rounded-2xl rounded-br-md surface-glow px-4 py-3 text-start text-sm whitespace-pre-wrap text-foreground [unicode-bidi:plaintext]"
         >
-          {entry.attachments.length > 0 && <div className="flex flex-wrap gap-2">
-            {entry.attachments.map(image => <a key={image.id} href={attachmentUrl(entry.thread_id, image.id)} target="_blank" rel="noreferrer">
-              <img src={attachmentUrl(entry.thread_id, image.id)} alt={image.name ?? 'Attached image'} loading="lazy" className="max-h-48 max-w-64 rounded object-contain" />
-            </a>)}
+          {entry.attachments.length > 0 && <div className="mb-2 flex flex-wrap gap-2">
+            {entry.attachments.map(image => (
+              <a
+                key={image.id}
+                href={attachmentUrl(entry.thread_id, image.id)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  src={attachmentUrl(entry.thread_id, image.id)}
+                  alt={image.name ?? 'Attached image'}
+                  loading="lazy"
+                  className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain"
+                />
+              </a>
+            ))}
           </div>}
           <p>{entry.body}</p>
         </div>
@@ -76,9 +89,34 @@ export function Entry({
     )
   }
   if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
-  if (entry.kind === 'VisionProposal') return <VisionProposalCard entry={entry} projectId={projectId} />
+  if (entry.kind === 'PermissionAsked') {
+    return <PermissionCard entry={entry} projectId={projectId} />
+  }
+  if (entry.kind === 'PermissionAnswered') {
+    return (
+      <p
+        className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-1.5 text-xs text-success"
+      >
+        <span dir="auto">{entry.body}</span> · by you
+      </p>
+    )
+  }
+  if (entry.kind === 'PermissionRefused' && typeof entry.card?.reason === 'string') {
+    return (
+      <p
+        className="rounded-xl border border-warning/25 bg-warning/10 px-3.5 py-2.5 text-xs text-warning"
+      >
+        <span dir="auto">{entry.body}</span> · {entry.card.reason}
+      </p>
+    )
+  }
+  if (entry.kind === 'VisionProposal') {
+    return <VisionProposalCard entry={entry} projectId={projectId} />
+  }
   if (entry.kind === 'MapProposal') return <MapProposalCard entry={entry} projectId={projectId} />
-  if (entry.kind === 'RoadmapProposal') return <RoadmapProposalCard entry={entry} projectId={projectId} />
+  if (entry.kind === 'RoadmapProposal') {
+    return <RoadmapProposalCard entry={entry} projectId={projectId} />
+  }
   if (entry.kind === 'Subagent') {
     const card = subagentOf(entry)
     return card === null ? null : <SubagentCardView card={card} onOpen={onOpenSubagent} />
@@ -92,8 +130,8 @@ export function Entry({
   }
   if (entry.kind === 'PlanApproved') {
     return (
-      <p className="flex items-center gap-2 text-xs text-faint-foreground">
-        <CircleCheck aria-hidden className="size-3.5 shrink-0 text-accent-line" />
+      <p className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-1.5 text-xs text-success">
+        <CircleCheck aria-hidden className="size-3.5 shrink-0" />
         <span dir="auto">{entry.body}</span>
       </p>
     )
@@ -104,7 +142,7 @@ export function Entry({
     // does not ask.
     const refusedIn = requestedMode ?? policy.initial_mode
     return (
-      <p className="flex items-start gap-2 text-xs text-muted-foreground">
+      <p className="flex items-start gap-2 rounded-xl border border-warning/25 bg-warning/10 px-3.5 py-2.5 text-xs text-warning">
         <ShieldX aria-label="Permission refused" className="mt-px size-3.5 shrink-0" />
         <span>
           <code className="font-mono break-all whitespace-pre-wrap">{entry.body}</code>

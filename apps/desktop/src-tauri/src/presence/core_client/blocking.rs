@@ -1,5 +1,5 @@
 //! Blocking Core requests: binding and navigation reads, and submission writes.
-use super::RuntimeIdentity;
+use super::{RuntimeIdentity, WaitingPermission};
 use crate::{
     core_connection::ReadyConnection,
     presence::binding::{Thread, Workspace},
@@ -47,6 +47,35 @@ impl<'a> Blocking<'a> {
     }
     pub fn thread(&self, id: &str) -> Result<Thread, &'static str> {
         self.read(&format!("/api/threads/{id}"))
+    }
+    pub fn permissions(&self) -> Result<Vec<WaitingPermission>, &'static str> {
+        self.read("/api/aylul/permissions")
+    }
+    /// Core replays an equal command id with its first result, so a retry reuses the id.
+    pub fn answer_permission(
+        &self,
+        thread_id: &str,
+        request_id: &str,
+        option_id: &str,
+        command_id: Uuid,
+    ) -> Result<(), &'static str> {
+        let outcome = self
+            .exchange(
+                reqwest::Method::POST,
+                &format!("/api/threads/{thread_id}/session/permissions/{request_id}"),
+                Some(json!({"command_id":command_id,"option_id":option_id})),
+                Duration::from_secs(10),
+            )
+            .map_err(|_| "companion_core_unavailable")?;
+        match outcome {
+            Ok(_) => Ok(()),
+            Err(code) => Err(match code.as_deref() {
+                Some("PERMISSION_SETTLED") => "permission_settled",
+                Some("PERMISSION_NOT_FOUND") => "permission_not_found",
+                Some("PERMISSION_OPTION_NOT_OFFERED") => "permission_option_not_offered",
+                _ => "permission_failed",
+            }),
+        }
     }
     pub fn create_thread(
         &self,
@@ -106,6 +135,30 @@ impl<'a> Blocking<'a> {
         body: Option<Value>,
         timeout: Duration,
     ) -> Result<Value, &'static str> {
+        match self.exchange(method, path, body, timeout)? {
+            Ok(value) => Ok(value),
+            Err(code) => Err(match code.as_deref() {
+                Some("THREAD_BUSY") => "companion_send_busy",
+                Some(
+                    "AYLUL_KEY_MISSING"
+                    | "AYLUL_NOT_CONFIGURED"
+                    | "AYLUL_PROFILE_NOT_FOUND"
+                    | "AYLUL_PROVIDER_NOT_FOUND"
+                    | "RUNTIME_NOT_CONFIGURED",
+                ) => "companion_send_setup",
+                Some("MODE_NOT_ALLOWED" | "SETTING_NOT_OFFERED") => "companion_send_settings",
+                _ => "companion_send_failed",
+            }),
+        }
+    }
+    /// The outer error is a transport failure; the inner one carries Core's error code.
+    fn exchange(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Value>,
+        timeout: Duration,
+    ) -> Result<Result<Value, Option<String>>, &'static str> {
         let client = reqwest::blocking::Client::builder()
             .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
@@ -135,19 +188,8 @@ impl<'a> Blocking<'a> {
         let value: Value =
             serde_json::from_slice(&bytes).map_err(|_| "companion_send_uncertain")?;
         if status.is_success() {
-            return Ok(value);
+            return Ok(Ok(value));
         }
-        Err(match value["code"].as_str() {
-            Some("THREAD_BUSY") => "companion_send_busy",
-            Some(
-                "AYLUL_KEY_MISSING"
-                | "AYLUL_NOT_CONFIGURED"
-                | "AYLUL_PROFILE_NOT_FOUND"
-                | "AYLUL_PROVIDER_NOT_FOUND"
-                | "RUNTIME_NOT_CONFIGURED",
-            ) => "companion_send_setup",
-            Some("MODE_NOT_ALLOWED" | "SETTING_NOT_OFFERED") => "companion_send_settings",
-            _ => "companion_send_failed",
-        })
+        Ok(Err(value["code"].as_str().map(str::to_owned)))
     }
 }

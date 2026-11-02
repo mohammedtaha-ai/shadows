@@ -1,0 +1,2 @@
+- [Loading .env](feedback_env_loading.md): use a read loop, never `. ./.env` (it once echoed a key)
+- [Open value sets](feedback_open_value_sets.md) — client-owned lists are opaque ids with a shape check, not backend enums (ruling 2026-10-21)

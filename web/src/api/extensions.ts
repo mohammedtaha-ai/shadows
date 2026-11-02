@@ -9,6 +9,15 @@ export type AgentItem = components['schemas']['AgentItem']
 export type ExtensionLibrary = components['schemas']['ExtensionLibrary']
 export type AgentExtensions = components['schemas']['AgentExtensions']
 export type ExtensionImport = components['schemas']['Import']
+export type McpItem = components['schemas']['McpItem']
+export type McpInput = components['schemas']['McpInput']
+export type McpValueInput = components['schemas']['McpValueInput']
+
+export function saveMcp(id: string | null, commandId: string, input: McpInput): Promise<McpItem> {
+  const body = { command_id: commandId, ...input }
+  return id === null ? unwrap(client.POST('/api/aylul/extensions/mcp', { body }))
+    : unwrap(client.PUT('/api/aylul/extensions/mcp/{id}', { params: { path: { id } }, body }))
+}
 
 export const extensionKeys = {
   library: () => ['aylul-extensions'],
@@ -37,7 +46,7 @@ export function setAgentExtension(slug: string, kind: ExtensionKind, id: string,
 }
 
 export function saveAgentExtensionAnswer(client: QueryClient, slug: string, kind: ExtensionKind, saved: AgentItem) {
-  const field = kind === 'plugin' ? 'plugins' : 'skills'
+  const field = kind === 'plugin' ? 'plugins' : kind === 'skill' ? 'skills' : 'mcp'
   return writeSaved<AgentExtensions>(client, extensionKeys.agent(slug), current => current
     ? { ...current, [field]: current[field].map(value => value.id === saved.id ? saved : value) } : current)
 }
