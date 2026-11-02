@@ -50,6 +50,8 @@ external:
 components:
   Sidebar:
     signature: "({ narrow: boolean, onToggle: () => void, onHide: () => void }) => JSX.Element"
+    note: A search button in the header opens a filter input; the text is passed to the lists as `filter`. It only narrows lists already fetched and calls no endpoint. Escape or the clear button closes it and clears the text.
+    tested_by: ["the agent filter narrows by name and by description, and says when nothing matches"]
     # The aside: the workspace menu, New project (Shadows) or New agent (AYLUL), the
     # project or agent tree, the connection indicator and the Settings button (marked
     # current while its dialog is open).
@@ -57,18 +59,25 @@ components:
     signature: "({ shown: boolean, onToggle: () => void, className?: string }) => JSX.Element"
     # Accessible toggle with the Ctrl+B tooltip.
   ProjectList:
-    signature: "() => JSX.Element"
-    # Renders nothing until the project list answers; "No projects yet." when it is empty.
+    signature: "({ filter?: string }) => JSX.Element"
+    # Renders nothing until the project list answers; "No projects yet." when it is empty,
+    # "No matching projects." when the filter (case-insensitive, on name or directory) matches none.
+    tested_by: ["the filter narrows projects by name and by directory, and says when nothing matches", "Escape closes the search and clears the filter"]
   ThreadList:
     signature: "({ projectId: string, selected?: string, profile?: string }) => JSX.Element"
     # Conversation links of one project, or of one agent when `profile` is given (they all
     # live in the hidden assistant project), with a per-row menu whose Delete opens the dialog.
+  LeafMark:
+    signature: "({ className?: string }) => JSX.Element"
+    # The mark beside the workspace name, coloured from theme tokens; exported by workspace-switcher.tsx.
   WorkspaceSwitcher:
     signature: "({ workspace: Workspace, onSwitch: (next: Workspace) => void }) => JSX.Element"
     # The title as a menu: Shadows "Plan and build projects" and AYLUL "Your agents and
     # their conversations", each with a check on the current one.
   AgentList:
-    signature: "() => JSX.Element"
+    signature: "({ filter?: string }) => JSX.Element"
+    # The filter (case-insensitive, on name or description) narrows the agents and unfolds the matches;
+    # "No matching agents." when it matches none.
     # Live agents laid out like projects: each folds open to its conversations and
     # "Agent settings"; its + opens a draft under it. Providers are reached through Settings.
     # Empty states: "Add a provider first", then "Add an agent to start".

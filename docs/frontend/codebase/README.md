@@ -314,13 +314,13 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/usage-tables.tsx` | Usage report presentation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/index.ts` | Expose app/settings public capabilities | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
-| `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree narrowed by the search filter | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/open-projects.ts` | Remembers which projects the sidebar shows open | `web/src/app/sidebar/contract.yaml` |
-| `web/src/app/sidebar/project-list.tsx` | Sidebar project tree with its conversations, plans | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/project-list.tsx` | Sidebar project tree narrowed by the search filter | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/sidebar-state.ts` | Whether the sidebar shows, kept per browser | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/sidebar-toggle.tsx` | Button that hides or shows the sidebar | `web/src/app/sidebar/contract.yaml` |
-| `web/src/app/sidebar/sidebar.tsx` | Left pane holding the sidebar's sections | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/sidebar.tsx` | Left pane with a search filter over its trees | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/thread-list.tsx` | An open project's conversations in the sidebar | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workflow-list.tsx` | An open project's plans in the sidebar | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workspace-switcher.tsx` | Sidebar title as the workspace menu | `web/src/app/sidebar/contract.yaml` |

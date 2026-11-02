@@ -20,27 +20,27 @@ export function ThreadList({ projectId, selected, profile }: { projectId: string
 
   return (
     <>
-      <ul className="mt-0.5 mb-1.5 ml-4 space-y-0.5 border-l border-sidebar-border pl-2">
+      <ul className="mt-1 mb-1.5 ml-4 space-y-0.5 border-l border-sidebar-border/80 pl-2">
         {threads?.map((thread) => {
           const isSelected = thread.id === selected
           return (
-            <li key={thread.id} className="flex items-center gap-0.5">
+            <li key={thread.id} className="group/thread flex items-center gap-0.5">
               <Link
                 to="/projects/$projectId/threads/$threadId"
                 params={{ projectId, threadId: thread.id }}
                 aria-current={isSelected ? 'page' : undefined}
-                className={`flex min-w-0 flex-1 items-center gap-2 rounded-r-md border-l-2 px-2 py-1 text-sm transition-colors ${
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-r-lg border-l-2 px-2.5 py-1.5 text-xs transition-all ${
                   isSelected
-                    ? 'border-accent-line bg-secondary text-secondary-foreground'
-                    : 'border-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                    ? 'border-accent-line bg-gradient-to-r from-accent/35 to-secondary/70 font-medium text-secondary-foreground'
+                    : 'border-transparent text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
                 }`}
               >
-                <MessageSquare className="size-3.5 shrink-0" />
+                <MessageSquare className={`size-3.5 shrink-0 ${isSelected ? 'text-accent-line' : ''}`} />
                 <span dir="auto" className="min-w-0 flex-1 truncate text-start">{thread.title}</span>
               </Link>
               <DropdownMenu>
                 <DropdownMenuTrigger render={
-                  <Button variant="ghost" size="icon" className="size-6 shrink-0"
+                  <Button variant="ghost" size="icon" className="size-6 shrink-0 opacity-70 transition-opacity group-hover/thread:opacity-100"
                     aria-label={`Conversation options: ${thread.title}`} />
                 }>
                   <Ellipsis className="size-3.5" />

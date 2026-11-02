@@ -7,6 +7,7 @@ let app: TestApp | null = null
 const sidebar = () => document.querySelector('#app-sidebar')
 const button = (s: string) => document.querySelector<HTMLButtonElement>(`button[aria-label="${s}"]`)
 const click = (s: string) => act(() => button(s)?.click())
+const input = () => document.querySelector<HTMLInputElement>('input[aria-label="Filter sidebar"]')
 const media = (narrow: boolean) => vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: narrow, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
 afterEach(() => { app?.unmount(); app = null; vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear() })
 it('the sidebar shows the description under the agent name', async () => {
@@ -17,6 +18,30 @@ it('the sidebar shows the description under the agent name', async () => {
   await until(() => sidebar()?.textContent?.includes('Builds useful things') === true)
   const row = [...sidebar()!.querySelectorAll('button')].find(button => button.textContent?.includes('Work'))!
   expect(row.textContent).toContain('WorkBuilds useful things')
+})
+it('the agent filter narrows by name and by description, and says when nothing matches', async () => {
+  app = await startApp('/aylul', { ...answers(),
+    'GET /api/aylul/providers': [{ slug: 'fixture', models: [] }],
+    'GET /api/aylul/agents': { project_id: 'p1', agents: [
+      { slug: 'work', name: 'Work', description: 'Builds useful things' },
+      { slug: 'play', name: 'Play', description: 'Tells jokes' },
+    ] },
+  })
+  await until(() => sidebar()?.textContent?.includes('Tells jokes') === true)
+  act(() => button('Search sidebar')?.click())
+  await until(() => input() !== null)
+  const type = (text: string) => {
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    act(() => { set.call(input(), text); input()!.dispatchEvent(new Event('input', { bubbles: true })) })
+  }
+  type('wor')
+  expect(sidebar()!.textContent).not.toContain('Tells jokes')
+  expect(sidebar()!.textContent).toContain('Builds useful things')
+  type('jokes')
+  expect(sidebar()!.textContent).toContain('Tells jokes')
+  expect(sidebar()!.textContent).not.toContain('Builds useful things')
+  type('zzz')
+  expect(sidebar()!.textContent).toContain('No matching agents.')
 })
 it("the sidebar's button hides it, the main pane's button and Ctrl+B show it again", async () => {
  media(false); app = await startApp('/projects/p1/threads/t1', answers()); await until(() => sidebar() !== null)
