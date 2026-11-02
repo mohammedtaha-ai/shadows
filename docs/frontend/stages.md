@@ -32,7 +32,7 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-78 · The agent form: instructions start empty
-- Status: todo
+- Status: done
 - Spec: [AYLUL agents and panel](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md) §7.1 and the form's item 4
 - Read: `web/src/app/agents/agent-settings.tsx` and its test; the agents contract.
 - Touch: `web/src/app/agents/agent-settings.tsx`; its test; the agents contract.

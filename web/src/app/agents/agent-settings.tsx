@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useRef, useState } from 'react'
 import {
-  type AgentInput, agentsQuery, agentTemplateQuery, deleteAgent, providersQuery, providerPresetsQuery, saveAgent,
+  type AgentInput, agentsQuery, deleteAgent, providersQuery, providerPresetsQuery, saveAgent,
 } from '@/api/aylul-profiles'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
@@ -36,11 +36,10 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
   const presets = useQuery(providerPresetsQuery)
   const agents = useQuery(agentsQuery)
   const original = agents.data?.agents.find((a) => a.slug === slug)
-  const template = useQuery({ ...agentTemplateQuery, enabled: slug === null || (original !== undefined && !original.instructions) })
   const queryClient = useQueryClient()
   const [edited, setEdited] = useState<AgentInput | null>(null)
   const [instructions, setInstructions] = useState<string | null>(null)
-  const initialInstructions = original?.instructions || template.data?.instructions || ''
+  const initialInstructions = original?.instructions ?? ''
   const pending = useRef<Attempt | null>(null)
   const first = providers.data?.[0]
   const initialValue: AgentInput = original === undefined
@@ -105,7 +104,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
             onChange={(e) => setEdited({ ...value, name: e.target.value })} />
         </Field>
         <Field label="Description">
-          <Input aria-label="Agent description" value={value.description ?? ''} placeholder="What this agent helps with"
+          <Input aria-label="Agent description" value={value.description ?? ''} placeholder="Main role in one line, e.g. English teacher"
             onChange={e => setEdited({ ...value, description: e.target.value })} />
         </Field>
         <Field label="Provider">
@@ -126,14 +125,13 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
         </Field>
         <Field label="Instructions" hint="Edit instructions here. Changes made directly to CLAUDE.md are overwritten when a conversation opens.">
           <TextArea aria-label="Agent instructions" rows={10} value={instructions ?? initialInstructions}
-            disabled={!original?.instructions && template.data === undefined}
+            placeholder="Describe its style, method and rules"
             onChange={e => setInstructions(e.target.value)} />
         </Field>
-        {template.error !== null && <ErrorLine error={template.error} />}
         {save.error !== null && <ErrorLine error={save.error} />}
         {dirty && <p role="status" className="text-xs font-medium text-warning">Unsaved changes</p>}
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={value.provider === '' || value.default_model === '' || (!original?.instructions && template.data === undefined)}>
+          <Button type="submit" disabled={value.provider === '' || value.default_model === ''}>
             {save.isPending ? 'Saving…' : slug === null ? 'Create agent' : 'Save agent'}
           </Button>
           <p className="text-xs text-faint-foreground">Changes apply to new and resumed conversations.</p>
