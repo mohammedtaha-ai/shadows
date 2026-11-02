@@ -28,14 +28,13 @@ execution are not part of this delivery.
 | Shadows Core | Existing binary startup builds `AppCore` once | Own project database, rules, journal and managed agent processes |
 | AYLUL desktop | Existing Tauri startup plus sidecar `main.ts` | Own UI/observation/dispatch state and local agent connectors |
 | Code intelligence | Its own package entry point | Workspace registration, derived semantic state, language-server workers and its listeners |
-| Hermes | Upstream runtime | AYLUL model sessions/memory on the server |
 
-There is no parent `AppCore` or service locator for all four. An executable wires
+There is no parent `AppCore` or service locator for these three. An executable wires
 the dependencies it actually needs. Client code may depend on a narrow wire
 contract; it does not import another application's composition root or database.
 
-The code-intelligence package must build/start without importing `shadows-core`,
-AYLUL or Hermes. Core's client must not require desktop/native packages. Tests
+The code-intelligence package must build/start without importing `shadows-core`
+or AYLUL. Core's client must not require desktop/native packages. Tests
 must prove this through independent installation/startup, not only import scans.
 
 ## 3. Workspace ownership
@@ -57,7 +56,7 @@ workspace explicitly. A model-supplied cwd is not authority to add a root.
   simultaneously active roots; another implementation may use an equivalent
   workspace-safe mechanism its client library supports.
 
-AYLUL's permission to disclose a returned source excerpt to Hermes remains
+AYLUL's permission to disclose a returned source excerpt to a cloud model remains
 AYLUL's responsibility. Registering local code intelligence does not grant cloud
 sharing. Core's own project sharing and mutation checks remain Core's rules.
 
@@ -140,7 +139,7 @@ the choice. Keep `shadows-index` parser-only unless its existing owner is explic
 
 Regardless of placement, each application has its own build/test/release commands.
 A root convenience command may compose them, but independent package installation
-cannot pull in AYLUL assets, the Core database, Hermes or unrelated language servers.
+cannot pull in AYLUL assets, the Core database or unrelated language servers.
 
 ## 8. Serena learning baseline
 
@@ -191,3 +190,11 @@ The next executable work is the
 [baseline/contract-selection plan](../plans/2026-10-18-code-intelligence-baseline.md).
 It produces evidence and an implementation choice, not a speculative new service.
 Replacement code starts only after its resulting package/contract plan is reviewed.
+
+> **OPEN — who answers "where is X" for an MCP client.** Core's `Code` service
+> (the code index in Core §15, with the MCP tools `where_is`, `who_uses` and
+> `outline`) and this package both answer the question for a selected project.
+> Section 2 keeps Core's index as is. Undecided: after CI-3, whether this package
+> replaces Core's index, serves the same tools beside it, or stays a separate
+> client. Closes when CI-3 selects the implementation and the decision is recorded
+> in Core §15 and in this spec.

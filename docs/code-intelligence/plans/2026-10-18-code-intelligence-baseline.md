@@ -66,7 +66,7 @@ at `F:/projects_frok/serena-reference-artifacts/2026-10-18/`.
 ## CI-1 - Pin schemas and complete the Rust/TypeScript behavior baseline
 
 **Files:** inspect the existing raw artifacts and pinned Serena tool definitions;
-write actual dated outputs under `docs/evidence/code-intelligence/` after execution.
+write actual dated outputs under `docs/evidence/code-intelligence/` at `05f35aef` after execution.
 No package/source folders are created. Temporary fixture scripts are discarded.
 
 **Produces:** a table mapping required operations to exact input schemas, selected

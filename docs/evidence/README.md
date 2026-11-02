@@ -6,4 +6,4 @@ its owner spec.
 
 Records of finished work are deleted from the tree. Every reference to one names
 its path and a commit that still holds it; the records removed on 2026-10-20 are
-all at `0187365`.
+all at `0187365`; those removed on 2026-11-02 are at `f1459dcc`.
