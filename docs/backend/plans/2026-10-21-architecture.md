@@ -12,7 +12,7 @@ extracted into crates only after their dependencies are acyclic. Rust privacy
 protects store APIs; the architecture ratchet also checks SQL ownership. Each
 rule has one owner. Product workspace moves and replacing ACP are later deliveries.
 
-**Owner of the architecture:** [application core design, section 14](../../superpowers/specs/2026-09-26-application-core-design.md).
+**Owner of the architecture:** [application core design, section 14](../../core/specs/2026-09-26-application-core-design.md).
 The root `AGENTS.md` (identical to `CLAUDE.md`) gives the working rules.
 Where a task changes another owner spec's decision, it amends that spec in the
 same commit. A source contract describes implemented behavior, not this target.
@@ -259,7 +259,7 @@ Git keeps the deleted code. The work is two tasks.
 
 **A-8b1 · Delete the Hermes product daemon.** These go:
 - the `daemon` command in `cli/args.rs` and its tests;
-- `crates/shadows/src/daemon/` (`mod.rs`, `bridge.rs`, `descriptor.rs`, `http.rs`,
+- `crates/shadows/src/daemon/` at `05b41677` (`mod.rs`, `bridge.rs`, `descriptor.rs`, `http.rs`,
   `contract.yaml`);
 - `tests/assistant_daemon.rs`, `tests/fixtures/assistant_process.rs` and the
   `assistant-fixture` `[[bin]]` in `crates/shadows/Cargo.toml`;
@@ -269,7 +269,7 @@ Git keeps the deleted code. The work is two tasks.
   which the architecture test refuses once its source is gone.
 
 `runtime_record.rs` stays: the desktop receipt uses it. The integration spec
-(`docs/integration/2026-10-19-product-daemon-hermes-design.md`) is amended in the
+(`docs/integration/2026-10-19-product-daemon-hermes-design.md` at `f1459dcc`) is amended in the
 same commit to say the Hermes service and client are removed and `shadows serve`
 is the one host. After it, `cli/mod.rs::serve` is the one start function and
 `/assistant` is gone, so no second surface is left.
@@ -597,7 +597,7 @@ SQL ownership, adapter access and map coverage across every extracted crate.
 ## Phase 5 · Workspaces
 
 ### A-22 · Split the repository by product
-Deferred (2026-10-28) until the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own; the trigger is in `docs/future.md`.
+Deferred (2026-10-28) until the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own; the trigger is in `docs/core/future.md`.
 Separate delivery after A-19c. Its controller preparation must enumerate every
 path dependency, dev-dependency, test binary lookup, lockfile, feature and native
 consumer before authorizing a move. Keeping all Core crates in the root workspace
@@ -686,7 +686,7 @@ are corrected. A-0's list (c) is empty.
 4. **Adapters and cleanup:** A-20/A-21 and A-23 can be separate scoped commits
    once their owners stabilize. Coordinate F-18/F-19 through shared requests;
    do not combine competing edits to `web/src/api/` just because task IDs differ.
-5. **Product workspaces:** A-22 is deferred until its trigger in `docs/future.md`; it is a
+5. **Product workspaces:** A-22 is deferred until its trigger in `docs/core/future.md`; it is a
    later delivery with its own gate changes.
    **Runtime replacement:** Phase 6 has its own accepted design and evidence.
 

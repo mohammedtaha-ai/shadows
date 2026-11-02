@@ -7,6 +7,7 @@ This file tracks the existing Shadows Core backend only. See
 
 The architecture restructuring ([plan](plans/2026-10-21-architecture.md)) shipped in
 PR #41 (`c7e7bac4`): A-0 to A-21, A-23, B-10 and B-11 are in this file at `c7e7bac4`.
+The extraction tasks A-8c, A-8d, A-19b and A-19c finished in `d7a722cd`.
 The rules are CLAUDE.md "Code structure"; its strict rule binds every task: start at
 `AppCore`, work only in the owning service. Live keys: only `OPENROUTER` and
 `API_KEY_MINIMAX`, read with a loop, never `. ./.env`, never printed or committed.
@@ -23,7 +24,7 @@ A-7b (the breakdown route goes) and B-12 (test fixtures close their database bef
 folder goes) shipped in PR #45 (`5a0af4ff`); their entries are in this file at `29ddfd88`.
 
 A-22 (product workspaces) is deferred on 2026-10-28: its trigger is in
-[docs/future.md](../future.md) "Housekeeping"; its entry is in this file at `3dc2437f`.
+[docs/core/future.md](../core/future.md) "Housekeeping"; its entry is in this file at `3dc2437f`.
 
 B-13 (the person record takes a partial update, `PATCH /api/me`) shipped in PR #46
 (`e95b79c3`); its entry is in this file at `e95b79c3`.
@@ -43,17 +44,10 @@ The plan was `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` at `b
 Still open from that plan:
 - The real-app acceptance of the design's §10 (items 1–9): a person runs `shadows serve` with
   the desktop, and reads the logs for any MCP value, header or env value.
-- Plan §6.1 at `b40e077b`, a ruling: an AYLUL agent can answer its own permission request,
-  because the answer route is plain HTTP on localhost. Approval authority §24.3 forbids this for
-  the Planner. Closing it needs a ruling, for example a per-daemon client token that the web and
-  the desktop hold and an agent's home does not.
+- A ruling on whether an AYLUL agent may answer its own permission request: the OPEN in
+  [AYLUL agents and panel §7.8](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md).
 
 ## Tasks
 
-### B-A2 · Prepare Core's scoped context contract
-- Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)
-- Plan: none
-- Read: projects/threads/plans/design contracts; architecture section 1.7; approval section 24.6; integration T3.
-- Touch: the required shared request/owner specification first; implementation paths only after that contract is accepted.
-- Needs: accepted caller/sharing/authority contract and counterpart native/UI request.
-- Done when: the scoped projection and its refusal/revocation/identity tests are agreed without assigning AYLUL or LSP runtime ownership to AppCore.
+None open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at
+`f1459dcc`.
