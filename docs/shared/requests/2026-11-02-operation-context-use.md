@@ -11,7 +11,7 @@ The board's context section shows the turn's summary today: `context_used` of
 operation spent: tokens in, tokens out, tokens read from and written to cache, so the person
 sees which turn was costly. That block sits empty inside `Planned`. The figures must come from
 the harness's own usage report for the turn. They must not be read by sending `/context`: the
-[summary-only ring](2026-10-27-summary-only-context-ring.md) removed that because it is slow and
+summary-only ring (`docs/shared/requests/2026-10-27-summary-only-context-ring.md` at `f1459dcc`) removed that because it is slow and
 enters what the model is sent.
 
 ## Fields
