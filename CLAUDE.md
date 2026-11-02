@@ -71,13 +71,7 @@ with hard boundaries. The compiler holds the boundaries, not good intentions.
    foundation    core-db: the pool, the transaction, the journal
 ```
 
-Dependencies point down only, and Cargo refuses a cycle. **Today** the services
-are folders inside `shadows-core`; the architecture plan
-([docs/backend/plans/2026-10-21-architecture.md](docs/backend/plans/2026-10-21-architecture.md))
-first establishes private service stores and explicit dependencies in place,
-then extracts crates in the verified dependency order. A task number is not
-proof of that order. Until a service has moved, its folder follows the same
-ownership rules, enforced by module privacy and the architecture ratchet.
+Dependencies point down only, and Cargo refuses a cycle.
 
 > **STRICT RULE: AppCore is the map and the owner. Start there, every time.**
 > Every task in Core begins at `crates/shadows-core/src/app.rs`. `AppCore` names
