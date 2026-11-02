@@ -97,7 +97,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: From `web/`: `npx vitest run src/app/agents/agent-form.test.tsx src/app/agents/outfit-picker.test.tsx src/app/agents/agent-extensions.test.tsx src/app/conversation/permission-card.test.tsx` passes, then `npm run typecheck`, `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture` pass. The home and agent form screenshots, in dark and light, are compared with the export.
 
 ### F-70 · Shared primitives: `Panel` and the `Planned` marker
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-70)
 - Read: `docs/frontend/codebase/README.md` (the `components/ui` invariant); `web/src/components/ui/button.tsx` (the `cva` pattern); evidence Report C (c) 3
 - Touch: web/src/components/ui/panel.tsx (new), web/src/components/ui/planned.tsx (new), web/src/components/ui/planned.test.tsx (new), docs/frontend/codebase/README.md, docs/frontend/stages.md
