@@ -7,7 +7,7 @@ without breaking the client's rules. The facts this plan rests on are in
 [`docs/evidence/2026-11-02-ai-studio-ui-analysis.md`](../../evidence/2026-11-02-ai-studio-ui-analysis.md)
 (four analyst reports and Masada's own reading).
 
-The visual direction is owned by [`docs/frontend/specs/2026-11-01-neon-clarity.md`](../specs/2026-11-01-neon-clarity.md).
+The visual direction is owned by [`docs/frontend/specs/2026-11-01-visual-direction.md`](../specs/2026-11-01-visual-direction.md).
 Mohammed chose AI Studio's look over Codex's neon hierarchy (242984d8, F-68). Masada amends
 that spec in place before F-69 starts (step M-0 below); this plan does not decide the look.
 
@@ -68,7 +68,7 @@ F-69 → F-70 → F-71, F-72, F-73, F-74, F-75 (any order) → F-76 → F-77.
 
 ## M-0 · Amend the owner spec (Masada, before F-69)
 
-Amend `docs/frontend/specs/2026-11-01-neon-clarity.md` in place: AI Studio's palette, radius,
+Amend `docs/frontend/specs/2026-11-01-visual-direction.md` in place: AI Studio's palette, radius,
 type and surfaces replace the neon hierarchy; planned features may show, inside the `Planned`
 marker, with no invented value (this replaces the blanket ban on "artificial progress
 percentages, model state, memory metrics or runtime capabilities", which now reads: none is
@@ -77,11 +77,19 @@ computed in the client); fonts ship locally. Mark the neon-clarity plan supersed
 ## Shared requests (Masada writes them; the UI does not wait)
 
 Each `Planned` block names the request it waits for. Written in `docs/shared/requests/` from
-`TEMPLATE.md` before any backend work, after F-77:
-- task status on a plan task (`PlanTask` has none): the plan progress bar and toggles (F-75);
-- saved acceptance ticks per task: the inspect checklist (F-75);
-- run stages of an agent turn: the board's stepper (F-76);
-- context use per operation: the board's context figures beyond the turn summary (F-76).
+`TEMPLATE.md` before any backend work:
+- task status on a plan task (`PlanTask` has none): the plan progress bar and toggles (F-75),
+  [`2026-11-02-plan-task-status.md`](../../shared/requests/2026-11-02-plan-task-status.md);
+- saved acceptance ticks per task: the inspect checklist (F-75),
+  [`2026-11-02-acceptance-ticks.md`](../../shared/requests/2026-11-02-acceptance-ticks.md);
+- run stages of an agent turn: the board's stepper (F-76) and the agents home's stage strip (F-74),
+  [`2026-11-02-turn-run-stages.md`](../../shared/requests/2026-11-02-turn-run-stages.md);
+- context use per operation: the board's context figures beyond the turn summary (F-76),
+  [`2026-11-02-operation-context-use.md`](../../shared/requests/2026-11-02-operation-context-use.md);
+- runtime capabilities of an agent: the agents home's capability list (F-74),
+  [`2026-11-02-agent-runtime-capabilities.md`](../../shared/requests/2026-11-02-agent-runtime-capabilities.md);
+- context and memory layers of an agent: the agents home's layer list (F-74),
+  [`2026-11-02-agent-context-layers.md`](../../shared/requests/2026-11-02-agent-context-layers.md).
 
 ## Tasks
 

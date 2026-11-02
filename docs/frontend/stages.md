@@ -15,7 +15,7 @@ login-item behaviour need their own app and OS acceptance.
 Next on this branch: F-69 to F-77, the AI Studio UI migration
 ([plan](plans/2026-11-02-ai-studio-ui-migration.md); facts in
 `docs/evidence/2026-11-02-ai-studio-ui-analysis.md`). Masada's step M-0 (amend the
-neon-clarity spec) comes first. These tasks touch no `apps/` file and never touch
+visual direction spec) comes first. These tasks touch no `apps/` file and never touch
 `web/src/test/native-presence.json`, so U-8 and N-25 can run before them or alongside them.
 F-69 replaces F-68's look. F-68's unsaved indicator and its test stay.
 
@@ -33,7 +33,7 @@ settings dialog, PR #40) at `1a2b601`.
 ### F-68 · Neon clarity across existing shared controls
 - Status: done (20 focused tests; typecheck, lint, build, 82 codemap/architecture checks; dark/light/reduced-motion browser review)
 - Plan: docs/frontend/plans/2026-11-01-neon-clarity.md
-- Read: docs/frontend/specs/2026-11-01-neon-clarity.md; existing feature contracts
+- Read: docs/frontend/specs/2026-11-01-visual-direction.md; existing feature contracts
 - Touch: exactly the files listed in that plan
 - Needs: neon direction approved by Mohammed on 2026-11-01
 - Done when: focused identity/outfit/permission tests, typecheck, lint, build, codemap and architecture pass; browser review covers dark, light and reduced motion.
