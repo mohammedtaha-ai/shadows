@@ -40,7 +40,7 @@ settings dialog, PR #40) at `1a2b601`.
 - Done when: a new agent's instructions field starts empty with a placeholder naming what goes there (style, method, rules), and saving it empty sends no instructions; the description field's hint reads "Main role in one line, e.g. English teacher"; the form no longer waits on the template query. `npm test -- agent-settings`, `npm run typecheck` and `npm run lint` pass.
 
 ### F-79 · Background tasks: a header button and its panel
-- Status: todo
+- Status: done
 - Spec: [tool activity §6](../backend/specs/2026-10-31-tool-activity-design.md#6-background-tasks)
 - Read: `web/src/app/conversation/contract.yaml`; the conversation header (the Chat Mode / Agent Mode row); how the `tool` and `todos` frames are read; `web/src/components/ui/panel.tsx`; `docs/frontend/AGENTS.md` (tokens only).
 - Touch: `web/src/app/conversation/` (a new `background-tasks.tsx` and its test, the header, the frame reader); its contract; `docs/frontend/codebase/README.md` if a row changes.

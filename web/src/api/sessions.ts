@@ -89,3 +89,9 @@ export function changeMode(threadId: string, commandId: string, mode: string): P
     }),
   )
 }
+
+export function stopTask(threadId: string, taskId: string) {
+  return unwrap(client.POST('/api/threads/{id}/session/tasks/{task_id}/stop', {
+    params: { path: { id: threadId, task_id: taskId } },
+  }))
+}

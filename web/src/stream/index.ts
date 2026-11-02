@@ -17,3 +17,5 @@ export { type TodosFrame } from './frames'
 export { type TodoItem } from './frames'
 export { readToolCard } from './frames'
 export { readTodoList } from './frames'
+
+export { type BackgroundTask } from './frames'

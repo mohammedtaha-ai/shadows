@@ -1647,3 +1647,8 @@ route_entries: "conversation.tsx, draft.tsx remain separate public lazy route mo
 stream_lifetime: "The conversation and plan cards subscribe independently through stream/; its registry shares their thread connection and closes it after the last subscriber leaves."
 
 refresh_owner: "stream/ classifies plan events and dispatches API-owned invalidations; the conversation supplies its project id and retains queue refresh, turn/reply projection and notice handling."
+
+background_tasks:
+  owner: "background-tasks.tsx renders the session's streamed task list beside the conversation; running tasks precede finished tasks."
+  behavior: "The header shows the running count once tasks exist; stoppable running tasks call the API individually. The stream supplies state after a stop and elapsed time updates while open."
+  tested_by: ["shows streamed tasks and stops only the selected task"]
