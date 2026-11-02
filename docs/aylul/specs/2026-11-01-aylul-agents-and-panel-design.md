@@ -1,6 +1,6 @@
 # AYLUL agents you can shape, and a panel to reach them
 
-Date: 2026-11-01. Status: **design for review. Nothing implemented.** Decided in
+Date: 2026-11-01. Status: **built** (PR #49, `b40e077b`). Decided in
 conversation with Mohammed on 2026-10-31 and 2026-11-01, branch
 `feature/aylul-agents-panel`.
 
