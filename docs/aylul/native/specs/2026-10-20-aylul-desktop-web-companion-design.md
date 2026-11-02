@@ -1,23 +1,15 @@
 # AYLUL desktop: shared web interface and a bound companion
 
 Date: 2026-10-20.
-Status: Initial desktop/presence design implemented through `8bb41fc`. Mohammed
-approved the compact Ready-toggle text-input interaction on 2026-10-20, and on
-the same day approved §8A's native-owned send sequence and the focus probe as
-its first step. The text-input plan (`docs/aylul/plans/2026-10-20-aylul-companion-text-input.md` at
-`0187365`)
-implements §8A, was approved for inline execution, and is implemented through
-`bd1f6ca` plus the final runtime/focus acceptance corrections. Actual-profile
-keyboard and real-assistant reply checks passed; see the
-text-input evidence (`docs/evidence/aylul/2026-10-20-companion-text-input.md` at `0187365`).
-It does not expand the completed initial plan.
+Status: Built on `main` (PRs #38 and #39). The physical Windows journey of §9 still
+needs Mohammed's run. The text-input plan is `docs/aylul/plans/2026-10-20-aylul-companion-text-input.md`
+at `0187365`; its evidence is `docs/evidence/aylul/2026-10-20-companion-text-input.md` at `0187365`.
 
 This file owns the replacement of the desktop main interface with `web/`,
 automatic local Core startup for that desktop, and the existing character's
-binding to an AYLUL agent. The [brain design](2026-10-19-aylul-claude-code-brain-design.md)
+binding to an AYLUL agent. The [brain design](../../specs/2026-10-19-aylul-claude-code-brain-design.md)
 owns conversations, providers, agents, profile homes and secret handling.
-The [product host design](../../integration/2026-10-19-product-daemon-hermes-design.md)
-keeps its other runtime responsibilities. Source contracts describe what is
+Source contracts describe what is
 implemented; this document describes the intended change.
 
 ## 1. Intent and decisions from Mohammed
@@ -51,12 +43,13 @@ same conversation through the character.
 
 ## 2. Inspected starting point
 
-Static inspection on `main` at `e259666`, before this document:
+Static inspection on `main` at `e259666`, before this document (paths as they
+were at `e259666`):
 
 | Owner | Observed behavior |
 |---|---|
 | `web/` | Owns the Shadows/AYLUL workspace switcher, providers, agents, profile-scoped conversations, model selection and streamed replies. |
-| `web/src/api/client.ts` | Uses `VITE_SHADOWS_URL`, defaulting to `http://127.0.0.1:4318`; it already makes HTTP requests across origins. |
+| `web/src/api/client.ts` at `ebe7876b` | Uses `VITE_SHADOWS_URL`, defaulting to `http://127.0.0.1:4318`; it already makes HTTP requests across origins. |
 | `web/src/stream/` | Owns browser SSE/replay. Hidden-page suspension belongs to that browser stream; it cannot establish native background presence. |
 | `apps/desktop/vite.config.ts` | Builds a separate main entry and a companion entry. |
 | `apps/desktop/src-tauri/src/windows/mod.rs` | Builds a local main webview, close-to-tray behavior, tray actions and a shortcut. |
@@ -210,11 +203,10 @@ without using account login as a prerequisite for local AYLUL. Preserve native
 protected session storage and confirmation semantics. Account actions do not
 switch the local chat to the retired backend chat path.
 
-Remove the old desktop main shell, Hermes/local-versus-account chat selector,
-old bot inspector and replaced presentation dependencies once their live
-functions above have been transferred. Remove disabled placeholder navigation.
-Keep native auth, hook, sidecar and character owners. Remove retired assistant
-IPC exposure only after proving it has no retained caller.
+Done (`0083f804`): the old desktop main shell, the Hermes/local-versus-account chat
+selector, the old bot inspector and the disabled placeholder navigation are gone.
+Native auth, hook, sidecar and character owners are kept. Retired assistant IPC
+is removed only after proving it has no retained caller.
 
 Do not delete account backend APIs or historical evidence as incidental cleanup;
 those have separate consumers or ownership. `packages/hermes-client` and
@@ -224,7 +216,7 @@ those have separate consumers or ownership. `packages/hermes-client` and
 ## 7. Companion settings and conversation target
 
 The companion represents **one selected live AYLUL agent**, independent of
-workspace navigation. Settings lists agents from the existing Profiles API,
+workspace navigation. Settings lists agents from the Agents API (`/api/aylul/agents`),
 showing their names and model/provider metadata. Save the immutable agent slug.
 
 Persist the selection and optional target thread in native desktop preferences,
@@ -255,8 +247,9 @@ the target even if its subsequent turn fails. A failed companion-binding update
 is reported separately and must not duplicate, cancel or prevent the ordinary
 chat send; the person can retry the binding through Use with companion.
 
-Clicking the character artwork or pressing Enter/Space on that artwork
-deliberately restores main and opens its target conversation. With a selected agent but no target, open that
+Clicking the character artwork or pressing Enter/Space on it opens the companion
+panel ([AYLUL agents and panel §7.6](../../specs/2026-11-01-aylul-agents-and-panel-design.md),
+2026-11-01); the panel's **Open** restores main and opens the target conversation. With a selected agent but no target, open that
 agent's existing new-conversation route; create no thread until Send. Unbound
 or deleted selection opens companion Settings. Native navigation is a closed
 destination with validated IDs, never an arbitrary URL. The main router receives
@@ -352,6 +345,18 @@ open surface inside the monitor work area.
 Hide cancels rendering but does not cancel the turn or the background watcher.
 Reduced-motion preference suppresses decorative motion while retaining status.
 
+### Feed bounds
+
+The native feed reads only runtime identity, selected agent and provider metadata,
+the target thread, operations, entries and the subscribe route. Snapshot and
+liveness work has a 10-second deadline, JSON a 16 MiB bound and events a 1 MiB
+bound; a healthy SSE body has no total timeout. Metadata liveness runs every
+10 seconds; ten failures without caught-up require an explicit Local Core Retry.
+Completion recovery makes at most five bounded entry snapshots. Native timers
+clear a preview after eight seconds, even when main is hidden. (From the
+2026-10-20 binding request; the interface is in
+`apps/desktop/src-tauri/src/presence/contract.yaml`.)
+
 ## 8A. Compact text input below the character
 
 ### Approved interaction and visual extent
@@ -369,8 +374,8 @@ voice controls or a new conversation picker. The selected-agent/model caption
 is metadata, not a separate model selector.
 
 The Ready/status element is a real keyboard-accessible button with expanded
-state. Enter/Space on it toggles input. Artwork click/keyboard keeps the existing
-open-main behavior; artwork dragging still cannot open main or toggle input.
+state. Enter/Space on it toggles input. Artwork click/keyboard opens the panel
+(agents and panel §7.6); artwork dragging still cannot open main or toggle input.
 Input, Send and the status button do not initiate native dragging. Enter sends;
 Shift+Enter permits a newline and IME composition does not accidentally submit.
 Escape or the status toggle closes input. Clicking elsewhere does not close it.
@@ -479,8 +484,8 @@ cross-window races; a refusal preserves the unsent text and starts no replacemen
 Keep the existing native read-only watcher as the character's sole presence
 source. The input never produces another model request to obtain its bubble.
 A reply appears through the existing completed-entry preview, expiry, hide and
-previews-off rules. Longer answers and full history remain accessible by artwork
-click in main. A local send error uses a fixed editor status, not a fabricated
+previews-off rules. Longer answers and full history remain accessible through the
+panel's **Open**, in main. A local send error uses a fixed editor status, not a fabricated
 assistant response or completion. No microphone or spoken reply is implied.
 
 The character owner presents input/status and isolates gestures. Native owns
@@ -547,8 +552,8 @@ database or substitute a synthetic runtime for this journey. It must demonstrate
    turn through the existing model choices. Record provider use separately.
 3. Bind agent A, send a message, observe thinking/working/replying as reported by
    actual events, then a completion preview. Do not manufacture an absent tool event.
-4. Hide main to tray during a turn; character reacts to the result; clicking it
-   restores the exact target chat. Closing main never cancels the turn.
+4. Hide main to tray during a turn; character reacts to the result; the panel's
+   **Open** restores the exact target chat. Closing main never cancels the turn.
 5. Switch binding to agent B while A is running; A's late result cannot affect B.
    Changing only the viewed conversation also cannot change the binding.
 6. Hide/pause the character, send again, and verify those choices hold while chat

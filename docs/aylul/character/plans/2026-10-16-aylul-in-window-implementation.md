@@ -48,7 +48,7 @@ Every task expands the exact paths it owns. Do not add empty future modules.
 | `T/fixture.html`, `T/fixture.tsx`, `T/fakes.ts`, `T/renderer.spec.ts`, `apps/desktop/playwright.config.ts` | Test-only real-browser fixture and deterministic clock/random/scheduler helpers | 1 |
 | `T/{model,scheduler,geometry,messages,contracts}.test.ts` | Pure Node tests and narrow YAML/source-reference checks | 1–2 |
 | `T/{presence,studio,shell,visual}.spec.ts`, `T/production.test.ts` | DOM/browser behavior, extraction review artifacts and build exclusion | 3–6 |
-| `apps/desktop/src/app/main.tsx`, `apps/desktop/src/app/contract.yaml` | Narrow shell composition and its inspected contract | 5 |
+| `apps/desktop/src/app/main.tsx` (at `8580306`; now `src/app/companion.tsx`), `apps/desktop/src/app/contract.yaml` | Narrow shell composition and its inspected contract | 5 |
 | `apps/desktop/tests/windows-shell.ps1` | Preserve named keyboard hide acceptance after companion buttons are added | 6 |
 
 ## Interface decisions
@@ -384,9 +384,9 @@ settings: CompanionSettings): Promise<Blob>` and
 ## Task 5: Agree the boundary and embed the feature in the existing shell
 
 **Files:** Create
-`docs/aylul/shared/requests/2026-10-16-companion-shell-embedding.md`,
+`docs/aylul/shared/requests/2026-10-16-companion-shell-embedding.md` at `f1459dcc`,
 `T/shell.spec.ts`, `T/production.test.ts`.
-Modify `apps/desktop/src/app/main.tsx`, `apps/desktop/src/app/contract.yaml`,
+Modify `apps/desktop/src/app/main.tsx` (at `8580306`), `apps/desktop/src/app/contract.yaml`,
 `T/fixture.tsx`, `apps/desktop/package.json`.
 
 **Interfaces:** Consumes `Companion` and `CompanionStudio` exactly as above.
@@ -512,18 +512,8 @@ than assume the first Tab stop is the only enabled action.
 
 ## Execution records and final review
 
-After this plan is approved, the implementer populates `docs/aylul/character/stages.md`
-using its required `Status`, `Plan`, `Read`, exact `Touch`, `Needs`, `Done when`
-fields for these six tasks before product edits. Task updates belong in their
-own task commit. Task 5's shared agreement is a real prerequisite, not implied
-by approval of this plan. No implementation is active at plan-writing time.
-
-Before each commit, check the staged paths/diff, run the task's named checks and
-verify the original HTML hash. Never stage the unrelated generated schemas. Each
-task carries its own contract changes; do not postpone all contracts to Task 6.
-On completion, request one whole-branch review under the selected execution
-method and report its findings with the exact local evidence. Do not claim merge,
-CI, device continuity or production acceptance.
+Tasks 1 to 5 are done (at `8580306`); their execution records are in Git at `f1459dcc`.
+Task 6 (C-6) is open.
 
 ## Plan self-review and coverage
 

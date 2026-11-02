@@ -1,7 +1,8 @@
 # AYLUL brain: Claude Code in its own home, run by Shadows core
 
 Date: 2026-10-19.
-Status: **Design for review. Nothing implemented.** Decided in conversation
+Status: **Built** on `main` (PRs #35 to #37; the daemon path removed in PR #47). §9's
+acceptance still needs a person's run. Decided in conversation
 with Mohammed on 2026-10-19; probe facts are in
 the isolated-home evidence (`docs/evidence/aylul/2026-10-19-claude-code-isolated-home.md` at
 `0187365`).
@@ -28,7 +29,7 @@ Shadows core already streams a turn's events to its web client and offers the
 harness's models, efforts and modes (`shadows-agent` `SessionChoices`). So
 AYLUL reuses Shadows core, its web client and its settings, with Claude Code as
 the brain. The remaining desktop packaging and character-to-agent connection
-are owned by [the desktop and companion design](2026-10-20-aylul-desktop-web-companion-design.md).
+are owned by [the desktop and companion design](../native/specs/2026-10-20-aylul-desktop-web-companion-design.md).
 
 The brain must stay independent: if Mohammed's own Claude subscription hits
 its limit, AYLUL keeps working on its own provider and key.
@@ -99,39 +100,38 @@ its limit, AYLUL keeps working on its own provider and key.
 - Order of projects: brain (this), work profile, personal profile, voice.
   Remote alerts later.
 
-## 7. My calls (Claude), for review
+## 7. My calls (Claude), accepted
+
+Accepted by being built. Where §10 and §11 later changed a call, they say so here.
 
 - **The profile home is the session's working folder.** That gives AYLUL "its
   own place" without a project, and keeps project files out by construction.
 - **Profiles stored under the AYLUL root**, one folder each, e.g.
   `%LOCALAPPDATA%\aylul\profiles\<name>\` as the `CLAUDE_CONFIG_DIR`.
-- **Keys kept by Core** (the `secrets` service `shadows serve` runs),
-  never in the profile's `settings.json`, and
-  injected into the adapter's environment at spawn. Storage mechanism is the
-  builder's choice within the planned `secrets` owner's rules (config holds
-  references only).
+- **Keys kept by Core** (the `Secrets` service, `core-secrets`), never in the
+  profile's `settings.json`, and injected into the adapter's environment at spawn
+  (§10 owns the storage).
 - **First profile:** "AYLUL" on MiniMax-M3 through
-  `https://api.minimax.io/anthropic`, the provider Mohammed already uses.
+  `https://api.minimax.io/anthropic`. Superseded by §11: agents and providers are
+  made in the UI.
 - **The Hermes path was left in place, unused by default**, until this path was
   accepted; Mohammed decided its removal, done on 2026-10-29.
-- **Profiles in v1 are seeded, not edited in the UI.** On first run the
+- **Profiles in v1 were seeded, not edited in the UI** (superseded by §10 and §11). On first run the
   product creates the "AYLUL" profile from a template kept in the repository
   (`CLAUDE.md`, `settings.json`). The key comes from a named environment
   variable of the daemon (for MiniMax, `MINIMAX_API_KEY`); configuration holds
   only that name. A UI to create profiles and enter keys is a later slice.
-- **Both commands that build the core run AYLUL** (amended 2026-10-19).
-  `shadows serve`, which Mohammed opens daily with the web client, takes the
-  section as `--aylul-config <file>`; `shadows daemon` takes it as the `aylul`
-  key of its planner configuration. Both read the same section shape and run
-  the same seeding and project setup. Without it, neither shows AYLUL.
-- **The profile's environment comes from an env file today, from the UI later**
-  (Mohammed, 2026-10-19). The section names an `env_file` (dotenv; today
+- **`shadows serve` runs AYLUL.** It takes the section as `--aylul-config <file>`;
+  without it, it shows no AYLUL. (`shadows daemon` also took it until it was
+  removed on 2026-10-29.)
+- **The profile's environment came from an env file first, then from the UI**
+  (Mohammed, 2026-10-19; built as §10, where the env file is a one-time import). The section names an `env_file` (dotenv; today
   `E:\Globalprojects\shadows\.env`, git-ignored) that the product reads at each
   AYLUL spawn: every pair goes into the session's environment, and `key_env`
   names the pair that becomes `ANTHROPIC_AUTH_TOKEN`. No Windows variable is
   needed. **Next slice, decided:** these variables are added and edited from the
   Shadows UI, like Claude Code desktop's environment settings, and stored
-  **encrypted in the Shadows database** under the planned `secrets` owner; the
+  **encrypted in the Shadows database** under the `Secrets` owner; the
   env file then becomes an import path, not the store.
 - **AYLUL's remembered model and effort are kept apart from the Planner's.**
   Choosing a model in AYLUL never changes the Planner's remembered defaults.
@@ -140,26 +140,21 @@ its limit, AYLUL keeps working on its own provider and key.
   Acceptance needs the chosen value to reach the session, not a visible
   quality difference.
 - **Permissions:** the profile's `settings.json` denies Read, Edit and Write on
-  `C:\Users\Mohammed\.claude` and `.claude.json`. Other permission requests
+  `~/.claude/**` and `~/.claude.json`
+  (`crates/core-agents/assets/aylul-profile/settings.json`). Other permission requests
   are put to Mohammed
   ([AYLUL agents and panel §7.8](2026-11-01-aylul-agents-and-panel-design.md));
   Planner turns refuse them at once (harness controls §12.2).
   A full sandbox around Bash is out of scope; deny rules do not fence shell
   commands.
-- **First task is a probe through the real adapter.** Every measurement so far
-  used the `claude` CLI directly. The ACP adapter (SDK, Node) must be shown to
-  honour `CLAUDE_CONFIG_DIR`, `settingSources: ["user"]` and the process-env
-  key before anything else is built.
+- **First task was a probe through the real adapter**; it showed the ACP adapter
+  honours `CLAUDE_CONFIG_DIR`, `settingSources: ["user"]` and the process-env key.
 
 ## 8. Left to the builder
 
-- How AppCore represents an AYLUL conversation: a thread kind, a separate
-  service, or a project rooted at the profile home. It must not receive the
-  Planner's appended prompt, Planner tools, stage text or MCP grant.
-- Where the profile/env choice enters `ClaudeAdapter::process_spec`.
-- How the desktop main window shows the Shadows web client and where the
-  character window keeps working unchanged.
-- How the custom model's context window is declared.
+Answered by the code: an AYLUL conversation is a thread with a `profile` under the
+`Agents` service, and it receives no Planner prompt, tools, stage text or grant.
+The questions are in Git at `f1459dcc`.
 
 ## 9. Acceptance
 
@@ -185,15 +180,15 @@ encrypted in the database; no Windows environment variable.
 
 **My calls (Claude):**
 
-- **Owner: a `secrets` service in `shadows-core`,** the eleventh, one folder
-  like the others (amends the service list of
-  [application core §14.4](../../superpowers/specs/2026-09-26-application-core-design.md)).
+- **Owner: the `Secrets` service, `core-secrets`** (built; first planned as a
+  folder in `shadows-core`, see the service list of
+  [application core §14.4](../../core/specs/2026-09-26-application-core-design.md)).
   It is the planned `secrets` owner of
-  [architecture §1.3](../../superpowers/specs/2026-09-21-architecture-design.md),
+  [architecture §1.3](../../core/specs/2026-09-21-architecture-design.md),
   built as a core service because its store is SQLite and its first caller is
   the harness. Its public methods take a `command_id` and return `CoreError`,
   like every service. This closes the OPEN "credential backend" of
-  [agent profiles §19.5](../../superpowers/specs/2026-10-03-agent-profiles-and-extensions-design.md)
+  [agent profiles §19.5](../../core/specs/2026-10-03-agent-profiles-and-extensions-design.md)
   for AYLUL profiles.
 - **Master key:** 32 random bytes in the Windows Credential Manager,
   `keyring` 3.6.3 with the `windows-native` feature (without a platform
@@ -298,9 +293,9 @@ config-file provider.
 
 **My calls (Claude):**
 
-- **Owner: a `profiles` service in `shadows-core`** (the twelfth), whose one
-  job is AYLUL's agent configuration: providers in `providers.rs`, agents in
-  `agents.rs`. Keys and variables stay with `secrets`. A provider's key is
+- **Owners: `Providers` (`core-providers`) and `Agents` (`core-agents`)**, first
+  planned as one `profiles` service and split by job in the architecture plan's
+  A-14. Keys and variables stay with `secrets`. A provider's key is
   stored under the scope `provider/<slug>` as `PROVIDER_API_KEY`, and an
   agent's variables are stored under its slug. `/` cannot appear in an agent
   slug, so the two never collide.

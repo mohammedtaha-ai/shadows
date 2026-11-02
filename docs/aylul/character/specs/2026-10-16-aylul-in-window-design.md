@@ -1,8 +1,9 @@
 # AYLUL in-window Canvas companion
 
 Date: 2026-10-16.
-Status: written specification approved for planning on 2026-10-16; implementation awaits plan review.
-Owner: Character. Desktop UI owns the shell embedding described in section 7.
+Status: built (C-1 to C-5, at `8580306`); C-6, the visual and Windows acceptance, is open in [stages](../stages.md).
+Owner: Character. Desktop UI owns the shell embedding described in section 7, now in
+`apps/desktop/src/app/companion.tsx` and `web/src/app/desktop/`.
 
 ## 1. Intent and agreed scope
 
@@ -39,7 +40,7 @@ checkout; the user explicitly forbids worktrees.
 - `runSimulatedTask`, `executeAssistantPrompt` and `triggerNotificationDemo`
   generate synthetic outcomes. The source has no implemented dialogue service,
   microphone capture or native notification delivery.
-- `apps/desktop/src/app/main.tsx` composes account presentation and an unavailable
+- `apps/desktop/src/app/main.tsx` (at `8580306`; removed in `0083f804`) composed account presentation and an unavailable
   AYLUL section. React StrictMode is enabled. Native account access goes through
   `apps/desktop/src/platform/`; the shell must remain usable independently.
 - The app uses React, TypeScript, Vite and Tauri. Its CSP restricts resources to
@@ -67,8 +68,8 @@ scope. Neither is selected.
 
 ## 4. Module boundaries
 
-All paths in this table are proposed implementation destinations, not existing
-modules. Create only the units used by the delivered feature.
+The table below was the proposed layout. The built modules and their owners are in
+the [code map](../../codebase/README.md), which wins where the two differ.
 
 | Destination under `apps/desktop/src/features/companion/` | One job |
 | --- | --- |
@@ -108,8 +109,9 @@ Retain all nine expression identifiers: `idle`, `happy`, `listening`, `speaking`
 `halo`, `special`. Preserve the six direction presets and the input HTML's
 initial geometry, palette and setting values as the extraction baseline.
 
-Production initially uses `idle`, the default outfit and no speech. No operational
-event provider exists in the inspected shell, so this slice does not invent one.
+Production first used `idle`, the default outfit and no speech. The presence feed
+(desktop and companion design §8) and the bound agent's outfit (agents and panel
+§7.7) were built later and now drive it.
 Keep a typed controlled input boundary for a later owner-provided state/message;
 do not add a speculative transport, backend schema or sidecar connection.
 
@@ -208,13 +210,11 @@ Report download-generation errors honestly. No native filesystem permission or
 Tauri capability is added for export; the eventual browser/WebView download path
 must be checked rather than assumed to work.
 
-Desktop UI owns the narrow change to `src/app/main.tsx`: replace the unavailable
-AYLUL content with the companion and add the development-only studio entry.
-Character owns the feature's implementation and public presentation interface.
-Before code crosses this boundary, record and accept an agreement in
-`docs/aylul/shared/requests/` under the existing request process. The agreement must
-cover imports, the idle default, message/state ownership, development-only entry
-and independent failure handling. This spec does not claim that agreement exists.
+Desktop UI owned the shell change (then `src/app/main.tsx`, now
+`src/app/companion.tsx`) and the development-only studio entry. Character owns the
+feature's implementation and public presentation interface. The agreement between
+them was accepted and built (`docs/aylul/shared/requests/2026-10-16-companion-shell-embedding.md`
+at `8580306`).
 
 No authentication behavior, native permissions, account types, tray behavior or
 cloud connection is changed by this feature. No separate overlay window, global
@@ -276,19 +276,11 @@ Historical evidence retains its original, dated path references.
 
 | Decision | Owner and closing trigger |
 | --- | --- |
-| Concrete operational event mapping | Owning service plus Character; close when a real capture/playback/work event consumer is implemented against its owner's types |
-| Shell/companion public interface agreement | Desktop UI and Character in `docs/aylul/shared/requests/`; close with an accepted written agreement before dependent shell code |
+| Concrete operational event mapping | Work events: closed by the presence feed (desktop and companion design §8). Capture and playback (`listening`, spoken `speaking`): open until voice is built |
 | Native hide/restore render suspension | Native and Character; close with a Windows WebView2 hide/reopen observation; if existing signals are insufficient, agree on the required native interface before extending scope |
 | WebView PNG download compatibility | Character's studio; close with an observed export and transparent-image inspection; keep native save integration outside this slice if a separate native change is needed |
 | Original root HTML retention after extraction | Character and user; close after the extracted renderer is visually accepted and its provenance is recorded; preserve `ayl.html` until then |
-| Floating desktop companion | Native plus Character; requires a separate design and user instruction; not a prerequisite for this in-window feature |
 
 ## 10. Current review boundary
 
-The user approved preparation of the implementation plan after the requested
-`gpt-6-astra`/`medium` static review. Its corrections protect controlled messages,
-invalidate superseded demo timers, and keep paused presentation current. The
-[implementation plan](../plans/2026-10-16-aylul-in-window-implementation.md) carries
-the next review boundary. Product source and source contracts remain unchanged.
-Implementation starts after plan review and selection of execution method. No
-worktree, push or deployment is part of this workflow.
+Done: the plan was reviewed and executed. The review history is in Git at `f1459dcc`.

@@ -1,10 +1,11 @@
 # AYLUL on the laptop: aylul-hook, sessions, requests and rules (step 2(a))
 
-Date: 2026-10-13. Status: design, reviewed with Mohammed section by section.
+Date: 2026-10-13. Status: built (`apps/desktop/sidecar`, `apps/desktop/hook`); reviewed
+with Mohammed section by section.
 This file owns step 2(a) of the first release (the delivery design that named
 it was deleted on 2026-10-19; Git `226d0a3`): what AYLUL desktop learns from
 Claude Code on the same laptop, how the person answers it there, and how a
-permission rule is written. The [code map](../codebase/README.md) owns where
+permission rule is written. The [code map](../../codebase/README.md) owns where
 the code lives. Evidence: hook probe (`docs/evidence/nylra/2026-10-13-aylul-hook-probe.md` at
 `0187365`).
 
@@ -24,7 +25,8 @@ A refusal is the common case: today the person switches mode, asks Claude to try
 again, approves, and switches back. Step 2(a) replaces that with one approval of
 a rule in AYLUL.
 
-Not in this step: the phone and cloud (2(b)), the brain (2(c)), rule expiry and
+Not in this step: the phone and cloud (2(b)), the brain (2(c); now the
+[brain design](../../specs/2026-10-19-aylul-claude-code-brain-design.md)), rule expiry and
 revocation (2(d)), Codex (after its hooks are tested), Shadows.
 
 ## 2. Components
@@ -37,7 +39,7 @@ revocation (2(d)), Codex (after its hooks are tested), Shadows.
 | `sidecar/src/approvals/` | Hold a request or refusal until the person answers or its time ends |
 | `sidecar/src/agents/` | Change Claude Code's settings: install the hooks, write a rule |
 | `sidecar/src/store/` | Keep sessions, requests, answers and written rules in `node:sqlite` |
-| `src/features/sessions/`, `src/features/approvals/` | The two screens |
+| `web/src/app/desktop/` (`sessions-panel.tsx`, `approvals-panel.tsx`) | The two screens, in the shared main UI since `0083f804` |
 
 Installing the hooks writes them into `~/.claude/settings.json`, so every
 session in every project reaches AYLUL. It happens once, after the person has
