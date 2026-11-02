@@ -16,6 +16,7 @@ use serde_json::Value;
 /// Transient reports from one ACP connection.
 #[derive(Debug, Clone)]
 pub enum HarnessEvent {
+    Task(TaskUpdate),
     Chunk {
         message_id: Option<String>,
         text: String,
@@ -79,6 +80,37 @@ pub enum HarnessEvent {
     TurnEnd {
         subtype: &'static str,
         stop_reason: Option<String>,
+    },
+}
+
+/// A background task lifecycle update from the adapter.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "sessionUpdate")]
+pub enum TaskUpdate {
+    #[serde(rename = "async_task_spawned", rename_all = "camelCase")]
+    Spawned {
+        async_task_id: String,
+        name: String,
+        task_type: String,
+        description: String,
+        show_in_transcript: bool,
+        can_stop: bool,
+        output_file_path: Option<String>,
+        tool_call_id: Option<String>,
+    },
+    #[serde(rename = "async_task_progress", rename_all = "camelCase")]
+    Progress {
+        async_task_id: String,
+        output_file_path: Option<String>,
+        tool_call_id: Option<String>,
+    },
+    #[serde(rename = "async_task_state_update", rename_all = "camelCase")]
+    State {
+        async_task_id: String,
+        state: String,
+        summary: Option<String>,
+        output_file_path: Option<String>,
+        tool_call_id: Option<String>,
     },
 }
 

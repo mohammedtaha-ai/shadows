@@ -1,4 +1,7 @@
 //! One ACP client connection to one managed adapter process.
+//!
+//! Advertises AIR async tasks, forwards their raw lifecycle updates in order,
+//! and sends the adapter's task stop request without cancelling the turn.
 mod connection;
 mod mapping;
 mod permissions;

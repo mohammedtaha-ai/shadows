@@ -3,6 +3,147 @@ use super::*;
 use crate::events::HarnessEvent;
 
 #[test]
+fn async_tasks_are_advertised() {
+    let value = serde_json::to_value(connection::capabilities()).unwrap();
+    assert_eq!(
+        value["_meta"]["jetbrains"]["air"]["capabilities"],
+        serde_json::json!(["recommendedValue", "asyncTasks"])
+    );
+}
+
+#[test]
+fn async_task_updates_become_task_events() {
+    use std::sync::Mutex;
+    let events = Mutex::new(Vec::new());
+    let send = |event| events.lock().unwrap().push(event);
+    for update in [
+        serde_json::json!({"sessionUpdate":"async_task_spawned", "asyncTaskId":"one",
+            "name":"job", "taskType":"shell", "description":"run", "canStop":true,
+            "showInTranscript":false}),
+        serde_json::json!({"sessionUpdate":"async_task_progress", "asyncTaskId":"one"}),
+        serde_json::json!({"sessionUpdate":"async_task_state_update", "asyncTaskId":"one",
+            "state":"completed", "summary":"done"}),
+    ] {
+        connection::dispatch_notification(
+            &send,
+            &Default::default(),
+            agent_client_protocol::UntypedMessage::new(
+                "session/update",
+                serde_json::json!({"sessionId":"s", "update":update}),
+            )
+            .unwrap(),
+        );
+    }
+    for update in [
+        serde_json::json!({"sessionUpdate":"unknown_extension"}),
+        serde_json::json!({"sessionUpdate":"agent_message_chunk", "content":{
+            "type":"text", "text":"after"
+        }}),
+    ] {
+        connection::dispatch_notification(
+            &send,
+            &Default::default(),
+            agent_client_protocol::UntypedMessage::new(
+                "session/update",
+                serde_json::json!({"sessionId":"s", "update":update}),
+            )
+            .unwrap(),
+        );
+    }
+    let events = events.lock().unwrap();
+    assert_eq!(events.len(), 4);
+    assert!(matches!(&events[3], HarnessEvent::Chunk { text, .. } if text == "after"));
+}
+
+#[test]
+fn unknown_session_update_probe() {
+    let value = serde_json::json!({
+        "sessionId": "probe", "update": {"sessionUpdate": "async_task_spawned"}
+    });
+    let result =
+        serde_json::from_value::<agent_client_protocol::schema::v1::SessionNotification>(value);
+    assert!(
+        result.is_err(),
+        "unknown session update must fail typed decoding"
+    );
+}
+
+#[tokio::test]
+async fn stopping_a_task_asks_the_adapter() {
+    use agent_client_protocol::schema::{
+        ProtocolVersion,
+        v1::{InitializeRequest, InitializeResponse},
+    };
+    use agent_client_protocol::{Agent, ByteStreams, Client, Responder, UntypedMessage};
+    use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+
+    let (client, server) = tokio::io::duplex(4096);
+    let (cr, cw) = tokio::io::split(client);
+    let (sr, sw) = tokio::io::split(server);
+    tokio::spawn(async move {
+        Agent
+            .builder()
+            .on_receive_request(
+                async |_: InitializeRequest, responder: Responder<InitializeResponse>, _| {
+                    responder.respond(InitializeResponse::new(ProtocolVersion::V1))
+                },
+                agent_client_protocol::on_receive_request!(),
+            )
+            .on_receive_request(
+                async |r: UntypedMessage, responder: Responder<serde_json::Value>, _| {
+                    assert_eq!(r.method, "_session/async_task/stop");
+                    assert_eq!(
+                        r.params,
+                        serde_json::json!({
+                            "sessionId":"session-1", "asyncTaskId":"task-1"
+                        })
+                    );
+                    responder.respond(serde_json::json!({"stopped":true}))
+                },
+                agent_client_protocol::on_receive_request!(),
+            )
+            .connect_with(
+                ByteStreams::new(sw.compat_write(), sr.compat()),
+                |_| async {
+                    std::future::pending::<()>().await;
+                    #[allow(unreachable_code)]
+                    Ok(())
+                },
+            )
+            .await
+            .unwrap();
+    });
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    tokio::spawn(async move {
+        Client
+            .builder()
+            .connect_with(
+                ByteStreams::new(cw.compat_write(), cr.compat()),
+                |cx| async {
+                    tx.send(cx).ok();
+                    std::future::pending::<()>().await;
+                    #[allow(unreachable_code)]
+                    Ok(())
+                },
+            )
+            .await
+            .unwrap();
+    });
+    let cx = rx.await.unwrap();
+    cx.send_request(InitializeRequest::new(ProtocolVersion::V1))
+        .block_task()
+        .await
+        .unwrap();
+    let connection = Connection {
+        cx,
+        capabilities: PromptCapabilities::default(),
+        costs: Default::default(),
+        permissions: permissions::Permissions::new(|_| {}),
+    };
+    assert!(connection.stop_task("session-1", "task-1").await.unwrap());
+}
+
+#[test]
 fn absent_and_empty_tool_policies_are_distinct() {
     assert!(SessionSetup::default().meta().is_none());
     let setup = SessionSetup {

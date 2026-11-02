@@ -15,6 +15,11 @@ use serde_json::Value;
 pub(super) struct Mapping;
 
 impl Mapping {
+    pub(super) fn forward_raw(events: &impl Fn(HarnessEvent), update: Value) {
+        if let Ok(task) = serde_json::from_value(update) {
+            events(HarnessEvent::Task(task));
+        }
+    }
     pub(super) fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
         let item = match update {
             SessionUpdate::AgentMessageChunk(c) => match c.content {

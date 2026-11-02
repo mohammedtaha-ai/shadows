@@ -77,6 +77,23 @@ pub(crate) async fn answer(
         client_meta,
     } = turn;
     match prompt {
+        "async-tasks" => {
+            for update in [
+                json!({"sessionUpdate":"async_task_spawned", "asyncTaskId":"task-1",
+                    "name":"job", "taskType":"shell", "description":"run",
+                    "showInTranscript":false, "canStop":true}),
+                json!({"sessionUpdate":"async_task_progress", "asyncTaskId":"task-1"}),
+                json!({"sessionUpdate":"unknown_extension"}),
+                json!({"sessionUpdate":"async_task_state_update", "asyncTaskId":"task-1",
+                    "state":"completed", "summary":"done"}),
+            ] {
+                cx.send_notification(agent_client_protocol::UntypedMessage::new(
+                    "session/update",
+                    json!({"sessionId":id, "update":update}),
+                )?)?;
+            }
+            chunk(cx, id, "m1", "after tasks")?;
+        }
         "todo-list" => {
             for status in ["pending", "completed"] {
                 let plan = serde_json::from_value(json!({

@@ -679,7 +679,7 @@ obligations:
 
   - rule: >
       No `default` is asked of the adapter: `initialize` advertises the
-      `recommendedValue` extension in the client capabilities' `_meta`, so
+      `recommendedValue` and `asyncTasks` extensions in the client capabilities' `_meta`, so
       the adapter offers no effort or model `default` (EFFORT_DEFAULT_PROBE
       §2). The menus are the harness's, unfiltered.
     tested_by:
@@ -964,7 +964,7 @@ tests:
   - name: initialize_advertises_recommended_value
     checks: >
       The `_meta` fake-acp's `initialize` received is jetbrains.air version 1
-      with capabilities ["recommendedValue"].
+      with capabilities ["recommendedValue", "asyncTasks"].
   - name: opening_a_session_answers_the_harness_choices_after_the_policy
     checks: >
       POST session lists the fake's models, efforts and policy modes in

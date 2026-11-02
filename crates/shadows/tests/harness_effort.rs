@@ -39,7 +39,8 @@ async fn initialize_advertises_recommended_value() {
     let reply: Value = serde_json::from_str(&app::last_agent_entry(&app).await.body).unwrap();
     assert_eq!(
         reply["client_meta"],
-        json!({ "jetbrains": { "air": { "version": 1, "capabilities": ["recommendedValue"] } } })
+        json!({ "jetbrains": { "air": { "version": 1,
+            "capabilities": ["recommendedValue", "asyncTasks"] } } })
     );
 
     app.core

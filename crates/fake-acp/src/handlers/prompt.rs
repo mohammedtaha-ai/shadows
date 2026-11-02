@@ -94,6 +94,20 @@ impl PromptHandlers {
         responder: Responder<Value>,
         _cx: ConnectionTo<Client>,
     ) -> agent_client_protocol::Result<()> {
+        if r.method() == "_session/async_task/stop" {
+            let id = r
+                .params()
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let task = r
+                .params()
+                .get("asyncTaskId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let exists = state.lock().unwrap().sessions.contains_key(id);
+            return responder.respond(json!({"stopped": exists && task == "task-1"}));
+        }
         if r.method() != "_session/steering" {
             return responder.respond_with_error(agent_client_protocol::Error::new(
                 -32601,

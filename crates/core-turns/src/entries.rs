@@ -188,7 +188,8 @@ impl Collector {
             | HarnessEvent::SessionTitle { .. }
             | HarnessEvent::Tool(_)
             | HarnessEvent::Subagent(_)
-            | HarnessEvent::TurnEnd { .. } => {}
+            | HarnessEvent::TurnEnd { .. }
+            | HarnessEvent::Task(_) => {}
         }
         out
     }
