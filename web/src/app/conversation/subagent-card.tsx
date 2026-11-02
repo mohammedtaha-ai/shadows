@@ -1,4 +1,5 @@
 
+import { cn } from 'cn'
 import { ArrowLeftRight, Bot, ChevronRight, CircleCheck, CircleStop, CircleX, LoaderCircle } from 'lucide-react'
 import type { SubagentCard } from '@/stream'
 import { modelName, numbers } from './subagent-text'
@@ -38,10 +39,13 @@ export function SubagentCardView({
           {card.title || 'Subagent'}
         </span>
         <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-          <span className={`inline-flex items-center gap-1 font-medium ${state.tone}`}>
+          <span className={cn('inline-flex items-center gap-1 font-medium', state.tone)}>
             <state.icon
               aria-hidden
-              className={`size-3.5 ${card.status === 'running' ? 'animate-spin motion-reduce:animate-none' : ''}`}
+              className={cn(
+                'size-3.5',
+                card.status === 'running' && 'animate-spin motion-reduce:animate-none',
+              )}
             />
             {state.text}
           </span>

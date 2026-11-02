@@ -71,7 +71,10 @@ export function AylulHome() {
           <Planned title="Run stages" reason="Waits for the run stages of an agent turn.">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {STAGES.map((stage) => (
-                <div key={stage.title} className="flex items-center gap-3 rounded-xl border border-border bg-input-background px-3.5 py-2.5">
+                <div
+                  key={stage.title}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-input-background px-3.5 py-2.5"
+                >
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border">
                     <stage.icon aria-hidden className="size-4 text-accent-line" />
                   </div>
@@ -91,7 +94,12 @@ export function AylulHome() {
             {list.map((agent) => {
               const provider = providerList.find((p) => p.slug === agent.provider)
               return (
-                <Link key={agent.slug} to="/aylul/agents/$slug/new" params={{ slug: agent.slug }} className="group block">
+                <Link
+                  key={agent.slug}
+                  to="/aylul/agents/$slug/new"
+                  params={{ slug: agent.slug }}
+                  className="group block"
+                >
                   <Panel className="flex flex-col justify-between gap-4 p-5 transition-all group-hover:border-accent-line/45">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
@@ -99,8 +107,17 @@ export function AylulHome() {
                           <ColorDot id={agent.character_color} />
                         </div>
                         <div className="min-w-0">
-                          <span dir="auto" className="block truncate text-sm font-semibold text-foreground">{agent.name}</span>
-                          {agent.description && <p dir="auto" className="truncate text-xs text-muted-foreground">{agent.description}</p>}
+                          <span
+                            dir="auto"
+                            className="block truncate text-sm font-semibold text-foreground"
+                          >
+                            {agent.name}
+                          </span>
+                          {agent.description && (
+                            <p dir="auto" className="truncate text-xs text-muted-foreground">
+                              {agent.description}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <span className="inline-flex items-center gap-1 rounded-lg border border-accent-line/30 bg-accent-line/15 px-2.5 py-1 text-xs font-medium text-foreground transition-colors group-hover:bg-accent-line/30">
@@ -124,10 +141,18 @@ export function AylulHome() {
         </section>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <PlannedList icon={Wrench} title="Agent Runtime Capabilities" reason="Waits for the runtime capabilities of an agent."
-            items={['File System & Diffs', 'Terminal Execution', 'Multi-Model Handoff', 'Subagent Delegation']} />
-          <PlannedList icon={Cpu} title="Context & Memory Layers" reason="Waits for the context use per operation."
-            items={['Working Task State', 'Session Conversation', 'Project Architecture', 'Scoped Environment']} />
+          <PlannedList
+            icon={Wrench}
+            title="Agent Runtime Capabilities"
+            reason="Waits for the runtime capabilities of an agent."
+            items={['File System & Diffs', 'Terminal Execution', 'Multi-Model Handoff', 'Subagent Delegation']}
+          />
+          <PlannedList
+            icon={Cpu}
+            title="Context & Memory Layers"
+            reason="Waits for the context use per operation."
+            items={['Working Task State', 'Session Conversation', 'Project Architecture', 'Scoped Environment']}
+          />
         </div>
       </div>
     </div>
@@ -156,7 +181,12 @@ function PlannedList({ icon: Icon, title, reason, items }: {
       <Planned title={`${title} list`} reason={reason}>
         <div className="grid grid-cols-2 gap-2 text-xs">
           {items.map((item) => (
-            <div key={item} className="truncate rounded-xl border border-border bg-input-background px-3 py-2 text-muted-foreground">{item}</div>
+            <div
+              key={item}
+              className="truncate rounded-xl border border-border bg-input-background px-3 py-2 text-muted-foreground"
+            >
+              {item}
+            </div>
           ))}
         </div>
       </Planned>
@@ -182,7 +212,13 @@ function Step({ icon: Icon, title, detail, to, action }: {
           <h1 className="text-base font-semibold text-foreground">{title}</h1>
           <p className="max-w-sm text-sm text-muted-foreground">{detail}</p>
         </div>
-        <button type="button" className={buttonVariants({ className: 'pill-active' })} onClick={() => openSettings(to, to === 'agents' ? 'new' : undefined)}>{action}</button>
+        <button
+          type="button"
+          className={buttonVariants({ className: 'pill-active' })}
+          onClick={() => openSettings(to, to === 'agents' ? 'new' : undefined)}
+        >
+          {action}
+        </button>
       </Panel>
     </div>
   )

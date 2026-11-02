@@ -2,7 +2,9 @@
 // failures of the conversation, one tab each, drawn from the steps Core reported.
 
 import { FileCode2, GitCompare, ScrollText, Terminal } from 'lucide-react'
+import { cn } from 'cn'
 import { useState } from 'react'
+import { Panel } from '@/components/ui/panel'
 import { CopyButton } from '../copy-button'
 import type { ToolStep } from './activity-rows'
 import { stepLine } from './activity-text'
@@ -34,8 +36,11 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
   const shownCommands = filter === 'all' ? commands : commands.filter((s) => s.status === filter)
 
   return (
-    <section aria-label="Console" className="surface-panel rounded-2xl p-4">
-      <div role="tablist" className="mb-3 flex flex-wrap items-center gap-1.5 border-b border-accent-line/15 pb-3">
+    <Panel role="region" aria-label="Console">
+      <div
+        role="tablist"
+        className="mb-3 flex flex-wrap items-center gap-1.5 border-b border-accent-line/15 pb-3"
+      >
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -43,9 +48,10 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              tab === id ? 'pill-active' : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
-            }`}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+              tab === id ? 'pill-active' : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground',
+            )}
           >
             <Icon aria-hidden className="size-3.5" />
             <span>
@@ -67,11 +73,12 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
                   type="button"
                   aria-pressed={s.key === edit.key}
                   onClick={() => setPickedEdit(s.key)}
-                  className={`max-w-48 truncate rounded-md border px-2 py-0.5 font-mono text-2xs ${
+                  className={cn(
+                    'max-w-48 truncate rounded-md border px-2 py-0.5 font-mono text-2xs',
                     s.key === edit.key
                       ? 'border-accent-line/45 bg-accent/15 text-foreground'
-                      : 'border-border/60 text-muted-foreground hover:text-foreground'
-                  }`}
+                      : 'border-border/60 text-muted-foreground hover:text-foreground',
+                  )}
                 >
                   {s.target ?? s.title}
                 </button>
@@ -100,9 +107,10 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
                   type="button"
                   aria-pressed={filter === f}
                   onClick={() => setFilter(f)}
-                  className={`rounded-md px-2 py-0.5 text-2xs capitalize ${
-                    filter === f ? 'pill-active' : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={cn(
+                    'rounded-md px-2 py-0.5 text-2xs capitalize',
+                    filter === f ? 'pill-active' : 'text-muted-foreground hover:text-foreground',
+                  )}
                 >
                   {f}
                 </button>
@@ -110,7 +118,10 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
             </div>
             <ul className="space-y-1.5">
               {shownCommands.map((s) => (
-                <li key={s.key} className="rounded-lg border border-border/50 bg-background/60 px-3 py-2">
+                <li
+                  key={s.key}
+                  className="rounded-lg border border-border/50 bg-background/60 px-3 py-2"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <code dir="ltr" className="font-mono text-xs break-all whitespace-pre-wrap">
                       {s.title}
@@ -119,7 +130,9 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
                   </div>
                   <p className="mt-0.5 text-2xs text-muted-foreground">{s.status}</p>
                   {s.error !== null && (
-                    <p className="mt-1 font-mono text-xs break-words whitespace-pre-wrap text-destructive">
+                    <p
+                      className="mt-1 font-mono text-xs break-words whitespace-pre-wrap text-destructive"
+                    >
                       {s.error}
                     </p>
                   )}
@@ -154,24 +167,31 @@ export function AgentConsole({ steps }: { steps: readonly ToolStep[] }) {
         ) : (
           <ul className="space-y-1.5">
             {logs.map((s) => (
-              <li key={s.key} className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-xs">
+              <li
+                key={s.key}
+                className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-xs"
+              >
                 <p dir="auto">
                   {stepLine(s).text} <span className="text-muted-foreground">· {s.status}</span>
                 </p>
                 {s.error !== null && (
-                  <p className="mt-1 font-mono break-words whitespace-pre-wrap text-destructive">{s.error}</p>
+                  <p className="mt-1 font-mono break-words whitespace-pre-wrap text-destructive">
+                    {s.error}
+                  </p>
                 )}
               </li>
             ))}
           </ul>
         ))}
-    </section>
+    </Panel>
   )
 }
 
 function Empty({ children }: { children: string }) {
   return (
-    <p className="rounded-xl border border-border/50 bg-background/50 p-6 text-center text-xs text-muted-foreground">
+    <p
+      className="rounded-xl border border-border/50 bg-background/50 p-6 text-center text-xs text-muted-foreground"
+    >
       {children}
     </p>
   )

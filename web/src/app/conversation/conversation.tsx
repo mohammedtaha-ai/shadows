@@ -3,6 +3,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { cn } from 'cn'
 import { Code2, MessageSquare } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { agentsQuery } from '@/api/aylul-profiles'
@@ -133,7 +134,9 @@ function Conversation({
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
+        <header
+          className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md"
+        >
           <div className="min-w-0">
             <h1 dir="auto" className="truncate text-start text-sm font-medium">
               {thread?.title ?? 'Conversation'}
@@ -145,16 +148,26 @@ function Conversation({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div role="group" aria-label="Mode" className="flex items-center rounded-xl border border-accent-line/25 bg-card p-0.5">
-              {([['chat', 'Chat Mode', MessageSquare], ['agent', 'Agent Mode', Code2]] as const).map(([id, text, Icon]) => (
+            <div
+              role="group"
+              aria-label="Mode"
+              className="flex items-center rounded-xl border border-accent-line/25 bg-card p-0.5"
+            >
+              {(
+                [
+                  ['chat', 'Chat Mode', MessageSquare],
+                  ['agent', 'Agent Mode', Code2],
+                ] as const
+              ).map(([id, text, Icon]) => (
                 <button
                   key={id}
                   type="button"
                   aria-pressed={view === id}
                   onClick={() => setView(id)}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                    view === id ? 'pill-active' : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
+                    view === id ? 'pill-active' : 'text-muted-foreground hover:text-foreground',
+                  )}
                 >
                   <Icon aria-hidden className="size-3.5" />
                   <span>{text}</span>
@@ -171,7 +184,11 @@ function Conversation({
               locked={c.latest !== null || thread?.forked_from_thread != null}
             />
             <StatusBadge running={c.running} latest={c.latest} />
-            <UseWithCompanion threadId={threadId} profile={thread?.profile??null} harness={harness}/>
+            <UseWithCompanion
+              threadId={threadId}
+              profile={thread?.profile ?? null}
+              harness={harness}
+            />
           </div>
         </header>
         <StreamBanner

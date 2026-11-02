@@ -55,7 +55,10 @@ export function Home() {
     <div className="flex flex-1 flex-col overflow-y-auto px-8 py-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <Panel size="lg" className="relative overflow-hidden">
-          <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 size-64 rounded-full bg-accent-line/15 blur-3xl" />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-20 -right-20 size-64 rounded-full bg-accent-line/15 blur-3xl"
+          />
           <div className="relative flex items-start gap-4">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-accent-line/40 bg-accent-line/15">
               <FolderGit2 aria-hidden className="size-6 text-accent-line" />
@@ -74,16 +77,23 @@ export function Home() {
         {visibleProjects.length > 0 && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {visibleProjects.map((project) => (
-              <Panel key={project.id} className="flex flex-col justify-between gap-4 p-5 transition-all hover:border-accent-line/45">
+              <Panel
+                key={project.id}
+                className="flex flex-col justify-between gap-4 p-5 transition-all hover:border-accent-line/45"
+              >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <h2 dir="auto" className="truncate text-sm font-semibold text-foreground">{project.name}</h2>
+                    <h2 dir="auto" className="truncate text-sm font-semibold text-foreground">
+                      {project.name}
+                    </h2>
                     <span className="rounded-md border border-accent-line/25 bg-accent-line/10 px-2 py-0.5 text-2xs font-medium text-accent-line">
                       Workspace
                     </span>
                   </div>
                   {project.directory && (
-                    <p dir="auto" className="truncate font-mono text-xs text-muted-foreground">{project.directory}</p>
+                    <p dir="auto" className="truncate font-mono text-xs text-muted-foreground">
+                      {project.directory}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 border-t border-border pt-3">

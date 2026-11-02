@@ -27,9 +27,15 @@ export function RoadmapProposalCard({entry,projectId}: {entry:ThreadEntry;projec
     proposalsQuery: roadmapProposalsQuery(projectId), approveProposal: approveRoadmapProposal,
   })
   if (!proposed) return <p dir="auto">{entry.body}</p>
-  return <article data-roadmap-proposal={proposed.id} className="surface-panel space-y-4 rounded-2xl p-4">
+  return <article
+    data-roadmap-proposal={proposed.id}
+    className="surface-panel space-y-4 rounded-2xl p-4"
+  >
     <h3 className="font-semibold text-foreground">{titles[proposed.action]}</h3>
-    {proposed.old && <section aria-label="Current outcome" className="rounded-xl border border-accent-line/20 bg-background/70 p-3 text-sm">
+    {proposed.old && <section
+      aria-label="Current outcome"
+      className="rounded-xl border border-accent-line/20 bg-background/70 p-3 text-sm"
+    >
       <h4>{proposed.action==='remove' ? 'Outcome to remove' : 'Current outcome'}</h4>
       <OutcomeText content={proposed.old} />
     </section>}

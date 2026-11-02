@@ -67,9 +67,21 @@ export function Entry({
           className="max-w-[82%] rounded-2xl rounded-br-md surface-glow px-4 py-3 text-start text-sm whitespace-pre-wrap text-foreground [unicode-bidi:plaintext]"
         >
           {entry.attachments.length > 0 && <div className="mb-2 flex flex-wrap gap-2">
-            {entry.attachments.map(image => <a key={image.id} href={attachmentUrl(entry.thread_id, image.id)} target="_blank" rel="noreferrer">
-              <img src={attachmentUrl(entry.thread_id, image.id)} alt={image.name ?? 'Attached image'} loading="lazy" className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain" />
-            </a>)}
+            {entry.attachments.map(image => (
+              <a
+                key={image.id}
+                href={attachmentUrl(entry.thread_id, image.id)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  src={attachmentUrl(entry.thread_id, image.id)}
+                  alt={image.name ?? 'Attached image'}
+                  loading="lazy"
+                  className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain"
+                />
+              </a>
+            ))}
           </div>}
           <p>{entry.body}</p>
         </div>

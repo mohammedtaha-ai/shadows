@@ -1,6 +1,7 @@
 // One job: the AYLUL workspace's agents as a tree — each folds open to its
 // conversations and settings, and opens a new conversation from its row.
 
+import { cn } from 'cn'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearch, useParams } from '@tanstack/react-router'
 import { Bot, ChevronRight, Plus, Settings } from 'lucide-react'
@@ -71,7 +72,13 @@ function EmptyHint({ to, action, detail }: {
   const openSettings = useOpenSettings()
   return (
     <div className="space-y-1.5 rounded-xl border border-accent-line/25 bg-card/80 px-3 py-2.5 shadow-xs">
-      <button type="button" className="text-sm font-medium text-accent-line underline-offset-4 hover:underline" onClick={() => openSettings(to, to === 'agents' ? 'new' : undefined)}>{action}</button>
+      <button
+        type="button"
+        className="text-sm font-medium text-accent-line underline-offset-4 hover:underline"
+        onClick={() => openSettings(to, to === 'agents' ? 'new' : undefined)}
+      >
+        {action}
+      </button>
       <p className="text-xs leading-relaxed text-muted-foreground">{detail}</p>
     </div>
   )
@@ -91,31 +98,45 @@ function AgentRow({ agent, projectId, open, current, selected, onToggle }: {
   return (
     <li>
       <div
-        className={`group relative flex items-start rounded-xl border transition-all ${
+        className={cn(
+          'group relative flex items-start rounded-xl border transition-all',
           current
             ? 'border-accent-line/45 bg-gradient-to-r from-accent/25 via-accent-softer/90 to-transparent'
             : open
               ? 'border-border/70 bg-sidebar-accent/70'
-              : 'border-transparent hover:border-border/50 hover:bg-sidebar-accent/50'
-        }`}
+              : 'border-transparent hover:border-border/50 hover:bg-sidebar-accent/50',
+        )}
       >
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
           aria-controls={sectionId}
-          className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl py-2 ps-2 pe-8 text-left text-sm ${
-            open || current ? 'font-medium text-sidebar-foreground' : 'text-muted-foreground'
-          }`}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2 rounded-xl py-2 ps-2 pe-8 text-left text-sm',
+            open || current ? 'font-medium text-sidebar-foreground' : 'text-muted-foreground',
+          )}
         >
           <ChevronRight
             aria-hidden
-            className={`size-4 shrink-0 text-faint-foreground transition-transform duration-150 ${open ? 'rotate-90 text-accent-line' : ''}`}
+            className={cn(
+              'size-4 shrink-0 text-faint-foreground transition-transform duration-150',
+              open && 'rotate-90 text-accent-line',
+            )}
           />
-          <Bot aria-hidden className="size-4 shrink-0" data-color={colorOf(agent.character_color).id} style={{ color: colorOf(agent.character_color).swatch }} />
+          <Bot
+            aria-hidden
+            className="size-4 shrink-0"
+            data-color={colorOf(agent.character_color).id}
+            style={{ color: colorOf(agent.character_color).swatch }}
+          />
           <span className="min-w-0 flex-1 text-start">
             <span dir="auto" className="block truncate">{agent.name}</span>
-            {agent.description && <span dir="auto" className="block truncate text-xs font-normal text-faint-foreground">{agent.description}</span>}
+            {agent.description && (
+              <span dir="auto" className="block truncate text-xs font-normal text-faint-foreground">
+                {agent.description}
+              </span>
+            )}
           </span>
         </button>
         <Link
@@ -150,11 +171,12 @@ function AgentSettingsLink({ slug }: { slug: string }) {
         type="button"
         onClick={() => openSettings('agents', slug)}
         aria-current={isSelected ? 'page' : undefined}
-        className={`flex w-full items-center gap-2 rounded-r-lg border-l-2 px-2.5 py-1.5 text-xs transition-all ${
+        className={cn(
+          'flex w-full items-center gap-2 rounded-r-lg border-l-2 px-2.5 py-1.5 text-xs transition-all',
           isSelected
             ? 'border-accent-line bg-secondary/90 font-medium text-secondary-foreground'
-            : 'border-transparent text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-        }`}
+            : 'border-transparent text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground',
+        )}
       >
         <Settings className="size-3.5 shrink-0" aria-hidden />
         Agent settings

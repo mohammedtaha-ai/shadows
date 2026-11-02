@@ -26,7 +26,13 @@ function Panel({
   size,
   ...props
 }: ComponentProps<"div"> & VariantProps<typeof panelVariants>) {
-  return <div data-slot="panel" className={cn(panelVariants({ tone, size }), className)} {...props} />
+  return (
+    <div
+      data-slot="panel"
+      className={cn(panelVariants({ tone, size }), className)}
+      {...props}
+    />
+  )
 }
 
 export { Panel, panelVariants }

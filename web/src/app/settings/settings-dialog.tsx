@@ -1,3 +1,4 @@
+import { cn } from 'cn'
 import { type ComponentType, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -32,16 +33,31 @@ export function SettingsDialog() {
         className="h-[min(620px,calc(100dvh-2rem))] grid-cols-[minmax(140px,220px)_minmax(0,1fr)] gap-0 overflow-hidden border-accent-line/25 bg-popover/95 p-0 backdrop-blur-2xl sm:max-w-[920px]"
         finalFocus={() => document.querySelector<HTMLButtonElement>('[data-settings-trigger]')}
       >
-        <nav aria-label="Settings sections" className="overflow-y-auto border-r border-border bg-sidebar/80 px-3 py-5">
+        <nav
+          aria-label="Settings sections"
+          className="overflow-y-auto border-r border-border bg-sidebar/80 px-3 py-5"
+        >
           {(['You', 'AI', 'This machine'] as const).map(group => {
             const items = sections.filter(section => section.group === group)
             return items.length > 0 && (
               <div key={group} className="mb-5 space-y-1">
                 <h2 className="px-2.5 pb-1 text-2xs font-semibold tracking-wider text-faint-foreground uppercase">{group}</h2>
                 {items.map(section => (
-                  <button key={section.id} type="button" disabled={unsaved && selected?.id !== section.id} aria-current={selected?.id === section.id ? 'page' : undefined}
-                    className={`w-full rounded-xl px-2.5 py-2 text-left text-sm transition-all disabled:opacity-50 ${selected?.id === section.id ? 'pill-active font-medium' : 'text-muted-foreground hover:bg-accent-line/10 hover:text-foreground'}`}
-                    onClick={() => open(section.id)}>{section.label}</button>
+                  <button
+                    key={section.id}
+                    type="button"
+                    disabled={unsaved && selected?.id !== section.id}
+                    aria-current={selected?.id === section.id ? 'page' : undefined}
+                    className={cn(
+                      'w-full rounded-xl px-2.5 py-2 text-left text-sm transition-all disabled:opacity-50',
+                      selected?.id === section.id
+                        ? 'pill-active font-medium'
+                        : 'text-muted-foreground hover:bg-accent-line/10 hover:text-foreground',
+                    )}
+                    onClick={() => open(section.id)}
+                  >
+                    {section.label}
+                  </button>
                 ))}
               </div>
             )

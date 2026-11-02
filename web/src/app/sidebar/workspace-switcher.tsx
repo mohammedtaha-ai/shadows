@@ -24,9 +24,22 @@ export function LeafMark({ className = 'size-5' }: { className?: string }) {
           <stop offset="100%" style={{ stopColor: 'var(--palette-accent)' }} />
         </linearGradient>
       </defs>
-      <path d="M6.5 3.5C15.5 4.2 22.8 11.4 23.2 21.5C14.6 21.2 7.4 15.1 6.5 3.5Z" fill="url(#leaf-grad)" />
-      <path d="M6.5 3.5C12.8 9.4 17.5 15.2 21.5 23.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeOpacity="0.85" />
-      <path d="M4.5 11.5C10.5 13.2 15.2 17.4 17.8 23.8C10.4 22.6 5.6 17.8 4.5 11.5Z" fill="var(--palette-accent)" fillOpacity="0.65" />
+      <path
+        d="M6.5 3.5C15.5 4.2 22.8 11.4 23.2 21.5C14.6 21.2 7.4 15.1 6.5 3.5Z"
+        fill="url(#leaf-grad)"
+      />
+      <path
+        d="M6.5 3.5C12.8 9.4 17.5 15.2 21.5 23.8"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeOpacity="0.85"
+      />
+      <path
+        d="M4.5 11.5C10.5 13.2 15.2 17.4 17.8 23.8C10.4 22.6 5.6 17.8 4.5 11.5Z"
+        fill="var(--palette-accent)"
+        fillOpacity="0.65"
+      />
     </svg>
   )
 }
@@ -54,7 +67,10 @@ export function WorkspaceSwitcher({ workspace, onSwitch }: {
           className="size-3.5 text-faint-foreground transition-colors group-hover:text-sidebar-foreground"
         />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-64 border-border/90 bg-card/95 backdrop-blur-xl">
+      <DropdownMenuContent
+        align="start"
+        className="min-w-64 border-border/90 bg-card/95 backdrop-blur-xl"
+      >
         <DropdownMenuRadioGroup
           value={workspace}
           onValueChange={(v) => { if (v !== workspace) onSwitch(v as Workspace) }}

@@ -1,5 +1,6 @@
 // One job: an edit's hunks drawn as lines with their old and new numbers.
 
+import { cn } from 'cn'
 import { Fragment } from 'react'
 import type { DiffHunk } from '@/api/threads'
 
@@ -54,7 +55,7 @@ export function ToolDiff({ diff }: { diff: readonly DiffHunk[] | null }) {
               <div
                 key={at}
                 data-diff={line.op}
-                className={`flex whitespace-pre px-1.5 py-0.5 ${TINTS[line.op]}`}
+                className={cn('flex whitespace-pre px-1.5 py-0.5', TINTS[line.op])}
               >
                 {(hunk.old_start != null || hunk.new_start != null) && (
                   <>

@@ -38,7 +38,14 @@ export function LinkEdge({
   return (
     <>
       {kind === 'needs' && !data?.broken && (
-        <path d={path} fill="none" stroke="var(--accent-line)" strokeWidth={5} strokeOpacity={0.14} className="pointer-events-none" />
+        <path
+          d={path}
+          fill="none"
+          stroke="var(--accent-line)"
+          strokeWidth={5}
+          strokeOpacity={0.14}
+          className="pointer-events-none"
+        />
       )}
       <BaseEdge
         id={id}
@@ -53,8 +60,22 @@ export function LinkEdge({
       />
       {kind !== 'start' && (
         <>
-          <circle cx={sourceX} cy={actualSourceY} r={2.75} fill="var(--background)" stroke={strokeColor} strokeWidth={1.5} className="pointer-events-none" />
-          <circle cx={targetX} cy={actualTargetY} r={2.75} fill={strokeColor} className="pointer-events-none" />
+          <circle
+            cx={sourceX}
+            cy={actualSourceY}
+            r={2.75}
+            fill="var(--background)"
+            stroke={strokeColor}
+            strokeWidth={1.5}
+            className="pointer-events-none"
+          />
+          <circle
+            cx={targetX}
+            cy={actualTargetY}
+            r={2.75}
+            fill={strokeColor}
+            className="pointer-events-none"
+          />
         </>
       )}
       {label !== '' && (

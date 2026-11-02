@@ -1,6 +1,7 @@
 // One job: the sidebar's projects as a tree — each folds open to its
 // conversations, plans and settings, and opens a new conversation from its row.
 
+import { cn } from 'cn'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from '@tanstack/react-router'
 import { ChevronRight, Folder, FolderOpen, Layers, Plus, Settings } from 'lucide-react'
@@ -99,30 +100,38 @@ function ProjectRow({
   const Icon = open ? FolderOpen : Folder
   return (
     <div
-      className={`group relative flex items-start rounded-xl border transition-all ${
+      className={cn(
+        'group relative flex items-start rounded-xl border transition-all',
         current
           ? 'border-accent-line/45 bg-gradient-to-r from-accent/25 via-accent-softer/90 to-transparent'
           : open
             ? 'border-border/70 bg-sidebar-accent/70'
-            : 'border-transparent hover:border-border/50 hover:bg-sidebar-accent/50'
-      }`}
+            : 'border-transparent hover:border-border/50 hover:bg-sidebar-accent/50',
+      )}
     >
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
           aria-controls={sectionId}
-          className={`flex min-w-0 flex-1 items-start gap-2 rounded-xl py-2 ps-2 pe-8 text-left ${
-            open || current ? 'font-medium text-sidebar-foreground' : 'text-muted-foreground'
-          }`}
+          className={cn(
+            'flex min-w-0 flex-1 items-start gap-2 rounded-xl py-2 ps-2 pe-8 text-left',
+            open || current ? 'font-medium text-sidebar-foreground' : 'text-muted-foreground',
+          )}
         >
           <ChevronRight
             aria-hidden
-            className={`mt-0.5 size-4 shrink-0 text-faint-foreground transition-transform duration-150 ${open ? 'rotate-90 text-accent-line' : ''}`}
+            className={cn(
+              'mt-0.5 size-4 shrink-0 text-faint-foreground transition-transform duration-150',
+              open && 'rotate-90 text-accent-line',
+            )}
           />
           <Icon
             aria-hidden
-            className={`mt-0.5 size-4 shrink-0 ${current ? 'text-accent-line' : 'text-muted-foreground'}`}
+            className={cn(
+              'mt-0.5 size-4 shrink-0',
+              current ? 'text-accent-line' : 'text-muted-foreground',
+            )}
           />
           <span className="min-w-0 flex-1">
             <span dir="auto" className="block truncate text-start text-sm">
@@ -158,11 +167,12 @@ function SettingsLink({ projectId }: { projectId: string }) {
         to="/projects/$projectId/settings"
         params={{ projectId }}
         aria-current={isSelected ? 'page' : undefined}
-        className={`flex items-center gap-2 rounded-r-lg border-l-2 px-2.5 py-1.5 text-xs transition-all ${
+        className={cn(
+          'flex items-center gap-2 rounded-r-lg border-l-2 px-2.5 py-1.5 text-xs transition-all',
           isSelected
             ? 'border-accent-line bg-secondary/90 font-medium text-secondary-foreground'
-            : 'border-transparent text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-        }`}
+            : 'border-transparent text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground',
+        )}
       >
         <Settings className="size-3.5 shrink-0" aria-hidden />
         Project settings

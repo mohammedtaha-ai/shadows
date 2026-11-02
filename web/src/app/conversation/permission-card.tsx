@@ -18,8 +18,10 @@ export function PermissionCard({ entry, projectId }: { entry: ThreadEntry; proje
   const request = waiting.error === null ? waiting.data?.find(value => value.thread_id === entry.thread_id && value.request_id === requestId) : undefined
   const answer = useMutation({ retry: false,
     mutationFn: (optionId: string) => {
+      // The options to answer show only for a waiting request, which has an id.
+      if (requestId === null) throw new Error('This permission card has no request to answer.')
       attempt.current = attemptFor(attempt.current, { threadId: entry.thread_id, requestId, optionId })
-      return answerPermission(entry.thread_id, requestId!, optionId, attempt.current.commandId)
+      return answerPermission(entry.thread_id, requestId, optionId, attempt.current.commandId)
     },
     onSuccess: async () => { attempt.current = null; await invalidatePermissions(client) },
     onError: async error => {
@@ -30,16 +32,43 @@ export function PermissionCard({ entry, projectId }: { entry: ThreadEntry; proje
     },
     onSettled: () => { locked.current = false },
   })
-  return <section aria-label="Permission request" className="surface-glow space-y-3 rounded-lg p-4">
-    {request && !answer.isSuccess && <p className="inline-flex items-center gap-1.5 rounded-full border border-current px-2.5 py-0.5 text-xs font-semibold text-warning">Waiting for your approval</p>}
-    <p dir="auto" className="text-sm font-medium whitespace-pre-wrap">{entry.body}</p>
-    {waiting.isPending && requestId !== null && <p role="status" className="text-xs text-muted-foreground">Checking request…</p>}
-    {request && !answer.isSuccess && <div className="flex flex-wrap gap-2">{request.options.map(option => <Button
-      key={option.option_id} type="button" variant="outline" disabled={answer.isPending}
-      onClick={() => { if (locked.current) return; locked.current = true; answer.mutate(option.option_id) }}
-    >{option.name}</Button>)}</div>}
-    {!request && waiting.isSuccess && <p className="text-xs text-muted-foreground">This request is no longer waiting.</p>}
-    {waiting.error && <ErrorLine error={waiting.error} />}
-    {answer.error && <ErrorLine error={answer.error} />}
-  </section>
+  return (
+    <section aria-label="Permission request" className="surface-glow space-y-3 rounded-lg p-4">
+      {request && !answer.isSuccess && (
+        <p
+          className="inline-flex items-center gap-1.5 rounded-full border border-current px-2.5 py-0.5 text-xs font-semibold text-warning"
+        >
+          Waiting for your approval
+        </p>
+      )}
+      <p dir="auto" className="text-sm font-medium whitespace-pre-wrap">{entry.body}</p>
+      {waiting.isPending && requestId !== null && (
+        <p role="status" className="text-xs text-muted-foreground">Checking request…</p>
+      )}
+      {request && !answer.isSuccess && (
+        <div className="flex flex-wrap gap-2">
+          {request.options.map(option => (
+            <Button
+              key={option.option_id}
+              type="button"
+              variant="outline"
+              disabled={answer.isPending}
+              onClick={() => {
+                if (locked.current) return
+                locked.current = true
+                answer.mutate(option.option_id)
+              }}
+            >
+              {option.name}
+            </Button>
+          ))}
+        </div>
+      )}
+      {!request && waiting.isSuccess && (
+        <p className="text-xs text-muted-foreground">This request is no longer waiting.</p>
+      )}
+      {waiting.error && <ErrorLine error={waiting.error} />}
+      {answer.error && <ErrorLine error={answer.error} />}
+    </section>
+  )
 }

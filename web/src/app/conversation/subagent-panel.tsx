@@ -62,7 +62,10 @@ export function SubagentPanel({ card, onClose }: { card: SubagentCard; onClose: 
                   className="flex items-start gap-2.5 rounded-lg border border-border/40 bg-background/50 px-2.5 py-1.5 text-xs text-muted-foreground"
                 >
                   <Wrench aria-hidden className="mt-0.5 size-3.5 shrink-0 text-accent-line" />
-                  <code dir="auto" className="font-mono text-foreground/90 break-all whitespace-pre-wrap">
+                  <code
+                    dir="auto"
+                    className="font-mono text-foreground/90 break-all whitespace-pre-wrap"
+                  >
                     {step}
                   </code>
                 </li>

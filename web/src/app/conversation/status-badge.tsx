@@ -1,6 +1,7 @@
 // One job: the conversation's turn status as a badge — running, or how the
 // latest turn ended.
 
+import { cn } from 'cn'
 import { LoaderCircle } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Turn } from './turn-state'
@@ -64,10 +65,13 @@ export function StatusBadge({ running, latest }: { running: Turn | null; latest:
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
           aria-live="polite"
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium tracking-wide ${shown.className}`}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium tracking-wide',
+            shown.className,
+          )}
         >
           {shown.dot && !shown.spinning && (
-            <span aria-hidden className={`size-1.5 rounded-full ${shown.dot}`} />
+            <span aria-hidden className={cn('size-1.5 rounded-full', shown.dot)} />
           )}
           {shown.spinning && (
             <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />

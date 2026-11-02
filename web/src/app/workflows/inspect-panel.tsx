@@ -26,14 +26,23 @@ export function InspectPanel({
     >
       <header className="mb-3 flex items-start justify-between gap-2 border-b border-border/50 pb-2.5">
         <div className="min-w-0">
-          <span dir="auto" className="inline-block rounded bg-accent-line/15 px-1.5 py-0.5 font-mono text-2xs font-semibold text-accent-line">
+          <span
+            dir="auto"
+            className="inline-block rounded bg-accent-line/15 px-1.5 py-0.5 font-mono text-2xs font-semibold text-accent-line"
+          >
             T{task.number}
           </span>
           <h2 dir="auto" className="mt-1 font-semibold leading-snug">
             {task.title}
           </h2>
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose} className="rounded-full hover:bg-sidebar-accent">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close"
+          onClick={onClose}
+          className="rounded-full hover:bg-sidebar-accent"
+        >
           <X className="size-4" />
         </Button>
       </header>
@@ -63,9 +72,15 @@ export function InspectPanel({
           {task.acceptance.map((item) => {
             const after = waitingFor(item.number)
             return (
-              <li key={item.number} className="flex gap-2.5 rounded-xl border border-accent-line/20 bg-card/60 p-2.5">
+              <li
+                key={item.number}
+                className="flex gap-2.5 rounded-xl border border-accent-line/20 bg-card/60 p-2.5"
+              >
                 <Circle aria-hidden className="mt-0.5 size-3.5 shrink-0 text-accent-line/60" />
-                <span dir="auto" className="shrink-0 font-mono text-xs text-faint-foreground mt-0.5">
+                <span
+                  dir="auto"
+                  className="shrink-0 font-mono text-xs text-faint-foreground mt-0.5"
+                >
                   {item.number}.
                 </span>
                 <span className="min-w-0">

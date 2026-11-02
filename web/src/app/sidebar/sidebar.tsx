@@ -1,6 +1,7 @@
 // One job: the left pane — the app's name, its projects, whether the daemon
 // answers, and the way to the global settings.
 
+import { cn } from 'cn'
 import { motion, useReducedMotion } from 'motion/react'
 import { useRef, useState } from 'react'
 import { SidebarToggle } from './sidebar-toggle'
@@ -34,16 +35,49 @@ export function Sidebar({ narrow, onToggle, onHide }: { narrow: boolean; onToggl
   }
   return (
     <>
-    {narrow && <motion.button type="button" aria-label="Close sidebar" className="fixed inset-0 z-30 bg-background/70 backdrop-blur-xs" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeOut' }} onClick={() => { onHide(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('main [aria-label="Show sidebar"]')?.focus()) }} />}
-    <motion.aside id="app-sidebar" className={`flex shrink-0 flex-col overflow-hidden relative border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground shadow-xl ${narrow ? 'fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw]' : 'w-72'}`} initial={narrow ? { x: '-100%' } : { width: 0 }} animate={narrow ? { x: 0 } : { width: 288 }} exit={narrow ? { x: '-100%' } : { width: 0 }} transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeOut' }}>
-      <div aria-hidden className="pointer-events-none absolute -top-20 -left-16 size-48 rounded-full bg-accent-line/12 blur-3xl" />
+    {narrow && (
+      <motion.button
+        type="button"
+        aria-label="Close sidebar"
+        className="fixed inset-0 z-30 bg-background/70 backdrop-blur-xs"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeOut' }}
+        onClick={() => {
+          onHide()
+          requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('main [aria-label="Show sidebar"]')?.focus())
+        }}
+      />
+    )}
+    <motion.aside
+      id="app-sidebar"
+      className={cn(
+        'flex shrink-0 flex-col overflow-hidden relative border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground shadow-xl',
+        narrow ? 'fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw]' : 'w-72',
+      )}
+      initial={narrow ? { x: '-100%' } : { width: 0 }}
+      animate={narrow ? { x: 0 } : { width: 288 }}
+      exit={narrow ? { x: '-100%' } : { width: 0 }}
+      transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeOut' }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-20 -left-16 size-48 rounded-full bg-accent-line/12 blur-3xl"
+      />
       <header className="relative flex items-center justify-between border-b border-sidebar-border/50 px-4 pt-4 pb-3">
         <WorkspaceSwitcher workspace={workspace} onSwitch={switchTo} />
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger render={
-              <Button variant="ghost" size="icon" aria-label="Search sidebar" aria-expanded={searchOpen} onClick={toggleSearch}
-                className={searchOpen || filter !== '' ? 'bg-accent/40 text-accent-line' : undefined}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Search sidebar"
+                aria-expanded={searchOpen}
+                onClick={toggleSearch}
+                className={cn((searchOpen || filter !== '') && 'bg-accent/40 text-accent-line')}
+              >
                 <Search aria-hidden />
               </Button>
             } />
@@ -55,7 +89,10 @@ export function Sidebar({ narrow, onToggle, onHide }: { narrow: boolean; onToggl
       <div className="space-y-2 px-3 pt-3 pb-2.5">
         {searchOpen && (
           <div className="relative flex items-center">
-            <Search aria-hidden className="pointer-events-none absolute left-2.5 size-3.5 text-accent-line/70" />
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute left-2.5 size-3.5 text-accent-line/70"
+            />
             <input
               ref={searchInputRef}
               type="search"
@@ -86,7 +123,10 @@ export function Sidebar({ narrow, onToggle, onHide }: { narrow: boolean; onToggl
           {workspace === 'aylul' ? 'New agent' : 'New project'}
         </Button>
       </div>
-      <nav aria-label={workspace === 'aylul' ? 'Agents and conversations' : 'Projects and conversations'} className="flex-1 overflow-y-auto px-2.5 pb-3">
+      <nav
+        aria-label={workspace === 'aylul' ? 'Agents and conversations' : 'Projects and conversations'}
+        className="flex-1 overflow-y-auto px-2.5 pb-3"
+      >
         {workspace === 'aylul' ? <AgentList filter={filter} /> : <ProjectList filter={filter} />}
       </nav>
       <DesktopSidebarActions />
@@ -99,11 +139,12 @@ export function Sidebar({ narrow, onToggle, onHide }: { narrow: boolean; onToggl
           data-settings-trigger
           onClick={() => openSettings('general')}
           aria-current={onSettings ? 'page' : undefined}
-          className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all ${
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all',
             onSettings
               ? 'pill-active'
-              : 'border-border/60 bg-sidebar-accent/40 text-muted-foreground hover:border-accent-line/40 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-          }`}
+              : 'border-border/60 bg-sidebar-accent/40 text-muted-foreground hover:border-accent-line/40 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+          )}
         >
           <Settings aria-hidden className="size-3.5" />
           Settings

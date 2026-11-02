@@ -1,5 +1,6 @@
 // One job: an agent's task list drawn as a checklist.
 
+import { cn } from 'cn'
 import { Circle, CircleCheck, LoaderCircle } from 'lucide-react'
 import type { TodoItem } from '@/stream'
 
@@ -50,9 +51,12 @@ export function TodoCard({ items }: { items: readonly TodoItem[] }) {
             <li
               key={index}
               data-status={item.status}
-              className={`flex items-start gap-2.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${look.row}`}
+              className={cn(
+                'flex items-start gap-2.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors',
+                look.row,
+              )}
             >
-              <look.icon aria-hidden className={`mt-0.5 size-4 shrink-0 ${look.mark}`} />
+              <look.icon aria-hidden className={cn('mt-0.5 size-4 shrink-0', look.mark)} />
               <span dir="auto" className={look.text}>{item.content}</span>
             </li>
           )

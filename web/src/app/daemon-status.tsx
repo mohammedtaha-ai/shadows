@@ -2,6 +2,7 @@
 // it does not. Reachability is a real call through the typed client — the
 // project list — never a guess.
 
+import { cn } from 'cn'
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -28,7 +29,7 @@ export function ConnectionIndicator() {
 
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-      <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
+      <span aria-hidden className={cn('size-2 shrink-0 rounded-full', dot)} />
       <span className="truncate font-mono text-2xs">
         {label} · {DAEMON_HOST}
       </span>

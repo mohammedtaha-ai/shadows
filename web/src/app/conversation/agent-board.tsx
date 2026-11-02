@@ -2,9 +2,11 @@
 // and context of the conversation, drawn from what the client already holds.
 
 import { Activity, Bot, CheckCircle2, CircleDot, Code2, LoaderCircle, Sparkles } from 'lucide-react'
+import { cn } from 'cn'
 import { useMemo, useState } from 'react'
 import type { ThreadEntry } from '@/api/threads'
 import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
+import { Panel } from '@/components/ui/panel'
 import { Planned } from '@/components/ui/planned'
 import { AgentConsole } from './agent-console'
 import { activityRows, currentTodos, liveSteps, stepsOf, withLiveSteps } from './activity-rows'
@@ -91,33 +93,47 @@ export function AgentBoard({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
       <div className="mx-auto flex max-w-6xl flex-col gap-5">
-        <section aria-label="Task" className="surface-panel rounded-2xl p-5">
+        <Panel role="region" aria-label="Task" className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-accent-line/40 bg-accent/15">
+              <div
+                className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-accent-line/40 bg-accent/15"
+              >
                 <Code2 aria-hidden className="size-6 text-accent-line" />
               </div>
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 dir="auto" className="truncate text-base font-semibold tracking-tight text-foreground">
+                  <h2
+                    dir="auto"
+                    className="truncate text-base font-semibold tracking-tight text-foreground"
+                  >
                     {title}
                   </h2>
-                  <span className="rounded-md border border-accent-line/25 bg-accent/10 px-2 py-0.5 text-2xs font-medium text-accent-foreground">
+                  <span
+                    className="rounded-md border border-accent-line/25 bg-accent/10 px-2 py-0.5 text-2xs font-medium text-accent-foreground"
+                  >
                     {projectName}
                   </span>
-                  <span className="rounded-md border border-border bg-card px-2 py-0.5 font-mono text-2xs text-muted-foreground">
+                  <span
+                    className="rounded-md border border-border bg-card px-2 py-0.5 font-mono text-2xs text-muted-foreground"
+                  >
                     {agentLabel}
                   </span>
                 </div>
                 {prompt !== null && (
-                  <p dir="auto" className="line-clamp-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+                  <p
+                    dir="auto"
+                    className="line-clamp-2 max-w-2xl text-xs leading-relaxed text-muted-foreground"
+                  >
                     {prompt}
                   </p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 rounded-xl border border-accent-line/25 bg-card px-3 py-1.5 text-xs">
+              <div
+                className="flex items-center gap-2 rounded-xl border border-accent-line/25 bg-card px-3 py-1.5 text-xs"
+              >
                 <Sparkles aria-hidden className="size-3.5 text-warning" />
                 <span className="text-muted-foreground">Model:</span>
                 <span className="font-medium text-foreground">{modelLabel}</span>
@@ -146,12 +162,14 @@ export function AgentBoard({
               ))}
             </ol>
           </Planned>
-        </section>
+        </Panel>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           <div className="flex flex-col gap-5 lg:col-span-7">
-            <section aria-label="Agent execution" className="surface-panel rounded-2xl p-4">
-              <div className="mb-3 flex items-center justify-between gap-2 border-b border-accent-line/15 pb-3">
+            <Panel role="region" aria-label="Agent execution">
+              <div
+                className="mb-3 flex items-center justify-between gap-2 border-b border-accent-line/15 pb-3"
+              >
                 <div className="flex items-center gap-2">
                   <Activity aria-hidden className="size-4 text-accent-line" />
                   <h3 className="text-xs font-semibold tracking-wider text-foreground uppercase">
@@ -159,14 +177,18 @@ export function AgentBoard({
                   </h3>
                 </div>
                 {steps.length > 0 && (
-                  <span className="rounded-md border border-accent-line/20 bg-accent/10 px-2 py-0.5 font-mono text-2xs text-accent-foreground">
+                  <span
+                    className="rounded-md border border-accent-line/20 bg-accent/10 px-2 py-0.5 font-mono text-2xs text-accent-foreground"
+                  >
                     {done} of {steps.length} steps done
                   </span>
                 )}
               </div>
 
               {steps.length === 0 ? (
-                <p className="rounded-xl border border-border/50 bg-background/50 p-6 text-center text-xs text-muted-foreground">
+                <p
+                  className="rounded-xl border border-border/50 bg-background/50 p-6 text-center text-xs text-muted-foreground"
+                >
                   {running !== null || thinking
                     ? 'The agent has not run a tool yet.'
                     : 'No tool steps in this conversation yet. Send a task below to start.'}
@@ -185,22 +207,29 @@ export function AgentBoard({
                             type="button"
                             aria-pressed={active?.key === step.key}
                             onClick={() => setPicked(step.key)}
-                            className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-start text-xs transition-colors ${
+                            className={cn(
+                              'flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-start text-xs transition-colors',
                               active?.key === step.key
                                 ? 'border-accent-line/45 bg-accent/15 text-foreground'
-                                : 'border-border/50 bg-background/60 text-muted-foreground hover:border-accent-line/25 hover:text-foreground'
-                            }`}
+                                : 'border-border/50 bg-background/60 text-muted-foreground hover:border-accent-line/25 hover:text-foreground',
+                            )}
                           >
                             <span className="flex min-w-0 items-center gap-2">
                               {step.status === 'completed' ? (
-                                <CheckCircle2 aria-hidden className="size-3.5 shrink-0 text-success" />
+                                <CheckCircle2
+                                  aria-hidden
+                                  className="size-3.5 shrink-0 text-success"
+                                />
                               ) : step.status === 'in_progress' || step.status === 'pending' ? (
                                 <LoaderCircle
                                   aria-hidden
                                   className="size-3.5 shrink-0 animate-spin text-accent-line motion-reduce:animate-none"
                                 />
                               ) : (
-                                <CircleDot aria-hidden className="size-3.5 shrink-0 text-warning" />
+                                <CircleDot
+                                  aria-hidden
+                                  className="size-3.5 shrink-0 text-warning"
+                                />
                               )}
                               <span dir="auto" className="truncate font-medium">
                                 {i + 1}. {stepLine(step).text}
@@ -217,10 +246,14 @@ export function AgentBoard({
                     })}
                   </ul>
 
-                  <div className="rounded-xl border border-accent-line/25 bg-card/90 p-3.5 md:col-span-6">
+                  <div
+                    className="rounded-xl border border-accent-line/25 bg-card/90 p-3.5 md:col-span-6"
+                  >
                     {active !== null && (
                       <div className="space-y-2.5">
-                        <span className="inline-flex items-center gap-1.5 rounded-md border border-accent-line/30 bg-accent/15 px-2 py-0.5 text-2xs font-medium text-accent-foreground">
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-md border border-accent-line/30 bg-accent/15 px-2 py-0.5 text-2xs font-medium text-accent-foreground"
+                        >
                           <Code2 aria-hidden className="size-3" />
                           Current Step
                         </span>
@@ -228,7 +261,9 @@ export function AgentBoard({
                           {stepLine(active).text}
                         </p>
                         {active.target !== null && (
-                          <p className="truncate rounded-lg border border-accent-line/15 bg-background px-2.5 py-1.5 font-mono text-2xs text-accent-foreground">
+                          <p
+                            className="truncate rounded-lg border border-accent-line/15 bg-background px-2.5 py-1.5 font-mono text-2xs text-accent-foreground"
+                          >
                             {active.target}
                           </p>
                         )}
@@ -240,7 +275,7 @@ export function AgentBoard({
                   </div>
                 </div>
               )}
-            </section>
+            </Panel>
 
             <AgentConsole steps={steps} />
           </div>
@@ -248,19 +283,27 @@ export function AgentBoard({
           <div className="flex flex-col gap-5 lg:col-span-5">
             {list.length > 0 && <TodoCard items={list} />}
 
-            <section aria-label="Subagents" className="surface-panel space-y-3 rounded-2xl p-4">
+            <Panel role="region" aria-label="Subagents" className="space-y-3">
               <div className="flex items-center gap-2">
                 <Bot aria-hidden className="size-4 text-accent-line" />
-                <h3 className="text-xs font-semibold tracking-wider text-foreground uppercase">Subagents</h3>
+                <h3 className="text-xs font-semibold tracking-wider text-foreground uppercase">
+                  Subagents
+                </h3>
               </div>
               {cards.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No subagents in this conversation.</p>
               ) : (
-                cards.map((card) => <SubagentCardView key={card.id} card={card} onOpen={onOpenSubagent} />)
+                cards.map((card) => (
+                  <SubagentCardView
+                    key={card.id}
+                    card={card}
+                    onOpen={onOpenSubagent}
+                  />
+                ))
               )}
-            </section>
+            </Panel>
 
-            <section aria-label="Context" className="surface-panel space-y-3 rounded-2xl p-4">
+            <Panel role="region" aria-label="Context" className="space-y-3">
               <h3 className="text-xs font-semibold tracking-wider text-foreground uppercase">Context</h3>
               {ctx === null ? (
                 <p className="text-xs text-muted-foreground">No context figures reported yet.</p>
@@ -269,7 +312,10 @@ export function AgentBoard({
                   <p className="font-mono text-xs text-foreground tabular-nums">
                     {formatTokens(ctx.used)} / {formatTokens(ctx.window)} tokens ({ctx.percent}%)
                   </p>
-                  <div aria-hidden className="h-2 w-full overflow-hidden rounded-full bg-background p-0.5">
+                  <div
+                    aria-hidden
+                    className="h-2 w-full overflow-hidden rounded-full bg-background p-0.5"
+                  >
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-accent to-accent-line"
                       style={{ width: `${Math.min(ctx.percent, 100)}%` }}
@@ -281,7 +327,7 @@ export function AgentBoard({
                 title="Context per operation"
                 reason="Waits for a shared request: context use per operation."
               />
-            </section>
+            </Panel>
 
             <Planned
               title="Active tools"

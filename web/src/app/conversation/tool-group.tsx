@@ -1,6 +1,7 @@
 // One job: a run of tool calls drawn as one line that opens into numbered
 // steps; a lone call is drawn as its own line.
 
+import { cn } from 'cn'
 import { useLocation } from '@tanstack/react-router'
 import { Ban, CheckCircle2, ChevronRight, LoaderCircle, Terminal, X } from 'lucide-react'
 import { memo, useEffect, useState } from 'react'
@@ -54,10 +55,13 @@ function ErrorText({ text, indent }: { text: string; indent: string }) {
   const long = text.split('\n').length > CLAMPED_LINES || text.length > CLAMPED_CHARS
   const [all, setAll] = useState(false)
   return (
-    <div className={`mt-1.5 ${indent}`}>
+    <div className={cn('mt-1.5', indent)}>
       <pre
         dir="auto"
-        className={`rounded-lg border border-destructive-border/60 bg-destructive/10 px-3 py-2 font-mono text-xs break-words whitespace-pre-wrap text-destructive-foreground ${long && !all ? 'line-clamp-6' : ''}`}
+        className={cn(
+          'rounded-lg border border-destructive-border/60 bg-destructive/10 px-3 py-2 font-mono text-xs break-words whitespace-pre-wrap text-destructive-foreground',
+          long && !all && 'line-clamp-6',
+        )}
       >
         {text}
       </pre>
@@ -111,9 +115,10 @@ function StepLine({
   return (
     <div
       id={step.ordinal === null || number === null ? undefined : `entry-${step.ordinal}`}
-      className={`rounded-lg px-2 py-1 transition-colors ${
-        isBusy ? 'border border-accent-line/35 bg-accent/15' : 'hover:bg-muted/40'
-      }`}
+      className={cn(
+        'rounded-lg px-2 py-1 transition-colors',
+        isBusy ? 'border border-accent-line/35 bg-accent/15' : 'hover:bg-muted/40',
+      )}
     >
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         {/* Every numbered step keeps the chevron's column, so the numbers line up. */}
@@ -126,7 +131,7 @@ function StepLine({
             onClick={() => setShown(!shown)}
             className="shrink-0 rounded text-accent-line transition-colors hover:bg-accent/25 hover:text-foreground"
           >
-            <ChevronRight className={`size-3.5 transition-transform ${shown ? 'rotate-90' : ''}`} />
+            <ChevronRight className={cn('size-3.5 transition-transform', shown && 'rotate-90')} />
           </button>
         )}
         {number !== null && (
@@ -228,7 +233,10 @@ export const ToolGroup = memo(function ToolGroup({
             className="flex w-full items-center gap-2.5 text-start text-xs font-medium text-secondary-foreground transition-colors hover:text-foreground"
           >
             <ChevronRight
-              className={`size-4 shrink-0 text-accent-line transition-transform duration-150 ${open ? 'rotate-90' : ''}`}
+              className={cn(
+                'size-4 shrink-0 text-accent-line transition-transform duration-150',
+                open && 'rotate-90',
+              )}
             />
             {busy ? (
               <LoaderCircle
