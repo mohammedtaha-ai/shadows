@@ -14,7 +14,7 @@ async fn opening_writes_the_stored_instructions() {
     w.core.harness().open_session(&w.thread).await.unwrap();
     assert_eq!(
         std::fs::read_to_string(w.home.join("CLAUDE.md")).unwrap(),
-        "Use the stored agent instructions."
+        "Your name is AYLUL.\n\nUse the stored agent instructions."
     );
     w.core
         .shut_down(Duration::from_secs(5), std::future::pending())
@@ -29,7 +29,10 @@ async fn opening_writes_the_template_for_empty_instructions() {
     w.core.harness().open_session(&w.thread).await.unwrap();
     assert_eq!(
         std::fs::read_to_string(w.home.join("CLAUDE.md")).unwrap(),
-        w.core.agents().instructions_template()
+        format!(
+            "Your name is AYLUL.\n\n{}",
+            w.core.agents().instructions_template()
+        )
     );
     w.core
         .shut_down(Duration::from_secs(5), std::future::pending())
