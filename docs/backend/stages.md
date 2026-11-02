@@ -66,7 +66,7 @@ Still open from that plan:
 - Done when: `initialize` advertises `["recommendedValue", "asyncTasks"]`; the three `async_task_*` kinds become `HarnessEvent::Task` events, read untyped because ACP's `SessionUpdate` has no variant for them, and an unknown kind never drops another notification; a connection method sends `_session/async_task/stop` and returns `stopped`. `cargo test -p shadows-agent` passes, with `async_tasks_are_advertised`, `async_task_updates_become_task_events` and `stopping_a_task_asks_the_adapter`. First probe: what the SDK does today with an unknown `sessionUpdate`; report it.
 
 ### B-37 · Harness keeps the session's tasks; frame and stop route
-- Status: todo
+- Status: done
 - Spec: [tool activity §6](specs/2026-10-31-tool-activity-design.md#6-background-tasks)
 - Read: `crates/shadows-core/src/app.rs` (`Harness`); `crates/core-harness/contract.yaml`; how `HarnessEvent::Commands` and `SessionTitle` reach a thread's stream between turns; `crates/shadows-http/contract.yaml`; `crates/shadows-http/src/sse.rs`, `harness.rs`, `openapi.rs`.
 - Touch: `crates/core-harness/src/`, its `contract.yaml` and `tests/`; the `core-events` subscription and contract only if the send after `caught-up` needs it; `crates/shadows-http/src/{sse,harness,lib,openapi}.rs` and its contract; `crates/shadows/tests/task_routes.rs` (new) and `openapi.rs` (route list); `api/openapi.json`; `web/src/api/` (regenerated only).

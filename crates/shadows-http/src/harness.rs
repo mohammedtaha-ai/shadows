@@ -17,6 +17,32 @@ use axum::http::StatusCode;
 use shadows_core::ThreadId;
 use shadows_core::{HarnessInfo, SessionChoices};
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub(super) struct TaskStopped {
+    stopped: bool,
+}
+
+/// Requests that the adapter stop one background task.
+#[utoipa::path(
+    post, path = "/api/threads/{id}/session/tasks/{task_id}/stop", tag = "threads",
+    params(("id" = ThreadId, Path), ("task_id" = String, Path)),
+    responses((status = 200, body = TaskStopped),
+        (status = 404, description = "Task or session not found", body = ErrorBody),
+        (status = 502, description = "Harness request failed", body = ErrorBody))
+)]
+pub(super) async fn stop_task(
+    State(s): State<AppState>,
+    Path((thread, task)): Path<(ThreadId, String)>,
+) -> Result<Json<TaskStopped>, Failure> {
+    let stopped = s
+        .core
+        .harness()
+        .stop_task(&thread, &task)
+        .await?
+        .ok_or_else(|| Failure::from(shadows_core::StorageError::NotFound("background task")))?;
+    Ok(Json(TaskStopped { stopped }))
+}
+
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct AnswerPermission {
     command_id: String,

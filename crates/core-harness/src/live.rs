@@ -176,6 +176,7 @@ impl Sessions {
             let events = Offers::intercept(self.offers.clone(), thread.clone(), tx);
             let events = super::Harness::keep_titles(self.storage.clone(), thread.clone(), events);
             let events = Commands::keep_commands(self.commands.clone(), thread.clone(), events);
+            let events = super::tasks::Tasks::intercept(self.tasks.clone(), thread.clone(), events);
             let mut image_refusal = None;
             let deadline = Instant::now() + self.config.setup_wait;
             let setup = async {

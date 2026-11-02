@@ -27,7 +27,9 @@ mod settings;
 mod setup;
 mod standards;
 mod store;
+mod tasks;
 mod titles;
+pub use tasks::BackgroundTask;
 
 use std::sync::Arc;
 

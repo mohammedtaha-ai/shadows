@@ -1464,6 +1464,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/session/tasks/{task_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requests that the adapter stop one background task. */
+        post: operations["stop_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/turns": {
         parameters: {
             query?: never;
@@ -3024,6 +3041,9 @@ export interface components {
             number: number;
             state: string;
             title: string;
+        };
+        TaskStopped: {
+            stopped: boolean;
         };
         /** @enum {string} */
         TestRefusal: "key_refused" | "unreachable" | "unexpected";
@@ -7132,6 +7152,7 @@ export interface operations {
              *     - `subagent` — `{op, card}`: a running turn's subagent card, whole, after each change: `{id, title, agent_type, model, status, prompt, steps, report, duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when it ends. Transient.
              *     - `tool` — `{op, id, tool, kind, title, target, lines, status, started_at}`: a running turn's tool call, whole, after each change; `status` is `pending`, `in_progress`, `completed` or `failed`. Its entry, kind `ToolCall` with the card, is written when it ends. After `caught-up`, each call still open is sent again. Transient.
              *     - `todos` — `{op, entries}`: a running turn's task list, whole, after each update, each entry `{content, status}`. After `caught-up` the turn's list is sent again. Transient.
+             *     - `tasks` — `{op, tasks}`: the open session's background tasks, in start order. `op` is the active turn or null. Sent after `caught-up` when nonempty and on changes. Each task carries `{id, name, description, task_type, state, started_at, ended_at, summary, can_stop}`. Times are Unix milliseconds. Transient.
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
              *     - `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.
              *     - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.
@@ -8032,6 +8053,46 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    stop_task: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ThreadId"];
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskStopped"];
+                };
+            };
+            /** @description Task or session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Harness request failed */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -22,6 +22,10 @@
 # parse, the bounded channel, `shutdown` and the `sse.*` lines around a
 # delivery — are `shadows-http/src/sse.rs`'s. A `Delivery` is not a frame.
 
+background_tasks:
+  delivery: A thread subscriber receives the current list after caught-up and on changes.
+  tested_by: a_subscriber_gets_the_tasks_after_caught_up
+
 name: events
 # ProjectStructureWritten is allowlisted for project subscriptions, carrying
 # project_id, map_version and paths after committed completion.

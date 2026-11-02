@@ -86,6 +86,7 @@ modules:
   model.rs: public harness values with unchanged schema description metadata
   assistant.rs: per-agent opening configuration
   commands.rs: live slash command lists
+  tasks.rs: session background task state
   extension_home.rs: enabled extension projection
   live.rs: adapter cache opening
   offers.rs: synchronous option offer dispatch
@@ -1011,6 +1012,15 @@ image_input:
   capability: Session choices carry image and image_reason from Connection initialize.
   require_images: Refuses image-bearing input when the harness reports no image capability.
   tested_by: a_harness_without_image_capability_refuses_with_its_reason
+
+background_tasks:
+  owner: Harness
+  lifetime: The open session; never persisted. Closing the session forgets the list.
+  updates: Spawn appends in start order; terminal state updates the existing task.
+  delivery: Every list change is published, including between turns.
+  stop_task: Unknown thread, session or task is absent; an ended task answers false.
+  tested_by: [tasks_outlive_the_turn_that_started_them, stop_reaches_the_adapter,
+    unknown_task_is_404, an_ended_task_is_not_stopped]
 
 dependencies:
   agents: crates/core-agents/contract.yaml
