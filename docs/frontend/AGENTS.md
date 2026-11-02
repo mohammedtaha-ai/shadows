@@ -20,7 +20,7 @@ character and native domains follow [the documentation map](../README.md).
 |---|---|
 | `web/` | `crates/`, `api/openapi.json` (Hamoud's side) |
 | `docs/frontend/` (plans, specs, stages, code map) and every `web/src/**/contract.yaml` | `docs/backend/`, `docs/codebase/` |
-| requests in `docs/shared/requests/` | `docs/superpowers/` (history: read it, add nothing new) |
+| requests in `docs/shared/requests/` | `docs/superpowers/` at `f1459dcc` (history: read it, add nothing new) |
 
 `web/src/api/schema.d.ts` is generated from `api/openapi.json` by
 `npm run gen:api` and is never edited by hand. Regenerate it only after the
@@ -39,7 +39,7 @@ backend has changed the document for an accepted request.
 2. `web/src/<folder>/contract.yaml`: what must stay true of that folder. Read it
    before changing the folder.
 3. `docs/frontend/specs/`: decisions for new frontend work. Older decisions
-   stay in `docs/superpowers/specs/`.
+   stay in `docs/core/specs/`.
 4. `docs/frontend/plans/`: one plan per piece of work, broken into tasks.
 5. [`docs/frontend/stages.md`](./stages.md): where the work is now, and the next
    task. The only place a builder learns its task from.

@@ -4,7 +4,7 @@ Branch `feature/aylul-agents-panel` (Mohammed, 2026-11-02). Moves the web design
 Studio built (export at `E:\Globalprojects\ui-modernizer-nov`, outside the repository) into
 `web/src`, without losing the five web commits made since the export's base `dc2ae544`, and
 without breaking the client's rules. The facts this plan rests on are in
-[`docs/evidence/2026-11-02-ai-studio-ui-analysis.md`](../../evidence/2026-11-02-ai-studio-ui-analysis.md)
+`docs/evidence/2026-11-02-ai-studio-ui-analysis.md` at `f1459dcc`
 (four analyst reports and Masada's own reading).
 
 The visual direction is owned by [`docs/frontend/specs/2026-11-01-visual-direction.md`](../specs/2026-11-01-visual-direction.md).

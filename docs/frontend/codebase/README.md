@@ -7,7 +7,8 @@ its code and follows [`docs/codebase/contracts/TEMPLATE.yaml`](../../codebase/co
 what must stay true of that folder. `web/src/codemap.test.ts` fails when a row here
 names a file that does not exist, when a source file has no row, or when a folder
 listed under Contracts has no `contract.yaml`. The map is checked on every
-`npm test`, so it cannot go stale quietly. Paths are relative to the repository root.
+`npm test`, so it cannot go stale quietly. Paths in "What each file owns" are relative
+to the repository root; paths in "Architecture modules" are relative to `web/src`.
 
 ## Architecture Invariants
 
@@ -35,6 +36,12 @@ What the code keeps true. Each one was checked by reading the code that enforces
 - Feature folders reach shared code by path (`@/api/…`, `@/components/ui/…`); the
   shared pieces at the root of `web/src/app/` (`error-line.tsx`, `copy-button.tsx`,
   `daemon-status.tsx`) are imported by the feature folders that need them.
+
+> **OPEN — two behaviours not decided** (from the web architecture plan, at
+> `f1459dcc`, section 8). (1) Queued-message focus: sending clears the focus chip,
+> queueing does not; the intended behaviour is unclear. (2) Cross-tab sync:
+> open-project state is a per-tab snapshot and does not merge other tabs' changes.
+> **Closes when** Mohammed decides each; neither blocks current work.
 
 ## Architecture modules
 
@@ -371,5 +378,5 @@ it is that folder's `contract.yaml`.
 | `web/src/test/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
 | `web/src/test/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
-| `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/plans/2026-10-25-web-architecture.md` |
+| `web/src/architecture.test.ts` | Enforces the frontend ownership ratchet | `docs/frontend/codebase/README.md` |
 | `web/src/architecture.fixtures.ts` | Supplies in-memory architecture rejection cases | `web/src/architecture.test.ts` |

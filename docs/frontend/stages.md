@@ -7,10 +7,10 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 F-62 to F-76 and F-68 shipped in PR #49 (`b40e077b`), on `main`: the web half of the AYLUL
 agents and panel design, and the AI Studio UI migration that replaced F-68's look. Their
-entries are in this file at `b40e077b`. The AYLUL panel plan (`docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md`)
-and the neon plan (`docs/frontend/plans/2026-11-01-neon-clarity.md`) are deleted; they are at `b40e077b`.
+entries are in this file at `b40e077b`. The AYLUL panel plan (`docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md` at `b40e077b`)
+and the neon plan (`docs/frontend/plans/2026-11-01-neon-clarity.md` at `b40e077b`) are deleted.
 The AI Studio plan, `docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md`, stays until F-77 is closed.
-The migration's facts are in `docs/evidence/2026-11-02-ai-studio-ui-analysis.md`.
+The migration's facts are in `docs/evidence/2026-11-02-ai-studio-ui-analysis.md` at `f1459dcc`.
 
 Open: F-77, the whole web client check after the migration. Its Done when still asks for
 screenshots of home, the sidebar, the conversation in both modes, the plan page, the agents
