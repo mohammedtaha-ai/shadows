@@ -127,6 +127,18 @@ its character and artwork are not ours to use (its `LICENSE-ASSETS.md`).
   the panel card and under the agent's name in the sidebar.
 - `instructions`: optional text, at most 32 KiB, no NUL. Empty means "use the
   bundled template".
+- **Name and description are who the agent is; instructions are how it works**
+  (Mohammed, 2026-11-03: an agent named "مس" with his own instructions did not
+  know its name). The home `CLAUDE.md` always opens with the agent's identity,
+  written by `Agents::home_instructions`, then the instructions or the template:
+  ```text
+  Your name is <name>.
+  Your role: <description>.        (absent when the description is empty)
+
+  <instructions, or the bundled template>
+  ```
+  The bundled template names no agent: it keeps only the general rules (answer
+  in the person's language, short and direct, never edit project files).
 - **Stored in the database, not only in the home.** That keeps the agent
   machine-independent (§5) and lets the web client read and write it through
   the API without file access.
@@ -208,8 +220,11 @@ Hermes-like dialog. In order:
 1. Outfit picker (previews) and colour.
 2. Name, description.
 3. Provider, default model (as today).
-4. Instructions: a large text area, prefilled with the bundled template for a
-   new agent.
+4. Instructions: a large text area, empty for a new agent, with a placeholder
+   saying what goes there (how the agent works: its style, its method, the
+   rules it follows). Left empty, the agent follows the bundled template. The
+   description field's hint says it is the agent's main role in one line
+   ("English teacher").
 5. Capabilities: skills, plugins and MCP tools from the library, each with a
    switch; "Add to library" opens the import already in Settings. An MCP item
    is added from the same place.

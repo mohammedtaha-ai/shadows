@@ -110,6 +110,48 @@ status, started_at}` and `todos` `{op, entries}`.
 description names which kind carries which. The subscribe route's description lists the two
 frames. No route changes.
 
+## 6. Background tasks
+
+Mohammed asked on 2026-11-03, after trying the AYLUL panel, for what Claude Code's desktop
+shows: a list of the commands still running behind the conversation, each with its own stop.
+
+**What the harness says.** The Claude adapter reports Claude's background work (a `Bash`
+call run in the background, a background workflow) only to a client that advertises the
+AIR capability `asyncTasks` in `initialize`'s `clientCapabilities._meta.jetbrains.air`,
+beside `recommendedValue`. It then sends three `session/update` kinds that ACP's typed
+`SessionUpdate` does not know:
+
+- `async_task_spawned` `{asyncTaskId, name, taskType, description, showInTranscript,
+  canStop, outputFilePath?, toolCallId?}`
+- `async_task_progress` `{asyncTaskId, outputFilePath?, toolCallId?}`
+- `async_task_state_update` `{asyncTaskId, state, summary?, outputFilePath?, toolCallId?}`,
+  `state` being `completed`, `failed` or `stopped`.
+
+It stops one task on the request `_session/async_task/stop` `{sessionId, asyncTaskId}`,
+answering `{stopped: bool}`; the turn and the other tasks go on.
+
+| Rule | Owner | Where |
+|---|---|---|
+| Advertise `asyncTasks`; read the three kinds untyped; send the stop request | `shadows-agent` | `acp/connection.rs`, `acp/mapping.rs` |
+| The open session's task list, which outlives the turn that started it | `Harness` | live state beside the session |
+| Stop one task | `Harness::stop_task` | `core-harness` |
+| Frame and route | `shadows-http` | `sse.rs`, `harness.rs`, `openapi.rs` |
+
+**Live, never kept.** A task is `{id, name, description, task_type, state, started_at,
+ended_at?, summary?, can_stop}`, `state` being `running`, `completed`, `failed` or
+`stopped`. Harness keeps, per open session, its tasks in start order: every running task
+and the finished ones, until the session closes. Nothing is written to the database; a
+restart loses the list, as it loses the running commands.
+
+**Frame.** `tasks` `{op, tasks}` (the whole list, transient, never replayed) on the
+thread's stream whenever the list changes, between turns too, and once right after
+`caught-up` when the list is not empty.
+
+**Route.** `POST /api/threads/{id}/session/tasks/{task_id}/stop` calls
+`Harness::stop_task`. It answers `{stopped}`; an unknown thread, a closed session or an
+unknown task is `404`; a task already ended answers `{stopped: false}`. The adapter's own
+`async_task_state_update` with `stopped` is what changes the list.
+
 ## Not here
 
 A read's file contents, a successful command's output, a diff while the
