@@ -15,6 +15,8 @@ use serde_json::Value;
 pub(super) struct Mapping;
 
 impl Mapping {
+    /// An update ACP's typed schema does not know: a task update becomes
+    /// `HarnessEvent::Task`; any other kind, or a malformed one, is dropped.
     pub(super) fn forward_raw(events: &impl Fn(HarnessEvent), update: Value) {
         if let Ok(task) = serde_json::from_value(update) {
             events(HarnessEvent::Task(task));

@@ -1650,5 +1650,5 @@ refresh_owner: "stream/ classifies plan events and dispatches API-owned invalida
 
 background_tasks:
   owner: "background-tasks.tsx renders the session's streamed task list beside the conversation; running tasks precede finished tasks."
-  behavior: "The header shows the running count once tasks exist; stoppable running tasks call the API individually. The stream supplies state after a stop and elapsed time updates while open."
-  tested_by: ["shows streamed tasks and stops only the selected task"]
+  behavior: "The header shows the running count while the list is not empty; stoppable running tasks call the API individually, showing Stopping… until it answers and its error after a failure. The stream supplies state after a stop and elapsed time updates while open."
+  tested_by: ["shows streamed tasks and stops only the selected task", "the count is hidden while the session has no tasks", "finished tasks are listed under the running ones with their state", "a stop in flight is pending and a refused stop shows its error"]

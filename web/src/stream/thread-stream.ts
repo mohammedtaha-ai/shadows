@@ -76,6 +76,8 @@ export interface StreamState {
   /** The latest task list of each running turn, by operation id. Cleared by a
    * break; kept past `turn-end` like `tools`. */
   readonly todos: Readonly<Record<string, readonly TodoItem[]>>
+  /** The open session's background tasks as the last `tasks` frame sent
+   * them, in start order. Cleared by a break; the next `caught-up` resends it. */
   readonly tasks: readonly BackgroundTask[]
   readonly lastTurnEnd: TurnEnd | null
   /** Why the last connection ended, for a person to read. */

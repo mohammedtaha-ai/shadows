@@ -22,10 +22,6 @@
 # parse, the bounded channel, `shutdown` and the `sse.*` lines around a
 # delivery — are `shadows-http/src/sse.rs`'s. A `Delivery` is not a frame.
 
-background_tasks:
-  delivery: A thread subscriber receives the current list after caught-up and on changes.
-  tested_by: a_subscriber_gets_the_tasks_after_caught_up
-
 name: events
 # ProjectStructureWritten is allowlisted for project subscriptions, carrying
 # project_id, map_version and paths after committed completion.
@@ -69,6 +65,11 @@ shapes:
     # again each time the committed signal moves.
     reading: bool
     caught_up: bool
+    # `harness.watch_tasks()`, taken as the subscription is built; each item
+    # carries its revision.
+    tasks: broadcast::Receiver<(ThreadId, u64, Vec<BackgroundTask>)>
+    # The revision of the list last delivered; an older queued change is skipped.
+    task_revision: u64
     # Set once the stream is over; every later `next` answers it.
     over: Option<&'static str>
   Scope:
@@ -80,6 +81,8 @@ shapes:
     options: broadcast::Receiver<(ThreadId, Offered)>
     signals: broadcast::Receiver<UiSignal>
   Delivery:
+    # The open session's background tasks and the running turn, if any. Transient.
+    Tasks: "{ op: Option<OperationId>, tasks: Vec<BackgroundTask> }"
     Durable: StoredEvent
     CaughtUp: "{ seq: i64 }"
     Delta: "{ op: OperationId, text: String }"
@@ -124,7 +127,8 @@ functions:
       signature: "(&self, thread: ThreadId, after: i64) -> Subscription"
       # Takes `storage.watch_committed()`, `turns.subscribe_live()`,
       # `harness.watch_options()`, `harness.watch_commands()` and
-      # `ui.subscribe()`, in that order, and reads nothing.
+      # `ui.subscribe()`, in that order, then `harness.watch_tasks()` as the
+      # subscription is built, and reads nothing.
   subscription:
     next:
       signature: "(&mut self) -> Result<Delivery, &'static str>"
@@ -134,7 +138,8 @@ functions:
       # journal read failed" and answers Fatal("the journal could not be
       # read")); an empty read ends `reading`, and the first one answers
       # CaughtUp { seq: last_seq }, after which a thread stream sends the
-      # running turn's activity (`turns.live_activity`, held by a thread
+      # session's task list (`harness.task_snapshot`) once if it is not empty,
+      # recording its revision; then the running turn's activity (`turns.live_activity`, held by a thread
       # stream only): one Tool per open call, then one Todos if a list exists;
       # then the harness's `/` list (`harness.commands_of`) once, if it has one; else
       # `live`, whose `commands` source sends each change of the thread's list.
@@ -144,10 +149,10 @@ functions:
       # `select!` biased: committed, bus, options, signals. Committed →
       # `reading` again (Err "shutdown: storage closed" when its sender is
       # gone). This thread's bus item → `transient`; its offer →
-      # `Harness::choices` → Options, or nothing on Err; its signal →
-      # PlanShow. Another thread's item → nothing. Lagged on any of the
-      # three → Lagged. Closed → Err "shutdown: bus closed" / "options
-      # closed" / "signals closed".
+      # `Harness::choices` → Options, or nothing on Err; its task list newer
+      # than `task_revision` → Tasks; its signal → PlanShow. Another thread's
+      # item → nothing. Lagged on any source → Lagged. Closed → Err "shutdown:
+      # bus closed" / "options closed" / "tasks closed" / "signals closed".
     transient:
       signature: "(&self, thread, op, item: HarnessEvent) -> Option<Delivery>"
       private: true
@@ -417,3 +422,8 @@ tests:
       A raw stream read up to caught-up, then the graceful shutdown: `serve`
       returns within 5 s.
 # Operation identities retained in events are reconstructed through core-operations.
+
+background_tasks:
+  delivery: A thread subscriber receives the current list after caught-up when it is not empty, and each newer change.
+  tested_by: [a_subscriber_gets_the_tasks_after_caught_up, tasks_are_published_between_turns,
+    snapshot_does_not_regress_to_an_older_queued_change]

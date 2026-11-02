@@ -1,6 +1,5 @@
-import { BackgroundTasks } from './background-tasks'
 // One job: the open conversation's pane — header, messages, composer, and
-// the plan or subagent shown beside them.
+// the plan, subagent or background tasks shown beside them.
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
@@ -20,6 +19,7 @@ import { ErrorLine } from '../error-line'
 import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { AgentBoard } from './agent-board'
+import { BackgroundTasks } from './background-tasks'
 import { Composer } from './composer'
 import { ContextRing } from './context-ring'
 import { DeletedConversation } from './deleted-conversation'
@@ -178,7 +178,7 @@ function Conversation({
                 </button>
               ))}
             </div>
-            {c.stream.tasks.length > 0 && <button type="button" onClick={() => { setSide(null); setAgent(null); setTasksOpen(true) }} className="text-xs text-muted-foreground hover:text-foreground">
+            {c.stream.tasks.length > 0 && <button type="button" aria-expanded={tasksOpen} onClick={() => { setSide(null); setAgent(null); setTasksOpen(true) }} className="text-xs text-muted-foreground hover:text-foreground">
               Background tasks: {c.stream.tasks.filter(task => task.state === 'running').length} running
             </button>}
             <CliPicker

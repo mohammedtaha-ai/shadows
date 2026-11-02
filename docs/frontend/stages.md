@@ -37,13 +37,13 @@ settings dialog, PR #40) at `1a2b601`.
 - Read: `web/src/app/agents/agent-settings.tsx` and its test; the agents contract.
 - Touch: `web/src/app/agents/agent-settings.tsx`; its test; the agents contract.
 - Needs: none.
-- Done when: a new agent's instructions field starts empty with a placeholder naming what goes there (style, method, rules), and saving it empty sends no instructions; the description field's hint reads "Main role in one line, e.g. English teacher"; the form no longer waits on the template query. `npm test -- agent-settings`, `npm run typecheck` and `npm run lint` pass.
+- Done when: a new agent's instructions field starts empty with a placeholder naming what goes there (style, method, rules), and saving it empty sends no instructions; the description field's hint reads "Main role in one line, e.g. English teacher"; the form no longer waits on the template query. `npm test -- agent-form` (`web/src/app/agents/agent-form.test.tsx`, the form's test), `npm run typecheck` and `npm run lint` pass.
 
 ### F-79 · Background tasks: a header button and its panel
 - Status: done
 - Spec: [tool activity §6](../backend/specs/2026-10-31-tool-activity-design.md#6-background-tasks)
 - Read: `web/src/app/conversation/contract.yaml`; the conversation header (the Chat Mode / Agent Mode row); how the `tool` and `todos` frames are read; `web/src/components/ui/panel.tsx`; `docs/frontend/AGENTS.md` (tokens only).
-- Touch: `web/src/app/conversation/` (a new `background-tasks.tsx` and its test, the header, the frame reader); its contract; `docs/frontend/codebase/README.md` if a row changes.
+- Touch: `web/src/app/conversation/` (a new `background-tasks.tsx` and its test, the header); its contract; `docs/frontend/codebase/README.md` if a row changes. Widened while building: the frame reader lives in `web/src/stream/` (`frames.ts`, `thread-stream.ts`, `thread-registry.ts`, `index.ts`, its contract), and the stop call is `stopTask` in `web/src/api/sessions.ts` (its contract).
 - Needs: B-37 (`web/src/api` regenerated).
 - Done when: the conversation header has a button showing the count of running tasks, hidden while the session has had none; it opens a right-side panel listing running tasks (name or description, elapsed time, a stop button that calls the route) and finished ones under them with their state; the list follows the `tasks` frame. `npm test -- background-tasks`, `npm run typecheck`, `npm run lint` and `npm run build` pass.
 

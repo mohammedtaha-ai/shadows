@@ -293,10 +293,11 @@ fn frame(delivery: Delivery) -> Event {
         Delivery::Options { thread, choices } => Event::default()
             .event("options")
             .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
-        // The harness's `/` list.
+        // The open session's background tasks, whole.
         Delivery::Tasks { op, tasks } => Event::default()
             .event("tasks")
             .data(serde_json::json!({ "op": op, "tasks": tasks }).to_string()),
+        // The harness's `/` list.
         Delivery::Commands { thread, commands } => Event::default()
             .event("commands")
             .data(serde_json::json!({ "thread_id": thread, "commands": commands }).to_string()),

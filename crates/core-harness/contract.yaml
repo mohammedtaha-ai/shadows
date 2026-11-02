@@ -318,11 +318,30 @@ functions:
       signature: "(&self, thread: &ThreadId) -> Option<Vec<SlashCommand>>"
       # pub(crate). The latest list the thread's open session sent, if any;
       # a thread stream sends it right after `caught-up`.
+    watch_tasks:
+      signature: "(&self) -> broadcast::Receiver<(ThreadId, u64, Vec<BackgroundTask>)>"
+      # Every change to any thread's background task list with its revision;
+      # memory only. `Subscription` takes one as it is built.
+    task_snapshot:
+      signature: "(&self, thread: &ThreadId) -> (u64, Vec<BackgroundTask>)"
+      # The list and the revision it was published at; a thread stream sends
+      # it after `caught-up` when not empty and skips older queued changes.
+    tasks_of:
+      signature: "(&self, thread: &ThreadId) -> Vec<BackgroundTask>"
+      # The list alone; empty for a thread with no open session.
     limits_of:
       signature: "(&self, thread: &ThreadId) -> Option<AccountLimits>"
       # pub(crate). turn_context → latest_limits of its harness; `None` for
       # an unknown thread, no limits, or a failed read, as the SSE usage
       # frame did before the move.
+  session_tasks:
+    stop_task:
+      signature: "(&self, thread: &ThreadId, id: &str) -> Result<Option<bool>, HarnessError>"
+      # turn_context (NotFound → None) → the live slot, released before the
+      # request (closed or exited → None) → the task (unknown → None; ended or
+      # not stoppable → Some(false)) → `Connection::stop_task`. A request
+      # failure is HarnessStartFailed. The list changes only on the adapter's
+      # own `stopped` report.
   session_close:
     close_session:
       signature: "(&self, thread: &ThreadId) -> io::Result<()>"
@@ -1015,10 +1034,10 @@ image_input:
 
 background_tasks:
   owner: Harness
-  lifetime: The open session; never persisted. Closing the session forgets the list.
+  lifetime: The open session; never persisted. Closing the session publishes an empty list once and forgets it.
   updates: Spawn appends in start order; terminal state updates the existing task.
   delivery: Every list change is published, including between turns.
-  stop_task: Unknown thread, session or task is absent; an ended task answers false.
+  stop_task: Unknown thread, session or task is absent; an ended task answers false; the session slot is not held while the adapter answers.
   tested_by: [tasks_outlive_the_turn_that_started_them, stop_reaches_the_adapter,
     unknown_task_is_404, an_ended_task_is_not_stopped]
 

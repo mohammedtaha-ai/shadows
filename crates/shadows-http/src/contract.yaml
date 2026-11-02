@@ -14,12 +14,6 @@
 # PersonError converts through CoreError to preserve HTTP refusals.
 # UsageError converts through CoreError to preserve HTTP refusals.
 # ProjectsError converts through CoreError to preserve HTTP refusals.
-background_tasks:
-  stop: POST /api/threads/{id}/session/tasks/{task_id}/stop delegates to Harness.
-  stream: The tasks frame carries the current operation if any and the session task list.
-  tested_by: [stop_reaches_the_adapter, unknown_task_is_404, an_ended_task_is_not_stopped,
-    a_subscriber_gets_the_tasks_after_caught_up]
-
 name: shadows-http
 version: 1
 status: current
@@ -72,3 +66,9 @@ agreements:
 
 # Provider service failures translate through CoreError before HTTP mapping.
 # Harness errors translate through CoreError with unchanged adapter responses.
+
+background_tasks:
+  stop: POST /api/threads/{id}/session/tasks/{task_id}/stop delegates to Harness.
+  stream: The tasks frame carries the current operation if any and the session task list.
+  tested_by: [stop_reaches_the_adapter, unknown_task_is_404, an_ended_task_is_not_stopped,
+    a_subscriber_gets_the_tasks_after_caught_up]

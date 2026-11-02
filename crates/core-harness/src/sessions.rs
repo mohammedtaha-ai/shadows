@@ -185,8 +185,8 @@ impl Sessions {
         Ok(())
     }
 
-    /// Drops what a closed or failed session left: its offer, its `/` list
-    /// and its grant.
+    /// Drops what a closed or failed session left: its offer, its `/` list,
+    /// its background tasks and its grant.
     pub(super) async fn forget(&self, thread: &ThreadId) {
         self.offers.forget(thread);
         self.commands.forget(thread);

@@ -116,6 +116,9 @@ impl Connection {
     }
 }
 
+/// Reads every notification untyped, because ACP's typed `SessionUpdate`
+/// refuses the adapter's `async_task_*` kinds: an update that does not decode
+/// typed goes to `Mapping::forward_raw`, so one unknown kind drops only itself.
 pub(super) fn dispatch_notification(
     notify: &impl Fn(HarnessEvent),
     costs: &crate::usage::Costs,
@@ -171,7 +174,8 @@ fn forward_stderr(stderr: ChildErr) {
 
 /// The client capabilities `initialize` advertises: the Claude adapter's
 /// `recommendedValue` extension, under which it offers no effort or model
-/// `default` and starts each model's effort at a level it reports.
+/// `default` and starts each model's effort at a level it reports, and
+/// `asyncTasks`, under which it reports background tasks and stops one on request.
 pub(super) fn capabilities() -> ClientCapabilities {
     let air = serde_json::json!({
         "jetbrains": { "air": { "version": 1, "capabilities": ["recommendedValue", "asyncTasks"] } }

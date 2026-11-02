@@ -44,6 +44,8 @@ const BATCH: i64 = 500;
 /// One frame of a thread's stream, in the order the subscriber must see it.
 #[derive(Debug)]
 pub enum Delivery {
+    /// The open session's background tasks, whole, after `caught-up` when
+    /// not empty and after each change. Transient.
     Tasks {
         op: Option<OperationId>,
         tasks: Vec<BackgroundTask>,
@@ -138,8 +140,11 @@ pub struct Subscription {
     /// `caught-up` was just sent on a thread stream: the running turn's open
     /// calls and task list follow, before the `/` list.
     activity_due: bool,
+    /// `caught-up` was just sent on a thread stream: the session's task list
+    /// follows when it is not empty, before the running turn's activity.
     tasks_due: bool,
     tasks: broadcast::Receiver<(ThreadId, u64, Vec<BackgroundTask>)>,
+    /// The revision of the list last sent; a queued older change is skipped.
     task_revision: u64,
     /// Activity frames read and not yet delivered.
     activity: VecDeque<Delivery>,
