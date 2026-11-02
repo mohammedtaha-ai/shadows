@@ -2,7 +2,7 @@
 
 - Status: asked
 - Asked by: Masada, 2026-11-02
-- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-76 (Agent Mode board, context section)
+- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-76 (`docs/frontend/stages.md` at `b40e077b`; Agent Mode board, context section)
 
 ## Need
 

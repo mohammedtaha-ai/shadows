@@ -2,7 +2,7 @@
 
 - Status: asked
 - Asked by: Masada, 2026-11-02
-- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-74 (AYLUL agents home, "Context & Memory Layers")
+- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-74 (`docs/frontend/stages.md` at `b40e077b`; AYLUL agents home, "Context & Memory Layers")
 
 ## Need
 

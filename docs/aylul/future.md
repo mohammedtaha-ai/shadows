@@ -44,7 +44,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Feature | What it gives Mohammed | Status | Why |
 |---|---|---|---|
 | AYLUL's own MCP tools | Core gives each agent tools for AYLUL's screen: set the character's state, show a task list | idea | [current direction](./vision.md#current-direction-2026-10-19) |
-| Glanceable desktop presence | Live agent status, quick approvals, drag-and-drop context, short spoken briefings | idea | [vision §18](./vision.md#18-desktop-companion) |
+| Glanceable desktop presence | Live agent status, quick approvals, drag-and-drop context, short spoken briefings | planned | [vision §18](./vision.md#18-desktop-companion) |
 | Personal memory with controls | Preferences remembered, correctable and forgettable; never used as project truth | idea | [vision §10](./vision.md#10-two-kinds-of-memory), [§37](./vision.md#37-the-liaison-as-a-personal-representative) |
 | Cost and token visibility | Model spend and token savings shown beside a decision | idea | [vision §12](./vision.md#12-token-efficiency-as-a-product-feature), [§46](./vision.md#46-cost-and-budget-awareness) |
 | Delegated policies | Explicit, scoped, reversible permission to approve small things without him | idea | [vision §38](./vision.md#38-delegated-policies) |

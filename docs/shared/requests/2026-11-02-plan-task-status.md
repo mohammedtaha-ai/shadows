@@ -2,7 +2,7 @@
 
 - Status: asked
 - Asked by: Masada, 2026-11-02
-- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-75 (plan page header); look in [visual direction](../../frontend/specs/2026-11-01-visual-direction.md)
+- Screen: [docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md](../../frontend/plans/2026-11-02-ai-studio-ui-migration.md), F-75 (`docs/frontend/stages.md` at `b40e077b`; plan page header); look in [visual direction](../../frontend/specs/2026-11-01-visual-direction.md)
 
 ## Need
 

@@ -2,7 +2,7 @@
 
 - Status: accepted (by the controller on Mohammed's behalf, 2026-11-01)
 - Asked by: Masada, 2026-11-01
-- Screen: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md (design
+- Screen: `docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md` at `b40e077b` (design
   docs/aylul/specs/2026-11-01-aylul-agents-and-panel-design.md §7.1–§7.8)
 
 ## Need
@@ -16,7 +16,7 @@ write all of it through the HTTP API, and follow waiting requests without pollin
 ## Fields
 
 The shapes are exactly those of `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md`
-§3 (at `e4001500`): §3.1 agents, §3.2 MCP tools, §3.3 permission requests. They are not copied
+at `b40e077b`, §3 (the commit that was current when they were accepted was `e4001500`): §3.1 agents, §3.2 MCP tools, §3.3 permission requests. They are not copied
 here, so there is one owner. The calls the frontend uses:
 
 | Call | Sends | Gets back |
@@ -43,7 +43,7 @@ here, so there is one owner. The calls the frontend uses:
 
 ## Backend answer
 
-As planned in `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3 (Hamoud,
+As planned in `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` at `b40e077b` §3 (Hamoud,
 2026-11-01).
 
 ## Frontend reply

@@ -3,7 +3,7 @@
 - Status: accepted (by the controller on Mohammed's behalf, 2026-11-01)
 - Asked by: masada, 2026-11-01
 - Owner: native-lead
-- Serves: docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md (design
+- Serves: `docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md` at `b40e077b` (design
   docs/aylul/specs/2026-11-01-aylul-agents-and-panel-design.md §7.6–§7.8)
 
 ## Need
@@ -13,7 +13,7 @@ clicked (agents grid, bound agent's card, status pill), selects another agent fr
 main window on a named page, and answers a waiting permission request of the bound agent's
 conversation. The renderer makes no HTTP call, so native `Companion` must publish what the panel
 shows in the companion state and carry each action to Core through its private client. Native
-tasks N-22 to N-25 build it; UI tasks U-5 to U-8 consume it.
+tasks N-22 to N-25 built it and UI tasks U-5 to U-8 consumed it (both in their stages files at `b40e077b`).
 
 ## Interface
 
@@ -40,7 +40,7 @@ tasks N-22 to N-25 build it; UI tasks U-5 to U-8 consume it.
 ## Answer
 
 Accepted as asked by the controller on Mohammed's behalf, 2026-11-01 (no native-lead session
-ran). HTTP names follow `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` §3.
+ran). HTTP names follow `docs/backend/plans/2026-11-01-aylul-agents-panel-backend.md` at `b40e077b` §3.
 
 ## Reply
 
