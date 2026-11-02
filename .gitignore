@@ -23,7 +23,6 @@ harness/*/node_modules/
 sandbox/persistence-delta/results/
 
 # Local launcher configuration
-
 /start-chat.cmd
 
 # Browser-check screenshots and traces; evidence that matters is copied into docs/evidence/.
@@ -40,5 +39,4 @@ sandbox/persistence-delta/results/
 /output/runtime/
 
 # Scratch output from local tools
-/tmp-aistudio-sync/
 /.playwright-cli/
