@@ -50,7 +50,7 @@ Still open from that plan:
 ## Tasks
 
 ### B-35 · An agent knows its name and role
-- Status: todo
+- Status: done
 - Spec: [AYLUL agents and panel §7.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md) ("Name and description are who the agent is")
 - Read: `crates/shadows-core/src/app.rs` (`Agents`); `crates/core-agents/contract.yaml`; `crates/core-agents/src/home.rs`; the bundled `CLAUDE.md` the contract names; the Harness caller of `home_instructions` (`crates/core-harness/contract.yaml`).
 - Touch: `crates/core-agents/src/home.rs`; the bundled `CLAUDE.md`; `crates/core-agents/contract.yaml`; `crates/core-agents/tests/`; a Harness test that asserts the written home `CLAUDE.md`, if one does.

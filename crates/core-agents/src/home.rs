@@ -36,13 +36,17 @@ impl Agents {
     /// that follows it, and `None` before the home file was imported.
     pub async fn home_instructions(&self, slug: &str) -> Result<Option<String>, AgentsError> {
         let stored = self.store.instructions(slug).await?;
-        Ok(stored.map(|text| {
-            if text.is_empty() {
-                TEMPLATE.to_owned()
-            } else {
-                text
-            }
-        }))
+        let Some(text) = stored else {
+            return Ok(None);
+        };
+        let agent = self.agent(slug).await?;
+        let mut identity = format!("Your name is {}.\n", agent.name);
+        if !agent.description.is_empty() {
+            identity.push_str(&format!("Your role: {}.\n", agent.description));
+        }
+        identity.push('\n');
+        identity.push_str(if text.is_empty() { TEMPLATE } else { &text });
+        Ok(Some(identity))
     }
 
     /// Reads each live agent's never-imported `<home>/CLAUDE.md` once and stores what
