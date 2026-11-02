@@ -20,7 +20,6 @@ import type { Turn } from './turn-state'
 import { type ContextFigures, contextShown, formatTokens } from './usage'
 
 const STAGES = ['Plan', 'Analyze', 'Execute', 'Verify', 'Deliver'] as const
-const TOOL_KINDS = ['Read', 'Edit', 'Search', 'Execute', 'Fetch'] as const
 
 const NO_ENTRIES: readonly ThreadEntry[] = []
 
@@ -63,6 +62,14 @@ export function AgentBoard({
   const shown = useMemo(() => all.filter((entry) => !silent(entry)), [all])
   const frames = useMemo(() => Object.values(tools), [tools])
   const turnOp = frames.at(-1)?.op
+  // The turn's tool calls as the stream sent them, in the order Core first saw each one.
+  const turnTools = useMemo(
+    () =>
+      frames
+        .filter((f) => f.op === turnOp)
+        .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt) || a.id.localeCompare(b.id)),
+    [frames, turnOp],
+  )
   const steps = useMemo(() => {
     const live = turnOp === undefined ? [] : liveSteps(frames, all, turnOp, running === null)
     return stepsOf(withLiveSteps(activityRows(shown), live, shown, turnOp))
@@ -145,7 +152,7 @@ export function AgentBoard({
           <Planned
             className="mt-5"
             title="Run stages"
-            reason="Waits for a shared request: the run stages of an agent turn."
+            reason="Waits for docs/shared/requests/2026-11-02-turn-run-stages.md"
           >
             <ol className="grid grid-cols-5 gap-2">
               {STAGES.map((stage, index) => (
@@ -325,26 +332,32 @@ export function AgentBoard({
               )}
               <Planned
                 title="Context per operation"
-                reason="Waits for a shared request: context use per operation."
+                reason="Waits for docs/shared/requests/2026-11-02-operation-context-use.md"
               />
             </Panel>
 
-            <Planned
-              title="Active tools"
-              reason="Waits for a shared request: the run stages of an agent turn, which name the tools in use."
-            >
-              <ul className="flex flex-wrap gap-2">
-                {TOOL_KINDS.map((kind) => (
-                  <li
-                    key={kind}
-                    className="flex items-center gap-1.5 rounded-lg border border-border/60 px-2.5 py-1 text-xs"
-                  >
-                    <CircleDot aria-hidden className="size-3" />
-                    {kind}
-                  </li>
-                ))}
-              </ul>
-            </Planned>
+            <Panel role="region" aria-label="Active tools" className="space-y-3">
+              <h3 className="text-xs font-semibold tracking-wider text-foreground uppercase">
+                Active tools
+              </h3>
+              {turnTools.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No tool calls in this turn.</p>
+              ) : (
+                <ul className="flex flex-wrap gap-2">
+                  {turnTools.map((frame) => (
+                    <li
+                      key={frame.id}
+                      data-status={frame.status}
+                      className="flex items-center gap-1.5 rounded-lg border border-border/60 px-2.5 py-1 text-xs"
+                    >
+                      <CircleDot aria-hidden className="size-3 text-accent-line" />
+                      <span className="font-medium text-foreground">{frame.tool ?? frame.kind}</span>
+                      <span className="text-muted-foreground">· {frame.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
           </div>
         </div>
       </div>

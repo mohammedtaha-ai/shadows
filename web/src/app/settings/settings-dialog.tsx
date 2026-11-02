@@ -28,7 +28,10 @@ export function SettingsDialog() {
   const [unsaved, setUnsaved] = useState(false)
 
   return (
-    <Dialog open={settings !== undefined} onOpenChange={value => { if (!value && !unsaved) close() }}>
+    <Dialog
+      open={settings !== undefined}
+      onOpenChange={value => { if (!value && !unsaved) close() }}
+    >
       <DialogContent
         className="h-[min(620px,calc(100dvh-2rem))] grid-cols-[minmax(140px,220px)_minmax(0,1fr)] gap-0 overflow-hidden border-accent-line/25 bg-popover/95 p-0 backdrop-blur-2xl sm:max-w-[920px]"
         finalFocus={() => document.querySelector<HTMLButtonElement>('[data-settings-trigger]')}

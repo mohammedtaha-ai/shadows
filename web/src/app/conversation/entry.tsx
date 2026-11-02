@@ -89,12 +89,34 @@ export function Entry({
     )
   }
   if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
-  if (entry.kind === 'PermissionAsked') return <PermissionCard entry={entry} projectId={projectId} />
-  if (entry.kind === 'PermissionAnswered') return <p className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-1.5 text-xs text-success"><span dir="auto">{entry.body}</span> · by you</p>
-  if (entry.kind === 'PermissionRefused' && typeof entry.card?.reason === 'string') return <p className="rounded-xl border border-warning/25 bg-warning/10 px-3.5 py-2.5 text-xs text-warning"><span dir="auto">{entry.body}</span> · {entry.card.reason}</p>
-  if (entry.kind === 'VisionProposal') return <VisionProposalCard entry={entry} projectId={projectId} />
+  if (entry.kind === 'PermissionAsked') {
+    return <PermissionCard entry={entry} projectId={projectId} />
+  }
+  if (entry.kind === 'PermissionAnswered') {
+    return (
+      <p
+        className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-1.5 text-xs text-success"
+      >
+        <span dir="auto">{entry.body}</span> · by you
+      </p>
+    )
+  }
+  if (entry.kind === 'PermissionRefused' && typeof entry.card?.reason === 'string') {
+    return (
+      <p
+        className="rounded-xl border border-warning/25 bg-warning/10 px-3.5 py-2.5 text-xs text-warning"
+      >
+        <span dir="auto">{entry.body}</span> · {entry.card.reason}
+      </p>
+    )
+  }
+  if (entry.kind === 'VisionProposal') {
+    return <VisionProposalCard entry={entry} projectId={projectId} />
+  }
   if (entry.kind === 'MapProposal') return <MapProposalCard entry={entry} projectId={projectId} />
-  if (entry.kind === 'RoadmapProposal') return <RoadmapProposalCard entry={entry} projectId={projectId} />
+  if (entry.kind === 'RoadmapProposal') {
+    return <RoadmapProposalCard entry={entry} projectId={projectId} />
+  }
   if (entry.kind === 'Subagent') {
     const card = subagentOf(entry)
     return card === null ? null : <SubagentCardView card={card} onOpen={onOpenSubagent} />

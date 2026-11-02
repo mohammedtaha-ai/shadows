@@ -1,6 +1,7 @@
 // One job: the conversation's messages — the durable entries in order, then
 // whatever the running turn is saying.
 
+import { cn } from 'cn'
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle, Sparkles } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
@@ -330,7 +331,7 @@ const EntryRow = memo(function EntryRow({
         onOpenSubagent={onOpenSubagent}
       />
       {answered !== undefined && <p className="text-xs text-faint-foreground">{answered}</p>}
-      <div className={entry.kind === 'UserMessage' ? 'flex justify-end' : undefined}>
+      <div className={cn(entry.kind === 'UserMessage' && 'flex justify-end')}>
         <MessageActions text={copyText(entry)} forkPoint={forkPoint} />
       </div>
     </motion.li>

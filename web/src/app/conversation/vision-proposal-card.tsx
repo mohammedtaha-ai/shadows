@@ -1,3 +1,4 @@
+import { panelVariants } from '@/components/ui/panel'
 import { useProposalApproval } from './use-proposal-approval'
 import { ProposalApproval } from './proposal-approval'
 import type { ThreadEntry } from '@/api/threads'
@@ -28,7 +29,7 @@ export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; p
   const action = { add: 'Add', edit: 'Edit', remove: 'Remove' }[snapshot.action]
   return <article
     data-vision-proposal={snapshot.id}
-    className="surface-panel rounded-2xl p-4 space-y-3"
+    className={panelVariants({ className: 'space-y-3' })}
   >
     <h3 className="text-sm font-semibold text-foreground">
       {action} {label}{snapshot.item_id ? ` · ${snapshot.item_id}` : ''}
@@ -44,6 +45,10 @@ export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; p
     <p dir="auto" className="whitespace-pre-wrap text-sm text-foreground">
       {snapshot.action === 'remove' ? snapshot.old_text : snapshot.text}
     </p>
-    <ProposalApproval approval={approval} buttonLabel="Approve" textClass="text-xs text-muted-foreground" />
+    <ProposalApproval
+      approval={approval}
+      buttonLabel="Approve"
+      textClass="text-xs text-muted-foreground"
+    />
   </article>
 }

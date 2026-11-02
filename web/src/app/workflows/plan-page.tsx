@@ -158,7 +158,7 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
       <div className="flex flex-wrap items-center gap-4">
         <Planned
           title="Plan progress"
-          reason="Waits for the shared request: task status on a plan task."
+          reason="Waits for docs/shared/requests/2026-11-02-plan-task-status.md"
           className="min-w-52"
         >
           <p className="text-xs tabular-nums">

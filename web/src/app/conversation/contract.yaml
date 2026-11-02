@@ -308,9 +308,11 @@ components:
     # `Messages` draws (one function, `withLiveSteps`), the live task list else the last written one
     # (`currentTodos`), subagents, the model, and the context figures the turn reported. The steps
     # header counts completed steps ("n of m steps done") only when there are steps, never as a
-    # percent or a bar: a turn's steps are not known ahead. The run stages, the context per
-    # operation and the active tools sit inside `Planned`, inert, naming the shared request each waits
-    # for; nothing in them is computed.
+    # percent or a bar: a turn's steps are not known ahead. Active tools lists the latest turn's
+    # live `tool` frames (`tools` with that turn's `op`), ordered by `startedAt` then id, each as its
+    # `tool` (else `kind`) and `status` exactly as Core sent them; with none it says "No tool calls in
+    # this turn.". The run stages and the context per operation sit inside `Planned`, inert, naming
+    # the request file in docs/shared/requests/ each waits for; nothing in them is computed.
   AgentConsole:
     signature: "(props: { steps: readonly ToolStep[] }) => JSX.Element"
     # Tabs Diff (edit steps, `ToolDiff`), Terminal (`execute` steps, filter by status), Files (steps

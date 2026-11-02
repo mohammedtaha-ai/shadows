@@ -207,10 +207,23 @@ export function Composer({
           addImages(Array.from(e.dataTransfer.files))
         }}
       >
-        <input ref={filePicker} type="file" accept="image/*" multiple hidden aria-label="Add photos"
+        <input
+          ref={filePicker}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          aria-label="Add photos"
           disabled={imageReason !== null || inFlight}
-          onChange={e => { addImages(Array.from(e.target.files ?? [])); e.target.value = '' }} />
-        <PendingImages images={images} threadId={threadId} inFlight={inFlight} onRetry={retry} onRemove={remove} />
+          onChange={e => { addImages(Array.from(e.target.files ?? [])); e.target.value = '' }}
+        />
+        <PendingImages
+          images={images}
+          threadId={threadId}
+          inFlight={inFlight}
+          onRetry={retry}
+          onRemove={remove}
+        />
 
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
         <div className="surface-glow flex items-end gap-2.5 rounded-2xl p-3 transition-all duration-150 focus-within:border-accent-line/80 focus-within:ring-2 focus-within:ring-accent-line/30">
@@ -329,7 +342,9 @@ export function Composer({
           } : undefined}
         />
         {error !== null && <ErrorLine error={error} />}
-        {companionProblem&&<p role="status" className="text-xs text-muted-foreground">{companionProblem}</p>}
+        {companionProblem && (
+          <p role="status" className="text-xs text-muted-foreground">{companionProblem}</p>
+        )}
       </div>
     </div>
   )

@@ -68,7 +68,10 @@ export function AylulHome() {
             </div>
           </div>
 
-          <Planned title="Run stages" reason="Waits for the run stages of an agent turn.">
+          <Planned
+            title="Run stages"
+            reason="Waits for docs/shared/requests/2026-11-02-turn-run-stages.md"
+          >
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {STAGES.map((stage) => (
                 <div
@@ -144,13 +147,13 @@ export function AylulHome() {
           <PlannedList
             icon={Wrench}
             title="Agent Runtime Capabilities"
-            reason="Waits for the runtime capabilities of an agent."
+            reason="Waits for docs/shared/requests/2026-11-02-agent-runtime-capabilities.md"
             items={['File System & Diffs', 'Terminal Execution', 'Multi-Model Handoff', 'Subagent Delegation']}
           />
           <PlannedList
             icon={Cpu}
             title="Context & Memory Layers"
-            reason="Waits for the context use per operation."
+            reason="Waits for docs/shared/requests/2026-11-02-agent-context-layers.md"
             items={['Working Task State', 'Session Conversation', 'Project Architecture', 'Scoped Environment']}
           />
         </div>

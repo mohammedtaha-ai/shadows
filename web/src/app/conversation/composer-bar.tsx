@@ -99,7 +99,11 @@ export function ComposerBar({
             side="top"
             finalFocus={() => openingPlugins.current ? false : messageBox.current}
           >
-            <DropdownMenuItem disabled={imageReason !== null} title={imageReason ?? 'Ctrl+U'} onClick={onPhotos}>
+            <DropdownMenuItem
+              disabled={imageReason !== null}
+              title={imageReason ?? 'Ctrl+U'}
+              onClick={onPhotos}
+            >
               <span className="flex flex-col">
                 <span>Add photos</span>
                 <span className="text-xs text-muted-foreground">{imageReason ?? 'Ctrl+U'}</span>

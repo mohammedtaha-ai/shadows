@@ -6,7 +6,7 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { TodoItem } from '@/stream'
+import type { TodoItem, ToolFrame } from '@/stream'
 import { entryOfKind, toolCardEntry, toolCardFixture, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '@/test/test-app'
@@ -74,6 +74,35 @@ describe('AgentBoard', () => {
     const host = draw(<AgentBoard {...props} entries={[userEntry('u1', 'Hello')]} />)
     expect(host.textContent).toContain('No tool steps in this conversation yet')
     expect(host.textContent).not.toMatch(/\d+%/)
+  })
+
+  it("lists the turn's tool calls as the stream sent them, else an empty state", () => {
+    const frame = (id: string, startedAt: string, rest: Partial<ToolFrame>): ToolFrame => ({
+      op: 'op1',
+      id,
+      tool: null,
+      kind: 'other',
+      title: id,
+      target: null,
+      lines: null,
+      status: 'in_progress',
+      startedAt,
+      ...rest,
+    })
+    const tools = {
+      b: frame('b', '2026-11-02T10:00:02Z', { tool: 'Bash', kind: 'execute', status: 'failed' }),
+      a: frame('a', '2026-11-02T10:00:01Z', { tool: 'Read', kind: 'read', status: 'completed' }),
+      c: frame('c', '2026-11-02T10:00:03Z', { kind: 'fetch' }),
+    }
+    const host = draw(<AgentBoard {...props} tools={tools} entries={[]} />)
+    const rows = [...host.querySelectorAll('[aria-label="Active tools"] li')].map((li) => li.textContent)
+    expect(rows).toEqual(['Read· completed', 'Bash· failed', 'fetch· in_progress'])
+    expect(host.querySelector('[aria-label="Active tools (planned)"]')).toBeNull()
+
+    const empty = draw(<AgentBoard {...props} entries={[]} />)
+    expect(empty.querySelector('[aria-label="Active tools"]')?.textContent).toContain(
+      'No tool calls in this turn.',
+    )
   })
 
   it('marks the stepper planned and inert', () => {

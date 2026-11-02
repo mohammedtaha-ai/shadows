@@ -1,3 +1,4 @@
+import { panelVariants } from '@/components/ui/panel'
 import { useProposalApproval } from './use-proposal-approval'
 import { ProposalApproval } from './proposal-approval'
 import type { ThreadEntry } from '@/api/threads'
@@ -26,7 +27,7 @@ export function MapProposalCard({entry,projectId}: {entry:ThreadEntry;projectId:
   if (!proposed) return <p dir="auto">{entry.body}</p>
   return <article
     data-map-proposal={proposed.id}
-    className="surface-panel space-y-4 rounded-2xl p-4"
+    className={panelVariants({ className: 'space-y-4' })}
   >
     <h3 className="font-semibold text-foreground">{proposed.action==='first' ? 'First project map' : proposed.action==='add' ? 'Add part' : 'Change part'}</h3>
     {proposed.old && <section className="rounded-xl border border-accent-line/20 bg-background/70 p-3 text-sm"><h4>Changed fields</h4>
@@ -41,9 +42,15 @@ export function MapProposalCard({entry,projectId}: {entry:ThreadEntry;projectId:
       className="space-y-2 rounded-xl border border-warning/40 bg-warning/10 p-3"
     >
       <h4 className="font-medium text-warning">This approval includes these waivers</h4>
-      {proposed.waivers.map(w => <p key={w.part} dir="auto">Without {w.part} — reason: {w.reason}</p>)}
+      {proposed.waivers.map(w => (
+        <p key={w.part} dir="auto">Without {w.part} — reason: {w.reason}</p>
+      ))}
     </section>}
-    <ProposalApproval approval={approval} buttonLabel={proposed.waivers.length ? 'Approve map and waivers' : 'Approve map'} textClass="text-sm" />
+    <ProposalApproval
+      approval={approval}
+      buttonLabel={proposed.waivers.length ? 'Approve map and waivers' : 'Approve map'}
+      textClass="text-sm"
+    />
   </article>
 }
 
@@ -58,7 +65,14 @@ function PartTree({parts,projectId,first,parent=null,depth=0}: {parts:MapProposa
         {p.content.design}
       </p>
       <MapPartDetails content={p.content} projectId={projectId} />
-      {first && parts.some(child => child.parent_key===p.key) && <PartTree parts={parts} projectId={projectId}
-        first parent={p.key} depth={depth+1} />}
+      {first && parts.some(child => child.parent_key===p.key) && (
+        <PartTree
+          parts={parts}
+          projectId={projectId}
+          first
+          parent={p.key}
+          depth={depth+1}
+        />
+      )}
     </li>)}</ul>
 }
