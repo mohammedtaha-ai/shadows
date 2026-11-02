@@ -80,9 +80,18 @@ export function ComposerBar({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+      <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
         <DropdownMenu onOpenChange={(open) => { if (open) openingPlugins.current = false }}>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label="Add" />}>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Add"
+                className="rounded-lg border border-border/60 bg-card/60 hover:border-accent-line/40 hover:bg-accent/20"
+              />
+            }
+          >
             <Plus />
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -106,7 +115,9 @@ export function ComposerBar({
           </DropdownMenuContent>
         </DropdownMenu>
         {session.state === 'connecting' && (
-          <span className="px-1.5">Connecting to {harnessLabel}…</span>
+          <span className="rounded-lg border border-border/50 bg-card/50 px-2 py-0.5 text-muted-foreground">
+            Connecting to {harnessLabel}…
+          </span>
         )}
         {session.state === 'failed' && (
           <span className="flex min-w-0 items-center gap-2 px-1.5">
@@ -127,15 +138,18 @@ export function ComposerBar({
           />
         )}
         {directory != null && (
-          <span className="flex min-w-0 items-center gap-1 px-1.5" title={directory}>
-            <Folder aria-hidden className="size-3.5 shrink-0" />
+          <span
+            className="flex min-w-0 items-center gap-1.5 rounded-lg border border-border/50 bg-card/50 px-2 py-0.5"
+            title={directory}
+          >
+            <Folder aria-hidden className="size-3.5 shrink-0 text-accent-line/80" />
             <span className="truncate font-mono text-[11px] text-faint-foreground">
               <span className="sr-only">Runs in </span>
               {directory}
             </span>
           </span>
         )}
-        <span className="ml-auto flex shrink-0 items-center gap-1">
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {choices !== null && settings !== null && (
             <>
               <Setting
@@ -200,10 +214,19 @@ function Setting({
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="xs" title={title} aria-label={title} disabled={disabled} />}
+        render={
+          <Button
+            variant="ghost"
+            size="xs"
+            title={title}
+            aria-label={title}
+            disabled={disabled}
+            className="rounded-lg border border-border/60 bg-card/70 text-foreground/90 hover:border-accent-line/45 hover:bg-accent/20"
+          />
+        }
       >
         {labelOf(options, value)}
-        <ChevronDown aria-hidden />
+        <ChevronDown aria-hidden className="text-accent-line" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top">
         <DropdownMenuGroup>

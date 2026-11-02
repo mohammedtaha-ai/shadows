@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { MessageSquarePlus, X } from 'lucide-react'
+import { Code2, MessageSquarePlus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { harnessesQuery, policyOf } from '@/api/harnesses'
 import { planVersionsQuery, plansQuery } from '@/api/workflows'
@@ -81,15 +81,20 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
-        <div className="min-w-0">
-          <h1 className="truncate text-sm font-medium">New conversation</h1>
-          {harness !== AYLUL_HARNESS && <StageChip projectId={projectId} />}
-          <p className="truncate text-xs text-faint-foreground">
-            <bdi>{agentName ?? project?.name ?? '…'}</bdi>
-            {project?.assistant === true ? null : ' · Planner'}
-          </p>
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <header className="flex items-center justify-between gap-4 border-b border-border/70 bg-background/85 px-6 py-3 backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent-line/35 bg-accent/15">
+            <Code2 aria-hidden className="size-4 text-accent-line" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">New conversation</h1>
+            {harness !== AYLUL_HARNESS && <StageChip projectId={projectId} />}
+            <p className="truncate text-xs text-faint-foreground">
+              <bdi>{agentName ?? project?.name ?? '…'}</bdi>
+              {project?.assistant === true ? null : ' · Planner'}
+            </p>
+          </div>
         </div>
         <CliMenu
           harness={harness}
@@ -98,21 +103,23 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
           assistant={project?.assistant === true}
         />
       </header>
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-        <div className="relative flex items-center justify-center">
-          <div className="absolute size-14 rounded-full bg-accent-line/10 blur-xl" aria-hidden />
-          <div className="relative flex size-12 items-center justify-center rounded-full border border-border/60 bg-card/60 shadow-xs">
-            <MessageSquarePlus aria-hidden className="size-6 text-accent-line" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="surface-panel flex max-w-md flex-col items-center gap-4 rounded-2xl px-8 py-10">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute size-16 rounded-full bg-accent-line/15 blur-xl" aria-hidden />
+            <div className="relative flex size-14 items-center justify-center rounded-2xl border border-accent-line/40 bg-accent/15">
+              <MessageSquarePlus aria-hidden className="size-6 text-accent-line" />
+            </div>
           </div>
+          <p className="text-sm text-muted-foreground">
+            The conversation starts with your first message.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          The conversation starts with your first message.
-        </p>
       </div>
       {planId && (
         <div className="px-6 pb-2">
           <div className="mx-auto max-w-3xl">
-            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent-line/40 bg-accent-softer/90 py-1 pr-1.5 pl-3 text-xs text-secondary-foreground shadow-xs transition-all">
+            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent-line/40 bg-accent/15 py-1 pr-1.5 pl-3 text-xs text-secondary-foreground shadow-xs transition-all">
               <span dir="auto" className="truncate font-medium">
                 Continuing: {planTitle}
               </span>
@@ -120,7 +127,7 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
                 type="button"
                 onClick={clearPlan}
                 aria-label="×"
-                className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-full p-0.5 text-accent-line transition-colors hover:bg-accent/25 hover:text-foreground"
               >
                 <X className="size-3" aria-hidden />
                 <span className="sr-only">×</span>

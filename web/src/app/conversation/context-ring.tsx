@@ -26,29 +26,43 @@ export function ContextRing({
       <PopoverTrigger
         openOnHover
         delay={300}
-        render={<Button variant="ghost" size="icon-xs" aria-label="Context and limits" />}
+        render={<Button variant="ghost" size="icon-xs" aria-label="Context and limits" className="hover:bg-accent/25" />}
       >
         <Ring percent={shown?.percent ?? null} />
       </PopoverTrigger>
-      <PopoverContent side="top" align="end" className="space-y-3 text-xs">
-        <section className="space-y-1">
-          <h2 className="font-medium text-foreground">Context</h2>
-          <p className="text-muted-foreground">
+      <PopoverContent
+        side="top"
+        align="end"
+        className="surface-glow w-72 space-y-3.5 rounded-xl p-4 text-xs"
+      >
+        <section className="space-y-1.5">
+          <h2 className="text-xs font-semibold tracking-wide text-foreground">Context</h2>
+          <p className="font-mono text-muted-foreground tabular-nums">
             {shown === null
               ? 'No figures yet'
               : `${formatTokens(shown.used)} / ${formatTokens(shown.window)} (${shown.percent}%)`}
           </p>
+          {shown !== null && (
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-accent to-accent-line"
+                style={{ width: `${Math.min(shown.percent, 100)}%` }}
+              />
+            </div>
+          )}
         </section>
         {limits === null ? (
-          <p className="text-muted-foreground">Limits: no figures yet</p>
+          <p className="rounded-lg border border-border/50 bg-background/40 px-2.5 py-1.5 text-muted-foreground">
+            Limits: no figures yet
+          </p>
         ) : (
-          <section className="space-y-2">
+          <section className="space-y-2.5 rounded-lg border border-border/50 bg-background/40 p-2.5">
             <Bar name="5-hour limit" window={limits.fiveHour} now={now} />
             <Bar name="Weekly" window={limits.sevenDay} now={now} />
             <p className="text-faint-foreground">updated {clock(limits.observedAt)}</p>
           </section>
         )}
-        <p className="border-t border-border pt-2 text-muted-foreground">
+        <p className="border-t border-border/70 pt-2.5 text-[11px] text-muted-foreground">
           Type /context in the conversation for the full breakdown.
         </p>
       </PopoverContent>
@@ -65,8 +79,8 @@ function Bar({ name, window, now }: { name: string; window: LimitWindow | null; 
   return (
     <div className="space-y-1">
       <div className="flex justify-between gap-3">
-        <span className="text-foreground">{name}</span>
-        <span className="text-muted-foreground tabular-nums">{percent}%</span>
+        <span className="font-medium text-foreground">{name}</span>
+        <span className="font-mono text-muted-foreground tabular-nums">{percent}%</span>
       </div>
       <div
         role="progressbar"
@@ -77,7 +91,11 @@ function Bar({ name, window, now }: { name: string; window: LimitWindow | null; 
         className="h-1.5 overflow-hidden rounded-full bg-muted"
       >
         <div
-          className={percent >= 90 ? 'h-full bg-destructive' : 'h-full bg-accent-line'}
+          className={
+            percent >= 90
+              ? 'h-full bg-destructive'
+              : 'h-full bg-gradient-to-r from-accent to-accent-line'
+          }
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>

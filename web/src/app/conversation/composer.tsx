@@ -192,8 +192,8 @@ export function Composer({
   const error = sendError ?? stopError ?? settingsError ?? carriedError
 
   return (
-    <div className="border-t border-border bg-background/95 px-6 pt-3 pb-4 backdrop-blur-md">
-      <div className="mx-auto max-w-3xl space-y-2"
+    <div className="border-t border-border/70 bg-background/90 px-6 pt-3 pb-4 backdrop-blur-xl">
+      <div className="mx-auto max-w-3xl space-y-2.5"
         onKeyDown={e => {
           if (e.ctrlKey && e.key.toLowerCase() === 'u') {
             e.preventDefault()
@@ -213,7 +213,7 @@ export function Composer({
         <PendingImages images={images} threadId={threadId} inFlight={inFlight} onRetry={retry} onRemove={remove} />
 
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
-        <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
+        <div className="surface-glow flex items-end gap-2.5 rounded-2xl p-3 transition-all duration-150 focus-within:border-accent-line/80 focus-within:ring-2 focus-within:ring-accent-line/30">
           <div className="relative flex-1">
             <textarea
               ref={messageBox}
@@ -284,7 +284,7 @@ export function Composer({
               disabled={(prompt.trim() === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || inFlight}
               size="icon"
               aria-label="Send"
-              className="rounded-lg shadow-2xs transition-transform active:scale-95"
+              className="rounded-xl bg-gradient-to-br from-accent-line to-accent text-primary-foreground transition-all hover:brightness-110 active:scale-95 disabled:opacity-40"
             >
               <ArrowUp />
             </Button>
@@ -293,7 +293,7 @@ export function Composer({
               variant="outline"
               onClick={() => stop(running.id)}
               disabled={stopping}
-              className="border-destructive-border text-destructive-foreground shadow-2xs transition-all hover:bg-destructive/10 hover:text-destructive-foreground"
+              className="rounded-xl border-destructive-border bg-destructive/15 text-destructive-foreground shadow-2xs transition-all hover:bg-destructive/25 hover:text-destructive-foreground"
             >
               <Square className="size-3 fill-current" />
               {stopLabel}
