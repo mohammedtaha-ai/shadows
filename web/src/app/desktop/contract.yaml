@@ -51,6 +51,6 @@ feature_entry: "index.ts exposes UseWithCompanion, CompanionControls, CompanionS
 route_entries: "activity.tsx remain separate public lazy route modules declared by index.ts."
 
 desktop_capabilities:
-  Activity: localCore gates local sessions and approval controls; without it the existing desktop-availability message is shown.
+  Activity: localCore gates local sessions and approval controls; without it the existing desktop-availability message is shown inside a panel.
   desktopSettingsSections: Ordered registrations carry the desktop-owned id, label, This machine group, capability and content component. Character requires companion; Local Core requires localCore. visibleDesktopSettingsSections filters at read time.
   DesktopSidebarActions: localCore gates Local activity; tray independently gates Hide to tray. The row exists when either is available; the error line follows the row.

@@ -29,26 +29,26 @@ export function SettingsDialog() {
   return (
     <Dialog open={settings !== undefined} onOpenChange={value => { if (!value && !unsaved) close() }}>
       <DialogContent
-        className="h-[min(590px,calc(100dvh-2rem))] grid-cols-[minmax(130px,210px)_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-[900px]"
+        className="h-[min(620px,calc(100dvh-2rem))] grid-cols-[minmax(140px,220px)_minmax(0,1fr)] gap-0 overflow-hidden border-accent-line/25 bg-popover/95 p-0 backdrop-blur-2xl sm:max-w-[920px]"
         finalFocus={() => document.querySelector<HTMLButtonElement>('[data-settings-trigger]')}
       >
-        <nav aria-label="Settings sections" className="overflow-y-auto border-r border-border bg-muted/30 px-3 py-5">
+        <nav aria-label="Settings sections" className="overflow-y-auto border-r border-border bg-sidebar/80 px-3 py-5">
           {(['You', 'AI', 'This machine'] as const).map(group => {
             const items = sections.filter(section => section.group === group)
             return items.length > 0 && (
               <div key={group} className="mb-5 space-y-1">
-                <h2 className="px-2 pb-1 text-xs text-faint-foreground">{group}</h2>
+                <h2 className="px-2.5 pb-1 text-[11px] font-semibold tracking-wider text-faint-foreground uppercase">{group}</h2>
                 {items.map(section => (
                   <button key={section.id} type="button" disabled={unsaved && selected?.id !== section.id} aria-current={selected?.id === section.id ? 'page' : undefined}
-                    className={`w-full rounded-md px-2 py-2 text-left text-sm hover:bg-secondary disabled:opacity-50 ${selected?.id === section.id ? 'bg-secondary font-medium' : ''}`}
+                    className={`w-full rounded-xl px-2.5 py-2 text-left text-sm transition-all disabled:opacity-50 ${selected?.id === section.id ? 'pill-active font-medium' : 'text-muted-foreground hover:bg-accent-line/10 hover:text-foreground'}`}
                     onClick={() => open(section.id)}>{section.label}</button>
                 ))}
               </div>
             )
           })}
         </nav>
-        <div className="min-w-0 overflow-y-auto px-6 py-6">
-          <DialogTitle className="mb-6 pr-8">{selected?.label ?? 'General'}</DialogTitle>
+        <div className="min-w-0 overflow-y-auto px-7 py-6">
+          <DialogTitle className="mb-6 pr-8 text-base font-semibold tracking-tight text-foreground">{selected?.label ?? 'General'}</DialogTitle>
           {Content && <Content key={selected?.id} onUnsavedChange={setUnsaved} />}
         </div>
       </DialogContent>

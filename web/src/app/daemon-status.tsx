@@ -19,7 +19,7 @@ export function ConnectionIndicator() {
 
   const [dot, label] =
     status === 'success'
-      ? ['bg-success', 'Connected']
+      ? ['bg-success shadow-[0_0_8px_var(--success)]', 'Connected']
       : status === 'pending'
         ? ['animate-pulse bg-faint-foreground', 'Connecting']
         : isUnreachable(error)
@@ -29,7 +29,7 @@ export function ConnectionIndicator() {
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
       <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
-      <span className="truncate">
+      <span className="truncate font-mono text-[11px]">
         {label} · {DAEMON_HOST}
       </span>
     </p>
@@ -47,14 +47,14 @@ export function DaemonProblem({
   retrying: boolean
 }) {
   return (
-    <Alert className="max-w-lg border-destructive-border p-4">
+    <Alert className="surface-panel max-w-lg border-destructive-border/80 p-5">
       <CircleAlert className="text-destructive" />
-      <AlertTitle className="text-destructive-foreground">
+      <AlertTitle className="text-sm font-semibold text-destructive-foreground">
         {isUnreachable(error)
           ? `Shadows can't reach its daemon at ${DAEMON_URL}`
           : `The daemon at ${DAEMON_URL} answered with an error`}
       </AlertTitle>
-      <AlertDescription className="mt-2 space-y-3 text-muted-foreground">
+      <AlertDescription className="mt-2.5 space-y-3 text-muted-foreground">
         {isUnreachable(error) ? (
           <>
             <p>Start it in a terminal:</p>
@@ -85,7 +85,7 @@ export function DaemonProblem({
 
 function Command({ children }: { children: ReactNode }) {
   return (
-    <pre className="overflow-x-auto rounded-md border border-border bg-input-background px-3 py-2 font-mono text-xs text-foreground">
+    <pre className="overflow-x-auto rounded-lg border border-border/80 bg-input-background px-3.5 py-2.5 font-mono text-xs text-foreground shadow-inner">
       {children}
     </pre>
   )

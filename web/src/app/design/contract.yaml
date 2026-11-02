@@ -134,7 +134,7 @@ workspace:
   WorkspacePage: "() -> JSX.Element"
   note: >
     Reads view, part and outcome from the search string. An unknown or missing view
-    shows Vision.
+    shows Vision. The header is a Panel; the open view is the pill-active link.
   WorkspacePlans: "({ projectId }) -> JSX.Element"
 
 

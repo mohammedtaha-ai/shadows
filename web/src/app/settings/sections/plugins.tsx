@@ -19,7 +19,7 @@ export function PluginsSection() {
     : <ExtensionImport kind={kind} onDone={() => setAdding(false)} />
   return <div className="space-y-4">
     <div role="tablist" aria-label="Extension library" className="flex gap-2">{kinds.map(value => <button type="button" key={value} role="tab" id={`${id}-${value}`} data-kind={value} aria-selected={kind === value} aria-controls={`${id}-panel`} tabIndex={kind === value ? 0 : -1}
-      className="rounded-md px-3 py-2 text-sm aria-selected:bg-secondary" onClick={() => setKind(value)} onKeyDown={event => {
+      className={`rounded-xl px-3 py-2 text-sm transition-all ${kind === value ? 'pill-active font-medium' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setKind(value)} onKeyDown={event => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
         event.preventDefault()
         const next = event.key === 'Home' ? 'plugin' : event.key === 'End' ? 'mcp' : kinds[(kinds.indexOf(kind) + (event.key === 'ArrowRight' ? 1 : 2)) % kinds.length]

@@ -45,7 +45,8 @@ components:
     signature: "({ report: UsageReport }) => JSX.Element"
   SettingsDialog:
     signature: "() => JSX.Element"
-    # One modal in Shell; section availability follows the runtime.
+    # One modal in Shell; section availability follows the runtime. The selected section is a
+    # pill-active item; the library sections (tabs, list rows, MCP form boxes) use the same surfaces.
   GeneralSection:
     signature: "() => JSX.Element"
     note: Active projects stays independent of Core language/theme and desktop-only machine preferences.

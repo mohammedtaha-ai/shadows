@@ -457,3 +457,17 @@ it('a failed refresh does not fail the save', async () => {
   expect(document.querySelector('[role="alert"]')).toBeNull()
   expect(a.text()).toContain('Work')
 })
+
+it('the agents home lists each agent with its provider and model, and marks the planned blocks inert', async () => {
+  const a = open = await startApp('/aylul', table())
+  await until(() => a.text().includes('NYLRA · AYLUL Agent Mode'))
+  const card = [...document.querySelectorAll('a')].find(link => link.textContent?.includes('Work') && link.textContent.includes('Launch'))!
+  expect(card.textContent).toContain('Test provider')
+  expect(card.textContent).toContain('fake-large')
+  const planned = [...document.querySelectorAll('[data-slot="planned"]')]
+  expect(planned.map(block => block.getAttribute('aria-label'))).toEqual([
+    'Run stages (planned)', 'Agent Runtime Capabilities list (planned)', 'Context & Memory Layers list (planned)',
+  ])
+  for (const block of planned) expect(block.querySelector('[inert]')).not.toBeNull()
+  expect(a.text()).not.toContain('Ready')
+})

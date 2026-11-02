@@ -35,7 +35,9 @@ components:
   AylulHome:
     signature: "() => JSX.Element"
     # /aylul, and / while AYLUL is the stored workspace. With no provider it asks for one;
-    # with providers and no agent it asks for an agent.
+    # with providers and no agent it asks for an agent. Otherwise it lists every agent the
+    # sidebar lists, with its provider and model, and the real provider and agent counts. The
+    # run-stage strip, capability list and memory list sit inside Planned (static, inert).
   ProviderPicker:
     signature: "({ onChoose: (group: PresetGroup | null) => void }) => JSX.Element"
   ProviderForm:

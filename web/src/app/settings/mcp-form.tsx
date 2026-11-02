@@ -48,7 +48,7 @@ export function McpForm({ item, onDone }: { item: McpItem | null; onDone: () => 
       <fieldset disabled={save.isPending} className="grid gap-4">
         <label className="grid gap-2 text-sm">Name<Input aria-label="MCP name" value={name} onChange={e => setName(e.target.value)} /></label>
         <label className="grid gap-2 text-sm">Description<Input aria-label="MCP description" value={description} onChange={e => setDescription(e.target.value)} /></label>
-        <label className="grid gap-2 text-sm">Transport<select aria-label="MCP transport" className="rounded border border-input bg-background p-2" value={type} onChange={e => setType(e.target.value as 'http' | 'stdio')}>
+        <label className="grid gap-2 text-sm">Transport<select aria-label="MCP transport" className="rounded-lg border border-input bg-input-background p-2" value={type} onChange={e => setType(e.target.value as 'http' | 'stdio')}>
           <option value="http">HTTP</option><option value="stdio">stdio</option>
         </select></label>
         {type === 'http' ? <label className="grid gap-2 text-sm">URL<Input aria-label="MCP URL" value={url} onChange={e => setUrl(e.target.value)} /></label> : <>
@@ -60,7 +60,7 @@ export function McpForm({ item, onDone }: { item: McpItem | null; onDone: () => 
           </div>)}<Button type="button" variant="outline" onClick={() => setArgs([...args, ''])}>Add argument</Button></div>
         </>}
         <div className="space-y-3">
-          {rows.map((row, index) => <div key={row.key} className="space-y-2 rounded border border-border p-3">
+          {rows.map((row, index) => <div key={row.key} className="surface-panel space-y-2 rounded-xl p-3">
             <label className="grid gap-1 text-sm">{type === 'http' ? 'Header name' : 'Environment name'}<Input aria-label={`Secret name ${index + 1}`} value={row.name} onChange={e => setRows(rows.map(value => value.key === row.key ? { ...value, name: e.target.value } : value))} /></label>
             <label className="grid gap-1 text-sm">Value{row.set && <span className="text-xs text-muted-foreground">Set · leave empty to keep</span>}<Input aria-label={`Secret value ${index + 1}`} type="password" autoComplete="new-password" value={row.value} onChange={e => setRows(rows.map(value => value.key === row.key ? { ...value, value: e.target.value } : value))} /></label>
             <Button type="button" variant="outline" aria-label={`Remove secret ${index + 1}`} onClick={() => setRows(rows.filter(value => value.key !== row.key))}>Remove</Button>
