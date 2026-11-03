@@ -1,7 +1,7 @@
 # Agent messaging: how agents report, escalate and talk in groups
 
-- Status: **accepted** by Mohammed on 2026-11-03, in conversation; not built. The owner
-  (§7) waits for the controller's decision.
+- Status: **accepted** by Mohammed on 2026-11-03, in conversation; not built. Mohammed
+  approved the new `Messages` owner (§7) the same day.
 - Evidence: the messaging probe (`docs/evidence/2026-11-01-agent-messaging-probe.md`
   at `f1459dcc`); Hermes group rooms, read from a local copy of its source
   (`apps/desktop/src/plugins/hermes-bots/group-chat.ts`,
@@ -242,9 +242,10 @@ AYLUL subscribes to messages through `Events`, as the web client does.
   words, what happened. How it explains belongs to the work profile design;
   this spec gives it the record.
 
-## 7. Owners (Claude's proposal, the controller decides)
+## 7. Owners
 
-No service in `AppCore` owns messages today. Proposed:
+No service in `AppCore` owned messages. Mohammed approved a new owner on
+2026-11-03:
 
 | Rule | Owner |
 |---|---|
@@ -254,8 +255,6 @@ No service in `AppCore` owns messages today. Proposed:
 | Starting a turn for a delivered message | `Turns`, through §20's queue |
 | The MCP tools (`task_report`, `task_blocked`, `message_reply`, …) | `shadows-mcp`, calling `Messages` only |
 | Groups' members and settings | `Messages` |
-
-A new owner is a design decision for the controller, not for a builder.
 
 ## 8. Order of building
 
@@ -279,9 +278,6 @@ the same parts.)
 > measured run.
 
 > **OPEN — one manager per plan or per project.** Closed before slice 3.
-
-> **OPEN — the owner.** `Messages` as a new service (§7) waits for the
-> controller's decision. Closed before slice 1's plan.
 
 ## 10. Left to the builder
 
