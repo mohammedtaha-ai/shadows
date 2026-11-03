@@ -12,6 +12,23 @@ export type ExtensionImport = components['schemas']['Import']
 export type McpItem = components['schemas']['McpItem']
 export type McpInput = components['schemas']['McpInput']
 export type McpValueInput = components['schemas']['McpValueInput']
+export type ToolRuleEntry = components['schemas']['ToolRuleEntry']
+export type ToolRule = components['schemas']['ToolRule']
+export type AgentTools = components['schemas']['AgentTools']
+
+export function agentToolsQuery(slug: string, id: string) {
+  return queryOptions({ queryKey: ['aylul-agent-mcp-tools', slug, id], retry: false,
+    queryFn: () => unwrap(client.GET('/api/aylul/agents/{slug}/extensions/mcp/{id}/tools', { params: { path: { slug, id } } })),
+  })
+}
+export function setToolRules(slug: string, id: string, rules: ToolRuleEntry[], commandId: string): Promise<ToolRuleEntry[]> {
+  return unwrap(client.PUT('/api/aylul/agents/{slug}/extensions/mcp/{id}/tool-rules', {
+    params: { path: { slug, id } }, body: { command_id: commandId, rules },
+  }))
+}
+export function saveToolRulesAnswer(client: QueryClient, slug: string, id: string, rules: ToolRuleEntry[]) {
+  return writeSaved<AgentTools>(client, agentToolsQuery(slug, id).queryKey, current => current ? { ...current, rules } : current)
+}
 
 export function saveMcp(id: string | null, commandId: string, input: McpInput): Promise<McpItem> {
   const body = { command_id: commandId, ...input }
