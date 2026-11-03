@@ -427,6 +427,11 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-plans/src/store/event_projection.rs` | identifier-only plan event projection | `crates/core-plans/contract.yaml` |
 | `crates/core-events/src/store.rs` | private journal replay persistence | `crates/core-events/contract.yaml` |
 | `crates/core-events/src/store_tests.rs` | terminal turn replay tests | `crates/core-events/contract.yaml` |
+| `crates/core-messages/src/lib.rs` | group messaging boundary | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/model.rs` | group messaging values | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/error.rs` | group messaging refusals | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/groups.rs` | group commands and reads | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/store/mod.rs` | group persistence | `crates/core-messages/contract.yaml` |
 | `crates/shadows-http/src/aylul_agents.rs` | agent HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_person.rs` | person settings HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_usage.rs` | usage HTTP translation | `crates/shadows-http/src/contract.yaml` |

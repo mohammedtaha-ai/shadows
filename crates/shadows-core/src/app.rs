@@ -24,6 +24,7 @@ use core_extensions::Extensions;
 use core_grants::Grants;
 use core_harness::{AylulOwners, Harness, SessionsConfig};
 use core_instructions::Instructions;
+use core_messages::Messages;
 use core_operations::Operations;
 use core_person::PersonSettings;
 use core_plans::Plans;
@@ -144,6 +145,10 @@ pub struct CoreParts {
          thread or project event subscriptions | \
          `crates/core-events/src` | \
          `crates/core-events/contract.yaml` |"]
+#[doc = " | `Messages` | \
+         agent group conversations | \
+         `crates/core-messages/src` | \
+         `crates/core-messages/contract.yaml` |"]
 #[doc = " | `Code` | \
          project code indexing | \
          `crates/core-code/src` | \
@@ -183,6 +188,7 @@ pub struct AppCore {
     instructions: Instructions,
     standards: Standards,
     events: Events,
+    messages: Arc<Messages>,
     code: Code,
 }
 
@@ -440,6 +446,7 @@ impl AppCore {
         );
         let project_lifecycle =
             ProjectLifecycle::new(storage.clone(), projects.clone(), code.clone());
+        let messages = Messages::new(storage.clone(), agents.clone());
         Arc::new(AppCore {
             providers,
             agents,
@@ -460,6 +467,7 @@ impl AppCore {
             instructions,
             standards,
             events,
+            messages,
             code,
         })
     }
@@ -539,6 +547,10 @@ impl AppCore {
 
     pub fn events(&self) -> &Events {
         &self.events
+    }
+
+    pub fn messages(&self) -> &Messages {
+        &self.messages
     }
 
     pub fn code(&self) -> &Code {

@@ -1,0 +1,23 @@
+name: messages
+version: 1
+status: current
+source: crates/core-messages/src
+modules:
+  lib.rs: group messaging boundary
+  model.rs: group messaging values
+  error.rs: group messaging refusals
+  groups.rs: group commands and reads
+  store/mod.rs: group persistence
+dependencies:
+  agents: crates/core-agents/contract.yaml
+  threads: crates/core-threads/contract.yaml
+functions:
+  create_group: Creates a group and its hidden member threads in one replayable write.
+  groups: Lists groups in name and id order.
+  group: Reads one group with its members and current attention flag.
+  messages: Reads a group's durable messages after its group-local cursor.
+obligations:
+  - rule: Creation records one hidden thread per live member and rolls back the entire group on failure.
+    tested_by: [a_group_gets_one_hidden_thread_per_member, a_failed_group_creation_leaves_no_thread]
+  - rule: A group contains at most six agents.
+    tested_by: [a_group_refuses_seven_members]
