@@ -71,24 +71,28 @@ impl Store {
                 thread_id: ThreadId::from_recorded(thread),
             })
             .collect();
-        let needs_you: bool = sqlx::query_scalar(
-            "SELECT EXISTS (
-                SELECT 1 FROM message m, json_each(m.to_json) a
-                WHERE m.group_id = ? AND json_extract(a.value, '$.kind') = 'person'
-                  AND m.seq > COALESCE((
-                    SELECT MAX(seq) FROM message
-                    WHERE group_id = m.group_id AND json_extract(speaker_json, '$.kind') = 'person'
-                  ), 0)
-            )",
+        let needs_you_since: Option<String> = sqlx::query_scalar(
+            "SELECT m.created_at FROM message m
+             WHERE m.group_id = ?1
+               AND m.seq > COALESCE((
+                 SELECT MAX(seq) FROM message
+                 WHERE group_id = ?1 AND json_extract(speaker_json, '$.kind') = 'person'
+               ), 0)
+               AND EXISTS (
+                 SELECT 1 FROM json_each(m.to_json) a
+                 WHERE json_extract(a.value, '$.kind') = 'person'
+               )
+             ORDER BY m.seq LIMIT 1",
         )
         .bind(id.as_str())
-        .fetch_one(conn)
+        .fetch_optional(conn)
         .await?;
         Ok(Group {
             id: id.clone(),
             name,
             members,
-            needs_you,
+            needs_you: needs_you_since.is_some(),
+            needs_you_since,
             created_at,
         })
     }

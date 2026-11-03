@@ -2217,6 +2217,12 @@
           },
           "needs_you": {
             "type": "boolean"
+          },
+          "needs_you_since": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

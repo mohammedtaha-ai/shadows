@@ -59,6 +59,7 @@ mod tests {
             name: "Test".into(),
             members: Vec::new(),
             needs_you: false,
+            needs_you_since: None,
             created_at: String::new(),
         };
         let messages: Vec<_> = (1..=200)

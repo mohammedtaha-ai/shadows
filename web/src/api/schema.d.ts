@@ -2253,6 +2253,7 @@ export interface components {
             members: components["schemas"]["Member"][];
             name: string;
             needs_you: boolean;
+            needs_you_since?: string | null;
         };
         /** Format: uuid */
         GroupId: string;

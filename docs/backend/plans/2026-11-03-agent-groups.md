@@ -285,7 +285,8 @@ Added after the UI plan's review: the desktop pill orders waiting items by when 
 waiting, and `Group.created_at` is not that time.
 
 **Files:**
-- Modify: `crates/core-messages/src/model.rs`, `src/store/mod.rs` (the group read), `contract.yaml`
+- Modify: `crates/core-messages/src/model.rs`, `src/store/mod.rs` (the group read),
+  `src/prompt.rs` (test fixture), `contract.yaml`
 - Test: `crates/core-messages/tests/groups.rs`
 - Regenerate: `api/openapi.json`, `web/src/api/schema.d.ts`
 
@@ -297,15 +298,15 @@ waiting, and `Group.created_at` is not that time.
 - `needs_you` is derived from the same result: true exactly when a first call exists. The two
   fields cannot disagree.
 
-- [ ] **Step 1:** test `needs_you_since_is_the_first_unanswered_call`:
+- [x] **Step 1:** test `needs_you_since_is_the_first_unanswered_call`:
   - two member messages call `@mohammed`, then `needs_you_since` is the first one's time;
   - after Mohammed writes, it is `None`;
   - after a new call, it is the new call's time.
-- [ ] **Step 2:** run `cargo test -p core-messages needs_you_since`; expect FAIL.
-- [ ] **Step 3:** implement; regenerate the API files.
-- [ ] **Step 4:** run `cargo test -p core-messages` and `cargo test -p shadows --test openapi`;
+- [x] **Step 2:** run `cargo test -p core-messages needs_you_since`; expect FAIL.
+- [x] **Step 3:** implement; regenerate the API files.
+- [x] **Step 4:** run `cargo test -p core-messages` and `cargo test -p shadows --test openapi`;
   expect PASS.
-- [ ] **Step 5:** commit `feat(core-messages): when a group started needing Mohammed`.
+- [x] **Step 5:** commit `feat(core-messages): when a group started needing Mohammed`.
 
 ## Acceptance, in two parts
 

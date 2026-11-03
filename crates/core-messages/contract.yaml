@@ -36,6 +36,8 @@ obligations:
     tested_by: [a_group_refuses_seven_members]
   - rule: Messages come back in their group-local sequence after the caller's cursor.
     tested_by: [messages_come_back_in_seq_order]
+  - rule: A group needs the person when it has an unanswered call; its waiting time is the timestamp of the first such call by group sequence.
+    tested_by: [needs_you_since_is_the_first_unanswered_call]
   - rule: A person message reaches the mentioned members, or every member when it names none; a stranger's mention is not an address.
     tested_by: [a_mention_reaches_only_that_member, no_mention_reaches_every_member, a_mention_of_a_stranger_is_not_an_address, a_person_address_alone_does_not_wake_members]
   - rule: A prompt carries only the messages since the member's last delivery, and always the triggering one.

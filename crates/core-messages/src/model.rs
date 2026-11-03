@@ -12,6 +12,7 @@ pub struct Group {
     pub name: String,
     pub members: Vec<Member>,
     pub needs_you: bool,
+    pub needs_you_since: Option<String>,
     pub created_at: String,
 }
 
