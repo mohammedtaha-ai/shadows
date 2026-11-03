@@ -760,23 +760,32 @@ async fn tools_are_listed_from_a_stdio_server() {
 
 #[tokio::test]
 async fn a_silent_server_times_out() {
+    use tokio::io::AsyncReadExt;
+
     let w = world().await;
-    let pid_file = w._tmp.path().join("pid");
-    let id = stdio_tools_item(
-        &w,
-        json!([
-            {"name":"SILENT","value":"1"},{"name":"PID_FILE","value":pid_file}
-        ]),
-    )
-    .await;
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .unwrap();
+    let port = listener.local_addr().unwrap().port().to_string();
+    let id = stdio_tools_item(&w, json!([{"name":"PROBE_PID_PORT","value":port}])).await;
+    let receive_pid = async {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut pid = String::new();
+        socket.read_to_string(&mut pid).await.unwrap();
+        pid.parse::<u32>().expect("fixture must report its PID")
+    };
     let start = std::time::Instant::now();
-    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    let (out, pid) = tokio::join!(
+        w.extensions.agent_tools("aylul", &id),
+        tokio::time::timeout(std::time::Duration::from_secs(10), receive_pid),
+    );
+    let out = out.unwrap();
     assert!(start.elapsed() < std::time::Duration::from_secs(12));
     assert_eq!(
         out.list_error.as_deref(),
         Some("the server did not answer in 10 seconds")
     );
-    let pid = std::fs::read_to_string(pid_file).unwrap();
+    let pid = pid.expect("silent fixture did not report its PID");
     let mut check = shadows_process::spawn(shadows_process::ProcessSpec {
         executable: "node".into(),
         args: vec![

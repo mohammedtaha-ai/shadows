@@ -1,7 +1,7 @@
-const fs = require('node:fs');
 const readline = require('node:readline');
-if (process.env.PID_FILE) fs.writeFileSync(process.env.PID_FILE, String(process.pid));
-if (process.env.SILENT) {
+if (process.env.PROBE_PID_PORT) {
+  const socket = require('node:net').connect(Number(process.env.PROBE_PID_PORT), '127.0.0.1');
+  socket.on('connect', () => socket.end(String(process.pid)));
   setInterval(() => {}, 1000);
 } else {
   readline.createInterface({input: process.stdin}).on('line', line => {
