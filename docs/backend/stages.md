@@ -75,13 +75,13 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   src/store/, src/lib.rs, contract.yaml, tests/anchors.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
 - Done when: `cargo test -p core-design --test anchors` and `-p core-db --test migration_checksums` pass
 
-### B-48 · What a turn carried (Harness)
+### B-48 · What a turn carried, per session (Harness)
 - Status: todo
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-48-what-a-turn-carried-harness
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-48-what-a-turn-carried-per-session-harness
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml
 - Touch: crates/core-db/migrations/0044_invocation_context.sql; crates/core-harness/src/context_record.rs,
   src/store/, src/model.rs, src/lib.rs, contract.yaml, tests/context_record.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
-- Done when: `cargo test -p core-harness` passes, with the three tests the task names
+- Done when: `cargo test -p core-harness` passes, with the four tests the task names
 
 ### B-49 · Compile the planning context (Turns)
 - Status: todo
@@ -89,20 +89,21 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.2; crates/core-turns/contract.yaml; crates/core-plans/src/design_views.rs
 - Touch: crates/core-turns/src/planning/ (new), src/lib.rs, contract.yaml,
   tests/planning_context.rs; crates/shadows-core/src/app.rs
-- Done when: `cargo test -p core-turns` passes, with the eight tests the task names
+- Done when: `cargo test -p core-turns` passes, with the twelve tests the task names
 
-### B-50 · Send it when it changed, and record it
+### B-50 · Send it when the session has not heard it
 - Status: todo
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-50-send-it-when-it-changed-and-record-it
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-50-send-it-when-the-session-has-not-heard-it
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.3; crates/core-turns/src/spawn.rs, prompt.rs
-- Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, contract.yaml;
+- Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, turn.rs, contract.yaml;
   crates/shadows/tests/planning_context.rs (new)
-- Done when: `cargo test -p shadows --test planning_context` passes, with the five tests the task names
+- Done when: `cargo test -p shadows --test planning_context` passes, with the eight tests the task names
 
 ### B-51 · Routes for the anchor and the record
 - Status: todo
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-51-routes-for-the-anchor-and-the-record
 - Read: crates/shadows-http/src/contract.yaml
+- Needs: docs/shared/requests/2026-11-04-planning-context-routes.md, accepted
 - Touch: crates/shadows-http/src/ (thread routes, openapi.rs, contract.yaml); api/openapi.json;
   web/src/api/schema.d.ts; crates/shadows/tests/planning_routes.rs (new)
 - Done when: `cargo test -p shadows --test planning_routes --test openapi` passes

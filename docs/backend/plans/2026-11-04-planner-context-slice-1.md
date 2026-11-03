@@ -12,9 +12,10 @@ the three Planner defects found on 2026-11-04.
   Design.
 - `Turns::planning_context` compiles the context from `Design` and `Plans` reads, in
   `send_with`, and hands it to the turn.
-- At prompt time the turn compares the context's digest with the last one `Harness` recorded
-  for the thread. If they differ, it adds the block and asks `Harness` to record it.
-- A command-only turn carries nothing and records nothing, so the context stays owed.
+- At prompt time the turn compares the context's digest with the last one **this harness
+  session** heard. If they differ, it adds the block, and `Harness` records it as prepared.
+- Only a turn that ends normally marks it heard. A stopped or failed turn, or a command-only
+  turn, leaves it owed.
 
 **Tech Stack:** Rust 1.94, SQLx 0.9 / SQLite, sha2 (already a workspace dependency), axum + utoipa.
 
@@ -38,15 +39,17 @@ the three Planner defects found on 2026-11-04.
 
 ## Review Focus
 
-1. **The anchor is deleted after it was set.** The next turn's context says
+1. **A new harness session on a thread that heard the context before.** The new session gets
+   the context on its first turn (B-50 test).
+2. **The anchor is deleted after it was set.** The next turn's context says
    `[anchor removed: <kind> <id>]` and carries the index only. The turn does not fail.
-2. **A command-only turn (`/compact`) on an anchored thread.** It carries no context and records
+3. **A command-only turn (`/compact`) on an anchored thread.** It carries no context and records
    none, and the next normal turn carries it.
-3. **Two turns in a row with nothing changed.** The second carries no context block, and its
-   record reads "unchanged".
-4. **The detail is over budget.** The anchor's own text stays whole, and the block lists what was
+4. **Two turns in a row with nothing changed.** The second carries no context block, and its
+   turn has no record.
+5. **The detail is over budget.** The anchor's own text stays whole, and the block lists what was
    cut, in the spec's order: older rationales, then children's lines, then agreement bodies.
-5. **A map refused for a rule.** The refusal names the part or parts, the paths, the rule, and
+6. **A map refused for a rule.** The refusal names the part or parts, the paths, the rule, and
    what to do, and two different rules never read the same.
 
 ---
@@ -83,46 +86,53 @@ the three Planner defects found on 2026-11-04.
   `cargo test -p core-db --test migration_checksums`; expect PASS.
 - [ ] **Step 5:** commit `feat(core-design): a thread's planning anchor`.
 
-### Task B-48: What a turn carried (Harness)
+### Task B-48: What a turn carried, per session (Harness)
 
 **Files:**
-- Create: `crates/core-db/migrations/0044_invocation_context.sql`, table
-  `invocation_context` with these columns:
-  - `operation_id TEXT PRIMARY KEY REFERENCES operation(id)`
-  - `thread_id TEXT NOT NULL`
-  - `digest TEXT NOT NULL`
-  - `text TEXT NOT NULL`
-  - `sources_json TEXT NOT NULL`
-  - `index_tokens INTEGER NOT NULL`
-  - `detail_tokens INTEGER NOT NULL`
-  - `cuts_json TEXT NOT NULL`
-  - `created_at TEXT NOT NULL`
+- Create: `crates/core-db/migrations/0044_invocation_context.sql`: table `invocation_context`,
+  with these columns:
+  - `operation_id TEXT PRIMARY KEY REFERENCES operation(id)`;
+  - `thread_id TEXT NOT NULL`;
+  - `session_id TEXT NOT NULL`: the harness session the prompt went to;
+  - `digest TEXT NOT NULL`;
+  - `text TEXT NOT NULL`;
+  - `sources_json TEXT NOT NULL`;
+  - `index_tokens INTEGER NOT NULL`;
+  - `detail_tokens INTEGER NOT NULL`;
+  - `over_tokens INTEGER NOT NULL`;
+  - `cuts_json TEXT NOT NULL`;
+  - `heard INTEGER NOT NULL DEFAULT 0`;
+  - `created_at TEXT NOT NULL`.
 - Modify: `crates/core-harness/src/` (a new `context_record.rs` and its store), `model.rs`,
   `contract.yaml`; the checksum fixture
 - Test: `crates/core-harness/tests/context_record.rs`
 
 **Interfaces:**
-- Produces (`model.rs`):
+- **Types** (`model.rs`; both serialize to JSON for the record and the route):
   - `CarriedContext { digest: String, text: String, sources: Vec<ContextSource>, index_tokens:
-    i64, detail_tokens: i64, cuts: Vec<String> }`;
+    i64, detail_tokens: i64, over_tokens: i64, cuts: Vec<String> }`;
   - `ContextSource { kind: String, id: String, version: i64 }`.
-  - Both serialize to JSON for the record and the route.
-- Produces: `Harness::record_context(&self, op: &OperationId, thread: &ThreadId, carried:
-  &CarriedContext) -> Result<(), StorageError>`.
-- Produces: `Harness::last_context_digest(&self, thread: &ThreadId, before: &OperationId) ->
-  Result<Option<String>, StorageError>`. It reads the digest of the thread's newest record
-  whose operation started before `before`, ordered by the operation's start, never by `rowid`.
-- Produces: `Harness::context_record(&self, op: &OperationId) ->
-  Result<Option<CarriedContext>, StorageError>`.
+- **Two states, so a context that never arrived is never taken as heard:**
+  - `Harness::prepare_context(&self, op: &OperationId, thread: &ThreadId, session: &str,
+    carried: &CarriedContext) -> Result<(), StorageError>` writes the row with `heard = 0`;
+  - `Harness::mark_context_heard(&self, op: &OperationId) -> Result<(), StorageError>` sets
+    `heard = 1`.
+- **What the session heard, by session, not by thread:**
+  `Harness::heard_context_digest(&self, session: &str) -> Result<Option<String>, StorageError>`
+  reads the digest of the newest `heard = 1` row for that harness session. The newest is by the
+  operation's start, never `rowid`. A new session on an old thread has heard nothing.
+- **The record a person reads:** `Harness::context_record(&self, op: &OperationId) ->
+  Result<Option<(CarriedContext, bool)>, StorageError>` answers the row and its `heard`.
 
 - [ ] **Step 1: tests**
-  - `a_recorded_context_is_read_back`
-  - `the_last_digest_ignores_the_current_turn`
-  - `a_thread_with_no_record_has_no_digest`
+  - `a_prepared_context_is_read_back_unheard`
+  - `only_a_heard_context_counts`
+  - `a_new_session_on_the_same_thread_has_heard_nothing`
+  - `the_newest_heard_digest_wins`
 - [ ] **Step 2:** run them; expect FAIL.
 - [ ] **Step 3:** implement; pin the migration.
 - [ ] **Step 4:** run `cargo test -p core-harness`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-harness): record the context a turn carried`.
+- [ ] **Step 5:** commit `feat(core-harness): record the context a turn carried, per session`.
 
 ### Task B-49: Compile the planning context (Turns)
 
@@ -137,33 +147,42 @@ the three Planner defects found on 2026-11-04.
 
 **Interfaces:**
 - Consumes:
-  - `Design::thread_anchor` (B-47), `Design::vision`, `Design::parts(project, parent, None)`,
-    `Design::outcomes(project, parent, None)`, `Design::agreements(project)`;
+  - `Design::thread_anchor` (B-47), `Design::vision`, `Design::parts(project, parent, cursor)`,
+    `Design::outcomes(project, parent, cursor)`, `Design::agreements(project)`,
+    `Design::agreement(project, id, Some(version))`;
   - `Plans::design_part`, `Plans::design_outcome`, `Plans::list(project, false)`, `Plans::get`;
   - `CarriedContext`, `ContextSource` (B-48).
 - Produces: `Turns::planning_context(&self, thread: &ThreadId, project: &ProjectId) ->
   Result<Option<CarriedContext>, TurnsError>`. It answers `None` for an AYLUL thread.
-- **Index:**
-  - the vision's purpose items, with their ids;
+- **Index**, in this order:
+  - the vision's **purpose items** with their ids;
   - the part tree to depth 2 (`title` and id);
   - the outcome tree to depth 2 (`title` and id);
   - each agreement's name and agreed version.
+
+  The parts and the outcomes read **one page each**, at 50 items. Anything past a page is
+  stated as `[N more parts]` or `[N more outcomes]`. The read does not follow more pages.
 - **Detail, anchored only,** from `Plans::design_part` or `design_outcome`:
   - the anchor's full content;
   - its ancestors' titles;
   - its children's titles, each with one line: `responsibility` or `intended_result`;
   - each linked plan's latest version (`title`, `goal`, and each task's number and title);
   - the `change_reason` of that version and of up to 2 earlier versions, by `previous`;
-  - for an outcome, its parts' titles.
+  - for an outcome, its parts' titles;
+  - **the agreements those plan versions bind**, each read at its **pinned version** from the
+    version's `bindings` (`AgreementBinding { agreement_id, version, .. }`), through
+    `Design::agreement(project, id, Some(version))`, never the latest. Each one is a source
+    `("agreement", id, pinned version)`.
 - **Not in the block:** standards. The existing "changes since the session last heard" block
   already carries them.
-- **Every piece is a `ContextSource`:**
-  - `("vision", project, revision)`;
-  - `("part" | "outcome", id, item revision)`;
-  - `("plan", workflow, version)`;
-  - `("agreement", id, version)`.
-- **Cuts:** in budget order. The anchor's content is never cut. Each cut is a line
-  `[cut: <what>]` inside the block and an entry in `cuts`.
+- **Budgets:**
+  - **Index over budget:** first drop the depth-2 children of parts, then of outcomes, each
+    replaced by `[N children]`, then the agreement list, replaced by `[N agreements]`.
+  - **Detail over budget:** cut in the spec's order: older rationales, then children's lines,
+    then agreement bodies. Bodies are cut to the agreement's name and version.
+  - **Still over after every allowed cut:** the cap is soft. The anchor's text and the plans'
+    task lists are never cut, the block is sent as it is, and `over_tokens` records how far it
+    is over. Each cut is a line `[cut: <what>]` and an entry in `cuts`.
 - **A missing anchor** (deleted after being set): the block holds
   `[anchor removed: <kind> <id>]` and the index only.
 - **`digest`:** a hex SHA-256 of `text`.
@@ -174,8 +193,13 @@ the three Planner defects found on 2026-11-04.
   - `a_part_anchor_adds_its_detail_and_sources`
   - `an_outcome_anchor_lists_its_parts_and_plans`
   - `the_index_carries_purpose_not_the_whole_vision`
+  - `a_bound_agreement_is_read_at_its_pinned_version`: the plan binds v1, the latest is v2, and
+    the detail holds v1's text and the source `("agreement", id, 1)`
   - `an_over_budget_detail_cuts_in_order_and_keeps_the_anchor` (lower the budget through a
     test-only constant)
+  - `an_over_budget_index_drops_children_first`
+  - `a_detail_still_over_after_every_cut_is_sent_and_says_by_how_much`
+  - `parts_past_one_page_are_counted_not_listed`
   - `a_removed_anchor_says_so`
   - `an_aylul_thread_gets_nothing`
   - `the_same_design_gives_the_same_digest`
@@ -184,42 +208,55 @@ the three Planner defects found on 2026-11-04.
 - [ ] **Step 4:** run `cargo test -p core-turns`; expect PASS.
 - [ ] **Step 5:** commit `feat(core-turns): compile a Planner's planning context`.
 
-### Task B-50: Send it when it changed, and record it
+### Task B-50: Send it when the session has not heard it
 
 **Files:**
 - Modify:
-  - `crates/core-turns/src/lib.rs` (`send_with` calls `planning_context` after `turn_context_in`);
+  - `crates/core-turns/src/lib.rs` (`send_with` calls `planning_context` after
+    `turn_context_in`);
   - `src/spawn.rs` (`PlannerTurnRequest` gains `planning: Option<CarriedContext>`);
   - `src/prompt.rs` (`PromptParts` gains `planning: Option<String>`);
+  - `src/turn.rs` (the turn's end);
   - `contract.yaml`.
-- Test: `crates/shadows/tests/` (the Planner turn test that runs fake-acp: add
-  `planning_context.rs`)
+- Test: `crates/shadows/tests/planning_context.rs` (new; a Planner turn through `AppCore` with
+  fake-acp, reading the prompt fake-acp received)
 
 **Interfaces:**
-- **In `spawn`, before compose:** read `Harness::last_context_digest(thread, op)`. The planning
-  text goes into `PromptParts` only when the digest differs.
+- **In `spawn`, before compose:** read `Harness::heard_context_digest(&opened.session_id)`. The
+  planning text goes into `PromptParts` only when the digest differs or nothing was heard.
 - **Block order:** text, images, changes, **planning**, focus, continue_plan, stage.
-- **After compose:**
-  - when the block was included and the prompt was not withheld (`withholds == false`, and not
-    a command alone), call `Harness::record_context(op, thread, &carried)` before the prompt is
-    sent;
-  - a failed record logs `planner.context_record_failed` and does not fail the turn.
+- **After compose:** when the block was included and the prompt is not withheld (a command
+  alone), call `Harness::prepare_context(op, thread, &opened.session_id, &carried)`. A failed
+  write logs `planner.context_record_failed`; the turn goes on, and the context stays owed.
+- **At the turn's end (`turn.rs`):** only an `Ended` turn whose terminal row was written calls
+  `Harness::mark_context_heard(op)`.
+  - A `Cancelled`, `Refused`, `Failed` or interrupted turn, or one whose ACP connection closed,
+    leaves its row `heard = 0`, so the next turn sends the context again.
+  - A repeat is preferred to a context that never arrived.
 - **No new error:** a compile error refuses the turn the way a failed stage line does today
   (`FailureStage::Prepare`).
 
-- [ ] **Step 1: tests,** through `AppCore` with fake-acp, reading the prompt fake-acp received:
-  - `the_first_turn_carries_the_context_and_records_it`
+- [ ] **Step 1: tests**
+  - `the_first_turn_carries_the_context_and_marks_it_heard`
   - `an_unchanged_context_is_not_sent_again`
   - `a_changed_anchor_sends_it_again`
+  - `a_new_session_on_an_old_thread_gets_it_again`: the thread's session is closed and a new one
+    is opened, and the context is sent although the thread has a heard row
+  - `a_stopped_turn_leaves_it_owed`: a turn stopped before its end leaves `heard = 0`, and the
+    next turn sends the context
+  - `a_failed_turn_leaves_it_owed` (fake-acp refuses the prompt)
   - `a_command_alone_carries_and_records_nothing_and_the_next_turn_does`
   - `the_planning_block_comes_after_changes_and_before_focus`
 - [ ] **Step 2:** run them; expect FAIL.
 - [ ] **Step 3:** implement.
 - [ ] **Step 4:** run `cargo test -p shadows --test planning_context` and
   `cargo test -p core-turns`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-turns): send the planning context when it changed`.
+- [ ] **Step 5:** commit `feat(core-turns): send the planning context until the session hears it`.
 
 ### Task B-51: Routes for the anchor and the record
+
+**Request:** `docs/shared/requests/2026-11-04-planning-context-routes.md` must be **accepted**
+before this task starts (`docs/backend/AGENTS.md`, rule 4).
 
 **Files:**
 - Modify: the `crates/shadows-http/src/` thread routes, `openapi.rs`, `contract.yaml`;
@@ -232,7 +269,7 @@ the three Planner defects found on 2026-11-04.
 |---|---|---|---|
 | `PUT /api/threads/{id}/anchor` | `{command_id, anchor: {kind: "part" \| "outcome", id} \| null}` | `Design::set_thread_anchor` | the anchor |
 | `GET /api/threads/{id}/anchor` | | `Design::thread_anchor` | the anchor or `null` |
-| `GET /api/operations/{id}/context` | | `Harness::context_record` | `CarriedContext`, or 404 `CONTEXT_NOT_CARRIED` |
+| `GET /api/operations/{id}/context` | | `Harness::context_record` | `{ carried: CarriedContext, heard: bool }`, or 404 `CONTEXT_NOT_CARRIED` |
 
 - [ ] **Step 1: tests**
   - `an_anchor_is_set_over_http_and_read_back`
@@ -321,6 +358,11 @@ the three Planner defects found on 2026-11-04.
 - The proposal answer gains `unserved: Vec<String>`: the vision item ids that no part in the
   proposed map lists in `serves`, in vision order.
 - This is information, not a refusal: the Planner sees it and decides.
+- **Its limit, stated:** it finds a vision item that **no** part serves. It does not find a part
+  that forgot an item another part already serves. testing55's case was this: Telegram did not
+  list TD4, and Backend did not serve it either, so B-54 would have caught it. Had another part
+  served TD4, it would not have. Whether a part's text matches its `serves` is a judgement for
+  the Planner and the person, not a rule in code.
 
 - [ ] **Step 1:** test `a_map_answer_lists_the_unserved_vision_items`.
 - [ ] **Step 2:** run it; expect FAIL.

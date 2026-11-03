@@ -89,7 +89,7 @@ Three layers, in this order:
 
 | Layer | Holds | Budget (Claude's numbers) |
 |---|---|---|
-| **Index** | the vision's title and first paragraph; the part tree to depth 2 (names and ids); outcome names and ids; agreement names with their agreed version | about 1 500 tokens |
+| **Index** | the vision's purpose items; the part tree to depth 2 (names and ids); outcome names and ids; agreement names with their agreed version | about 1 500 tokens |
 | **Detail** (anchored only) | the anchor's full text; its parent chain (names); its children (names and one line each); the plans linked to it: each latest version's title, task list and the rationale of its last 3 versions (§17.3); the agreements those plans bind, at their agreed versions; the project standards in effect | about 8 000 tokens |
 | **On request** | everything else, through the existing workspace tools; a missing read is a tool the plan adds | none |
 
@@ -110,7 +110,9 @@ Three layers, in this order:
 
 - **First turn of a session** (no record of what it heard): the index, and the detail if
   anchored.
-- **Later turns:** only when the context's digest differs from the one the session last heard.
+- **Later turns:** only when the context's digest differs from the one **this harness session**
+  last heard. A context counts as heard only when its turn ended normally; a stopped or failed
+  turn leaves it owed. A new session on an old thread has heard nothing.
   This happens when the anchor changed, a source changed version (a plan version, an agreement, the
   design revision of a part in the detail), or the index changed. This extends the harness's
   existing "versions the session last heard" record (`core-harness/src/setup.rs`, `Heard`) with
