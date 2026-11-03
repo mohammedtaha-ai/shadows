@@ -291,8 +291,11 @@ waiting, and `Group.created_at` is not that time.
 
 **Interfaces:**
 - `Group` gains `needs_you_since: Option<String>`, read in the same query as `needs_you`.
-- It is the `created_at` of the earliest message addressed to `Person` after Mohammed's last
-  message; `None` exactly when `needs_you` is false.
+- **The first call** is the message with the smallest `seq` that addresses `Person` and comes
+  after Mohammed's last message, chosen by `seq` (the group's own order), never by time.
+- `needs_you_since` is that message's `created_at`.
+- `needs_you` is derived from the same result: true exactly when a first call exists. The two
+  fields cannot disagree.
 
 - [ ] **Step 1:** test `needs_you_since_is_the_first_unanswered_call`:
   - two member messages call `@mohammed`, then `needs_you_since` is the first one's time;

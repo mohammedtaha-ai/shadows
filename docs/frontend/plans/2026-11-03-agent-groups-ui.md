@@ -106,11 +106,13 @@ B-46: `Group.needs_you_since`, needed by U-10).
 - **The list:** above the agents (decided). Each group shows its name, its members' colour dots, and a "needs you" dot.
 - **The list's stream:** it holds the AYLUL project's events (F-82).
 - **The dialog:** a name and up to 6 live agents. It refuses an empty name or no member, and
-  disables the seventh pick. On success, it navigates to the group's page.
+  disables the seventh pick. On success, it invalidates `groupsQuery` (creating a group writes
+  no `MessageAdded`, so the stream will not do it), then navigates to the group's page.
 - **The dialog's retry:** it keeps one `Attempt` for `{ name, members }`; the same content after
   a failed or lost answer reuses its `command_id`.
 
 - [ ] Tests `the_seventh_agent_cannot_be_picked`, `creating_a_group_opens_it`,
+  `a_new_empty_group_appears_in_the_list_at_once`,
   `a_retry_after_a_lost_answer_reuses_the_command_id`.
 - [ ] Run; FAIL, implement, PASS.
 - [ ] Commit `feat(web): groups in the sidebar and the new-group dialog`.
@@ -180,14 +182,17 @@ B-46: `Group.needs_you_since`, needed by U-10).
   options as buttons, the `Attempt`, `answerPermission(thread_id, request_id, option_id,
   command_id)`, and the `PERMISSION_NOT_FOUND` / `PERMISSION_SETTLED` handling it has today.
   `PermissionCard` keeps the entry's text and finds its waiting request as now, then renders
-  `PermissionAnswer`. The group page renders `PermissionAnswer` with the member's name. No
+  `PermissionAnswer`. In the group, each request shows the member's name, then the request's
+  `title` (what the agent wants to do; `WaitingPermission` carries it), then
+  `PermissionAnswer`'s buttons. No
   `ThreadEntry` is made up.
 - `permission-card.test.tsx` passes unchanged in what it checks.
 - Places that list waiting requests as conversations (the conversation page's banner, if any)
   must not link to a hidden thread. The builder checks every use of `waitingPermissionsQuery`
   and sends a hidden thread's request to its group.
 
-- [ ] Tests `a_members_request_is_answered_in_the_group` and
+- [ ] Tests `a_members_request_is_answered_in_the_group` (the member's name and the request's
+  `title` are shown before the buttons) and
   `permission_answer_answers_a_waiting_request` (in `permission-answer.test.tsx`).
 - [ ] Run; FAIL, implement, PASS.
 - [ ] Commit `feat(web): permission requests inside a group`.
@@ -231,12 +236,20 @@ B-46: `Group.needs_you_since`, needed by U-10).
   - A group's time is the earliest of its `needs_you_since` (B-46) and its member requests'
     `asked_at`.
   - Clicking the pill opens the oldest item: a conversation as today, or a group through U-9.
-- **The tone plays only for something new:** an item whose time is later than the newest one
-  already seen in this run of the app.
-  - A reconnect rebuilds the count from the two lists and plays no tone for items it already
-    knew.
-  - The app's first read after it starts plays no tone either, as the permission count does
-    today.
+- **The tone plays only for something new, judged by identity, never by time.** The time
+  above only orders the pill. A group's time can stay at an older request when a new call
+  arrives, or move forward to a request already shown when an older one closes, so it cannot
+  say what is new.
+  - **A permission request** is new when its `(thread_id, request_id)` is not in the set the
+    watcher has seen in this run of the app.
+  - **A call to Mohammed** is new when the watcher reads a `MessageAdded` whose message addresses
+    `Person`, with a `seq` above the highest it has seen for that group.
+  - The watcher keeps those seen sets in memory for this run.
+  - **A reconnect** rebuilds the count from the two lists. Requests already in the set ring
+    nothing. A `MessageAdded` that the resumed stream delivers for the first time is new, and
+    rings once for the batch, not once per message.
+  - **The app's first read after it starts** fills the sets and plays no tone, as the permission
+    count does today.
 - **A permission request on a hidden group thread** is counted once: as its group, not as a
   conversation. The pill reads `GET /api/aylul/permissions` today, and that list includes hidden
   threads, so without this the pill would open a hidden thread as a conversation. The watcher
@@ -247,6 +260,10 @@ B-46: `Group.needs_you_since`, needed by U-10).
   - `a_message_to_mohammed_raises_the_waiting_state`
   - `a_group_with_needs_you_and_two_requests_counts_once`
   - `a_reconnect_restores_the_count_without_an_old_tone`
+  - `a_new_call_rings_while_an_older_request_waits`: a request at 10:00, then `@mohammed` at
+    10:05; the tone plays for the call
+  - `an_older_request_closing_rings_nothing`: requests at 10:00 and 10:03 are both seen; 10:00
+    closes; no tone, though the group's time moves to 10:03
   - `a_message_to_others_does_not`
   - `the_pill_counts_a_group_once`
   - `the_oldest_waiting_group_opens_the_group_page`
