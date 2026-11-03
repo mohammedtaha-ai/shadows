@@ -156,7 +156,7 @@ delivery link stays recoverable by its command id. Harness settings RPCs use the
 - Produces: `create_group(command_id, name: &str, slugs: &[String]) -> Result<Group, MessagesError>`. It takes 1 to 6 live agents, with no duplicates. **One write transaction** holds the command record, the group row, one `Threads::create_hidden_in` per member (AYLUL project, title = group name) and the member rows. Any failure leaves nothing.
 - Produces: `groups()` (by name, then id), `group(&GroupId)`, `messages(&GroupId, after: Option<i64>)` (in `seq` order).
 - `needs_you` is true when the group's last message addressed to `Person` comes after Mohammed's last message.
-- Every message written appends a `MessageAdded` journal event in the same transaction, with `project_id` = the AYLUL project and payload `{group_id, seq}`.
+- Every message written appends a `MessageAdded` journal event in the same transaction, scoped to the AYLUL project. The payload carries the group id, local sequence and agent call flag (spec §6.7).
 
 - [ ] **Step 1: Write the failing tests.**
   - `a_group_gets_one_hidden_thread_per_member`
@@ -262,7 +262,7 @@ delivery link stays recoverable by its command id. Harness settings RPCs use the
 | `GET /api/groups/{id}/messages?after=<seq>` | | `[Message]` |
 | `POST /api/groups/{id}/messages` | `{command_id, text}` | `Message` |
 
-- SSE: no new frame. `MessageAdded` travels in the existing `durable` frame, whose `seq` is the journal's, so a client reconnects with `after` as for any event. Its `payload` is `{group_id, seq}` (the message's place in its group); the client then reads the message by route.
+- SSE: `MessageAdded` travels in the existing `durable` frame, whose `seq` is the journal's resume cursor. The web reads the log when its data changes. The desktop reads the call flag without loading the log.
 - Each route calls one `Messages` method and shapes the answer.
 - Group names accept 1 to 120 trimmed characters. Person messages accept 1 to 8000.
 - The web schema is generated from the changed OpenAPI document for the CI contract check.

@@ -252,6 +252,9 @@ A **group** is a channel whose members are AYLUL agents and Mohammed.
 ### 6.7 AYLUL watches
 
 AYLUL subscribes to messages through `Events`, as the web client does.
+Each `MessageAdded` payload includes the group id, the group-local sequence and
+`calls_person`, set when an agent addresses the person. Older journal rows can
+omit the flag. The first desktop replay establishes its baseline silently.
 
 - **Alert** when a message is addressed to Mohammed, an escalation reaches
   him, a run is stopped or fails, or a group says `@mohammed`.

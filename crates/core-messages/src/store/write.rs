@@ -73,9 +73,13 @@ impl Store {
         .bind(&created_at)
         .execute(&mut *conn)
         .await?;
+        let calls_person =
+            matches!(draft.speaker, Speaker::Agent { .. }) && draft.to.contains(&Address::Person);
         let event = JournalEntry::new("MessageAdded", actor)
             .with_project(&project)
-            .with_payload(serde_json::json!({ "group_id": group, "seq": seq }));
+            .with_payload(serde_json::json!({
+                "group_id": group, "seq": seq, "calls_person": calls_person
+            }));
         JournalEntry::append_event(conn, event, &created_at).await?;
         Ok(Message {
             id,

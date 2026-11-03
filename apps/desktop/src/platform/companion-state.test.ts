@@ -73,10 +73,11 @@ test('panel agents are bounded and an absent panel is closed and empty',()=>{
 test('waiting requests are bounded and absence reads as none',()=>{
   const option={optionId:'allow',name:'Allow once',kind:'allow_once'};
   const request={threadId:'t1',requestId:'r1',title:'Run a command',options:[option]};
-  const waiting={count:2,bound:[request]};
+  const waiting={count:2,bound:[request],alertRevision:4};
   assert.deepEqual(acceptState(null,{...hidden,waiting}).panel.waiting,waiting);
   assert.deepEqual(acceptState(null,hidden).panel.waiting,{count:0,bound:[]});
   for(const invalid of [null,{count:-1,bound:[]},{count:1.5,bound:[]},{count:1,bound:Array(9).fill(request)},
+    {...waiting,alertRevision:-1},{...waiting,alertRevision:1.5},
     {count:1,bound:[{...request,title:'x'.repeat(241)}]},
     {count:1,bound:[{...request,options:Array(9).fill(option)}]},
     {count:1,bound:[{...request,options:[{...option,name:'x'.repeat(81)}]}]},

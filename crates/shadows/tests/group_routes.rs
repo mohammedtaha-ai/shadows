@@ -315,7 +315,10 @@ async fn a_message_reaches_the_project_stream() {
     let path = format!("/api/groups/{}/messages", a["id"].as_str().unwrap());
     send(&app, &path, "send").await;
     let frames = message_frames(&app, 0, 1).await;
-    assert_eq!(frames[0]["payload"], json!({"group_id":a["id"],"seq":1}));
+    assert_eq!(
+        frames[0]["payload"],
+        json!({"group_id":a["id"],"seq":1,"calls_person":false})
+    );
     app.core
         .shut_down(Duration::from_secs(5), std::future::pending())
         .await
@@ -337,10 +340,10 @@ async fn a_reconnect_resumes_after_messages_of_two_groups() {
     assert_eq!(
         payloads,
         [
-            json!({"group_id":a["id"],"seq":1}),
-            json!({"group_id":b["id"],"seq":1}),
-            json!({"group_id":a["id"],"seq":2}),
-            json!({"group_id":b["id"],"seq":2}),
+            json!({"group_id":a["id"],"seq":1,"calls_person":false}),
+            json!({"group_id":b["id"],"seq":1,"calls_person":false}),
+            json!({"group_id":a["id"],"seq":2,"calls_person":false}),
+            json!({"group_id":b["id"],"seq":2,"calls_person":false}),
         ]
     );
     let middle = all[1]["seq"].as_i64().unwrap();
@@ -729,6 +732,9 @@ async fn a_reply_to_mohammed_only_wakes_no_one_and_marks_needs_you() {
     send(&app, &messages, "send").await;
     let answer = reply(&app, &messages, 1).await;
     assert_eq!(answer["to"], json!([{"kind":"person"}]));
+    let frames = message_frames(&app, 0, 2).await;
+    assert_eq!(frames[0]["payload"]["calls_person"], false);
+    assert_eq!(frames[1]["payload"]["calls_person"], true);
     let (status, group) = app::call(&app, "GET", &path, None).await;
     assert_eq!(status, 200);
     assert_eq!(group["needs_you"], true);

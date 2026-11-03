@@ -20,7 +20,10 @@ F-80 (per-tool permissions in the agent form) shipped in PR #52 (`6b2c66ed`); it
 this file at `9c7c7e5a`.
 A click during a save is now queued and built on the saved rules (PR #53, `349606bf`).
 
-No task is open.
+On `docs/agent-messaging-design`, F-81 through F-85 implement the AYLUL groups API client,
+stream refresh, sidebar and creation form, group page and member permission answers.
+The targeted web tests and typecheck passed. The live acceptance is tracked in the
+[group UI plan](plans/2026-11-03-agent-groups-ui.md#acceptance).
 
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.

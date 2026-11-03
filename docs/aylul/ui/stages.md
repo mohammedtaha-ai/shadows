@@ -5,11 +5,14 @@ their task here and set its status. Task shape: [`AGENTS.md`](../AGENTS.md#a-tas
 
 ## Now
 
-No desktop UI task is open. The panel is UI-owned (agents and panel design §7.8); the
+The panel is UI-owned (agents and panel design §7.8); the
 character side owns only the drawing. Finished tasks are in Git: U-5 to U-8 at `b40e077b`
 (PR #49), U-4 at `ca618f89`, U-1 and U-3 at `1a2b601`, U-2 at `c7e7bac4`, the text input,
 the shared dashboard, U-W1 to U-W3 and H-2 at `8580306`.
 
 ## Tasks
 
-None open.
+On `docs/agent-messaging-design`, U-9 routes native group destinations to the shared main
+window and U-10 projects group attention onto the existing panel pill and tone. The native
+unit suite covers startup and reconnect. The physical Windows journey is tracked in the
+[group UI plan](../../frontend/plans/2026-11-03-agent-groups-ui.md#acceptance).

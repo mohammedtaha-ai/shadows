@@ -507,6 +507,13 @@ async fn startup_is_silent_and_a_call_during_a_drop_rings_once() {
     let resumed = wait(&mut rx, |update| update.waiting.alert_revision > 0).await;
     assert_eq!(resumed.waiting.count, 1);
     assert_eq!(resumed.waiting.alert_revision, 1);
+    assert!(api
+        .data
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|request| !request.contains("/messages?")));
     api.group_message(GROUP, 4, false);
     api.project_emit("lagged");
     let rebuilt = wait(&mut rx, |update| update.waiting.count == 1).await;

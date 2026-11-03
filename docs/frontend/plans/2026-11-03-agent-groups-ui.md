@@ -2,7 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** draft for review, 2026-11-03. B-40 to B-45 are built on this branch
+**Status:** implemented on the topic branch, 2026-11-03. Live acceptance is tracked below.
+B-40 to B-45 are built on this branch
 (`docs/agent-messaging-design`). Their routes and schemas in `api/openapi.json` match this plan:
 `Group { id, name, members[{ slug, name, thread_id }], needs_you, created_at }`, `Message { id,
 group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `person`,
@@ -81,7 +82,7 @@ B-46: `Group.needs_you_since`, needed by U-10).
   `web/src/stream/contract.yaml`
 
 **Interfaces:**
-- `classifyRefresh` maps `MessageAdded` (payload `{group_id, seq}`) to
+- `classifyRefresh` reads `group_id` from the `MessageAdded` payload and maps it to
   `{ kind: 'group', groupId }` and `{ kind: 'groups' }`.
 - `dispatchRefresh` invalidates, for `group`, both `groupMessagesQuery(groupId)` and
   `groupQuery(groupId)` (the open group's own `needs_you`); for `groups`, `groupsQuery`.
@@ -143,6 +144,7 @@ B-46: `Group.needs_you_since`, needed by U-10).
     (`web/src/stream/refresh.ts`) for each member thread (6 at most) while it is open, so
     the operations query refreshes when a turn starts and when it ends.
 - **The composer:**
+  - It uses the shared conversation composer frame, textarea and arrow button.
   - Typing `@` opens the member menu: live members only. Mohammed is the writer, so
     `@mohammed` is not offered.
   - Enter sends; the field clears only after `sendToGroup` answers.
@@ -242,19 +244,20 @@ B-46: `Group.needs_you_since`, needed by U-10).
   say what is new.
   - **A permission request** is new when its `(thread_id, request_id)` is not in the set the
     watcher has seen in this run of the app.
-  - **A call to Mohammed** is new when the watcher reads a `MessageAdded` whose message addresses
-    `Person`, with a `seq` above the highest it has seen for that group.
+  - **A call to Mohammed** is new when `MessageAdded.calls_person` is true and its group-local
+    `seq` is above the highest call the watcher has seen for that group. Core sets the flag
+    when an agent addresses `Person`, so the watcher reads no message history.
   - The watcher keeps those seen sets in memory for this run.
   - **A reconnect** rebuilds the count from the two lists. Requests already in the set ring
     nothing. A `MessageAdded` that the resumed stream delivers for the first time is new, and
     rings once for the batch, not once per message.
   - **The app's first connection is silent until `caught-up`.** The project feed starts at
-    cursor 0 (`presence/watcher/feed.rs`), so it replays old `MessageAdded` events first, and
-    `GET /api/groups` carries no message `seq`. Every request and every call that arrives before
-    that subscription's first `caught-up` frame only fills the seen sets and the per-group
-    highest `seq`. None of them rings.
+    cursor 0 (`presence/watcher/feed.rs`). Old `MessageAdded` events advance the durable
+    cursor without loading each historical message. A snapshot at `caught-up` reconciles the
+    count, and waiting permission identities form the initial seen set. None of them rings.
   - **After that, in the same run,** the seen state and the feed's cursor (the last event handled)
-    survive a reconnect, so only events after that cursor can be new.
+    survive a reconnect or change of bound agent within the same Core configuration, so
+    only events after that cursor can be new.
 - **A permission request on a hidden group thread** is counted once: as its group, not as a
   conversation. The pill reads `GET /api/aylul/permissions` today, and that list includes hidden
   threads, so without this the pill would open a hidden thread as a conversation. The watcher
@@ -282,6 +285,11 @@ B-46: `Group.needs_you_since`, needed by U-10).
 ---
 
 ## Acceptance
+
+On 2026-11-03, the browser created `Groups acceptance` with two existing agents against the
+configured development database. Sending to `@ay` showed the agent's reply and the
+`Needs you` mark without a page reload. Core recorded `OperationCompleted`. The group and
+one-to-one composers matched in browser layout, and group mention completion remained active.
 
 Mohammed runs `shadows serve` and the desktop. He then checks four things:
 

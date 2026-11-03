@@ -42,7 +42,6 @@ pub struct Data {
     pub events: broadcast::Sender<(String, String)>,
     pub permissions: Mutex<Vec<serde_json::Value>>,
     pub groups: Mutex<Vec<serde_json::Value>>,
-    pub group_messages: Mutex<Vec<serde_json::Value>>,
     pub project_replay: Mutex<Vec<(i64, String)>>,
     pub project_events: broadcast::Sender<(String, String)>,
     pub project_sequence: AtomicI64,
@@ -79,7 +78,6 @@ impl Fixture {
             events,
             permissions: Mutex::new(vec![]),
             groups: Mutex::new(vec![]),
-            group_messages: Mutex::new(vec![]),
             project_replay: Mutex::new(vec![]),
             project_events,
             project_sequence: AtomicI64::new(0),
@@ -149,18 +147,10 @@ impl Fixture {
         let _ = self.data.project_events.send((name.into(), "{}".into()));
     }
     pub fn group_message(&self, group: &str, seq: i64, calls_person: bool) {
-        let to = if calls_person {
-            serde_json::json!([{"kind":"person"}])
-        } else {
-            serde_json::json!([])
-        };
-        self.data
-            .group_messages
-            .lock()
-            .unwrap()
-            .push(serde_json::json!({"seq":seq,"to":to}));
         let cursor = self.data.project_sequence.fetch_add(1, Ordering::SeqCst) + 1;
-        let body = serde_json::json!({"seq":cursor,"kind":"MessageAdded","payload":{"group_id":group,"seq":seq}}).to_string();
+        let body = serde_json::json!({
+            "seq":cursor,"kind":"MessageAdded","payload":{"group_id":group,"seq":seq,"calls_person":calls_person}
+        }).to_string();
         self.data
             .project_replay
             .lock()
@@ -254,18 +244,6 @@ async fn handle(State(data): State<Arc<Data>>, request: Request) -> Response {
     }
     if path == "/api/groups" {
         return axum::Json(data.groups.lock().unwrap().clone()).into_response();
-    }
-    if path.starts_with("/api/groups/") && path.ends_with("/messages") {
-        let after = after(&request);
-        let messages: Vec<_> = data
-            .group_messages
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|message| message["seq"].as_i64().is_some_and(|seq| seq > after))
-            .cloned()
-            .collect();
-        return axum::Json(messages).into_response();
     }
     if path == "/api/subscribe" {
         if data.stall_headers.load(Ordering::SeqCst) {

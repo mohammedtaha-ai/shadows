@@ -281,29 +281,6 @@ impl Client {
     pub async fn groups(&self) -> Result<Vec<WaitingGroup>, Problem> {
         self.read("/api/groups").await
     }
-    pub async fn group_message_calls_person(&self, id: &str, seq: i64) -> Result<bool, Problem> {
-        uuid::Uuid::parse_str(id).map_err(|_| Problem::Invalid)?;
-        if seq <= 0 {
-            return Err(Problem::Invalid);
-        }
-        #[derive(Deserialize)]
-        struct Message {
-            seq: i64,
-            to: Vec<Address>,
-        }
-        #[derive(Deserialize)]
-        struct Address {
-            kind: String,
-        }
-        let messages: Vec<Message> = self
-            .read(&format!("/api/groups/{id}/messages?after={}", seq - 1))
-            .await?;
-        let message = messages
-            .first()
-            .filter(|message| message.seq == seq)
-            .ok_or(Problem::Invalid)?;
-        Ok(message.to.iter().any(|address| address.kind == "person"))
-    }
     pub async fn project_id(&self, binding: &BindingView) -> Result<String, Problem> {
         let workspace = tokio::time::timeout(self.timeout, self.workspace(binding))
             .await

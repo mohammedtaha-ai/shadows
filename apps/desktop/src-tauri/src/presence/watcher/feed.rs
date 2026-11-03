@@ -199,6 +199,21 @@ enum RefreshWaiting {
 struct GroupMessageEvent {
     group_id: String,
     seq: i64,
+    #[serde(default)]
+    calls_person: bool,
+}
+impl AlertHistory {
+    fn see_call(&mut self, event: &GroupMessageEvent) {
+        if event.calls_person
+            && self
+                .calls
+                .get(&event.group_id)
+                .is_none_or(|seq| event.seq > *seq)
+        {
+            self.calls.insert(event.group_id.clone(), event.seq);
+            self.pending_tone = true;
+        }
+    }
 }
 
 /// One project feed reconciles both kinds of waiting items.
@@ -310,18 +325,7 @@ impl<'a> Waiting<'a> {
             RefreshWaiting::Permissions => self.replace(client.permissions().await?),
             RefreshWaiting::Message(event) => {
                 let groups = client.groups().await?;
-                if self
-                    .history
-                    .calls
-                    .get(&event.group_id)
-                    .is_none_or(|seq| event.seq > *seq)
-                    && client
-                        .group_message_calls_person(&event.group_id, event.seq)
-                        .await?
-                {
-                    self.history.calls.insert(event.group_id.clone(), event.seq);
-                    self.history.pending_tone = true;
-                }
+                self.history.see_call(event);
                 let changed = self.groups != groups;
                 self.groups = groups;
                 changed
@@ -366,11 +370,16 @@ impl<'a> Waiting<'a> {
                     return Some(false);
                 }
                 let action = match value.kind.as_str() {
-                    "PermissionsChanged" => RefreshWaiting::Permissions,
+                    "PermissionsChanged" if !self.replaying => RefreshWaiting::Permissions,
                     "MessageAdded" if self.history.initialized => {
                         let Ok(event) = serde_json::from_value(value.payload) else {
                             return Some(self.lose());
                         };
+                        if self.replaying {
+                            self.history.see_call(&event);
+                            self.history.cursor = value.seq;
+                            return Some(false);
+                        }
                         RefreshWaiting::Message(event)
                     }
                     // The caught-up snapshot covers the initial replay without loading old messages.
