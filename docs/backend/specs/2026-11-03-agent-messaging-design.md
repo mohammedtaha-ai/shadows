@@ -1,7 +1,8 @@
 # Agent messaging: how agents report, escalate and talk in groups
 
-- Status: **accepted** by Mohammed on 2026-11-03, in conversation; not built. Mohammed
-  approved the new `Messages` owner (§7) the same day.
+- Status: **accepted** by Mohammed on 2026-11-03, in conversation, with the new `Messages`
+  owner (§7). Slice 1 (§8, groups) is **built** in PR #54 (`9e5b9ab2`); slices 2 to 4 wait for
+  Core's executors (roadmap Stage 4).
 - Evidence: the messaging probe (`docs/evidence/2026-11-01-agent-messaging-probe.md`
   at `f1459dcc`); Hermes group rooms, read from a local copy of its source
   (`apps/desktop/src/plugins/hermes-bots/group-chat.ts`,
