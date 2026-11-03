@@ -50,5 +50,21 @@ no database, WAL, log, agent home or session file.
 
 ## Tasks
 
-None open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at
+### B-38 · Extensions lists an MCP item's tools and keeps per-agent rules
+- Status: todo
+- Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md) (per-tool permissions)
+- Read: `crates/shadows-core/src/app.rs` (`Extensions`); `crates/core-extensions/contract.yaml`; `crates/core-extensions/src/{lib,mcp,model}.rs` and `store/`; how `crates/shadows/Cargo.toml` already uses `rmcp` as a client in tests.
+- Touch: `crates/core-extensions/` (src, store, a migration in the place the crate's migrations live, `Cargo.toml` for `rmcp` client features, contract, tests); the workspace `Cargo.toml` only if `rmcp` features are set there; `docs/codebase/README.md` rows for new files.
+- Needs: none.
+- Done when: `Extensions::item_tools(slug, item)` returns the server's tools (name, description) over `http` and `stdio` with the stored secret values, with a 10-second limit; `Extensions::tool_rules(slug, item)` and `set_tool_rules(slug, item, rules)` read and replace an agent's rules (`allow`, `ask`, `deny`; `ask` stores nothing); switching the item off or deleting it removes its rules in the same write; the resolved snapshot the harness reads carries each switched-on item's rules. `cargo test -p core-extensions` passes, with `tools_are_listed_from_an_http_server`, `tools_are_listed_from_a_stdio_server`, `a_silent_server_times_out`, `rules_are_per_agent`, `ask_stores_no_row`, `switching_off_removes_the_rules`.
+
+### B-39 · Rules reach the agent's settings.json; HTTP routes
+- Status: todo
+- Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md)
+- Read: `crates/core-harness/contract.yaml`; `crates/core-harness/src/extension_home.rs` (`project`) and `profile_home.rs`; the name each MCP item is delivered under in ACP `mcpServers`; `crates/shadows-http/src/contract.yaml`; the agent extension routes in `crates/shadows-http/src/`.
+- Touch: `crates/core-harness/src/` (projection), its contract and tests; `crates/shadows-core/tests/aylul_session/` (home file tests); `crates/shadows-http/src/` (routes, openapi) and its contract; `crates/shadows/tests/` (a new `tool_rules_routes.rs`; `openapi.rs` route list); `api/openapi.json`; `web/src/api/` (regenerated only).
+- Needs: B-38.
+- Done when: at opening the harness writes `allow` and `deny` rules as `mcp__<server>__<tool>` into `permissions.allow` / `permissions.deny`, keeps rules it did not write, and removes the ones it wrote for an item now off; `GET /api/aylul/agents/{slug}/extensions/{item}/tools` (tools plus each one's rule, and rules for missing tools) and `PUT /api/aylul/agents/{slug}/extensions/{item}/tool-rules` work. First probe: the exact `<server>` spelling Claude Code uses for an ACP-delivered server, and whether a deny rule holds in `bypassPermissions`; report both. Tests: `opening_writes_allow_and_deny_rules`, `rules_of_an_item_switched_off_are_removed`, `foreign_rules_are_kept` and the route tests pass; `npm run gen:api` and `cargo test -p shadows --test openapi` pass.
+
+None else open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at
 `f1459dcc`.

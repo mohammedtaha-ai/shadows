@@ -185,6 +185,34 @@ its character and artwork are not ours to use (its `LICENSE-ASSETS.md`).
   the home's `.claude.json`, so a removed tool is gone at the next opening.
 - An AYLUL agent never receives Shadows' own `/mcp` grant (brain design §8).
 
+#### 7.2.1 Per-tool permissions
+
+Mohammed asked on 2026-11-03 for what Claude Desktop's connector page shows: each tool of
+an MCP server allowed, asking, or blocked, so a server with one dangerous tool can still be
+switched on. Decided with him: **per agent**, not per library item.
+
+- **Owner: `Extensions`,** beside the agent's switch for the item. A rule is
+  `(agent, item, tool name) → allow | ask | deny`. No row means `ask`, Claude Code's own
+  default for an MCP tool. Deleting the item or switching it off keeps nothing: the rules go
+  with the switch.
+- **The tool list comes from the server.** `Extensions` connects to the item as an MCP
+  client (`tools/list`), over `http` with its stored header values, or by starting the
+  `stdio` command with its stored environment values, and returns each tool's name and
+  description. The list is read when the form asks for it, never stored; a rule for a tool
+  the server no longer lists is kept and shown as missing. A server that does not answer in
+  10 seconds is an error the form shows; rules can still be read and cleared.
+- **Delivery: in the agent's `settings.json`, at opening.** The harness writes the rules
+  into `permissions.allow` and `permissions.deny` as `mcp__<server>__<tool>`, `<server>`
+  being the name the item is delivered under in ACP's `mcpServers`, in the same projection
+  step that writes the rest of the home. `ask` writes nothing. Rules the harness did not
+  write are kept; rules it wrote for an item now off or deleted are removed.
+- **Modes.** A deny rule holds in every mode. An allow rule skips the question in the asking
+  modes and Auto mode's classifier for that tool. A mode that skips permissions ignores
+  allow and ask, as Claude Code does; deny still holds.
+- **Form:** each switched-on MCP item opens to its tools, each with three buttons (allow,
+  ask, block) and the tool's description, and one control that sets every tool of the item
+  at once.
+
 ### 7.3 Outfit
 
 - **Owner: `Agents`,** beside `character_color`, with the same rule: an opaque
