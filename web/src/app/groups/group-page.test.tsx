@@ -94,3 +94,26 @@ it('keeps a scrolled-up reader in place when two messages arrive', async () => {
   act(() => a.button('New messages')!.click())
   expect(a.button('New messages')).toBeUndefined()
 })
+
+it('shows the member and request title before answering in place', async () => {
+  const permission = {
+    thread_id: 'hidden1', request_id: 'r1', title: 'Run a command', agent: 'alpha', asked_at: 'now',
+    options: [{ option_id: 'allow', name: 'Allow once', kind: 'allow_once' }],
+  }
+  let waiting = true
+  const a = await open({
+    'GET /api/aylul/permissions': () => Response.json(waiting ? [permission, { ...permission, thread_id: 'other' }] : []),
+    'POST /api/threads/hidden1/session/permissions/r1': () => {
+      waiting = false
+      return Response.json({ request_id: 'r1', option_id: 'allow' })
+    },
+  })
+  await until(() => a.button('Allow once') !== undefined)
+  const requests = a.container.querySelector('[aria-label="Group permission requests"]')
+  expect(requests?.textContent).toMatch(/Alpha.*Run a command.*Allow once/)
+  expect(a.buttons('Allow once')).toHaveLength(1)
+  act(() => a.button('Allow once')!.click())
+  await until(() => a.button('Allow once') === undefined)
+  expect(a.path()).toBe('/aylul/groups/g1')
+  expect(a.bodies.at(-1)).toEqual({ command_id: expect.any(String), option_id: 'allow' })
+})

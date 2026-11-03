@@ -8,3 +8,4 @@ obligations:
   - Creation refreshes the sidebar list before navigating, including an empty group.
   - The log follows new messages only when the reader was at the bottom.
   - Member thinking follows the member thread operation query.
+  - A waiting permission on a member thread is shown with the member's name and request title, and answered in place.

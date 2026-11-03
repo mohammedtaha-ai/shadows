@@ -4,7 +4,9 @@ import { useEffect } from 'react'
 import { agentsQuery } from '@/api/aylul-profiles'
 import { groupMessagesQuery, groupQuery, type Group } from '@/api/groups'
 import { operationsQuery } from '@/api/threads'
+import { waitingPermissionsQuery } from '@/api/permissions'
 import { colorOf } from '@/app/agents'
+import { PermissionAnswer } from '@/app/conversation'
 import { holdThreadRefresh, useProjectEvents } from '@/stream'
 import { ErrorLine } from '../error-line'
 import { GroupComposer } from './group-composer'
@@ -21,6 +23,7 @@ export function GroupPage() {
 function OpenGroup({ group }: { group: Group }) {
   const agents = useQuery(agentsQuery)
   const log = useQuery(groupMessagesQuery(group.id))
+  const permissions = useQuery(waitingPermissionsQuery)
   const client = useQueryClient()
   const projectId = agents.data?.project_id
   const operations = useQueries({ queries: group.members.map(member => operationsQuery(member.thread_id)) })
@@ -46,6 +49,19 @@ function OpenGroup({ group }: { group: Group }) {
       </header>
       {log.error && <div className="px-5 pt-3"><ErrorLine error={log.error} /></div>}
       <GroupLog messages={log.data ?? []} colors={colors} />
+      {permissions.error
+        ? <div className="px-4"><ErrorLine error={permissions.error} /></div>
+        : <section aria-label="Group permission requests" className="max-h-[35%] space-y-2 overflow-y-auto px-4">
+          {permissions.data?.map(request => {
+            const member = members.find(value => value.thread_id === request.thread_id)
+            if (!member) return null
+            return <article key={JSON.stringify([request.thread_id, request.request_id])} className="space-y-2 rounded-xl border border-warning/30 p-3">
+              <h2 dir="auto" className="text-sm font-semibold">{member.name}</h2>
+              <p dir="auto" className="whitespace-pre-wrap text-sm">{request.title}</p>
+              <PermissionAnswer request={request} />
+            </article>
+          })}
+        </section>}
       <GroupComposer groupId={group.id} members={mentionable} />
     </div>
   )
