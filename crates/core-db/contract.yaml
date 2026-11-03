@@ -8,6 +8,7 @@ name: core-db
 version: 1
 status: current
 source: crates/core-db/src
+tool_rules_migration: 0040 installs the Extensions-owned per-agent MCP rules table.
 
 
 shapes:

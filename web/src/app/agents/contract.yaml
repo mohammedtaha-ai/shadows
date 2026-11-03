@@ -20,6 +20,9 @@ external:
   EnvEntry: web/src/api/schema.d.ts components.schemas.EnvEntry
 
 components:
+  ToolRules:
+    signature: "({ slug: string, id: string }) => JSX.Element"
+    note: MCP tools show allow/ask/block actions, bulk selection and clearable stored rules when discovery fails or a tool is missing.
   OutfitPicker:
     signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
     note: Manifest-ordered studio previews form an accessible radio group; unknown ids select default.
@@ -85,6 +88,8 @@ pure:
     signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
 
 obligations:
+  - rule: A rule save locks every action for its item, preserves other saved rules, updates the exact query from the saved answer and reuses a failed command on retry.
+    tested_by: ["lists tool descriptions and the current permission", "blocking a tool sends its rule and preserves other rules", "set all applies to every listed tool and keeps missing rules", "a missing tool stays visible and can be cleared", "listing failure still allows stored rules to be cleared", "saving locks the whole item and a subsequent edit preserves the saved rule", "a failed save keeps the selection and retries the same command"]
   - rule: An edited agent identity shows Unsaved changes; reverting every identity field and instructions clears it.
     tested_by: ["unsaved identity changes are visible and reverting clears the indicator"]
   - rule: Agent forms show stored instructions or an empty field; only edited instructions are sent, and Core's validation message preserves the draft.

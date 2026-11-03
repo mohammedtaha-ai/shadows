@@ -24,6 +24,11 @@ name: web-api
 version: 1
 status: current
 source: web/src/api
+mcp_tool_rules:
+  agentToolsQuery: "GET /api/aylul/agents/{slug}/extensions/mcp/{id}/tools; ['aylul-agent-mcp-tools', slug, id]"
+  setToolRules: Replace one item's entire rule set with the caller's command id.
+  saveToolRulesAnswer: Cancel the exact in-flight tools read before storing the saved rules.
+  aliases: AgentTools, ToolRule and ToolRuleEntry come from the generated schemas.
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────

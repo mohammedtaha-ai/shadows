@@ -32,6 +32,10 @@ modules:
   transport.rs: shared HTTP request execution
   sse.rs: Events stream framing through private handlers
 agreements:
+  - between: [aylul_extensions::tools, aylul_extensions::tool_rules]
+    must: Delegate per-agent MCP discovery and rule replacement to AppCore.extensions; discovery failures preserve stored rules.
+    tested_by: [tools_and_rules_are_listed, rules_are_replaced, an_unknown_item_is_404,
+      a_bad_tool_name_is_400, a_replayed_put_conflicts_on_change, missing_tools_keep_their_rule]
   - between: [harness::waiting_permissions, harness::answer_permission]
     must: Read and answer only through AppCore.harness; Harness owns option validation, replay and provenance.
     tested_by: [waiting_requests_are_listed_oldest_first, answering_over_http_answers_the_adapter, unknown_settled_and_not_offered_answer_their_codes, a_replayed_answer_answers_the_first_result, no_aylul_lists_nothing]

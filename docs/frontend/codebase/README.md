@@ -319,6 +319,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/tool-rules.tsx` | Per-agent MCP tool permissions | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/tool-rules.test.tsx` | MCP tool permission form checks | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/index.ts` | Expose app/agents public capabilities | `web/src/app/agents/contract.yaml` |
 | `web/src/app/settings/sections/usage.tsx` | Usage period selection | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/usage-period.ts` | Usage interval calculation | `web/src/app/settings/contract.yaml` |

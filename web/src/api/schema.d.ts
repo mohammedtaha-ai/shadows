@@ -100,6 +100,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/aylul/agents/{slug}/extensions/mcp/{id}/tool-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_mcp_tool_rules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/agents/{slug}/extensions/mcp/{id}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agent_mcp_tools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aylul/agents/{slug}/extensions/{kind}/{id}": {
         parameters: {
             query?: never;
@@ -1635,6 +1667,11 @@ export interface components {
         AgentTemplate: {
             instructions: string;
         };
+        AgentTools: {
+            list_error?: string | null;
+            rules: components["schemas"]["ToolRuleEntry"][];
+            tools: components["schemas"]["McpTool"][];
+        };
         AgentWorkspace: {
             agents: components["schemas"]["Agent"][];
             project_id: components["schemas"]["ProjectId"];
@@ -2381,6 +2418,10 @@ export interface components {
         McpRequest: components["schemas"]["McpInput"] & {
             command_id: string;
         };
+        McpTool: {
+            description: string;
+            name: string;
+        };
         McpTransport: {
             headers: components["schemas"]["McpValue"][];
             /** @enum {string} */
@@ -3124,6 +3165,16 @@ export interface components {
             title: string;
             tool?: string | null;
         };
+        /** @enum {string} */
+        ToolRule: "allow" | "ask" | "deny";
+        ToolRuleEntry: {
+            rule: components["schemas"]["ToolRule"];
+            tool: string;
+        };
+        ToolRulesRequest: {
+            command_id: string;
+            rules: components["schemas"]["ToolRuleEntry"][];
+        };
         /**
          * @description The settings a turn runs with. `effort` is `None` exactly
          *     when the model offers none.
@@ -3676,6 +3727,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentExtensions"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_mcp_tool_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolRulesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolRuleEntry"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    agent_mcp_tools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTools"];
                 };
             };
             404: {

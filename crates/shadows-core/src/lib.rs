@@ -35,8 +35,8 @@ pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropos
 pub use core_design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use core_events::{Delivery, Events, StoredEvent, Subscription};
 pub use core_extensions::{
-    AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, ExtensionsError, Item,
-    McpInput, McpItem,
+    AgentExtensions, AgentItem, AgentTools, ExtensionKind, ExtensionLibrary, Extensions,
+    ExtensionsError, Item, McpInput, McpItem, McpTool, ToolRule, ToolRuleEntry,
 };
 pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use core_harness::{

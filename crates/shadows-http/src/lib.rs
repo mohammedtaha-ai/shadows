@@ -159,6 +159,8 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(aylul_extensions::remove))
         .routes(routes!(aylul_extensions::agent))
         .routes(routes!(aylul_extensions::toggle))
+        .routes(routes!(aylul_extensions::tools))
+        .routes(routes!(aylul_extensions::tool_rules))
         .routes(routes!(aylul_providers::test_provider))
         .routes(routes!(aylul_providers::test_saved_provider))
         .routes(routes!(

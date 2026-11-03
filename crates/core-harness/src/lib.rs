@@ -29,6 +29,7 @@ mod standards;
 mod store;
 mod tasks;
 mod titles;
+mod tool_rules_home;
 pub use tasks::BackgroundTask;
 
 use std::sync::Arc;

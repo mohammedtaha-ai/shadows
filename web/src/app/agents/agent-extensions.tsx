@@ -5,6 +5,7 @@ import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { useOpenSettings } from '@/app/navigation'
+import { ToolRules } from './tool-rules'
 
 export function AgentExtensions({ slug }: { slug: string }) {
   const state = useQuery(agentExtensionsQuery(slug))
@@ -89,6 +90,7 @@ function ExtensionSwitch({ slug, kind, item }: { slug: string; kind: ExtensionKi
       </label>
       <p className="text-xs text-muted-foreground">{item.description}</p>
       {toggle.error && <ErrorLine error={toggle.error} />}
+      {kind === 'mcp' && item.enabled && <ToolRules slug={slug} id={item.id} />}
     </div>
   )
 }

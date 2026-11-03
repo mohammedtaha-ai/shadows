@@ -40,8 +40,8 @@ impl DebugLog {
 /// `<data dir>/logs/`, one per daemon start, named for the UTC start time and
 /// the process id. Without it: `shadows=info`, stderr only. `verbose` raises
 /// the stderr level without writing a file. `RUST_LOG`, when set, overrides
-/// the level in every mode, except ACP request logs, which are capped at INFO
-/// because their DEBUG fields can contain a live MCP bearer.
+/// the level in every mode. Protocol filters still cap ACP request logs at INFO
+/// and exclude rmcp's internal logs, which can contain credentials or raw frames.
 ///
 /// Diagnostics go to stderr, never stdout. Stdout has one job —
 /// printing the local address `shadows serve` binds (and, in debug mode, the
@@ -69,17 +69,19 @@ pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Opti
 
     tracing_subscriber::registry()
         .with(filter)
-        .with(filter_fn(acp_log_allowed))
+        .with(filter_fn(protocol_log_allowed))
         .with(fmt::layer().with_target(true).with_writer(std::io::stderr))
         .with(file)
         .try_init()?;
     Ok(log)
 }
 
-/// ACP 2.2.0 logs whole outgoing requests at DEBUG, including mcpServers'
-/// Authorization header. Apply this to both outputs after RUST_LOG is parsed.
-fn acp_log_allowed(meta: &tracing::Metadata<'_>) -> bool {
-    !meta.target().starts_with("agent_client_protocol") || *meta.level() <= tracing::Level::INFO
+/// ACP debug requests can hold live headers; rmcp can log raw server input even
+/// when Extensions returns a sanitized error. Keep both out of either output.
+fn protocol_log_allowed(meta: &tracing::Metadata<'_>) -> bool {
+    let target = meta.target();
+    !target.starts_with("rmcp")
+        && (!target.starts_with("agent_client_protocol") || *meta.level() <= tracing::Level::INFO)
 }
 
 /// The file layer's field formatter: the default one, under its own type.
@@ -123,4 +125,20 @@ fn open_log_file(data_dir: &Path) -> anyhow::Result<(NonBlocking, DebugLog)> {
             _guard: guard,
         },
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn debug_file_omits_mcp_wire_payloads() {
+        let tmp = tempfile::tempdir().unwrap();
+        let log = super::init(false, Some(tmp.path())).unwrap().unwrap();
+        let path = log.path().to_owned();
+        tracing::error!(target: "rmcp::transport::async_rw", "fixture-mcp-wire-value");
+        tracing::warn!(target: "shadows::tracing", "fixture-daemon-diagnostic");
+        drop(log);
+        let text = std::fs::read_to_string(path).unwrap();
+        assert!(text.contains("fixture-daemon-diagnostic"));
+        assert!(!text.contains("fixture-mcp-wire-value"));
+    }
 }

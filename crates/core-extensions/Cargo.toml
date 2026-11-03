@@ -17,6 +17,9 @@ core-db = { path = "../core-db" }
 core-agents = { path = "../core-agents" }
 core-providers = { path = "../core-providers" }
 core-secrets = { path = "../core-secrets" }
+shadows-process = { path = "../shadows-process" }
+rmcp = { workspace = true, features = ["client", "transport-streamable-http-client-reqwest", "transport-async-rw"] }
+reqwest = { workspace = true, features = ["rustls"] }
 dunce = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -30,6 +33,6 @@ uuid = { workspace = true }
 yaml-rust2 = { workspace = true }
 
 [dev-dependencies]
+axum = { workspace = true }
 core-db = { path = "../core-db", features = ["test-support"] }
 core-projects = { path = "../core-projects" }
-shadows-process = { path = "../shadows-process" }

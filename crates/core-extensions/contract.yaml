@@ -14,6 +14,8 @@ modules:
   model.rs: public extension metadata
   files.rs: bounded library file copies
   mcp.rs: MCP configuration commands and validation
+  tool_rules.rs: per-agent MCP tool rule commands
+  tool_list.rs: bounded MCP tool discovery
   bundled.rs: embedded library import
   ../build.rs: embedded library file index
   ../assets/library/: bundled library source items
@@ -33,6 +35,7 @@ shapes:
     secrets: Shared Secrets service for write-only MCP values.
   ExtensionsStore:
     storage: Arc<Storage> # Private to extensions; shares the existing pool.
+    tool_rules: Owns aylul_agent_mcp_tool_rule in the shared database.
   ExtensionsError:
     NotFound: ExtensionNotFound for a caller
     NameConflict: ExtensionNameConflict for a caller
@@ -71,6 +74,9 @@ functions:
   delete_extension: Remove the item and every enablement in one transaction; MCP deletion removes its secret scope.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
+  tool_rules: List stored rules ordered by tool for a live agent and existing MCP item.
+  set_tool_rules: Replayably replace one agent's item rules; ask removes a stored rule.
+  agent_tools: Discover one item's tools over its configured transport, returning stored rules on discovery failure.
   extension_guard: public; the library mutation guard the harness holds while projecting.
   remove_agent_in: public; remove every folder and MCP switch of an agent in the caller's write.
   copy_tree: public; copy one library item's bounded regular files into a managed snapshot.
@@ -87,6 +93,16 @@ shared_in_transaction:
   remove_agent_in: Agent enablements removed in the caller write.
 
 obligations:
+  - rule: Tool names accept MCP's ASCII letters, digits, underscore, hyphen and dot up to 128 characters.
+    tested_by: [tool_rule_input_is_checked, dotted_tool_names_can_be_saved]
+  - rule: Discovery redacts resolved values echoed as whole tokens in descriptions and refuses names that contain one; a value inside a longer word is not an echo.
+    tested_by: [tools_are_listed_from_a_stdio_server, discovery_redacts_values_echoed_in_http_descriptions, discovery_refuses_a_value_echoed_as_a_tool_name, a_short_value_inside_a_word_is_not_an_echo]
+  - rule: A stdio listing process inherits only the named start-up variables from the daemon, then the item's values.
+    tested_by: [the_listing_process_does_not_inherit_the_daemon_environment]
+  - rule: Discovery uses stored headers or environment, follows tool pages, times out at ten seconds, returns value-free errors and terminates managed children.
+    tested_by: [tools_are_listed_from_an_http_server, tools_are_listed_from_a_stdio_server, a_silent_server_times_out, a_refused_server_leaks_no_value, opening_snapshot_carries_rules_of_switched_on_items]
+  - rule: Per-agent tool rules omit ask, survive switches, and are removed with the item or agent.
+    tested_by: [rules_are_per_agent, ask_stores_no_row, rules_survive_switching_off, deleting_the_item_or_agent_removes_rules, tool_rule_input_is_checked, tool_rules_replay_and_conflict]
   - rule: Bundled sources use a fresh owned temporary directory and exclusive file creation; stale linked staging paths never redirect or overwrite files.
     tested_by: [bundled_staging_does_not_overwrite_linked_files, bundled_staging_does_not_follow_a_linked_parent]
   - rule: Embedded items import once, start disabled, and stay absent after deletion.

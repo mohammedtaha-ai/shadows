@@ -392,6 +392,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-grants/src/testing.rs` | test-only grant entry points | `crates/core-grants/contract.yaml` |
 
 | `crates/core-harness/src/access.rs` | live session owner operations | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/tool_rules_home.rs` | recoverable MCP rule projection | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/store/invocation.rs` | invocation transaction entry points | `crates/core-harness/contract.yaml` |
 | `crates/core-turns/src/stage.rs` | shared prompt stage facts | `crates/core-turns/contract.yaml` |
 
@@ -467,6 +468,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |
 
 | `crates/core-extensions/src/lib.rs` | extension library boundary | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/tool_rules.rs` | per-agent MCP tool rule commands | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/tool_list.rs` | bounded MCP tool discovery | `crates/core-extensions/contract.yaml` |
 
 | `crates/core-threads/src/lib.rs` | thread command boundary | `crates/core-threads/contract.yaml` |
 

@@ -185,6 +185,53 @@ its character and artwork are not ours to use (its `LICENSE-ASSETS.md`).
   the home's `.claude.json`, so a removed tool is gone at the next opening.
 - An AYLUL agent never receives Shadows' own `/mcp` grant (brain design §8).
 
+#### 7.2.1 Per-tool permissions
+
+Mohammed asked on 2026-11-03 for what Claude Desktop's connector page shows: each tool of
+an MCP server allowed, asking, or blocked, so a server with one dangerous tool can still be
+switched on. Decided with him: **per agent**, not per library item.
+
+- **Owner: `Extensions`,** beside the agent's switch for the item. A rule is
+  `(agent, item, tool name) → allow | ask | deny`. No row means `ask`, Claude Code's own
+  default for an MCP tool. Rules stay while the item is switched off (they apply only to a
+  switched-on item, so switching back on restores them); deleting the item or the agent
+  removes them in the same write.
+- **The tool list comes from the server.** `Extensions` connects to the item as an MCP
+  client (`tools/list`), over `http` with its stored header values, or by starting the
+  `stdio` command with its stored environment values, and returns each tool's name and
+  description. The list is read when the form asks for it, never stored; a rule for a tool
+  the server no longer lists is kept and shown as missing. A server that does not answer in
+  10 seconds is an error the form shows; rules can still be read and cleared.
+- **Delivery: in the agent's `settings.json`, at opening.** The harness writes the rules
+  into `permissions.allow` and `permissions.deny` as `mcp__<server>__<tool>`, `<server>`
+  being the name the item is delivered under in ACP's `mcpServers`, in the same projection
+  step that writes the rest of the home. `ask` writes nothing. Rules the harness did not
+  write are kept; rules it wrote for an item now off or deleted are removed.
+  Ownership is written ahead as the union of the old and next generated entries,
+  then settings are published and ownership finalized. An interrupted projection
+  therefore remains cleanable at the next opening. An identical rule already in
+  settings remains foreign and is never claimed by the projection.
+  Valid MCP names include dots. Claude exposes `file.read` as `file_read`, so
+  permission projection replaces dots with underscores; a real ACP probe measured
+  that the normalized rule allows execution and denies it even in bypassPermissions.
+  Resolved header/environment values echoed in descriptions are redacted. A listing
+  whose tool name contains a resolved value is refused without returning that name.
+
+  **OPEN — Colliding Claude tool identities.** `file.read` and `file_read` share
+  Claude's permission name. Settings therefore cannot assign independent permissions
+  to that pair. Closes when an encountered colliding server has a verified adapter
+  identity or an owner decision for disambiguation; no second enforcement path is added.
+- **Modes.** An allow rule skips the question in the asking modes and Auto mode's
+  classifier for that tool; a deny rule refuses the tool in them. The 2026-11-03 probe
+  through the installed `harness/claude` ACP adapter and Claude executable measured
+  `mcp__context7__read`: default ask requested permission, allow executed without a
+  question, and deny removed the tool from the model's offered tools in default, Auto
+  and bypassPermissions. The MCP server and model provider were local fixtures;
+  this establishes installed-runtime behavior, not external-provider acceptance.
+- **Form:** each switched-on MCP item opens to its tools, each with three buttons (allow,
+  ask, block) and the tool's description, and one control that sets every tool of the item
+  at once.
+
 ### 7.3 Outfit
 
 - **Owner: `Agents`,** beside `character_color`, with the same rule: an opaque

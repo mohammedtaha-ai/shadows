@@ -2,7 +2,7 @@
 use crate::mcp::PreparedMcp;
 use crate::{
     AgentExtensions, AgentItem, AgentMcpItem, ExtensionKind, ExtensionLibrary, Extensions,
-    ExtensionsError, Item, McpItem, McpTransport,
+    ExtensionsError, Item, McpItem, McpTransport, ToolRule, ToolRuleEntry,
 };
 use core_agents::Agents;
 use core_db::{CommandContext, Storage, StorageError};
@@ -326,6 +326,10 @@ impl ExtensionsStore {
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<(), ExtensionsError> {
+        sqlx::query("DELETE FROM aylul_agent_mcp_tool_rule WHERE agent_slug=?")
+            .bind(slug)
+            .execute(&mut *conn)
+            .await?;
         sqlx::query("DELETE FROM aylul_agent_extension WHERE agent_slug=?")
             .bind(slug)
             .execute(&mut *conn)
@@ -335,6 +339,100 @@ impl ExtensionsStore {
             .execute(conn)
             .await?;
         Ok(())
+    }
+}
+
+impl ExtensionsStore {
+    pub(super) async fn tool_rules(
+        &self,
+        slug: &str,
+        id: &str,
+    ) -> Result<Vec<ToolRuleEntry>, ExtensionsError> {
+        let mut conn = self.storage.reader().acquire().await?;
+        Agents::require_live_in(&mut conn, slug).await?;
+        Self::require_mcp_in(&mut conn, id).await?;
+        let rows = sqlx::query(
+            "SELECT tool,rule FROM aylul_agent_mcp_tool_rule
+             WHERE agent_slug=? AND mcp_id=? ORDER BY tool",
+        )
+        .bind(slug)
+        .bind(id)
+        .fetch_all(&mut *conn)
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                let rule = match row.get::<String, _>("rule").as_str() {
+                    "allow" => ToolRule::Allow,
+                    "deny" => ToolRule::Deny,
+                    _ => return Err(ExtensionsError::Invalid("invalid stored tool rule".into())),
+                };
+                Ok(ToolRuleEntry {
+                    tool: row.get("tool"),
+                    rule,
+                })
+            })
+            .collect()
+    }
+
+    async fn require_mcp_in(conn: &mut SqliteConnection, id: &str) -> Result<(), ExtensionsError> {
+        sqlx::query("SELECT id FROM aylul_mcp_server WHERE id=?")
+            .bind(id)
+            .fetch_optional(conn)
+            .await?
+            .ok_or(ExtensionsError::NotFound)?;
+        Ok(())
+    }
+
+    pub(super) async fn set_tool_rules(
+        &self,
+        c: CommandContext,
+        slug: &str,
+        id: &str,
+        rules: Vec<ToolRuleEntry>,
+    ) -> Result<Vec<ToolRuleEntry>, ExtensionsError> {
+        let (slug, id) = (slug.to_owned(), id.to_owned());
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    if let Some(out) =
+                        CommandContext::classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
+                    {
+                        return Ok(serde_json::from_str(&out)?);
+                    }
+                    Agents::require_live_in(conn, &slug).await?;
+                    Self::require_mcp_in(conn, &id).await?;
+                    sqlx::query(
+                        "DELETE FROM aylul_agent_mcp_tool_rule WHERE agent_slug=? AND mcp_id=?",
+                    )
+                    .bind(&slug)
+                    .bind(&id)
+                    .execute(&mut *conn)
+                    .await?;
+                    let rules: Vec<_> = rules
+                        .into_iter()
+                        .filter(|e| e.rule != ToolRule::Ask)
+                        .collect();
+                    for entry in &rules {
+                        sqlx::query(
+                            "INSERT INTO aylul_agent_mcp_tool_rule(agent_slug,mcp_id,tool,rule)
+                     VALUES (?,?,?,?)",
+                        )
+                        .bind(&slug)
+                        .bind(&id)
+                        .bind(&entry.tool)
+                        .bind(if entry.rule == ToolRule::Allow {
+                            "allow"
+                        } else {
+                            "deny"
+                        })
+                        .execute(&mut *conn)
+                        .await?;
+                    }
+                    Self::record(conn, &c, &serde_json::to_string(&rules)?).await?;
+                    Ok(rules)
+                })
+            })
+            .await
     }
 }
 

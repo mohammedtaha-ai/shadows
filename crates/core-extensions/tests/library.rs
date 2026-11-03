@@ -447,6 +447,533 @@ fn mcp_input(name: &str, values: serde_json::Value) -> core_extensions::McpInput
     .unwrap()
 }
 
+fn rules(entries: &[(&str, &str)]) -> Vec<core_extensions::ToolRuleEntry> {
+    serde_json::from_value(json!(
+        entries
+            .iter()
+            .map(|(tool, rule)| { json!({"tool":tool,"rule":rule}) })
+            .collect::<Vec<_>>()
+    ))
+    .unwrap()
+}
+
+async fn rule_item(w: &World) -> String {
+    w.extensions
+        .add_mcp("rule-item".into(), mcp_input("docs", json!([])))
+        .await
+        .unwrap()
+        .id
+}
+
+#[tokio::test]
+async fn rules_are_per_agent() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    let agents = Agents::new(
+        w.storage.clone(),
+        Providers::new(w.storage.clone(), w.secrets.clone()),
+        w.secrets.clone(),
+        Projects::new(w.storage.clone()),
+        Some(w._tmp.path().join("home")),
+    );
+    agents
+        .create_agent(
+            "second-agent".into(),
+            AgentInput {
+                name: "Other".into(),
+                provider: "provider".into(),
+                default_model: "model".into(),
+                character_color: None,
+                description: None,
+                instructions: None,
+                outfit: None,
+            },
+        )
+        .await
+        .unwrap();
+    w.extensions
+        .set_tool_rules("set".into(), "aylul", &id, rules(&[("read", "allow")]))
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(w.extensions.tool_rules("aylul", &id).await.unwrap()).unwrap(),
+        json!([{"tool":"read","rule":"allow"}])
+    );
+    assert!(
+        w.extensions
+            .tool_rules("other", &id)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn ask_stores_no_row() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    let out = w
+        .extensions
+        .set_tool_rules(
+            "set".into(),
+            "aylul",
+            &id,
+            rules(&[("read", "allow"), ("write", "ask")]),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(out).unwrap(),
+        json!([{"tool":"read","rule":"allow"}])
+    );
+    w.extensions
+        .set_tool_rules("ask".into(), "aylul", &id, rules(&[("read", "ask")]))
+        .await
+        .unwrap();
+    assert!(
+        w.extensions
+            .tool_rules("aylul", &id)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn rules_survive_switching_off() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    w.extensions
+        .set_tool_rules("set".into(), "aylul", &id, rules(&[("read", "deny")]))
+        .await
+        .unwrap();
+    for (command, enabled) in [("off", false), ("on", true)] {
+        w.extensions
+            .set_agent_extension(command.into(), "aylul", ExtensionKind::Mcp, &id, enabled)
+            .await
+            .unwrap();
+    }
+    assert_eq!(
+        serde_json::to_value(w.extensions.tool_rules("aylul", &id).await.unwrap()).unwrap(),
+        json!([{"tool":"read","rule":"deny"}])
+    );
+}
+
+#[tokio::test]
+async fn deleting_the_item_or_agent_removes_rules() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    w.extensions
+        .set_tool_rules("set".into(), "aylul", &id, rules(&[("read", "allow")]))
+        .await
+        .unwrap();
+    w.extensions
+        .delete_extension("delete".into(), ExtensionKind::Mcp, &id)
+        .await
+        .unwrap();
+    let id = w
+        .extensions
+        .add_mcp("again".into(), mcp_input("docs", json!([])))
+        .await
+        .unwrap()
+        .id;
+    assert!(
+        w.extensions
+            .tool_rules("aylul", &id)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    w.extensions
+        .set_tool_rules("set2".into(), "aylul", &id, rules(&[("read", "allow")]))
+        .await
+        .unwrap();
+    w.storage
+        .write_txn_as(|conn| {
+            Box::pin(async move { Extensions::remove_agent_in(conn, "aylul").await })
+        })
+        .await
+        .unwrap();
+    assert!(
+        w.extensions
+            .tool_rules("aylul", &id)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn tool_rule_input_is_checked() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    for tool in [
+        "".to_owned(),
+        "bad name".into(),
+        "x".repeat(129),
+        "a*".into(),
+    ] {
+        assert!(matches!(
+            w.extensions
+                .set_tool_rules(
+                    uuid::Uuid::new_v4().to_string(),
+                    "aylul",
+                    &id,
+                    rules(&[(&tool, "allow")])
+                )
+                .await,
+            Err(ExtensionsError::Invalid(_))
+        ));
+    }
+    assert!(matches!(
+        w.extensions
+            .set_tool_rules(
+                "dup".into(),
+                "aylul",
+                &id,
+                rules(&[("read", "allow"), ("read", "deny")])
+            )
+            .await,
+        Err(ExtensionsError::Invalid(_))
+    ));
+    assert!(matches!(
+        w.extensions
+            .set_tool_rules("missing".into(), "aylul", "missing", vec![])
+            .await,
+        Err(ExtensionsError::NotFound)
+    ));
+    assert!(
+        w.extensions
+            .set_tool_rules("no-agent".into(), "absent", &id, vec![])
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn tool_rules_replay_and_conflict() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    let first = w
+        .extensions
+        .set_tool_rules(
+            "set".into(),
+            "aylul",
+            &id,
+            rules(&[("write", "deny"), ("read", "allow")]),
+        )
+        .await
+        .unwrap();
+    w.extensions
+        .set_tool_rules("other".into(), "aylul", &id, vec![])
+        .await
+        .unwrap();
+    let replay = w
+        .extensions
+        .set_tool_rules(
+            "set".into(),
+            "aylul",
+            &id,
+            rules(&[("read", "allow"), ("write", "deny")]),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(first).unwrap(),
+        serde_json::to_value(replay).unwrap()
+    );
+    assert!(
+        w.extensions
+            .tool_rules("aylul", &id)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(matches!(
+        w.extensions
+            .set_tool_rules("set".into(), "aylul", &id, vec![])
+            .await,
+        Err(ExtensionsError::Storage(
+            core_db::StorageError::CommandConflict
+        ))
+    ));
+}
+
+#[tokio::test]
+async fn opening_snapshot_carries_rules_of_switched_on_items() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    w.extensions
+        .set_tool_rules("set".into(), "aylul", &id, rules(&[("read", "deny")]))
+        .await
+        .unwrap();
+    assert!(
+        w.extensions
+            .opening_snapshot("aylul")
+            .await
+            .unwrap()
+            .mcp
+            .is_empty()
+    );
+    w.extensions
+        .set_agent_extension("on".into(), "aylul", ExtensionKind::Mcp, &id, true)
+        .await
+        .unwrap();
+    let snapshot = w.extensions.opening_snapshot("aylul").await.unwrap();
+    let core_extensions::McpServerConfig::Stdio { rules, .. } = &snapshot.mcp[0] else {
+        panic!("expected stdio");
+    };
+    assert_eq!(
+        serde_json::to_value(rules).unwrap(),
+        json!([{"tool":"read","rule":"deny"}])
+    );
+}
+
+/// The first Node start on a cold Windows runner can outlast the 10-second listing limit,
+/// so every stdio test waits for one start that is not measured.
+async fn warm_node() {
+    static WARM: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+    WARM.get_or_init(|| async {
+        let mut node = shadows_process::spawn(shadows_process::ProcessSpec {
+            executable: "node".into(),
+            args: vec!["-e".into(), String::new()],
+            cwd: std::env::temp_dir(),
+            env: std::env::vars().collect(),
+            capture_stdout: false,
+            pipe_stdin: false,
+        })
+        .unwrap();
+        assert!(node.wait().await.unwrap().success());
+    })
+    .await;
+}
+
+async fn stdio_tools_item(w: &World, env: serde_json::Value) -> String {
+    warm_node().await;
+    let input = serde_json::from_value(json!({"name":"stdio","transport":{
+        "type":"stdio","command":"node","args":[
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mcp.cjs")
+        ],"env":env
+    }}))
+    .unwrap();
+    w.extensions
+        .add_mcp("stdio".into(), input)
+        .await
+        .unwrap()
+        .id
+}
+
+#[tokio::test]
+async fn tools_are_listed_from_a_stdio_server() {
+    let w = world().await;
+    let id = stdio_tools_item(&w, json!([{"name":"PROBE_VALUE","value":"Read a file"}])).await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert_eq!(out.list_error, None);
+    assert_eq!(
+        serde_json::to_value(out.tools).unwrap(),
+        json!([
+            {"name":"read","description":"[redacted]"},
+            {"name":"write","description":"Write a file"}
+        ])
+    );
+}
+
+#[tokio::test]
+async fn a_silent_server_times_out() {
+    use tokio::io::AsyncReadExt;
+
+    let w = world().await;
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .unwrap();
+    let port = listener.local_addr().unwrap().port().to_string();
+    let id = stdio_tools_item(&w, json!([{"name":"PROBE_PID_PORT","value":port}])).await;
+    let receive_pid = async {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut pid = String::new();
+        socket.read_to_string(&mut pid).await.unwrap();
+        pid.parse::<u32>().expect("fixture must report its PID")
+    };
+    let start = std::time::Instant::now();
+    // A cold Node start on a loaded runner can outlast the 10-second limit, so the fixture
+    // may be stopped before it reports. One that survived the limit would report within
+    // this longer window, so silence here also means it is gone.
+    let ((out, elapsed), pid) = tokio::join!(
+        async {
+            (
+                w.extensions.agent_tools("aylul", &id).await,
+                start.elapsed(),
+            )
+        },
+        tokio::time::timeout(std::time::Duration::from_secs(20), receive_pid),
+    );
+    let out = out.unwrap();
+    assert!(elapsed < std::time::Duration::from_secs(12));
+    assert_eq!(
+        out.list_error.as_deref(),
+        Some("the server did not answer in 10 seconds")
+    );
+    let Ok(pid) = pid else { return };
+    let mut check = shadows_process::spawn(shadows_process::ProcessSpec {
+        executable: "node".into(),
+        args: vec![
+            "-e".into(),
+            format!("try{{process.kill({pid},0);process.exit(1)}}catch{{process.exit(0)}}"),
+        ],
+        cwd: w._tmp.path().to_owned(),
+        env: std::env::vars().collect(),
+        capture_stdout: false,
+        pipe_stdin: false,
+    })
+    .unwrap();
+    assert!(check.wait().await.unwrap().success());
+}
+
+async fn http_tools_item(
+    w: &World,
+    refused: bool,
+    echo: bool,
+) -> (String, tokio::task::JoinHandle<()>) {
+    use axum::{
+        Json, Router,
+        http::{HeaderMap, StatusCode},
+        response::IntoResponse,
+        routing::post,
+    };
+    let handler = move |headers: HeaderMap, Json(q): Json<serde_json::Value>| async move {
+        if refused || headers.get("x-probe").and_then(|v| v.to_str().ok()) != Some("header-value") {
+            return (StatusCode::UNAUTHORIZED, "header-value").into_response();
+        }
+        if q.get("id").is_none() {
+            return StatusCode::ACCEPTED.into_response();
+        }
+        let result = if q["method"] == "initialize" {
+            json!({"protocolVersion":"2025-03-26","capabilities":{"tools":{}},
+                "serverInfo":{"name":"fixture","version":"1"}})
+        } else {
+            json!({"tools":[
+                {"name":"read","description":if echo { "Metadata for header-value" }
+                    else { "Read a file" },"inputSchema":{"type":"object"}},
+                {"name":"write","description":"Write a file","inputSchema":{"type":"object"}}
+            ]})
+        };
+        Json(json!({"jsonrpc":"2.0","id":q["id"],"result":result})).into_response()
+    };
+    let app = Router::new().route("/mcp", post(handler));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/mcp", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    let input = serde_json::from_value(json!({"name":"http","transport":{
+        "type":"http","url":url,"headers":[{"name":"x-probe","value":"header-value"}]
+    }}))
+    .unwrap();
+    let id = w.extensions.add_mcp("http".into(), input).await.unwrap().id;
+    (id, task)
+}
+
+#[tokio::test]
+async fn tools_are_listed_from_an_http_server() {
+    let w = world().await;
+    let (id, task) = http_tools_item(&w, false, false).await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    task.abort();
+    assert_eq!(out.list_error, None);
+    assert_eq!(out.tools.len(), 2);
+    assert_eq!(out.tools[1].description, "Write a file");
+}
+
+#[tokio::test]
+async fn a_refused_server_leaks_no_value() {
+    let w = world().await;
+    let (id, task) = http_tools_item(&w, true, false).await;
+    w.extensions
+        .set_tool_rules("set".into(), "aylul", &id, rules(&[("read", "deny")]))
+        .await
+        .unwrap();
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    task.abort();
+    assert!(out.list_error.is_some());
+    assert_eq!(out.rules.len(), 1);
+    assert!(!format!("{out:?}").contains("header-value"));
+    assert!(
+        !serde_json::to_string(&out)
+            .unwrap()
+            .contains("header-value")
+    );
+}
+
+#[tokio::test]
+async fn discovery_redacts_values_echoed_in_http_descriptions() {
+    let w = world().await;
+    let (id, task) = http_tools_item(&w, false, true).await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    task.abort();
+    assert_eq!(out.list_error, None);
+    assert_eq!(out.tools[0].description, "Metadata for [redacted]");
+    assert!(!format!("{out:?}").contains("header-value"));
+}
+
+#[tokio::test]
+async fn discovery_refuses_a_value_echoed_as_a_tool_name() {
+    let w = world().await;
+    let id = stdio_tools_item(
+        &w,
+        json!([
+            {"name":"PROBE_VALUE","value":"private-token"},
+            {"name":"ECHO_NAME","value":"yes"}
+        ]),
+    )
+    .await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert!(out.tools.is_empty());
+    assert!(out.list_error.is_some());
+    assert!(!format!("{out:?}").contains("private-token"));
+}
+
+#[tokio::test]
+async fn a_short_value_inside_a_word_is_not_an_echo() {
+    let w = world().await;
+    let id = stdio_tools_item(
+        &w,
+        json!([
+            {"name":"PROBE_VALUE","value":"Read a file"},
+            {"name":"DEBUG","value":"rea"}
+        ]),
+    )
+    .await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert_eq!(out.list_error, None);
+    assert_eq!(out.tools[0].name, "read");
+    assert_eq!(out.tools[0].description, "[redacted]");
+}
+
+#[tokio::test]
+async fn the_listing_process_does_not_inherit_the_daemon_environment() {
+    let w = world().await;
+    assert!(std::env::var("CARGO_PKG_NAME").is_ok());
+    let id = stdio_tools_item(&w, json!([{"name":"LEAK_NAME","value":"CARGO_PKG_NAME"}])).await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert_eq!(out.list_error, None);
+    assert_eq!(out.tools[0].description, "absent");
+}
+
+#[tokio::test]
+async fn dotted_tool_names_can_be_saved() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    let out = w
+        .extensions
+        .set_tool_rules("dot".into(), "aylul", &id, rules(&[("file.read", "deny")]))
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(out).unwrap(),
+        json!([{"tool":"file.read","rule":"deny"}])
+    );
+}
+
 #[tokio::test]
 async fn mcp_input_is_checked() {
     let w = world().await;

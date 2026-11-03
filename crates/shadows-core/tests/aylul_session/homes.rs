@@ -1,5 +1,248 @@
 use super::*;
 
+async fn tool_item(w: &World) -> String {
+    let input = serde_json::from_value(json!({"name":"docs","transport":{
+        "type":"http","url":"https://example.com/mcp","headers":[]
+    }}))
+    .unwrap();
+    let id = w
+        .core
+        .extensions()
+        .add_mcp("mcp".into(), input)
+        .await
+        .unwrap()
+        .id;
+    w.core
+        .extensions()
+        .set_agent_extension(
+            "enable".into(),
+            "aylul",
+            core_extensions::ExtensionKind::Mcp,
+            &id,
+            true,
+        )
+        .await
+        .unwrap();
+    let rules = serde_json::from_value(json!([
+        {"tool":"read","rule":"allow"},{"tool":"exec","rule":"deny"}
+    ]))
+    .unwrap();
+    w.core
+        .extensions()
+        .set_tool_rules("rules".into(), "aylul", &id, rules)
+        .await
+        .unwrap();
+    id
+}
+
+fn read_settings(w: &World) -> Value {
+    serde_json::from_slice(&std::fs::read(w.home.join("settings.json")).unwrap()).unwrap()
+}
+
+async fn close_world(w: World) {
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn opening_writes_allow_and_deny_rules() {
+    let w = world().await;
+    tool_item(&w).await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    let settings = read_settings(&w);
+    assert_eq!(settings["permissions"]["allow"], json!(["mcp__docs__read"]));
+    assert!(
+        settings["permissions"]["deny"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("mcp__docs__exec"))
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn dotted_tool_rules_use_claudes_normalized_name() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    let rules = serde_json::from_value(json!([{"tool":"file.read","rule":"deny"}])).unwrap();
+    w.core
+        .extensions()
+        .set_tool_rules("dotted".into(), "aylul", &id, rules)
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert!(
+        read_settings(&w)["permissions"]["deny"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("mcp__docs__file_read"))
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn colliding_tool_names_keep_only_the_block() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    let rules = serde_json::from_value(json!([
+        {"tool":"file.read","rule":"allow"},{"tool":"file_read","rule":"deny"}
+    ]))
+    .unwrap();
+    w.core
+        .extensions()
+        .set_tool_rules("collide".into(), "aylul", &id, rules)
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    let settings = read_settings(&w).to_string();
+    assert_eq!(settings.matches("mcp__docs__file_read").count(), 1);
+    assert!(
+        read_settings(&w)["permissions"]["deny"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("mcp__docs__file_read"))
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn an_agent_without_rules_opens_with_odd_permissions() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.sessions.terminate(&w.thread).await.unwrap();
+    w.core
+        .extensions()
+        .set_agent_extension(
+            "off".into(),
+            "aylul",
+            core_extensions::ExtensionKind::Mcp,
+            &id,
+            false,
+        )
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.sessions.terminate(&w.thread).await.unwrap();
+    settings(&w, json!({"permissions":{"allow":"Bash(ls)"}}));
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(read_settings(&w)["permissions"]["allow"], json!("Bash(ls)"));
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn rules_of_an_item_switched_off_are_removed() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert!(read_settings(&w).to_string().contains("mcp__docs__read"));
+    w.sessions.terminate(&w.thread).await.unwrap();
+    w.core
+        .extensions()
+        .set_agent_extension(
+            "off".into(),
+            "aylul",
+            core_extensions::ExtensionKind::Mcp,
+            &id,
+            false,
+        )
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    let settings = read_settings(&w).to_string();
+    assert!(!settings.contains("mcp__docs__"));
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn foreign_rules_are_kept() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    settings(
+        &w,
+        json!({"permissions":{"allow":["Bash(ls)","mcp__docs__read"]}}),
+    );
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert!(read_settings(&w).to_string().contains("mcp__docs__exec"));
+    w.sessions.terminate(&w.thread).await.unwrap();
+    w.core
+        .extensions()
+        .set_agent_extension(
+            "off".into(),
+            "aylul",
+            core_extensions::ExtensionKind::Mcp,
+            &id,
+            false,
+        )
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(
+        read_settings(&w)["permissions"]["allow"],
+        json!(["Bash(ls)", "mcp__docs__read"])
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn a_renamed_item_leaves_no_old_rule() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.sessions.terminate(&w.thread).await.unwrap();
+    let input = serde_json::from_value(json!({"name":"docs2","transport":{
+        "type":"http","url":"https://example.com/mcp","headers":[]
+    }}))
+    .unwrap();
+    w.core
+        .extensions()
+        .update_mcp("rename".into(), &id, input)
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    let settings = read_settings(&w).to_string();
+    assert!(!settings.contains("mcp__docs__"));
+    assert!(settings.contains("mcp__docs2__read"));
+    assert!(settings.contains("mcp__docs2__exec"));
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn interrupted_rule_projection_is_cleaned_at_next_opening() {
+    let w = world().await;
+    settings(
+        &w,
+        json!({"permissions":{"allow":["Bash(ls)","mcp__old__read"]}}),
+    );
+    std::fs::write(
+        w.home.join(".aylul-tool-rules.json"),
+        serde_json::to_vec(&json!({
+            "allow":["mcp__old__read","mcp__new__read"],"deny":[]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(
+        read_settings(&w)["permissions"]["allow"],
+        json!(["Bash(ls)"])
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn an_unwritable_rule_manifest_leaves_settings_unchanged() {
+    let w = world().await;
+    tool_item(&w).await;
+    std::fs::create_dir(w.home.join(".aylul-tool-rules.json")).unwrap();
+    let before = read_settings(&w)["permissions"].clone();
+    assert!(w.core.harness().open_session(&w.thread).await.is_err());
+    assert_eq!(read_settings(&w)["permissions"], before);
+    close_world(w).await;
+}
+
 #[tokio::test]
 async fn opening_writes_the_stored_instructions() {
     let w = world().await;

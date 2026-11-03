@@ -33,6 +33,15 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
+### F-80 · Per-tool permissions in the agent form
+- Status: done
+- Plan: docs/backend/plans/2026-11-03-aylul-tool-permissions.md (Task 5)
+- Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md)
+- Read: `web/src/app/agents/` (the agent form and its capabilities section) and its contract; `web/src/api/` for the two routes; `docs/frontend/AGENTS.md` (tokens only).
+- Touch: `web/src/app/agents/` (a new `tool-rules.tsx` and its test, the capabilities section); `web/src/api/` (query and mutation for the two routes, not `schema.d.ts`); the agents contract; `docs/frontend/codebase/README.md` if a row changes.
+- Needs: B-39 (`web/src/api` regenerated).
+- Done when: a switched-on MCP item in the form opens to its tools, each with allow / ask / block buttons (icons with labels for screen readers) and its description; one control sets every tool of the item; a tool the server no longer lists shows as missing with its rule; a server error shows and the rules can still be cleared; saving sends the rules. `npm test -- tool-rules`, `npm run typecheck`, `npm run lint` and `npm run build` pass.
+
 ### F-77 · The whole web client, once, after the migration
 - Status: todo
 - Plan: docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md (F-77)

@@ -50,5 +50,23 @@ no database, WAL, log, agent home or session file.
 
 ## Tasks
 
-None open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at
+### B-38 · Extensions lists an MCP item's tools and keeps per-agent rules
+- Status: done
+- Plan: docs/backend/plans/2026-11-03-aylul-tool-permissions.md (Tasks 1–2)
+- Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md) (per-tool permissions)
+- Read: `crates/shadows-core/src/app.rs` (`Extensions`); `crates/core-extensions/contract.yaml`; `crates/core-extensions/src/{lib,mcp,model}.rs` and `store/`; how `crates/shadows/Cargo.toml` already uses `rmcp` as a client in tests.
+- Touch: `crates/core-extensions/` (src, store, `crates/core-db/migrations/0040_aylul_mcp_tool_rules.sql`, `Cargo.toml` for `rmcp` client features, contract, tests); the workspace `Cargo.toml` only if `rmcp` features are set there; `docs/codebase/README.md` rows for new files.
+- Needs: none.
+- Done when: the plan's Tasks 1–2 steps pass: `cargo test -p core-extensions` with `rules_are_per_agent`, `ask_stores_no_row`, `rules_survive_switching_off`, `deleting_the_item_or_agent_removes_rules`, `tool_rule_input_is_checked`, `tool_rules_replay_and_conflict`, `tools_are_listed_from_an_http_server`, `tools_are_listed_from_a_stdio_server`, `a_silent_server_times_out`, `a_refused_server_leaks_no_value`, `opening_snapshot_carries_rules_of_switched_on_items`.
+
+### B-39 · Rules reach the agent's settings.json; HTTP routes
+- Status: done
+- Plan: docs/backend/plans/2026-11-03-aylul-tool-permissions.md (Tasks 3–4)
+- Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md)
+- Read: `crates/core-harness/contract.yaml`; `crates/core-harness/src/extension_home.rs` (`project`) and `profile_home.rs`; the name each MCP item is delivered under in ACP `mcpServers`; `crates/shadows-http/src/contract.yaml`; the agent extension routes in `crates/shadows-http/src/`.
+- Touch: `crates/core-harness/src/` (projection), its contract and tests; `crates/shadows-core/tests/aylul_session/` (home file tests); `crates/shadows-http/src/` (routes, openapi) and its contract; `crates/shadows/tests/` (a new `tool_rules_routes.rs`; `openapi.rs` route list); `api/openapi.json`; `web/src/api/` (regenerated only).
+- Needs: B-38.
+- Done when: the plan's Tasks 3–4 steps pass, with the probe reported: `cargo test -p shadows-core --test aylul_session homes` (`opening_writes_allow_and_deny_rules`, `rules_of_an_item_switched_off_are_removed`, `foreign_rules_are_kept`, `a_renamed_item_leaves_no_old_rule`), `cargo test -p shadows --test tool_rules_routes` and `--test openapi`, after `npm run gen:api`.
+
+None else open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at
 `f1459dcc`.

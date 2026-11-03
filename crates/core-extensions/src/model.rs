@@ -1,4 +1,33 @@
 //! Public extension library metadata contains no local paths.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct McpTool {
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct AgentTools {
+    pub tools: Vec<McpTool>,
+    pub list_error: Option<String>,
+    pub rules: Vec<ToolRuleEntry>,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolRule {
+    Allow,
+    Ask,
+    Deny,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ToolRuleEntry {
+    pub tool: String,
+    pub rule: ToolRule,
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
 )]
