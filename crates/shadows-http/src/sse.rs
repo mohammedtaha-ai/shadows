@@ -32,6 +32,8 @@ pub(super) struct ProjectSubscribeQuery {
 /// changed_outcomes and vision_changed, never the vision content.
 /// PermissionsChanged names a request_id and waiting/answered/refused state on
 /// the AYLUL project; clients refetch GET /api/aylul/permissions for current options.
+/// MessageAdded carries a group_id and group-local seq in its payload.
+/// Use the outer durable seq to resume the project stream.
 #[utoipa::path(
     get, path = "/api/projects/{id}/events", tag = "stream",
     params(("id" = ProjectId, Path, description = "The project"), ProjectSubscribeQuery),

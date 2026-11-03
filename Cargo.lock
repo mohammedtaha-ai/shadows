@@ -891,6 +891,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-messages"
+version = "0.1.0"
+dependencies = [
+ "core-agents",
+ "core-code",
+ "core-db",
+ "core-events",
+ "core-projects",
+ "core-providers",
+ "core-secrets",
+ "core-threads",
+ "core-turns",
+ "serde",
+ "serde_json",
+ "shadows-agent",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "core-operations"
 version = "0.1.0"
 dependencies = [
@@ -3792,6 +3817,7 @@ dependencies = [
  "core-grants",
  "core-harness",
  "core-instructions",
+ "core-messages",
  "core-operations",
  "core-person",
  "core-plans",

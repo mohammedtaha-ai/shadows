@@ -6,7 +6,7 @@ export type ComposerView={open:boolean;revision:number;scope:string|null;context
 export type PanelAgent={slug:string;name:string;description:string;color:string;outfit:string;bound:boolean};
 export type WaitingOption={optionId:string;name:string;kind:string};
 export type WaitingRequest={threadId:string;requestId:string;title:string;options:WaitingOption[]};
-export type WaitingView={count:number;bound:WaitingRequest[]};
+export type WaitingView={count:number;bound:WaitingRequest[];alertRevision?:number};
 export type PanelView={open:boolean;agents:PanelAgent[];waiting:WaitingView};
 export type CompanionState = {composer:ComposerView;revision:number;visible:boolean;renderAllowed:boolean;paused:boolean;error:string|null;presence?:PresenceProjection;color:string;outfit:string;panel:PanelView};
 function acceptWaiting(raw:unknown):WaitingView {
@@ -27,7 +27,9 @@ function acceptWaiting(raw:unknown):WaitingView {
     });
     return {threadId:request.threadId,requestId:request.requestId,title:request.title,options};
   });
-  return {count:value.count,bound};
+  const revision=value.alertRevision;
+  if(revision!==undefined&&(typeof revision!=='number'||!Number.isSafeInteger(revision)||revision<0))throw Error('companion_panel_invalid');
+  return revision===undefined?{count:value.count,bound}:{count:value.count,bound,alertRevision:revision};
 }
 function acceptPanel(raw:unknown,waitingRaw:unknown):PanelView {
   const waiting=acceptWaiting(waitingRaw);

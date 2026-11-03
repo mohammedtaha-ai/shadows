@@ -1,12 +1,16 @@
 //! Private journal replay persistence.
 use super::Events;
-use crate::EventCursor;
+use crate::{EndedOutcome, EndedTurn, EventCursor};
 use core_db::{Storage, StorageError};
 use core_operations::OperationId;
 use core_plans::Plans;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 use std::sync::Arc;
+
+#[cfg(test)]
+#[path = "store_tests.rs"]
+mod tests;
 
 /// One replayed journal row, as a client resuming a thread sees it.
 ///
@@ -36,6 +40,41 @@ impl EventsStore {
         Self { storage }
     }
 
+    pub(super) async fn ended_turns_after(
+        &self,
+        after: i64,
+        limit: i64,
+    ) -> Result<Vec<EndedTurn>, StorageError> {
+        let rows: Vec<(i64, String, String, String)> = sqlx::query_as(
+            "SELECT seq, thread_id, operation_id, kind FROM durable_event
+              WHERE seq > ? AND thread_id IS NOT NULL AND operation_id IS NOT NULL
+                AND kind IN ('OperationCompleted', 'OperationFailed',
+                             'OperationCancelled', 'OperationInterrupted')
+              ORDER BY seq LIMIT ?",
+        )
+        .bind(after)
+        .bind(limit.max(0))
+        .fetch_all(self.storage.reader())
+        .await?;
+        rows.into_iter()
+            .map(|(seq, thread, operation, kind)| {
+                let outcome = match kind.as_str() {
+                    "OperationCompleted" => EndedOutcome::Completed,
+                    "OperationFailed" => EndedOutcome::Failed,
+                    "OperationCancelled" => EndedOutcome::Cancelled,
+                    "OperationInterrupted" => EndedOutcome::Interrupted,
+                    _ => return Err(StorageError::Unavailable("Unknown turn ending".into())),
+                };
+                Ok(EndedTurn {
+                    seq,
+                    thread_id: ThreadId::from_recorded(thread),
+                    operation_id: OperationId::from_recorded(operation),
+                    outcome,
+                })
+            })
+            .collect()
+    }
+
     /// A project's plan/design event tail. Only identifiers are projected for client
     /// invalidation; plan content and edit details never enter this stream.
     /// Archive events name a plan, so they name its latest version to refetch.
@@ -55,7 +94,8 @@ impl EventsStore {
                                'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
                                'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved',
                                'VisionProposed','MapProposed','ProjectStructureWritten',
-                               'RoadmapProposed','RoadmapApproved','PermissionsChanged')
+                               'RoadmapProposed','RoadmapApproved','PermissionsChanged',
+                               'MessageAdded')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())

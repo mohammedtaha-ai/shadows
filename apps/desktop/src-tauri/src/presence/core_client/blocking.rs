@@ -1,5 +1,5 @@
 //! Blocking Core requests: binding and navigation reads, and submission writes.
-use super::{RuntimeIdentity, WaitingPermission};
+use super::{RuntimeIdentity, WaitingGroup, WaitingPermission};
 use crate::{
     core_connection::ReadyConnection,
     presence::binding::{Thread, Workspace},
@@ -50,6 +50,9 @@ impl<'a> Blocking<'a> {
     }
     pub fn permissions(&self) -> Result<Vec<WaitingPermission>, &'static str> {
         self.read("/api/aylul/permissions")
+    }
+    pub fn groups(&self) -> Result<Vec<WaitingGroup>, &'static str> {
+        self.read("/api/groups")
     }
     /// Core replays an equal command id with its first result, so a retry reuses the id.
     pub fn answer_permission(

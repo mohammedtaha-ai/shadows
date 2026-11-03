@@ -37,9 +37,9 @@ public_api:
   previews: Persist the person's preview opt-in without conversation content.
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination_for: The one resolver for every MainTarget, bound included; it returns Settings, NewAgent, live bound AgentSettings, AgentDraft or validated Conversation, with CompanionSettings as the closed fallback. No thread is created.
-  MainTarget: Closed deserialized companion navigation targets; omitted target means bound. OldestWaiting resolves the first entry of Core's waiting list to its conversation with reads only, else CompanionSettings.
+  MainTarget: Closed deserialized companion navigation targets; omitted target means bound. OldestWaiting reads Core's attention lists and opens the oldest group or validated conversation, else CompanionSettings.
   answer_companion_permission: Answer a request of the bound conversation through core_client with the caller's command id; maps Core's refusals to permission_settled, permission_not_found, permission_option_not_offered and permission_failed, and transport failure to companion_core_unavailable.
-  Waiting feed: The observer reads GET /api/aylul/permissions and follows PermissionsChanged on the AYLUL project's events; a request waiting on the bound thread makes the expression blocked (Waiting for you), and its end restores the actual status. A broken feed clears the list and is reopened at the next metadata check, at most ten times in a row; it never changes the thread projection otherwise. A re-read cut short by the observer's timers stays owed and finishes on the next wait, so a taken PermissionsChanged frame is never lost.
+  Waiting feed: A single project subscription follows PermissionsChanged and MessageAdded. Its snapshots count each waiting group once and keep the bound conversation's permission options. The first replay advances its cursor silently and reconciles at caught-up. Later alerts use request identity or the event's agent call flag and group sequence, with one revision per resumed batch. The manager retains alert state for the verified configuration across binding changes. A consumed frame's cursor advances only after its required reads complete.
 obligations:
   - rule: Presence starts, synchronizes and stops its observer; DesktopApp retains no observer field.
     tested_by: [companion_owns_observer_start_sync_and_stop, desktop_registers_one_private_composition_root]
@@ -91,6 +91,8 @@ obligations:
     tested_by: [unicode_preview_is_bounded, hidden_expiry_does_not_revive_and_repeat_id_cannot_extend_it, state_table_uses_actual_operation_status_and_terminal_precedence]
   - rule: A waiting request on the bound thread blocks the expression, answers go once per call to the one Core route, and the project feed recovers and stays bounded.
     tested_by: [a_waiting_request_blocks_the_expression_and_its_end_restores_the_actual_status, waiting_permissions_are_read_at_start_and_reread_on_a_project_frame, lagged_project_feed_recovers_like_the_thread_feed, waiting_lists_are_bounded, permission_answers_post_once_with_the_command_id_and_map_core_errors_to_fixed_codes, oldest_waiting_resolves_the_first_entry_and_falls_back_when_it_does_not_resolve]
+  - rule: Waiting groups are deduplicated across member requests and calls, sorted by their earliest open item, and audible only for new identities after startup.
+    tested_by: [the_oldest_waiting_group_opens_the_group_page, the_group_pill_works_before_an_agent_is_bound, startup_is_silent_and_a_call_during_a_drop_rings_once, a_reconnect_restores_the_count_without_an_old_tone, a_message_to_mohammed_raises_the_waiting_state, a_message_to_others_does_not, a_group_with_needs_you_and_two_requests_counts_once, the_pill_counts_a_group_once, a_new_call_rings_while_an_older_request_waits, an_older_request_closing_rings_nothing]
 gaps:
   - at: native Windows journey
     gap: HTTP fixtures prove native feed behavior; actual hidden-main/character rendering acceptance belongs to Tasks 8 and 9.

@@ -13,7 +13,7 @@ export function CompanionPanel({panel,status,onClose,onNavigate,onChat,onSelect,
   return <section className="aylul-panel" aria-label="AYLUL panel">
     <header className="aylul-panel-head">
       <strong>AYLUL</strong>
-      <button type="button" className={count>0?'aylul-panel-pill aylul-panel-pill-waiting':'aylul-panel-pill'} aria-label="Waiting requests" disabled={count===0} onClick={()=>onNavigate('oldestWaiting')}>{count===0?'Ready':`${count} waiting`}</button>
+      <button type="button" className={count>0?'aylul-panel-pill aylul-panel-pill-waiting':'aylul-panel-pill'} aria-label="Waiting requests" title="Open the oldest item waiting for you" disabled={count===0} onClick={()=>onNavigate('oldestWaiting')}>{count===0?'Ready':`${count} waiting`}</button>
       <button type="button" className="aylul-panel-close" aria-label="Close panel" onClick={onClose}>×</button>
     </header>
     <nav className="aylul-panel-topbar" aria-label="Panel navigation">

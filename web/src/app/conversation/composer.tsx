@@ -1,7 +1,7 @@
 // Compose the message box, its pickers and the delivery controls.
 
 import { useSearch } from '@tanstack/react-router'
-import { ArrowUp, Square } from 'lucide-react'
+import { Square } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type TurnSettings } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { type CarriedSend } from './carried-send'
 import { type PendingImage } from './upload-images'
 import { AYLUL_HARNESS } from './cli-picker'
 import { ComposerBar } from './composer-bar'
+import { ComposerFrame, ComposerInput, ComposerSendButton } from './composer-surface'
 import { FocusChip, type PointedTask } from './focus-chip'
 import { type SessionCommand, sessionCommand } from './session-commands'
 import { slashMatches } from './slash-filter'
@@ -192,8 +193,7 @@ export function Composer({
   const error = sendError ?? stopError ?? settingsError ?? carriedError
 
   return (
-    <div className="border-t border-border/70 bg-background/90 px-6 pt-3 pb-4 backdrop-blur-xl">
-      <div className="mx-auto max-w-3xl space-y-2.5"
+      <ComposerFrame
         onKeyDown={e => {
           if (e.ctrlKey && e.key.toLowerCase() === 'u') {
             e.preventDefault()
@@ -226,19 +226,17 @@ export function Composer({
         />
 
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
-        <div className="surface-glow flex items-end gap-2.5 rounded-2xl p-3 transition-all duration-150 focus-within:border-accent-line/80 focus-within:ring-2 focus-within:ring-accent-line/30">
-          <div className="relative flex-1">
-            <textarea
-              ref={messageBox}
-              value={prompt}
-              readOnly={inFlight}
-              onPaste={e => {
+        <ComposerInput input={{
+              ref: messageBox,
+              value: prompt,
+              readOnly: inFlight,
+              onPaste: e => {
                 const files = Array.from(e.clipboardData.files).filter(file => file.type.startsWith('image/'))
                 if (files.length === 0) return
                 e.preventDefault()
                 addImages(files)
-              }}
-              onChange={(e) => {
+              },
+              onChange: e => {
                 clearAttempt()
                 setSlashFromMenu(false)
                 setPrompt(e.target.value)
@@ -246,8 +244,8 @@ export function Composer({
                 setHighlighted(0)
                 setDismissed(null)
                 if (hint?.text !== e.target.value) setHint(null)
-              }}
-              onKeyDown={(e) => {
+              },
+              onKeyDown: e => {
                 if (e.nativeEvent.isComposing) return
                 // Shift+Enter inserts a newline, which closes the menu.
                 if (menu !== null && !(e.key === 'Enter' && e.shiftKey)) {
@@ -272,12 +270,11 @@ export function Composer({
                   e.preventDefault()
                   submit()
                 }
-              }}
-              rows={2}
-              placeholder={harness === AYLUL_HARNESS ? 'Ask AYLUL…' : 'Ask the Planner…'}
-              aria-label="Message"
-              className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
-            />
+              },
+              placeholder: harness === AYLUL_HARNESS ? 'Ask AYLUL…' : 'Ask the Planner…',
+              'aria-label': 'Message',
+            }}
+          overlay={<>
             {menu !== null && (
               <SlashMenu items={menu} highlighted={at} onPick={pick} onHighlight={setHighlighted} />
             )}
@@ -290,17 +287,13 @@ export function Composer({
                 <span className="text-faint-foreground">{hint.hint}</span>
               </div>
             )}
-          </div>
-          {running === null ? (
-            <Button
+          </>}
+          action={running === null ? (
+            <ComposerSendButton
               onClick={submit}
               disabled={(prompt.trim() === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || inFlight}
-              size="icon"
-              aria-label="Send"
-              className="rounded-xl bg-gradient-to-br from-accent-line to-accent text-primary-foreground transition-all hover:brightness-110 active:scale-95 disabled:opacity-40"
-            >
-              <ArrowUp />
-            </Button>
+              label="Send"
+            />
           ) : (
             <Button
               variant="outline"
@@ -311,8 +304,7 @@ export function Composer({
               <Square className="size-3 fill-current" />
               {stopLabel}
             </Button>
-          )}
-        </div>
+          )} />
         <ComposerBar
           harnessLabel={harnessLabel}
           session={session}
@@ -345,7 +337,6 @@ export function Composer({
         {companionProblem && (
           <p role="status" className="text-xs text-muted-foreground">{companionProblem}</p>
         )}
-      </div>
-    </div>
+      </ComposerFrame>
   )
 }

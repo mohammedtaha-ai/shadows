@@ -426,6 +426,22 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-plans/src/store/event_projection.rs` | identifier-only plan event projection | `crates/core-plans/contract.yaml` |
 | `crates/core-events/src/store.rs` | private journal replay persistence | `crates/core-events/contract.yaml` |
+| `crates/core-events/src/store_tests.rs` | terminal turn replay tests | `crates/core-events/contract.yaml` |
+| `crates/core-messages/src/lib.rs` | group messaging boundary | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/model.rs` | group messaging values | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/error.rs` | group messaging refusals | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/groups.rs` | group lifecycle | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/store/mod.rs` | group persistence | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/store` | messaging persistence | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/store/deliveries.rs` | delivery persistence | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/store/write.rs` | message persistence | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/send.rs` | person message command | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/mentions.rs` | mention routing | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/bounds.rs` | delivery budget | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/prompt.rs` | member context rendering | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/deliveries.rs` | turn dispatch | `crates/core-messages/contract.yaml` |
+| `crates/core-messages/src/replies.rs` | durable reply processing | `crates/core-messages/contract.yaml` |
+| `crates/shadows-http/src/groups.rs` | group HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_agents.rs` | agent HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_person.rs` | person settings HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_usage.rs` | usage HTTP translation | `crates/shadows-http/src/contract.yaml` |

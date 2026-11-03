@@ -17,6 +17,7 @@ name: web-sidebar
 version: 1
 status: current
 source: web/src/app/sidebar
+groups: The AYLUL sidebar holds the project event feed and displays the group list above the agent tree.
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────────

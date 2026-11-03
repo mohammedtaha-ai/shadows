@@ -5,13 +5,15 @@ import { invalidateAgreements, invalidateAgreementVersions } from '@/api/agreeme
 import { invalidateProjects } from '@/api/projects'
 import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '@/api/threads'
 import { invalidatePermissions } from '@/api/permissions'
+import { groupKeys } from '@/api/groups'
 import type { DurableEvent } from './frames'
 import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
 
 export type RefreshTarget =
-  | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' }
+  | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' | 'groups' }
   | { kind: 'design' | 'agreements' | 'agreement-versions' | 'project-workflows'; projectId: string }
   | { kind: 'entries' | 'operations'; threadId: string }
+  | { kind: 'group'; groupId: string }
 
 type RefreshEvent = DurableEvent & { projectId?: string }
 
@@ -36,6 +38,10 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
   }
   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
   if (event.kind === 'PermissionsChanged' && projectId !== undefined) targets.push({ kind: 'permissions' })
+  if (event.kind === 'MessageAdded' && typeof payload === 'object' && payload !== null &&
+      'group_id' in payload && typeof payload.group_id === 'string') {
+    targets.push({ kind: 'group', groupId: payload.group_id }, { kind: 'groups' })
+  }
   if (event.threadId !== null) {
     // Which operation events end a turn is Core's lifecycle; every one refreshes rather than
     // the client keeping a copy of the terminal kinds.
@@ -57,6 +63,11 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
       case 'agreement-versions': invalidateAgreementVersions(client, target.projectId); break
       case 'projects': invalidateProjects(client); break
       case 'permissions': void invalidatePermissions(client); break
+      case 'groups': void client.invalidateQueries({ queryKey: groupKeys.list }); break
+      case 'group':
+        void client.invalidateQueries({ queryKey: groupKeys.detail(target.groupId) })
+        void client.invalidateQueries({ queryKey: groupKeys.messages(target.groupId) })
+        break
       case 'entries': invalidateEntries(client, target.threadId); break
       case 'operations': invalidateOperations(client, target.threadId); break
       case 'thread-lists': invalidateThreadLists(client); break
@@ -89,7 +100,8 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
       if (live) dispatchRefresh(client, targets)
       else for (const target of targets) {
         // Project design and agreement notices must reach dirty editors during replay.
-        if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' && !PLAN_EVENTS.has(event.kind)) {
+        if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' &&
+            target.kind !== 'group' && target.kind !== 'groups' && !PLAN_EVENTS.has(event.kind)) {
           dispatchRefresh(client, [target])
         } else pending.set(JSON.stringify(target), target)
       }

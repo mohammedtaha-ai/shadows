@@ -1,0 +1,12 @@
+name: web-groups
+version: 1
+status: current
+source: web/src/app/groups
+responsibility: Create and open AYLUL agent groups and render their durable conversation.
+obligations:
+  - Creation and send keep the command id for an unchanged retry after a lost answer.
+  - The composer uses the conversation's shared frame and send control.
+  - Creation refreshes the sidebar list before navigating, including an empty group.
+  - The log follows new messages only when the reader was at the bottom.
+  - Member thinking applies the conversation running-turn rule to each member thread operation query, held live while the page is open.
+  - A waiting permission on a member thread is shown with the member's name and request title, and answered in place.

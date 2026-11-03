@@ -11,6 +11,7 @@ mod send_fixture;
 mod send_tests;
 #[cfg(test)]
 mod tests;
+mod waiting_items;
 pub mod watcher;
 mod workflows;
 pub use workflows::WindowActions;
@@ -232,18 +233,29 @@ impl Presence {
         self.notify();
         Ok(view)
     }
-    /// The first waiting request's conversation, or the closed fallback when it no longer resolves.
+    /// Resolve the oldest item using the same projection as the panel count.
     fn oldest_waiting(&self) -> MainDestination {
         let resolve = || -> Result<MainDestination, &'static str> {
             let ready = self
                 .connection
                 .ready()
                 .ok_or("companion_core_unavailable")?;
-            let first = core_client::Blocking::new(&ready)
-                .permissions()?
+            let client = core_client::Blocking::new(&ready);
+            let permissions = client.permissions()?;
+            let groups = client.groups()?;
+            let (_, target) = waiting_items::items(&groups, &permissions)
                 .into_iter()
-                .next()
+                .min()
                 .ok_or("permission_not_found")?;
+            let first = match target {
+                waiting_items::Target::Group { id } => {
+                    uuid::Uuid::parse_str(id).map_err(|_| "navigation_invalid")?;
+                    return Ok(MainDestination::Group {
+                        group_id: id.into(),
+                    });
+                }
+                waiting_items::Target::Permission { index } => &permissions[index],
+            };
             let workspace = binding::workspace(&ready)?;
             let target = binding::target(&ready, &workspace, &first.agent, &first.thread_id)?;
             Ok(MainDestination::Conversation {

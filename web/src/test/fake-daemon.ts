@@ -117,6 +117,8 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/aylul/extensions': { plugins: [], skills: [], mcp: [] },
     ...Object.fromEntries(['work', 'aylul', 'agent-a'].map(slug => [`GET /api/aylul/agents/${slug}/extensions`, { plugins: [], skills: [], mcp: [] }])),
     'GET /api/aylul/usage': o.usage ?? { by_provider: [], by_model: [] },
+    // The AYLUL sidebar lists groups on every AYLUL page.
+    'GET /api/groups': [],
     'GET /api/me': typeof o.person === 'function' ? o.person : () => Response.json(person),
     'PATCH /api/me': async (request: Request) => {
       const { command_id: _command, ...input } = await request.json() as PersonPatch & { command_id: string }

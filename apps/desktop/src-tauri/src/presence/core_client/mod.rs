@@ -28,7 +28,21 @@ pub struct WaitingPermission {
     pub agent: String,
     pub request_id: String,
     #[serde(default)]
+    pub asked_at: String,
+    #[serde(default)]
     pub title: String,
     #[serde(default)]
     pub options: Vec<PermissionOption>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct WaitingGroup {
+    pub id: String,
+    pub needs_you_since: Option<String>,
+    pub members: Vec<GroupMember>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct GroupMember {
+    pub thread_id: String,
 }

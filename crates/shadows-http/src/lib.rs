@@ -34,6 +34,7 @@ mod design;
 mod failure;
 mod fs;
 mod grants;
+mod groups;
 mod guard;
 mod harness;
 mod instructions;
@@ -179,6 +180,9 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(aylul_agents::agent_template))
         .routes(routes!(aylul_agents::update_agent, harness::delete_agent))
         .routes(routes!(aylul_threads::threads))
+        .routes(routes!(groups::list, groups::create))
+        .routes(routes!(groups::get))
+        .routes(routes!(groups::messages, groups::send))
         .routes(routes!(aylul_env::list))
         .routes(routes!(aylul_env::set, aylul_env::remove))
         .routes(routes!(project::list_projects, project::create_project))

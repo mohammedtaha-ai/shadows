@@ -1,5 +1,5 @@
 //! Async Core requests for observation: metadata checks, snapshots and SSE.
-use super::{RuntimeIdentity, WaitingPermission};
+use super::{RuntimeIdentity, WaitingGroup, WaitingPermission};
 use crate::{
     core_connection::ReadyConnection,
     presence::{
@@ -277,6 +277,9 @@ impl Client {
         tokio::time::timeout(self.timeout, self.read("/api/aylul/permissions"))
             .await
             .map_err(|_| Problem::Transport)?
+    }
+    pub async fn groups(&self) -> Result<Vec<WaitingGroup>, Problem> {
+        self.read("/api/groups").await
     }
     pub async fn project_id(&self, binding: &BindingView) -> Result<String, Problem> {
         let workspace = tokio::time::timeout(self.timeout, self.workspace(binding))

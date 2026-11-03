@@ -399,6 +399,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_groups"];
+        put?: never;
+        post: operations["create_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_group"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/groups/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_group_messages"];
+        put?: never;
+        post: operations["send_group_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/harnesses": {
         parameters: {
             query?: never;
@@ -890,6 +938,8 @@ export interface paths {
          *     changed_outcomes and vision_changed, never the vision content.
          *     PermissionsChanged names a request_id and waiting/answered/refused state on
          *     the AYLUL project; clients refetch GET /api/aylul/permissions for current options.
+         *     MessageAdded carries a group_id and group-local seq in its payload.
+         *     Use the outer durable seq to resume the project stream.
          */
         get: operations["subscribe_project"];
         put?: never;
@@ -1626,6 +1676,14 @@ export interface components {
             name: string;
             owns: string;
         };
+        Address: {
+            /** @enum {string} */
+            kind: "person";
+        } | {
+            /** @enum {string} */
+            kind: "agent";
+            slug: string;
+        };
         Agent: {
             character_color: string;
             created_at: string;
@@ -1911,6 +1969,11 @@ export interface components {
             /** @description Absolute path to an existing directory. */
             parent: string;
         };
+        CreateGroup: {
+            command_id: string;
+            members: string[];
+            name: string;
+        };
         CreateProject: {
             /**
              * @description The idempotency key. The same id with the same request
@@ -2184,6 +2247,16 @@ export interface components {
          * @enum {string}
          */
         GrantKind: "thread" | "project";
+        Group: {
+            created_at: string;
+            id: components["schemas"]["GroupId"];
+            members: components["schemas"]["Member"][];
+            name: string;
+            needs_you: boolean;
+            needs_you_since?: string | null;
+        };
+        /** Format: uuid */
+        GroupId: string;
         /**
          * @description A CLI a conversation can run on. `kind` is `claude-code` or
          *     `codex`.
@@ -2454,6 +2527,26 @@ export interface components {
             name: string;
             value?: string | null;
         };
+        Member: {
+            name: string;
+            slug: string;
+            thread_id: components["schemas"]["ThreadId"];
+        };
+        Message: {
+            body: string;
+            created_at: string;
+            group_id: components["schemas"]["GroupId"];
+            id: components["schemas"]["MessageId"];
+            kind: components["schemas"]["MessageKind"];
+            /** Format: int64 */
+            seq: number;
+            speaker: components["schemas"]["Speaker"];
+            to: components["schemas"]["Address"][];
+        };
+        /** Format: uuid */
+        MessageId: string;
+        /** @enum {string} */
+        MessageKind: "chat" | "notice";
         ModelUsage: {
             /** Format: double */
             cost?: number | null;
@@ -2946,6 +3039,10 @@ export interface components {
         SavedProviderTest: {
             api_key?: string | null;
         };
+        SendMessage: {
+            command_id: string;
+            text: string;
+        };
         SendNowBody: {
             attachments?: components["schemas"]["AttachmentId"][];
             /** @description The idempotency key. */
@@ -2983,6 +3080,18 @@ export interface components {
             /** Format: int32 */
             count: number;
             reason: string;
+        };
+        Speaker: {
+            /** @enum {string} */
+            kind: "person";
+        } | {
+            /** @enum {string} */
+            kind: "agent";
+            name: string;
+            slug: string;
+        } | {
+            /** @enum {string} */
+            kind: "shadows";
         };
         /** @enum {string} */
         Stage: "idea" | "vision" | "map" | "structure" | "roadmap" | "plans";
@@ -4832,6 +4941,237 @@ export interface operations {
                 };
             };
             /** @description PATH_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"][];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGroup"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["GroupId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_group_messages: {
+        parameters: {
+            query?: {
+                after?: number;
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["GroupId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    send_group_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["GroupId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessage"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;

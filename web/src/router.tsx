@@ -30,6 +30,7 @@ const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreeme
 const Activity = lazyRouteComponent(() => import('./app/desktop/activity'), 'Activity')
 const AylulHome = lazyRouteComponent(() => import('./app/agents/home'), 'AylulHome')
 const AgentDraftRoute = lazyRouteComponent(() => import('./app/conversation/draft'), 'AgentDraftRoute')
+const GroupPage = lazyRouteComponent(() => import('./app/groups/group-page'), 'GroupPage')
 
 const rootRoute = createRootRoute({ component: Shell, validateSearch: readSettingsSearch })
 
@@ -110,6 +111,7 @@ const appSettingsRoute = createRoute({
 
 const aylulHomeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul', component: AylulHome })
 const agentDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/new', component: AgentDraftRoute })
+const groupRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/groups/$groupId', component: GroupPage })
 
 const activityRoute=createRoute({getParentRoute:()=>rootRoute,path:'/aylul/activity',component:Activity})
 export const router = createRouter({
@@ -121,6 +123,7 @@ export const router = createRouter({
     activityRoute,
     aylulHomeRoute,
     agentDraftRoute,
+    groupRoute,
     projectRoute,
     draftRoute,
     threadRoute,

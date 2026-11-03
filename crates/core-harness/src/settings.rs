@@ -58,10 +58,13 @@ impl Sessions {
         config_id: &str,
         value: &str,
     ) -> Result<Offered, AcpError> {
-        let answer: Value = opened
-            .connection()
-            .set_option(&opened.session_id, config_id, value)
-            .await?;
+        let connection = opened.connection();
+        let answer: Value = tokio::time::timeout(
+            self.config.setup_wait,
+            connection.set_option(&opened.session_id, config_id, value),
+        )
+        .await
+        .map_err(|_| AcpError::Rpc("the harness did not answer the settings request".into()))??;
         self.offers.record(thread, &answer).map_err(AcpError::Rpc)
     }
 

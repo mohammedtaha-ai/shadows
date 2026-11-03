@@ -26,6 +26,7 @@ modules:
   aylul_providers.rs: Providers service HTTP translation
   aylul_agents.rs: Agents service HTTP translation, including the agent template
   aylul_threads.rs: Threads service agent listing
+  groups.rs: Messages service HTTP translation
   aylul_person.rs: PersonSettings service HTTP translation
   aylul_usage.rs: Usage service HTTP translation
   aylul_extensions.rs: Extensions library HTTP translation

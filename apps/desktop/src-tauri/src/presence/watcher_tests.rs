@@ -454,6 +454,211 @@ async fn waiting_permissions_are_read_at_start_and_reread_on_a_project_frame() {
     assert!(requests.iter().all(|request| request.starts_with("GET ")));
     watcher.stop();
 }
+
+const GROUP: &str = "00000000-0000-4000-8000-000000000005";
+fn waiting_group(api: &Fixture, since: Option<&str>) {
+    *api.data.groups.lock().unwrap() = vec![serde_json::json!({
+        "id":GROUP,"needs_you_since":since,"members":[{"thread_id":THREAD_B}]
+    })];
+}
+fn request_at(api: &Fixture, thread: &str, request: &str, asked_at: &str) {
+    api.data
+        .permissions
+        .lock()
+        .unwrap()
+        .push(serde_json::json!({
+            "thread_id": thread, "agent": "agent-b", "request_id": request, "title": request,
+            "options": [], "asked_at": asked_at
+        }));
+}
+fn reads(api: &Fixture, request: &str) -> usize {
+    let requests = api.data.requests.lock().unwrap();
+    requests
+        .iter()
+        .filter(|item| item.as_str() == request)
+        .count()
+}
+fn history_loaded(api: &Fixture) -> bool {
+    let requests = api.data.requests.lock().unwrap();
+    requests.iter().any(|request| request.contains("/messages"))
+}
+/// Waits until the watcher has made `n` reads of `/api/groups`, then lets it publish.
+async fn groups_read(api: &Fixture, n: usize) {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while reads(api, "GET /api/groups") < n {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("groups read deadline");
+    tokio::time::sleep(Duration::from_millis(200)).await;
+}
+/// The highest alert revision among the updates published so far.
+fn rung(rx: &mut UnboundedReceiver<Update>) -> u64 {
+    let mut highest = 0;
+    while let Ok(update) = rx.try_recv() {
+        highest = highest.max(update.waiting.alert_revision);
+    }
+    highest
+}
+/// Starts a bound watcher and waits for its first caught-up reconciliation.
+async fn started(api: &Fixture) -> (Arc<PresenceWatcher>, UnboundedReceiver<Update>) {
+    let (watcher, rx, connection) = watch(api);
+    watcher.replace(binding(1, THREAD_A, "agent-a"), connection);
+    groups_read(api, 2).await;
+    (watcher, rx)
+}
+
+#[tokio::test]
+async fn startup_is_silent_and_a_call_during_a_drop_rings_once() {
+    let api = Fixture::new().await;
+    waiting_group(&api, Some("2026-11-01T10:00:00Z"));
+    api.group_message(GROUP, 1, true);
+    let (watcher, mut rx) = started(&api).await;
+    assert_eq!(rung(&mut rx), 0);
+    assert!(!history_loaded(&api));
+    api.project_emit("lagged");
+    wait(&mut rx, |update| update.waiting.count == 0).await;
+    api.group_message(GROUP, 2, true);
+    api.group_message(GROUP, 3, true);
+    let resumed = wait(&mut rx, |update| update.waiting.alert_revision > 0).await;
+    assert_eq!(resumed.waiting.count, 1);
+    assert_eq!(resumed.waiting.alert_revision, 1);
+    assert!(!history_loaded(&api));
+    groups_read(&api, 4).await;
+    assert!(rung(&mut rx) <= 1);
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn a_reconnect_restores_the_count_without_an_old_tone() {
+    let api = Fixture::new().await;
+    waiting_group(&api, Some("2026-11-01T10:00:00Z"));
+    request_at(&api, THREAD_B, "old", "2026-11-01T09:00:00Z");
+    let (watcher, mut rx) = started(&api).await;
+    assert_eq!(rung(&mut rx), 0);
+    api.group_message(GROUP, 1, false);
+    api.project_emit("lagged");
+    wait(&mut rx, |update| update.waiting.count == 0).await;
+    wait(&mut rx, |update| update.waiting.count == 1).await;
+    groups_read(&api, 4).await;
+    assert_eq!(rung(&mut rx), 0);
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn the_group_pill_works_before_an_agent_is_bound() {
+    let api = Fixture::new().await;
+    waiting_group(&api, Some("2026-11-01T10:00:00Z"));
+    let (watcher, mut rx, connection) = watch(&api);
+    let mut unbound = binding(1, THREAD_A, "agent-a");
+    unbound.agent = None;
+    unbound.target = None;
+    watcher.sync(unbound, Some(connection));
+    let update = wait(&mut rx, |update| update.waiting.count == 1).await;
+    assert_eq!(update.waiting.alert_revision, 0);
+    assert!(update.waiting.bound.is_empty());
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn a_message_to_mohammed_raises_the_waiting_state() {
+    let api = Fixture::new().await;
+    let (watcher, mut rx) = started(&api).await;
+    assert_eq!(rung(&mut rx), 0);
+    waiting_group(&api, Some("2026-11-01T10:05:00Z"));
+    api.group_message(GROUP, 1, true);
+    let update = wait(&mut rx, |update| update.waiting.count == 1).await;
+    assert_eq!(update.waiting.alert_revision, 1);
+    assert!(!history_loaded(&api));
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn a_message_to_others_does_not() {
+    let api = Fixture::new().await;
+    waiting_group(&api, None);
+    let (watcher, mut rx) = started(&api).await;
+    api.group_message(GROUP, 1, false);
+    groups_read(&api, 3).await;
+    assert_eq!(rung(&mut rx), 0);
+    // A later call proves the feed is live: it alone rings.
+    waiting_group(&api, Some("2026-11-01T10:05:00Z"));
+    api.group_message(GROUP, 2, true);
+    let update = wait(&mut rx, |update| update.waiting.count == 1).await;
+    assert_eq!(update.waiting.alert_revision, 1);
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn a_group_with_needs_you_and_two_requests_counts_once() {
+    let api = Fixture::new().await;
+    waiting_group(&api, Some("2026-11-01T10:00:00Z"));
+    request_at(&api, THREAD_B, "first", "2026-11-01T10:01:00Z");
+    request_at(&api, THREAD_B, "second", "2026-11-01T10:02:00Z");
+    request_at(&api, THREAD_A, "conversation", "2026-11-01T10:03:00Z");
+    let (watcher, mut rx, connection) = watch(&api);
+    watcher.replace(binding(1, THREAD_A, "agent-a"), connection);
+    let update = wait(&mut rx, |update| update.waiting.count > 0).await;
+    assert_eq!(update.waiting.count, 2);
+    assert_eq!(update.waiting.bound.len(), 1);
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn the_pill_counts_a_group_once() {
+    let api = Fixture::new().await;
+    waiting_group(&api, Some("2026-11-01T10:00:00Z"));
+    request_at(&api, THREAD_B, "first", "2026-11-01T10:01:00Z");
+    let (watcher, mut rx) = started(&api).await;
+    assert_eq!(rung(&mut rx), 0);
+    request_at(&api, THREAD_B, "second", "2026-11-01T10:02:00Z");
+    api.permissions_changed(THREAD_B, "second", "waiting");
+    api.group_message(GROUP, 1, true);
+    let update = wait(&mut rx, |update| update.waiting.alert_revision > 0).await;
+    assert_eq!(update.waiting.count, 1);
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn a_new_call_rings_while_an_older_request_waits() {
+    let api = Fixture::new().await;
+    waiting_group(&api, None);
+    request_at(&api, THREAD_B, "first", "2026-11-01T10:00:00Z");
+    let (watcher, mut rx) = started(&api).await;
+    assert_eq!(rung(&mut rx), 0);
+    // The group's time stays at 10:00, yet the call is new.
+    waiting_group(&api, Some("2026-11-01T10:05:00Z"));
+    api.group_message(GROUP, 1, true);
+    let update = wait(&mut rx, |update| update.waiting.alert_revision > 0).await;
+    assert_eq!(update.waiting.alert_revision, 1);
+    assert_eq!(update.waiting.count, 1);
+    watcher.stop();
+}
+
+#[tokio::test]
+async fn an_older_request_closing_rings_nothing() {
+    let api = Fixture::new().await;
+    waiting_group(&api, None);
+    request_at(&api, THREAD_B, "first", "2026-11-01T10:00:00Z");
+    request_at(&api, THREAD_B, "second", "2026-11-01T10:03:00Z");
+    let (watcher, mut rx) = started(&api).await;
+    assert_eq!(rung(&mut rx), 0);
+    // The group's time moves forward to 10:03, a request already seen.
+    let before = reads(&api, "GET /api/aylul/permissions");
+    api.settle("first");
+    api.permissions_changed(THREAD_B, "first", "answered");
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while reads(&api, "GET /api/aylul/permissions") == before {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("permissions re-read deadline");
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(rung(&mut rx), 0);
+    watcher.stop();
+}
 #[tokio::test]
 async fn lagged_project_feed_recovers_like_the_thread_feed() {
     let api = Fixture::new().await;

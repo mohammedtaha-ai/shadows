@@ -124,7 +124,7 @@ impl super::ThreadsStore {
                FROM planning_thread t
                LEFT JOIN durable_event e
                  ON e.thread_id = t.id AND e.kind = 'PlanningThreadCreated'
-              WHERE t.project_id = ? AND t.removed_at IS NULL
+              WHERE t.project_id = ? AND t.removed_at IS NULL AND t.hidden = 0
               ORDER BY e.seq, t.id",
         )
         .bind(project_id.as_str())
@@ -235,11 +235,40 @@ impl super::ThreadsStore {
         slug: &str,
     ) -> Result<Vec<PlanningThread>, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
-        crate::Threads::list_for_profile_in(&mut conn, slug).await
+        Self::profile_threads(&mut conn, slug, false).await
     }
 }
 
 impl crate::Threads {
+    /// Creates a group's member thread inside the caller's command transaction.
+    pub async fn create_hidden_in(
+        conn: &mut core_db::Tx,
+        project: &ProjectId,
+        title: &str,
+        profile: &str,
+        now: &str,
+    ) -> Result<PlanningThread, crate::ThreadsError> {
+        core_projects::Projects::harness_fits_in(conn, project, shadows_agent::policy::AYLUL)
+            .await?;
+        core_agents::Agents::require_live_in(conn, profile).await?;
+        let id = insert_thread(
+            conn,
+            project,
+            title,
+            CreatedTitle::Client,
+            shadows_agent::policy::AYLUL,
+            Actor::system(),
+            now,
+        )
+        .await?;
+        sqlx::query("UPDATE planning_thread SET profile = ?, hidden = 1 WHERE id = ?")
+            .bind(profile)
+            .bind(id.as_str())
+            .execute(&mut *conn)
+            .await?;
+        Ok(super::ThreadsStore::load_thread(conn, &id).await?)
+    }
+
     pub async fn profile_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,

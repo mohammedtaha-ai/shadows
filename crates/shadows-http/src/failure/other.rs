@@ -9,6 +9,22 @@ use shadows_core::StartError;
 
 use super::{Detail, Failure};
 
+impl From<shadows_core::MessagesError> for Failure {
+    fn from(error: shadows_core::MessagesError) -> Self {
+        use shadows_core::{MessagesError, StorageError};
+        match error {
+            MessagesError::Invalid(message) => {
+                Self::refused(ErrorCode::InvalidCommand, message.into())
+            }
+            MessagesError::NotFound => StorageError::NotFound("group").into(),
+            MessagesError::Storage(error) => error.into(),
+            MessagesError::Agent(error) => error.into(),
+            MessagesError::Thread(error) => error.into(),
+            MessagesError::Turn(error) => error.into(),
+        }
+    }
+}
+
 impl From<StartError> for Failure {
     fn from(e: StartError) -> Self {
         CoreError::Start(e).into()

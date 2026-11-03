@@ -44,6 +44,9 @@ pub use core_harness::{
     OpenSession, PermissionAnswer, PermissionOption, RememberedSettings, WaitingPermission,
 };
 pub use core_instructions::{Instructions, InstructionsVersion};
+pub use core_messages::{
+    Address, Group, GroupId, Member, Message, MessageKind, MessagesError, Speaker,
+};
 pub use core_operations::{
     OperationId, OperationRecord, Operations, OperationsError, ReconcileReport, Transition,
 };
