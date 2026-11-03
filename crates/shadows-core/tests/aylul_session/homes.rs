@@ -83,6 +83,56 @@ async fn dotted_tool_rules_use_claudes_normalized_name() {
 }
 
 #[tokio::test]
+async fn colliding_tool_names_keep_only_the_block() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    let rules = serde_json::from_value(json!([
+        {"tool":"file.read","rule":"allow"},{"tool":"file_read","rule":"deny"}
+    ]))
+    .unwrap();
+    w.core
+        .extensions()
+        .set_tool_rules("collide".into(), "aylul", &id, rules)
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    let settings = read_settings(&w).to_string();
+    assert_eq!(settings.matches("mcp__docs__file_read").count(), 1);
+    assert!(
+        read_settings(&w)["permissions"]["deny"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("mcp__docs__file_read"))
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
+async fn an_agent_without_rules_opens_with_odd_permissions() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.sessions.terminate(&w.thread).await.unwrap();
+    w.core
+        .extensions()
+        .set_agent_extension(
+            "off".into(),
+            "aylul",
+            core_extensions::ExtensionKind::Mcp,
+            &id,
+            false,
+        )
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.sessions.terminate(&w.thread).await.unwrap();
+    settings(&w, json!({"permissions":{"allow":"Bash(ls)"}}));
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(read_settings(&w)["permissions"]["allow"], json!("Bash(ls)"));
+    close_world(w).await;
+}
+
+#[tokio::test]
 async fn rules_of_an_item_switched_off_are_removed() {
     let w = world().await;
     let id = tool_item(&w).await;

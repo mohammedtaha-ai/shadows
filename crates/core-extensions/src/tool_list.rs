@@ -49,15 +49,16 @@ impl Extensions {
         let result = tokio::time::timeout(Duration::from_secs(10), list_tools(server)).await;
         let (tools, list_error) = match result {
             Ok(Ok(mut tools)) => {
-                if tools
-                    .iter()
-                    .any(|tool| values.iter().any(|value| tool.name.contains(value)))
-                {
+                if tools.iter().any(|tool| {
+                    values
+                        .iter()
+                        .any(|value| redact(&tool.name, value) != tool.name)
+                }) {
                     (vec![], Some(PROTOCOL.into()))
                 } else {
                     for tool in &mut tools {
                         for value in &values {
-                            tool.description = tool.description.replace(value, "[redacted]");
+                            tool.description = redact(&tool.description, value);
                         }
                     }
                     (tools, None)
@@ -76,6 +77,55 @@ impl Extensions {
         })
     }
 }
+
+/// Replaces `value` where it stands as a whole token, so a short value such as `1` is
+/// not found inside `v1_search`.
+fn redact(text: &str, value: &str) -> String {
+    let word = |c: char| c.is_alphanumeric() || c == '_';
+    let (first, last) = match (value.chars().next(), value.chars().next_back()) {
+        (Some(first), Some(last)) => (first, last),
+        _ => return text.to_owned(),
+    };
+    let mut out = String::with_capacity(text.len());
+    let mut kept = 0;
+    for (at, _) in text.match_indices(value) {
+        let end = at + value.len();
+        let before = text[..at].chars().next_back();
+        let after = text[end..].chars().next();
+        if at < kept
+            || (word(first) && before.is_some_and(word))
+            || (word(last) && after.is_some_and(word))
+        {
+            continue;
+        }
+        out.push_str(&text[kept..at]);
+        out.push_str("[redacted]");
+        kept = end;
+    }
+    out.push_str(&text[kept..]);
+    out
+}
+
+/// What the listing process inherits from the daemon, by name: enough for `node`,
+/// `npx` or `uvx` to start, never the daemon's own keys. The item's values follow.
+const LISTING_ENV: &[&str] = &[
+    "PATH",
+    "HOME",
+    "TMPDIR",
+    "LANG",
+    "SystemRoot",
+    "SystemDrive",
+    "windir",
+    "ComSpec",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "ProgramData",
+    "ProgramFiles",
+];
 
 async fn list_tools(server: McpServerConfig) -> Result<Vec<McpTool>, &'static str> {
     let mut child = None;
@@ -102,7 +152,10 @@ async fn list_tools(server: McpServerConfig) -> Result<Vec<McpTool>, &'static st
         McpServerConfig::Stdio {
             command, args, env, ..
         } => {
-            let mut environment: HashMap<_, _> = std::env::vars().collect();
+            let mut environment: HashMap<_, _> = LISTING_ENV
+                .iter()
+                .filter_map(|key| Some((key.to_string(), std::env::var(key).ok()?)))
+                .collect();
             environment.extend(env);
             let handle = shadows_process::spawn(shadows_process::ProcessSpec {
                 executable: command.into(),

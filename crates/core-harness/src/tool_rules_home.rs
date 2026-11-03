@@ -48,7 +48,15 @@ impl Homes {
                 target.insert(format!("mcp__{name}__{}", entry.tool.replace('.', "_")));
             }
         }
-        if desired.allow.is_empty() && desired.deny.is_empty() && !manifest_path.exists() {
+        // `a.b` and `a_b` reach Claude under one name; a block on either holds.
+        desired.allow = desired.allow.difference(&desired.deny).cloned().collect();
+        // With nothing to write or clean, settings.json is not read: a file Shadows
+        // cannot parse must not stop an agent that has no tool rules.
+        if desired.allow.is_empty()
+            && desired.deny.is_empty()
+            && prior.allow.is_empty()
+            && prior.deny.is_empty()
+        {
             return Ok(());
         }
         let mut settings = Self::check(home)?;

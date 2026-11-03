@@ -95,8 +95,10 @@ shared_in_transaction:
 obligations:
   - rule: Tool names accept MCP's ASCII letters, digits, underscore, hyphen and dot up to 128 characters.
     tested_by: [tool_rule_input_is_checked, dotted_tool_names_can_be_saved]
-  - rule: Discovery redacts resolved values echoed in descriptions and refuses names that contain them.
-    tested_by: [tools_are_listed_from_a_stdio_server, discovery_redacts_values_echoed_in_http_descriptions, discovery_refuses_a_value_echoed_as_a_tool_name]
+  - rule: Discovery redacts resolved values echoed as whole tokens in descriptions and refuses names that contain one; a value inside a longer word is not an echo.
+    tested_by: [tools_are_listed_from_a_stdio_server, discovery_redacts_values_echoed_in_http_descriptions, discovery_refuses_a_value_echoed_as_a_tool_name, a_short_value_inside_a_word_is_not_an_echo]
+  - rule: A stdio listing process inherits only the named start-up variables from the daemon, then the item's values.
+    tested_by: [the_listing_process_does_not_inherit_the_daemon_environment]
   - rule: Discovery uses stored headers or environment, follows tool pages, times out at ten seconds, returns value-free errors and terminates managed children.
     tested_by: [tools_are_listed_from_an_http_server, tools_are_listed_from_a_stdio_server, a_silent_server_times_out, a_refused_server_leaks_no_value, opening_snapshot_carries_rules_of_switched_on_items]
   - rule: Per-agent tool rules omit ask, survive switches, and are removed with the item or agent.

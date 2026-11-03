@@ -111,11 +111,14 @@ tool_rule_projection:
   file_access: Homes checks managed paths and publishes each file atomically.
   recovery: Write the union of prior and next owned rules before settings, then finalize ownership.
   preservation: Pre-existing exact rules stay foreign; only owned entries in their original lists are removed.
+  collision: Two tools that reach Claude under one name keep only its block.
+  no_rules: With no rule to write or clean, settings.json is not read.
   tested_by: [opening_writes_allow_and_deny_rules, rules_of_an_item_switched_off_are_removed,
     foreign_rules_are_kept, a_renamed_item_leaves_no_old_rule,
     interrupted_rule_projection_is_cleaned_at_next_opening,
     an_unwritable_rule_manifest_leaves_settings_unchanged,
-    dotted_tool_rules_use_claudes_normalized_name]
+    dotted_tool_rules_use_claudes_normalized_name, colliding_tool_names_keep_only_the_block,
+    an_agent_without_rules_opens_with_odd_permissions]
 source: crates/core-harness/src
 
 

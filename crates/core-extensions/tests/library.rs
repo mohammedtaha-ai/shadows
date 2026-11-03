@@ -913,6 +913,33 @@ async fn discovery_refuses_a_value_echoed_as_a_tool_name() {
 }
 
 #[tokio::test]
+async fn a_short_value_inside_a_word_is_not_an_echo() {
+    let w = world().await;
+    let id = stdio_tools_item(
+        &w,
+        json!([
+            {"name":"PROBE_VALUE","value":"Read a file"},
+            {"name":"DEBUG","value":"rea"}
+        ]),
+    )
+    .await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert_eq!(out.list_error, None);
+    assert_eq!(out.tools[0].name, "read");
+    assert_eq!(out.tools[0].description, "[redacted]");
+}
+
+#[tokio::test]
+async fn the_listing_process_does_not_inherit_the_daemon_environment() {
+    let w = world().await;
+    assert!(std::env::var("CARGO_PKG_NAME").is_ok());
+    let id = stdio_tools_item(&w, json!([{"name":"LEAK_NAME","value":"CARGO_PKG_NAME"}])).await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert_eq!(out.list_error, None);
+    assert_eq!(out.tools[0].description, "absent");
+}
+
+#[tokio::test]
 async fn dotted_tool_names_can_be_saved() {
     let w = world().await;
     let id = rule_item(&w).await;
