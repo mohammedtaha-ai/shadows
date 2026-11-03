@@ -114,8 +114,14 @@ Three layers, in this order:
   design revision of a part in the detail), or the index changed. This extends the harness's
   existing "versions the session last heard" record (`core-harness/src/setup.rs`, `Heard`) with
   the context digest.
-- **On request:** a "send the context again" action in the conversation, for after a compact.
-  (Claude's call; automatic detection of a compact is §9 OPEN.)
+- **After a compact, automatically.** Mohammed: most people compact by hand, and others let
+  Claude Code compact itself at its limit, so both must count. The adapter reports both
+  (evidence `docs/evidence/2026-11-04-planner-context-probe.md` §1): today as a `tool_call`
+  whose `_meta` carries `contextCompaction` and `claudeCode.toolName = "compact"`, with
+  `trigger` `manual` or `automatic`. A completed compaction clears the session's heard context
+  digest, so the next turn carries the context again.
+- **On request:** a "send the context again" action in the conversation, for anything the
+  compaction rule misses. (Claude's call.)
 - A turn that carries a command alone (`/compact`, `/clear`) carries no context, as today, and
   the context stays owed.
 
@@ -159,15 +165,19 @@ No new service.
 1. **The anchor and the first-turn context:** anchor on a thread; the index and detail compiled
    and sent on a session's first turn; the record per invocation. Run it in the browser on a real
    project.
-2. **Re-send on change:** the digest in the heard record; the "send again" action.
+2. **Re-send on change:** the digest in the heard record; a completed compaction (manual or
+   automatic) clears it; the "send again" action. A live `/compact` and a live automatic
+   compaction through `shadows serve` confirm the evidence's read.
 3. **The inspection view**, in the conversation (frontend).
 4. **The owner thread:** `Plans::owner_thread`. It ships when messaging slice 3 (the manager)
    needs it.
 
-## 7. Evidence to gather before slice 1's plan
+## 7. Evidence
 
-- How big the index and a typical detail are on a real project, in characters, so the budgets
-  are set from measurement, not guessed.
+- `docs/evidence/2026-11-04-planner-context-probe.md`: how the adapter reports a compaction
+  (§1), and that no project in the development database has a design to measure (§2).
+- The budgets are therefore measured from slice 1's own record (§4.4), which stores each
+  context's estimated size, on the first real project planned with it.
 
 ## 8. Left to the builder
 
@@ -177,13 +187,10 @@ No new service.
 
 ## 9. Open
 
-> **OPEN — detecting a compact.** Whether the adapter tells Shadows that a session was compacted,
-> so the context is owed again automatically. Closed by a probe of the adapter's events after a
-> `/compact`; until then, the "send again" action covers it.
-
 > **OPEN — a decisions record.** Decisions live in plan version rationales and standards. Whether
 > a project needs its own decision log (Mohammed: "the vision and the decisions") is decided when
 > the manager's slice needs to read them.
 
-> **OPEN — the budgets.** §4.2's numbers are Claude's. Closed by §7's measurement, before slice
-> 1's plan.
+> **OPEN — the budgets.** §4.2's numbers are Claude's starting values. Closed by the sizes
+> slice 1 records on the first real project planned with it; the numbers are one constant
+> block, so changing them is a one-line change.
