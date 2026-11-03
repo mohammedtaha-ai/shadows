@@ -799,11 +799,13 @@ async fn http_tools_item(w: &World, refused: bool) -> (String, tokio::task::Join
         response::IntoResponse,
         routing::post,
     };
-    let app = Router::new().route("/mcp", post(move |headers: HeaderMap, Json(q): Json<serde_json::Value>| async move {
+    let handler = move |headers: HeaderMap, Json(q): Json<serde_json::Value>| async move {
         if refused || headers.get("x-probe").and_then(|v| v.to_str().ok()) != Some("header-value") {
             return (StatusCode::UNAUTHORIZED, "header-value").into_response();
         }
-        if q.get("id").is_none() { return StatusCode::ACCEPTED.into_response(); }
+        if q.get("id").is_none() {
+            return StatusCode::ACCEPTED.into_response();
+        }
         let result = if q["method"] == "initialize" {
             json!({"protocolVersion":"2025-03-26","capabilities":{"tools":{}},
                 "serverInfo":{"name":"fixture","version":"1"}})
@@ -814,7 +816,8 @@ async fn http_tools_item(w: &World, refused: bool) -> (String, tokio::task::Join
             ]})
         };
         Json(json!({"jsonrpc":"2.0","id":q["id"],"result":result})).into_response()
-    }));
+    };
+    let app = Router::new().route("/mcp", post(handler));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/mcp", listener.local_addr().unwrap());
     let task = tokio::spawn(async move {
