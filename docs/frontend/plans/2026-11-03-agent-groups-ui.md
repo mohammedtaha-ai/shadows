@@ -108,15 +108,18 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 
 **Interfaces:**
 - **The log:**
-  - Messages in `seq` order. An agent's line has its colour and name.
+  - Messages in `seq` order. An agent's line shows `speaker.name` (Core stores it, so a deleted
+    agent keeps its name) in that agent's colour (`colorOf`), or a neutral colour when the agent
+    is gone.
   - Mohammed's line is styled as his. A `Notice` is a quiet system line, not a speech bubble.
   - Lines addressed to Mohammed are marked.
   - On a new message, the log follows only if it was already at the bottom; otherwise it shows a
     "new messages" mark.
 - **"Thinking":**
   - A member shows "thinking" while its hidden thread has a running turn.
-  - It is read from the group's `members[].thread_id` through the existing thread operations
-    query; no new route.
+  - It is read from each `members[].thread_id` through `GET /api/threads/{id}/operations` (the
+    query the conversation page uses): a member is thinking while its latest operation is not
+    terminal. No new route.
 - **The composer:**
   - Typing `@` opens the member menu: live members only. Mohammed is the writer, so
     `@mohammed` is not offered.
@@ -140,9 +143,15 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
   `web/src/app/conversation/permission-card.tsx` as it is
 
 **Interfaces:**
-- For each member, the page reads the waiting request of its hidden thread through the existing
-  permissions query, and shows the existing permission card under the log, with the member's name.
-  It answers through the existing route.
+- `waitingPermissionsQuery` (`GET /api/aylul/permissions`, `web/src/api/permissions.ts`)
+  already returns every AYLUL thread's waiting requests, hidden ones included; each carries
+  `thread_id`. The page keeps those whose `thread_id` is one of its members' and shows each with
+  the existing permission card under the log, with the member's name.
+- The answer goes through `answerPermission(thread_id, request_id, option_id, command_id)`, as
+  in a conversation.
+- Places that list waiting requests as conversations (the conversation page's banner, if any)
+  must not link to a hidden thread. The builder checks every use of `waitingPermissionsQuery`
+  and sends a hidden thread's request to its group.
 
 - [ ] Test `a_members_request_is_answered_in_the_group`.
 - [ ] Run; FAIL, implement, PASS.
@@ -179,7 +188,10 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 - **The pill count** is waiting permission requests plus groups with `needs_you`.
   - Clicking the pill opens the oldest one: a conversation as today, or a group through U-9.
 - **A permission request on a hidden group thread** is counted once: as its group, not as a
-  conversation. The watcher learns hidden threads from the groups' `members[].thread_id`.
+  conversation. The pill reads `GET /api/aylul/permissions` today, and that list includes hidden
+  threads, so without this the pill would open a hidden thread as a conversation. The watcher
+  learns which threads are hidden from `GET /api/groups` (`members[].thread_id`), and the
+  oldest-waiting target for such a request is `MainDestination::Group`.
 
 - [ ] Tests:
   - `a_message_to_mohammed_raises_the_waiting_state`
