@@ -31,7 +31,7 @@ export function GroupComposer({ groupId, members }: { groupId: string; members: 
   })
   const mention = /(?:^|[^\p{L}\p{N}_@-])@([a-z0-9_-]*)$/iu.exec(text.slice(0, caret))
   const options = mention && !dismissed && !send.isPending
-    ? members.filter(member => member.slug !== 'mohammed' && member.slug.startsWith(mention[1].toLowerCase()))
+    ? members.filter(member => member.slug.startsWith(mention[1].toLowerCase()))
     : []
 
   function submit() {

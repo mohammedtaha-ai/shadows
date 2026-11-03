@@ -92,7 +92,7 @@ obligations:
   - rule: A waiting request on the bound thread blocks the expression, answers go once per call to the one Core route, and the project feed recovers and stays bounded.
     tested_by: [a_waiting_request_blocks_the_expression_and_its_end_restores_the_actual_status, waiting_permissions_are_read_at_start_and_reread_on_a_project_frame, lagged_project_feed_recovers_like_the_thread_feed, waiting_lists_are_bounded, permission_answers_post_once_with_the_command_id_and_map_core_errors_to_fixed_codes, oldest_waiting_resolves_the_first_entry_and_falls_back_when_it_does_not_resolve]
   - rule: Waiting groups are deduplicated across member requests and calls, sorted by their earliest open item, and audible only for new identities after startup.
-    tested_by: [the_oldest_waiting_group_opens_the_group_page, the_group_pill_works_before_an_agent_is_bound, startup_is_silent_and_a_call_during_a_drop_rings_once, a_group_counts_once_but_a_new_call_rings_while_older_requests_wait]
+    tested_by: [the_oldest_waiting_group_opens_the_group_page, the_group_pill_works_before_an_agent_is_bound, startup_is_silent_and_a_call_during_a_drop_rings_once, a_reconnect_restores_the_count_without_an_old_tone, a_message_to_mohammed_raises_the_waiting_state, a_message_to_others_does_not, a_group_with_needs_you_and_two_requests_counts_once, the_pill_counts_a_group_once, a_new_call_rings_while_an_older_request_waits, an_older_request_closing_rings_nothing]
 gaps:
   - at: native Windows journey
     gap: HTTP fixtures prove native feed behavior; actual hidden-main/character rendering acceptance belongs to Tasks 8 and 9.

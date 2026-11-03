@@ -372,8 +372,10 @@ fn the_oldest_waiting_group_opens_the_group_page() {
         "id":id,"needs_you_since":"2026-11-01T10:00:01Z","members":[{"thread_id":THREAD}]
     }]);
     *api.permissions.lock().unwrap() = serde_json::json!([
-        {"thread_id":OTHER,"agent":"agent-b","request_id":"second","asked_at":"2026-11-01T10:00:00.123456Z"},
-        {"thread_id":THREAD,"agent":"agent-a","request_id":"first","asked_at":"2026-11-01T10:00:00.123Z"}
+        {"thread_id":OTHER,"agent":"agent-b","request_id":"second",
+         "asked_at":"2026-11-01T10:00:00.123456Z"},
+        {"thread_id":THREAD,"agent":"agent-a","request_id":"first",
+         "asked_at":"2026-11-01T10:00:00.123Z"}
     ]);
     assert_eq!(
         presence.destination_for(MainTarget::OldestWaiting),

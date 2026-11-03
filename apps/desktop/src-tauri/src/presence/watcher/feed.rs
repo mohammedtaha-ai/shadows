@@ -382,7 +382,8 @@ impl<'a> Waiting<'a> {
                         }
                         RefreshWaiting::Message(event)
                     }
-                    // The caught-up snapshot covers the initial replay without loading old messages.
+                    // The caught-up snapshot covers the initial replay without loading old
+                    // messages.
                     _ => {
                         self.history.cursor = value.seq;
                         return Some(false);

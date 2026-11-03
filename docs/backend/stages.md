@@ -131,6 +131,17 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: `cargo test -p core-messages` and `cargo test -p shadows --test openapi` pass, with
   `needs_you_since_is_the_first_unanswered_call`
 
+Outside any task's `Touch:` on this branch, recorded here:
+- `d7342532`: crates/core-db/tests/storage_contract/schema.rs names the B-40 tables and 0042.
+- `4381072f`: the architecture ratchet for B-40 to B-45. The free functions of
+  crates/core-messages/src/bounds.rs, mentions.rs and prompt.rs became `Messages` methods
+  (callers in deliveries.rs, replies.rs and send.rs); store/deliveries.rs lost its formatted
+  SQL; crates/shadows/tests/architecture/table-owners.txt and ownership.allowlist name the
+  message tables and three reviewed exceptions.
+- `aa359acf` (U-10): `MessageAdded` carries `calls_person` (spec §6.7):
+  crates/core-messages/src/store/write.rs, contract.yaml; crates/core-events/contract.yaml;
+  crates/shadows/tests/group_routes.rs.
+
 Core's local acceptance used `shadows serve` with synthetic ACP and two agents. Alpha alone
 answered the addressed message. Restart preserved the group and reopened Alpha's member
 session. The local log recorded `OperationCompleted` and graceful shutdown. CI and the AYLUL

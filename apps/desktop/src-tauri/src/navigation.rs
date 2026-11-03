@@ -81,7 +81,9 @@ mod navigation_tests {
         });
         assert_eq!(
             serde_json::to_value(pending).unwrap(),
-            serde_json::json!({"revision": 1, "destination": {"kind": "group", "groupId": group_id}})
+            serde_json::json!({
+                "revision": 1, "destination": {"kind": "group", "groupId": group_id}
+            })
         );
     }
     #[test]

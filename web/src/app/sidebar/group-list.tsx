@@ -17,7 +17,7 @@ export function GroupList({ filter }: { filter: string }) {
   const navigate = useNavigate()
   useProjectEvents(agents.data?.project_id)
   const list = groups.data?.filter(group => group.name.toLowerCase().includes(filter.trim().toLowerCase()))
-  const live = agents.data?.agents.filter(agent => !agent.deleted && agent.slug !== 'mohammed') ?? []
+  const live = agents.data?.agents.filter(agent => !agent.deleted) ?? []
   return (
     <section aria-label="Agent groups" className="mb-4 space-y-1 border-b border-sidebar-border pb-3">
       <div className="flex items-center justify-between px-2">

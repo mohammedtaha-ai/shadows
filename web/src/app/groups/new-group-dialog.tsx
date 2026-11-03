@@ -25,7 +25,6 @@ export function NewGroupDialog({ agents, onClose, onCreated }: {
     },
     onSuccess: group => {
       attempt.current = null
-      client.setQueryData(groupKeys.detail(group.id), group)
       void client.invalidateQueries({ queryKey: groupKeys.list })
       onCreated(group.id)
     },

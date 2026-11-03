@@ -3,10 +3,10 @@ import { useParams } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { agentsQuery } from '@/api/aylul-profiles'
 import { groupMessagesQuery, groupQuery, type Group } from '@/api/groups'
-import { operationsQuery } from '@/api/threads'
+import { operationsQuery, type Operation } from '@/api/threads'
 import { waitingPermissionsQuery } from '@/api/permissions'
 import { colorOf } from '@/app/agents'
-import { PermissionAnswer } from '@/app/conversation'
+import { initialTurnState, PermissionAnswer, runningTurn, turnReducer } from '@/app/conversation'
 import { holdThreadRefresh, useProjectEvents } from '@/stream'
 import { ErrorLine } from '../error-line'
 import { GroupComposer } from './group-composer'
@@ -20,6 +20,12 @@ export function GroupPage() {
   return <OpenGroup key={groupId} group={group.data} />
 }
 
+/** A member thinks while its thread has a turn that has not ended, by the conversation's one rule. */
+function running(operations: readonly Operation[] | undefined) {
+  const snapshot = { type: 'snapshot', operations: operations ?? [], now: 0 } as const
+  return runningTurn(turnReducer(initialTurnState, snapshot)) !== null
+}
+
 function OpenGroup({ group }: { group: Group }) {
   const agents = useQuery(agentsQuery)
   const log = useQuery(groupMessagesQuery(group.id))
@@ -29,17 +35,16 @@ function OpenGroup({ group }: { group: Group }) {
   const operations = useQueries({ queries: group.members.map(member => operationsQuery(member.thread_id)) })
   useProjectEvents(projectId)
   const members = group.members
+  // Each group refetch makes new member objects; the holds follow the thread ids only.
+  const threadIds = JSON.stringify(members.map(member => member.thread_id))
   useEffect(() => {
-    const release = members.map(member => holdThreadRefresh(client, member.thread_id, { projectId }))
+    const release = (JSON.parse(threadIds) as string[]).map(threadId => holdThreadRefresh(client, threadId, { projectId }))
     return () => release.forEach(stop => stop())
-  }, [client, members, projectId])
+  }, [client, threadIds, projectId])
   const live = agents.data?.agents.filter(agent => !agent.deleted) ?? []
   const colors = new Map(live.map(agent => [agent.slug, colorOf(agent.character_color).swatch]))
   const mentionable = members.filter(member => colors.has(member.slug))
-  const thinking = members.filter((_member, index) => {
-    const status = operations[index].data?.[0]?.status_kind
-    return status === 'Pending' || status === 'Running'
-  })
+  const thinking = members.filter((_member, index) => running(operations[index].data))
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-border px-5 py-4">

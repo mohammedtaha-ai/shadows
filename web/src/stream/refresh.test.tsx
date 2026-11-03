@@ -16,7 +16,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 it('a MessageAdded refreshes its group, its log and the list', async () => {
   const client = new QueryClient()
   const keys = [groupKeys.detail('g1'), groupKeys.messages('g1'), groupKeys.list, groupKeys.detail('other')]
-  for (const key of keys) client.setQueryData(key, {})
+  for (const key of keys) client.getQueryCache().build(client, { queryKey: key })
   dispatchRefresh(client, classifyRefresh({
     kind: 'MessageAdded', seq: 12, threadId: null, operationId: null,
     projectId: 'p1', payload: { group_id: 'g1', seq: 2 },
@@ -34,7 +34,7 @@ it('batches replayed group messages until the project is caught up', () => {
   const invalidated = () => keys.map(key => client.getQueryState(key)?.isInvalidated)
   function View() { useProjectEvents('p1'); return null }
   try {
-    for (const key of keys) client.setQueryData(key, {})
+    for (const key of keys) client.getQueryCache().build(client, { queryKey: key })
     act(() => root.render(<QueryClientProvider client={client}><View /></QueryClientProvider>))
     act(() => {
       sources[0].durable(1, 'MessageAdded', null, { group_id: 'g1', seq: 1 })
