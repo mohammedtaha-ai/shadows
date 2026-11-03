@@ -72,7 +72,7 @@ it('listing failure still allows stored rules to be cleared', async () => {
   expect(a.bodies[0]).toEqual({ command_id: expect.any(String), rules: [] })
 })
 
-it('saving locks the whole item and a subsequent edit preserves the saved rule', async () => {
+it('a click during a save is queued and built on the saved answer', async () => {
   let release!: (response: Response) => void
   let writes = 0
   const a = await open(undefined, { [`PUT ${rulesPath}`]: async (request: Request) => {
@@ -86,10 +86,9 @@ it('saving locks the whole item and a subsequent edit preserves the saved rule',
   expect(a.button('Block read')!.disabled).toBe(true)
   expect(a.button('Allow all tools')!.disabled).toBe(true)
   await act(async () => release(Response.json([...stored, { tool: 'exec', rule: 'deny' }])))
-  await until(() => !a.button('Block read')!.disabled)
-  act(() => a.button('Block read')!.click())
   await until(() => writes === 2)
   expect(a.bodies[1]).toEqual({ command_id: expect.any(String), rules: [{ tool: 'exec', rule: 'deny' }, { tool: 'read', rule: 'deny' }] })
+  await until(() => a.button('Block read')!.getAttribute('aria-pressed') === 'true')
 })
 
 it('a failed save keeps the selection and retries the same command', async () => {

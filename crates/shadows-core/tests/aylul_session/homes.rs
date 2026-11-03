@@ -187,6 +187,19 @@ async fn foreign_rules_are_kept() {
 }
 
 #[tokio::test]
+async fn foreign_rule_order_is_kept() {
+    let w = world().await;
+    tool_item(&w).await;
+    settings(&w, json!({"permissions":{"allow":["Bash(ls)","Alpha"]}}));
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(
+        read_settings(&w)["permissions"]["allow"],
+        json!(["Bash(ls)", "Alpha", "mcp__docs__read"])
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
 async fn a_renamed_item_leaves_no_old_rule() {
     let w = world().await;
     let id = tool_item(&w).await;

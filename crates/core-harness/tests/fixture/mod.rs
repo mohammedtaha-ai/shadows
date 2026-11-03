@@ -26,16 +26,17 @@ pub async fn fixture() -> (tempfile::TempDir, Arc<Storage>, Arc<Harness>) {
     let secrets = Secrets::new(storage.clone(), None);
     let providers = Providers::new(storage.clone(), secrets.clone());
     let projects = Projects::new(storage.clone());
+    let agents = Agents::new(
+        storage.clone(),
+        providers.clone(),
+        secrets.clone(),
+        projects.clone(),
+        None,
+    );
     let owners = AylulOwners {
-        agents: Agents::new(
-            storage.clone(),
-            providers.clone(),
-            secrets.clone(),
-            projects.clone(),
-            None,
-        ),
+        extensions: Extensions::new(storage.clone(), secrets, agents.clone(), None),
+        agents,
         providers,
-        extensions: Extensions::new(storage.clone(), secrets, None),
         person: PersonSettings::new(storage.clone()),
     };
     let executable = std::env::current_exe().unwrap();

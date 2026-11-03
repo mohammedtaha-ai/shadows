@@ -28,16 +28,15 @@ impl Extensions {
         for item in &mut list.mcp {
             item.enabled = item.item.id == id;
         }
-        let rules = self.store.tool_rules(slug, id).await?;
         let servers = self.resolve_mcp_servers(slug, &list).await?;
         drop(guard);
         let server = servers
             .into_iter()
             .next()
             .ok_or(ExtensionsError::NotFound)?;
-        let entries = match &server {
-            McpServerConfig::Http { headers, .. } => headers,
-            McpServerConfig::Stdio { env, .. } => env,
+        let (entries, rules) = match &server {
+            McpServerConfig::Http { headers, rules, .. } => (headers, rules.clone()),
+            McpServerConfig::Stdio { env, rules, .. } => (env, rules.clone()),
         };
         let mut values: Vec<_> = entries
             .iter()
@@ -46,7 +45,13 @@ impl Extensions {
             .collect();
         values.sort_by_key(|value| std::cmp::Reverse(value.len()));
         values.dedup();
-        let result = tokio::time::timeout(Duration::from_secs(10), list_tools(server)).await;
+        // A session starts the server in the agent's home; before the first one, that folder
+        // may not exist yet.
+        let cwd = match self.agents.home(slug) {
+            Ok(home) if home.is_dir() => home,
+            _ => std::env::current_dir().map_err(|_| ExtensionsError::NotFound)?,
+        };
+        let result = tokio::time::timeout(Duration::from_secs(10), list_tools(server, cwd)).await;
         let (tools, list_error) = match result {
             Ok(Ok(mut tools)) => {
                 if tools.iter().any(|tool| {
@@ -127,7 +132,10 @@ const LISTING_ENV: &[&str] = &[
     "ProgramFiles",
 ];
 
-async fn list_tools(server: McpServerConfig) -> Result<Vec<McpTool>, &'static str> {
+async fn list_tools(
+    server: McpServerConfig,
+    cwd: std::path::PathBuf,
+) -> Result<Vec<McpTool>, &'static str> {
     let mut child = None;
     let running = match server {
         McpServerConfig::Http { url, headers, .. } => {
@@ -160,7 +168,7 @@ async fn list_tools(server: McpServerConfig) -> Result<Vec<McpTool>, &'static st
             let handle = shadows_process::spawn(shadows_process::ProcessSpec {
                 executable: command.into(),
                 args,
-                cwd: std::env::current_dir().map_err(|_| REFUSED)?,
+                cwd,
                 env: environment.into_iter().collect(),
                 capture_stdout: true,
                 pipe_stdin: true,
