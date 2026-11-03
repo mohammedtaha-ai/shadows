@@ -23,7 +23,7 @@ fn safe_name(s: &str) -> bool {
         && s.bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
-fn local(path: &Path) -> Result<(), HarnessError> {
+pub(super) fn local(path: &Path) -> Result<(), HarnessError> {
     if let Ok(meta) = std::fs::symlink_metadata(path) {
         #[cfg(windows)]
         {
@@ -38,7 +38,7 @@ fn local(path: &Path) -> Result<(), HarnessError> {
     }
     Ok(())
 }
-fn atomic(path: &Path, bytes: &[u8]) -> Result<(), HarnessError> {
+pub(super) fn atomic(path: &Path, bytes: &[u8]) -> Result<(), HarnessError> {
     let temp = path.with_file_name(format!(".extension-write-{}", uuid::Uuid::new_v4()));
     let result = (|| -> std::io::Result<()> {
         let mut f = std::fs::OpenOptions::new()
@@ -300,6 +300,7 @@ impl Homes {
             .collect();
         // No imported code is executed by projection.
         project(root, home, skills, plugins)?;
+        Self::write_tool_rules(home, &snapshot.mcp)?;
         Ok(snapshot
             .mcp
             .into_iter()

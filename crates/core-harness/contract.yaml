@@ -89,6 +89,7 @@ modules:
   commands.rs: live slash command lists
   tasks.rs: session background task state
   extension_home.rs: enabled extension projection
+  tool_rules_home.rs: recoverable MCP rule projection
   live.rs: adapter cache opening
   offers.rs: synchronous option offer dispatch
   profile_home.rs: serialized home settings writes
@@ -104,6 +105,14 @@ modules:
   store/reads.rs: invocation snapshot reads
   store/thread.rs: atomic harness selection
 status: current
+tool_rule_projection:
+  owner: Homes under the existing home lock and Extensions snapshot guard.
+  recovery: Write the union of prior and next owned rules before settings, then finalize ownership.
+  preservation: Pre-existing exact rules stay foreign; only owned entries in their original lists are removed.
+  tested_by: [opening_writes_allow_and_deny_rules, rules_of_an_item_switched_off_are_removed,
+    foreign_rules_are_kept, a_renamed_item_leaves_no_old_rule,
+    interrupted_rule_projection_is_cleaned_at_next_opening,
+    an_unwritable_rule_manifest_leaves_settings_unchanged]
 source: crates/core-harness/src
 
 

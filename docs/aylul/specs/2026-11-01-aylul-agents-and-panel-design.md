@@ -207,6 +207,10 @@ switched on. Decided with him: **per agent**, not per library item.
   being the name the item is delivered under in ACP's `mcpServers`, in the same projection
   step that writes the rest of the home. `ask` writes nothing. Rules the harness did not
   write are kept; rules it wrote for an item now off or deleted are removed.
+  Ownership is written ahead as the union of the old and next generated entries,
+  then settings are published and ownership finalized. An interrupted projection
+  therefore remains cleanable at the next opening. An identical rule already in
+  settings remains foreign and is never claimed by the projection.
 - **Modes.** An allow rule skips the question in the asking modes and Auto mode's
   classifier for that tool; a deny rule refuses the tool in them. The 2026-11-03 probe
   through the installed `harness/claude` ACP adapter and Claude executable measured
