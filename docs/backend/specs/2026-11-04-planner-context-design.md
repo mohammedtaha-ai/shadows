@@ -78,8 +78,9 @@ is where it is built and proven, on the Planner.
   `DesignAnchor` the design already uses for plan links.
 - **Set:** from a part's or an outcome's page, "Plan this" opens a new Planner conversation
   anchored there; an existing conversation's anchor can be changed or cleared from its header.
-- **Owner:** `Threads`, beside the thread's harness and profile; a change is a command
-  (`thread.anchor`), so it is replayable and recorded.
+- **Owner:** `Design`, which owns `DesignAnchor`; `Threads` cannot hold it, because
+  `core-design` depends on `core-threads`. A change is a command (`thread.anchor`), so it is
+  replayable and recorded.
 - A conversation with no anchor works as today, plus the index (§4.2).
 
 ### 4.2 The compiled context
@@ -151,7 +152,7 @@ Three layers, in this order:
 
 | Rule | Owner |
 |---|---|
-| A thread's anchor | `Threads` |
+| A thread's anchor | `Design` |
 | What the context holds, its layers, budget and cuts | `Turns::planning_context` |
 | Whether a session has heard the current context | `Harness` (the heard record) |
 | The record of what each turn carried | `Harness` (invocations) |
@@ -165,8 +166,9 @@ No new service.
 1. **The anchor and the first-turn context:** anchor on a thread; the index and detail compiled
    and sent on a session's first turn; the record per invocation. Run it in the browser on a real
    project.
-2. **Re-send on change:** the digest in the heard record; a completed compaction (manual or
-   automatic) clears it; the "send again" action. A live `/compact` and a live automatic
+2. **Re-send after a compaction:** a completed compaction (manual or automatic) clears the
+   heard digest; the "send again" action. (Re-sending on any change already ships in slice 1,
+   through the digest.) A live `/compact` and a live automatic
    compaction through `shadows serve` confirm the evidence's read.
 3. **The inspection view**, in the conversation (frontend).
 4. **The owner thread:** `Plans::owner_thread`. It ships when messaging slice 3 (the manager)

@@ -64,5 +64,70 @@ stalls dispatch for every group (`crates/core-messages/src/deliveries.rs`).
 
 ## Tasks
 
-No task is open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this
-file at `f1459dcc`.
+Planner context, slice 1, with the fixes for three Planner defects ([spec](specs/2026-11-04-planner-context-design.md), [plan](plans/2026-11-04-planner-context-slice-1.md)).
+B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
+
+### B-47 · A thread's planning anchor (Design)
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-47-a-threads-planning-anchor-design
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.1; crates/core-design/contract.yaml
+- Touch: crates/core-db/migrations/0043_thread_anchor.sql; crates/core-design/src/anchors.rs,
+  src/store/, src/lib.rs, contract.yaml, tests/anchors.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
+- Done when: `cargo test -p core-design --test anchors` and `-p core-db --test migration_checksums` pass
+
+### B-48 · What a turn carried (Harness)
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-48-what-a-turn-carried-harness
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml
+- Touch: crates/core-db/migrations/0044_invocation_context.sql; crates/core-harness/src/context_record.rs,
+  src/store/, src/model.rs, src/lib.rs, contract.yaml, tests/context_record.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
+- Done when: `cargo test -p core-harness` passes, with the three tests the task names
+
+### B-49 · Compile the planning context (Turns)
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-49-compile-the-planning-context-turns
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.2; crates/core-turns/contract.yaml; crates/core-plans/src/design_views.rs
+- Touch: crates/core-turns/src/planning/ (new), src/lib.rs, contract.yaml,
+  tests/planning_context.rs; crates/shadows-core/src/app.rs
+- Done when: `cargo test -p core-turns` passes, with the eight tests the task names
+
+### B-50 · Send it when it changed, and record it
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-50-send-it-when-it-changed-and-record-it
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.3; crates/core-turns/src/spawn.rs, prompt.rs
+- Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, contract.yaml;
+  crates/shadows/tests/planning_context.rs (new)
+- Done when: `cargo test -p shadows --test planning_context` passes, with the five tests the task names
+
+### B-51 · Routes for the anchor and the record
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-51-routes-for-the-anchor-and-the-record
+- Read: crates/shadows-http/src/contract.yaml
+- Touch: crates/shadows-http/src/ (thread routes, openapi.rs, contract.yaml); api/openapi.json;
+  web/src/api/schema.d.ts; crates/shadows/tests/planning_routes.rs (new)
+- Done when: `cargo test -p shadows --test planning_routes --test openapi` passes
+
+### B-52 · Map refusals say which rule, which parts and what to do
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-52-map-refusals-say-which-rule-which-parts-and-what-to-do-defect-1
+- Read: docs/evidence/2026-11-04-planner-session-defects.md §1; crates/core-design/src/map_rules.rs; crates/shadows-mcp/src/refusal.rs
+- Touch: crates/core-design/src/map_rules.rs, error.rs, map_proposals.rs, contract.yaml, tests/;
+  crates/shadows-core (ErrorCode); crates/shadows-mcp/src/refusal.rs, contract.yaml;
+  crates/shadows-http/src/ failure mapping
+- Done when: `cargo test -p core-design` and `cargo test -p shadows-mcp` pass, with the four tests named
+
+### B-53 · Vision IDs are given when proposed
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-53-vision-ids-are-given-when-proposed-defect-2
+- Read: docs/evidence/2026-11-04-planner-session-defects.md §2; crates/core-design/src/store/proposal_approval.rs, store/vision.rs
+- Touch: crates/core-db/migrations/0045_vision_reserved_id.sql; crates/core-design/src/store/,
+  proposals.rs, contract.yaml, tests/; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
+- Done when: `cargo test -p core-design` passes, with the two tests the task names
+
+### B-54 · A map proposal lists vision items no part serves
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-54-a-map-proposal-lists-vision-items-no-part-serves-defect-3
+- Read: docs/evidence/2026-11-04-planner-session-defects.md §3; crates/core-design/src/map_proposals.rs
+- Touch: crates/core-design/src/map_proposals.rs, model.rs, contract.yaml, tests/;
+  crates/shadows-mcp/src/ (the map_propose answer)
+- Done when: `cargo test -p core-design` passes, with `a_map_answer_lists_the_unserved_vision_items`
