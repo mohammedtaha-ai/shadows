@@ -11,13 +11,6 @@ use std::{collections::HashMap, time::Duration};
 const REFUSED: &str = "the server refused the connection";
 const PROTOCOL: &str = "the server's answer was not MCP";
 
-struct ListingChild(shadows_process::ProcessHandle);
-impl Drop for ListingChild {
-    fn drop(&mut self) {
-        let _ = self.0.terminate_tree();
-    }
-}
-
 impl Extensions {
     pub async fn agent_tools(&self, slug: &str, id: &str) -> Result<AgentTools, ExtensionsError> {
         let guard = self.extension_guard().await;
@@ -28,16 +21,15 @@ impl Extensions {
         for item in &mut list.mcp {
             item.enabled = item.item.id == id;
         }
-        let rules = self.store.tool_rules(slug, id).await?;
         let servers = self.resolve_mcp_servers(slug, &list).await?;
         drop(guard);
         let server = servers
             .into_iter()
             .next()
             .ok_or(ExtensionsError::NotFound)?;
-        let entries = match &server {
-            McpServerConfig::Http { headers, .. } => headers,
-            McpServerConfig::Stdio { env, .. } => env,
+        let (entries, rules) = match &server {
+            McpServerConfig::Http { headers, rules, .. } => (headers, rules.clone()),
+            McpServerConfig::Stdio { env, rules, .. } => (env, rules.clone()),
         };
         let mut values: Vec<_> = entries
             .iter()
@@ -46,7 +38,13 @@ impl Extensions {
             .collect();
         values.sort_by_key(|value| std::cmp::Reverse(value.len()));
         values.dedup();
-        let result = tokio::time::timeout(Duration::from_secs(10), list_tools(server)).await;
+        // A session starts the server in the agent's home; before the first one, that folder
+        // may not exist yet.
+        let cwd = match self.agents.home(slug) {
+            Ok(home) if home.is_dir() => home,
+            _ => std::env::current_dir().map_err(|_| ExtensionsError::NotFound)?,
+        };
+        let result = tokio::time::timeout(Duration::from_secs(10), list_tools(server, cwd)).await;
         let (tools, list_error) = match result {
             Ok(Ok(mut tools)) => {
                 if tools.iter().any(|tool| {
@@ -127,7 +125,11 @@ const LISTING_ENV: &[&str] = &[
     "ProgramFiles",
 ];
 
-async fn list_tools(server: McpServerConfig) -> Result<Vec<McpTool>, &'static str> {
+async fn list_tools(
+    server: McpServerConfig,
+    cwd: std::path::PathBuf,
+) -> Result<Vec<McpTool>, &'static str> {
+    // A handle dropped by the timeout kills its process tree (shadows-process).
     let mut child = None;
     let running = match server {
         McpServerConfig::Http { url, headers, .. } => {
@@ -160,14 +162,13 @@ async fn list_tools(server: McpServerConfig) -> Result<Vec<McpTool>, &'static st
             let handle = shadows_process::spawn(shadows_process::ProcessSpec {
                 executable: command.into(),
                 args,
-                cwd: std::env::current_dir().map_err(|_| REFUSED)?,
+                cwd,
                 env: environment.into_iter().collect(),
                 capture_stdout: true,
                 pipe_stdin: true,
             })
             .map_err(|_| REFUSED)?;
-            child = Some(ListingChild(handle));
-            let handle = &mut child.as_mut().ok_or(REFUSED)?.0;
+            let handle = child.insert(handle);
             let (stdin, stdout, mut stderr) = handle.take_stdio().ok_or(REFUSED)?;
             tokio::spawn(async move {
                 let _ = tokio::io::copy(&mut stderr, &mut tokio::io::sink()).await;
@@ -178,8 +179,8 @@ async fn list_tools(server: McpServerConfig) -> Result<Vec<McpTool>, &'static st
     let result = running.list_all_tools().await.map_err(|_| PROTOCOL);
     let _ = running.cancel().await;
     if let Some(mut child) = child {
-        child.0.terminate_tree().map_err(|_| REFUSED)?;
-        child.0.wait().await.map_err(|_| REFUSED)?;
+        child.terminate_tree().map_err(|_| REFUSED)?;
+        child.wait().await.map_err(|_| REFUSED)?;
     }
     let mut tools: Vec<_> = result?
         .into_iter()

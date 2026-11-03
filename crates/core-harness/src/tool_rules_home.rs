@@ -89,8 +89,6 @@ impl Homes {
                     owned.insert(rule.clone());
                 }
             }
-            values.sort_by(|a, b| a.as_str().cmp(&b.as_str()));
-            values.dedup();
             if !values.is_empty() {
                 permissions.insert(key.into(), values.into());
             } else if !old.is_empty() {

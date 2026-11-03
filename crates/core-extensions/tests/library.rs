@@ -12,6 +12,7 @@ struct World {
     storage: Arc<Storage>,
     extensions: Arc<Extensions>,
     secrets: Arc<Secrets>,
+    agents: Arc<Agents>,
     _tmp: tempfile::TempDir,
 }
 
@@ -53,7 +54,8 @@ async fn world() -> World {
         .await
         .unwrap();
     World {
-        extensions: Extensions::new(storage.clone(), secrets.clone(), Some(root)),
+        extensions: Extensions::new(storage.clone(), secrets.clone(), agents.clone(), Some(root)),
+        agents,
         secrets,
         storage,
         _tmp: tmp,
@@ -171,6 +173,7 @@ async fn a_restart_replays_the_bundled_import() {
     let restart = Extensions::new(
         w.storage.clone(),
         w.secrets.clone(),
+        w.agents.clone(),
         Some(w._tmp.path().join("home")),
     );
     restart.import_bundled().await.unwrap();
@@ -211,7 +214,8 @@ async fn a_bundled_item_starts_switched_off() {
 #[tokio::test]
 async fn no_aylul_configuration_imports_nothing() {
     let w = world().await;
-    let unconfigured = Extensions::new(w.storage.clone(), w.secrets.clone(), None);
+    let unconfigured =
+        Extensions::new(w.storage.clone(), w.secrets.clone(), w.agents.clone(), None);
     unconfigured.import_bundled().await.unwrap();
     assert!(unconfigured.extensions().await.unwrap().skills.is_empty());
     assert!(!w._tmp.path().join("home/.bundled-stage").exists());
@@ -795,9 +799,6 @@ async fn a_silent_server_times_out() {
         pid.parse::<u32>().expect("fixture must report its PID")
     };
     let start = std::time::Instant::now();
-    // A cold Node start on a loaded runner can outlast the 10-second limit, so the fixture
-    // may be stopped before it reports. One that survived the limit would report within
-    // this longer window, so silence here also means it is gone.
     let ((out, elapsed), pid) = tokio::join!(
         async {
             (
@@ -813,7 +814,7 @@ async fn a_silent_server_times_out() {
         out.list_error.as_deref(),
         Some("the server did not answer in 10 seconds")
     );
-    let Ok(pid) = pid else { return };
+    let pid = pid.expect("silent fixture did not report its PID");
     let mut check = shadows_process::spawn(shadows_process::ProcessSpec {
         executable: "node".into(),
         args: vec![
@@ -957,6 +958,22 @@ async fn the_listing_process_does_not_inherit_the_daemon_environment() {
     let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
     assert_eq!(out.list_error, None);
     assert_eq!(out.tools[0].description, "absent");
+}
+
+#[tokio::test]
+async fn the_listing_process_starts_in_the_agent_home() {
+    let w = world().await;
+    let home = w.agents.home("aylul").unwrap();
+    std::fs::create_dir_all(&home).unwrap();
+    let id = stdio_tools_item(&w, json!([{"name":"CWD_PROBE","value":"on"}])).await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert_eq!(out.list_error, None);
+    assert!(
+        out.tools[0]
+            .description
+            .replace('\\', "/")
+            .ends_with("profiles/aylul")
+    );
 }
 
 #[tokio::test]

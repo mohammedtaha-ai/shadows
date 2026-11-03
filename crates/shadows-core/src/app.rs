@@ -203,8 +203,8 @@ impl AppCore {
         );
         AylulOwners {
             providers,
+            extensions: Extensions::new(storage.clone(), secrets, agents.clone(), home_root),
             agents,
-            extensions: Extensions::new(storage.clone(), secrets, home_root),
             person: PersonSettings::new(storage),
         }
     }

@@ -29,6 +29,8 @@ pub struct Extensions {
     /// Serializes library mutations against the harness's snapshot projection.
     lock: Arc<tokio::sync::Mutex<()>>,
     home_root: Option<PathBuf>,
+    /// Names the agent's home, the folder its sessions start MCP servers in.
+    agents: Arc<core_agents::Agents>,
 }
 
 /// The agent's library and resolved servers, pinned until home projection finishes.
@@ -42,6 +44,7 @@ impl Extensions {
     pub fn new(
         storage: Arc<Storage>,
         secrets: Arc<core_secrets::Secrets>,
+        agents: Arc<core_agents::Agents>,
         home_root: Option<PathBuf>,
     ) -> Arc<Self> {
         Arc::new(Self {
@@ -49,6 +52,7 @@ impl Extensions {
             secrets,
             lock: Arc::default(),
             home_root,
+            agents,
         })
     }
 
