@@ -130,8 +130,9 @@ Three layers, in this order:
 
 ### 4.4 Inspection
 
-- Each Planner invocation records the context it carried: the layers' texts, the source list, the
-  estimated sizes, the cuts and the digest, or "not sent: unchanged since <turn>".
+- An invocation that includes planning context records its prepared text, sources, estimated
+  sizes, cuts and digest, plus whether the turn completed normally. A turn with no record
+  reports that no planning context record is available. Absence alone does not establish why.
 - **Owner:** `Harness`, which already owns invocation rows.
 - The conversation shows, per turn, "Context: sent / unchanged", opening the record: what was
   given, from where, at which version, what was cut. (Frontend; its own plan.)

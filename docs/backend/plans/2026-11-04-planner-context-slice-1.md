@@ -160,8 +160,9 @@ the three Planner defects found on 2026-11-04.
   - the outcome tree to depth 2 (`title` and id);
   - each agreement's name and agreed version.
 
-  The parts and the outcomes read **one page each**, at 50 items. Anything past a page is
-  stated as `[N more parts]` or `[N more outcomes]`. The read does not follow more pages.
+  Read one page, at 50 items, for each parent visited through depth 2. A non-empty `next`
+  is stated as `[more parts available]` or `[more outcomes available]`. No total is
+  inferred from a cursor, and the read does not follow additional pages for that parent.
 - **Detail, anchored only,** from `Plans::design_part` or `design_outcome`:
   - the anchor's full content;
   - its ancestors' titles;
@@ -199,7 +200,7 @@ the three Planner defects found on 2026-11-04.
     test-only constant)
   - `an_over_budget_index_drops_children_first`
   - `a_detail_still_over_after_every_cut_is_sent_and_says_by_how_much`
-  - `parts_past_one_page_are_counted_not_listed`
+  - `parts_past_one_page_are_announced_not_listed`
   - `a_removed_anchor_says_so`
   - `an_aylul_thread_gets_nothing`
   - `the_same_design_gives_the_same_digest`

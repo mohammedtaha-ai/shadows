@@ -1,6 +1,6 @@
 # Planning anchor and carried context
 
-- Status: asked
+- Status: accepted
 - Asked by: Claude for Mohammed, 2026-11-04. The screen comes later (Planner context slice 3);
   slice 1's acceptance reads these routes directly.
 - Screen: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.1 (the anchor) and §4.4
@@ -27,17 +27,18 @@ cut, and whether the session heard it.
 |---|---|
 | The part or outcome is not in the conversation's project (404) | "That part is not in this project." |
 | The conversation is an AYLUL agent's (400 `INVALID_COMMAND`) | The anchor control is not offered for AYLUL conversations. |
-| The turn carried no context (404 `CONTEXT_NOT_CARRIED`) | "No context was sent with this turn: the session had already heard it." |
+| The turn has no context record (404 `CONTEXT_NOT_CARRIED`) | "No planning context record is available for this turn." |
 | A replay with the same `command_id` and other params (409 `COMMAND_CONFLICT`) | The usual conflict line. |
 
 ## Backend answer
 
-<Hamoud: as asked / with a change / not possible, and why. Services: `Design` (anchor), `Harness`
-(the record).>
+Accepted with a neutral missing-record message. `Design` owns the anchor and `Harness`
+owns the prepared context record and its heard state.
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Accepted by Mohammed's instruction to adjust the reviewed details and implement the plan,
+2026-11-04. The anchor replies use the `{ anchor }` envelope in this request.
 
 ## Ruling
 
