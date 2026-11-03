@@ -55,8 +55,7 @@ it('a switch saves at once', async () => {
   expect(a.bodies[0]).toEqual({ enabled: true, command_id: expect.any(String) })
   expect(a.calls).not.toContain('PUT /api/aylul/agents/ay')
   enabled = true; await act(async () => resolve(Response.json({ ...skill, enabled: true })))
-  await until(() => switchOf('review').disabled === false)
-  expect(switchOf('review').checked).toBe(true)
+  await until(() => switchOf('review').checked && !switchOf('review').disabled)
 })
 it('a failed switch goes back', async () => {
   let count = 0, enabled = false
