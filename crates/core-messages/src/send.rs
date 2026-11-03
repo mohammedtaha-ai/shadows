@@ -33,7 +33,7 @@ impl Messages {
                         return Store::message(conn, &group, &id).await;
                     }
                     let members = Store::group(conn, &group).await?.members;
-                    let to = crate::mentions::addresses(&text, &members, None);
+                    let to = Self::addresses(&text, &members, None);
                     let draft = Draft {
                         speaker: Speaker::Person,
                         to,
@@ -41,7 +41,7 @@ impl Messages {
                         body: text,
                     };
                     let message = Store::append(conn, &group, draft, None, None).await?;
-                    crate::bounds::schedule(conn, &message, message.seq, 1).await?;
+                    Self::schedule(conn, &message, message.seq, 1).await?;
                     CommandContext::record_command(
                         conn,
                         &command,

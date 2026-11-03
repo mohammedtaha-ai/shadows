@@ -3,4 +3,13 @@
 # A-20: legacy fixture service constructors.
 # A-20: adapter fixtures retain explicit storage, session and live-registry handles.
 # A-20: binary test module glob resolution reviews.
+# Ended-turn replay fixture seeds only its disposable database.
+crates/core-events/src/store_tests.rs :: fixture SQL table operation belongs to operations [f20cad5f39f75a4f] #1
+crates/core-events/src/store_tests.rs :: fixture SQL table planning_thread belongs to threads [aa411fbca14d6f22] #1
+crates/core-events/src/store_tests.rs :: fixture SQL table runtime_instance belongs to runtime [103c06c82b790c40] #1
+crates/core-events/src/store_tests.rs :: fixture construct core_projects::Projects outside composition root [242d2bbca7cfdd81] #1
+# The waiting query uses SQLite json_each over the message owner's own row.
+crates/core-messages/src/store/mod.rs :: Store::group SQL review: qualified table or table function [4749e3fa57d1068b] #1
+# The OpenAPI create_group operation identifier is scanned as a SQL keyword.
+crates/shadows-http/src/groups.rs :: module SQL review: unsupported statement [b610c6ad582c5341] #1
 crates/shadows/src/cli/args.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1

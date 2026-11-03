@@ -39,6 +39,11 @@ harness_model_effort :: harness
 harness_preference :: harness
 harness_thread_mode :: harness
 mcp_grant :: grants
+message :: messages
+message_cursor :: messages
+message_delivery :: messages
+message_group :: messages
+message_group_member :: messages
 operation :: operations
 plan :: plans
 planner_instructions_version :: instructions

@@ -29,27 +29,24 @@ impl Delivery {
     }
 }
 
-const COLUMNS: &str = "SELECT d.id, d.group_id, d.slug, m.name, m.thread_id, m.delivered_seq,
-            d.cause_seq, d.trigger_seq, d.round, d.prompt, d.model, d.mode
-       FROM message_delivery d JOIN message_group_member m USING (group_id, slug)";
-
 impl Store {
     pub(in super::super) async fn candidates(
         conn: &mut Tx,
     ) -> Result<Vec<Delivery>, MessagesError> {
-        let sql = format!(
-            "{COLUMNS}
+        Ok(sqlx::query_as(
+            "SELECT d.id, d.group_id, d.slug, m.name, m.thread_id, m.delivered_seq,
+                    d.cause_seq, d.trigger_seq, d.round, d.prompt, d.model, d.mode
+             FROM message_delivery d JOIN message_group_member m USING (group_id, slug)
               WHERE d.state = 'starting' OR (d.state = 'waiting' AND NOT EXISTS (
                  SELECT 1 FROM message_delivery earlier
                  WHERE earlier.group_id=d.group_id AND earlier.slug=d.slug
                    AND (earlier.state IN ('starting','running')
                         OR (earlier.state='waiting' AND earlier.trigger_seq < d.trigger_seq))
               ))
-              ORDER BY d.state, d.group_id, d.trigger_seq, d.slug"
-        );
-        Ok(sqlx::query_as(sqlx::AssertSqlSafe(sql))
-            .fetch_all(conn)
-            .await?)
+              ORDER BY d.state, d.group_id, d.trigger_seq, d.slug",
+        )
+        .fetch_all(conn)
+        .await?)
     }
 
     pub(in super::super) async fn prepare(
@@ -94,11 +91,15 @@ impl Store {
         conn: &mut Tx,
         operation: &str,
     ) -> Result<Option<Delivery>, MessagesError> {
-        let sql = format!("{COLUMNS} WHERE d.operation_id=? AND d.state='running'");
-        Ok(sqlx::query_as(sqlx::AssertSqlSafe(sql))
-            .bind(operation)
-            .fetch_optional(conn)
-            .await?)
+        Ok(sqlx::query_as(
+            "SELECT d.id, d.group_id, d.slug, m.name, m.thread_id, m.delivered_seq,
+                    d.cause_seq, d.trigger_seq, d.round, d.prompt, d.model, d.mode
+             FROM message_delivery d JOIN message_group_member m USING (group_id, slug)
+             WHERE d.operation_id=? AND d.state='running'",
+        )
+        .bind(operation)
+        .fetch_optional(conn)
+        .await?)
     }
 
     pub(in super::super) async fn finish(

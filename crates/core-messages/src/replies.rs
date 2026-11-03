@@ -187,11 +187,7 @@ impl Messages {
                         let answered = draft.kind == MessageKind::Chat;
                         if answered {
                             let members = Store::group(conn, &group).await?.members;
-                            draft.to = crate::mentions::addresses(
-                                &draft.body,
-                                &members,
-                                Some(&delivery.slug),
-                            );
+                            draft.to = Self::addresses(&draft.body, &members, Some(&delivery.slug));
                         }
                         let message = Store::append(
                             conn,
@@ -202,13 +198,8 @@ impl Messages {
                         )
                         .await?;
                         if answered {
-                            crate::bounds::schedule(
-                                conn,
-                                &message,
-                                delivery.cause_seq,
-                                delivery.round + 1,
-                            )
-                            .await?;
+                            Self::schedule(conn, &message, delivery.cause_seq, delivery.round + 1)
+                                .await?;
                         }
                         Store::finish(conn, &delivery, answered).await?;
                     }

@@ -58,7 +58,7 @@ impl Messages {
                                 prompt::MAX_MESSAGES,
                             )
                             .await?;
-                            let prompt = prompt::build(
+                            let prompt = Self::delivery_prompt(
                                 &Store::group(conn, &group).await?,
                                 &history,
                                 row.trigger_seq - row.delivered_seq,
