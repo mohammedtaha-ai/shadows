@@ -34,7 +34,7 @@ settings dialog, PR #40) at `1a2b601`.
 ## Tasks
 
 ### F-80 · Per-tool permissions in the agent form
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-aylul-tool-permissions.md (Task 5)
 - Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md)
 - Read: `web/src/app/agents/` (the agent form and its capabilities section) and its contract; `web/src/api/` for the two routes; `docs/frontend/AGENTS.md` (tokens only).

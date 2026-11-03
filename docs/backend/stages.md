@@ -51,7 +51,7 @@ no database, WAL, log, agent home or session file.
 ## Tasks
 
 ### B-38 · Extensions lists an MCP item's tools and keeps per-agent rules
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-aylul-tool-permissions.md (Tasks 1–2)
 - Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md) (per-tool permissions)
 - Read: `crates/shadows-core/src/app.rs` (`Extensions`); `crates/core-extensions/contract.yaml`; `crates/core-extensions/src/{lib,mcp,model}.rs` and `store/`; how `crates/shadows/Cargo.toml` already uses `rmcp` as a client in tests.
@@ -60,7 +60,7 @@ no database, WAL, log, agent home or session file.
 - Done when: the plan's Tasks 1–2 steps pass: `cargo test -p core-extensions` with `rules_are_per_agent`, `ask_stores_no_row`, `rules_survive_switching_off`, `deleting_the_item_or_agent_removes_rules`, `tool_rule_input_is_checked`, `tool_rules_replay_and_conflict`, `tools_are_listed_from_an_http_server`, `tools_are_listed_from_a_stdio_server`, `a_silent_server_times_out`, `a_refused_server_leaks_no_value`, `opening_snapshot_carries_rules_of_switched_on_items`.
 
 ### B-39 · Rules reach the agent's settings.json; HTTP routes
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-aylul-tool-permissions.md (Tasks 3–4)
 - Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md)
 - Read: `crates/core-harness/contract.yaml`; `crates/core-harness/src/extension_home.rs` (`project`) and `profile_home.rs`; the name each MCP item is delivered under in ACP `mcpServers`; `crates/shadows-http/src/contract.yaml`; the agent extension routes in `crates/shadows-http/src/`.
