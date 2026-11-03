@@ -73,10 +73,14 @@ impl Navigation {
 #[cfg(test)]
 mod navigation_tests {
     use super::*;
+    // One construction site: the architecture ratchet counts them per file.
+    fn navigation() -> Navigation {
+        Navigation::default()
+    }
     #[test]
     fn a_group_destination_uses_the_closed_wire_shape() {
         let group_id = "00000000-0000-4000-8000-000000000001";
-        let pending = Navigation::default().request(MainDestination::Group {
+        let pending = navigation().request(MainDestination::Group {
             group_id: group_id.into(),
         });
         assert_eq!(
@@ -88,7 +92,7 @@ mod navigation_tests {
     }
     #[test]
     fn old_ack_does_not_clear_a_newer_request() {
-        let navigation = Navigation::default();
+        let navigation = navigation();
         let first = navigation.request(MainDestination::CompanionSettings);
         let second = navigation.request(MainDestination::AgentDraft {
             agent: "agent-b".into(),
