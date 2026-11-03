@@ -72,6 +72,11 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "harness_preference",
             "harness_thread_mode",
             "mcp_grant",
+            "message",
+            "message_cursor",
+            "message_delivery",
+            "message_group",
+            "message_group_member",
             "operation",
             "plan",
             "planner_instructions_version",
@@ -102,7 +107,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0033 the person, 0034 usage, 0035 the extension library and its per-agent switches, \
          0036 the remembered conversation mode, \
          0039 the MCP library, its per-agent switches and declined bundled names, \
-         0040 the per-agent MCP tool rules)"
+         0040 the per-agent MCP tool rules, 0042 agent groups and their delivery journal)"
     );
 
     storage.close().await.unwrap();
