@@ -4,10 +4,14 @@ export type MainDestination=
   | {kind:'companionSettings'}
   | {kind:'agentDraft';agent:string}
   | {kind:'conversation';projectId:string;threadId:string}
+  | {kind:'group';groupId:string}
   | {kind:'agentSettings';agent:string}
   | {kind:'newAgent'}
   | {kind:'settings'}
 export interface PendingNavigation {revision:number;destination:MainDestination}
+export function groupNavigationRoute(destination:Extract<MainDestination,{kind:'group'}>){
+  return {to:'/aylul/groups/$groupId',params:{groupId:destination.groupId}} as const
+}
 type PanelRoute={to:'/aylul';search:{settings:'agents';agent:string}|{settings:'general'}}
 export function panelNavigationRoute(destination:Extract<MainDestination,{kind:'agentSettings'|'newAgent'|'settings'}>):PanelRoute{
   switch(destination.kind){
@@ -23,7 +27,8 @@ export function parseNavigation(raw:unknown):PendingNavigation{
   const uuid=(text:unknown)=>typeof text==='string'&&/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(text)
   const valid=destination.kind==='companionSettings'||destination.kind==='newAgent'||destination.kind==='settings'||
     (destination.kind==='agentDraft'||destination.kind==='agentSettings')&&typeof destination.agent==='string'&&/^[a-z0-9][a-z0-9-]{0,127}$/.test(destination.agent)||
-    destination.kind==='conversation'&&uuid(destination.projectId)&&uuid(destination.threadId)
+    destination.kind==='conversation'&&uuid(destination.projectId)&&uuid(destination.threadId)||
+    destination.kind==='group'&&uuid(destination.groupId)
   if(!valid)throw Error('navigation_invalid')
   return value
 }

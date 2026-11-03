@@ -4,7 +4,14 @@ const {navigate,listen,nativeCall}=vi.hoisted(()=>({navigate:vi.fn(),listen:vi.f
 vi.mock('@tauri-apps/api/event',()=>({listen}))
 vi.mock('./native',()=>({nativeCall}))
 import {parseBinding,parsePresence} from './presence'
-import {parseNavigation,connectNavigation,panelNavigationRoute} from './navigation'
+import {parseNavigation,connectNavigation,panelNavigationRoute,groupNavigationRoute} from './navigation'
+it('a group destination opens the group page',()=>{
+  const groupId='00000000-0000-4000-8000-000000000001'
+  const {destination}=parseNavigation({revision:1,destination:{kind:'group',groupId}})
+  expect(destination.kind).toBe('group')
+  if(destination.kind==='group')expect(groupNavigationRoute(destination)).toEqual({to:'/aylul/groups/$groupId',params:{groupId}})
+  expect(()=>parseNavigation({revision:1,destination:{kind:'group',groupId:'../escape'}})).toThrow('navigation_invalid')
+})
 it('parses panel destinations and maps them to settings routes',()=>{
   const cases=[
     [{kind:'agentSettings',agent:'my-agent'},{to:'/aylul',search:{settings:'agents',agent:'my-agent'}}],

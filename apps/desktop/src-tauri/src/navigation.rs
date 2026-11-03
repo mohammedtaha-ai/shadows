@@ -20,6 +20,9 @@ pub enum MainDestination {
         project_id: String,
         thread_id: String,
     },
+    Group {
+        group_id: String,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,6 +73,17 @@ impl Navigation {
 #[cfg(test)]
 mod navigation_tests {
     use super::*;
+    #[test]
+    fn a_group_destination_uses_the_closed_wire_shape() {
+        let group_id = "00000000-0000-4000-8000-000000000001";
+        let pending = Navigation::default().request(MainDestination::Group {
+            group_id: group_id.into(),
+        });
+        assert_eq!(
+            serde_json::to_value(pending).unwrap(),
+            serde_json::json!({"revision": 1, "destination": {"kind": "group", "groupId": group_id}})
+        );
+    }
     #[test]
     fn old_ack_does_not_clear_a_newer_request() {
         let navigation = Navigation::default();
