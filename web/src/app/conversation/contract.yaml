@@ -32,6 +32,7 @@ version: 1
 status: current
 reply_text: The group log reuses the conversation Markdown renderer and its per-block text direction.
 permission_answer: Conversations and groups share option submission, replay and stale-request reconciliation.
+composer_surface: Conversations and groups render the same frame, input and send control.
 source: web/src/app/conversation
 
 refresh_pinning:

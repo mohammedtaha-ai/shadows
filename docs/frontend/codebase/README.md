@@ -190,6 +190,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/background-tasks.test.tsx` | Background task interaction test | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-card.tsx` | Permission request interaction | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-answer.tsx` | Shared permission option submission | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/composer-surface.tsx` | Shared composer frame and message controls | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-card.test.tsx` | Permission request interaction checks | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/settings/mcp-form.tsx` | MCP configuration editing | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/mcp-form.test.tsx` | MCP configuration form checks | `web/src/app/settings/contract.yaml` |

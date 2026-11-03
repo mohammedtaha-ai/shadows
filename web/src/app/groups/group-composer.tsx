@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { groupKeys, sendToGroup } from '@/api/groups'
-import { Button } from '@/components/ui/button'
+import { ComposerFrame, ComposerInput, ComposerSendButton } from '@/app/conversation'
 import { ErrorLine } from '../error-line'
 import { MentionMenu, type Mentionable } from './mention-menu'
 
@@ -54,22 +54,25 @@ export function GroupComposer({ groupId, members }: { groupId: string; members: 
   }
 
   return (
-    <form className="space-y-2 border-t border-border p-4" onSubmit={event => { event.preventDefault(); submit() }}>
-      {options.length > 0 && <MentionMenu members={options} onPick={pick} />}
-      <div className="flex items-end gap-2">
-        <textarea ref={input} aria-label="Group message" placeholder="Write to the group…" dir="auto"
-          className="min-h-12 flex-1 resize-y rounded-lg border border-border bg-input p-2"
-          value={text} readOnly={send.isPending}
-          onChange={event => { setText(event.target.value); setCaret(event.target.selectionStart); setDismissed(false) }}
-          onSelect={event => setCaret(event.currentTarget.selectionStart)}
-          onKeyDown={event => {
+    <form onSubmit={event => { event.preventDefault(); submit() }}>
+      <ComposerFrame>
+        <ComposerInput input={{
+          ref: input, 'aria-label': 'Group message', placeholder: 'Write to the group…', dir: 'auto',
+          value: text, readOnly: send.isPending,
+          onChange: event => { setText(event.target.value); setCaret(event.target.selectionStart); setDismissed(false) },
+          onSelect: event => setCaret(event.currentTarget.selectionStart),
+          onKeyDown: event => {
             if (event.nativeEvent.isComposing) return
             if (event.key === 'Escape' && options.length > 0) { event.stopPropagation(); setDismissed(true) }
             if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit() }
-          }} />
-        <Button type="submit" disabled={send.isPending || text.trim() === ''}>Send message</Button>
-      </div>
-      {send.error && <ErrorLine error={send.error} />}
+          },
+        }} overlay={options.length > 0 && (
+          <div className="absolute inset-x-0 bottom-full z-10 mb-3">
+            <MentionMenu members={options} onPick={pick} />
+          </div>
+        )} action={<ComposerSendButton type="submit" label="Send message" disabled={send.isPending || text.trim() === ''} />} />
+        {send.error && <ErrorLine error={send.error} />}
+      </ComposerFrame>
     </form>
   )
 }

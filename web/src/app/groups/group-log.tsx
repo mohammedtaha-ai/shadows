@@ -32,7 +32,7 @@ export function GroupLog({ messages, colors }: { messages: readonly Message[]; c
           }
           const speaker = message.speaker
           const mine = speaker.kind === 'person'
-          const addressed = message.to.some(address => address.kind === 'person')
+          const addressed = !mine && message.to.some(address => address.kind === 'person')
           const name = speaker.kind === 'agent' ? speaker.name : mine ? 'You' : 'Shadows'
           return (
             <article key={message.id} data-message-kind="chat"
