@@ -91,5 +91,6 @@ structure, a roadmap and the Stage 1 plan. Sizes were read through the daemon as
 Seen on the way, outside this probe's question:
 - The map was refused three times (a file outside its part's folders, then two overlapping
   folder claims). The Planner fixed it alone each time.
-- Its part `Serves` lists name IDs that do not match the vision's numbering for technical
-  directions (the API part serves `TD1 TD2 TD3`).
+- Defects seen on the way are listed in `docs/evidence/2026-11-04-planner-session-defects.md`.
+  The `Serves` lists do match the stored IDs; the stored IDs follow the approval order, not the
+  conversation's numbering (that file, §2).
