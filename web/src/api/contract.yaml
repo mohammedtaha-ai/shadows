@@ -24,6 +24,13 @@ name: web-api
 version: 1
 status: current
 source: web/src/api
+groups:
+  groupsQuery: Read the AYLUL group list.
+  groupQuery: Read group members and attention state by id.
+  groupMessagesQuery: Read the group's ordered log.
+  listGroupMessages: Read the log after an optional group-local sequence.
+  createGroup: Create a group using the caller's command id.
+  sendToGroup: Append a person message using the caller's command id.
 mcp_tool_rules:
   agentToolsQuery: "GET /api/aylul/agents/{slug}/extensions/mcp/{id}/tools; ['aylul-agent-mcp-tools', slug, id]"
   setToolRules: Replace one item's entire rule set with the caller's command id.

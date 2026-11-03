@@ -152,6 +152,8 @@ it is that folder's `contract.yaml`.
 | `web/src/desktop/bootstrap.tsx` | Native startup gate with injected connection UI | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/bootstrap.test.tsx` | Readiness ordering fixtures | `web/src/desktop/contract.yaml` |
 | `web/src/api/aylul-profiles.ts` | AYLUL configuration server state: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
+| `web/src/api/groups.ts` | AYLUL group API and query identities | `web/src/api/contract.yaml` |
+| `web/src/api/groups.test.ts` | Group HTTP request checks | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | Project design server state | `web/src/api/contract.yaml` |
 | `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
