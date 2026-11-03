@@ -65,3 +65,31 @@ tokens estimated as characters / 4:
 testing4 has no agreements, and its plan has one version, so no older rationales. A bigger
 project grows mainly with more parts in the index, and with agreements and plan versions in the
 detail.
+
+## 3. Measured on testing55, a bigger project planned for this probe
+
+On 2026-11-04 Claude played the person in a new Planner conversation in `F:	esting55`
+(Haiku 5.5, Claude Code). It described, step by step, a support system: a Telegram bot for
+customers, a Laravel backend on MySQL with Redis queues, a Flutter app for agents and a web
+admin dashboard. The Planner then took it through the vision field by field, a map, the created
+structure, a roadmap and the Stage 1 plan. Sizes were read through the daemon as in §2.
+
+| Piece | Characters | About tokens |
+|---|---|---|
+| Vision, whole: 1 purpose, 3 users, 5 goals, 5 boundaries, 7 technical directions | 4 516 | 1 130 |
+| **Index** with the whole vision, 6 part names, 2 stage names | 5 042 | 1 260 |
+| Anchor `Backend (Laravel core)`, its full content | 1 146 | 290 |
+| The Stage 1 plan: title, goal, 10 tasks, links | 8 966 | 2 240 |
+| Project standards in effect | 2 467 | 620 |
+| **Detail total** | 12 579 | 3 140 |
+
+- With the whole vision, the index is already near §4.2's 1 500 tokens after one plan. The
+  design's rule, "the vision's title and first paragraph" in the index, is what keeps it small.
+- The detail grows mostly with the plan's tasks: 10 tasks are about 2 240 tokens.
+- No agreements were made; parts carry their own contracts.
+
+Seen on the way, outside this probe's question:
+- The map was refused three times (a file outside its part's folders, then two overlapping
+  folder claims). The Planner fixed it alone each time.
+- Its part `Serves` lists name IDs that do not match the vision's numbering for technical
+  directions (the API part serves `TD1 TD2 TD3`).

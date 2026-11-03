@@ -175,8 +175,9 @@ No new service.
 ## 7. Evidence
 
 - `docs/evidence/2026-11-04-planner-context-probe.md`: how the adapter reports a compaction
-  (§1), and the sizes measured on testing4 (§2): the index about 450 tokens, the detail of one
-  anchored part about 1 470 tokens.
+  (§1), and the sizes measured on testing4 (§2) and on testing55 (§3). On testing55, after one
+  plan, the index with the whole vision is about 1 260 tokens and the detail about 3 140, so the
+  index must carry the vision's first paragraph, not the whole vision.
 - Both are well under §4.2's budgets on that project, so the budgets bind only on bigger
   projects. Slice 1's own record (§4.4) keeps measuring every context it sends.
 
