@@ -32,6 +32,8 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   Claude's permission identity replaces dots with underscores, measured with real ACP.
 - Redact resolved values echoed in returned descriptions; refuse discovery metadata whose
   tool name contains one, because changing a tool name would change its identity.
+- Keep rmcp library events out of both daemon log outputs: malformed wire input can contain
+  resolved values, even when the API error is fixed and value-free.
 - Listing limit: 10 seconds for connect + `initialize` + `tools/list` together.
 - Web: tokens only (no hex, `rgba`, raw palette classes, `text-[1`); `schema.d.ts` is
   regenerated, never edited.
