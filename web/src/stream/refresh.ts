@@ -100,7 +100,8 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
       if (live) dispatchRefresh(client, targets)
       else for (const target of targets) {
         // Project design and agreement notices must reach dirty editors during replay.
-        if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' && !PLAN_EVENTS.has(event.kind)) {
+        if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' &&
+            target.kind !== 'group' && target.kind !== 'groups' && !PLAN_EVENTS.has(event.kind)) {
           dispatchRefresh(client, [target])
         } else pending.set(JSON.stringify(target), target)
       }

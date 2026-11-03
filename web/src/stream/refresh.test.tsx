@@ -25,6 +25,27 @@ it('a MessageAdded refreshes its group, its log and the list', async () => {
   client.clear()
 })
 
+it('batches replayed group messages until the project is caught up', () => {
+  const client = new QueryClient()
+  const sources: FakeSource[] = []
+  const root = createRoot(document.createElement('div'))
+  vi.stubGlobal('EventSource', class extends FakeSource { constructor(url: string) { super(url); sources.push(this) } })
+  const keys = [groupKeys.detail('g1'), groupKeys.messages('g1'), groupKeys.list]
+  const invalidated = () => keys.map(key => client.getQueryState(key)?.isInvalidated)
+  function View() { useProjectEvents('p1'); return null }
+  try {
+    for (const key of keys) client.setQueryData(key, {})
+    act(() => root.render(<QueryClientProvider client={client}><View /></QueryClientProvider>))
+    act(() => {
+      sources[0].durable(1, 'MessageAdded', null, { group_id: 'g1', seq: 1 })
+      sources[0].durable(2, 'MessageAdded', null, { group_id: 'g1', seq: 2 })
+    })
+    expect(invalidated()).toEqual([false, false, false])
+    act(() => sources[0].caughtUp(2))
+    expect(invalidated()).toEqual([true, true, true])
+  } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
+})
+
 it('PermissionsChanged on the project stream refetches the waiting list and reconnect reconciles it', async () => {
   const client = new QueryClient()
   const sources: FakeSource[] = []
