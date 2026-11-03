@@ -248,14 +248,8 @@ impl crate::Threads {
         profile: &str,
         now: &str,
     ) -> Result<PlanningThread, crate::ThreadsError> {
-        if !core_projects::Projects::get_in(conn, project)
-            .await?
-            .assistant
-        {
-            return Err(crate::ThreadsError::InvalidCommand(
-                "Group threads require the AYLUL project".into(),
-            ));
-        }
+        core_projects::Projects::harness_fits_in(conn, project, shadows_agent::policy::AYLUL)
+            .await?;
         core_agents::Agents::require_live_in(conn, profile).await?;
         let id = insert_thread(
             conn,

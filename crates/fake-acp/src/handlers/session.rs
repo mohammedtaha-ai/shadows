@@ -112,6 +112,10 @@ impl SessionHandlers {
         responder: Responder<SetSessionConfigOptionResponse>,
         _cx: ConnectionTo<Client>,
     ) -> agent_client_protocol::Result<()> {
+        if let Some(path) = std::env::var_os("FAKE_ACP_HOLD_SETTINGS_AT") {
+            std::fs::write(path, "waiting").unwrap();
+            return std::future::pending().await;
+        }
         let mut st = state.lock().unwrap();
         let Some(s) = st.sessions.get_mut(&r.session_id.to_string()) else {
             return responder.respond_with_error(agent_client_protocol::Error::new(

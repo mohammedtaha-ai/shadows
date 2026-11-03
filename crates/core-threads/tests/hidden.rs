@@ -5,7 +5,7 @@ use core_threads::{PlanningThread, Threads};
 use std::sync::Arc;
 
 struct Fixture {
-    _tmp: tempfile::TempDir,
+    tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     threads: Threads,
     visible: PlanningThread,
@@ -61,7 +61,7 @@ async fn fixture() -> Fixture {
         .await
         .unwrap();
     Fixture {
-        _tmp: tmp,
+        tmp,
         storage,
         threads,
         visible,
@@ -88,4 +88,34 @@ async fn a_hidden_thread_is_still_closed_with_its_agent() {
     let threads = Threads::list_for_profile_in(&mut conn, "ay").await.unwrap();
     assert_eq!(threads.len(), 2);
     assert!(threads.iter().any(|thread| thread.id == f.hidden.id));
+}
+
+#[tokio::test]
+async fn a_hidden_thread_requires_the_assistant_project() {
+    let f = fixture().await;
+    let dir = f.tmp.path().join("ordinary");
+    std::fs::create_dir(&dir).unwrap();
+    let project = Projects::new(f.storage.clone())
+        .create(
+            "ordinary".into(),
+            "ordinary",
+            "Ordinary",
+            dir.to_str().unwrap(),
+        )
+        .await
+        .unwrap();
+    let result = f
+        .storage
+        .write_txn_as(move |conn| {
+            Box::pin(async move {
+                Threads::create_hidden_in(conn, &project.id, "Group", "ay", &Storage::now()).await
+            })
+        })
+        .await;
+    assert!(matches!(
+        result,
+        Err(core_threads::ThreadsError::Projects(
+            core_projects::ProjectsError::SettingNotOffered { .. }
+        )),
+    ));
 }

@@ -1,76 +1,7 @@
-use core_agents::{AgentInput, Agents};
-use core_code::Code;
-use core_db::Storage;
-use core_messages::Messages;
-use core_projects::Projects;
-use core_providers::{ProviderInput, Providers};
-use core_secrets::Secrets;
+mod support;
+
 use core_threads::Threads;
-use std::sync::Arc;
-
-struct Fixture {
-    _tmp: tempfile::TempDir,
-    storage: Arc<Storage>,
-    threads: Arc<Threads>,
-    messages: Arc<Messages>,
-}
-
-async fn fixture() -> Fixture {
-    let tmp = tempfile::tempdir().unwrap();
-    let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
-    let projects = Projects::new(storage.clone());
-    projects
-        .ensure_assistant("aylul", "AYLUL", tmp.path())
-        .await
-        .unwrap();
-    let secrets = Secrets::new(storage.clone(), None);
-    let providers = Providers::new(storage.clone(), secrets.clone());
-    let input: ProviderInput = serde_json::from_value(serde_json::json!({
-        "name": "Provider", "base_url": "https://example.com",
-        "models": [{"id": "model", "context_window": 200000}]
-    }))
-    .unwrap();
-    providers
-        .create_provider("provider".into(), input)
-        .await
-        .unwrap();
-    let agents = Agents::new(
-        storage.clone(),
-        providers,
-        secrets,
-        projects.clone(),
-        Some(tmp.path().join("agents")),
-    );
-    for name in ["Alpha", "Beta"] {
-        agents
-            .create_agent(
-                name.into(),
-                AgentInput {
-                    name: name.into(),
-                    provider: "provider".into(),
-                    default_model: "model".into(),
-                    character_color: None,
-                    description: None,
-                    instructions: None,
-                    outfit: None,
-                },
-            )
-            .await
-            .unwrap();
-    }
-    let threads = Arc::new(Threads::new(
-        storage.clone(),
-        Code::new(storage.clone(), projects.clone()),
-        projects,
-    ));
-    let messages = Messages::new(storage.clone(), agents);
-    Fixture {
-        _tmp: tmp,
-        storage,
-        threads,
-        messages,
-    }
-}
+use support::fixture;
 
 #[tokio::test]
 async fn a_group_gets_one_hidden_thread_per_member() {

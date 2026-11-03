@@ -197,6 +197,15 @@ impl Turns {
         self.send_with(thread_id, turn, None).await
     }
 
+    /// An automatic delivery uses the selected model's current effort.
+    pub async fn send_with_default_effort(
+        &self,
+        thread_id: ThreadId,
+        turn: SendTurn,
+    ) -> Result<OperationId, TurnsError> {
+        self.send_inner(thread_id, turn, None, true).await
+    }
+
     /// `send`, and when `dequeue` names a waiting message, the turn that takes
     /// it from the queue in its own transaction.
     pub async fn send_with(
@@ -205,7 +214,26 @@ impl Turns {
         turn: SendTurn,
         dequeue: Option<(QueuedMessageId, Option<CommandContext>)>,
     ) -> Result<OperationId, TurnsError> {
-        let command = start_command(turn.command_id.clone(), &thread_id, &turn);
+        self.send_inner(thread_id, turn, dequeue, false).await
+    }
+
+    async fn send_inner(
+        &self,
+        thread_id: ThreadId,
+        turn: SendTurn,
+        dequeue: Option<(QueuedMessageId, Option<CommandContext>)>,
+        default_effort: bool,
+    ) -> Result<OperationId, TurnsError> {
+        let mut command = start_command(turn.command_id.clone(), &thread_id, &turn);
+        if default_effort {
+            command.request_fingerprint = CommandContext::fingerprint(
+                "turn.start",
+                &serde_json::json!({
+                    "request": command.request_fingerprint,
+                    "default_effort": true,
+                }),
+            );
+        }
         let SendTurn {
             command_id: _,
             prompt,
@@ -224,7 +252,7 @@ impl Turns {
             return Err(TurnsError::RuntimeStopping);
         }
         let images = self.images(&thread_id, &attachments).await?;
-        let settings = TurnSettings {
+        let mut settings = TurnSettings {
             model,
             mode,
             effort,
@@ -268,6 +296,9 @@ impl Turns {
             .sessions
             .offer_for_model(&thread_id, &opened, &settings.model)
             .await?;
+        if default_effort {
+            settings.effort = offered.current.effort.clone();
+        }
         self.sessions
             .require_images(&opened, !attachments.is_empty())?;
         // The turn holds the session from here: a second start, or a model or

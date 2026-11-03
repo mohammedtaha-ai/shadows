@@ -105,7 +105,8 @@ impl EventsStore {
                                'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
                                'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved',
                                'VisionProposed','MapProposed','ProjectStructureWritten',
-                               'RoadmapProposed','RoadmapApproved','PermissionsChanged')
+                               'RoadmapProposed','RoadmapApproved','PermissionsChanged',
+                               'MessageAdded')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())

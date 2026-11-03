@@ -11,6 +11,8 @@ pub enum MessagesError {
     #[error(transparent)]
     Thread(#[from] core_threads::ThreadsError),
     #[error(transparent)]
+    Turn(#[from] core_turns::TurnsError),
+    #[error(transparent)]
     Storage(#[from] StorageError),
 }
 

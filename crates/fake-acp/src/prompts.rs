@@ -399,6 +399,17 @@ pub(crate) async fn answer(
             let text = call_mcp(&s.setup, line).await;
             chunk(cx, id, "m1", &text)?;
         }
+        line if line.starts_with("Group: Fixture loop\n") => {
+            chunk(cx, id, "m1", "@alpha @beta @delta @gamma")?;
+        }
+        line if line.starts_with("Group: Fixture attention\n") => {
+            chunk(cx, id, "m1", "@mohammed please review")?;
+        }
+        line if line.starts_with("Group: Fixture failure\n")
+            && line.lines().last() == Some("Mohammed: @alpha fail this fixture") =>
+        {
+            return Ok((StopReason::MaxTokens, None));
+        }
         // As the real adapter does: the title is sent after the turn
         // has answered.
         line if line.starts_with("title ") => {

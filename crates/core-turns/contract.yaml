@@ -285,6 +285,7 @@ shapes:
 
 
 functions:
+  send_with_default_effort: Starts an automatic delivery with the offered model's current effort.
   new: Constructs Turns from its declared runtime, harness and context owners.
   plan_cards:
     show_plan: "(&self, grant, PlanShow) -> Result<PlanShown, TurnsError>; calls Plans::show, reads its live tab and signals only a non-replay"

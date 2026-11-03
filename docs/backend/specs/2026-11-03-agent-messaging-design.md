@@ -146,6 +146,13 @@ A message to an agent is delivered as a turn in that agent's session:
 - **Turn ends are read from the journal**, after a cursor `Messages` keeps,
   and a reply is recorded in the same transaction that moves the cursor, so a
   restart loses no reply.
+- **Dispatch and terminal consumption share one worker.** It replays prepared
+  starts with their stored inputs and links their accepted operation before
+  reading terminal events. The model's offered effort is chosen by `Turns`
+  when starting a new operation.
+- **A busy lease can clear without a journal event.** Prepared deliveries can
+  retry in that case. Shutdown stops new dispatch and uses Turns' confirmation
+  bound. An unfinished link can be recovered from the same start command.
 - **No session** (closed, crashed): Shadows opens one for that role. For an
   executor this is the same run only if the run still holds; otherwise the
   manager is told and decides (a new attempt is §17.4's rule).
@@ -219,8 +226,9 @@ later):
 A **group** is a channel whose members are AYLUL agents and Mohammed.
 
 - **Mentions route.** Mohammed writes `@coder @reviewer …`; only the mentioned
-  members get a turn. A message of Mohammed's with no mention addresses every
-  member. A member's reply wakes only the other members it mentions; a reply
+  members get a turn. A message of Mohammed's with no recognized address reaches every
+  member. An explicit `@mohammed` alone wakes no member. A member's reply wakes
+  only the other members it mentions; a reply
   with no member mention wakes no one.
 - **A member's reply is the text of its turn.** It needs no tool, so it works
   on any provider.

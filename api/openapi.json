@@ -84,6 +84,42 @@
         ],
         "type": "object"
       },
+      "Address": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "person"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "agent"
+                ],
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Agent": {
         "properties": {
           "character_color": {
@@ -1140,6 +1176,28 @@
         ],
         "type": "object"
       },
+      "CreateGroup": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "name",
+          "members"
+        ],
+        "type": "object"
+      },
       "CreateProject": {
         "properties": {
           "command_id": {
@@ -2138,6 +2196,40 @@
           "thread",
           "project"
         ],
+        "type": "string"
+      },
+      "Group": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/GroupId"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "needs_you": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "members",
+          "needs_you",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "GroupId": {
+        "format": "uuid",
         "type": "string"
       },
       "HarnessInfo": {
@@ -3185,6 +3277,79 @@
           "name"
         ],
         "type": "object"
+      },
+      "Member": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "thread_id"
+        ],
+        "type": "object"
+      },
+      "Message": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "group_id": {
+            "$ref": "#/components/schemas/GroupId"
+          },
+          "id": {
+            "$ref": "#/components/schemas/MessageId"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MessageKind"
+          },
+          "seq": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "speaker": {
+            "$ref": "#/components/schemas/Speaker"
+          },
+          "to": {
+            "items": {
+              "$ref": "#/components/schemas/Address"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "group_id",
+          "seq",
+          "speaker",
+          "to",
+          "kind",
+          "body",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "MessageId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "MessageKind": {
+        "enum": [
+          "chat",
+          "notice"
+        ],
+        "type": "string"
       },
       "ModelUsage": {
         "properties": {
@@ -5090,6 +5255,21 @@
         },
         "type": "object"
       },
+      "SendMessage": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "text"
+        ],
+        "type": "object"
+      },
       "SendNowBody": {
         "properties": {
           "attachments": {
@@ -5220,6 +5400,60 @@
           "count"
         ],
         "type": "object"
+      },
+      "Speaker": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "person"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "agent"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "name",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "shadows"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "Stage": {
         "enum": [
@@ -8445,6 +8679,317 @@
         ]
       }
     },
+    "/api/groups": {
+      "get": {
+        "operationId": "list_groups",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      },
+      "post": {
+        "operationId": "create_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/groups/{id}": {
+      "get": {
+        "operationId": "get_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GroupId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/groups/{id}/messages": {
+      "get": {
+        "operationId": "list_group_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GroupId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Message"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      },
+      "post": {
+        "operationId": "send_group_message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GroupId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
     "/api/harnesses": {
       "get": {
         "operationId": "list_harnesses",
@@ -10609,7 +11154,7 @@
             "description": "Unknown or removed project"
           }
         },
-        "summary": "A project's plan/design notifications, replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.\nPermissionsChanged names a request_id and waiting/answered/refused state on\nthe AYLUL project; clients refetch GET /api/aylul/permissions for current options.",
+        "summary": "A project's plan/design notifications, replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.\nPermissionsChanged names a request_id and waiting/answered/refused state on\nthe AYLUL project; clients refetch GET /api/aylul/permissions for current options.\nMessageAdded carries a group_id and group-local seq in its payload.\nUse the outer durable seq to resume the project stream.",
         "tags": [
           "stream"
         ]

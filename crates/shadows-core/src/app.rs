@@ -24,7 +24,7 @@ use core_extensions::Extensions;
 use core_grants::Grants;
 use core_harness::{AylulOwners, Harness, SessionsConfig};
 use core_instructions::Instructions;
-use core_messages::Messages;
+use core_messages::{Messages, MessagesWorker};
 use core_operations::Operations;
 use core_person::PersonSettings;
 use core_plans::Plans;
@@ -184,11 +184,12 @@ pub struct AppCore {
     harness: Arc<Harness>,
     projects: Projects,
     project_lifecycle: ProjectLifecycle,
-    threads: Threads,
+    threads: Arc<Threads>,
     instructions: Instructions,
     standards: Standards,
-    events: Events,
+    events: Arc<Events>,
     messages: Arc<Messages>,
+    messages_worker: std::sync::OnceLock<MessagesWorker>,
     code: Code,
 }
 
@@ -371,6 +372,9 @@ impl AppCore {
         if let Err(error) = core.code.start(CodeConfig::default()).await {
             tracing::warn!(error = %error, "code.start_failed");
         }
+        if config.aylul.is_some() {
+            core.start_messages();
+        }
         Ok(core)
     }
 
@@ -409,7 +413,11 @@ impl AppCore {
         } = parts;
         let code = Code::new(storage.clone(), projects.clone());
         let harness = sessions.clone();
-        let threads = Threads::new(storage.clone(), code.clone(), projects.clone());
+        let threads = Arc::new(Threads::new(
+            storage.clone(),
+            code.clone(),
+            projects.clone(),
+        ));
         let AylulOwners {
             providers,
             agents,
@@ -437,13 +445,13 @@ impl AppCore {
             plans.clone(),
             ui.clone(),
         );
-        let events = Events::new(
+        let events = Arc::new(Events::new(
             storage.clone(),
             harness.clone(),
             projects.clone(),
             turns.clone(),
             ui.clone(),
-        );
+        ));
         let project_lifecycle =
             ProjectLifecycle::new(storage.clone(), projects.clone(), code.clone());
         let messages = Messages::new(storage.clone(), agents.clone());
@@ -468,6 +476,7 @@ impl AppCore {
             standards,
             events,
             messages,
+            messages_worker: std::sync::OnceLock::new(),
             code,
         })
     }
@@ -553,6 +562,21 @@ impl AppCore {
         &self.messages
     }
 
+    fn start_messages(&self) {
+        self.messages_worker.get_or_init(|| {
+            self.messages.listen(
+                self.turns.clone(),
+                self.threads.clone(),
+                self.events.clone(),
+            )
+        });
+    }
+
+    #[cfg(feature = "test-support")]
+    pub fn start_messages_for_test(&self) {
+        self.start_messages();
+    }
+
     pub fn code(&self) -> &Code {
         &self.code
     }
@@ -566,8 +590,15 @@ impl AppCore {
         bound: Duration,
         second_signal: impl Future<Output = ()>,
     ) -> Result<StopKind, CoreError> {
+        if let Some(worker) = self.messages_worker.get() {
+            worker.request_stop();
+        }
         self.code.shut_down().await;
-        let stopped = self.turns.shut_down(bound, second_signal).await?;
+        let stopped = self.turns.shut_down(bound, second_signal).await;
+        if let Some(worker) = self.messages_worker.get() {
+            worker.finish().await;
+        }
+        let stopped = stopped?;
         self.storage.close().await?;
         Ok(stopped)
     }

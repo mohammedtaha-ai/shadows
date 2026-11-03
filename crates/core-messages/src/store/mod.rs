@@ -2,6 +2,11 @@ use crate::{Group, GroupId, Member, Message, MessageId, MessageKind, MessagesErr
 use core_db::Tx;
 use core_threads::ThreadId;
 
+mod deliveries;
+mod write;
+pub(super) use deliveries::Delivery;
+pub(super) use write::Draft;
+
 pub(super) struct Store;
 
 impl Store {
@@ -32,8 +37,15 @@ impl Store {
         thread: &ThreadId,
     ) -> Result<(), MessagesError> {
         sqlx::query(
-            "INSERT INTO message_group_member (group_id, slug, name, thread_id) VALUES (?, ?, ?, ?)",
-        ).bind(id.as_str()).bind(slug).bind(name).bind(thread.as_str()).execute(conn).await?;
+            "INSERT INTO message_group_member (group_id, slug, name, thread_id)
+             VALUES (?, ?, ?, ?)",
+        )
+        .bind(id.as_str())
+        .bind(slug)
+        .bind(name)
+        .bind(thread.as_str())
+        .execute(conn)
+        .await?;
         Ok(())
     }
 
@@ -45,8 +57,12 @@ impl Store {
                 .await?
                 .ok_or(MessagesError::NotFound)?;
         let rows: Vec<(String, String, String)> = sqlx::query_as(
-            "SELECT slug, name, thread_id FROM message_group_member WHERE group_id = ? ORDER BY slug",
-        ).bind(id.as_str()).fetch_all(&mut *conn).await?;
+            "SELECT slug, name, thread_id FROM message_group_member
+             WHERE group_id = ? ORDER BY slug",
+        )
+        .bind(id.as_str())
+        .fetch_all(&mut *conn)
+        .await?;
         let members = rows
             .into_iter()
             .map(|(slug, name, thread)| Member {
@@ -101,13 +117,27 @@ impl Store {
         if !exists {
             return Err(MessagesError::NotFound);
         }
+        Self::messages_between(conn, group, after, i64::MAX, -1).await
+    }
+
+    pub(super) async fn messages_between(
+        conn: &mut Tx,
+        group: &GroupId,
+        after: i64,
+        through: i64,
+        limit: i64,
+    ) -> Result<Vec<Message>, MessagesError> {
         type Row = (String, i64, String, String, String, String, String);
         let rows: Vec<Row> = sqlx::query_as(
-            "SELECT id, seq, speaker_json, to_json, kind, body, created_at FROM message
-              WHERE group_id = ? AND seq > ? ORDER BY seq",
+            "SELECT * FROM (
+               SELECT id, seq, speaker_json, to_json, kind, body, created_at FROM message
+               WHERE group_id = ? AND seq > ? AND seq <= ? ORDER BY seq DESC LIMIT ?
+             ) ORDER BY seq",
         )
         .bind(group.as_str())
         .bind(after)
+        .bind(through)
+        .bind(limit)
         .fetch_all(conn)
         .await?;
         rows.into_iter()

@@ -357,7 +357,7 @@ called_by_other_services:
 
 obligations:
   - rule: Hidden member threads are omitted from project and profile lists but remain accessible by id and to agent cleanup.
-    tested_by: [a_hidden_thread_is_left_out_of_the_agent_list, a_hidden_thread_is_still_closed_with_its_agent]
+    tested_by: [a_hidden_thread_is_left_out_of_the_agent_list, a_hidden_thread_is_still_closed_with_its_agent, a_hidden_thread_requires_the_assistant_project]
   - rule: >
       A thread's harness is one Shadows knows, `claude-code` when none is
       named; an unknown one is 422 SETTING_NOT_OFFERED on create and on

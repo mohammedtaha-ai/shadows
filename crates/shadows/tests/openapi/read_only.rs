@@ -80,6 +80,12 @@ async fn no_get_route_changes_state() {
         )
         .await
         .unwrap();
+    let group = a
+        .core
+        .messages()
+        .create_group("read-only-group".into(), "Read check", &["aylul".into()])
+        .await
+        .unwrap();
     let part = PartId::generate();
     let outcome = OutcomeId::generate();
     let mut ops: Vec<_> = [
@@ -220,6 +226,7 @@ async fn no_get_route_changes_state() {
                 "id" if template.starts_with("/api/threads/") => a.thread.to_string(),
                 "id" if template.starts_with("/api/workflows/") => workflow.to_string(),
                 "id" if template.starts_with("/api/plans/") => version.plan_id.to_string(),
+                "id" if template.starts_with("/api/groups/") => group.id.to_string(),
                 "slug" if template.starts_with("/api/aylul/agents/") => "aylul".into(),
                 "agreement" => agreement["agreement_id"].as_str().unwrap().to_string(),
                 "attachment_id" => attachment.id.to_string(),

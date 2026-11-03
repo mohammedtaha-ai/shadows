@@ -95,6 +95,7 @@ modules:
   profile_home.rs: serialized home settings writes
   sessions.rs: private adapter lifecycle
   settings.rs: session option changes
+# Option RPCs use the setup deadline so their caller can release the session lease.
   setup.rs: Planner opening context
   standards.rs: standards prompt rendering
   titles.rs: ordered harness title writes

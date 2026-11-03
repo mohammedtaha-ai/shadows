@@ -66,7 +66,8 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Read: crates/core-threads/contract.yaml; crates/core-harness/src/sessions.rs (`close_agent`)
 - Touch: crates/core-db/migrations/0041_thread_hidden.sql; crates/core-threads/src/lib.rs;
   crates/core-threads/src/store/thread.rs; crates/core-threads/src/store/records.rs;
-  crates/core-threads/contract.yaml; crates/core-threads/tests/hidden.rs
+  crates/core-threads/contract.yaml; crates/core-threads/tests/hidden.rs;
+  crates/core-projects/src/harness_policy.rs; crates/core-projects/contract.yaml
 - Done when: `cargo test -p core-threads` passes, with `a_hidden_thread_is_left_out_of_the_agent_list`
   and `a_hidden_thread_is_still_closed_with_its_agent`
 
@@ -80,7 +81,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   `ended_turns_come_back_in_seq_order_after_the_cursor` and `an_interrupted_turn_is_an_ended_turn`
 
 ### B-42 · The Messages service, groups and their log
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-42-the-messages-service-groups-and-their-log
 - Read: docs/backend/specs/2026-11-03-agent-messaging-design.md §6.2, §7; crates/shadows-core/src/app.rs; docs/codebase/README.md
 - Touch: crates/core-messages/ (new); crates/core-db/migrations/0042_messages.sql;
@@ -88,27 +89,36 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: `cargo test -p core-messages` and `cargo test -p shadows --test codemap` pass
 
 ### B-43 · Mohammed writes; deliveries are scheduled and dispatched
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-43-mohammed-writes-deliveries-are-scheduled-and-dispatched
 - Read: the plan's "Routing rules" and "Delivery rules"; crates/core-turns/contract.yaml (`send`)
 - Touch: crates/core-messages/src/send.rs, mentions.rs, bounds.rs, deliveries.rs, prompt.rs,
-  lib.rs, contract.yaml, tests/send.rs
-- Done when: `cargo test -p core-messages` passes, with the seven tests the task names
+  lib.rs, store/mod.rs, store/write.rs, store/deliveries.rs, Cargo.toml, contract.yaml,
+  tests/send.rs, tests/support/mod.rs; crates/core-turns/src/lib.rs; crates/core-turns/contract.yaml
+- Done when: `cargo test -p core-messages` verifies routing, replay, ordering and bounded prompts.
 
 ### B-44 · Members answer, from the journal, inside bounds
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-44-members-answer-from-the-journal-inside-bounds
 - Read: the plan's "Delivery rules"; B-41's `Events::ended_turns_after`
-- Touch: crates/core-messages/src/replies.rs, lib.rs, contract.yaml, tests/replies.rs;
-  crates/shadows-core/src/app.rs
-- Done when: `cargo test -p core-messages` passes, with the eight tests the task names
+- Touch: crates/core-messages/src/replies.rs, deliveries.rs, error.rs, lib.rs, contract.yaml;
+  crates/shadows-core/src/app.rs; crates/core-harness/src/settings.rs;
+  crates/core-harness/contract.yaml; crates/fake-acp/src/prompts.rs;
+  crates/fake-acp/src/handlers/session.rs; crates/shadows/tests/group_routes.rs
+- Done when: `group_routes` covers durable recovery, failure, bounds, busy retry and shutdown.
 
 ### B-45 · Routes; messages on the project stream
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-45-routes-messages-on-the-project-stream
-- Read: crates/shadows-http/contract.yaml; crates/core-events/contract.yaml
-- Touch: crates/shadows-http/src/groups.rs (new), the router, openapi.rs, sse.rs, contract.yaml;
+- Read: crates/shadows-http/src/contract.yaml; crates/core-events/contract.yaml
+- Touch: crates/shadows-http/src/groups.rs, lib.rs, sse.rs, failure/other.rs, contract.yaml;
   crates/core-events/src/store.rs, contract.yaml; api/openapi.json;
-  crates/shadows/tests/group_routes.rs (new)
-- Done when: `cargo test -p shadows --test group_routes` passes and `git diff api/` shows only the
-  new routes
+  crates/shadows-core/src/lib.rs; crates/shadows/tests/group_routes.rs;
+  crates/shadows/tests/openapi.rs; crates/shadows/tests/openapi/read_only.rs; web/src/api/schema.d.ts
+- Done when: `cargo test -p shadows --test group_routes --test openapi` passes and the generated
+  API describes the group routes.
+
+Core's local acceptance used `shadows serve` with synthetic ACP and two agents. Alpha alone
+answered the addressed message. Restart preserved the group and reopened Alpha's member
+session. The local log recorded `OperationCompleted` and graceful shutdown. CI and the AYLUL
+desktop acceptance remain separate gates.

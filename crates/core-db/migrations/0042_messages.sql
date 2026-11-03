@@ -33,7 +33,7 @@ CREATE TABLE message_delivery (
     group_id TEXT NOT NULL,
     slug TEXT NOT NULL,
     cause_seq INTEGER NOT NULL,
-    round INTEGER NOT NULL CHECK (round BETWEEN 1 AND 3),
+    round INTEGER NOT NULL CHECK (round >= 1),
     trigger_seq INTEGER NOT NULL,
     state TEXT NOT NULL CHECK (state IN ('waiting', 'starting', 'running', 'answered', 'failed')),
     prompt TEXT,

@@ -17,11 +17,16 @@ test-support = []
 [dependencies]
 core-agents = { path = "../core-agents" }
 core-db = { path = "../core-db" }
+core-events = { path = "../core-events" }
 core-threads = { path = "../core-threads" }
+core-turns = { path = "../core-turns" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+shadows-agent = { path = "../shadows-agent" }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 

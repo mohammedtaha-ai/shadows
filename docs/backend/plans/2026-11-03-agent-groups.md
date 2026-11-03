@@ -6,7 +6,7 @@
 
 **Architecture:**
 - A new service `Messages` (`crates/core-messages`) owns groups, members, messages and **deliveries**.
-- Each member gets one hidden AYLUL thread per group. A delivery is a durable row that `Messages` turns into a turn with `Turns::send`; it does not use §20's queue.
+- Each member gets one hidden AYLUL thread per group. A delivery is a durable row that `Messages` turns into a turn with `Turns::send_with_default_effort`; it does not use §20's queue.
 - `Messages` learns that a turn ended by reading the durable journal through `Events`, after a cursor it stores. It records the reply and advances the cursor in one transaction, so a restart resumes where it stopped.
 - Each message is a durable `MessageAdded` event, carried by the AYLUL project's stream in its existing `durable` frame.
 
@@ -31,7 +31,8 @@
 | Message from | Addressed to |
 |---|---|
 | Mohammed, with member mentions | the mentioned members |
-| Mohammed, no member mention | every member |
+| Mohammed, no recognized address | every member |
+| Mohammed, only `@mohammed` | Mohammed only |
 | A member, with other members mentioned | those members only; never itself |
 | A member, no other member mentioned | nobody (it is recorded, it wakes no one) |
 
@@ -53,16 +54,16 @@
   `waiting` delivery starts in two steps.
   1. **Prepare (one write):** build the prompt from the messages in
      `(delivered_seq, trigger_seq]`. Store `prompt`, `model` and `mode` on the row. Set `state` to
-     `starting`, and move the member's `delivered_seq` to `trigger_seq`.
-  2. **Start:** call `Turns::send(thread, SendTurn { command_id: "delivery:<id>", prompt, model,
+     `starting`, and leave the member's cursor unchanged until the turn is accepted.
+  2. **Start:** call `Turns::send_with_default_effort(thread, SendTurn { command_id: "delivery:<id>", prompt, model,
      mode, .. })` with the **stored** values. On `Ok(op)`, one write sets `running` and
-     `operation_id = op`, then wakes the listener.
+     `operation_id = op` and advances `delivered_seq` to `trigger_seq`.
 - **Re-dispatch:** a `starting` row (after a crash, or after `ThreadBusy`) calls `send` again with
   its stored values. A replay returns the same operation; it cannot conflict, because the inputs
   are byte for byte the same. The prompt is never rebuilt, and a later change of the agent's
   model does not touch a prepared row.
-- **`ThreadBusy` from `send`:** the row stays `starting`. The member's next ended turn
-  re-dispatches it.
+- **`ThreadBusy` from `send`:** the row stays `starting`. A terminal event or a 250 ms retry
+  wakes dispatch, including when a settings lease is released without a journal write.
 - **Any other refusal from `send`:** the row becomes `failed`, with a `Notice`: "`<name>` could
   not answer: `<error>`". The member's next `waiting` delivery starts.
 - **The prompt's cut:** past the limits, the oldest messages are dropped first. The message at
@@ -70,15 +71,14 @@
 
 ## The listener's order (B-44)
 
-The listener reads ended turns after its cursor. For each one, in `seq` order:
-
-- **On a member thread, with a `running` delivery whose `operation_id` matches:** record it (see
-  B-44) and advance the cursor.
-- **On a member thread whose member has a `starting` delivery:** the start may have succeeded
-  without its link being written yet. The listener **stops at this event without advancing**.
-  It waits for the next wake: the dispatcher's wake after it writes the link, a new commit, or
-  the re-dispatch on start.
-- **Any other ended turn:** advance the cursor only.
+One worker owns dispatch and terminal consumption. It reconciles prepared starts before each
+journal batch, then reads endings in sequence order. A start or link storage error retries the
+batch before consuming any endings. Busy attempts remain prepared and can retry after the
+current turn's durable ending. A completed link and its context cursor commit together.
+Unmatched endings advance the journal cursor. The worker takes the commit watch before reading,
+accepts wakes from newly scheduled sends, and stops before Core closes storage.
+Shutdown signals the worker first, then runs the existing bounded turn shutdown. An unfinished
+delivery link stays recoverable by its command id. Harness settings RPCs use the setup deadline.
 
 ## Review Focus
 
@@ -152,7 +152,8 @@ The listener reads ended turns after its cursor. For each one, in `seq` order:
   - `Member { slug, name, thread_id }`;
   - `Speaker { Person, Agent(String), Shadows }`, `MessageKind { Chat, Notice }`, `Address { Person, Agent(String) }`;
   - `Message { id, group_id, seq, speaker, to: Vec<Address>, kind, body, created_at }`.
-- Produces: `Messages::new(storage, threads, turns, events, agents, projects) -> Arc<Messages>`.
+- Produces: `Messages::new(storage, agents) -> Arc<Messages>`. AppCore passes the existing
+  Turns, Threads and Events instances when it starts the worker.
 - Produces: `create_group(command_id, name: &str, slugs: &[String]) -> Result<Group, MessagesError>`. It takes 1 to 6 live agents, with no duplicates. **One write transaction** holds the command record, the group row, one `Threads::create_hidden_in` per member (AYLUL project, title = group name) and the member rows. Any failure leaves nothing.
 - Produces: `groups()` (by name, then id), `group(&GroupId)`, `messages(&GroupId, after: Option<i64>)` (in `seq` order).
 - `needs_you` is true when the group's last message addressed to `Person` comes after Mohammed's last message.
@@ -176,13 +177,14 @@ The listener reads ended turns after its cursor. For each one, in `seq` order:
 - Test: `crates/core-messages/tests/send.rs` (fake-acp)
 
 **Interfaces:**
-- Produces: `Messages::send(command_id, group: &GroupId, text: &str) -> Result<Message, MessagesError>`. It records Mohammed's `Chat` message (its `cause_seq` is its own `seq`), schedules deliveries by the routing rules at round 1, then dispatches.
-- Produces (crate-private, used by B-44): `schedule(tx, group, cause_seq, round, trigger_seq, slugs) -> Vec<DeliveryId>` (with the budget check) and `dispatch(member)` (the delivery rules).
+- Produces: `Messages::send(command_id, group: &GroupId, text: &str) -> Result<Message, MessagesError>`. It records Mohammed's `Chat` message (its `cause_seq` is its own `seq`), schedules deliveries by the routing rules at round 1 and wakes the dispatcher.
+- `bounds::schedule` takes the triggering message, cause and round in the same transaction.
+  `Messages::dispatch_ready` reconciles eligible deliveries in the worker.
 - `SendTurn` for a delivery:
   - `prompt` from `prompt.rs`;
   - `model` = the agent's `default_model`;
   - `mode` = `policy::default_mode("aylul")`;
-  - `effort: None`, no focus, no plan, no attachments.
+  - effort is selected by Turns from the selected model's current offer, with no focus, plan or attachments. The command fingerprint identifies automatic effort selection; replay returns the accepted operation before resolving the offer again.
 - Prompt (`prompt.rs`):
   - the group's name and its members with their slugs;
   - the rule: "Answer in 1-3 sentences. Mention `@slug` only when you need that member, `@mohammed` when you need Mohammed.";
@@ -207,32 +209,37 @@ The listener reads ended turns after its cursor. For each one, in `seq` order:
 **Files:**
 - Create: `crates/core-messages/src/replies.rs`
 - Modify: `crates/shadows-core/src/app.rs` (`AppCore::start` calls `messages.listen()` once, after building)
-- Test: `crates/core-messages/tests/replies.rs` (fake-acp)
+- Test: `crates/shadows/tests/group_routes.rs` (Core, router and fake-acp)
 
 **Interfaces:**
-- Consumes: `Events::ended_turns_after`, `Events::last_seq` (B-41), `Storage::watch_committed`, `Threads::entries`, `Turns::operations` (to read a failed turn's reason).
-- Produces: `Messages::listen(self: &Arc<Self>)`, one task:
-  1. **First run with no cursor row:** set the cursor to `Events::last_seq()`.
-  2. **On start:** re-dispatch every `starting` row with its stored inputs, then dispatch every member with a `waiting` row.
-  3. **Loop:** read `ended_turns_after(cursor, 100)` and follow "The listener's order" above. For an ended turn whose `operation_id` is a `running` delivery, run **one write transaction** that:
+- Consumes: `Events::ended_turns_after` (B-41), `Storage::watch_committed`, `Threads::entries`
+  and `Turns::operations` (to classify the failure without exposing provider diagnostics).
+- Produces: `Messages::listen(self: &Arc<Self>, turns, threads, events)`, one task:
+  1. A missing cursor starts at zero, so pre-existing durable endings are eligible on restart.
+  2. Reconcile prepared or waiting deliveries before reading each journal batch.
+  3. Read `ended_turns_after(cursor, 100)`. For a matching running delivery, one transaction:
      - **if `Completed`:** writes the turn's `AgentMessage` entries, joined by a blank line, as one `Chat` from `Agent(slug)` with `operation_id`, `cause_seq` and the next round, and schedules its addresses by the routing rules (B-43's `schedule`);
      - **if `Failed`, `Cancelled` or `Interrupted`:** writes a `Notice` from `Shadows`: "`<name>` could not answer: `<reason>`";
      - marks the delivery `answered` or `failed`;
      - advances the cursor to this event's `seq`.
 
-     After the transaction, it dispatches that member and every member just scheduled.
-  4. When nothing is left, or it stopped at a `starting` member, it waits on `watch_committed()` or the dispatcher's `tokio::sync::Notify`, then reads again.
+     After the batch, the worker dispatches eligible members on its next pass.
+  4. When no work remains it waits on the commit watch, the sender's notification or shutdown.
 - `UNIQUE(message.operation_id)` stays as a second guard against a double record.
 
 - [ ] **Step 1: Write the failing tests.**
   - `a_reply_is_recorded_once`
   - `a_reply_survives_a_restart_before_it_is_recorded`: end a member's turn with the listener stopped; start a new `Messages` over the same database; the reply is recorded once
-  - `a_turn_that_ends_before_its_link_is_still_recorded`: hold the dispatcher between `send` and the link write (a test hook) while the turn ends and the listener runs; release it; the reply is recorded once, and the cursor did not pass the event first
+  - `a_turn_that_ends_before_its_link_is_still_recorded`: refuse the link in the fixture
+    database until the turn ends. Restart with a changed model and a newer group message.
+    The prepared delivery replays the original turn and its reply is recorded once.
   - `a_reply_without_member_mentions_wakes_no_one`
   - `a_reply_to_mohammed_only_wakes_no_one_and_marks_needs_you`
   - `a_reply_mentioning_another_member_reaches_it`
   - `parallel_mentions_stop_at_ten_deliveries_with_one_notice`
   - `a_failed_turn_writes_a_notice_and_the_next_delivery_starts`
+  - `a_busy_delivery_retries_after_a_lease_releases_without_a_write`
+  - `shutdown_is_bounded_while_group_settings_are_unanswered`
 - [ ] **Step 2:** run them. Expect FAIL.
 - [ ] **Step 3:** implement.
 - [ ] **Step 4:** run `cargo test -p core-messages`. Expect PASS.
@@ -257,6 +264,8 @@ The listener reads ended turns after its cursor. For each one, in `seq` order:
 
 - SSE: no new frame. `MessageAdded` travels in the existing `durable` frame, whose `seq` is the journal's, so a client reconnects with `after` as for any event. Its `payload` is `{group_id, seq}` (the message's place in its group); the client then reads the message by route.
 - Each route calls one `Messages` method and shapes the answer.
+- Group names accept 1 to 120 trimmed characters. Person messages accept 1 to 8000.
+- The web schema is generated from the changed OpenAPI document for the CI contract check.
 - A member's permission request is not a new route. It is a request on the member's hidden thread, answered by the existing route with that `thread_id` (AYLUL agents spec §7.8).
 
 - [ ] **Step 1: Write the failing tests.**

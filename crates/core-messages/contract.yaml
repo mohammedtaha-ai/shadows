@@ -6,18 +6,39 @@ modules:
   lib.rs: group messaging boundary
   model.rs: group messaging values
   error.rs: group messaging refusals
-  groups.rs: group commands and reads
+  groups.rs: group lifecycle
+  send.rs: person message command
+  mentions.rs: mention routing
+  bounds.rs: delivery budget
+  prompt.rs: member context rendering
+  deliveries.rs: turn dispatch
+  replies.rs: durable reply processing
   store/mod.rs: group persistence
+  store/deliveries.rs: delivery persistence
+  store/write.rs: message persistence
 dependencies:
   agents: crates/core-agents/contract.yaml
   threads: crates/core-threads/contract.yaml
+  turns: crates/core-turns/contract.yaml
+  events: crates/core-events/contract.yaml
 functions:
+  new: Composes the group owner over the shared storage and agent owners.
   create_group: Creates a group and its hidden member threads in one replayable write.
   groups: Lists groups in name and id order.
   group: Reads one group with its members and current attention flag.
   messages: Reads a group's durable messages after its group-local cursor.
+  send: Atomically records a person message with its bounded delivery intents.
+  listen: Runs the dispatcher and journal consumer in one worker.
 obligations:
   - rule: Creation records one hidden thread per live member and rolls back the entire group on failure.
     tested_by: [a_group_gets_one_hidden_thread_per_member, a_failed_group_creation_leaves_no_thread]
   - rule: A group contains at most six agents.
     tested_by: [a_group_refuses_seven_members]
+  - rule: Dispatch replays prepared inputs and links operations before consuming terminal events.
+    tested_by: [a_turn_that_ends_before_its_link_is_still_recorded]
+  - rule: Member replies only wake explicitly mentioned peers.
+    tested_by: [a_group_is_created_written_to_and_read_back, a_reply_to_mohammed_only_wakes_no_one_and_marks_needs_you]
+  - rule: A busy session can release its lease without a journal event; its delivery remains retryable.
+    tested_by: [a_busy_delivery_retries_after_a_lease_releases_without_a_write]
+  - rule: Turn shutdown retains its bound while a group delivery is waiting for adapter settings.
+    tested_by: [shutdown_is_bounded_while_group_settings_are_unanswered]

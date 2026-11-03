@@ -247,6 +247,7 @@ enums:
 
 
 shared_in_transaction:
+  harness_fits_in: Threads checks project harness policy inside a hidden-thread write.
   retained_in: ProjectLifecycle reads retained metadata for removal replay.
   mark_removed_in: ProjectLifecycle soft-removes the project in its transaction.
   retained_metadata_in: Retained name, directory and removed flag for plan previews.
