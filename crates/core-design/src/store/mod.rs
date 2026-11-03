@@ -2,6 +2,7 @@
 mod agreement_binding;
 mod agreement_write;
 mod agreements;
+mod anchors;
 mod hierarchy;
 mod map_approval;
 mod map_proposal_read;

@@ -3,6 +3,7 @@ use core_db::Storage;
 
 mod agreement;
 mod agreement_scope;
+mod anchors;
 pub use agreement_scope::AgreementOrigin;
 mod agreement_validation;
 mod agreements;

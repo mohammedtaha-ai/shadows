@@ -677,3 +677,9 @@ modules:
   structure_write.rs: Checking
   vision_items.rs: Pure vision item edits with server-assigned identities (PU, U, G, B, TD)
   workspace.rs: A grant's read of its project's workspace, so a Planner plans from it
+
+planning_anchor:
+  modules: [anchors.rs, store/anchors.rs]
+  tables: [design_thread_anchor]
+  set_thread_anchor: 'thread.anchor command, replay first with immutable answer, validates live Planner and project ownership; null clears'
+  thread_anchor: 'Reads the selected anchor for a live thread, retaining references to deleted design items'

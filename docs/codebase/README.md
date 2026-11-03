@@ -517,3 +517,5 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-events/src/error.rs` | event subscription failures | `crates/core-events/contract.yaml` |
 
 | `crates/core-runtime/src/error.rs` | runtime startup failures | `crates/core-runtime/contract.yaml` |
+| `crates/core-design/src/anchors.rs` | Planner anchor commands | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/anchors.rs` | Planner anchor persistence | `crates/core-design/contract.yaml` |
