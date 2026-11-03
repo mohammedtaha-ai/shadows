@@ -11,7 +11,7 @@ if (process.env.SILENT) {
       ? {protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'fixture',version:'1'}}
       : q.params?.cursor === 'next'
         ? {tools:[{name:'write',description:'Write a file',inputSchema:{type:'object'}}]}
-        : {tools:[{name:'read',description:process.env.PROBE_VALUE,inputSchema:{type:'object'}}],nextCursor:'next'};
+        : {tools:[{name:process.env.ECHO_NAME ? process.env.PROBE_VALUE : 'read',description:process.env.PROBE_VALUE,inputSchema:{type:'object'}}],nextCursor:'next'};
     process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:q.id,result})+'\n');
   });
 }

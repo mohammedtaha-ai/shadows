@@ -46,7 +46,7 @@ impl Homes {
                     ToolRule::Deny => &mut desired.deny,
                     ToolRule::Ask => continue,
                 };
-                target.insert(format!("mcp__{name}__{}", entry.tool));
+                target.insert(format!("mcp__{name}__{}", entry.tool.replace('.', "_")));
             }
         }
         if desired.allow.is_empty() && desired.deny.is_empty() && !manifest_path.exists() {

@@ -35,9 +35,34 @@ impl Extensions {
             .into_iter()
             .next()
             .ok_or(ExtensionsError::NotFound)?;
+        let entries = match &server {
+            McpServerConfig::Http { headers, .. } => headers,
+            McpServerConfig::Stdio { env, .. } => env,
+        };
+        let mut values: Vec<_> = entries
+            .iter()
+            .map(|(_, value)| value.clone())
+            .filter(|value| !value.is_empty())
+            .collect();
+        values.sort_by_key(|value| std::cmp::Reverse(value.len()));
+        values.dedup();
         let result = tokio::time::timeout(Duration::from_secs(10), list_tools(server)).await;
         let (tools, list_error) = match result {
-            Ok(Ok(tools)) => (tools, None),
+            Ok(Ok(mut tools)) => {
+                if tools
+                    .iter()
+                    .any(|tool| values.iter().any(|value| tool.name.contains(value)))
+                {
+                    (vec![], Some(PROTOCOL.into()))
+                } else {
+                    for tool in &mut tools {
+                        for value in &values {
+                            tool.description = tool.description.replace(value, "[redacted]");
+                        }
+                    }
+                    (tools, None)
+                }
+            }
             Ok(Err(message)) => (vec![], Some(message.into())),
             Err(_) => (
                 vec![],

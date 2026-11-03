@@ -27,7 +27,11 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   `process-wrap`): do not enable rmcp's `transport-child-process`.
 - Secret values never appear in an answer, a log line, an error string or `Debug`.
 - Rule values: `allow`, `ask`, `deny`. `ask` is never stored or written.
-- Tool names: 1..=128 characters of `A-Z a-z 0-9 _ -` (MCP's tool-name set); others refused.
+- Tool names: 1..=128 characters of `A-Z a-z 0-9 _ - .` per
+  [MCP tool names](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names).
+  Claude's permission identity replaces dots with underscores, measured with real ACP.
+- Redact resolved values echoed in returned descriptions; refuse discovery metadata whose
+  tool name contains one, because changing a tool name would change its identity.
 - Listing limit: 10 seconds for connect + `initialize` + `tools/list` together.
 - Web: tokens only (no hex, `rgba`, raw palette classes, `text-[1`); `schema.d.ts` is
   regenerated, never edited.

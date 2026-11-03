@@ -41,5 +41,5 @@ fn valid_tool(tool: &str) -> bool {
         && tool.len() <= 128
         && tool
             .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
 }

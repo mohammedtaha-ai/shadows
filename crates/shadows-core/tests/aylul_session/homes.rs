@@ -63,6 +63,26 @@ async fn opening_writes_allow_and_deny_rules() {
 }
 
 #[tokio::test]
+async fn dotted_tool_rules_use_claudes_normalized_name() {
+    let w = world().await;
+    let id = tool_item(&w).await;
+    let rules = serde_json::from_value(json!([{"tool":"file.read","rule":"deny"}])).unwrap();
+    w.core
+        .extensions()
+        .set_tool_rules("dotted".into(), "aylul", &id, rules)
+        .await
+        .unwrap();
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert!(
+        read_settings(&w)["permissions"]["deny"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("mcp__docs__file_read"))
+    );
+    close_world(w).await;
+}
+
+#[tokio::test]
 async fn rules_of_an_item_switched_off_are_removed() {
     let w = world().await;
     let id = tool_item(&w).await;

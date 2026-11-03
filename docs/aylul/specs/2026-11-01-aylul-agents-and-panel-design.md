@@ -211,6 +211,16 @@ switched on. Decided with him: **per agent**, not per library item.
   then settings are published and ownership finalized. An interrupted projection
   therefore remains cleanable at the next opening. An identical rule already in
   settings remains foreign and is never claimed by the projection.
+  Valid MCP names include dots. Claude exposes `file.read` as `file_read`, so
+  permission projection replaces dots with underscores; a real ACP probe measured
+  that the normalized rule allows execution and denies it even in bypassPermissions.
+  Resolved header/environment values echoed in descriptions are redacted. A listing
+  whose tool name contains a resolved value is refused without returning that name.
+
+  **OPEN — Colliding Claude tool identities.** `file.read` and `file_read` share
+  Claude's permission name. Settings therefore cannot assign independent permissions
+  to that pair. Closes when an encountered colliding server has a verified adapter
+  identity or an owner decision for disambiguation; no second enforcement path is added.
 - **Modes.** An allow rule skips the question in the asking modes and Auto mode's
   classifier for that tool; a deny rule refuses the tool in them. The 2026-11-03 probe
   through the installed `harness/claude` ACP adapter and Claude executable measured

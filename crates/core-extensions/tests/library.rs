@@ -752,7 +752,7 @@ async fn tools_are_listed_from_a_stdio_server() {
     assert_eq!(
         serde_json::to_value(out.tools).unwrap(),
         json!([
-            {"name":"read","description":"Read a file"},
+            {"name":"read","description":"[redacted]"},
             {"name":"write","description":"Write a file"}
         ])
     );
@@ -792,7 +792,11 @@ async fn a_silent_server_times_out() {
     assert!(check.wait().await.unwrap().success());
 }
 
-async fn http_tools_item(w: &World, refused: bool) -> (String, tokio::task::JoinHandle<()>) {
+async fn http_tools_item(
+    w: &World,
+    refused: bool,
+    echo: bool,
+) -> (String, tokio::task::JoinHandle<()>) {
     use axum::{
         Json, Router,
         http::{HeaderMap, StatusCode},
@@ -811,7 +815,8 @@ async fn http_tools_item(w: &World, refused: bool) -> (String, tokio::task::Join
                 "serverInfo":{"name":"fixture","version":"1"}})
         } else {
             json!({"tools":[
-                {"name":"read","description":"Read a file","inputSchema":{"type":"object"}},
+                {"name":"read","description":if echo { "Metadata for header-value" }
+                    else { "Read a file" },"inputSchema":{"type":"object"}},
                 {"name":"write","description":"Write a file","inputSchema":{"type":"object"}}
             ]})
         };
@@ -834,7 +839,7 @@ async fn http_tools_item(w: &World, refused: bool) -> (String, tokio::task::Join
 #[tokio::test]
 async fn tools_are_listed_from_an_http_server() {
     let w = world().await;
-    let (id, task) = http_tools_item(&w, false).await;
+    let (id, task) = http_tools_item(&w, false, false).await;
     let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
     task.abort();
     assert_eq!(out.list_error, None);
@@ -845,7 +850,7 @@ async fn tools_are_listed_from_an_http_server() {
 #[tokio::test]
 async fn a_refused_server_leaks_no_value() {
     let w = world().await;
-    let (id, task) = http_tools_item(&w, true).await;
+    let (id, task) = http_tools_item(&w, true, false).await;
     w.extensions
         .set_tool_rules("set".into(), "aylul", &id, rules(&[("read", "deny")]))
         .await
@@ -859,6 +864,49 @@ async fn a_refused_server_leaks_no_value() {
         !serde_json::to_string(&out)
             .unwrap()
             .contains("header-value")
+    );
+}
+
+#[tokio::test]
+async fn discovery_redacts_values_echoed_in_http_descriptions() {
+    let w = world().await;
+    let (id, task) = http_tools_item(&w, false, true).await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    task.abort();
+    assert_eq!(out.list_error, None);
+    assert_eq!(out.tools[0].description, "Metadata for [redacted]");
+    assert!(!format!("{out:?}").contains("header-value"));
+}
+
+#[tokio::test]
+async fn discovery_refuses_a_value_echoed_as_a_tool_name() {
+    let w = world().await;
+    let id = stdio_tools_item(
+        &w,
+        json!([
+            {"name":"PROBE_VALUE","value":"private-token"},
+            {"name":"ECHO_NAME","value":"yes"}
+        ]),
+    )
+    .await;
+    let out = w.extensions.agent_tools("aylul", &id).await.unwrap();
+    assert!(out.tools.is_empty());
+    assert!(out.list_error.is_some());
+    assert!(!format!("{out:?}").contains("private-token"));
+}
+
+#[tokio::test]
+async fn dotted_tool_names_can_be_saved() {
+    let w = world().await;
+    let id = rule_item(&w).await;
+    let out = w
+        .extensions
+        .set_tool_rules("dot".into(), "aylul", &id, rules(&[("file.read", "deny")]))
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(out).unwrap(),
+        json!([{"tool":"file.read","rule":"deny"}])
     );
 }
 
