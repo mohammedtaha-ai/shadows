@@ -304,14 +304,15 @@ impl Homes {
             .mcp
             .into_iter()
             .map(|server| match server {
-                core_extensions::McpServerConfig::Http { name, url, headers } => {
-                    shadows_agent::acp::McpServerSpec::Http { name, url, headers }
-                }
+                core_extensions::McpServerConfig::Http {
+                    name, url, headers, ..
+                } => shadows_agent::acp::McpServerSpec::Http { name, url, headers },
                 core_extensions::McpServerConfig::Stdio {
                     name,
                     command,
                     args,
                     env,
+                    ..
                 } => shadows_agent::acp::McpServerSpec::Stdio {
                     name,
                     command,

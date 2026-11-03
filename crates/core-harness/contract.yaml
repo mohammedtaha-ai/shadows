@@ -64,6 +64,7 @@ name: harness
 # Every new, resumed or forked Planner session sends its Shadows HTTP MCP server
 # in the ACP server list; AYLUL sends only its enabled MCP items. HTTP headers and stdio
 # environment values are omitted from MCP setup Debug output.
+# Extensions' resolved MCP snapshots carry per-agent rules beside transport facts.
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
 # Harness opens AYLUL with PermissionPolicy::Ask and Planner with Refuse.

@@ -781,12 +781,15 @@ dependencies = [
 name = "core-extensions"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "core-agents",
  "core-db",
  "core-projects",
  "core-providers",
  "core-secrets",
  "dunce",
+ "reqwest",
+ "rmcp",
  "serde",
  "serde_json",
  "sha2 0.10.9",

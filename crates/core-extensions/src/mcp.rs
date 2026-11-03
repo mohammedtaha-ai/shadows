@@ -161,12 +161,14 @@ pub enum McpServerConfig {
         name: String,
         url: String,
         headers: Vec<(String, String)>,
+        rules: Vec<crate::ToolRuleEntry>,
     },
     Stdio {
         name: String,
         command: String,
         args: Vec<String>,
         env: Vec<(String, String)>,
+        rules: Vec<crate::ToolRuleEntry>,
     },
 }
 
@@ -201,7 +203,7 @@ impl Extensions {
     ) -> Result<crate::AgentExtensionSnapshot, ExtensionsError> {
         let guard = self.extension_guard().await;
         let list = self.store.agent_library(slug).await?;
-        let mcp = self.resolve_mcp_servers(&list).await?;
+        let mcp = self.resolve_mcp_servers(slug, &list).await?;
         Ok(crate::AgentExtensionSnapshot {
             library: list,
             mcp,
@@ -209,13 +211,15 @@ impl Extensions {
         })
     }
 
-    async fn resolve_mcp_servers(
+    pub(super) async fn resolve_mcp_servers(
         &self,
+        slug: &str,
         list: &crate::AgentExtensions,
     ) -> Result<Vec<McpServerConfig>, ExtensionsError> {
         let mut out = Vec::new();
         for agent_item in list.mcp.iter().filter(|item| item.enabled) {
             let item = agent_item.item.clone();
+            let rules = self.store.tool_rules(slug, &item.id).await?;
             let values = self
                 .secrets
                 .resolve_env(&core_secrets::Secrets::mcp_scope(&item.id))
@@ -237,12 +241,14 @@ impl Extensions {
                     name: item.name,
                     url,
                     headers: select(headers)?,
+                    rules,
                 },
                 McpTransport::Stdio { command, args, env } => McpServerConfig::Stdio {
                     name: item.name,
                     command,
                     args,
                     env: select(env)?,
+                    rules,
                 },
             });
         }
