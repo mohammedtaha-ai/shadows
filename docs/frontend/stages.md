@@ -18,6 +18,7 @@ F-78 and F-79 (the agent form starts empty; the background tasks panel) shipped 
 
 F-80 (per-tool permissions in the agent form) shipped in PR #52 (`6b2c66ed`); its entry is in
 this file at `9c7c7e5a`.
+A click during a save is now queued and built on the saved rules (PR #53, `349606bf`).
 
 No task is open.
 

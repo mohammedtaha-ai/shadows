@@ -52,6 +52,8 @@ Per-tool MCP permissions ([AYLUL agents and panel §7.2.1](../aylul/specs/2026-1
 B-38 and B-39 shipped in PR #52 (`6b2c66ed`), with F-80; their entries are in this file at
 `9c7c7e5a`. The plan was `docs/backend/plans/2026-11-03-aylul-tool-permissions.md` and the request
 `docs/shared/requests/2026-11-03-mcp-tool-permissions.md`, both at `9c7c7e5a`.
+Its review findings (whole-token redaction, the listing's environment and folder, deny over
+allow on a name clash, edits queued during a save) were fixed in PR #53 (`349606bf`).
 
 ## Tasks
 
