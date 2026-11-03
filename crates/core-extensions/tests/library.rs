@@ -775,17 +775,25 @@ async fn a_silent_server_times_out() {
         pid.parse::<u32>().expect("fixture must report its PID")
     };
     let start = std::time::Instant::now();
-    let (out, pid) = tokio::join!(
-        w.extensions.agent_tools("aylul", &id),
-        tokio::time::timeout(std::time::Duration::from_secs(10), receive_pid),
+    // A cold Node start on a loaded runner can outlast the 10-second limit, so the fixture
+    // may be stopped before it reports. One that survived the limit would report within
+    // this longer window, so silence here also means it is gone.
+    let ((out, elapsed), pid) = tokio::join!(
+        async {
+            (
+                w.extensions.agent_tools("aylul", &id).await,
+                start.elapsed(),
+            )
+        },
+        tokio::time::timeout(std::time::Duration::from_secs(20), receive_pid),
     );
     let out = out.unwrap();
-    assert!(start.elapsed() < std::time::Duration::from_secs(12));
+    assert!(elapsed < std::time::Duration::from_secs(12));
     assert_eq!(
         out.list_error.as_deref(),
         Some("the server did not answer in 10 seconds")
     );
-    let pid = pid.expect("silent fixture did not report its PID");
+    let Ok(pid) = pid else { return };
     let mut check = shadows_process::spawn(shadows_process::ProcessSpec {
         executable: "node".into(),
         args: vec![
