@@ -68,6 +68,18 @@ async fn no_get_route_changes_state() {
         .seed_map_for_tests(&a.project)
         .await
         .unwrap();
+    let mcp = a
+        .core
+        .extensions()
+        .add_mcp(
+            "read-only-mcp".into(),
+            serde_json::from_value(json!({"name":"read-check","transport":{
+                "type":"stdio","command":"shadows-absent-mcp-fixture","args":[],"env":[]
+            }}))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
     let part = PartId::generate();
     let outcome = OutcomeId::generate();
     let mut ops: Vec<_> = [
@@ -203,6 +215,7 @@ async fn no_get_route_changes_state() {
             }
             let name = parameter["name"].as_str().unwrap();
             let value = match name {
+                "id" if template.starts_with("/api/aylul/agents/") => mcp.id.clone(),
                 "id" if template.starts_with("/api/projects/") => a.project.to_string(),
                 "id" if template.starts_with("/api/threads/") => a.thread.to_string(),
                 "id" if template.starts_with("/api/workflows/") => workflow.to_string(),

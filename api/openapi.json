@@ -286,6 +286,33 @@
         ],
         "type": "object"
       },
+      "AgentTools": {
+        "properties": {
+          "list_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/ToolRuleEntry"
+            },
+            "type": "array"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/McpTool"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "tools",
+          "rules"
+        ],
+        "type": "object"
+      },
       "AgentWorkspace": {
         "properties": {
           "agents": {
@@ -2989,6 +3016,21 @@
             "type": "object"
           }
         ]
+      },
+      "McpTool": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "type": "object"
       },
       "McpTransport": {
         "oneOf": [
@@ -5857,6 +5899,47 @@
         ],
         "type": "object"
       },
+      "ToolRule": {
+        "enum": [
+          "allow",
+          "ask",
+          "deny"
+        ],
+        "type": "string"
+      },
+      "ToolRuleEntry": {
+        "properties": {
+          "rule": {
+            "$ref": "#/components/schemas/ToolRule"
+          },
+          "tool": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "rule"
+        ],
+        "type": "object"
+      },
+      "ToolRulesRequest": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/ToolRuleEntry"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "command_id",
+          "rules"
+        ],
+        "type": "object"
+      },
       "TurnSettings": {
         "description": "The settings a turn runs with. `effort` is `None` exactly\nwhen the model offers none.",
         "properties": {
@@ -6860,6 +6943,155 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AgentExtensions"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/agents/{slug}/extensions/mcp/{id}/tool-rules": {
+      "put": {
+        "operationId": "set_mcp_tool_rules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolRulesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ToolRuleEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/agents/{slug}/extensions/mcp/{id}/tools": {
+      "get": {
+        "operationId": "agent_mcp_tools",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTools"
                 }
               }
             },

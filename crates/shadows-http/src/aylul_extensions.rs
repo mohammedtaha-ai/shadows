@@ -6,7 +6,8 @@ use axum::{
     http::StatusCode,
 };
 use shadows_core::{
-    AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item, McpInput, McpItem,
+    AgentExtensions, AgentItem, AgentTools, ExtensionKind, ExtensionLibrary, Item, McpInput,
+    McpItem, ToolRuleEntry,
 };
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -27,6 +28,41 @@ pub(super) struct Import {
 pub(super) struct Toggle {
     command_id: String,
     enabled: bool,
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct ToolRulesRequest {
+    command_id: String,
+    rules: Vec<ToolRuleEntry>,
+}
+
+#[utoipa::path(get,path="/api/aylul/agents/{slug}/extensions/mcp/{id}/tools",tag="aylul",
+    operation_id="agent_mcp_tools",params(("slug"=String,Path),("id"=String,Path)),
+    responses((status=200,body=AgentTools),(status=404,body=ErrorBody),
+        (status=500,body=ErrorBody)))]
+pub(super) async fn tools(
+    State(s): State<AppState>,
+    Path((slug, id)): Path<(String, String)>,
+) -> Result<Json<AgentTools>, Failure> {
+    Ok(Json(s.core.extensions().agent_tools(&slug, &id).await?))
+}
+
+#[utoipa::path(put,path="/api/aylul/agents/{slug}/extensions/mcp/{id}/tool-rules",tag="aylul",
+    operation_id="set_mcp_tool_rules",params(("slug"=String,Path),("id"=String,Path)),
+    request_body=ToolRulesRequest,responses((status=200,body=Vec<ToolRuleEntry>),
+        (status=400,body=ErrorBody),(status=404,body=ErrorBody),(status=409,body=ErrorBody),
+        (status=500,body=ErrorBody)))]
+pub(super) async fn tool_rules(
+    State(s): State<AppState>,
+    Path((slug, id)): Path<(String, String)>,
+    EnvJson(b): EnvJson<ToolRulesRequest>,
+) -> Result<Json<Vec<ToolRuleEntry>>, Failure> {
+    Ok(Json(
+        s.core
+            .extensions()
+            .set_tool_rules(b.command_id, &slug, &id, b.rules)
+            .await?,
+    ))
 }
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in=Query)]
