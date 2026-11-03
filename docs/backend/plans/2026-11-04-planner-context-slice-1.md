@@ -94,6 +94,7 @@ the three Planner defects found on 2026-11-04.
   - `operation_id TEXT PRIMARY KEY REFERENCES operation(id)`;
   - `thread_id TEXT NOT NULL`;
   - `session_id TEXT NOT NULL`: the harness session the prompt went to;
+  - `start_seq INTEGER NOT NULL`: the operation journal sequence captured at preparation;
   - `digest TEXT NOT NULL`;
   - `text TEXT NOT NULL`;
   - `sources_json TEXT NOT NULL`;
@@ -120,7 +121,7 @@ the three Planner defects found on 2026-11-04.
 - **What the session heard, by session, not by thread:**
   `Harness::heard_context_digest(&self, session: &str) -> Result<Option<String>, StorageError>`
   reads the digest of the newest `heard = 1` row for that harness session. The newest is by the
-  operation's start, never `rowid`. A new session on an old thread has heard nothing.
+  captured operation journal sequence, never `rowid`. A new session on an old thread has heard nothing.
 - **The record a person reads:** `Harness::context_record(&self, op: &OperationId) ->
   Result<Option<(CarriedContext, bool)>, StorageError>` answers the row and its `heard`.
 

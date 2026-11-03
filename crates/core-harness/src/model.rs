@@ -131,3 +131,21 @@ pub struct WaitingPermission {
     pub options: Vec<shadows_agent::events::PermissionOption>,
     pub asked_at: String,
 }
+/// Planning material prepared for one invocation.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct CarriedContext {
+    pub digest: String,
+    pub text: String,
+    pub sources: Vec<ContextSource>,
+    pub index_tokens: i64,
+    pub detail_tokens: i64,
+    pub over_tokens: i64,
+    pub cuts: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ContextSource {
+    pub kind: String,
+    pub id: String,
+    pub version: i64,
+}

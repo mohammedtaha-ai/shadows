@@ -12,6 +12,7 @@ mod error;
 pub use error::HarnessError;
 mod assistant;
 mod commands;
+mod context_record;
 mod extension_home;
 mod fork;
 mod live;
@@ -41,8 +42,8 @@ use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
 pub use model::{
-    AylulUsageSnapshot, HarnessInfo, HarnessMode, InvocationVersions, InvocationView,
-    RememberedSettings,
+    AylulUsageSnapshot, CarriedContext, ContextSource, HarnessInfo, HarnessMode,
+    InvocationVersions, InvocationView, RememberedSettings,
 };
 use sessions::Sessions;
 pub use sessions::{LeaseError, OpenError, OpenSession, SessionsConfig};

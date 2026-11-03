@@ -1,4 +1,5 @@
 //! Private harness persistence over the shared storage handle.
+mod context_record;
 mod invocation;
 mod invocations;
 mod limits;
