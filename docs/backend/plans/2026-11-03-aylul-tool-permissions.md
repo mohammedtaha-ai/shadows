@@ -1,6 +1,6 @@
 # AYLUL per-tool MCP permissions Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Each tool of a switched-on MCP item is allowed, asking or blocked per AYLUL agent,
 and Claude Code enforces it through the agent's `settings.json`.
@@ -40,16 +40,16 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
 ## Review Focus
 
 1. **A stdio server that hangs or never exits.** Listing must end at 10 s and the child
-   process tree must be terminated, not left running. Test in Task 1.
+   process tree must be terminated, not left running. Test in Task 2.
 2. **A secret value inside an error.** A server answering 401 or a command failing must not
-   echo the header or env value into `ExtensionsError` text. Test in Task 1.
+   echo the header or env value into `ExtensionsError` text. Test in Task 2.
 3. **Hand-written rules in `settings.json`.** Mohammed or Claude Code itself may add
    `permissions.allow` entries; projection removes only what it wrote. Test in Task 3.
 4. **An item renamed after rules were written.** The old `mcp__<old>__…` strings must leave
    `settings.json` at the next opening (the manifest holds what was written, not the name).
    Test in Task 3.
 5. **Rules for tools the server dropped.** They stay stored and visible as missing; they
-   are still written (harmless) until cleared. Test in Task 2 (route) and Task 4 (form).
+   are still written (harmless) until cleared. Test in Task 4 (route) and Task 5 (form).
 
 ---
 
@@ -75,11 +75,11 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
     (replaces the agent's whole rule set for the item; `Ask` entries are dropped; command
     kind `extension.tool_rules`, fingerprint `{slug,id,rules}` with rules sorted by tool)
 
-- [ ] **Step 1: Migration.** Table `aylul_agent_mcp_tool_rule(agent_slug TEXT NOT NULL
+- [x] **Step 1: Migration.** Table `aylul_agent_mcp_tool_rule(agent_slug TEXT NOT NULL
   REFERENCES aylul_agent(slug), mcp_id TEXT NOT NULL REFERENCES aylul_mcp_server(id) ON
   DELETE CASCADE, tool TEXT NOT NULL, rule TEXT NOT NULL CHECK (rule IN ('allow','deny')),
   PRIMARY KEY (agent_slug, mcp_id, tool))`.
-- [ ] **Step 2: Failing tests**, through the public API:
+- [x] **Step 2: Failing tests**, through the public API:
   - `rules_are_per_agent`: set `[{tool:"read", rule:Allow}]` for agent A on item X; agent B's
     `tool_rules` on X is `[]`; A's is that one entry.
   - `ask_stores_no_row`: set `[{read,Allow},{write,Ask}]` → `tool_rules` is `[{read,Allow}]`.
@@ -92,12 +92,12 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
     agent refuses (as `toggle`, via `Agents::require_live_in`).
   - `tool_rules_replay_and_conflict`: same `command_id` and rules → same answer; same id,
     other rules → `CommandConflict`.
-- [ ] **Step 3: Run** `cargo test -p core-extensions` → the new tests fail.
-- [ ] **Step 4: Implement** in `tool_rules.rs` (validation, command) and `store/mod.rs`
+- [x] **Step 3: Run** `cargo test -p core-extensions` → the new tests fail.
+- [x] **Step 4: Implement** in `tool_rules.rs` (validation, command) and `store/mod.rs`
   (one `write_txn_as`: classify, `require_live_in`, item exists, delete the agent's rows
   for the item, insert the non-`ask` ones, record the answer). Hold `extension_guard`.
-- [ ] **Step 5: Run** `cargo test -p core-extensions` → all pass.
-- [ ] **Step 6: Contract.** Add the two functions, the table to the store note, and the
+- [x] **Step 5: Run** `cargo test -p core-extensions` → all pass.
+- [x] **Step 6: Contract.** Add the two functions, the table to the store note, and the
   rules `Per-agent tool rules; ask stores nothing; rules survive the switch, go with the
   item or agent` with the test names. Commit `feat(core-extensions): per-agent MCP tool rules (B-38)`.
 
@@ -126,7 +126,7 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   - `McpServerConfig::{Http, Stdio}` gain `rules: Vec<ToolRuleEntry>`; `opening_snapshot`
     fills them for each switched-on item.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - `tools_are_listed_from_an_http_server` (server requires a header; the item's stored
     header value reaches it; answer lists two tools with descriptions),
   - `tools_are_listed_from_a_stdio_server` (the stored env value reaches the child),
@@ -136,13 +136,13 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
     `format!("{:?}", tools)` contains the header value),
   - `opening_snapshot_carries_rules_of_switched_on_items` (rules of a switched-off item are
     absent; of a switched-on one present).
-- [ ] **Step 2: Run** `cargo test -p core-extensions` → fail.
-- [ ] **Step 3: Implement** `tool_list.rs`: resolve values as `resolve_mcp_servers` does;
+- [x] **Step 2: Run** `cargo test -p core-extensions` → fail.
+- [x] **Step 3: Implement** `tool_list.rs`: resolve values as `resolve_mcp_servers` does;
   HTTP via rmcp's reqwest streamable client with the headers; stdio via
   `shadows_process::spawn` + `take_stdio`, handing `(stdout, stdin)` to rmcp, and
   `terminate_tree` on every path; wrap the whole exchange in `tokio::time::timeout(10 s)`;
   page through `tools/list` cursors.
-- [ ] **Step 4: Run** → pass. **Step 5:** contract (functions, rule `Listing is bounded,
+- [x] **Step 4: Run** → pass. **Step 5:** contract (functions, rule `Listing is bounded,
   value-free and leaves no child process`), commit `feat(core-extensions): list an MCP
   item's tools (B-38)`.
 
@@ -161,11 +161,11 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   (private to the crate, an associated fn on `Homes`). Manifest `.aylul-tool-rules.json`
   `{ "allow": [..], "deny": [..] }` holds exactly the strings it wrote last time.
 
-- [ ] **Step 1: Probe first** (report in the commit message and in spec §7.2.1's Modes
+- [x] **Step 1: Probe first** (report in the commit message and in spec §7.2.1's Modes
   bullet): with a real ACP session through `harness/claude`, the tool name Claude Code
   shows for an ACP-delivered server named `context7` (expected `mcp__context7__<tool>`),
   and whether a `permissions.deny` entry refuses the tool under `bypassPermissions`.
-- [ ] **Step 2: Failing tests** in `homes.rs`:
+- [x] **Step 2: Failing tests** in `homes.rs`:
   - `opening_writes_allow_and_deny_rules`: item `docs` switched on with `{read:Allow,
     exec:Deny}` → `settings.json` has `"mcp__docs__read"` in `permissions.allow` and
     `"mcp__docs__exec"` in `permissions.deny`.
@@ -173,12 +173,12 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   - `foreign_rules_are_kept`: a hand-written `"Bash(ls)"` in `permissions.allow` survives.
   - `a_renamed_item_leaves_no_old_rule`: rename `docs` → `docs2` via `update_mcp`, open →
     only `mcp__docs2__…` strings.
-- [ ] **Step 3: Run** `cargo test -p shadows-core --test aylul_session homes` → fail.
-- [ ] **Step 4: Implement**: read `settings.json`, remove the manifest's previous strings
+- [x] **Step 3: Run** `cargo test -p shadows-core --test aylul_session homes` → fail.
+- [x] **Step 4: Implement**: read `settings.json`, remove the manifest's previous strings
   from both lists, add the current ones (sorted, no duplicates), drop an empty
   `permissions` object only if it was created here, write with the file's `atomic` helper,
   then the manifest. Name format from the probe.
-- [ ] **Step 5: Run** → pass. **Step 6:** harness contract, commit
+- [x] **Step 5: Run** → pass. **Step 6:** harness contract, commit
   `feat(core-harness): write MCP tool rules into the agent home (B-39)`.
 
 ### Task 4 (B-39, part 2): HTTP routes
@@ -196,15 +196,15 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   `{ command_id: String, rules: Vec<ToolRuleEntry> }` → 200 `Vec<ToolRuleEntry>`; 400
   invalid; 404; 409 conflict. Calls `set_tool_rules`.
 
-- [ ] **Step 1: Failing tests:** `tools_and_rules_are_listed`, `rules_are_replaced`,
+- [x] **Step 1: Failing tests:** `tools_and_rules_are_listed`, `rules_are_replaced`,
   `an_unknown_item_is_404`, `a_bad_tool_name_is_400`, `a_replayed_put_conflicts_on_change`,
   `missing_tools_keep_their_rule` (a rule for a tool the server does not list comes back
   in `rules`).
-- [ ] **Step 2: Run** `cargo test -p shadows --test tool_rules_routes` → fail.
-- [ ] **Step 3: Implement** the two handlers (translate only).
-- [ ] **Step 4:** `npm run gen:api` (from repo root as the README says), then
+- [x] **Step 2: Run** `cargo test -p shadows --test tool_rules_routes` → fail.
+- [x] **Step 3: Implement** the two handlers (translate only).
+- [x] **Step 4:** `npm run gen:api` (from repo root as the README says), then
   `cargo test -p shadows --test tool_rules_routes` and `--test openapi` → pass.
-- [ ] **Step 5:** contract, commit `feat(shadows-http): MCP tool rules routes (B-39)`.
+- [x] **Step 5:** contract, commit `feat(shadows-http): MCP tool rules routes (B-39)`.
 
 ### Task 5 (F-80): the tools under a switched-on MCP item
 
@@ -220,7 +220,7 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   `ExtensionSwitch` does.
 - Produces: `export function ToolRules({ slug, id }: { slug: string; id: string })`.
 
-- [ ] **Step 1: Failing tests** (`tool-rules.test.tsx`):
+- [x] **Step 1: Failing tests** (`tool-rules.test.tsx`):
   - lists each tool with its description and three buttons named
     `Allow <tool>`, `Ask before <tool>`, `Block <tool>`, the current one `aria-pressed`;
   - clicking `Block exec` sends `PUT …/tool-rules` with `[{tool:"exec",rule:"deny"}]` plus
@@ -229,10 +229,10 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   - a rule whose tool is not listed shows under "No longer offered by the server" with a
     `Clear` button that sends the rules without it;
   - `list_error` shows the sentence, and stored rules are still shown and clearable.
-- [ ] **Step 2: Run** `npm test -- tool-rules` → fail.
-- [ ] **Step 3: Implement** with existing `Button` and tokens; the three buttons use
+- [x] **Step 2: Run** `npm test -- tool-rules` → fail.
+- [x] **Step 3: Implement** with existing `Button` and tokens; the three buttons use
   lucide icons (`Check`, `Hand`, `Ban`) with visually hidden labels; pending state disables
   the row and shows `Saving…`; errors use `ErrorLine`.
-- [ ] **Step 4: Run** `npm test -- tool-rules`, `npm run typecheck`, `npm run lint`,
+- [x] **Step 4: Run** `npm test -- tool-rules`, `npm run typecheck`, `npm run lint`,
   `npm run build` → pass.
-- [ ] **Step 5:** agents contract, commit `feat(web): per-tool permissions in the agent form (F-80)`.
+- [x] **Step 5:** agents contract, commit `feat(web): per-tool permissions in the agent form (F-80)`.
