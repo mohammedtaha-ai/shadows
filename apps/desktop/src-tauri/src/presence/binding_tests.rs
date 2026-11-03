@@ -12,6 +12,7 @@ use std::{
 struct Api {
     origin: String,
     permissions: Arc<Mutex<serde_json::Value>>,
+    groups: Arc<Mutex<serde_json::Value>>,
     posts: Arc<Mutex<Vec<(String, serde_json::Value)>>>,
     stop: Arc<AtomicBool>,
     worker: Option<thread::JoinHandle<()>>,
@@ -24,8 +25,10 @@ impl Api {
         let stop = Arc::new(AtomicBool::new(false));
         let cancelled = stop.clone();
         let permissions = Arc::new(Mutex::new(serde_json::json!([])));
+        let groups = Arc::new(Mutex::new(serde_json::json!([])));
         let posts = Arc::new(Mutex::new(vec![]));
         let (listed, recorded) = (permissions.clone(), posts.clone());
+        let listed_groups = groups.clone();
         let worker = thread::spawn(move || {
             while !cancelled.load(Ordering::Relaxed) {
                 let Ok((mut stream, _)) = socket.accept() else {
@@ -79,6 +82,8 @@ impl Api {
                     if error.is_empty() { serde_json::json!({"request_id":code}) } else { serde_json::json!({"code":error,"message":"SECRET MUST NOT ESCAPE"}) }
                 } else if path=="/api/aylul/permissions" {
                     listed.lock().unwrap().clone()
+                } else if path=="/api/groups" {
+                    listed_groups.lock().unwrap().clone()
                 } else if path=="/api/runtime" {serde_json::json!({"runtime_id":"00000000-0000-4000-8000-000000000009","configuration_id":CONFIG})} else if path=="/api/aylul/agents" {
     serde_json::json!({"project_id":PROJECT,"agents":[
      {"slug":"agent-a","deleted":false},{"slug":"agent-b","deleted":false},{"slug":"deleted","deleted":true}
@@ -93,6 +98,7 @@ impl Api {
         Self {
             origin,
             permissions,
+            groups,
             posts,
             stop,
             worker: Some(worker),
@@ -355,6 +361,25 @@ fn oldest_waiting_resolves_the_first_entry_and_falls_back_when_it_does_not_resol
     assert_eq!(
         presence.destination_for(MainTarget::OldestWaiting),
         MainDestination::CompanionSettings
+    );
+}
+#[test]
+fn the_oldest_waiting_group_opens_the_group_page() {
+    use crate::navigation::MainDestination;
+    let (api, _root, presence) = fixture();
+    let id = "00000000-0000-4000-8000-000000000005";
+    *api.groups.lock().unwrap() = serde_json::json!([{
+        "id":id,"needs_you_since":"2026-11-01T10:05:00Z","members":[{"thread_id":THREAD}]
+    }]);
+    *api.permissions.lock().unwrap() = serde_json::json!([
+        {"thread_id":OTHER,"agent":"agent-b","request_id":"second","asked_at":"2026-11-01T10:03:00Z"},
+        {"thread_id":THREAD,"agent":"agent-a","request_id":"first","asked_at":"2026-11-01T10:00:00Z"}
+    ]);
+    assert_eq!(
+        presence.destination_for(MainTarget::OldestWaiting),
+        MainDestination::Group {
+            group_id: id.into()
+        }
     );
 }
 #[test]

@@ -59,7 +59,7 @@ obligations:
   - rule: Talk and Chat open the existing composer; Sound turns the existing interaction tones on or off for the session only, and the tone controller is disposed with the desktop companion.
     tested_by: apps/desktop/tests/companion/panel.spec.ts
     test: Talk and Chat open the composer and Sound toggles tones
-  - rule: The status pill reads Ready at zero waiting requests and the count otherwise; a click on it asks native to open main on oldestWaiting. It never invents a count when native publishes none.
+  - rule: The status pill reads Ready at zero waiting items and uses the native count otherwise. A click asks native to open oldestWaiting. The companion plays the existing tone when native advances its alert revision.
     tested_by: apps/desktop/tests/companion/panel.spec.ts
     test: the pill reads Ready at zero and the count otherwise, and a click asks for the oldest waiting
   - rule: When the bound agent's conversation has a waiting request the card shows its title and one button per option, labelled with the option's name, and no text answer. A click answers through answerCompanionPermission with a command id.

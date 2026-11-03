@@ -80,12 +80,18 @@ pub struct SurfaceWaitingRequest {
 }
 /// Requests waiting for the person: the count across AYLUL, the bound conversation's own.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SurfaceWaiting {
     pub count: u32,
     pub bound: Vec<SurfaceWaitingRequest>,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub alert_revision: u64,
+}
+fn is_zero(value: &u64) -> bool {
+    *value == 0
 }
 impl SurfaceWaiting {
     pub fn is_empty(&self) -> bool {
-        self.count == 0 && self.bound.is_empty()
+        self.count == 0 && self.bound.is_empty() && self.alert_revision == 0
     }
 }

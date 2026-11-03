@@ -17,7 +17,23 @@ export function DesktopCompanion():React.JSX.Element {
   const [sound,setSound]=React.useState(false),[soundPending,setSoundPending]=React.useState(false),[selecting,setSelecting]=React.useState(false);
   React.useEffect(()=>{tones.current=createTones();return()=>{tones.current?.dispose();tones.current=null;};},[]);
   const [presentation,setPresentation]=React.useState(()=>owner.current.read(Date.now()));
-  React.useEffect(()=>{tones.current?.play(presentation.expression==='success'?'success':'state');},[presentation.expression]);
+  const previousPresentation=React.useRef(presentation);
+  React.useEffect(()=>{
+    const previous=previousPresentation.current;
+    previousPresentation.current=presentation;
+    if(previous.expression!==presentation.expression&&
+      previous.statusText!=='Waiting for you'&&presentation.statusText!=='Waiting for you'){
+      tones.current?.play(presentation.expression==='success'?'success':'state');
+    }
+  },[presentation]);
+  const alertRevision=state?.panel.waiting.alertRevision??0;
+  const lastAlert=React.useRef<number|null>(null);
+  React.useEffect(()=>{
+    if(state===null)return;
+    const previous=lastAlert.current;
+    lastAlert.current=Math.max(previous??0,alertRevision);
+    if(previous!==null&&alertRevision>previous)tones.current?.play('state');
+  },[state,alertRevision]);
   const gestures=React.useMemo(()=>createDesktopGesture({drag:dragCompanion,open:()=>setCompanionPanel(true).then(()=>{}),fail:setError}),[]);
   React.useEffect(()=>()=>gestures.dispose(),[gestures]);
   React.useEffect(()=>{if(ready)return connectCompanion(setState,setError,true);},[ready]);

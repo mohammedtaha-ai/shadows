@@ -5,12 +5,14 @@ use crate::{
     core_connection::ReadyConnection,
     presence::{
         binding::BindingView,
-        core_client::{Client, Feed, Problem, WaitingPermission},
+        core_client::{Client, Feed, Problem, WaitingGroup, WaitingPermission},
         projection::{Observation, PresenceInput, PresenceProjection, Projection, Scope},
+        waiting_items,
     },
 };
 use serde::Deserialize;
 use std::{
+    collections::{HashMap, HashSet},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
@@ -26,8 +28,8 @@ fn now() -> u64 {
         .as_millis()
         .min(u64::MAX as u128) as u64
 }
-struct Session {
-    waiting: Waiting,
+struct Session<'a> {
+    waiting: Waiting<'a>,
     appearance: Option<crate::presence::CompanionAppearance>,
     scope: Scope,
     projection: Projection,
@@ -36,7 +38,7 @@ struct Session {
     notify: Notify,
     ready: watch::Sender<Readiness>,
 }
-impl Session {
+impl Session<'_> {
     fn apply(&mut self, observation: Observation) {
         let before = self.projection.value();
         let cleared = matches!(
@@ -78,12 +80,16 @@ impl Session {
         }
     }
     async fn metadata(&mut self, client: &Client, binding: &BindingView) -> Result<(), Problem> {
-        let appearance = client.validate_appearance(binding).await?;
-        let changed = self.appearance != appearance;
-        self.appearance = appearance;
         if self.waiting.feed.is_none() && self.waiting.connect(client, binding).await {
             self.waiting_changed();
         }
+        let appearance = if binding.agent.is_some() {
+            client.validate_appearance(binding).await?
+        } else {
+            None
+        };
+        let changed = self.appearance != appearance;
+        self.appearance = appearance;
         self.apply(Observation::Ready);
         if changed {
             self.publish(self.projection.value());
@@ -162,22 +168,66 @@ impl Session {
         Ok(())
     }
 }
-/// Open permission requests for the AYLUL project, kept current by a second
-/// read-only feed. A broken feed clears the requests and is reopened on the next
-/// metadata check, at most ten times in a row.
+/// Alert delivery survives a replacement of the bound conversation's runner.
 #[derive(Default)]
-struct Waiting {
+pub(super) struct AlertHistory {
+    configuration: String,
+    cursor: i64,
+    initialized: bool,
+    permissions: HashSet<(String, String)>,
+    calls: HashMap<String, i64>,
+    pending_tone: bool,
+    revision: u64,
+}
+impl AlertHistory {
+    fn scope(&mut self, configuration: &str) {
+        if self.configuration != configuration {
+            *self = Self {
+                configuration: configuration.into(),
+                revision: self.revision,
+                ..Self::default()
+            };
+        }
+    }
+}
+enum RefreshWaiting {
+    Permissions,
+    Message(GroupMessageEvent),
+    CaughtUp,
+}
+#[derive(Deserialize)]
+struct GroupMessageEvent {
+    group_id: String,
+    seq: i64,
+}
+
+/// One project feed reconciles both kinds of waiting items.
+struct Waiting<'a> {
+    history: &'a mut AlertHistory,
     project: Option<String>,
     feed: Option<Feed>,
-    cursor: i64,
     failures: u32,
     requests: Vec<WaitingPermission>,
-    /// A `PermissionsChanged` frame was taken but its re-read has not finished.
-    owed: bool,
+    groups: Vec<WaitingGroup>,
+    replaying: bool,
+    // select! can cancel a lookup after its frame was already consumed.
+    owed: Option<(i64, RefreshWaiting)>,
 }
-impl Waiting {
+impl<'a> Waiting<'a> {
     const LIST: usize = 256;
     const FAILURES: u32 = 10;
+    fn new(history: &'a mut AlertHistory) -> Self {
+        Self {
+            history,
+            project: None,
+            feed: None,
+            failures: 0,
+            requests: vec![],
+            groups: vec![],
+            replaying: true,
+            owed: None,
+        }
+    }
     /// Subscribe before the read, so a change between them is not lost. True when the requests changed.
     async fn connect(&mut self, client: &Client, binding: &BindingView) -> bool {
         if self.failures >= Self::FAILURES {
@@ -188,24 +238,36 @@ impl Waiting {
                 Some(project) => project,
                 None => client.project_id(binding).await?,
             };
-            let feed = client.subscribe_project(&project, self.cursor).await?;
+            let feed = client
+                .subscribe_project(&project, self.history.cursor)
+                .await?;
+            let groups = client.groups().await?;
             let requests = client.permissions().await?;
-            Ok::<_, Problem>((project, feed, requests))
+            Ok::<_, Problem>((project, feed, groups, requests))
         }
         .await;
         match attempt {
-            Ok((project, feed, requests)) => {
+            Ok((project, feed, groups, requests)) => {
                 self.project = Some(project);
                 self.feed = Some(feed);
-                self.failures = 0;
-                self.owed = false;
-                self.replace(requests)
+                self.replaying = true;
+                self.owed = None;
+                self.groups = groups;
+                self.replace(requests);
+                true
             }
             Err(_) => self.lose(),
         }
     }
     fn replace(&mut self, mut requests: Vec<WaitingPermission>) -> bool {
         requests.truncate(Self::LIST);
+        for request in &requests {
+            let new = self
+                .history
+                .permissions
+                .insert((request.thread_id.clone(), request.request_id.clone()));
+            self.history.pending_tone |= new && self.history.initialized;
+        }
         let changed = self.requests != requests;
         self.requests = requests;
         changed
@@ -213,25 +275,72 @@ impl Waiting {
     fn lose(&mut self) -> bool {
         self.feed = None;
         self.failures += 1;
-        self.replace(vec![])
+        self.owed = None;
+        let had_groups = !self.groups.is_empty();
+        self.groups.clear();
+        self.replace(vec![]) || had_groups
     }
     /// Waits for the next project frame; true when the requests changed.
     ///
     /// Callers race this against timers in `select!`, so the re-read is owed
     /// across a cancellation: the frame is already consumed and would be lost.
     async fn change(&mut self, client: &Client) -> bool {
-        if !self.owed {
+        if self.owed.is_none() {
             if let Some(changed) = self.frame().await {
                 return changed;
             }
-            self.owed = true;
         }
-        let requests = client.permissions().await;
-        self.owed = false;
-        match requests {
-            Ok(requests) => self.replace(requests),
+        let result = self.refresh_owed(client).await;
+        match result {
+            Ok(changed) => {
+                if !self.replaying && std::mem::take(&mut self.history.pending_tone) {
+                    self.history.revision += 1;
+                    true
+                } else {
+                    changed
+                }
+            }
             Err(_) => self.lose(),
         }
+    }
+    async fn refresh_owed(&mut self, client: &Client) -> Result<bool, Problem> {
+        let (cursor, action) = self.owed.as_ref().expect("a consumed frame is owed");
+        let cursor = *cursor;
+        let changed = match action {
+            RefreshWaiting::Permissions => self.replace(client.permissions().await?),
+            RefreshWaiting::Message(event) => {
+                let groups = client.groups().await?;
+                if self
+                    .history
+                    .calls
+                    .get(&event.group_id)
+                    .is_none_or(|seq| event.seq > *seq)
+                    && client
+                        .group_message_calls_person(&event.group_id, event.seq)
+                        .await?
+                {
+                    self.history.calls.insert(event.group_id.clone(), event.seq);
+                    self.history.pending_tone = true;
+                }
+                let changed = self.groups != groups;
+                self.groups = groups;
+                changed
+            }
+            RefreshWaiting::CaughtUp => {
+                let groups = client.groups().await?;
+                let requests = client.permissions().await?;
+                let changed = self.groups != groups;
+                self.groups = groups;
+                let changed = self.replace(requests) || changed;
+                self.history.initialized = true;
+                self.replaying = false;
+                self.failures = 0;
+                changed
+            }
+        };
+        self.history.cursor = self.history.cursor.max(cursor);
+        self.owed = None;
+        Ok(changed)
     }
     /// The next frame's effect, or `None` when it asks for a re-read.
     async fn frame(&mut self) -> Option<bool> {
@@ -244,8 +353,8 @@ impl Waiting {
         match frame.event.as_str() {
             "caught-up" => match serde_json::from_str::<CaughtUp>(&frame.data) {
                 Ok(value) => {
-                    self.cursor = self.cursor.max(value.seq);
-                    Some(false)
+                    self.owed = Some((value.seq, RefreshWaiting::CaughtUp));
+                    None
                 }
                 Err(_) => Some(self.lose()),
             },
@@ -253,11 +362,25 @@ impl Waiting {
                 let Ok(value) = serde_json::from_str::<Durable>(&frame.data) else {
                     return Some(self.lose());
                 };
-                if value.seq <= self.cursor {
+                if value.seq <= self.history.cursor {
                     return Some(false);
                 }
-                self.cursor = value.seq;
-                (value.kind != "PermissionsChanged").then_some(false)
+                let action = match value.kind.as_str() {
+                    "PermissionsChanged" => RefreshWaiting::Permissions,
+                    "MessageAdded" if self.history.initialized => {
+                        let Ok(event) = serde_json::from_value(value.payload) else {
+                            return Some(self.lose());
+                        };
+                        RefreshWaiting::Message(event)
+                    }
+                    // The caught-up snapshot covers the initial replay without loading old messages.
+                    _ => {
+                        self.history.cursor = value.seq;
+                        return Some(false);
+                    }
+                };
+                self.owed = Some((value.seq, action));
+                None
             }
             "lagged" | "fatal" => Some(self.lose()),
             _ => Some(false),
@@ -266,7 +389,8 @@ impl Waiting {
     /// What the companion shows: every request counted, the bound thread's listed within bounds.
     fn view(&self, thread: Option<&str>) -> SurfaceWaiting {
         SurfaceWaiting {
-            count: self.requests.len() as u32,
+            count: waiting_items::items(&self.groups, &self.requests).len() as u32,
+            alert_revision: self.history.revision,
             bound: self
                 .requests
                 .iter()
@@ -309,6 +433,7 @@ pub(super) async fn run(
     outlet: Outlet,
     timing: Timing,
     refreshes: &mut mpsc::Receiver<RefreshRequest>,
+    alert_history: &mut AlertHistory,
 ) {
     let Outlet {
         epoch,
@@ -326,8 +451,9 @@ pub(super) async fn run(
             .map(|target| target.thread_id.clone()),
     };
     let projection = Projection::new(scope.clone(), binding.agent.is_some(), binding.previews);
+    alert_history.scope(&connection.configuration_id);
     let mut state = Session {
-        waiting: Waiting::default(),
+        waiting: Waiting::new(alert_history),
         appearance: None,
         scope,
         projection,
@@ -336,10 +462,6 @@ pub(super) async fn run(
         notify,
         ready,
     };
-    if binding.agent.is_none() {
-        state.publish(PresenceProjection::unbound());
-        return;
-    }
     state.publish(state.projection.value());
     let client = match Client::new(connection, timing.snapshot) {
         Ok(client) => client,
@@ -413,7 +535,7 @@ async fn session(
     client: &Client,
     binding: &BindingView,
     thread: &str,
-    state: &mut Session,
+    state: &mut Session<'_>,
     reconnect: &mut Reconnect,
     timing: &Timing,
     refreshes: &mut mpsc::Receiver<RefreshRequest>,
@@ -543,6 +665,8 @@ struct Durable {
     kind: String,
     operation_id: Option<String>,
     thread_id: Option<String>,
+    #[serde(default)]
+    payload: serde_json::Value,
 }
 #[derive(Deserialize)]
 struct Progress {

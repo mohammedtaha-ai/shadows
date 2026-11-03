@@ -41,6 +41,9 @@ pub struct Data {
     pub sequence: AtomicI64,
     pub events: broadcast::Sender<(String, String)>,
     pub permissions: Mutex<Vec<serde_json::Value>>,
+    pub groups: Mutex<Vec<serde_json::Value>>,
+    pub group_messages: Mutex<Vec<serde_json::Value>>,
+    pub project_replay: Mutex<Vec<(i64, String)>>,
     pub project_events: broadcast::Sender<(String, String)>,
     pub project_sequence: AtomicI64,
 }
@@ -75,6 +78,9 @@ impl Fixture {
             sequence: AtomicI64::new(0),
             events,
             permissions: Mutex::new(vec![]),
+            groups: Mutex::new(vec![]),
+            group_messages: Mutex::new(vec![]),
+            project_replay: Mutex::new(vec![]),
             project_events,
             project_sequence: AtomicI64::new(0),
         });
@@ -142,6 +148,26 @@ impl Fixture {
     pub fn project_emit(&self, name: &str) {
         let _ = self.data.project_events.send((name.into(), "{}".into()));
     }
+    pub fn group_message(&self, group: &str, seq: i64, calls_person: bool) {
+        let to = if calls_person {
+            serde_json::json!([{"kind":"person"}])
+        } else {
+            serde_json::json!([])
+        };
+        self.data
+            .group_messages
+            .lock()
+            .unwrap()
+            .push(serde_json::json!({"seq":seq,"to":to}));
+        let cursor = self.data.project_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+        let body = serde_json::json!({"seq":cursor,"kind":"MessageAdded","payload":{"group_id":group,"seq":seq}}).to_string();
+        self.data
+            .project_replay
+            .lock()
+            .unwrap()
+            .push((cursor, body.clone()));
+        let _ = self.data.project_events.send(("durable".into(), body));
+    }
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -157,6 +183,18 @@ impl Drop for Active {
         self.0.active.fetch_sub(1, Ordering::SeqCst);
     }
 }
+fn after(request: &Request) -> i64 {
+    request
+        .uri()
+        .query()
+        .and_then(|query| {
+            query
+                .split('&')
+                .find_map(|pair| pair.strip_prefix("after=")?.parse().ok())
+        })
+        .unwrap_or(0)
+}
+
 async fn handle(State(data): State<Arc<Data>>, request: Request) -> Response {
     let path = request.uri().path().to_owned();
     data.requests
@@ -180,10 +218,19 @@ async fn handle(State(data): State<Arc<Data>>, request: Request) -> Response {
         return axum::Json(serde_json::json!({"project_id":PROJECT,"agents":[agent,{"slug":"agent-b","provider":"provider-a","deleted":false,"character_color":"pink"}]})).into_response();
     }
     if path == format!("/api/projects/{PROJECT}/events") {
-        let initial = VecDeque::from([(
+        let after = after(&request);
+        let mut initial: VecDeque<_> = data
+            .project_replay
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(seq, _)| *seq > after)
+            .map(|(_, body)| ("durable".to_owned(), body.clone()))
+            .collect();
+        initial.push_back((
             "caught-up".to_owned(),
             serde_json::json!({"seq":data.project_sequence.load(Ordering::SeqCst)}).to_string(),
-        )]);
+        ));
         let stream = futures_util::stream::unfold(
             (initial, data.project_events.subscribe()),
             |(mut initial, mut events)| async move {
@@ -204,6 +251,21 @@ async fn handle(State(data): State<Arc<Data>>, request: Request) -> Response {
     }
     if path == "/api/aylul/permissions" {
         return axum::Json(data.permissions.lock().unwrap().clone()).into_response();
+    }
+    if path == "/api/groups" {
+        return axum::Json(data.groups.lock().unwrap().clone()).into_response();
+    }
+    if path.starts_with("/api/groups/") && path.ends_with("/messages") {
+        let after = after(&request);
+        let messages: Vec<_> = data
+            .group_messages
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|message| message["seq"].as_i64().is_some_and(|seq| seq > after))
+            .cloned()
+            .collect();
+        return axum::Json(messages).into_response();
     }
     if path == "/api/subscribe" {
         if data.stall_headers.load(Ordering::SeqCst) {

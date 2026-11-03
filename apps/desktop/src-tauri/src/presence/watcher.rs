@@ -161,6 +161,7 @@ impl PresenceWatcher {
         let (refreshes, mut refresh_input) = mpsc::channel::<RefreshRequest>(16);
         // One manager owns one runner future. Replacing input drops old reads before opening the next stream.
         tauri::async_runtime::spawn(async move {
+            let mut alert_history = feed::AlertHistory::default();
             loop {
                 ready_updates.send_replace(None);
                 let request = input.borrow_and_update().clone();
@@ -168,7 +169,7 @@ impl PresenceWatcher {
                     tokio::select! {
                         biased;
                      result=input.changed()=>{if result.is_err(){break}},
-                     _=run(binding,connection,Outlet{epoch:request.epoch,current:generation.clone(),notify:notify.clone(),ready:ready_updates.clone()},timing.clone(), &mut refresh_input)=>{
+                     _=run(binding,connection,Outlet{epoch:request.epoch,current:generation.clone(),notify:notify.clone(),ready:ready_updates.clone()},timing.clone(), &mut refresh_input, &mut alert_history)=>{
                       if input.changed().await.is_err(){break}
                      }
                     }
@@ -298,10 +299,12 @@ impl PresenceWatcher {
     }
     pub fn sync(&self, binding: BindingView, ready: Option<ReadyConnection>) {
         let guard = Some((binding.generation, binding.configuration_id.clone()));
-        if binding.agent.is_none() {
-            self.stopped(PresenceProjection::unbound(), guard);
-        } else if let Some(ready) = ready {
+        if let Some(ready) = ready.filter(|ready| {
+            binding.configuration_id.as_deref() == Some(ready.configuration_id.as_str())
+        }) {
             self.replace(binding, ready);
+        } else if binding.agent.is_none() {
+            self.stopped(PresenceProjection::unbound(), guard);
         } else {
             self.stopped(
                 PresenceProjection::unavailable("Core unavailable. Retry local Core in Settings."),

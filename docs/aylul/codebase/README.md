@@ -18,6 +18,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/presence/send_fixture.rs` | Scripted submission HTTP server | Presence contract; test-only |
 | `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission admission regressions | Presence contract |
 | `apps/desktop/src-tauri/src/presence/` | Operate the configuration-scoped companion conversation with its owned observer | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/presence/waiting_items.rs` | Project waiting-item count and navigation targets | Presence contract |
 | `apps/desktop/src-tauri/src/presence/workflows.rs` | Coordinate companion actions through the owned observer, injected native surface operations and Navigation | Presence contract; selection/show, retarget/readiness, publication admission and open-main workflows |
 | `apps/desktop/src-tauri/src/navigation.rs` | Deliver closed pending main navigation before opening main | Presence contract; desktop and companion design §7 |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
