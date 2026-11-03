@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, it, vi } from 'vitest'
-import { classifyRefresh } from './refresh'
+import { classifyRefresh, dispatchRefresh } from './refresh'
+import { groupKeys } from '@/api/groups'
 import { FakeSource } from '@/test/fake-event-source'
 import { usePlanEvents } from './use-plan-events'
 import { useProjectEvents } from './use-project-events'
@@ -11,6 +12,18 @@ import { useThreadStream } from './use-thread-stream'
 import { waitingPermissionsQuery } from '@/api/permissions'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+it('a MessageAdded refreshes its group, its log and the list', async () => {
+  const client = new QueryClient()
+  const keys = [groupKeys.detail('g1'), groupKeys.messages('g1'), groupKeys.list, groupKeys.detail('other')]
+  for (const key of keys) client.setQueryData(key, {})
+  dispatchRefresh(client, classifyRefresh({
+    kind: 'MessageAdded', seq: 12, threadId: null, operationId: null,
+    projectId: 'p1', payload: { group_id: 'g1', seq: 2 },
+  }))
+  expect(keys.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, true, true, false])
+  client.clear()
+})
 
 it('PermissionsChanged on the project stream refetches the waiting list and reconnect reconciles it', async () => {
   const client = new QueryClient()
