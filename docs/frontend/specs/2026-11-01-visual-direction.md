@@ -2,7 +2,7 @@
 
 The web client takes the look Google AI Studio designed for it: its palette, radius, type,
 surfaces and screens (approved by Mohammed; migration in the
-[plan](../plans/2026-11-02-ai-studio-ui-migration.md)).
+plan, `docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md` at `a7b4009c`).
 
 The existing navigation, page layout and Core behavior stay authoritative. The look makes
 controls, selected items, section headings and real operation states easy to tell apart.
