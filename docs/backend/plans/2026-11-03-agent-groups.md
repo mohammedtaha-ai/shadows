@@ -1,33 +1,63 @@
-# Agent Groups Implementation Plan (messaging slice 1)
+# Agent Groups Implementation Plan (messaging slice 1, Core side)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mohammed creates a group of AYLUL agents, writes to it with `@mentions`, and the mentioned agents answer in the group, inside bounds, with every line recorded by Core.
+**Goal:** Mohammed creates a group of AYLUL agents, writes to it with `@mentions`, and the mentioned agents answer in the group, inside bounds. Core records every line, and a reply cannot be lost, even across a restart.
 
-**Architecture:** A new service `Messages` (`crates/core-messages`) owns groups, their members and their messages. Each member gets one hidden AYLUL thread per group; a delivery is a turn queued on that thread through `Turns::queue` (§20). `Turns` announces every turn's end on a broadcast; `Messages` listens, reads the member's reply from `Threads`, records it, and routes its mentions. Each message is a durable `MessageAdded` journal event that the AYLUL project's subscription carries live.
+**Architecture:**
+- A new service `Messages` (`crates/core-messages`) owns groups, members, messages and **deliveries**.
+- Each member gets one hidden AYLUL thread per group. A delivery is a durable row that `Messages` turns into a turn with `Turns::send`; it does not use §20's queue.
+- `Messages` learns that a turn ended by reading the durable journal through `Events`, after a cursor it stores. It records the reply and advances the cursor in one transaction, so a restart resumes where it stopped.
+- Each message is a durable `MessageAdded` event on the AYLUL project's stream.
 
-**Tech Stack:** Rust 1.94, SQLx 0.9 / SQLite, tokio broadcast, axum + utoipa.
+**Tech Stack:** Rust 1.94, SQLx 0.9 / SQLite, tokio, axum + utoipa.
 
-**Spec:** `docs/backend/specs/2026-11-03-agent-messaging-design.md` (§6.2, §6.3, §6.6, §6.7, §7, §8 slice 1).
+**Spec:** `docs/backend/specs/2026-11-03-agent-messaging-design.md` (§6.2, §6.3, §6.6, §7, §8 slice 1).
 
 ## Global Constraints
 
-- CLAUDE.md "Code structure": start at `AppCore`; `Messages` is built only in `AppCore::start`; services get their dependencies in the constructor, never `AppCore`.
+- CLAUDE.md "Code structure": start at `AppCore`. `Messages` is built only in `AppCore::start`, gets its dependencies in its constructor, and never gets `AppCore`.
 - New crate shape: `Cargo.toml`, `src/lib.rs`, `src/model.rs` (no `sqlx`), `src/store/`, `src/<job>.rs`, `contract.yaml`, `tests/`.
-- Every changed module updates its `contract.yaml` in the same commit; the new crate gets a code-map row (`cargo test -p shadows --test codemap`).
-- Ordering by an explicit `seq` per group, never `rowid` or insertion order.
-- Mutations carry `CommandId` (`CommandContext::user`), with a normalized fingerprint.
-- Bounds (spec decision 11): per person message, at most **3 rounds** and **10 member messages**. One constant block in `core-messages/src/bounds.rs`.
+- Every changed module updates its `contract.yaml` in the same commit. The new crate gets a code-map row (`cargo test -p shadows --test codemap`).
+- Ordering by explicit `seq` (per group) and journal `seq`, never `rowid` or insertion order.
+- Mutations carry `CommandContext::user` with a normalized fingerprint.
+- Bounds (spec decision 11), per person message (its **cause**): at most **3 rounds** and **10 member deliveries**. One constant block in `core-messages/src/bounds.rs`.
+- Migrations go in `crates/core-db/migrations/`, next numbers `0041`, `0042`.
 - Lines ≤ 100 characters; `cargo fmt`; clippy `-D warnings`. Never the full gate locally; each task runs its own tests.
-- `api/openapi.json` regenerated in the task that adds routes.
+- `api/openapi.json` is regenerated in B-45 only.
+
+## Routing rules (B-43 and B-44 both follow these)
+
+| Message from | Addressed to |
+|---|---|
+| Mohammed, with member mentions | the mentioned members |
+| Mohammed, no member mention | every member |
+| A member, with other members mentioned | those members only; never itself |
+| A member, no other member mentioned | nobody (it is recorded, it wakes no one) |
+
+- `@mohammed` in any message adds `Address::Person`. It wakes no member, and the group's `needs_you` becomes true.
+- A mention is `@<slug>`, a whole token, case-insensitive. A mention of a non-member is not an address; the text stays as written.
+
+## Delivery rules (B-43 schedules, B-44 completes)
+
+- **A delivery row** is `(id, group_id, slug, cause_seq, round, trigger_seq, state, operation_id)`. Its `state` is `waiting`, `running`, `merged`, `answered` or `failed`.
+- **Budget is reserved when a delivery is scheduled, not when a reply arrives.** Scheduling is refused when the cause already has 10 deliveries, or the new round would be 4. A refusal writes one `Notice` from `Shadows`: "The group stopped here: the limit for one message was reached." The notice is written once per cause.
+- **Dispatch, per member:** if no delivery of that member is `running`, the oldest `waiting` one starts:
+  - `Turns::send(thread, SendTurn { command_id: "delivery:<id>", .. })` returns an `OperationId`;
+  - the row becomes `running` with that id, in one write;
+  - the prompt carries every group message after the member's `delivered_seq`, and `delivered_seq` moves to the last one it carried;
+  - every other `waiting` row of that member whose `trigger_seq` ≤ the new `delivered_seq` becomes `merged`. Its content went in this turn, so it needs no turn of its own.
+- **`ThreadBusy` from `send`:** the row stays `waiting`. The member's next ended turn dispatches it.
+- **Any other refusal from `send`:** the row becomes `failed`, with a `Notice`: "`<name>` could not answer: `<error>`".
+- **The idempotent command id** (`delivery:<id>`) makes a re-dispatch after a crash return the same operation, not a second turn.
 
 ## Review Focus
 
-1. **A member mentions a non-member or itself.** Ignored as an address; the text is kept.
-2. **A member's turn fails or is cancelled.** A `notice` from Shadows says which member and why; the round still counts; nothing hangs as "thinking".
-3. **Mohammed writes while members are still answering.** His message starts a new budget; queued deliveries go in order (§20 queue), none is lost.
-4. **Core restarts mid-round.** Recorded messages stay; a reply whose turn ended before the restart is not recorded twice (keyed by operation id).
-5. **A deleted agent in a group.** It stops receiving; its past lines stay with its name.
+1. **Core stops after a member's turn ended and before its reply is recorded.** On restart, the reply is recorded once, from the journal after the cursor.
+2. **A member is busy when a second message reaches it, then its running turn fails.** The failure writes a notice, and the waiting delivery starts next. The group never hangs.
+3. **A member's reply has no member mention, or only `@mohammed`.** No member wakes.
+4. **Three members reply in parallel and each mentions the other two.** Deliveries stop at 10 for that cause, and exactly one limit notice is written.
+5. **Creating a group fails at its third member.** No hidden thread or member row remains.
 
 ---
 
@@ -36,38 +66,46 @@
 **Files:**
 - Create: `crates/core-db/migrations/0041_thread_hidden.sql` (`ALTER TABLE planning_thread ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`)
 - Modify: `crates/core-threads/src/lib.rs`, `src/store/`, `contract.yaml`
-- Test: `crates/core-threads/tests/` (the crate's existing thread tests file)
+- Test: the crate's existing thread tests file under `crates/core-threads/tests/`
 
 **Interfaces:**
-- Produces: `Threads::create_hidden(&self, command_id: String, project: &ProjectId, title: &str, profile: &str) -> Result<PlanningThread, ThreadsError>`: an `aylul` thread for `profile`, command kind `thread.create_hidden`.
-- `list` and `list_for_profile` leave hidden threads out. `get`, `entries` and turns work on them as on any thread.
+- Produces: `Threads::create_hidden_in(conn: &mut SqliteConnection, project: &ProjectId, title: &str, profile: &str, now: &str) -> Result<PlanningThread, ThreadsError>`. It creates an `aylul` thread for `profile` with `hidden = 1`, inside the caller's transaction. It records no command; the caller's command covers it.
+- `list` and `list_for_profile` (what clients see) leave hidden threads out.
+- `list_for_profile_in` is **unchanged** and still returns hidden threads. Harness's `close_agent` uses it, so a deleted agent's group sessions close too.
+- `get`, `entries` and turns work on hidden threads as on any thread.
 
-- [ ] **Step 1:** test `a_hidden_thread_is_left_out_of_the_agent_list`: create one normal and one hidden thread for `ay`; `list_for_profile("ay")` has only the normal one; `get(hidden.id)` succeeds.
-- [ ] **Step 2:** run `cargo test -p core-threads a_hidden_thread`; expect FAIL (no `create_hidden`).
-- [ ] **Step 3:** add the column, the method and the filter.
-- [ ] **Step 4:** run the test; expect PASS. Run `cargo test -p core-threads`.
+- [ ] **Step 1: Write the failing tests.**
+  - `a_hidden_thread_is_left_out_of_the_agent_list`: one normal and one hidden thread for `ay`; `list_for_profile("ay")` returns only the normal one; `get(hidden.id)` succeeds.
+  - `a_hidden_thread_is_still_closed_with_its_agent`: `list_for_profile_in(tx, "ay")` returns both threads.
+- [ ] **Step 2:** run `cargo test -p core-threads hidden`. Expect FAIL: `create_hidden_in` does not exist.
+- [ ] **Step 3:** add the column, the method and the client-list filter.
+- [ ] **Step 4:** run the tests, then `cargo test -p core-threads`. Expect PASS.
 - [ ] **Step 5:** commit `feat(core-threads): hidden threads for group members`.
 
-### Task B-41: Turns announce a turn's end
+### Task B-41: Ended turns from the journal (Events)
 
 **Files:**
-- Modify: `crates/core-turns/src/lib.rs`, `src/turn.rs` (the terminal match, after the write), `src/model.rs`, `contract.yaml`
-- Test: `crates/core-turns/tests/` (beside the existing turn-end tests, fake-acp)
+- Modify: `crates/core-events/src/lib.rs`, `src/store.rs`, `src/model.rs`, `contract.yaml`
+- Test: `crates/core-events/tests/` (the crate's journal-read tests)
 
 **Interfaces:**
-- Produces: `pub struct TurnEnded { pub thread_id: ThreadId, pub operation_id: OperationId, pub outcome: TurnOutcome }`, `pub enum TurnOutcome { Completed, Failed(String), Cancelled }` in `model.rs`.
-- Produces: `Turns::subscribe_ended(&self) -> tokio::sync::broadcast::Receiver<TurnEnded>`; capacity 256. Sent once per turn, only after its terminal row is written; a failed terminal write sends nothing.
+- Produces (`model.rs`): `EndedTurn { seq: i64, thread_id: ThreadId, operation_id: OperationId, outcome: EndedOutcome }` and `enum EndedOutcome { Completed, Failed, Cancelled, Interrupted }`.
+- Produces: `Events::ended_turns_after(&self, after: i64, limit: i64) -> Result<Vec<EndedTurn>, StorageError>`. It reads journal rows of kind `OperationCompleted`, `OperationFailed`, `OperationCancelled` and `OperationInterrupted` that have a `thread_id`, with `seq > after`, in `seq` order.
+- Produces: `Events::last_seq(&self) -> Result<i64, StorageError>`, the journal's highest `seq`.
+- The caller waits on `Storage::watch_committed()` between reads. `Events` adds no task.
 
-- [ ] **Step 1:** test `a_completed_turn_is_announced_once`: subscribe, run one fake-acp turn, receive exactly one `TurnEnded` with `Completed` and the turn's operation id. Test `a_refused_turn_is_announced_as_failed` with the refusal text.
-- [ ] **Step 2:** run them; expect FAIL.
-- [ ] **Step 3:** add the sender to `Turns` (built in `Turns::new`, passed to the watcher like `on_completed`); send after each successful terminal write.
-- [ ] **Step 4:** run them; expect PASS. Run `cargo test -p core-turns`.
-- [ ] **Step 5:** commit `feat(core-turns): announce each turn's end`.
+- [ ] **Step 1: Write the failing tests.**
+  - `ended_turns_come_back_in_seq_order_after_the_cursor`: append started, completed and failed events for two threads; `ended_turns_after(cursor)` returns only the ended ones after the cursor, in order.
+  - `an_interrupted_turn_is_an_ended_turn`.
+- [ ] **Step 2:** run them. Expect FAIL.
+- [ ] **Step 3:** implement as a read in `store.rs`.
+- [ ] **Step 4:** run them, then `cargo test -p core-events`. Expect PASS.
+- [ ] **Step 5:** commit `feat(core-events): read ended turns after a cursor`.
 
 ### Task B-42: The `Messages` service, groups and their log
 
 **Files:**
-- Create: `crates/core-messages/` (`Cargo.toml`: core-db, core-threads, core-turns, core-agents, core-projects; `src/lib.rs`, `src/model.rs`, `src/error.rs`, `src/store/mod.rs`, `src/groups.rs`, `contract.yaml`, `tests/groups.rs`)
+- Create: `crates/core-messages/` (`Cargo.toml` with core-db, core-threads, core-turns, core-events, core-agents, core-projects; `src/lib.rs`, `src/model.rs`, `src/error.rs`, `src/store/mod.rs`, `src/groups.rs`, `contract.yaml`, `tests/groups.rs`)
 - Create: `crates/core-db/migrations/0042_messages.sql`
 - Modify: `crates/shadows-core/src/app.rs` (owner row, field, accessor `messages()`), `crates/shadows-core/Cargo.toml`, `docs/codebase/README.md` (code-map row)
 
@@ -75,88 +113,143 @@
 - `message_group(id TEXT PK, name TEXT NOT NULL, created_at TEXT NOT NULL)`
 - `message_group_member(group_id, slug, thread_id, delivered_seq INTEGER NOT NULL DEFAULT 0, joined_at, PRIMARY KEY(group_id, slug))`
 - `message(id TEXT PK, group_id, seq INTEGER NOT NULL, speaker_kind TEXT, speaker_slug TEXT NULL, to_json TEXT, kind TEXT, body TEXT, cause_seq INTEGER NULL, operation_id TEXT NULL UNIQUE, created_at TEXT, UNIQUE(group_id, seq))`
+- `message_delivery(id TEXT PK, group_id, slug, cause_seq INTEGER NOT NULL, round INTEGER NOT NULL, trigger_seq INTEGER NOT NULL, state TEXT NOT NULL, operation_id TEXT NULL UNIQUE, created_at TEXT)`
+- `message_cursor(name TEXT PK, seq INTEGER NOT NULL)`: one row, `turn_ends`.
 
 **Interfaces:**
-- Produces (`model.rs`): `GroupId`, `MessageId` (`newtype_id!`); `Group { id, name, members: Vec<Member>, needs_you: bool, created_at }`; `Member { slug, name, thread_id }`; `Speaker { Person, Agent(String), Shadows }`; `MessageKind { Chat, Notice }`; `Message { id, group_id, seq, speaker, to: Vec<Address>, kind, body, created_at }`; `Address { Person, Agent(String) }`.
-- Produces: `Messages::new(storage, threads, turns, agents, projects) -> Arc<Messages>`.
-- Produces: `create_group(command_id, name: &str, slugs: &[String]) -> Result<Group, MessagesError>`: 1 to 6 live agents, no duplicates; one `Threads::create_hidden` per member in the AYLUL project, titled `"<group name>"`.
-- Produces: `groups() -> Result<Vec<Group>, _>` (name order, then id), `group(&GroupId)`, `messages(&GroupId, after: Option<i64>) -> Result<Vec<Message>, _>` (`seq` order).
-- `needs_you`: true when the group's last message addressed to `Person` comes after the person's last message.
-- Each written message appends a `MessageAdded` journal event in the same transaction: `project_id` = AYLUL project, payload `{group_id, seq}`.
+- Produces (`model.rs`):
+  - ids: `GroupId`, `MessageId`, `DeliveryId` (`newtype_id!`);
+  - `Group { id, name, members: Vec<Member>, needs_you: bool, created_at }`;
+  - `Member { slug, name, thread_id }`;
+  - `Speaker { Person, Agent(String), Shadows }`, `MessageKind { Chat, Notice }`, `Address { Person, Agent(String) }`;
+  - `Message { id, group_id, seq, speaker, to: Vec<Address>, kind, body, created_at }`.
+- Produces: `Messages::new(storage, threads, turns, events, agents, projects) -> Arc<Messages>`.
+- Produces: `create_group(command_id, name: &str, slugs: &[String]) -> Result<Group, MessagesError>`. It takes 1 to 6 live agents, with no duplicates. **One write transaction** holds the command record, the group row, one `Threads::create_hidden_in` per member (AYLUL project, title = group name) and the member rows. Any failure leaves nothing.
+- Produces: `groups()` (by name, then id), `group(&GroupId)`, `messages(&GroupId, after: Option<i64>)` (in `seq` order).
+- `needs_you` is true when the group's last message addressed to `Person` comes after Mohammed's last message.
+- Every message written appends a `MessageAdded` journal event in the same transaction, with `project_id` = the AYLUL project and payload `{group_id, seq}`.
 
-- [ ] **Step 1:** tests `a_group_gets_one_hidden_thread_per_member`, `a_group_refuses_seven_members`, `a_group_refuses_a_deleted_agent`, `messages_come_back_in_seq_order`.
-- [ ] **Step 2:** run `cargo test -p core-messages`; expect FAIL.
+- [ ] **Step 1: Write the failing tests.**
+  - `a_group_gets_one_hidden_thread_per_member`
+  - `a_group_refuses_seven_members`
+  - `a_group_refuses_a_deleted_agent`
+  - `a_failed_group_creation_leaves_no_thread` (the third slug is unknown; no hidden thread and no member row remain)
+  - `messages_come_back_in_seq_order`
+- [ ] **Step 2:** run `cargo test -p core-messages`. Expect FAIL.
 - [ ] **Step 3:** build the crate, the migration and the wiring.
-- [ ] **Step 4:** run them and `cargo test -p shadows --test codemap`; expect PASS.
+- [ ] **Step 4:** run the tests and `cargo test -p shadows --test codemap`. Expect PASS.
 - [ ] **Step 5:** commit `feat(core-messages): groups and their message log`.
 
-### Task B-43: Mohammed writes to a group
+### Task B-43: Mohammed writes; deliveries are scheduled and dispatched
 
 **Files:**
-- Create: `crates/core-messages/src/send.rs`, `src/mentions.rs`, `src/bounds.rs`, `src/prompt.rs`
+- Create: `crates/core-messages/src/send.rs`, `src/mentions.rs`, `src/bounds.rs`, `src/deliveries.rs`, `src/prompt.rs`
 - Test: `crates/core-messages/tests/send.rs` (fake-acp)
 
 **Interfaces:**
-- Produces: `Messages::send(command_id, group: &GroupId, text: &str) -> Result<Message, MessagesError>`: records the person's `Chat` message, then delivers it.
-- Mentions: `@<slug>` of a member, matched as a whole token, case-insensitive; `@mohammed` is `Address::Person`. No member mentioned: every member is addressed (spec §6.6).
-- Delivery to a member: `Turns::queue(member.thread_id, SendTurn { command_id: "<message id>:<slug>", prompt, model: agent.default_model, mode: policy::default_mode("aylul"), effort: None, .. })`.
-- Prompt (`prompt.rs`): the group's name, the member list with slugs, the rule "answer in 1-3 sentences; mention `@slug` only when you need that member; `@mohammed` when you need him", then every message since the member's last delivered `seq`, oldest first, at most 200 messages and 32 000 characters, the cut stated (`[N earlier messages omitted]`).
-- After a delivery is queued, the member's `delivered_seq` is the last `seq` its prompt carried.
+- Produces: `Messages::send(command_id, group: &GroupId, text: &str) -> Result<Message, MessagesError>`. It records Mohammed's `Chat` message (its `cause_seq` is its own `seq`), schedules deliveries by the routing rules at round 1, then dispatches.
+- Produces (crate-private, used by B-44): `schedule(tx, group, cause_seq, round, trigger_seq, slugs) -> Vec<DeliveryId>` (with the budget check) and `dispatch(member)` (the delivery rules).
+- `SendTurn` for a delivery:
+  - `prompt` from `prompt.rs`;
+  - `model` = the agent's `default_model`;
+  - `mode` = `policy::default_mode("aylul")`;
+  - `effort: None`, no focus, no plan, no attachments.
+- Prompt (`prompt.rs`):
+  - the group's name and its members with their slugs;
+  - the rule: "Answer in 1-3 sentences. Mention `@slug` only when you need that member, `@mohammed` when you need Mohammed.";
+  - then the messages after the member's `delivered_seq`, oldest first, at most 200 messages and 32 000 characters;
+  - the cut, stated as `[N earlier messages omitted]`.
 
-- [ ] **Step 1:** tests `a_mention_reaches_only_that_member`, `no_mention_reaches_every_member`, `a_mention_of_a_stranger_is_not_an_address`, `the_prompt_carries_only_what_is_new`.
-- [ ] **Step 2:** run; expect FAIL.
+- [ ] **Step 1: Write the failing tests.**
+  - `a_mention_reaches_only_that_member`
+  - `no_mention_reaches_every_member`
+  - `a_mention_of_a_stranger_is_not_an_address`
+  - `the_prompt_carries_only_what_is_new`
+  - `a_second_message_to_a_busy_member_waits_then_is_merged`: the member's first turn runs; a second message schedules a waiting row; when the first ends, one turn carries both and the row is `merged`
+  - `a_redispatch_returns_the_same_operation` (the same `delivery:<id>` twice → one turn)
+- [ ] **Step 2:** run them. Expect FAIL.
 - [ ] **Step 3:** implement.
-- [ ] **Step 4:** run `cargo test -p core-messages`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-messages): send to a group with mentions`.
+- [ ] **Step 4:** run `cargo test -p core-messages`. Expect PASS.
+- [ ] **Step 5:** commit `feat(core-messages): send to a group and dispatch deliveries`.
 
-### Task B-44: Members answer, inside bounds
+### Task B-44: Members answer, from the journal, inside bounds
 
 **Files:**
 - Create: `crates/core-messages/src/replies.rs`
-- Modify: `src/lib.rs` (start the listener in `Messages::new`'s caller: `AppCore::start` calls `messages.listen()` once)
+- Modify: `crates/shadows-core/src/app.rs` (`AppCore::start` calls `messages.listen()` once, after building)
 - Test: `crates/core-messages/tests/replies.rs` (fake-acp)
 
 **Interfaces:**
-- Consumes: `Turns::subscribe_ended` (B-41), `Threads::entries` (filter `operation_id`, kind `AgentMessage`).
-- Produces: `Messages::listen(self: &Arc<Self>)`: one task over `subscribe_ended`. For a member thread:
-  - `Completed`: the turn's `AgentMessage` entries joined by a blank line become one `Chat` message from `Agent(slug)`, `operation_id` set (unique, so a repeat is ignored). Its mentions are routed as in B-43, under the budget of the person message that caused it (`cause_seq`).
-  - `Failed(reason)` / `Cancelled`: a `Notice` from `Shadows`: "`<name>` could not answer: `<reason>`".
-- Bounds: a round is one wave of deliveries; a reply's deliveries are the next round. Over 3 rounds or 10 member messages for one cause, no delivery; one `Notice`: "The group stopped here: the limit for one message was reached."
-- A lagged receiver (`RecvError::Lagged`) logs `messages.lagged` and continues.
+- Consumes: `Events::ended_turns_after`, `Events::last_seq` (B-41), `Storage::watch_committed`, `Threads::entries`, `Turns::operations` (to read a failed turn's reason).
+- Produces: `Messages::listen(self: &Arc<Self>)`, one task:
+  1. **First run with no cursor row:** set the cursor to `Events::last_seq()`.
+  2. **On start:** dispatch every member that has a `waiting` row or a `running` row with no `operation_id` (the crash-safe re-dispatch).
+  3. **Loop:** read `ended_turns_after(cursor, 100)`. For each ended turn whose `operation_id` is a `running` delivery, run **one write transaction** that:
+     - **if `Completed`:** writes the turn's `AgentMessage` entries, joined by a blank line, as one `Chat` from `Agent(slug)` with `operation_id`, `cause_seq` and the next round, and schedules its addresses by the routing rules (B-43's `schedule`);
+     - **if `Failed`, `Cancelled` or `Interrupted`:** writes a `Notice` from `Shadows`: "`<name>` could not answer: `<reason>`";
+     - marks the delivery `answered` or `failed`;
+     - advances the cursor to this event's `seq`.
 
-- [ ] **Step 1:** tests `a_reply_is_recorded_once`, `a_reply_mentioning_another_member_reaches_it`, `a_mention_loop_stops_at_the_bound`, `a_failed_member_turn_writes_a_notice`, `a_reply_to_mohammed_marks_needs_you`.
-- [ ] **Step 2:** run; expect FAIL.
+     An ended turn that is not a delivery only advances the cursor. After the transaction, it dispatches that member and every member just scheduled.
+  4. When nothing is left, it waits on `watch_committed()`, then reads again.
+- `UNIQUE(message.operation_id)` stays as a second guard against a double record.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `a_reply_is_recorded_once`
+  - `a_reply_survives_a_restart_before_it_is_recorded`: end a member's turn with the listener stopped; start a new `Messages` over the same database; the reply is recorded once
+  - `a_reply_without_member_mentions_wakes_no_one`
+  - `a_reply_to_mohammed_only_wakes_no_one_and_marks_needs_you`
+  - `a_reply_mentioning_another_member_reaches_it`
+  - `parallel_mentions_stop_at_ten_deliveries_with_one_notice`
+  - `a_failed_turn_writes_a_notice_and_the_next_delivery_starts`
+- [ ] **Step 2:** run them. Expect FAIL.
 - [ ] **Step 3:** implement.
-- [ ] **Step 4:** run `cargo test -p core-messages`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-messages): members answer inside bounds`.
+- [ ] **Step 4:** run `cargo test -p core-messages`. Expect PASS.
+- [ ] **Step 5:** commit `feat(core-messages): members answer from the journal, inside bounds`.
 
 ### Task B-45: Routes and the live frame
 
 **Files:**
 - Create: `crates/shadows-http/src/groups.rs`
-- Modify: `crates/shadows-http/src/` router and `openapi.rs`, `sse.rs` (frame `message`); `crates/core-events/src/store.rs` (allow `MessageAdded` on project subscriptions); contracts of both; `api/openapi.json`
+- Modify: the `crates/shadows-http/src/` router, `openapi.rs`, `sse.rs` (frame `message`); `crates/core-events/src/store.rs` (allow `MessageAdded` on project subscriptions); both contracts; `api/openapi.json`
 - Test: `crates/shadows/tests/group_routes.rs`
 
 **Interfaces:**
-- `POST /api/groups` `{command_id, name, members: [slug]}` → `Group`
-- `GET /api/groups` → `[Group]`; `GET /api/groups/{id}` → `Group`
-- `GET /api/groups/{id}/messages?after=<seq>` → `[Message]`
-- `POST /api/groups/{id}/messages` `{command_id, text}` → `Message`
-- SSE: the AYLUL project's stream carries `message` frames `{group_id, seq}`; the client reads the message by route.
-- Each route calls one `Messages` method and shapes the answer.
 
-- [ ] **Step 1:** test `a_group_is_created_written_to_and_read_back` (route level, fake-acp) and `a_message_reaches_the_project_stream`.
-- [ ] **Step 2:** run `cargo test -p shadows --test group_routes`; expect FAIL.
+| Route | Body | Answers |
+|---|---|---|
+| `POST /api/groups` | `{command_id, name, members: [slug]}` | `Group` |
+| `GET /api/groups` | | `[Group]` |
+| `GET /api/groups/{id}` | | `Group` (each member's `thread_id` included) |
+| `GET /api/groups/{id}/messages?after=<seq>` | | `[Message]` |
+| `POST /api/groups/{id}/messages` | `{command_id, text}` | `Message` |
+
+- SSE: the AYLUL project's stream carries `message` frames `{group_id, seq}`; the client then reads the message by route.
+- Each route calls one `Messages` method and shapes the answer.
+- A member's permission request is not a new route. It is a request on the member's hidden thread, answered by the existing route with that `thread_id` (AYLUL agents spec §7.8).
+
+- [ ] **Step 1: Write the failing tests.**
+  - `a_group_is_created_written_to_and_read_back` (route level, fake-acp)
+  - `a_message_reaches_the_project_stream`
+- [ ] **Step 2:** run `cargo test -p shadows --test group_routes`. Expect FAIL.
 - [ ] **Step 3:** implement; regenerate `api/openapi.json`.
-- [ ] **Step 4:** run them; expect PASS; `git diff --exit-code api/` shows only the new routes.
+- [ ] **Step 4:** run them. Expect PASS; `git diff --exit-code api/` shows only the new routes.
 - [ ] **Step 5:** commit `feat(shadows-http): group routes and the message frame`.
 
 ---
 
-## Frontend request (for the AYLUL desktop UI, not in this plan)
+## Acceptance, in two parts
 
-A group screen in the AYLUL desktop: create a group (name, pick up to 6 agents), the group's log with each speaker's colour, a composer with `@` completion over members, a "needs you" mark on the group, and an alert when a message is addressed to Mohammed. It reads the routes and the `message` frame of B-45. The frontend lead writes its request and U-tasks.
+1. **Core (this plan):**
+   - CI passes;
+   - Mohammed runs `shadows serve` and, with `curl`, creates a group of two agents and posts `@<slug> hello`;
+   - he reads the reply from `GET /api/groups/{id}/messages`, and the logs show `message` frames.
+2. **The slice (after the frontend's tasks):** the same, done in the AYLUL desktop. Slice 1 is done only then.
 
-## Whole-branch check
+## Frontend request (the AYLUL desktop UI, not in this plan)
 
-The full gate runs once before the PR, in CI. Before the PR, Mohammed runs `shadows serve`, creates a group of two agents, writes `@a hello`, and reads the reply in the log.
+The frontend lead writes the request and its U-tasks:
+
+- **A group screen:** create a group (a name, up to 6 agents); the log, with each speaker's colour and Shadows' notices set apart; a composer with `@` completion over the members.
+- **Needs you:** a mark on the group, and an AYLUL alert when a message is addressed to Mohammed (a `message` frame, then a read).
+- **Permission requests:** a member's request, shown and answered inside the group by its `thread_id`, through the existing answer path. Before building it, check that the panel's waiting-request count includes hidden threads, and decide whether it should.

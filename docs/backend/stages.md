@@ -57,5 +57,56 @@ allow on a name clash, edits queued during a save) were fixed in PR #53 (`349606
 
 ## Tasks
 
-No task is open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at
-`f1459dcc`.
+Agent groups, messaging slice 1 ([spec](specs/2026-11-03-agent-messaging-design.md), [plan](plans/2026-11-03-agent-groups.md)).
+B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
+
+### B-40 · Hidden member threads
+- Status: todo
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-40-hidden-member-threads-threads
+- Read: crates/core-threads/contract.yaml; crates/core-harness/src/sessions.rs (`close_agent`)
+- Touch: crates/core-db/migrations/0041_thread_hidden.sql; crates/core-threads/src/lib.rs;
+  crates/core-threads/src/store/; crates/core-threads/contract.yaml; crates/core-threads/tests/
+- Done when: `cargo test -p core-threads` passes, with `a_hidden_thread_is_left_out_of_the_agent_list`
+  and `a_hidden_thread_is_still_closed_with_its_agent`
+
+### B-41 · Ended turns from the journal
+- Status: todo
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-41-ended-turns-from-the-journal-events
+- Read: crates/core-events/contract.yaml; crates/core-operations/src/store/lifecycle.rs
+- Touch: crates/core-events/src/lib.rs, src/store.rs, src/model.rs, contract.yaml, tests/
+- Done when: `cargo test -p core-events` passes, with
+  `ended_turns_come_back_in_seq_order_after_the_cursor` and `an_interrupted_turn_is_an_ended_turn`
+
+### B-42 · The Messages service, groups and their log
+- Status: todo
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-42-the-messages-service-groups-and-their-log
+- Read: docs/backend/specs/2026-11-03-agent-messaging-design.md §6.2, §7; crates/shadows-core/src/app.rs; docs/codebase/README.md
+- Touch: crates/core-messages/ (new); crates/core-db/migrations/0042_messages.sql;
+  crates/shadows-core/src/app.rs; crates/shadows-core/Cargo.toml; docs/codebase/README.md
+- Done when: `cargo test -p core-messages` and `cargo test -p shadows --test codemap` pass
+
+### B-43 · Mohammed writes; deliveries are scheduled and dispatched
+- Status: todo
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-43-mohammed-writes-deliveries-are-scheduled-and-dispatched
+- Read: the plan's "Routing rules" and "Delivery rules"; crates/core-turns/contract.yaml (`send`)
+- Touch: crates/core-messages/src/send.rs, mentions.rs, bounds.rs, deliveries.rs, prompt.rs,
+  lib.rs, contract.yaml, tests/send.rs
+- Done when: `cargo test -p core-messages` passes, with the six tests the task names
+
+### B-44 · Members answer, from the journal, inside bounds
+- Status: todo
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-44-members-answer-from-the-journal-inside-bounds
+- Read: the plan's "Delivery rules"; B-41's `Events::ended_turns_after`
+- Touch: crates/core-messages/src/replies.rs, lib.rs, contract.yaml, tests/replies.rs;
+  crates/shadows-core/src/app.rs
+- Done when: `cargo test -p core-messages` passes, with the seven tests the task names
+
+### B-45 · Routes and the live frame
+- Status: todo
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-45-routes-and-the-live-frame
+- Read: crates/shadows-http/contract.yaml; crates/core-events/contract.yaml
+- Touch: crates/shadows-http/src/groups.rs (new), the router, openapi.rs, sse.rs, contract.yaml;
+  crates/core-events/src/store.rs, contract.yaml; api/openapi.json;
+  crates/shadows/tests/group_routes.rs (new)
+- Done when: `cargo test -p shadows --test group_routes` passes and `git diff api/` shows only the
+  new routes

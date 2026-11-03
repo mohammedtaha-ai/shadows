@@ -138,9 +138,14 @@ A message to an agent is delivered as a turn in that agent's session:
 
 - **Idle session:** Shadows starts a turn whose prompt is the message and the
   new messages in its channel since that agent's last turn.
-- **Busy session:** it waits in §20's queue and goes as the next turn. (Claude's
-  call: never "Send now" for agent messages; an agent's running turn is not
-  interrupted by another agent.)
+- **Busy session:** the delivery waits in `Messages`' own durable delivery
+  record and starts when the agent's running turn ends, however it ends. §20's
+  queue is not used: it sends the next message only after `Completed` and then
+  waits for a person (§20.3), which would leave agents stuck. An agent's
+  running turn is never interrupted by another agent.
+- **Turn ends are read from the journal**, after a cursor `Messages` keeps,
+  and a reply is recorded in the same transaction that moves the cursor, so a
+  restart loses no reply.
 - **No session** (closed, crashed): Shadows opens one for that role. For an
   executor this is the same run only if the run still holds; otherwise the
   manager is told and decides (a new attempt is §17.4's rule).
@@ -214,13 +219,17 @@ later):
 A **group** is a channel whose members are AYLUL agents and Mohammed.
 
 - **Mentions route.** Mohammed writes `@coder @reviewer …`; only the mentioned
-  members get a turn. No mention: (Claude's call) every member is addressed.
+  members get a turn. A message of Mohammed's with no mention addresses every
+  member. A member's reply wakes only the other members it mentions; a reply
+  with no member mention wakes no one.
+- **A member's reply is the text of its turn.** It needs no tool, so it works
+  on any provider.
 - **A member sees what is new.** Its turn carries the group's messages since
   its last turn, up to a size limit, the oldest dropped first and the cut
   stated.
 - **Members may mention each other**, inside bounds: one message from Mohammed
-  allows at most **3 rounds** and **10 member messages** (Hermes' numbers,
-  learned from a real mention loop). When the bound is reached the group stops
+  allows at most **3 rounds** and **10 member deliveries** (Hermes' numbers,
+  learned from a real mention loop), reserved when each delivery is scheduled. When the bound is reached the group stops
   and says so.
 - **`@mohammed` means "needs you"**: the group is marked, and AYLUL alerts.
 - **Permission requests** of a member (§7.8 of the AYLUL agents spec) show in
@@ -252,7 +261,8 @@ No service in `AppCore` owned messages. Mohammed approved a new owner on
 | Channels, messages, their order, delivery, bounds | a new service `Messages` (`core-messages`) |
 | What a role's grant reaches | `Grants` (new grant kinds: executor, manager) |
 | A plan version and its approval | `Plans`, `Grants` (unchanged) |
-| Starting a turn for a delivered message | `Turns`, through §20's queue |
+| Starting a turn for a delivered message | `Turns::send`, called by `Messages` from its delivery record |
+| Reading which turns ended, after a cursor | `Events` (the journal) |
 | The MCP tools (`task_report`, `task_blocked`, `message_reply`, …) | `shadows-mcp`, calling `Messages` only |
 | Groups' members and settings | `Messages` |
 
