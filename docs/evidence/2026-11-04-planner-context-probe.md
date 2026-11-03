@@ -36,7 +36,9 @@ is built.
 
 ## 2. Measured on testing4, the one project with a whole design
 
-Read on 2026-11-04 through the running daemon (`shadows serve --db %LOCALAPPDATA%\shadows-devshadows.sqlite3`), with `GET /api/projects/{id}/design/vision`, `/design/parts`,
+Read on 2026-11-04 through the running daemon (`shadows serve --db
+%LOCALAPPDATA%\shadows-dev\shadows.sqlite3`), with `GET /api/projects/{id}/design/vision`,
+`/design/parts`,
 `/design/outcomes`, `/standards`, `/workflows` and `GET /api/workflows/{id}`.
 
 A first read of the same database file opened read-only with Python's `sqlite3` found only the
