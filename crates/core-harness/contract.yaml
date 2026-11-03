@@ -108,6 +108,7 @@ status: current
 tool_rule_projection:
   tool_identity: Claude normalizes a dot in an MCP tool name to underscore; projection uses that identity.
   owner: Homes under the existing home lock and Extensions snapshot guard.
+  file_access: Homes checks managed paths and publishes each file atomically.
   recovery: Write the union of prior and next owned rules before settings, then finalize ownership.
   preservation: Pre-existing exact rules stay foreign; only owned entries in their original lists are removed.
   tested_by: [opening_writes_allow_and_deny_rules, rules_of_an_item_switched_off_are_removed,

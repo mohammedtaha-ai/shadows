@@ -40,7 +40,7 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
 - Focused tests only per task; run the full gate locally after branch review, before PR.
 - Probe Task 3's real ACP assumptions before Task 1; record observed behavior in the spec.
 - Home rule projection must recover from interruption between settings and manifest writes.
-- Serialize all mutations for one MCP item's rules in the form; disable the whole item while saving.
+- Serialize all mutations for one MCP item's rules in the form; disable its rule controls while saving.
 - Finish with browser acceptance against `shadows serve` and inspect its logs.
 
 ## Review Focus
@@ -115,9 +115,8 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   `transport-streamable-http-client-reqwest`, `transport-async-rw`; `shadows-process`
   moves from dev to normal dependencies), `src/mcp.rs` (`McpServerConfig` carries rules),
   `src/model.rs`, `src/lib.rs`, contract, `docs/codebase/README.md`
-- Test: same test file; a small stdio MCP server fixture (reuse `fake-acp`'s rmcp server
-  pattern or a test binary) and an in-process streamable-HTTP server built with `rmcp`'s
-  server features in the test
+- Test: the existing library integration tests, a paginated stdio fixture and an
+  in-process HTTP protocol fixture checking headers, tool metadata and a 401 response.
 
 **Interfaces:**
 - Consumes: Task 1's `ToolRuleEntry`, `tool_rules`.
@@ -180,10 +179,11 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   - `a_renamed_item_leaves_no_old_rule`: rename `docs` → `docs2` via `update_mcp`, open →
     only `mcp__docs2__…` strings.
 - [x] **Step 3: Run** `cargo test -p shadows-core --test aylul_session homes` → fail.
-- [x] **Step 4: Implement**: read `settings.json`, remove the manifest's previous strings
-  from both lists, add the current ones (sorted, no duplicates), drop an empty
-  `permissions` object only if it was created here, write with the file's `atomic` helper,
-  then the manifest. Name format from the probe.
+- [x] **Step 4: Implement**: read `settings.json`, remove only the manifest's owned strings
+  from their respective lists, and preserve pre-existing exact matches. Write an ownership
+  union before publishing settings, then finalize the manifest. All writes are atomic under
+  the home lock; an interrupted projection can be reconciled at the next opening. Drop an
+  empty `permissions` object only if created here. Use the tool name from the ACP probe.
 - [x] **Step 5: Run** → pass. **Step 6:** harness contract, commit
   `feat(core-harness): write MCP tool rules into the agent home (B-39)`.
 
@@ -208,7 +208,8 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
   in `rules`).
 - [x] **Step 2: Run** `cargo test -p shadows --test tool_rules_routes` → fail.
 - [x] **Step 3: Implement** the two handlers (translate only).
-- [x] **Step 4:** `npm run gen:api` (from repo root as the README says), then
+- [x] **Step 4:** `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`, then
+  `npm --prefix web run gen:api` from the repository root, then
   `cargo test -p shadows --test tool_rules_routes` and `--test openapi` → pass.
 - [x] **Step 5:** contract, commit `feat(shadows-http): MCP tool rules routes (B-39)`.
 
@@ -238,7 +239,7 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
 - [x] **Step 2: Run** `npm test -- tool-rules` → fail.
 - [x] **Step 3: Implement** with existing `Button` and tokens; the three buttons use
   lucide icons (`Check`, `Hand`, `Ban`) with visually hidden labels; pending state disables
-  the row and shows `Saving…`; errors use `ErrorLine`.
+  all rule controls for that item and shows `Saving…`; errors use `ErrorLine`.
 - [x] **Step 4: Run** `npm test -- tool-rules`, `npm run typecheck`, `npm run lint`,
   `npm run build` → pass.
 - [x] **Step 5:** agents contract, commit `feat(web): per-tool permissions in the agent form (F-80)`.

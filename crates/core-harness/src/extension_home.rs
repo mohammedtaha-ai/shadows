@@ -23,38 +23,40 @@ fn safe_name(s: &str) -> bool {
         && s.bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
-pub(super) fn local(path: &Path) -> Result<(), HarnessError> {
-    if let Ok(meta) = std::fs::symlink_metadata(path) {
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::MetadataExt;
-            if meta.file_attributes() & 0x400 != 0 {
+impl Homes {
+    pub(super) fn check_local(path: &Path) -> Result<(), HarnessError> {
+        if let Ok(meta) = std::fs::symlink_metadata(path) {
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::MetadataExt;
+                if meta.file_attributes() & 0x400 != 0 {
+                    return Err(invalid());
+                }
+            }
+            if meta.file_type().is_symlink() {
                 return Err(invalid());
             }
         }
-        if meta.file_type().is_symlink() {
+        Ok(())
+    }
+    pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), HarnessError> {
+        let temp = path.with_file_name(format!(".extension-write-{}", uuid::Uuid::new_v4()));
+        let result = (|| -> std::io::Result<()> {
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temp)?;
+            f.write_all(bytes)?;
+            f.sync_all()?;
+            drop(f);
+            std::fs::rename(&temp, path)
+        })();
+        if result.is_err() {
+            let _ = std::fs::remove_file(temp);
             return Err(invalid());
         }
+        Ok(())
     }
-    Ok(())
-}
-pub(super) fn atomic(path: &Path, bytes: &[u8]) -> Result<(), HarnessError> {
-    let temp = path.with_file_name(format!(".extension-write-{}", uuid::Uuid::new_v4()));
-    let result = (|| -> std::io::Result<()> {
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)?;
-        f.write_all(bytes)?;
-        f.sync_all()?;
-        drop(f);
-        std::fs::rename(&temp, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(temp);
-        return Err(invalid());
-    }
-    Ok(())
 }
 fn copy(root: &Path, stage: &Path, item: &Item) -> Result<(), HarnessError> {
     if uuid::Uuid::parse_str(&item.id).is_err() || !safe_name(&item.name) {
@@ -73,10 +75,10 @@ fn project(
     let settings_path = home.join("settings.json");
     let prior_settings = std::fs::read(&settings_path).map_err(|_| invalid())?;
     let manifest_path = home.join(".aylul-extensions.json");
-    local(&manifest_path)?;
-    local(&settings_path)?;
-    local(&home.join("skills"))?;
-    local(&home.join(".aylul-extension-generations"))?;
+    Homes::check_local(&manifest_path)?;
+    Homes::check_local(&settings_path)?;
+    Homes::check_local(&home.join("skills"))?;
+    Homes::check_local(&home.join(".aylul-extension-generations"))?;
     let prior_bytes = match std::fs::read(&manifest_path) {
         Ok(v) => Some(v),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
@@ -108,7 +110,7 @@ fn project(
         ));
     }
     for item in &skills {
-        local(&home.join("skills").join(&item.name))?;
+        Homes::check_local(&home.join("skills").join(&item.name))?;
         if home.join("skills").join(&item.name).exists() && !prior.skills.contains(&item.name) {
             return Err(HarnessError::ProfileInvalid(
                 "skill name is already owned".into(),
@@ -116,7 +118,7 @@ fn project(
         }
     }
     for name in &prior.skills {
-        local(&home.join("skills").join(name))?;
+        Homes::check_local(&home.join("skills").join(name))?;
     }
     let item_ids: Vec<_> = skills
         .iter()
@@ -243,8 +245,8 @@ fn project(
                 .map_err(|_| invalid())?;
                 published.push(item.name.clone());
             }
-            atomic(&settings_path, &settings_bytes)?;
-            atomic(&manifest_path, &manifest_bytes)?;
+            Homes::write_atomic(&settings_path, &settings_bytes)?;
+            Homes::write_atomic(&manifest_path, &manifest_bytes)?;
             Ok(())
         })();
         if commit.is_err() {
@@ -254,7 +256,7 @@ fn project(
             for name in moved {
                 let _ = std::fs::rename(backup.join(&name), home.join("skills").join(name));
             }
-            let _ = atomic(&settings_path, &prior_settings);
+            let _ = Homes::write_atomic(&settings_path, &prior_settings);
             return commit;
         }
         if !prior.generation.is_empty() {

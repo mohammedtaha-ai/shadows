@@ -7,6 +7,7 @@ agreement_version :: design
 aylul_agent :: agents
 aylul_agent_extension :: extensions
 aylul_agent_mcp :: extensions
+aylul_agent_mcp_tool_rule :: extensions
 aylul_extension :: extensions
 aylul_extension_declined :: extensions
 aylul_mcp_server :: extensions

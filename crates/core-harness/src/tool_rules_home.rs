@@ -1,5 +1,4 @@
 //! Recoverable projection of the rule strings owned by Shadows.
-use super::extension_home::{atomic, local};
 use crate::{HarnessError, profile_home::Homes};
 use core_extensions::{McpServerConfig, ToolRule};
 use serde::{Deserialize, Serialize};
@@ -27,8 +26,8 @@ impl Homes {
     ) -> Result<(), HarnessError> {
         let manifest_path = home.join(".aylul-tool-rules.json");
         let settings_path = home.join("settings.json");
-        local(&manifest_path)?;
-        local(&settings_path)?;
+        Self::check_local(&manifest_path)?;
+        Self::check_local(&settings_path)?;
         let prior = match std::fs::read(&manifest_path) {
             Ok(bytes) => serde_json::from_slice::<RuleManifest>(&bytes).map_err(|_| invalid())?,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => RuleManifest::default(),
@@ -103,17 +102,17 @@ impl Homes {
             deny: prior.deny.union(&current.deny).cloned().collect(),
             created_permissions: prior.created_permissions || current.created_permissions,
         };
-        atomic(
+        Self::write_atomic(
             &manifest_path,
             &serde_json::to_vec(&pending).map_err(|_| invalid())?,
         )?;
         if settings != original {
-            atomic(
+            Self::write_atomic(
                 &settings_path,
                 &serde_json::to_vec_pretty(&settings).map_err(|_| invalid())?,
             )?;
         }
-        atomic(
+        Self::write_atomic(
             &manifest_path,
             &serde_json::to_vec(&current).map_err(|_| invalid())?,
         )?;

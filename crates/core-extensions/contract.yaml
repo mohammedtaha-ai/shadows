@@ -35,6 +35,7 @@ shapes:
     secrets: Shared Secrets service for write-only MCP values.
   ExtensionsStore:
     storage: Arc<Storage> # Private to extensions; shares the existing pool.
+    tool_rules: Owns aylul_agent_mcp_tool_rule in the shared database.
   ExtensionsError:
     NotFound: ExtensionNotFound for a caller
     NameConflict: ExtensionNameConflict for a caller
