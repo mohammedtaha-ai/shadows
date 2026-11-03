@@ -68,7 +68,7 @@ detail.
 
 ## 3. Measured on testing55, a bigger project planned for this probe
 
-On 2026-11-04 Claude played the person in a new Planner conversation in `F:	esting55`
+On 2026-11-04 Claude played the person in a new Planner conversation in `F:\testing55`
 (Haiku 5.5, Claude Code). It described, step by step, a support system: a Telegram bot for
 customers, a Laravel backend on MySQL with Redis queues, a Flutter app for agents and a web
 admin dashboard. The Planner then took it through the vision field by field, a map, the created
