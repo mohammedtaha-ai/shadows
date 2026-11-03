@@ -91,7 +91,7 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 - Modify: the AYLUL workspace sidebar that holds `agent-list.tsx`; `web/src/app/sidebar/contract.yaml`
 
 **Interfaces:**
-- **The list:** each group shows its name, its members' colour dots, and a "needs you" dot.
+- **The list:** above the agents (decided). Each group shows its name, its members' colour dots, and a "needs you" dot.
 - **The dialog:** a name and up to 6 live agents. It refuses an empty name or no member, and
   disables the seventh pick. On success, it navigates to the group's page.
 
@@ -213,8 +213,9 @@ Mohammed runs `shadows serve` and the desktop. He then checks four things:
 3. He stops one agent's provider to force a failure, and reads the `Notice`.
 4. Slice 1 is done only after this run.
 
-## Open for Masada
+## Decided by Mohammed (2026-11-03)
 
-- Where the groups list sits in the AYLUL sidebar: above the agents, or as its own section.
-- Whether a desktop notification (Windows toast) is wanted beyond the pill and the tone. The spec
-  says "alert" and does not choose.
+- The groups list sits **above the agents** in the AYLUL sidebar, because a group is what asks
+  for him.
+- The alert is **the panel's pill and the existing tone**. A Windows toast is not in this plan;
+  it comes later only if he finds he misses alerts.
