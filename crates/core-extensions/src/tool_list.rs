@@ -11,13 +11,6 @@ use std::{collections::HashMap, time::Duration};
 const REFUSED: &str = "the server refused the connection";
 const PROTOCOL: &str = "the server's answer was not MCP";
 
-struct ListingChild(shadows_process::ProcessHandle);
-impl Drop for ListingChild {
-    fn drop(&mut self) {
-        let _ = self.0.terminate_tree();
-    }
-}
-
 impl Extensions {
     pub async fn agent_tools(&self, slug: &str, id: &str) -> Result<AgentTools, ExtensionsError> {
         let guard = self.extension_guard().await;
@@ -136,6 +129,7 @@ async fn list_tools(
     server: McpServerConfig,
     cwd: std::path::PathBuf,
 ) -> Result<Vec<McpTool>, &'static str> {
+    // A handle dropped by the timeout kills its process tree (shadows-process).
     let mut child = None;
     let running = match server {
         McpServerConfig::Http { url, headers, .. } => {
@@ -174,8 +168,7 @@ async fn list_tools(
                 pipe_stdin: true,
             })
             .map_err(|_| REFUSED)?;
-            child = Some(ListingChild(handle));
-            let handle = &mut child.as_mut().ok_or(REFUSED)?.0;
+            let handle = child.insert(handle);
             let (stdin, stdout, mut stderr) = handle.take_stdio().ok_or(REFUSED)?;
             tokio::spawn(async move {
                 let _ = tokio::io::copy(&mut stderr, &mut tokio::io::sink()).await;
@@ -186,8 +179,8 @@ async fn list_tools(
     let result = running.list_all_tools().await.map_err(|_| PROTOCOL);
     let _ = running.cancel().await;
     if let Some(mut child) = child {
-        child.0.terminate_tree().map_err(|_| REFUSED)?;
-        child.0.wait().await.map_err(|_| REFUSED)?;
+        child.terminate_tree().map_err(|_| REFUSED)?;
+        child.wait().await.map_err(|_| REFUSED)?;
     }
     let mut tools: Vec<_> = result?
         .into_iter()
