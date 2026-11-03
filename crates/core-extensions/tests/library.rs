@@ -729,7 +729,27 @@ async fn opening_snapshot_carries_rules_of_switched_on_items() {
     );
 }
 
+/// The first Node start on a cold Windows runner can outlast the 10-second listing limit,
+/// so every stdio test waits for one start that is not measured.
+async fn warm_node() {
+    static WARM: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+    WARM.get_or_init(|| async {
+        let mut node = shadows_process::spawn(shadows_process::ProcessSpec {
+            executable: "node".into(),
+            args: vec!["-e".into(), String::new()],
+            cwd: std::env::temp_dir(),
+            env: std::env::vars().collect(),
+            capture_stdout: false,
+            pipe_stdin: false,
+        })
+        .unwrap();
+        assert!(node.wait().await.unwrap().success());
+    })
+    .await;
+}
+
 async fn stdio_tools_item(w: &World, env: serde_json::Value) -> String {
+    warm_node().await;
     let input = serde_json::from_value(json!({"name":"stdio","transport":{
         "type":"stdio","command":"node","args":[
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mcp.cjs")
