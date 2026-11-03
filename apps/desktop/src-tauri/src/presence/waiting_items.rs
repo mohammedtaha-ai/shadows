@@ -20,12 +20,12 @@ pub(super) fn items<'a>(
             by_thread.insert(member.thread_id.as_str(), id);
         }
         if let Some(since) = group.needs_you_since.as_deref() {
-            by_group.insert(id, since);
+            by_group.insert(id, utc_sort_key(since));
         }
     }
     let mut items = Vec::new();
     for (index, request) in permissions.iter().enumerate() {
-        let time = request.asked_at.as_str();
+        let time = utc_sort_key(&request.asked_at);
         if let Some(&id) = by_thread.get(request.thread_id.as_str()) {
             let earliest = by_group.entry(id).or_insert(time);
             *earliest = (*earliest).min(time);
@@ -39,4 +39,9 @@ pub(super) fn items<'a>(
             .map(|(id, time)| (time, Target::Group { id })),
     );
     items
+}
+
+fn utc_sort_key(timestamp: &str) -> &str {
+    // Core's UTC timestamps can have different fractional precision.
+    timestamp.strip_suffix('Z').unwrap_or(timestamp)
 }
