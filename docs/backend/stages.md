@@ -91,7 +91,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Read: the plan's "Routing rules" and "Delivery rules"; crates/core-turns/contract.yaml (`send`)
 - Touch: crates/core-messages/src/send.rs, mentions.rs, bounds.rs, deliveries.rs, prompt.rs,
   lib.rs, contract.yaml, tests/send.rs
-- Done when: `cargo test -p core-messages` passes, with the six tests the task names
+- Done when: `cargo test -p core-messages` passes, with the seven tests the task names
 
 ### B-44 · Members answer, from the journal, inside bounds
 - Status: todo
@@ -99,11 +99,11 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Read: the plan's "Delivery rules"; B-41's `Events::ended_turns_after`
 - Touch: crates/core-messages/src/replies.rs, lib.rs, contract.yaml, tests/replies.rs;
   crates/shadows-core/src/app.rs
-- Done when: `cargo test -p core-messages` passes, with the seven tests the task names
+- Done when: `cargo test -p core-messages` passes, with the eight tests the task names
 
-### B-45 · Routes and the live frame
+### B-45 · Routes; messages on the project stream
 - Status: todo
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-45-routes-and-the-live-frame
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-45-routes-messages-on-the-project-stream
 - Read: crates/shadows-http/contract.yaml; crates/core-events/contract.yaml
 - Touch: crates/shadows-http/src/groups.rs (new), the router, openapi.rs, sse.rs, contract.yaml;
   crates/core-events/src/store.rs, contract.yaml; api/openapi.json;
