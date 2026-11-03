@@ -77,7 +77,8 @@ boundaries do not exempt their sources from the other architecture rules.
 | `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
 | `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared` |
 | `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
-| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, new-project, workflows, navigation, desktop-ui` |
+| `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, groups, new-project, workflows, navigation, desktop-ui` |
+| `groups` | `app/groups/**` | `app/groups/index.ts` | `app/groups/contract.yaml` | `api, ui, shared, stream, agents, conversation` |
 | `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
 | `test-support` | `test/**, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
@@ -330,6 +331,15 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/index.ts` | Expose app/settings public capabilities | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree narrowed by the search filter | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/group-list.tsx` | Group links in the AYLUL sidebar | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/groups/index.ts` | Group UI public exports | `web/src/app/groups/contract.yaml` |
+| `web/src/app/groups/new-group-dialog.tsx` | Group creation form | `web/src/app/groups/contract.yaml` |
+| `web/src/app/groups/new-group-dialog.test.tsx` | Group creation interaction checks | `web/src/app/groups/contract.yaml` |
+| `web/src/app/groups/group-page.tsx` | Open group view | `web/src/app/groups/contract.yaml` |
+| `web/src/app/groups/group-page.test.tsx` | Group page interaction checks | `web/src/app/groups/contract.yaml` |
+| `web/src/app/groups/group-log.tsx` | Ordered group message display | `web/src/app/groups/contract.yaml` |
+| `web/src/app/groups/group-composer.tsx` | Replayable group message composition | `web/src/app/groups/contract.yaml` |
+| `web/src/app/groups/mention-menu.tsx` | Group member mention suggestions | `web/src/app/groups/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/open-projects.ts` | Remembers which projects the sidebar shows open | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/project-list.tsx` | Sidebar project tree narrowed by the search filter | `web/src/app/sidebar/contract.yaml` |
