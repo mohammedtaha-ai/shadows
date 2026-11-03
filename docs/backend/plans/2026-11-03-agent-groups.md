@@ -120,7 +120,6 @@ delivery link stays recoverable by its command id. Harness settings RPCs use the
 **Interfaces:**
 - Produces (`model.rs`): `EndedTurn { seq: i64, thread_id: ThreadId, operation_id: OperationId, outcome: EndedOutcome }` and `enum EndedOutcome { Completed, Failed, Cancelled, Interrupted }`.
 - Produces: `Events::ended_turns_after(&self, after: i64, limit: i64) -> Result<Vec<EndedTurn>, StorageError>`. It reads journal rows of kind `OperationCompleted`, `OperationFailed`, `OperationCancelled` and `OperationInterrupted` that have a `thread_id`, with `seq > after`, in `seq` order.
-- Produces: `Events::last_seq(&self) -> Result<i64, StorageError>`, the journal's highest `seq`.
 - The caller waits on `Storage::watch_committed()` between reads. `Events` adds no task.
 
 - [ ] **Step 1: Write the failing tests.**
@@ -174,7 +173,8 @@ delivery link stays recoverable by its command id. Harness settings RPCs use the
 
 **Files:**
 - Create: `crates/core-messages/src/send.rs`, `src/mentions.rs`, `src/bounds.rs`, `src/deliveries.rs`, `src/prompt.rs`
-- Test: `crates/core-messages/tests/send.rs` (fake-acp)
+- Test: `crates/core-messages/tests/send.rs`; the tests that need a running turn go in
+  `crates/shadows/tests/group_routes.rs` (AppCore and fake-acp)
 
 **Interfaces:**
 - Produces: `Messages::send(command_id, group: &GroupId, text: &str) -> Result<Message, MessagesError>`. It records Mohammed's `Chat` message (its `cause_seq` is its own `seq`), schedules deliveries by the routing rules at round 1 and wakes the dispatcher.

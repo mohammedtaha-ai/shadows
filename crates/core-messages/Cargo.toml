@@ -12,7 +12,7 @@ doctest = false
 workspace = true
 
 [features]
-test-support = []
+test-support = ["core-db/test-support"]
 
 [dependencies]
 core-agents = { path = "../core-agents" }

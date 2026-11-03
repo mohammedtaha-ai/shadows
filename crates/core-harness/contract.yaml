@@ -95,7 +95,6 @@ modules:
   profile_home.rs: serialized home settings writes
   sessions.rs: private adapter lifecycle
   settings.rs: session option changes
-# Option RPCs use the setup deadline so their caller can release the session lease.
   setup.rs: Planner opening context
   standards.rs: standards prompt rendering
   titles.rs: ordered harness title writes
@@ -541,6 +540,8 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: A session option RPC waits at most the setup deadline, so its caller releases the session lease and shutdown stays bounded.
+    tested_by: [shutdown_is_bounded_while_group_settings_are_unanswered]
   - rule: The connection settles a prompt session's outstanding requests before returning its result or disconnect error, so Turns drains and journals their end in the same turn.
     tested_by: [ending_a_turn_settles_its_unanswered_requests, disconnecting_settles_requests_before_the_turn_is_collected]
   - rule: AYLUL holds permission requests for offered-option answers; replay returns its first result after session close, while Planner refuses immediately.

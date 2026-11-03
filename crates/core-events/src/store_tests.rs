@@ -59,7 +59,6 @@ async fn ended_turns_come_back_in_seq_order_after_the_cursor() {
     assert_eq!(rest.len(), 1);
     assert_eq!(rest[0].seq, seq[3]);
     assert_eq!(rest[0].thread_id.as_str(), "t2");
-    assert_eq!(store.last_seq().await.unwrap(), seq[3]);
 }
 
 #[tokio::test]

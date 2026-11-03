@@ -75,17 +75,6 @@ impl EventsStore {
             .collect()
     }
 
-    pub(super) async fn last_seq(&self) -> Result<i64, StorageError> {
-        Self::read_last_seq(&self.storage).await
-    }
-
-    async fn read_last_seq(storage: &Storage) -> Result<i64, StorageError> {
-        let seq = sqlx::query_scalar("SELECT COALESCE(MAX(seq), 0) FROM durable_event")
-            .fetch_one(storage.reader())
-            .await?;
-        Ok(seq)
-    }
-
     /// A project's plan/design event tail. Only identifiers are projected for client
     /// invalidation; plan content and edit details never enter this stream.
     /// Archive events name a plan, so they name its latest version to refetch.
@@ -179,7 +168,10 @@ impl Events {
     /// The journal cursor for fixture assertions, without exposing a domain Storage method.
     #[cfg(feature = "test-support")]
     pub async fn current_cursor_for_test(storage: &Storage) -> Result<EventCursor, StorageError> {
-        Ok(EventCursor(EventsStore::read_last_seq(storage).await?))
+        let seq: Option<i64> = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
+            .fetch_one(storage.reader())
+            .await?;
+        Ok(EventCursor(seq.unwrap_or(0)))
     }
 
     /// Replay through the journal owner using a fixture's explicit storage handle.

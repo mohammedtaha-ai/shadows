@@ -105,16 +105,128 @@ async fn messages_until(
 }
 
 async fn send(app: &app::App, path: &str, command: &str) -> Value {
+    say(app, path, command, "@alpha hello").await
+}
+
+async fn say(app: &app::App, path: &str, command: &str, text: &str) -> Value {
     let (status, body) = app::post(
         app,
         path,
         json!({
-            "command_id":command,"text":"@alpha hello",
+            "command_id":command,"text":text,
         }),
     )
     .await;
     assert_eq!(status, 200, "{body}");
     body
+}
+
+async fn execute(app: &app::App, sql: &'static str) {
+    app.storage
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                sqlx::query(sql).execute(conn).await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+}
+
+async fn count(app: &app::App, sql: &'static str, bind: &str) -> i64 {
+    sqlx::query_scalar(sql)
+        .bind(bind)
+        .fetch_one(app.storage.reader())
+        .await
+        .unwrap()
+}
+
+/// Each delivery of a group, in trigger order: its member, round, state, operation and prompt.
+async fn deliveries(
+    app: &app::App,
+    group: &str,
+) -> Vec<(String, i64, String, Option<String>, String)> {
+    sqlx::query_as(
+        "SELECT slug, round, state, operation_id, prompt FROM message_delivery
+         WHERE group_id=? ORDER BY trigger_seq, slug",
+    )
+    .bind(group)
+    .fetch_all(app.storage.reader())
+    .await
+    .unwrap()
+}
+
+const HOLD_LINK: &str = "CREATE TRIGGER hold BEFORE UPDATE OF operation_id ON message_delivery
+     BEGIN SELECT RAISE(ABORT, 'held for recovery test'); END";
+const HOLD_REPLY: &str = "CREATE TRIGGER hold BEFORE INSERT ON message
+     WHEN NEW.operation_id IS NOT NULL
+     BEGIN SELECT RAISE(ABORT, 'held for recovery test'); END";
+
+/// Alpha's turn for `@alpha hello` completes while `hold` refuses one write of its
+/// delivery; Core stops, and starts again over the same database with the write allowed.
+/// Answers the restarted app (its worker not yet started), the group and the turn's id.
+async fn complete_while_held(
+    dir: &Path,
+    hold: &'static str,
+    state: &str,
+) -> (app::App, Value, String) {
+    let app = world(dir).await;
+    let group = group(&app, "create").await;
+    let path = format!("/api/groups/{}/messages", group["id"].as_str().unwrap());
+    execute(&app, hold).await;
+    app.core.start_messages_for_test();
+    send(&app, &path, "send").await;
+    let thread = group["members"][0]["thread_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let id = group["id"].as_str().unwrap().to_owned();
+    let operation = tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            let done: Option<String> = sqlx::query_scalar(
+                "SELECT o.id FROM operation o, message_delivery d
+                 WHERE o.thread_id=? AND o.status_kind='Completed'
+                   AND d.group_id=? AND d.state=?",
+            )
+            .bind(&thread)
+            .bind(&id)
+            .bind(state)
+            .fetch_optional(app.storage.reader())
+            .await
+            .unwrap();
+            if let Some(done) = done {
+                return done;
+            }
+            tokio::time::sleep(Duration::from_millis(30)).await;
+        }
+    })
+    .await
+    .expect("turn did not finish while its delivery was held");
+    let recorded = "SELECT COUNT(*) FROM message WHERE group_id=? AND operation_id IS NOT NULL";
+    assert_eq!(count(&app, recorded, &id).await, 0);
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    drop(app);
+    let restarted = world(dir).await;
+    execute(&restarted, "DROP TRIGGER hold").await;
+    (restarted, group, operation)
+}
+
+async fn change_alpha_model(app: &app::App) {
+    app.core
+        .agents()
+        .update_agent(
+            "change-model".into(),
+            "alpha",
+            serde_json::from_value(json!({
+                "name":"Alpha","provider":"fixture","default_model":"fake-small",
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
 }
 
 async fn reply(app: &app::App, path: &str, after: i64) -> Value {
@@ -153,7 +265,9 @@ async fn a_group_is_created_written_to_and_read_back() {
         .unwrap();
 }
 
-async fn event(app: &app::App, after: i64) -> Value {
+/// The project's `MessageAdded` frames after `after`: exactly `count` of them, with no
+/// further one arriving in the next 300 ms.
+async fn message_frames(app: &app::App, after: i64, count: usize) -> Vec<Value> {
     let project = app.core.agents().assistant_project().await.unwrap();
     let response = app
         .router
@@ -167,24 +281,30 @@ async fn event(app: &app::App, after: i64) -> Value {
         .unwrap();
     assert_eq!(response.status(), 200);
     let mut stream = response.into_body().into_data_stream();
-    tokio::time::timeout(Duration::from_secs(10), async {
-        let mut buffer = String::new();
-        loop {
-            while let Some(end) = buffer.find("\n\n") {
-                let frame: String = buffer.drain(..end + 2).collect();
-                if let Some(data) = frame.lines().find_map(|line| line.strip_prefix("data: ")) {
-                    let value: Value = serde_json::from_str(data).unwrap();
-                    if value["kind"] == "MessageAdded" {
-                        return value;
-                    }
+    let mut buffer = String::new();
+    let mut frames = Vec::new();
+    loop {
+        while let Some(end) = buffer.find("\n\n") {
+            let frame: String = buffer.drain(..end + 2).collect();
+            if let Some(data) = frame.lines().find_map(|line| line.strip_prefix("data: ")) {
+                let value: Value = serde_json::from_str(data).unwrap();
+                if value["kind"] == "MessageAdded" {
+                    frames.push(value);
                 }
             }
-            let chunk = stream.next().await.unwrap().unwrap();
-            buffer.push_str(std::str::from_utf8(&chunk).unwrap());
         }
-    })
-    .await
-    .expect("MessageAdded was not streamed")
+        let wait = if frames.len() < count {
+            Duration::from_secs(10)
+        } else {
+            Duration::from_millis(300)
+        };
+        match tokio::time::timeout(wait, stream.next()).await {
+            Ok(Some(chunk)) => buffer.push_str(std::str::from_utf8(&chunk.unwrap()).unwrap()),
+            Ok(None) | Err(_) => break,
+        }
+    }
+    assert_eq!(frames.len(), count, "{frames:?}");
+    frames
 }
 
 #[tokio::test]
@@ -192,16 +312,46 @@ async fn a_message_reaches_the_project_stream() {
     let tmp = tempfile::tempdir().unwrap();
     let app = world(tmp.path()).await;
     let a = group(&app, "a").await;
+    let path = format!("/api/groups/{}/messages", a["id"].as_str().unwrap());
+    send(&app, &path, "send").await;
+    let frames = message_frames(&app, 0, 1).await;
+    assert_eq!(frames[0]["payload"], json!({"group_id":a["id"],"seq":1}));
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reconnect_resumes_after_messages_of_two_groups() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = world(tmp.path()).await;
+    let a = group(&app, "a").await;
     let b = group(&app, "b").await;
-    for group in [&a, &b] {
-        let id = group["id"].as_str().unwrap();
-        send(&app, &format!("/api/groups/{id}/messages"), "send").await;
+    for (command, group) in [("a1", &a), ("b1", &b), ("a2", &a), ("b2", &b)] {
+        let path = format!("/api/groups/{}/messages", group["id"].as_str().unwrap());
+        say(&app, &path, command, "hello").await;
     }
-    let first = event(&app, 0).await;
-    let second = event(&app, first["seq"].as_i64().unwrap()).await;
-    assert_eq!(first["payload"], json!({"group_id":a["id"],"seq":1}));
-    assert_eq!(second["payload"], json!({"group_id":b["id"],"seq":1}));
-    assert!(second["seq"].as_i64().unwrap() > first["seq"].as_i64().unwrap());
+    let all = message_frames(&app, 0, 4).await;
+    let payloads: Vec<_> = all.iter().map(|frame| frame["payload"].clone()).collect();
+    assert_eq!(
+        payloads,
+        [
+            json!({"group_id":a["id"],"seq":1}),
+            json!({"group_id":b["id"],"seq":1}),
+            json!({"group_id":a["id"],"seq":2}),
+            json!({"group_id":b["id"],"seq":2}),
+        ]
+    );
+    let middle = all[1]["seq"].as_i64().unwrap();
+    let rest = message_frames(&app, middle, 2).await;
+    let seqs = |frames: &[Value]| -> Vec<(i64, Value)> {
+        frames
+            .iter()
+            .map(|frame| (frame["seq"].as_i64().unwrap(), frame["payload"].clone()))
+            .collect()
+    };
+    assert_eq!(seqs(&rest), seqs(&all[2..]));
     app.core
         .shut_down(Duration::from_secs(5), std::future::pending())
         .await
@@ -211,92 +361,208 @@ async fn a_message_reaches_the_project_stream() {
 #[tokio::test]
 async fn a_turn_that_ends_before_its_link_is_still_recorded() {
     let tmp = tempfile::tempdir().unwrap();
-    let app = world(tmp.path()).await;
-    let group = group(&app, "create").await;
-    let path = format!("/api/groups/{}/messages", group["id"].as_str().unwrap());
-    app.storage
-        .write_txn(|conn| {
-            Box::pin(async move {
-                sqlx::query(
-                    "CREATE TRIGGER hold_group_link
-                     BEFORE UPDATE OF operation_id ON message_delivery
-                     BEGIN SELECT RAISE(ABORT, 'held for recovery test'); END",
-                )
-                .execute(conn)
-                .await?;
-                Ok(())
-            })
-        })
-        .await
-        .unwrap();
-    app.core.start_messages_for_test();
-    send(&app, &path, "send").await;
-    let thread = group["members"][0]["thread_id"].as_str().unwrap();
-    tokio::time::timeout(Duration::from_secs(30), async {
-        loop {
-            let finished: i64 = sqlx::query_scalar(
-                "SELECT COUNT(*) FROM operation WHERE thread_id=? AND status_kind='Completed'",
-            )
-            .bind(thread)
-            .fetch_one(app.storage.reader())
-            .await
-            .unwrap();
-            if finished == 1 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(30)).await;
-        }
-    })
-    .await
-    .expect("turn did not finish while its link was held");
-    let (_, rows) = app::call(&app, "GET", &path, None).await;
-    assert_eq!(rows.as_array().unwrap().len(), 1);
-    app.core
-        .shut_down(Duration::from_secs(5), std::future::pending())
-        .await
-        .unwrap();
-    drop(app);
-    let restarted = world(tmp.path()).await;
-    restarted
-        .storage
-        .write_txn(|conn| {
-            Box::pin(async move {
-                sqlx::query("DROP TRIGGER hold_group_link")
-                    .execute(conn)
-                    .await?;
-                Ok(())
-            })
-        })
-        .await
-        .unwrap();
-    restarted
-        .core
-        .agents()
-        .update_agent(
-            "change-model".into(),
-            "alpha",
-            serde_json::from_value(json!({
-                "name":"Alpha","provider":"fixture","default_model":"fake-small",
-            }))
-            .unwrap(),
-        )
-        .await
-        .unwrap();
+    let (restarted, group, _) = complete_while_held(tmp.path(), HOLD_LINK, "starting").await;
+    let id = group["id"].as_str().unwrap();
+    let path = format!("/api/groups/{id}/messages");
+    change_alpha_model(&restarted).await;
     send(&restarted, &path, "later").await;
     restarted.core.start_messages_for_test();
     let answer = reply(&restarted, &path, 2).await;
     assert_eq!(answer["body"], "hello from fake_acp");
-    let originals: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM message WHERE group_id=? AND cause_seq=1
-         AND operation_id IS NOT NULL",
+    let originals = "SELECT COUNT(*) FROM message WHERE group_id=? AND cause_seq=1
+         AND operation_id IS NOT NULL";
+    assert_eq!(count(&restarted, originals, id).await, 1);
+    restarted
+        .core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_redispatch_uses_the_stored_inputs() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (restarted, group, operation) =
+        complete_while_held(tmp.path(), HOLD_LINK, "starting").await;
+    let id = group["id"].as_str().unwrap();
+    let path = format!("/api/groups/{id}/messages");
+    change_alpha_model(&restarted).await;
+    send(&restarted, &path, "later").await;
+    restarted.core.start_messages_for_test();
+    messages_until(&restarted, &path, |rows| rows.len() >= 4).await;
+    let (model, linked): (String, String) = sqlx::query_as(
+        "SELECT model, operation_id FROM message_delivery WHERE group_id=? AND trigger_seq=1",
     )
-    .bind(group["id"].as_str().unwrap())
+    .bind(id)
     .fetch_one(restarted.storage.reader())
     .await
     .unwrap();
-    assert_eq!(originals, 1);
+    assert_eq!(linked, operation);
+    assert_eq!(model, "fake-large");
+    let notices = "SELECT COUNT(*) FROM message WHERE group_id=? AND kind='notice'";
+    assert_eq!(count(&restarted, notices, id).await, 0);
+    let rows = deliveries(&restarted, id).await;
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|row| row.2 == "answered"), "{rows:?}");
     restarted
         .core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reply_survives_a_restart_before_it_is_recorded() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (restarted, group, operation) =
+        complete_while_held(tmp.path(), HOLD_REPLY, "running").await;
+    let path = format!("/api/groups/{}/messages", group["id"].as_str().unwrap());
+    restarted.core.start_messages_for_test();
+    let answer = reply(&restarted, &path, 1).await;
+    assert_eq!(answer["speaker"]["slug"], "alpha");
+    let recorded = "SELECT COUNT(*) FROM message WHERE operation_id=?";
+    assert_eq!(count(&restarted, recorded, &operation).await, 1);
+    restarted
+        .core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reply_is_recorded_once() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = world(tmp.path()).await;
+    let group = group(&app, "create").await;
+    let id = group["id"].as_str().unwrap();
+    let path = format!("/api/groups/{id}/messages");
+    app.core.start_messages_for_test();
+    send(&app, &path, "send").await;
+    reply(&app, &path, 1).await;
+    // The journal is read again from its start: an ending already recorded records nothing.
+    execute(&app, "UPDATE message_cursor SET seq = 0").await;
+    say(&app, &path, "again", "@beta hello").await;
+    let rows = messages_until(&app, &path, |rows| rows.len() >= 4).await;
+    assert_eq!(rows[3]["speaker"]["slug"], "beta", "{rows:?}");
+    let agents = rows
+        .iter()
+        .filter(|row| row["speaker"]["kind"] == "agent")
+        .count();
+    assert_eq!(agents, 2, "{rows:?}");
+    let recorded = "SELECT COUNT(*) FROM message WHERE group_id=? AND operation_id IS NOT NULL";
+    assert_eq!(count(&app, recorded, id).await, 2);
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reply_without_member_mentions_wakes_no_one() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = world(tmp.path()).await;
+    let group = group(&app, "create").await;
+    let id = group["id"].as_str().unwrap();
+    let path = format!("/api/groups/{id}/messages");
+    app.core.start_messages_for_test();
+    send(&app, &path, "send").await;
+    let answer = reply(&app, &path, 1).await;
+    assert_eq!(answer["to"], json!([]));
+    let rows = deliveries(&app, id).await;
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].2, "answered");
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reply_mentioning_another_member_reaches_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = world(tmp.path()).await;
+    let group = create(&app, "create", "Fixture loop", &["alpha", "beta"]).await;
+    let id = group["id"].as_str().unwrap();
+    let path = format!("/api/groups/{id}/messages");
+    say(&app, &path, "go", "@alpha go").await;
+    app.core.start_messages_for_test();
+    let rows = messages_until(&app, &path, |rows| {
+        rows.iter().any(|row| row["kind"] == "notice")
+    })
+    .await;
+    assert_eq!(rows[1]["speaker"]["slug"], "alpha", "{rows:?}");
+    assert_eq!(rows[1]["to"], json!([{"kind":"agent","slug":"beta"}]));
+    assert_eq!(rows[2]["speaker"]["slug"], "beta", "{rows:?}");
+    assert_eq!(rows[2]["to"], json!([{"kind":"agent","slug":"alpha"}]));
+    assert_eq!(
+        rows[4]["body"],
+        "The group stopped here: the limit for one message was reached."
+    );
+    let rounds: Vec<(String, i64)> = deliveries(&app, id)
+        .await
+        .into_iter()
+        .map(|row| (row.0, row.1))
+        .collect();
+    assert_eq!(
+        rounds,
+        [("alpha".into(), 1), ("beta".into(), 2), ("alpha".into(), 3)]
+    );
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn the_prompt_carries_only_what_is_new() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = world(tmp.path()).await;
+    let group = create(&app, "create", "Group", &["alpha"]).await;
+    let id = group["id"].as_str().unwrap();
+    let path = format!("/api/groups/{id}/messages");
+    app.core.start_messages_for_test();
+    say(&app, &path, "first", "@alpha first question").await;
+    reply(&app, &path, 1).await;
+    say(&app, &path, "second", "@alpha second question").await;
+    reply(&app, &path, 3).await;
+    let rows = deliveries(&app, id).await;
+    assert!(rows[0].4.contains("Mohammed: @alpha first question"));
+    assert!(
+        rows[0]
+            .4
+            .starts_with("Group: Group\nMembers: Alpha (@alpha)\n")
+    );
+    assert!(rows[1].4.contains("Mohammed: @alpha second question"));
+    assert!(!rows[1].4.contains("first question"), "{}", rows[1].4);
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_second_message_to_a_busy_member_gets_its_own_turn() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = world(tmp.path()).await;
+    let group = create(&app, "create", "Group", &["alpha"]).await;
+    let id = group["id"].as_str().unwrap();
+    let path = format!("/api/groups/{id}/messages");
+    say(&app, &path, "one", "@alpha one").await;
+    say(&app, &path, "two", "@alpha two").await;
+    app.core.start_messages_for_test();
+    let rows = messages_until(&app, &path, |rows| rows.len() >= 4).await;
+    assert_eq!(rows[2]["speaker"]["slug"], "alpha", "{rows:?}");
+    assert_eq!(rows[3]["speaker"]["slug"], "alpha", "{rows:?}");
+    let rows = deliveries(&app, id).await;
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|row| row.2 == "answered"), "{rows:?}");
+    assert_ne!(rows[0].3, rows[1].3);
+    assert!(rows[1].4.contains("Mohammed: @alpha two"));
+    assert!(!rows[1].4.contains("@alpha one"), "{}", rows[1].4);
+    let thread = group["members"][0]["thread_id"].as_str().unwrap();
+    let turns = "SELECT COUNT(*) FROM operation WHERE thread_id=?";
+    assert_eq!(count(&app, turns, thread).await, 2);
+    app.core
         .shut_down(Duration::from_secs(5), std::future::pending())
         .await
         .unwrap();

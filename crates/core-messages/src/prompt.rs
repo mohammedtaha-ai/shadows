@@ -7,7 +7,7 @@ pub(super) fn build(group: &Group, messages: &[Message], total: i64) -> String {
     let members = group
         .members
         .iter()
-        .map(|member| format!("@{}", member.slug))
+        .map(|member| format!("{} (@{})", member.name, member.slug))
         .collect::<Vec<_>>()
         .join(", ");
     let mut prompt = format!(

@@ -50,10 +50,6 @@ impl Events {
         self.store.ended_turns_after(after, limit).await
     }
 
-    pub async fn last_seq(&self) -> Result<i64, core_db::StorageError> {
-        self.store.last_seq().await
-    }
-
     pub fn new(
         storage: Arc<Storage>,
         harness: Arc<Harness>,

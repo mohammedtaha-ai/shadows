@@ -66,3 +66,33 @@ async fn messages_come_back_in_seq_order() {
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].id, second.id);
 }
+
+#[tokio::test]
+async fn a_mention_of_a_stranger_is_not_an_address() {
+    use core_messages::Address;
+    let f = fixture().await;
+    let group = f
+        .messages
+        .create_group("group".into(), "Group", &["alpha".into(), "beta".into()])
+        .await
+        .unwrap();
+    let message = f
+        .messages
+        .send("send".into(), &group.id, "@alpha ask @stranger")
+        .await
+        .unwrap();
+    assert_eq!(
+        message.to,
+        vec![Address::Agent {
+            slug: "alpha".into()
+        }]
+    );
+    assert_eq!(message.body, "@alpha ask @stranger");
+    let scheduled: Vec<String> =
+        sqlx::query_scalar("SELECT slug FROM message_delivery WHERE group_id = ? ORDER BY slug")
+            .bind(group.id.as_str())
+            .fetch_all(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(scheduled, ["alpha"]);
+}

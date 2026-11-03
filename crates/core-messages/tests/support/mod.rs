@@ -1,3 +1,6 @@
+// Each test binary reads a different part of the fixture.
+#![allow(dead_code)]
+
 use core_agents::{AgentInput, Agents};
 use core_code::Code;
 use core_db::Storage;
@@ -11,6 +14,7 @@ use std::sync::Arc;
 pub struct Fixture {
     _tmp: tempfile::TempDir,
     pub storage: Arc<Storage>,
+    pub agents: Arc<Agents>,
     pub threads: Arc<Threads>,
     pub messages: Arc<Messages>,
 }
@@ -63,10 +67,11 @@ pub async fn fixture() -> Fixture {
         Code::new(storage.clone(), projects.clone()),
         projects,
     ));
-    let messages = Messages::new(storage.clone(), agents);
+    let messages = Messages::new(storage.clone(), agents.clone());
     Fixture {
         _tmp: tmp,
         storage,
+        agents,
         threads,
         messages,
     }

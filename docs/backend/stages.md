@@ -94,8 +94,10 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Read: the plan's "Routing rules" and "Delivery rules"; crates/core-turns/contract.yaml (`send`)
 - Touch: crates/core-messages/src/send.rs, mentions.rs, bounds.rs, deliveries.rs, prompt.rs,
   lib.rs, store/mod.rs, store/write.rs, store/deliveries.rs, Cargo.toml, contract.yaml,
-  tests/send.rs, tests/support/mod.rs; crates/core-turns/src/lib.rs; crates/core-turns/contract.yaml
-- Done when: `cargo test -p core-messages` verifies routing, replay, ordering and bounded prompts.
+  tests/send.rs, tests/support/mod.rs; crates/core-turns/src/lib.rs; crates/core-turns/contract.yaml;
+  crates/shadows/tests/group_routes.rs (the tests that need a running turn: AppCore and fake-acp)
+- Done when: `cargo test -p core-messages` verifies routing, ordering and bounded prompts, and
+  `cargo test -p shadows --test group_routes` verifies prompts, one turn per delivery and replay.
 
 ### B-44 · Members answer, from the journal, inside bounds
 - Status: done

@@ -70,4 +70,36 @@ async fn a_failed_group_creation_leaves_no_thread() {
             .unwrap()
             .is_empty()
     );
+    let members: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM message_group_member")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(members, 0);
+}
+
+#[tokio::test]
+async fn a_group_refuses_a_deleted_agent() {
+    let f = fixture().await;
+    let agents = f.agents.clone();
+    f.storage
+        .write_txn_as(move |conn| {
+            Box::pin(async move { agents.delete_in(conn, "delete".into(), "beta").await })
+        })
+        .await
+        .unwrap();
+    let slugs = ["alpha".into(), "beta".into()];
+    assert!(
+        f.messages
+            .create_group("group".into(), "Group", &slugs)
+            .await
+            .is_err()
+    );
+    assert!(f.messages.groups().await.unwrap().is_empty());
+    let mut conn = f.storage.reader().acquire().await.unwrap();
+    assert!(
+        Threads::list_for_profile_in(&mut conn, "alpha")
+            .await
+            .unwrap()
+            .is_empty()
+    );
 }
