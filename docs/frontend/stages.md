@@ -35,6 +35,7 @@ settings dialog, PR #40) at `1a2b601`.
 
 ### F-80 · Per-tool permissions in the agent form
 - Status: todo
+- Plan: docs/backend/plans/2026-11-03-aylul-tool-permissions.md (Task 5)
 - Spec: [AYLUL agents and panel §7.2.1](../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md)
 - Read: `web/src/app/agents/` (the agent form and its capabilities section) and its contract; `web/src/api/` for the two routes; `docs/frontend/AGENTS.md` (tokens only).
 - Touch: `web/src/app/agents/` (a new `tool-rules.tsx` and its test, the capabilities section); `web/src/api/` (query and mutation for the two routes, not `schema.d.ts`); the agents contract; `docs/frontend/codebase/README.md` if a row changes.

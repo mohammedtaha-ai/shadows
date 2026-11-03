@@ -193,8 +193,9 @@ switched on. Decided with him: **per agent**, not per library item.
 
 - **Owner: `Extensions`,** beside the agent's switch for the item. A rule is
   `(agent, item, tool name) → allow | ask | deny`. No row means `ask`, Claude Code's own
-  default for an MCP tool. Deleting the item or switching it off keeps nothing: the rules go
-  with the switch.
+  default for an MCP tool. Rules stay while the item is switched off (they apply only to a
+  switched-on item, so switching back on restores them); deleting the item or the agent
+  removes them in the same write.
 - **The tool list comes from the server.** `Extensions` connects to the item as an MCP
   client (`tools/list`), over `http` with its stored header values, or by starting the
   `stdio` command with its stored environment values, and returns each tool's name and
@@ -206,9 +207,10 @@ switched on. Decided with him: **per agent**, not per library item.
   being the name the item is delivered under in ACP's `mcpServers`, in the same projection
   step that writes the rest of the home. `ask` writes nothing. Rules the harness did not
   write are kept; rules it wrote for an item now off or deleted are removed.
-- **Modes.** A deny rule holds in every mode. An allow rule skips the question in the asking
-  modes and Auto mode's classifier for that tool. A mode that skips permissions ignores
-  allow and ask, as Claude Code does; deny still holds.
+- **Modes.** An allow rule skips the question in the asking modes and Auto mode's
+  classifier for that tool; a deny rule refuses the tool in them. Whether a deny rule holds
+  in the mode that skips permissions is Claude Code's behaviour, measured in B-39 and
+  written here then.
 - **Form:** each switched-on MCP item opens to its tools, each with three buttons (allow,
   ask, block) and the tool's description, and one control that sets every tool of the item
   at once.
