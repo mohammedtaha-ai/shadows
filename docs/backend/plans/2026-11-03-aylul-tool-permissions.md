@@ -31,7 +31,11 @@ B-38, B-39 in `docs/backend/stages.md`; F-80 in `docs/frontend/stages.md`.
 - Listing limit: 10 seconds for connect + `initialize` + `tools/list` together.
 - Web: tokens only (no hex, `rgba`, raw palette classes, `text-[1`); `schema.d.ts` is
   regenerated, never edited.
-- Focused tests only per task; the full gate runs in CI after the branch review.
+- Focused tests only per task; run the full gate locally after branch review, before PR.
+- Probe Task 3's real ACP assumptions before Task 1; record observed behavior in the spec.
+- Home rule projection must recover from interruption between settings and manifest writes.
+- Serialize all mutations for one MCP item's rules in the form; disable the whole item while saving.
+- Finish with browser acceptance against `shadows serve` and inspect its logs.
 
 ## Review Focus
 

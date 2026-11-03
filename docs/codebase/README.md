@@ -467,6 +467,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |
 
 | `crates/core-extensions/src/lib.rs` | extension library boundary | `crates/core-extensions/contract.yaml` |
+| `crates/core-extensions/src/tool_rules.rs` | per-agent MCP tool rule commands | `crates/core-extensions/contract.yaml` |
 
 | `crates/core-threads/src/lib.rs` | thread command boundary | `crates/core-threads/contract.yaml` |
 

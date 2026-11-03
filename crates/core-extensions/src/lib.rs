@@ -5,12 +5,13 @@ mod files;
 mod mcp;
 mod model;
 mod store;
+mod tool_rules;
 
 pub use error::ExtensionsError;
 pub use mcp::McpServerConfig;
 pub use model::{
     AgentExtensions, AgentItem, AgentMcpItem, ExtensionKind, ExtensionLibrary, Item, McpInput,
-    McpItem, McpTransport, McpTransportInput, McpValue, McpValueInput,
+    McpItem, McpTransport, McpTransportInput, McpValue, McpValueInput, ToolRule, ToolRuleEntry,
 };
 
 use core_db::{CommandContext, Storage};

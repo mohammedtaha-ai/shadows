@@ -14,6 +14,7 @@ modules:
   model.rs: public extension metadata
   files.rs: bounded library file copies
   mcp.rs: MCP configuration commands and validation
+  tool_rules.rs: per-agent MCP tool rule commands
   bundled.rs: embedded library import
   ../build.rs: embedded library file index
   ../assets/library/: bundled library source items
@@ -71,6 +72,8 @@ functions:
   delete_extension: Remove the item and every enablement in one transaction; MCP deletion removes its secret scope.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
+  tool_rules: List stored rules ordered by tool for a live agent and existing MCP item.
+  set_tool_rules: Replayably replace one agent's item rules; ask removes a stored rule.
   extension_guard: public; the library mutation guard the harness holds while projecting.
   remove_agent_in: public; remove every folder and MCP switch of an agent in the caller's write.
   copy_tree: public; copy one library item's bounded regular files into a managed snapshot.
@@ -87,6 +90,8 @@ shared_in_transaction:
   remove_agent_in: Agent enablements removed in the caller write.
 
 obligations:
+  - rule: Per-agent tool rules omit ask, survive switches, and are removed with the item or agent.
+    tested_by: [rules_are_per_agent, ask_stores_no_row, rules_survive_switching_off, deleting_the_item_or_agent_removes_rules, tool_rule_input_is_checked, tool_rules_replay_and_conflict]
   - rule: Bundled sources use a fresh owned temporary directory and exclusive file creation; stale linked staging paths never redirect or overwrite files.
     tested_by: [bundled_staging_does_not_overwrite_linked_files, bundled_staging_does_not_follow_a_linked_parent]
   - rule: Embedded items import once, start disabled, and stay absent after deletion.

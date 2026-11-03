@@ -3,6 +3,22 @@
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
+pub enum ToolRule {
+    Allow,
+    Ask,
+    Deny,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ToolRuleEntry {
+    pub tool: String,
+    pub rule: ToolRule,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum ExtensionKind {
     Plugin,
     Skill,

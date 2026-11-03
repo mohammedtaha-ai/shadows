@@ -208,9 +208,12 @@ switched on. Decided with him: **per agent**, not per library item.
   step that writes the rest of the home. `ask` writes nothing. Rules the harness did not
   write are kept; rules it wrote for an item now off or deleted are removed.
 - **Modes.** An allow rule skips the question in the asking modes and Auto mode's
-  classifier for that tool; a deny rule refuses the tool in them. Whether a deny rule holds
-  in the mode that skips permissions is Claude Code's behaviour, measured in B-39 and
-  written here then.
+  classifier for that tool; a deny rule refuses the tool in them. The 2026-11-03 probe
+  through the installed `harness/claude` ACP adapter and Claude executable measured
+  `mcp__context7__read`: default ask requested permission, allow executed without a
+  question, and deny removed the tool from the model's offered tools in default, Auto
+  and bypassPermissions. The MCP server and model provider were local fixtures;
+  this establishes installed-runtime behavior, not external-provider acceptance.
 - **Form:** each switched-on MCP item opens to its tools, each with three buttons (allow,
   ask, block) and the tool's description, and one control that sets every tool of the item
   at once.
