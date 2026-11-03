@@ -248,8 +248,13 @@ B-46: `Group.needs_you_since`, needed by U-10).
   - **A reconnect** rebuilds the count from the two lists. Requests already in the set ring
     nothing. A `MessageAdded` that the resumed stream delivers for the first time is new, and
     rings once for the batch, not once per message.
-  - **The app's first read after it starts** fills the sets and plays no tone, as the permission
-    count does today.
+  - **The app's first connection is silent until `caught-up`.** The project feed starts at
+    cursor 0 (`presence/watcher/feed.rs`), so it replays old `MessageAdded` events first, and
+    `GET /api/groups` carries no message `seq`. Every request and every call that arrives before
+    that subscription's first `caught-up` frame only fills the seen sets and the per-group
+    highest `seq`. None of them rings.
+  - **After that, in the same run,** the seen state and the feed's cursor (the last event handled)
+    survive a reconnect, so only events after that cursor can be new.
 - **A permission request on a hidden group thread** is counted once: as its group, not as a
   conversation. The pill reads `GET /api/aylul/permissions` today, and that list includes hidden
   threads, so without this the pill would open a hidden thread as a conversation. The watcher
@@ -264,6 +269,11 @@ B-46: `Group.needs_you_since`, needed by U-10).
     10:05; the tone plays for the call
   - `an_older_request_closing_rings_nothing`: requests at 10:00 and 10:03 are both seen; 10:00
     closes; no tone, though the group's time moves to 10:03
+  - `startup_is_silent_and_a_call_during_a_drop_rings_once`:
+    - the journal already holds a call to Mohammed when the app starts: no tone through the
+      replay and `caught-up`, and the pill counts the group;
+    - the feed then drops and a new call is written meanwhile: after the reconnect, exactly one
+      tone.
   - `a_message_to_others_does_not`
   - `the_pill_counts_a_group_once`
   - `the_oldest_waiting_group_opens_the_group_page`
