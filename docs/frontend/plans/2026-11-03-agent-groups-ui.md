@@ -24,7 +24,8 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 - All three go through the native Core client, as the pill does today.
 
 **Spec:** `docs/backend/specs/2026-11-03-agent-messaging-design.md` §6.6, §6.7.
-**Backend plan:** `docs/backend/plans/2026-11-03-agent-groups.md` (B-45: routes and stream).
+**Backend plan:** `docs/backend/plans/2026-11-03-agent-groups.md` (B-45: routes and stream;
+B-46: `Group.needs_you_since`, needed by U-10).
 
 ## Global Constraints
 
@@ -47,6 +48,8 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
    Mohammed does not read it as an agent's words.
 5. **A member asks permission inside a group.** The request shows in the group and is answered
    there; the pill counts it once.
+6. **A send whose answer is lost.** Core saved the message, the browser never heard. Sending
+   again replays the first send: one message, one turn.
 
 ---
 
@@ -62,8 +65,12 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 - Produces: `groupKeys`, `groupsQuery`, `groupQuery(id)`, `groupMessagesQuery(id)`,
   `createGroup({ name, members })`, `sendToGroup(id, text)`.
 - Produces: the types `Group`, `Message` and `Speaker` from `components['schemas']`.
+- `createGroup` and `sendToGroup` take the `command_id` from their caller. The caller keeps an
+  `Attempt` (`attemptFor` in `web/src/api/command-id.ts`) until the request succeeds or its
+  content changes, so a retry after a lost answer reuses the key and Core replays it (F-83's
+  dialog and F-84's composer do this).
 
-- [ ] Test `sends_a_command_id_with_every_write` and `reads_messages_after_a_seq`.
+- [ ] Tests `sends_the_callers_command_id`, `reads_messages_after_a_seq`.
 - [ ] Run `npm test -- groups` (in `web/`); expect FAIL, then implement, then PASS.
 - [ ] Commit `feat(web): groups API`.
 
@@ -75,10 +82,15 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 
 **Interfaces:**
 - `classifyRefresh` maps `MessageAdded` (payload `{group_id, seq}`) to
-  `{ kind: 'group-messages', groupId }` and `{ kind: 'groups' }` (so `needs_you` is re-read).
-- `dispatchRefresh` invalidates `groupMessagesQuery(groupId)` and `groupsQuery`.
+  `{ kind: 'group', groupId }` and `{ kind: 'groups' }`.
+- `dispatchRefresh` invalidates, for `group`, both `groupMessagesQuery(groupId)` and
+  `groupQuery(groupId)` (the open group's own `needs_you`); for `groups`, `groupsQuery`.
+- **Who holds the AYLUL project's stream:** F-83's group list calls
+  `useProjectEvents(agents.project_id)` (`agentsQuery` answers `project_id`). The list shows
+  whenever the AYLUL sidebar does, so the badge stays live outside the group page. The group
+  page holds it too; holders share one subscription.
 
-- [ ] Test `a_message_added_refreshes_its_group_and_the_list`.
+- [ ] Test `a_message_added_refreshes_its_group_its_log_and_the_list`.
 - [ ] Run; FAIL, implement, PASS.
 - [ ] Commit `feat(web): a new group message refreshes its views`.
 
@@ -92,10 +104,14 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 
 **Interfaces:**
 - **The list:** above the agents (decided). Each group shows its name, its members' colour dots, and a "needs you" dot.
+- **The list's stream:** it holds the AYLUL project's events (F-82).
 - **The dialog:** a name and up to 6 live agents. It refuses an empty name or no member, and
   disables the seventh pick. On success, it navigates to the group's page.
+- **The dialog's retry:** it keeps one `Attempt` for `{ name, members }`; the same content after
+  a failed or lost answer reuses its `command_id`.
 
-- [ ] Tests `the_seventh_agent_cannot_be_picked` and `creating_a_group_opens_it`.
+- [ ] Tests `the_seventh_agent_cannot_be_picked`, `creating_a_group_opens_it`,
+  `a_retry_after_a_lost_answer_reuses_the_command_id`.
 - [ ] Run; FAIL, implement, PASS.
 - [ ] Commit `feat(web): groups in the sidebar and the new-group dialog`.
 
@@ -120,10 +136,16 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
   - It is read from each `members[].thread_id` through `GET /api/threads/{id}/operations` (the
     query the conversation page uses): a member is thinking while its latest operation is not
     terminal. No new route.
+  - **It stays live:** the project stream carries `MessageAdded` but not a member thread's
+    operation events. The page holds `holdThreadRefresh(client, thread_id, { projectId })`
+    (`web/src/stream/refresh.ts`) for each member thread (6 at most) while it is open, so
+    the operations query refreshes when a turn starts and when it ends.
 - **The composer:**
   - Typing `@` opens the member menu: live members only. Mohammed is the writer, so
     `@mohammed` is not offered.
   - Enter sends; the field clears only after `sendToGroup` answers.
+  - The composer keeps one `Attempt` for `{ groupId, text }` until the send succeeds or the
+    text changes; a retry of the same text reuses its `command_id`.
 - **Opening the page** while `needs_you` is true: the "needs you" mark clears on the next send
   only (Core's rule), so the page does not claim to have cleared it.
 
@@ -132,28 +154,41 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
   - `a_notice_is_not_a_bubble`
   - `at_opens_the_member_menu_without_deleted_agents`
   - `the_log_does_not_jump_when_scrolled_up`
-  - `a_thinking_member_is_shown`
+  - `a_thinking_member_appears_and_clears_without_a_new_message`: a member thread's
+    operation starts, then ends; the mark shows, then goes, with no `MessageAdded`
+  - `a_resend_after_a_lost_answer_reuses_the_command_id`
 - [ ] Run; FAIL, implement, PASS.
 - [ ] Commit `feat(web): the group page`.
 
 ### Task F-85: A member's permission request in the group
 
 **Files:**
-- Modify: `web/src/app/groups/group-page.tsx`; reuse
-  `web/src/app/conversation/permission-card.tsx` as it is
+- Create: `web/src/app/conversation/permission-answer.tsx`,
+  `web/src/app/conversation/permission-answer.test.tsx`
+- Modify: `web/src/app/conversation/permission-card.tsx`,
+  `web/src/app/conversation/permission-card.test.tsx`, `web/src/app/groups/group-page.tsx`,
+  `web/src/app/conversation/contract.yaml`, `web/src/app/groups/contract.yaml`
 
 **Interfaces:**
 - `waitingPermissionsQuery` (`GET /api/aylul/permissions`, `web/src/api/permissions.ts`)
   already returns every AYLUL thread's waiting requests, hidden ones included; each carries
   `thread_id`. The page keeps those whose `thread_id` is one of its members' and shows each with
   the existing permission card under the log, with the member's name.
-- The answer goes through `answerPermission(thread_id, request_id, option_id, command_id)`, as
-  in a conversation.
+- **One answering part, two users.** `PermissionCard` reads a `ThreadEntry` (`entry.body`,
+  `entry.card.request_id`); a group has a `WaitingPermission`, not an entry. Its answering
+  part moves into `PermissionAnswer({ request }: { request: WaitingPermission })`: the
+  options as buttons, the `Attempt`, `answerPermission(thread_id, request_id, option_id,
+  command_id)`, and the `PERMISSION_NOT_FOUND` / `PERMISSION_SETTLED` handling it has today.
+  `PermissionCard` keeps the entry's text and finds its waiting request as now, then renders
+  `PermissionAnswer`. The group page renders `PermissionAnswer` with the member's name. No
+  `ThreadEntry` is made up.
+- `permission-card.test.tsx` passes unchanged in what it checks.
 - Places that list waiting requests as conversations (the conversation page's banner, if any)
   must not link to a hidden thread. The builder checks every use of `waitingPermissionsQuery`
   and sends a hidden thread's request to its group.
 
-- [ ] Test `a_members_request_is_answered_in_the_group`.
+- [ ] Tests `a_members_request_is_answered_in_the_group` and
+  `permission_answer_answers_a_waiting_request` (in `permission-answer.test.tsx`).
 - [ ] Run; FAIL, implement, PASS.
 - [ ] Commit `feat(web): permission requests inside a group`.
 
@@ -181,12 +216,27 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
   `apps/desktop/src/features/companion/panel/CompanionPanel.tsx`, and the contracts
 
 **Interfaces:**
-- **The watcher** also subscribes to the AYLUL project's stream.
-  - On a `durable` `MessageAdded`, it reads that message (`GET /api/groups/{id}/messages?after=`).
-  - If the message addresses `Person`, it sets the waiting state the pill already uses, and plays
-    the existing interaction tone when sound is on.
-- **The pill count** is waiting permission requests plus groups with `needs_you`.
-  - Clicking the pill opens the oldest one: a conversation as today, or a group through U-9.
+- **The watcher's feed:** it already subscribes to the AYLUL project's stream for permissions
+  (`presence/watcher/feed.rs`, `Waiting`). `MessageAdded` is handled on that same subscription;
+  no second one.
+  - On `MessageAdded` it re-reads `GET /api/groups`, as it re-reads permissions on
+    `PermissionsChanged`.
+  - On connect and on reconnect it reads both lists after subscribing, as it does today.
+- **What the pill counts:** one item per waiting thing.
+  - A conversation's permission request is one item, as today.
+  - A group is **one item** when it has `needs_you` or any waiting request on one of its
+    member threads, however many of those it has.
+- **Oldest first:** an item's time is when it started waiting.
+  - A request's time is its `asked_at`.
+  - A group's time is the earliest of its `needs_you_since` (B-46) and its member requests'
+    `asked_at`.
+  - Clicking the pill opens the oldest item: a conversation as today, or a group through U-9.
+- **The tone plays only for something new:** an item whose time is later than the newest one
+  already seen in this run of the app.
+  - A reconnect rebuilds the count from the two lists and plays no tone for items it already
+    knew.
+  - The app's first read after it starts plays no tone either, as the permission count does
+    today.
 - **A permission request on a hidden group thread** is counted once: as its group, not as a
   conversation. The pill reads `GET /api/aylul/permissions` today, and that list includes hidden
   threads, so without this the pill would open a hidden thread as a conversation. The watcher
@@ -195,6 +245,8 @@ group_id, seq, speaker, to, kind, body, created_at }`, where `speaker` is `perso
 
 - [ ] Tests:
   - `a_message_to_mohammed_raises_the_waiting_state`
+  - `a_group_with_needs_you_and_two_requests_counts_once`
+  - `a_reconnect_restores_the_count_without_an_old_tone`
   - `a_message_to_others_does_not`
   - `the_pill_counts_a_group_once`
   - `the_oldest_waiting_group_opens_the_group_page`

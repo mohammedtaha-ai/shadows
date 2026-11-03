@@ -120,6 +120,16 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: `cargo test -p shadows --test group_routes --test openapi` passes and the generated
   API describes the group routes.
 
+### B-46 · When a group started needing Mohammed
+- Status: todo
+- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-46-when-a-group-started-needing-mohammed
+- Read: crates/core-messages/contract.yaml (`needs_you`); the UI plan's U-10
+  (docs/frontend/plans/2026-11-03-agent-groups-ui.md)
+- Touch: crates/core-messages/src/model.rs, src/store/mod.rs, contract.yaml, tests/groups.rs;
+  api/openapi.json; web/src/api/schema.d.ts
+- Done when: `cargo test -p core-messages` and `cargo test -p shadows --test openapi` pass, with
+  `needs_you_since_is_the_first_unanswered_call`
+
 Core's local acceptance used `shadows serve` with synthetic ACP and two agents. Alpha alone
 answered the addressed message. Restart preserved the group and reopened Alpha's member
 session. The local log recorded `OperationCompleted` and graceful shutdown. CI and the AYLUL
