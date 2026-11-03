@@ -175,9 +175,10 @@ No new service.
 ## 7. Evidence
 
 - `docs/evidence/2026-11-04-planner-context-probe.md`: how the adapter reports a compaction
-  (§1), and that no project in the development database has a design to measure (§2).
-- The budgets are therefore measured from slice 1's own record (§4.4), which stores each
-  context's estimated size, on the first real project planned with it.
+  (§1), and the sizes measured on testing4 (§2): the index about 450 tokens, the detail of one
+  anchored part about 1 470 tokens.
+- Both are well under §4.2's budgets on that project, so the budgets bind only on bigger
+  projects. Slice 1's own record (§4.4) keeps measuring every context it sends.
 
 ## 8. Left to the builder
 
@@ -191,6 +192,7 @@ No new service.
 > a project needs its own decision log (Mohammed: "the vision and the decisions") is decided when
 > the manager's slice needs to read them.
 
-> **OPEN — the budgets.** §4.2's numbers are Claude's starting values. Closed by the sizes
-> slice 1 records on the first real project planned with it; the numbers are one constant
-> block, so changing them is a one-line change.
+> **OPEN — the budgets.** §4.2's numbers are Claude's starting values. testing4 fits with room
+> to spare (§7), so they are not yet tested at their limit. Closed when a project's recorded
+> context first reaches a budget; the numbers are one constant block, so changing them is a
+> one-line change.

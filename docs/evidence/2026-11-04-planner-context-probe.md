@@ -34,12 +34,32 @@ Not measured: a live `/compact` and a live automatic compaction through `shadows
 above is the adapter's own code at the version Shadows pins; a live run confirms it when slice 2
 is built.
 
-## 2. No project in the development database has a design to measure
+## 2. Measured on testing4, the one project with a whole design
 
-- The development database (`%LOCALAPPDATA%\shadows-dev\shadows.sqlite3`, read-only) holds one
-  project, `AYLUL`, and no rows in `design_vision_version`, `design_part`, `design_outcome`,
-  `agreement`, `plan` or `planning_thread`.
-- `F:\testing4` is a created project structure (`SHADOWS.md`, `api`, `backend`, `database`,
-  `frontend`) with no design rows behind it in that database.
-- So no real index or detail can be measured today. Any design written now for the measurement
-  would be text written for the test, not a project's.
+Read on 2026-11-04 through the running daemon (`shadows serve --db %LOCALAPPDATA%\shadows-devshadows.sqlite3`), with `GET /api/projects/{id}/design/vision`, `/design/parts`,
+`/design/outcomes`, `/standards`, `/workflows` and `GET /api/workflows/{id}`.
+
+A first read of the same database file opened read-only with Python's `sqlite3` found only the
+AYLUL project. It missed rows still in the write-ahead log, so a read beside a live daemon goes
+through the daemon, not the file.
+
+| Project | Vision (JSON chars) | Parts | Outcomes | Plans |
+|---|---|---|---|---|
+| testing4 (a to-do app) | 1 253 | 4, all top level | 4 | 1, frozen v1, 4 tasks |
+| CSV Tool | 773 | 2 | — | 0 |
+| shadows | 102 | 0 | — | 0 |
+
+testing4, sizes as JSON characters (an upper bound for the text the context would carry),
+tokens estimated as characters / 4:
+
+| Piece | Characters | About tokens |
+|---|---|---|
+| **Index:** vision, part names and ids, outcome names and ids | 1 781 | 450 |
+| Anchor `Backend`, its full content | 687 | 170 |
+| The linked plan: title, goal, 4 tasks, change reason, links | 2 725 | 680 |
+| Project standards in effect | 2 467 | 620 |
+| **Detail total** | 5 879 | 1 470 |
+
+testing4 has no agreements, and its plan has one version, so no older rationales. A bigger
+project grows mainly with more parts in the index, and with agreements and plan versions in the
+detail.
