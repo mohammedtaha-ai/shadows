@@ -1,12 +1,16 @@
 //! Private journal replay persistence.
 use super::Events;
-use crate::EventCursor;
+use crate::{EndedOutcome, EndedTurn, EventCursor};
 use core_db::{Storage, StorageError};
 use core_operations::OperationId;
 use core_plans::Plans;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 use std::sync::Arc;
+
+#[cfg(test)]
+#[path = "store_tests.rs"]
+mod tests;
 
 /// One replayed journal row, as a client resuming a thread sees it.
 ///
@@ -34,6 +38,52 @@ pub(super) struct EventsStore {
 impl EventsStore {
     pub(super) fn with_storage(storage: Arc<Storage>) -> Self {
         Self { storage }
+    }
+
+    pub(super) async fn ended_turns_after(
+        &self,
+        after: i64,
+        limit: i64,
+    ) -> Result<Vec<EndedTurn>, StorageError> {
+        let rows: Vec<(i64, String, String, String)> = sqlx::query_as(
+            "SELECT seq, thread_id, operation_id, kind FROM durable_event
+              WHERE seq > ? AND thread_id IS NOT NULL AND operation_id IS NOT NULL
+                AND kind IN ('OperationCompleted', 'OperationFailed',
+                             'OperationCancelled', 'OperationInterrupted')
+              ORDER BY seq LIMIT ?",
+        )
+        .bind(after)
+        .bind(limit.max(0))
+        .fetch_all(self.storage.reader())
+        .await?;
+        rows.into_iter()
+            .map(|(seq, thread, operation, kind)| {
+                let outcome = match kind.as_str() {
+                    "OperationCompleted" => EndedOutcome::Completed,
+                    "OperationFailed" => EndedOutcome::Failed,
+                    "OperationCancelled" => EndedOutcome::Cancelled,
+                    "OperationInterrupted" => EndedOutcome::Interrupted,
+                    _ => return Err(StorageError::Unavailable("Unknown turn ending".into())),
+                };
+                Ok(EndedTurn {
+                    seq,
+                    thread_id: ThreadId::from_recorded(thread),
+                    operation_id: OperationId::from_recorded(operation),
+                    outcome,
+                })
+            })
+            .collect()
+    }
+
+    pub(super) async fn last_seq(&self) -> Result<i64, StorageError> {
+        Self::read_last_seq(&self.storage).await
+    }
+
+    async fn read_last_seq(storage: &Storage) -> Result<i64, StorageError> {
+        let seq = sqlx::query_scalar("SELECT COALESCE(MAX(seq), 0) FROM durable_event")
+            .fetch_one(storage.reader())
+            .await?;
+        Ok(seq)
     }
 
     /// A project's plan/design event tail. Only identifiers are projected for client
@@ -128,10 +178,7 @@ impl Events {
     /// The journal cursor for fixture assertions, without exposing a domain Storage method.
     #[cfg(feature = "test-support")]
     pub async fn current_cursor_for_test(storage: &Storage) -> Result<EventCursor, StorageError> {
-        let seq: Option<i64> = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
-            .fetch_one(storage.reader())
-            .await?;
-        Ok(EventCursor(seq.unwrap_or(0)))
+        Ok(EventCursor(EventsStore::read_last_seq(storage).await?))
     }
 
     /// Replay through the journal owner using a fixture's explicit storage handle.

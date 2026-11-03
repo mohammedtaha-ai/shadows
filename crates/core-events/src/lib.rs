@@ -19,7 +19,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 use core_plans::UiSignal;
-pub use model::EventCursor;
+pub use model::{EndedOutcome, EndedTurn, EventCursor};
 pub use store::StoredEvent;
 pub use subscription::{Delivery, Subscription};
 
@@ -42,6 +42,18 @@ pub struct Events {
 }
 
 impl Events {
+    pub async fn ended_turns_after(
+        &self,
+        after: i64,
+        limit: i64,
+    ) -> Result<Vec<EndedTurn>, core_db::StorageError> {
+        self.store.ended_turns_after(after, limit).await
+    }
+
+    pub async fn last_seq(&self) -> Result<i64, core_db::StorageError> {
+        self.store.last_seq().await
+    }
+
     pub fn new(
         storage: Arc<Storage>,
         harness: Arc<Harness>,

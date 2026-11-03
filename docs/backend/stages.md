@@ -71,10 +71,11 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   and `a_hidden_thread_is_still_closed_with_its_agent`
 
 ### B-41 · Ended turns from the journal
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-41-ended-turns-from-the-journal-events
 - Read: crates/core-events/contract.yaml; crates/core-operations/src/store/lifecycle.rs
-- Touch: crates/core-events/src/lib.rs, src/store.rs, src/model.rs, contract.yaml, tests/
+- Touch: crates/core-events/src/lib.rs, src/store.rs, src/model.rs, src/store_tests.rs, contract.yaml;
+  docs/codebase/README.md
 - Done when: `cargo test -p core-events` passes, with
   `ended_turns_come_back_in_seq_order_after_the_cursor` and `an_interrupted_turn_is_an_ended_turn`
 

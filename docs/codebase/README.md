@@ -426,6 +426,7 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-plans/src/store/event_projection.rs` | identifier-only plan event projection | `crates/core-plans/contract.yaml` |
 | `crates/core-events/src/store.rs` | private journal replay persistence | `crates/core-events/contract.yaml` |
+| `crates/core-events/src/store_tests.rs` | terminal turn replay tests | `crates/core-events/contract.yaml` |
 | `crates/shadows-http/src/aylul_agents.rs` | agent HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_person.rs` | person settings HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/aylul_usage.rs` | usage HTTP translation | `crates/shadows-http/src/contract.yaml` |
