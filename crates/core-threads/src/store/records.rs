@@ -87,13 +87,25 @@ impl Threads {
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<Vec<PlanningThread>, StorageError> {
+        super::ThreadsStore::profile_threads(conn, slug, true).await
+    }
+}
+
+impl super::ThreadsStore {
+    pub(super) async fn profile_threads(
+        conn: &mut SqliteConnection,
+        slug: &str,
+        include_hidden: bool,
+    ) -> Result<Vec<PlanningThread>, StorageError> {
         let rows: Vec<super::thread::ThreadRow> = sqlx::query_as(
             "SELECT id,project_id,title,status,created_at,harness_kind,
                     forked_from_thread,removed_at,profile
              FROM planning_thread WHERE profile=? AND removed_at IS NULL
+               AND (? OR hidden = 0)
              ORDER BY created_at DESC,id DESC",
         )
         .bind(slug)
+        .bind(include_hidden)
         .fetch_all(conn)
         .await?;
         Ok(rows
@@ -101,7 +113,9 @@ impl Threads {
             .map(super::ThreadsStore::into_thread)
             .collect())
     }
+}
 
+impl crate::Threads {
     /// The immutable card stored with an entry; a missing or null card keeps SQL's error.
     pub async fn card_in(
         conn: &mut SqliteConnection,

@@ -61,11 +61,12 @@ Agent groups, messaging slice 1 ([spec](specs/2026-11-03-agent-messaging-design.
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
 
 ### B-40 · Hidden member threads
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-40-hidden-member-threads-threads
 - Read: crates/core-threads/contract.yaml; crates/core-harness/src/sessions.rs (`close_agent`)
 - Touch: crates/core-db/migrations/0041_thread_hidden.sql; crates/core-threads/src/lib.rs;
-  crates/core-threads/src/store/; crates/core-threads/contract.yaml; crates/core-threads/tests/
+  crates/core-threads/src/store/thread.rs; crates/core-threads/src/store/records.rs;
+  crates/core-threads/contract.yaml; crates/core-threads/tests/hidden.rs
 - Done when: `cargo test -p core-threads` passes, with `a_hidden_thread_is_left_out_of_the_agent_list`
   and `a_hidden_thread_is_still_closed_with_its_agent`
 

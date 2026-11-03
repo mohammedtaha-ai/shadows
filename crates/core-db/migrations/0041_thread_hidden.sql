@@ -1,0 +1,1 @@
+ALTER TABLE planning_thread ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1));
