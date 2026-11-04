@@ -173,11 +173,19 @@ the planning context was heard, opens what it carried, and asks for it to be sen
     `Attempt`.
   - In the thread, `use-send.ts`'s send first calls `setAnchor` with that same `Attempt`, and calls
     `startTurn` only once it succeeds. A lost answer is replayed under the same command id.
-  - Beside the error, the composer offers "Send without the anchor". The anchor call may have
-    been saved with its answer lost, so this first sends `setAnchor(null)` under its own
-    `Attempt`. Only once the clear succeeds does it drop the pending anchor and call `startTurn`.
-    Clearing an absent anchor succeeds, so no replay of the first call is needed. A failed clear
-    keeps the error and starts no turn.
+  - Beside the error, the composer offers "Send without the anchor". It must not start a turn
+    while an anchor write may still land. The server runs a command in a task that outlives the
+    connection (`Transport::detached`), so a clear sent alone could commit first, and the first
+    write would then set the anchor again. So:
+    1. **The first call's outcome is unknown** (no HTTP answer: a network error or a lost
+       answer): replay `setAnchor` with the pending `Attempt`, the same `command_id`. Once it
+       answers, the first write has settled.
+    2. **The first call answered with a refusal** (an HTTP error answer): nothing was saved, so
+       skip the replay.
+    3. Then send `setAnchor(null)` under its own `Attempt`. Only once the clear succeeds does it
+       drop the pending anchor and call `startTurn`.
+    4. Any failure on the way keeps the error, keeps whatever is still pending, and starts no
+       turn.
   - The pending anchor is dropped once the anchor succeeds.
 - The draft shows "Anchored at <name>" above the composer.
 - The selected part's page and the selected outcome's page show a link "Plan from here" to
@@ -190,9 +198,15 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - `a_retry_sets_the_anchor_first_with_the_same_command_id`: the first `PUT …/anchor` loses its
     answer. The retry in the thread sends `PUT …/anchor` with the same `command_id`, then
     `POST …/turns`. One thread exists;
-  - `send_without_the_anchor_clears_a_saved_anchor_first`: the fake daemon saves the anchor and
-    loses the answer. "Send without the anchor" sends `PUT …/anchor` with `anchor: null`, then
-    `POST …/turns`, in that order, and the daemon holds no anchor when the turn starts;
+  - `send_without_the_anchor_settles_then_clears`: the first `PUT …/anchor` fails with no answer.
+    "Send without the anchor" sends, in this order:
+    1. `PUT …/anchor` with the first `command_id`;
+    2. `PUT …/anchor` with `anchor: null` and a new `command_id`;
+    3. `POST …/turns`.
+
+    The daemon holds no anchor when the turn starts.
+  - `send_without_the_anchor_after_a_refusal_only_clears`: the first `PUT` answers 404. No
+    replay; `PUT` null, then `POST …/turns`;
   - `an_unknown_anchor_value_is_ignored`.
 - [ ] Run `npx vitest run src/app/conversation/draft.test.tsx`; FAIL, implement, PASS.
 - [ ] Commit `feat(web): start a conversation from a part or an outcome`.
