@@ -35,6 +35,10 @@ permission_answer: Conversations and groups share option submission, replay and 
 composer_surface: Conversations and groups render the same frame, input and send control.
 turn_state: Groups read whether a member thread runs through the same running-turn rule as a conversation.
 source: web/src/app/conversation
+planning_context_record:
+  mark: A Planner user message shows its operation's heard or prepared state. A missing record has no mark.
+  panel: Fetch the selected operation's immutable record only on open. Read acknowledgement from the refreshed operations list.
+  side_panels: Context, plan, subagent, and background tasks share one panel slot. A deleted conversation can inspect its context record.
 planning_anchor:
   AnchorChip: Shows the Planner thread's selected, absent or removed anchor.
   AnchorPicker: Browses paginated design parts or outcomes by parent.

@@ -276,6 +276,7 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - `a_turn_without_a_record_shows_nothing`;
   - `lists_cuts_before_the_text`;
   - `lists_each_source_with_its_version`.
+  - `deleted_history_can_read_the_record`: opening the record does not open a live session.
 - [ ] Run `npx vitest run src/app/conversation/context-record-panel.test.tsx`; FAIL, implement,
   PASS.
 - [ ] Commit `feat(web): each turn's planning context and its record`.

@@ -13,6 +13,7 @@ import type { Operation, ThreadEntry } from '@/api/threads'
 import { type HarnessPolicy, harnessesQuery, policyOf } from '@/api/harnesses'
 import { AYLUL_HARNESS } from './cli-picker'
 import { Entry, ReplyText } from './entry'
+import { ContextMark, type PlanningContextState } from './context-mark'
 import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
 import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
@@ -48,6 +49,7 @@ export function Messages({
   onPointAt,
   subagents,
   onOpenSubagent,
+  onOpenContext,
   tools,
   todos,
 }: {
@@ -58,6 +60,7 @@ export function Messages({
   /** The running turns' subagent cards as the stream last sent them. */
   subagents: readonly SubagentCard[]
   onOpenSubagent: (id: string) => void
+  onOpenContext: (operationId: string) => void
   /** The running turn's tool calls as the stream last sent them, by call id. */
   tools: Readonly<Record<string, ToolFrame>>
   /** The running turn's task lists as the stream last sent them, by operation. */
@@ -144,8 +147,9 @@ export function Messages({
   const forkAt = forkAnchor(entries ?? [], shown)
   const policy = policyOf(useQuery(harnessesQuery).data, harness)
   const turnCards = runningCards(entries ?? [], subagents)
-  const modeOf = (entry: ThreadEntry) =>
-    operations?.find((op) => op.id === entry.operation_id)?.invocation?.requested_mode ?? null
+  const operationsById = useMemo(() => new Map(operations?.map(op => [op.id, op])), [operations])
+  const invocationOf = (entry: ThreadEntry) =>
+    entry.operation_id == null ? undefined : operationsById.get(entry.operation_id)?.invocation
 
   return (
     <div
@@ -193,10 +197,12 @@ export function Messages({
               entry={row.entry}
               handedOver={handedOver.has(row.entry.ordinal)}
               policy={policy}
-              requestedMode={modeOf(row.entry)}
+              requestedMode={invocationOf(row.entry)?.requested_mode ?? null}
+              planningContext={harness === AYLUL_HARNESS ? null : invocationOf(row.entry)?.planning_context ?? null}
               projectId={projectId}
               onPointAt={onPointAt}
               onOpenSubagent={onOpenSubagent}
+              onOpenContext={onOpenContext}
               answered={answered.get(row.entry.id)}
               {...(forkFrom !== null && forkAt !== null && row.entry.id === forkAt.shownId
                 ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
@@ -287,9 +293,11 @@ const EntryRow = memo(function EntryRow({
   handedOver,
   policy,
   requestedMode,
+  planningContext,
   projectId,
   onPointAt,
   onOpenSubagent,
+  onOpenContext,
   answered,
   forkProjectId,
   forkThreadId,
@@ -300,9 +308,11 @@ const EntryRow = memo(function EntryRow({
   handedOver: boolean
   policy: HarnessPolicy
   requestedMode: string | null
+  planningContext: PlanningContextState | null
   projectId: string
   onPointAt: (plan: Plan, task: PlanTask) => void
   onOpenSubagent: (id: string) => void
+  onOpenContext: (operationId: string) => void
   answered: string | undefined
   /** Where a fork from this row goes; set on the fork anchor only, as plain
    * values so that a new object each render does not redraw the row. */
@@ -314,6 +324,7 @@ const EntryRow = memo(function EntryRow({
     forkProjectId === undefined || forkThreadId === undefined || forkEntryId === undefined
       ? undefined
       : { projectId: forkProjectId, threadId: forkThreadId, entryId: forkEntryId }
+  const operationId = entry.operation_id
   return (
     <motion.li
       id={`entry-${entry.ordinal}`}
@@ -331,7 +342,9 @@ const EntryRow = memo(function EntryRow({
         onOpenSubagent={onOpenSubagent}
       />
       {answered !== undefined && <p className="text-xs text-faint-foreground">{answered}</p>}
-      <div className={cn(entry.kind === 'UserMessage' && 'flex justify-end')}>
+      <div className={cn(entry.kind === 'UserMessage' && 'flex flex-wrap items-center justify-end gap-2')}>
+        {entry.kind === 'UserMessage' && planningContext !== null && operationId != null &&
+          <ContextMark state={planningContext} onOpen={() => onOpenContext(operationId)} />}
         <MessageActions text={copyText(entry)} forkPoint={forkPoint} />
       </div>
     </motion.li>
