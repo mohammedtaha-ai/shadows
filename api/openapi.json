@@ -2111,6 +2111,7 @@
         "description": "Stable codes clients pattern-match on. Never match on human text.\n`Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
           "CONTEXT_NOT_CARRIED",
+          "MAP_REFUSED",
           "PERMISSION_NOT_FOUND",
           "PERMISSION_SETTLED",
           "PERMISSION_OPTION_NOT_OFFERED",

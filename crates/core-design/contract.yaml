@@ -683,3 +683,8 @@ planning_anchor:
   tables: [design_thread_anchor]
   set_thread_anchor: 'thread.anchor command, replay first with immutable answer, validates live Planner and project ownership; null clears'
   thread_anchor: 'Reads the selected anchor for a live thread, retaining references to deleted design items'
+
+map_refusals:
+  type: MapRefusal with stable rule and actionable message.
+  error: DesignError::MapRefused preserves the rule through application translation.
+  rules: [duplicate_part, duplicate_sibling, missing_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part]

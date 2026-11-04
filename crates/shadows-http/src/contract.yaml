@@ -84,3 +84,5 @@ planning_context:
   methods: [Design::set_thread_anchor, Design::thread_anchor, Harness::context_record]
   wire: Lowercase anchor kinds map to the existing DesignAnchor enum without changing its other callers.
   absent_record: 404 CONTEXT_NOT_CARRIED, with no assertion about the reason.
+
+map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; shared adapter fixtures cover it.'

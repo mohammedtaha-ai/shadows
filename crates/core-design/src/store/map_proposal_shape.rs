@@ -26,8 +26,8 @@ impl MapProposalShapeRows {
     pub(super) fn validate_args(
         args: &mut MapPropose,
         standards: &EffectiveStandards,
-    ) -> Result<(), StorageError> {
-        let bad = |s: &str| StorageError::Constraint(s.into());
+    ) -> Result<(), crate::DesignError> {
+        let bad = |s: &str| crate::DesignError::InvalidCommand(s.into());
         if args.parts.is_empty() || (args.action != MapAction::First && args.parts.len() != 1) {
             return Err(bad("first needs parts; add/change needs exactly one part"));
         }
@@ -58,7 +58,8 @@ impl MapProposalShapeRows {
             }
         }
         for part in &mut args.parts {
-            map_rules::MapRules::normalise(&mut part.content).map_err(StorageError::Constraint)?;
+            map_rules::MapRules::normalise(&mut part.content)
+                .map_err(crate::DesignError::MapRefused)?;
             match args.action {
                 MapAction::First
                     if part.parent.is_some()
@@ -155,7 +156,7 @@ impl MapProposalShapeRows {
             vision,
             standards,
         )
-        .map_err(|message| StorageError::Constraint(message).into())
+        .map_err(crate::DesignError::MapRefused)
     }
 }
 

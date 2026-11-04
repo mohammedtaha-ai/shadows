@@ -87,7 +87,7 @@ impl Design {
             .await?;
         for part in &mut args.parts {
             super::map_rules::MapRules::normalise(&mut part.content)
-                .map_err(DesignError::InvalidCommand)?;
+                .map_err(DesignError::MapRefused)?;
         }
         let ctx = Self::proposal_command(&writer, &turn, "MapPropose", &args)?;
         self.store

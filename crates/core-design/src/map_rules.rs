@@ -3,6 +3,28 @@ use super::{PartContent, VisionContent};
 use core_standards::EffectiveStandards;
 use std::collections::{BTreeMap, BTreeSet};
 
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{rule}: {message}")]
+pub struct MapRefusal {
+    pub rule: &'static str,
+    pub message: String,
+}
+
+impl MapRefusal {
+    fn new(rule: &'static str, message: String) -> Self {
+        Self { rule, message }
+    }
+
+    fn path(title: &str, message: String) -> Self {
+        Self::new(
+            "invalid_path",
+            format!(
+                "part {title:?}: {message}. Use a relative path without parent traversal or reserved names."
+            ),
+        )
+    }
+}
+
 pub struct MapPart<'a> {
     pub key: &'a str,
     pub parent: Option<&'a str>,
@@ -65,16 +87,21 @@ impl MapRules {
 }
 
 impl MapRules {
-    pub fn normalise(content: &mut PartContent) -> Result<(), String> {
+    pub fn normalise(content: &mut PartContent) -> Result<(), MapRefusal> {
         content.title = content.title.trim().into();
         if content.title.is_empty() {
-            return Err("a part needs a title".into());
+            return Err(MapRefusal::new(
+                "invalid_part",
+                "a part needs a title. Add a title.".into(),
+            ));
         }
         for folder in &mut content.folders {
-            *folder = MapRules::normalise_folder(folder)?;
+            *folder = MapRules::normalise_folder(folder)
+                .map_err(|message| MapRefusal::path(&content.title, message))?;
         }
         for file in &mut content.files {
-            file.path = MapRules::normalise_folder(&file.path)?;
+            file.path = MapRules::normalise_folder(&file.path)
+                .map_err(|message| MapRefusal::path(&content.title, message))?;
         }
         Ok(())
     }
@@ -103,11 +130,11 @@ impl MapRules {
         written: &[&str],
         vision: &VisionContent,
         standards: &EffectiveStandards,
-    ) -> Result<(), String> {
+    ) -> Result<(), MapRefusal> {
         let mut keys = BTreeSet::new();
         let mut identities = BTreeSet::new();
         let mut folders = Vec::new();
-        let mut files = BTreeSet::new();
+        let mut files = BTreeMap::new();
         let rules: BTreeSet<_> = standards
             .base
             .rules
@@ -117,12 +144,21 @@ impl MapRules {
             .collect();
         for part in parts {
             if !keys.insert(part.key) {
-                return Err("duplicate part key".into());
+                return Err(MapRefusal::new(
+                    "duplicate_part",
+                    format!(
+                        "part {:?} repeats key {:?}. Give every part a unique key.",
+                        part.content.title, part.key
+                    ),
+                ));
             }
             if !identities.insert((part.parent, part.content.title.trim().to_lowercase())) {
-                return Err(format!(
-                    "duplicate sibling identity: {}",
-                    part.content.title
+                return Err(MapRefusal::new(
+                    "duplicate_sibling",
+                    format!(
+                        "part {:?} repeats a sibling title. Rename it or choose another parent.",
+                        part.content.title
+                    ),
                 ));
             }
             if let Some(parent) = part.parent
@@ -130,22 +166,45 @@ impl MapRules {
                     || parent == part.key
                     || descendant(parts, parent, part.key))
             {
-                return Err("missing parent or containment cycle".into());
+                return Err(MapRefusal::new(
+                    "missing_parent",
+                    format!(
+                        "part {:?} has missing parent {parent:?} or a containment cycle. \
+                    Choose an existing parent outside its descendants.",
+                        part.content.title
+                    ),
+                ));
             }
             if written.contains(&part.key) {
                 for id in &part.content.serves {
                     if vision.item(id).is_none() {
-                        return Err(format!("unknown vision item: {id}"));
+                        return Err(MapRefusal::new(
+                            "unknown_vision_item",
+                            format!(
+                                "part {:?} serves unknown vision item {id}. \
+                            Read the vision and use an existing item id.",
+                                part.content.title
+                            ),
+                        ));
                     }
                 }
                 for rule in &part.content.contract.rules {
                     if !rules.contains(rule.as_str()) {
-                        return Err(format!("unknown rule: {rule}"));
+                        return Err(MapRefusal::new(
+                            "unknown_rule",
+                            format!(
+                                "part {:?} names unknown rule {rule}. \
+                            Read the standards and use an existing rule id.",
+                                part.content.title
+                            ),
+                        ));
                     }
                 }
             }
             for folder in &part.content.folders {
-                folders.push((part.key, MapRules::normalise_folder(folder)?.to_lowercase()));
+                let path = MapRules::normalise_folder(folder)
+                    .map_err(|message| MapRefusal::path(&part.content.title, message))?;
+                folders.push((part.key, path.to_lowercase()));
             }
             for file in &part.content.files {
                 // Only the parts this write changes: an older part's reserved file
@@ -154,29 +213,62 @@ impl MapRules {
                     MapRules::check_reserved(
                         &file.path,
                         parts.iter().filter_map(|p| p.content.folders.first()),
-                    )?;
+                    ).map_err(|message| MapRefusal::new("reserved_file", format!(
+                        "part {:?}: {message}. Remove the generated file from the proposal.",
+                        part.content.title)))?;
                 }
-                let path = MapRules::normalise_folder(&file.path)?.to_lowercase();
+                let path = MapRules::normalise_folder(&file.path)
+                    .map_err(|message| MapRefusal::path(&part.content.title, message))?
+                    .to_lowercase();
                 if !part
                     .content
                     .folders
                     .iter()
                     .any(|f| inside(&path, &f.to_lowercase()))
                 {
-                    return Err(format!("file outside its part's folders: {}", file.path));
+                    return Err(MapRefusal::new(
+                        "file_outside_part",
+                        format!(
+                            "part {:?} lists {}, which is outside its folders {:?}. \
+                        Move the file into one of them, or add its folder to the part.",
+                            part.content.title, file.path, part.content.folders
+                        ),
+                    ));
                 }
-                if !files.insert(path) {
-                    return Err(format!("duplicate file: {}", file.path));
+                if let Some(owner_key) = files.insert(path, part.key) {
+                    let owner = parts
+                        .iter()
+                        .find(|part| part.key == owner_key)
+                        .expect("listed file has an owner");
+                    return Err(MapRefusal::new(
+                        "duplicate_file",
+                        format!(
+                            "parts {:?} and {:?} both list {}. \
+                            Give each file one owner and one entry.",
+                            owner.content.title, part.content.title, file.path
+                        ),
+                    ));
                 }
             }
         }
-        for file in &files {
+        for (file, owner_key) in &files {
             if folders
                 .iter()
                 .any(|(_, folder)| folder == file || inside(folder, file))
-                || files.iter().any(|other| inside(other, file))
+                || files.keys().any(|other| inside(other, file))
             {
-                return Err(format!("file path is also a directory: {file}"));
+                let owner = parts
+                    .iter()
+                    .find(|part| part.key == *owner_key)
+                    .expect("listed file has an owner");
+                return Err(MapRefusal::new(
+                    "file_is_folder",
+                    format!(
+                        "part {:?} lists {file} as a file and a directory. \
+                    Use separate paths for the file and directory.",
+                        owner.content.title
+                    ),
+                ));
             }
         }
         for (i, (owner, folder)) in folders.iter().enumerate() {
@@ -185,7 +277,34 @@ impl MapRules {
                     || (inside(path, folder) && !descendant(parts, other, owner))
                     || (inside(folder, path) && !descendant(parts, owner, other))
                 {
-                    return Err(format!("folder ownership conflict: {folder}, {path}"));
+                    let name = |key: &str| {
+                        parts
+                            .iter()
+                            .find(|p| p.key == key)
+                            .expect("listed folder has an owner")
+                            .content
+                            .title
+                            .as_str()
+                    };
+                    let message = if folder == path {
+                        format!(
+                            "parts {:?} and {:?} both claim {folder}.",
+                            name(owner),
+                            name(other)
+                        )
+                    } else {
+                        format!(
+                            "parts {:?} ({folder}) and {:?} ({path}) overlap.",
+                            name(owner),
+                            name(other)
+                        )
+                    };
+                    return Err(MapRefusal::new(
+                        "folder_claimed_twice",
+                        format!(
+                            "{message} Give the folder to one part, or make one part the other's child."
+                        ),
+                    ));
                 }
             }
             // A parent's file cannot claim a child's folder.
@@ -193,13 +312,24 @@ impl MapRules {
                 .iter()
                 .filter(|p| p.key != *owner && !descendant(parts, p.key, owner))
             {
-                if part
+                if let Some(file) = part
                     .content
                     .files
                     .iter()
-                    .any(|f| inside(&f.path.to_lowercase(), folder))
+                    .find(|f| inside(&f.path.to_lowercase(), folder))
                 {
-                    return Err(format!("file owned by another part under {folder}"));
+                    let owner = parts
+                        .iter()
+                        .find(|part| part.key == *owner)
+                        .expect("listed folder has an owner");
+                    return Err(MapRefusal::new(
+                        "folder_claimed_twice",
+                        format!(
+                            "part {:?} lists {} under {:?}'s folder {folder}. \
+                        Give the file to that folder's owner or change the part containment.",
+                            part.content.title, file.path, owner.content.title
+                        ),
+                    ));
                 }
             }
         }

@@ -261,7 +261,7 @@ impl crate::Design {
                 &content,
                 &standards,
             )
-            .map_err(StorageError::Constraint)?;
+            .map_err(crate::DesignError::MapRefused)?;
             let old_contents = super::map_versions::MapVersionsRows::contents(&before_parts)?;
             let old_parts =
                 super::map_versions::MapVersionsRows::views(&before_parts, &old_contents);

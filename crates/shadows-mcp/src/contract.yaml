@@ -27,3 +27,5 @@ agreements:
   tested_by: [agreement_adapter_pairs_preserve_content_and_reach,
     plan_adapter_pairs_keep_their_authorization_boundaries]
 # Harness errors translate through CoreError with unchanged tool refusals.
+
+map_refusals: 'The generic refusal mapping preserves MAP_REFUSED and its rule-prefixed message; shared adapter fixtures cover it.'

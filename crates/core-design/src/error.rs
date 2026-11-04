@@ -4,6 +4,8 @@ use core_grants::GrantsError;
 #[derive(Debug, thiserror::Error)]
 pub enum DesignError {
     #[error("{0}")]
+    MapRefused(crate::MapRefusal),
+    #[error("{0}")]
     StageBlocked(String),
     #[error("a new version needs its reason")]
     ReasonMissing,

@@ -10,6 +10,7 @@ mod agreements;
 mod map_proposals;
 mod map_rules;
 pub use map_proposals::{MapAction, MapProposal, MapPropose, ProposedPart, ProposedWaiver};
+pub use map_rules::MapRefusal;
 mod model;
 mod ops;
 mod outcomes;

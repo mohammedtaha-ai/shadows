@@ -307,7 +307,7 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
   - one sentence saying what is allowed.
 - `rule` is one of: `duplicate_part`, `duplicate_sibling`, `missing_parent`,
   `unknown_vision_item`, `unknown_rule`, `file_outside_part`, `duplicate_file`,
-  `file_is_folder`, `folder_claimed_twice`, `reserved_file`, `invalid_path`.
+  `file_is_folder`, `folder_claimed_twice`, `reserved_file`, `invalid_path`, `invalid_part`.
 - Exact text for the three seen on 2026-11-04:
   - `file_outside_part: part "<title>" lists <file>, which is outside its folders <folders>.
     Move the file into one of them, or add its folder to the part.`
