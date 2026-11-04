@@ -79,4 +79,18 @@ Not built: the inspection view (frontend, slice 3) and `Plans::owner_thread` (sp
 
 ## Tasks
 
+Planner context, slice 3 ([plan](../frontend/plans/2026-11-05-planner-context-view.md)): the
+inspection view. Its one backend task is below.
+
+### B-59 · Each turn says whether its planning context was heard
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-b-59-each-turn-says-whether-its-planning-context-was-heard
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml;
+  crates/core-harness/src/store/reads.rs
+- Touch: crates/core-harness/src/model.rs, src/store/reads.rs, src/schema_descriptions/invocation.txt,
+  contract.yaml, tests/context_record.rs; api/openapi.json; web/src/api/schema.d.ts
+- Needs: docs/shared/requests/2026-11-05-turn-context-state.md accepted
+- Done when: `cargo test -p core-harness --test context_record` and `cargo test -p shadows --test openapi`
+  pass, with the three tests the task names
+
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
