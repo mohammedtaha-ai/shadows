@@ -18,10 +18,10 @@ export type AnchorRecovery =
 
 export const anchorWriteKey = (threadId: string | null) => ['thread-anchor-write', threadId] as const
 
-/** A transport or server failure can leave the detached write in flight. */
+/** The daemon answers only once its detached command has finished, so its own error
+ * means nothing was saved. Any other failure may leave the write still landing. */
 export function anchorWriteRefused(error: unknown): boolean {
-  return error instanceof ApiError && error.problem.kind === 'daemon' &&
-    error.problem.status >= 400 && error.problem.status < 500
+  return error instanceof ApiError && error.problem.kind === 'daemon'
 }
 
 export interface CarriedSend {

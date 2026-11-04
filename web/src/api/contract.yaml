@@ -25,6 +25,7 @@ version: 1
 status: current
 source: web/src/api
 planning_context:
+  planningKeys: Query keys for a thread's anchor and an operation's carried record.
   anchorQuery: Read the selected anchor for a Planner thread.
   setAnchor: Replace or clear the anchor using the caller's command id.
   saveAnchorAnswer: Cancel the exact anchor read before caching the mutation answer.

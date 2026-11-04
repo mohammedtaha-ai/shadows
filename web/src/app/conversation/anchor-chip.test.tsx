@@ -128,7 +128,7 @@ it('send_again_says_the_next_message_carries_it', async () => {
   const app = await show(routes)
   await until(() => app.text().includes('Not anchored'))
   await click(app, 'Send context again')
-  await until(() => app.text().includes('Your next normal message carries it again'))
+  await until(() => app.text().includes('Your next message carries it again'))
   expect(app.bodies).toContainEqual({ command_id: expect.any(String) })
   expect(app.calls).not.toContain('POST /api/threads/t1/turns')
 })

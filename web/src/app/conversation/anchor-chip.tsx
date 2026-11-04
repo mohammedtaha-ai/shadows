@@ -82,7 +82,7 @@ export function AnchorChip({ projectId, threadId }: { projectId: string; threadI
       </>}
       <Button variant="ghost" size="xs" disabled={busy} onClick={() => resend.mutate()}>Send context again</Button>
     </div>
-    {resend.isSuccess && <p role="status" className="text-xs text-muted-foreground">Your next normal message carries it again.</p>}
+    {resend.isSuccess && <p role="status" className="text-xs text-muted-foreground">Your next message carries it again.</p>}
     {error && <ErrorLine error={error} />}
     {picking && <AnchorPicker projectId={projectId} pending={anchorBusy} error={change.error}
       onChoose={value => change.mutate(value)} onClose={() => setPicking(false)} />}

@@ -140,16 +140,14 @@ it('send_without_the_anchor_waits_for_the_pending_write', async () => {
 })
 
 it.each([
-  ['a_gateway_answer_is_treated_as_unknown', true],
-  ['send_without_the_anchor_after_a_refusal_only_clears', false],
-] as const)('%s', async (_name, replay) => {
+  ['a_gateway_answer_is_treated_as_unknown', true, () => new Response('Gateway timeout', { status: 504 })],
+  ['send_without_the_anchor_after_a_refusal_only_clears', false,
+    () => Response.json({ code: 'NOT_FOUND', message: 'The part was removed.' }, { status: 404 })],
+  ['a_daemon_server_error_only_clears', false,
+    () => Response.json({ code: 'INTERNAL', message: 'The write failed.' }, { status: 500 })],
+] as const)('%s', async (_name, replay, firstAnswer) => {
   const daemon = anchorDaemon()
-  daemon.intercept((body, call) => {
-    if (call !== 1) return daemon.answer(body.anchor)
-    return replay
-      ? new Response('Gateway timeout', { status: 504 })
-      : Response.json({ code: 'NOT_FOUND', message: 'The part was removed.' }, { status: 404 })
-  })
+  daemon.intercept((body, call) => call === 1 ? firstAnswer() : daemon.answer(body.anchor))
   const app = await submitDraft(daemon.routes)
   await until(() => app.path() === '/projects/p1/threads/t1')
   await pressSend(app, 'Send without the anchor')

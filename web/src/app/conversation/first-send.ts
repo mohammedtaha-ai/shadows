@@ -17,11 +17,12 @@ import { uploadImages, type PendingImage } from './upload-images'
 /** The API requires a title; the first message and harness supply its meaningful replacements. */
 const DRAFT_TITLE = 'New conversation'
 
-/** Send from a draft: create the thread, open its session for the model it
- * holds, start the turn with the chosen mode, then replace the draft's URL
+/** Send from a draft: create the thread, set its planning anchor when the draft
+ * has one, open its session for the model it holds, start the turn with the chosen mode, then replace the draft's URL
  * with the thread's. A failed create stays in the draft for a retry with the
  * same command id; a turn that fails once the thread exists goes to the
  * thread with its text and error, so a retry never makes a second thread.
+ * A failed anchor goes with them, so the thread's retry sets it before any turn.
  * A person who left the draft while it sent stays where they went: the
  * thread shows in the sidebar, and nothing pulls them back to it. */
 export function useFirstSend(projectId: string, harness: string, planId?: string, profile?: string, anchor?: ThreadPlanningAnchor) {
