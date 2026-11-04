@@ -1,8 +1,10 @@
 # Planner context: what a Planner session is given, and why
 
-- Status: **slice 1 merged** in PR #55 (`fc78cb7`), 2026-11-04. Slice 2 built and tested
-  (`docs/backend/plans/2026-11-04-planner-context-slice-2.md`), its §4.3 rules accepted by
-  Mohammed on 2026-11-04; its live acceptance passed on 2026-11-04 (evidence §5). Slices 3 and 4 remain proposals. Direction was decided in conversation on 2026-11-03 and 2026-11-04.
+- Status: **slices 1 and 2 merged**: slice 1 in PR #55 (`fc78cb7`), slice 2 in PR #56 (`024432fc`),
+  2026-11-04. Slice 2's §4.3 rules were accepted by Mohammed on 2026-11-04, and its live acceptance
+  passed on 2026-11-04 (evidence §5). The slice 2 plan was
+  `docs/backend/plans/2026-11-04-planner-context-slice-2.md` at `024432fc`. Slices 3 and 4 remain
+  proposals. Direction was decided in conversation on 2026-11-03 and 2026-11-04.
 - Roadmap: Stage 3, "Planner context" (`docs/core/roadmap.md`): "Start planning at an explicit
   part or stage with bounded, attributable context; inspect what was included."
 - Builds on, and does not replace:

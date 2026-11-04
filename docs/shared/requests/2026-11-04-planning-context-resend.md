@@ -4,8 +4,8 @@
 - Asked by: Claude for Mohammed, 2026-11-04. The button comes with the inspection view
   (Planner context slice 3); slice 2's acceptance calls the route directly.
 - Screen: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.3 ("On request", "What a
-  compaction or a request forgets"); plan `docs/backend/plans/2026-11-04-planner-context-slice-2.md`,
-  B-58.
+  compaction or a request forgets"); plan `docs/backend/plans/2026-11-04-planner-context-slice-2.md`
+  at `024432fc`, B-58 (`docs/backend/stages.md` at `024432fc`).
 
 ## Need
 
