@@ -9,7 +9,7 @@ version: 1
 status: current
 source: crates/core-db/src
 tool_rules_migration: 0040 installs the Extensions-owned per-agent MCP rules table.
-planning_context_migrations: 0043 installs Design anchors, 0044 Harness context records, and 0045 reserved vision identities.
+planning_context_migrations: 0043 installs Design anchors, 0044 Harness context records, 0045 reserved vision identities, and 0046 the Harness context forgets.
 
 
 shapes:

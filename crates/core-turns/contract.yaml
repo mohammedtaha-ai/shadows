@@ -619,6 +619,21 @@ obligations:
       - every_turn_ends_with_the_stage_line
       - send_now_steers_the_running_turn_after_its_streamed_text
   - rule: >
+      A turn whose events carry `HarnessEvent::Compacted` calls
+      `Harness::forget_context(thread, Forget::Compaction { operation, trigger })`
+      before the event is published, so the next normal turn carries the
+      planning context and every instructions change since the session
+      opened, once. A failed compaction sends no `Compacted` and forgets
+      nothing; a failure to forget is logged as `planner.context_forget_failed`
+      and does not fail the turn.
+    tested_by:
+      - a_manual_compact_sends_the_context_again
+      - an_automatic_compaction_sends_it_again
+      - a_failed_compaction_forgets_nothing
+      - two_compactions_send_it_once
+      - a_compaction_sends_changed_instructions_again
+      - without_a_compaction_a_change_is_sent_once
+  - rule: >
       A text starting with `/` is the whole prompt: no context block rides
       with it. The changes it skipped are not marked as heard, so the next
       normal turn carries them once, in their current form, however many
@@ -1082,3 +1097,4 @@ planning_delivery:
   prompt: 'Normal block order is text, images, changes, planning, focus, continued plan, stage.'
   completion: 'Harness::mark_context_heard_in shares the Completed transaction; other endings keep context owed.'
   command: 'A command alone withholds planning context and creates no context record.'
+  compaction: 'A completed compaction in a turn makes the context owed again through Harness::forget_context.'

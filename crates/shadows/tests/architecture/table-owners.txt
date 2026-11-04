@@ -1,6 +1,7 @@
 # SQLite table :: service owner
 agent_invocation :: harness
 invocation_context :: harness
+context_forget :: harness
 design_thread_anchor :: design
 attachment :: threads
 agreement :: design

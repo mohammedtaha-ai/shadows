@@ -488,10 +488,12 @@ impl From<core_harness::HarnessError> for CoreError {
                 code: ErrorCode::ThreadBusy,
                 message: "the thread has a turn running".into(),
             },
-            HarnessError::ImagesUnsupported(message) => Self::Refused {
-                code: ErrorCode::InvalidCommand,
-                message,
-            },
+            HarnessError::InvalidCommand(message) | HarnessError::ImagesUnsupported(message) => {
+                Self::Refused {
+                    code: ErrorCode::InvalidCommand,
+                    message,
+                }
+            }
             HarnessError::Agents(error) => error.into(),
             HarnessError::Extensions(error) => error.into(),
             HarnessError::Grants(error) => error.into(),

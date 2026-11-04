@@ -14,6 +14,19 @@ pub struct RememberedSettings {
     pub(super) effort: Option<String>,
 }
 
+/// Why a thread's session lost what it heard.
+#[derive(Debug, Clone)]
+pub enum Forget {
+    /// A compaction completed in the turn `operation`; `trigger` is `manual`
+    /// or `automatic` when the adapter said.
+    Compaction {
+        operation: core_operations::OperationId,
+        trigger: Option<String>,
+    },
+    /// The person asked for the context again.
+    Request { command_id: String },
+}
+
 /// A mode Shadows allows on a harness, with the words a client shows for it.
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct HarnessMode {

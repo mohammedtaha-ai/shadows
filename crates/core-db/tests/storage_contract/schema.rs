@@ -51,6 +51,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_setting",
             "code_tag",
             "command_record",
+            "context_forget",
             "design_command_result",
             "design_map_proposal",
             "design_map_version",

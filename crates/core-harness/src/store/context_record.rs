@@ -1,8 +1,20 @@
 //! Immutable planning context records with a session acknowledgement.
 use super::HarnessStore;
-use crate::{CarriedContext, ThreadId};
-use core_db::{Storage, StorageError};
+use crate::{CarriedContext, Forget, ThreadId};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_operations::{OperationId, Operations};
+use core_threads::Threads;
+use shadows_agent::policy;
+
+/// What `forget_context` did.
+pub(crate) enum Forgot {
+    /// The thread is an AYLUL agent's, which has no planning context; nothing written.
+    Aylul,
+    /// A request replayed with its command id; nothing written.
+    Replayed,
+    /// The forget is recorded; `fork` says whether the thread's session is a fork's.
+    Written { fork: bool },
+}
 
 impl HarnessStore {
     pub async fn mark_context_heard_in(
@@ -78,11 +90,93 @@ impl HarnessStore {
     ) -> Result<Option<String>, StorageError> {
         Ok(sqlx::query_scalar(
             "SELECT digest FROM invocation_context \
-            WHERE session_id=? AND heard=1 ORDER BY start_seq DESC LIMIT 1",
+            WHERE session_id=? AND heard=1 AND start_seq > COALESCE( \
+              (SELECT MAX(seq) FROM context_forget f \
+                WHERE f.thread_id=invocation_context.thread_id), 0) \
+            ORDER BY start_seq DESC LIMIT 1",
         )
         .bind(session)
         .fetch_optional(self.storage.reader())
         .await?)
+    }
+
+    /// Records the forget with its journal event. The thread is read in the
+    /// same transaction, so its harness cannot change between the check and
+    /// the write.
+    pub async fn forget_context(
+        &self,
+        thread: &ThreadId,
+        forget: &Forget,
+    ) -> Result<Forgot, StorageError> {
+        let (thread, forget, ts) = (thread.clone(), forget.clone(), Storage::now());
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let context = Threads::turn_context_in(conn, &thread).await?;
+                    if context.harness == policy::AYLUL {
+                        return Ok(Forgot::Aylul);
+                    }
+                    let (reason, trigger, operation, ctx) = match &forget {
+                        Forget::Compaction { operation, trigger } => {
+                            ("compaction", trigger.clone(), Some(operation.clone()), None)
+                        }
+                        Forget::Request { command_id } => {
+                            let ctx = CommandContext::user(
+                                command_id.clone(),
+                                "thread.context_resend",
+                                serde_json::json!({ "thread": thread.as_str() }),
+                            );
+                            if CommandContext::classify(conn, &ctx, "Thread", thread.as_str())
+                                .await?
+                                .is_some()
+                            {
+                                return Ok(Forgot::Replayed);
+                            }
+                            ("request", None, None, Some(ctx))
+                        }
+                    };
+                    let actor = match &ctx {
+                        Some(ctx) => Actor::user(&ctx.principal_id),
+                        None => Actor::system(),
+                    };
+                    let mut event = JournalEntry::new("PlannerContextForgotten", actor)
+                        .with_project(context.project_id.as_str())
+                        .with_thread(thread.as_str())
+                        .with_payload(serde_json::json!({ "reason": reason, "trigger": trigger }));
+                    if let Some(op) = &operation {
+                        event = event.with_operation(op.as_str());
+                    }
+                    let seq = JournalEntry::append_event(conn, event, &ts).await?;
+                    sqlx::query(
+                        "INSERT INTO context_forget(seq,thread_id,operation_id,reason,trigger, \
+                        created_at) VALUES (?,?,?,?,?,?)",
+                    )
+                    .bind(seq)
+                    .bind(thread.as_str())
+                    .bind(operation.as_ref().map(OperationId::as_str))
+                    .bind(reason)
+                    .bind(&trigger)
+                    .bind(&ts)
+                    .execute(&mut *conn)
+                    .await?;
+                    if let Some(ctx) = &ctx {
+                        CommandContext::record_command(
+                            conn,
+                            ctx,
+                            "Thread",
+                            thread.as_str(),
+                            "ContextForget",
+                            &seq.to_string(),
+                            &ts,
+                        )
+                        .await?;
+                    }
+                    Ok(Forgot::Written {
+                        fork: context.fork_session_id.is_some(),
+                    })
+                })
+            })
+            .await
     }
 
     pub async fn context_record(

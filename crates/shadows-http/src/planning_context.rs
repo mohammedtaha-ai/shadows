@@ -4,7 +4,7 @@ use super::{AppState, Failure};
 use axum::Json;
 use axum::extract::{Path, State};
 use shadows_core::{
-    CarriedContext, DesignAnchor, ErrorCode, OperationId, OutcomeId, PartId, ThreadId,
+    CarriedContext, DesignAnchor, ErrorCode, Forget, OperationId, OutcomeId, PartId, ThreadId,
 };
 
 #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -49,6 +49,16 @@ pub(super) struct AnchorResponse {
 pub(super) struct ContextResponse {
     carried: CarriedContext,
     heard: bool,
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct ResendContext {
+    command_id: String,
+}
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub(super) struct ResendResponse {
+    owed: bool,
 }
 
 #[utoipa::path(get, path = "/api/threads/{id}/anchor", tag = "threads",
@@ -107,4 +117,28 @@ pub(super) async fn context(
             )
         })?;
     Ok(Json(ContextResponse { carried, heard }))
+}
+
+#[utoipa::path(post, path = "/api/threads/{id}/context/resend", tag = "threads",
+    params(("id" = ThreadId, Path)), request_body = ResendContext,
+    responses((status = 200, body = ResendResponse), (status = 404, body = ErrorBody),
+        (status = 409, body = ErrorBody), (status = 422, body = ErrorBody)))]
+pub(super) async fn resend(
+    State(state): State<AppState>,
+    Path(thread): Path<ThreadId>,
+    Json(body): Json<ResendContext>,
+) -> Result<Json<ResendResponse>, Failure> {
+    super::transport::Transport::detached(async move {
+        let forget = Forget::Request {
+            command_id: body.command_id,
+        };
+        state
+            .core
+            .harness()
+            .forget_context(&thread, forget)
+            .await
+            .map_err(Failure::from)
+    })
+    .await?;
+    Ok(Json(ResendResponse { owed: true }))
 }
