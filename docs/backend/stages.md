@@ -62,102 +62,16 @@ Agent groups, messaging slice 1 ([spec](specs/2026-11-03-agent-messaging-design.
 Known and left: a persistent storage error while starting a delivery retries forever and
 stalls dispatch for every group (`crates/core-messages/src/deliveries.rs`).
 
+Planner context, slice 1 ([spec](specs/2026-11-04-planner-context-design.md)): B-47 to B-54 shipped in PR #55
+(`fc78cb7`), with the three Planner defects in `docs/evidence/2026-11-04-planner-session-defects.md`. Their entries,
+and the commits outside their `Touch:` lists, are in this file at `fc78cb7`. The plan was
+`docs/backend/plans/2026-11-04-planner-context-slice-1.md` at `fc78cb7`. The shared request
+`docs/shared/requests/2026-11-04-planning-context-routes.md` stays until the frontend slice that shows the
+inspection view is built. Local acceptance with real provider and browser is in the
+[dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
+Not built: the re-send after a compaction (spec §6, slice 2, not yet planned), the inspection view
+(frontend), and `Plans::owner_thread` (spec §6, slice 4).
+
 ## Tasks
 
-Planner context, slice 1, with the fixes for three Planner defects ([spec](specs/2026-11-04-planner-context-design.md), [plan](plans/2026-11-04-planner-context-slice-1.md)).
-B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
-
-### B-47 · A thread's planning anchor (Design)
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-47-a-threads-planning-anchor-design
-- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.1; crates/core-design/contract.yaml
-- Touch: crates/core-db/migrations/0043_thread_anchor.sql; crates/core-design/src/anchors.rs,
-  src/store/, src/lib.rs, contract.yaml, tests/anchors.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
-- Done when: `cargo test -p core-design --test anchors` and `-p core-db --test migration_checksums` pass
-
-### B-48 · What a turn carried, per session (Harness)
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-48-what-a-turn-carried-per-session-harness
-- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml
-- Touch: crates/core-db/migrations/0044_invocation_context.sql; crates/core-harness/src/context_record.rs,
-  src/store/, src/model.rs, src/lib.rs, contract.yaml; crates/shadows/tests/context_record.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
-- Done when: `cargo test -p core-harness` and `cargo test -p shadows --test context_record` pass
-
-### B-49 · Compile the planning context (Turns)
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-49-compile-the-planning-context-turns
-- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.2; crates/core-turns/contract.yaml; crates/core-plans/src/design_views.rs
-- Touch: crates/core-turns/src/planning/ (new), src/lib.rs, contract.yaml,
-  tests/planning_context.rs; crates/shadows-core/src/app.rs
-- Done when: `cargo test -p core-turns` passes, with compiler tests in core-turns and the three AppCore cases in shadows/tests/planning_context.rs
-
-### B-50 · Send it when the session has not heard it
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-50-send-it-when-the-session-has-not-heard-it
-- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.3; crates/core-turns/src/spawn.rs, prompt.rs
-- Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, store/operation.rs, contract.yaml;
-  crates/core-harness/src/context_record.rs, contract.yaml; crates/shadows-core/src/testing/turn.rs;
-  crates/shadows/tests/planning_context.rs, turn_command.rs, plan_boundaries.rs, planner_mcp/standards.rs
-- Done when: `cargo test -p shadows --test planning_context` passes, with the eight tests the task names
-
-### B-51 · Routes for the anchor and the record
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-51-routes-for-the-anchor-and-the-record
-- Read: crates/shadows-http/src/contract.yaml
-- Needs: docs/shared/requests/2026-11-04-planning-context-routes.md, accepted
-- Touch: crates/shadows-http/src/ (thread routes, openapi.rs, contract.yaml); api/openapi.json;
-  web/src/api/schema.d.ts; crates/shadows/tests/planning_routes.rs (new)
-- Done when: `cargo test -p shadows --test planning_routes --test openapi` passes
-
-### B-52 · Map refusals say which rule, which parts and what to do
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-52-map-refusals-say-which-rule-which-parts-and-what-to-do-defect-1
-- Read: docs/evidence/2026-11-04-planner-session-defects.md §1; crates/core-design/src/map_rules.rs; crates/shadows-mcp/src/refusal.rs
-- Touch: crates/core-design/src/map_rules.rs, error.rs, map_proposals.rs, contract.yaml, tests/;
-  crates/shadows-core (ErrorCode); crates/shadows-mcp/src/refusal.rs, contract.yaml;
-  crates/shadows-http/src/ failure mapping
-- Done when: `cargo test -p core-design` and `cargo test -p shadows-mcp` pass, with the four tests named
-
-### B-53 · Vision IDs are given when proposed
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-53-vision-ids-are-given-when-proposed-defect-2
-- Read: docs/evidence/2026-11-04-planner-session-defects.md §2; crates/core-design/src/store/proposal_approval.rs, store/vision.rs
-- Touch: crates/core-db/migrations/0045_vision_reserved_id.sql; crates/core-design/src/store/,
-  proposals.rs, contract.yaml, tests/; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
-- Done when: `cargo test -p core-design` passes, with the two tests in shadows/tests/vision_proposal_ids.rs
-
-### B-54 · A map proposal lists vision items no part serves
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-54-a-map-proposal-lists-vision-items-no-part-serves-defect-3
-- Read: docs/evidence/2026-11-04-planner-session-defects.md §3; crates/core-design/src/map_proposals.rs
-- Touch: crates/core-design/src/map_proposals.rs, map_rules.rs, store/map_proposals.rs, contract.yaml;
-  crates/shadows/tests/map_proposal_coverage.rs; api/openapi.json; web/src/api/schema.d.ts
-- Done when: `cargo test -p core-design` passes, with `a_map_answer_lists_the_unserved_vision_items` in shadows/tests/map_proposal_coverage.rs
-
-## Slice 1 integration checks
-
-Outside any task's `Touch:` on this branch, recorded here:
-- `25733964` (B-48): docs/codebase/README.md (two rows); crates/core-harness/Cargo.toml and
-  crates/core-harness/tests/context_record.rs, both removed again in `2cdf1205`.
-- `3b14e348` (B-49, B-50): Cargo.lock and crates/core-turns/Cargo.toml (`sha2`, a library for
-  infrastructure; `core-design` test-support for tests); crates/core-turns/tests/prompt.rs;
-  crates/core-design/tests/anchors.rs; docs/codebase/README.md (three rows).
-- `f774cde0` (B-51): crates/shadows-core/src/error.rs (`CONTEXT_NOT_CARRIED`) and
-  src/lib.rs (re-exports `CarriedContext`, `ContextSource`); crates/shadows/tests/openapi.rs and
-  tests/openapi/read_only.rs; docs/codebase/README.md; the shared request's status.
-- `2c5ca8b4` (B-52): api/openapi.json and web/src/api/schema.d.ts (`MAP_REFUSED`);
-  crates/shadows-http/src/contract.yaml.
-- `5e2d020d` (B-53): crates/shadows/tests/vision_proposal_ids.rs, the test the plan names.
-- `2cdf1205`: crates/core-db/contract.yaml; crates/core-db/tests/storage_contract/schema.rs
-  (the two new tables); crates/shadows/tests/architecture/table-owners.txt;
-  crates/shadows/tests/context_record.rs (Harness's record tests through AppCore, so
-  core-harness keeps no Runtime dependency); crates/shadows-core/tests/design_vision/proposals.rs
-  and crates/shadows/tests/image_attachments.rs, planner_mcp.rs, planner_mcp/standards.rs
-  (expectations that now include reserved ids and the planning block).
-- The whole-branch review: docs/core/specs/2026-10-08-guided-planning-design.md (vision ids
-  given when proposed, `MAP_REFUSED`, `unserved`) and this file, with Mohammed's approval.
-
-The source footer and cut markers count toward the index estimate, and depth-two index entries
-keep their parent ids. Local acceptance with real provider and browser is in the
-[dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
-The full workspace gate runs in CI.
+No task is open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.

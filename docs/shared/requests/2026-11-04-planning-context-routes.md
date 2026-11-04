@@ -4,7 +4,7 @@
 - Asked by: Claude for Mohammed, 2026-11-04. The screen comes later (Planner context slice 3);
   slice 1's acceptance reads these routes directly.
 - Screen: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.1 (the anchor) and §4.4
-  (inspection); plan `docs/backend/plans/2026-11-04-planner-context-slice-1.md`, B-51.
+  (inspection); plan `docs/backend/plans/2026-11-04-planner-context-slice-1.md` at `fc78cb7`, B-51.
 
 ## Need
 
