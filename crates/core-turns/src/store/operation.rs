@@ -65,6 +65,7 @@ impl super::TurnsStore {
             .write_txn(move |conn| {
                 Box::pin(async move {
                     Operations::require_status_in(conn, &op_id, "Running").await?;
+                    Harness::mark_context_heard_in(conn, &op_id).await?;
                     Harness::observe_invocation_in(conn, op_id.as_str(), &seen).await?;
                     Self::record_usage_in(conn, &op_id, seen.token_usage.as_ref(), &ts).await?;
                     let invocation = Harness::invocation_in(conn, op_id.as_str())

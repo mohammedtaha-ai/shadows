@@ -22,6 +22,7 @@ mod handles;
 mod hunks;
 mod model;
 mod plan_show;
+mod planning;
 mod prompt;
 mod queue;
 mod record;
@@ -101,6 +102,7 @@ pub struct Turns {
     standards: Standards,
     projects: Projects,
     plans: core_plans::Plans,
+    design: core_design::Design,
     ui: tokio::sync::broadcast::Sender<core_plans::UiSignal>,
 }
 
@@ -165,6 +167,7 @@ impl Turns {
         standards: Standards,
         projects: Projects,
         plans: core_plans::Plans,
+        design: core_design::Design,
         ui: tokio::sync::broadcast::Sender<core_plans::UiSignal>,
     ) -> Self {
         Self {
@@ -180,6 +183,7 @@ impl Turns {
             standards,
             projects,
             plans,
+            design,
             ui,
         }
     }
@@ -267,6 +271,10 @@ impl Turns {
             &thread_id,
         )
         .await?;
+        let planning = self
+            .planning_context(&thread_id, &context.project_id)
+            .await
+            .map_err(|error| error.to_string());
         let continue_plan = match &plan {
             Some(plan_id) => Some(
                 self.plans
@@ -350,6 +358,7 @@ impl Turns {
             self.sessions.clone(),
             opened,
             PlannerTurnRequest {
+                planning,
                 root: context.project_directory.clone(),
                 thread_id,
                 harness: context.harness,
@@ -480,6 +489,8 @@ use core_grants::Grant;
 
 #[cfg(feature = "test-support")]
 pub use entries::{Collector as TestCollector, Durable as TestDurable};
+#[cfg(feature = "test-support")]
+pub use planning::Planning as TestPlanning;
 #[cfg(feature = "test-support")]
 pub use prompt::{Prompt as TestPrompt, PromptParts as TestPromptParts};
 

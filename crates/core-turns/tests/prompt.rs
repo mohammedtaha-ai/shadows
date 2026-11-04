@@ -10,6 +10,7 @@ fn texts(values: &[&str]) -> Vec<PromptBlock> {
 
 fn parts(text: &str) -> PromptParts {
     PromptParts {
+        planning: None,
         images: Vec::new(),
         text: text.into(),
         changes: Some("changed".into()),

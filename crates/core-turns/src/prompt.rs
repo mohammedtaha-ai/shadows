@@ -11,6 +11,7 @@ use shadows_agent::acp::{ImageBlock, PromptBlock};
 
 /// What the harness and the turn's request supply; none of it is ordered yet.
 pub struct PromptParts {
+    pub planning: Option<String>,
     pub images: Vec<shadows_agent::acp::ImageBlock>,
     pub text: String,
     /// The harness's facts: what changed since the session last heard, and the stage line.
@@ -32,6 +33,7 @@ impl Prompt {
     /// focus, the selected plan, then the stage line.
     pub fn compose(parts: PromptParts) -> Prompt {
         let PromptParts {
+            planning,
             text,
             images,
             changes,
@@ -42,11 +44,12 @@ impl Prompt {
         if images.is_empty() && Self::is_command(&text) {
             return Prompt {
                 blocks: vec![PromptBlock::Text(text.trim_start().to_string())],
-                withholds: changes.is_some(),
+                withholds: changes.is_some() || planning.is_some(),
             };
         }
         let context = changes
             .into_iter()
+            .chain(planning)
             .chain(focus)
             .chain(continue_plan)
             .chain(std::iter::once(stage))

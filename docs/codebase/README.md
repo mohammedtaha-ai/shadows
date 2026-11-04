@@ -521,3 +521,6 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-design/src/store/anchors.rs` | Planner anchor persistence | `crates/core-design/contract.yaml` |
 | `crates/core-harness/src/context_record.rs` | Planning context records | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/store/context_record.rs` | Planning context persistence | `crates/core-harness/contract.yaml` |
+| `crates/core-turns/src/planning/mod.rs` | Planning context compilation | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/planning/block.rs` | Planning context rendering | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/planning/budget.rs` | Planning context budgets | `crates/core-turns/contract.yaml` |

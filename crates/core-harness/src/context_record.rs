@@ -3,6 +3,12 @@ use crate::{CarriedContext, Harness, StorageError, ThreadId};
 use core_operations::OperationId;
 
 impl Harness {
+    pub async fn mark_context_heard_in(
+        conn: &mut core_db::Tx,
+        op: &OperationId,
+    ) -> Result<(), StorageError> {
+        super::store::HarnessStore::mark_context_heard_in(conn, op).await
+    }
     pub async fn prepare_context(
         &self,
         op: &OperationId,

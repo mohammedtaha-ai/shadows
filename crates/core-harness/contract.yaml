@@ -1079,3 +1079,6 @@ planning_context:
   methods: [prepare_context, mark_context_heard, heard_context_digest, context_record]
   ordering: Captured operation journal sequence orders contexts within one session.
   acknowledgement: Only a successfully completed turn is marked heard; absent rows remain unknown.
+
+context_completion:
+  mark_context_heard_in: Turns acknowledges a prepared context in the successful completion transaction.

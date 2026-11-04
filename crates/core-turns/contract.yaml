@@ -1059,3 +1059,17 @@ attachments:
     - image_only_turn_and_attachment_replay_conflict
     - foreign_or_unknown_images_are_refused_before_writes
     - queued_and_steered_messages_keep_images
+
+planning_context:
+  modules: [planning/mod.rs, planning/block.rs, planning/budget.rs]
+  dependency: Design is passed once by AppCore.
+  method: planning_context reads Design and Plans APIs; AYLUL receives none.
+  sources: Stable source tuples are included in the hashed text; pinned bindings read exact versions.
+  budgets: Index 1500 and detail 8000 estimated tokens, explicit ordered cuts, soft overflow recorded.
+  pagination: One 50-item page per parent through depth two; remaining pages announced without a total.
+
+planning_delivery:
+  request: 'Result<Option<CarriedContext>, String> retains a preparation refusal for the created operation.'
+  prompt: 'Normal block order is text, images, changes, planning, focus, continued plan, stage.'
+  completion: 'Harness::mark_context_heard_in shares the Completed transaction; other endings keep context owed.'
+  command: 'A command alone withholds planning context and creates no context record.'

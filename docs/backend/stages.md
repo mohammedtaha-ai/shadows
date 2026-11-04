@@ -84,7 +84,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: `cargo test -p core-harness` passes, with the four tests the task names
 
 ### B-49 · Compile the planning context (Turns)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-49-compile-the-planning-context-turns
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.2; crates/core-turns/contract.yaml; crates/core-plans/src/design_views.rs
 - Touch: crates/core-turns/src/planning/ (new), src/lib.rs, contract.yaml,
@@ -92,7 +92,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: `cargo test -p core-turns` passes, with the twelve tests the task names
 
 ### B-50 · Send it when the session has not heard it
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-50-send-it-when-the-session-has-not-heard-it
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.3; crates/core-turns/src/spawn.rs, prompt.rs
 - Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, turn.rs, contract.yaml;

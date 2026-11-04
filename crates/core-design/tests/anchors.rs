@@ -132,13 +132,24 @@ async fn a_replay_answers_the_first_anchor() {
 #[tokio::test]
 async fn an_aylul_thread_cannot_be_anchored() {
     let f = Fixture::new().await;
-    let project = Threads::turn_context_for_test(&f.storage, &f.thread).await.unwrap().project_id;
+    let project = Threads::turn_context_for_test(&f.storage, &f.thread)
+        .await
+        .unwrap()
+        .project_id;
     let thread = Threads::create_planning_thread_for_test(
         &f.storage,
         &CommandContext::user("aylul".into(), "thread.create", serde_json::json!({})),
-        &project, "Assistant", "aylul", None,
-    ).await.unwrap();
-    let error = f.design.set_thread_anchor("set".into(), &thread.id,
-        Some(DesignAnchor::Part(f.part))).await.unwrap_err();
+        &project,
+        "Assistant",
+        "aylul",
+        None,
+    )
+    .await
+    .unwrap();
+    let error = f
+        .design
+        .set_thread_anchor("set".into(), &thread.id, Some(DesignAnchor::Part(f.part)))
+        .await
+        .unwrap_err();
     assert!(matches!(error, DesignError::InvalidCommand(_)));
 }

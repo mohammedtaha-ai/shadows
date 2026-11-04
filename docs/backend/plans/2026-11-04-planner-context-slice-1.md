@@ -216,9 +216,13 @@ the three Planner defects found on 2026-11-04.
 - Modify:
   - `crates/core-turns/src/lib.rs` (`send_with` calls `planning_context` after
     `turn_context_in`);
-  - `src/spawn.rs` (`PlannerTurnRequest` gains `planning: Option<CarriedContext>`);
+  - `src/spawn.rs` (`PlannerTurnRequest` gains `planning: Result<Option<CarriedContext>, String>`
+    so compile failures become a recorded Prepare failure);
   - `src/prompt.rs` (`PromptParts` gains `planning: Option<String>`);
-  - `src/turn.rs` (the turn's end);
+  - `src/store/operation.rs` (acknowledges context atomically with successful completion);
+  - `core-harness` gains `mark_context_heard_in` for that transaction;
+  - direct request constructors in `shadows-core/src/testing/turn.rs` and
+    `shadows/tests/{turn_command.rs,plan_boundaries.rs,planner_mcp/standards.rs}`;
   - `contract.yaml`.
 - Test: `crates/shadows/tests/planning_context.rs` (new; a Planner turn through `AppCore` with
   fake-acp, reading the prompt fake-acp received)
@@ -230,8 +234,8 @@ the three Planner defects found on 2026-11-04.
 - **After compose:** when the block was included and the prompt is not withheld (a command
   alone), call `Harness::prepare_context(op, thread, &opened.session_id, &carried)`. A failed
   write logs `planner.context_record_failed`; the turn goes on, and the context stays owed.
-- **At the turn's end (`turn.rs`):** only an `Ended` turn whose terminal row was written calls
-  `Harness::mark_context_heard(op)`.
+- **At the turn's end:** only an `Ended` turn acknowledges its context, through
+  `Harness::mark_context_heard_in` in the same transaction that writes its terminal row.
   - A `Cancelled`, `Refused`, `Failed` or interrupted turn, or one whose ACP connection closed,
     leaves its row `heard = 0`, so the next turn sends the context again.
   - A repeat is preferred to a context that never arrived.

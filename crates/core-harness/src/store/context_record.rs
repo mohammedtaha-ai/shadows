@@ -5,6 +5,16 @@ use core_db::{Storage, StorageError};
 use core_operations::{OperationId, Operations};
 
 impl HarnessStore {
+    pub async fn mark_context_heard_in(
+        conn: &mut core_db::Tx,
+        op: &OperationId,
+    ) -> Result<(), StorageError> {
+        sqlx::query("UPDATE invocation_context SET heard=1 WHERE operation_id=?")
+            .bind(op.as_str())
+            .execute(conn)
+            .await?;
+        Ok(())
+    }
     pub async fn prepare_context(
         &self,
         op: &OperationId,
@@ -57,13 +67,7 @@ impl HarnessStore {
         let op = op.clone();
         self.storage
             .write_txn(move |conn| {
-                Box::pin(async move {
-                    sqlx::query("UPDATE invocation_context SET heard=1 WHERE operation_id=?")
-                        .bind(op.as_str())
-                        .execute(conn)
-                        .await?;
-                    Ok(())
-                })
+                Box::pin(async move { Self::mark_context_heard_in(conn, &op).await })
             })
             .await
     }
