@@ -33,7 +33,7 @@ use super::{
     spawn::OnCompleted,
     steer::SteerRequest,
 };
-use core_harness::{Harness, OpenSession};
+use core_harness::{Forget, Harness, OpenSession};
 use core_threads::{NewThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_agent::{
     acp::{AcpError, TurnEnd},
@@ -252,6 +252,17 @@ async fn accept(
             tracing::error!(%error, "planner.record_limits_failed");
         }
         *last_usage = Some(e.clone());
+    }
+    if let HarnessEvent::Compacted { trigger } = &e {
+        // Before the event is published, so a turn queued behind this one
+        // already owes the context.
+        let forget = Forget::Compaction {
+            operation: w.op_id.clone(),
+            trigger: trigger.clone(),
+        };
+        if let Err(error) = w.sessions.forget_context(&w.thread_id, forget).await {
+            tracing::error!(%error, "planner.context_forget_failed");
+        }
     }
     let durable = collector.push(&e);
     PlannerTurn::persist(w, durable).await;

@@ -109,7 +109,7 @@ B-57, then B-58. The live acceptance follows them (the plan's last section).
   `cargo test -p core-db --test migration_checksums --test storage_contract` pass
 
 ### B-57 · A completed compaction forgets (Turns)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-57-a-completed-compaction-forgets-turns
 - Read: crates/core-turns/contract.yaml; B-55's event and B-56's method
 - Touch: crates/core-turns/src/turn.rs, crates/core-turns/contract.yaml,

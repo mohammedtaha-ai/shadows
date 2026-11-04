@@ -559,3 +559,102 @@ async fn earlier_rationales_identify_their_owning_plan() {
     }
     app::shut_down_app(app).await;
 }
+
+fn carries_context(blocks: &[String]) -> bool {
+    blocks
+        .iter()
+        .any(|block| block.contains("## Planning context index"))
+}
+
+fn carries_change(blocks: &[String]) -> bool {
+    blocks.iter().any(|block| block.contains("Use the revised"))
+}
+
+async fn compact(app: &app::App, prompt: &str) -> OperationId {
+    let op = app::start_settled(app, prompt).await;
+    assert_eq!(app::wait_terminal(app, &op).await.status_kind, "Completed");
+    op
+}
+
+async fn revise(app: &app::App) {
+    app.core
+        .instructions()
+        .save(
+            app::fresh_command(),
+            &app.project,
+            "Use the revised project instructions.",
+        )
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_manual_compact_sends_the_context_again() {
+    let app = app::test_app().await;
+    let (first, _) = report(&app).await;
+    assert!(heard(&app, &first).await.unwrap().1);
+    let op = compact(&app, "/compact").await;
+    assert!(heard(&app, &op).await.is_none());
+    let (next, blocks) = report(&app).await;
+    assert!(carries_context(&blocks));
+    assert!(heard(&app, &next).await.unwrap().1);
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn an_automatic_compaction_sends_it_again() {
+    let app = app::test_app().await;
+    report(&app).await;
+    compact(&app, "compact-auto").await;
+    let (_, blocks) = report(&app).await;
+    assert!(carries_context(&blocks));
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn a_failed_compaction_forgets_nothing() {
+    let app = app::test_app().await;
+    report(&app).await;
+    compact(&app, "compact-failed").await;
+    let (_, blocks) = report(&app).await;
+    assert!(!carries_context(&blocks));
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn two_compactions_send_it_once() {
+    let app = app::test_app().await;
+    report(&app).await;
+    compact(&app, "/compact").await;
+    compact(&app, "/compact").await;
+    let (_, blocks) = report(&app).await;
+    assert!(carries_context(&blocks));
+    let (_, blocks) = report(&app).await;
+    assert!(!carries_context(&blocks));
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn a_compaction_sends_changed_instructions_again() {
+    let app = app::test_app().await;
+    report(&app).await;
+    revise(&app).await;
+    let (_, blocks) = report(&app).await;
+    assert!(carries_change(&blocks));
+    compact(&app, "/compact").await;
+    let (_, blocks) = report(&app).await;
+    assert!(carries_change(&blocks));
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn without_a_compaction_a_change_is_sent_once() {
+    let app = app::test_app().await;
+    report(&app).await;
+    revise(&app).await;
+    let (_, blocks) = report(&app).await;
+    assert!(carries_change(&blocks));
+    let (_, blocks) = report(&app).await;
+    assert!(!carries_change(&blocks));
+    app::shut_down_app(app).await;
+}
