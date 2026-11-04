@@ -64,7 +64,6 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 
 ### Task B-59: Each turn says whether its planning context was heard
 
-
 **Files:**
 - Modify: `crates/core-harness/src/model.rs` (`InvocationView`), `src/store/reads.rs`,
   `src/schema_descriptions/invocation.txt`, `contract.yaml`
