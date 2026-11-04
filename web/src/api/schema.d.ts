@@ -520,6 +520,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operations/{id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["context"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operations/{id}/stop": {
         parameters: {
             query?: never;
@@ -1287,6 +1303,22 @@ export interface paths {
         patch: operations["update_thread"];
         trace?: never;
     };
+    "/api/threads/{id}/anchor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_anchor"];
+        put: operations["set_anchor"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/attachments": {
         parameters: {
             query?: never;
@@ -1821,6 +1853,9 @@ export interface components {
             kind: string;
             operation_id?: null | components["schemas"]["OperationId"];
         };
+        AnchorResponse: {
+            anchor: null | components["schemas"]["ThreadPlanningAnchor"];
+        };
         /** @description What a question answers. */
         Answer: {
             /**
@@ -1912,6 +1947,19 @@ export interface components {
         CallKind: "read" | "edit" | "delete" | "move" | "search" | "execute" | "think" | "fetch" | "switch_mode" | "other";
         /** @enum {string} */
         CallStatus: "pending" | "in_progress" | "completed" | "failed" | "stopped";
+        /** @description Planning material prepared for one invocation. */
+        CarriedContext: {
+            cuts: string[];
+            /** Format: int64 */
+            detail_tokens: number;
+            digest: string;
+            /** Format: int64 */
+            index_tokens: number;
+            /** Format: int64 */
+            over_tokens: number;
+            sources: components["schemas"]["ContextSource"][];
+            text: string;
+        };
         /** @description The effort a person picked. */
         ChangeEffort: {
             /** @description One of the session's `efforts`, for the model it holds. */
@@ -1954,6 +2002,16 @@ export interface components {
              * @description The least `active_limit` Core accepts.
              */
             active_limit_min: number;
+        };
+        ContextResponse: {
+            carried: components["schemas"]["CarriedContext"];
+            heard: boolean;
+        };
+        ContextSource: {
+            id: string;
+            kind: string;
+            /** Format: int64 */
+            version: number;
         };
         ContractHead: {
             header: string;
@@ -2204,7 +2262,7 @@ export interface components {
          *     `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /** @enum {string} */
         ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
@@ -2475,6 +2533,7 @@ export interface components {
             parts: components["schemas"]["ProposedPart"][];
             status: components["schemas"]["ProposalStatus"];
             thread_id: components["schemas"]["ThreadId"];
+            unserved?: string[];
             waivers: components["schemas"]["ProposedWaiver"][];
         };
         McpInput: {
@@ -3071,6 +3130,10 @@ export interface components {
             models: components["schemas"]["Choice"][];
             modes: components["schemas"]["Choice"][];
         };
+        SetAnchor: {
+            anchor: null | components["schemas"]["ThreadPlanningAnchor"];
+            command_id: string;
+        };
         SetEnv: {
             command_id: string;
             value: string;
@@ -3235,6 +3298,15 @@ export interface components {
         ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PermissionAsked" | "PermissionAnswered" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
         /** Format: uuid */
         ThreadId: string;
+        ThreadPlanningAnchor: {
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "part";
+        } | {
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "outcome";
+        };
         TodoItem: {
             content: string;
             status: components["schemas"]["TodoStatus"];
@@ -5362,6 +5434,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    context: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["OperationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextResponse"];
+                };
+            };
+            /** @description CONTEXT_NOT_CARRIED */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -7775,6 +7877,84 @@ export interface operations {
                 };
             };
             /** @description SETTING_NOT_OFFERED: a harness Shadows does not know */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_anchor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnchorResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_anchor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAnchor"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnchorResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             422: {
                 headers: {
                     [name: string]: unknown;

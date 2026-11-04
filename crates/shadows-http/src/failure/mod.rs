@@ -162,7 +162,9 @@ impl Failure {
         }
         Failure {
             status: match code {
-                ErrorCode::QueuedMessageGone => StatusCode::NOT_FOUND,
+                ErrorCode::QueuedMessageGone | ErrorCode::ContextNotCarried => {
+                    StatusCode::NOT_FOUND
+                }
                 ErrorCode::ThreadBusy
                 | ErrorCode::HarnessLocked
                 | ErrorCode::ProjectHasThreads

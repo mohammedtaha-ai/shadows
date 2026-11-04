@@ -3,12 +3,14 @@ use core_db::Storage;
 
 mod agreement;
 mod agreement_scope;
+mod anchors;
 pub use agreement_scope::AgreementOrigin;
 mod agreement_validation;
 mod agreements;
 mod map_proposals;
 mod map_rules;
 pub use map_proposals::{MapAction, MapProposal, MapPropose, ProposedPart, ProposedWaiver};
+pub use map_rules::MapRefusal;
 mod model;
 mod ops;
 mod outcomes;

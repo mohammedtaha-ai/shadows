@@ -172,12 +172,18 @@ async fn text_and_two_images_reach_acp_in_exact_order() {
     finish(&app, "send", "hello", &[&red, &blue]).await;
     let blocks = captured(&app, "image-prompt.json").await;
     assert_eq!(
-        blocks,
+        &blocks.as_array().unwrap()[..3],
         json!([
-            {"type":"text", "text":"hello"}, block(RED), block(BLUE),
-            {"type":"text", "text":STAGE}
+            {"type":"text", "text":"hello"}, block(RED), block(BLUE)
         ])
+        .as_array()
+        .unwrap()
+        .as_slice()
     );
+    assert_eq!(blocks.as_array().unwrap().len(), 5);
+    assert_eq!(blocks[3]["type"], "text");
+    assert!(blocks[3]["text"].as_str().unwrap().contains("Seeded part"));
+    assert_eq!(blocks[4], json!({"type":"text", "text":STAGE}));
     let entries: Vec<Value> = get_json(&app, &format!("/api/threads/{}/entries", app.thread)).await;
     assert_eq!(
         entries[0]["attachments"],
@@ -233,10 +239,18 @@ async fn image_only_turn_and_attachment_replay_conflict() {
     let red = image(&app, "red", RED).await;
     let blue = image(&app, "blue", BLUE).await;
     let first = finish(&app, "send", "", &[&red]).await;
+    let blocks = captured(&app, "image-prompt.json").await;
     assert_eq!(
-        captured(&app, "image-prompt.json").await,
-        json!([{"type":"text","text":""}, block(RED), {"type":"text","text":STAGE}])
+        &blocks.as_array().unwrap()[..2],
+        json!([{"type":"text","text":""}, block(RED)])
+            .as_array()
+            .unwrap()
+            .as_slice()
     );
+    assert_eq!(blocks.as_array().unwrap().len(), 4);
+    assert_eq!(blocks[2]["type"], "text");
+    assert!(blocks[2]["text"].as_str().unwrap().contains("Seeded part"));
+    assert_eq!(blocks[3], json!({"type":"text", "text":STAGE}));
     let (status, replay) = send(&app, body("send", "", &[&red])).await;
     assert_eq!(status, 202);
     assert_eq!(first, replay);

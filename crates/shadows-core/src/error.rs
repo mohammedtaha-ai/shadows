@@ -16,6 +16,8 @@ use core_turns::StartError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    ContextNotCarried,
+    MapRefused,
     PermissionNotFound,
     PermissionSettled,
     PermissionOptionNotOffered,
@@ -509,6 +511,10 @@ impl From<core_design::DesignError> for CoreError {
     fn from(error: core_design::DesignError) -> Self {
         use core_design::DesignError;
         match error {
+            DesignError::MapRefused(refusal) => Self::Refused {
+                code: ErrorCode::MapRefused,
+                message: refusal.to_string(),
+            },
             DesignError::StageBlocked(message) => Self::Refused {
                 code: ErrorCode::StageBlocked,
                 message,

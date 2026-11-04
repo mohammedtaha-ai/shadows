@@ -3,14 +3,15 @@
 //!
 //! The adapter runs a slash command only when it is the whole prompt; beside
 //! another block it reaches the model as plain text. So a text starting with
-//! `/` goes alone when it has no images, and the changes it skipped are handed back to be withheld
-//! until a normal turn can carry them.
+//! `/` goes alone when it has no images, and the changes and planning context it skipped stay
+//! owed until a normal turn can carry them.
 
 use core_plans::{Focus, PlanListing};
 use shadows_agent::acp::{ImageBlock, PromptBlock};
 
 /// What the harness and the turn's request supply; none of it is ordered yet.
 pub struct PromptParts {
+    pub planning: Option<String>,
     pub images: Vec<shadows_agent::acp::ImageBlock>,
     pub text: String,
     /// The harness's facts: what changed since the session last heard, and the stage line.
@@ -23,15 +24,17 @@ pub struct PromptParts {
 /// The blocks of one prompt, in the order they are sent.
 pub struct Prompt {
     pub blocks: Vec<PromptBlock>,
-    /// A command went without the changes, so the session has still to hear them.
+    /// A command went without the changes or the planning context, so the session has still to
+    /// hear them.
     pub withholds: bool,
 }
 
 impl Prompt {
     /// Orders the person's text, images, changes since the session last heard,
-    /// focus, the selected plan, then the stage line.
+    /// the planning context, focus, the selected plan, then the stage line.
     pub fn compose(parts: PromptParts) -> Prompt {
         let PromptParts {
+            planning,
             text,
             images,
             changes,
@@ -42,11 +45,12 @@ impl Prompt {
         if images.is_empty() && Self::is_command(&text) {
             return Prompt {
                 blocks: vec![PromptBlock::Text(text.trim_start().to_string())],
-                withholds: changes.is_some(),
+                withholds: changes.is_some() || planning.is_some(),
             };
         }
         let context = changes
             .into_iter()
+            .chain(planning)
             .chain(focus)
             .chain(continue_plan)
             .chain(std::iter::once(stage))

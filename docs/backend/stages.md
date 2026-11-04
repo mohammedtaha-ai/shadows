@@ -55,94 +55,109 @@ B-38 and B-39 shipped in PR #52 (`6b2c66ed`), with F-80; their entries are in th
 Its review findings (whole-token redaction, the listing's environment and folder, deny over
 allow on a name clash, edits queued during a save) were fixed in PR #53 (`349606bf`).
 
+Agent groups, messaging slice 1 ([spec](specs/2026-11-03-agent-messaging-design.md)): B-40 to B-46 shipped in PR #54
+(`9e5b9ab2`), with F-81 to F-85, U-9 and U-10; their entries, and the commits outside their
+`Touch:` lists, are in this file at `9e5b9ab2`. The plan was
+`docs/backend/plans/2026-11-03-agent-groups.md` at `9e5b9ab2`.
+Known and left: a persistent storage error while starting a delivery retries forever and
+stalls dispatch for every group (`crates/core-messages/src/deliveries.rs`).
+
 ## Tasks
 
-Agent groups, messaging slice 1 ([spec](specs/2026-11-03-agent-messaging-design.md), [plan](plans/2026-11-03-agent-groups.md)).
+Planner context, slice 1, with the fixes for three Planner defects ([spec](specs/2026-11-04-planner-context-design.md), [plan](plans/2026-11-04-planner-context-slice-1.md)).
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
 
-### B-40 · Hidden member threads
+### B-47 · A thread's planning anchor (Design)
 - Status: done
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-40-hidden-member-threads-threads
-- Read: crates/core-threads/contract.yaml; crates/core-harness/src/sessions.rs (`close_agent`)
-- Touch: crates/core-db/migrations/0041_thread_hidden.sql; crates/core-threads/src/lib.rs;
-  crates/core-threads/src/store/thread.rs; crates/core-threads/src/store/records.rs;
-  crates/core-threads/contract.yaml; crates/core-threads/tests/hidden.rs;
-  crates/core-projects/src/harness_policy.rs; crates/core-projects/contract.yaml
-- Done when: `cargo test -p core-threads` passes, with `a_hidden_thread_is_left_out_of_the_agent_list`
-  and `a_hidden_thread_is_still_closed_with_its_agent`
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-47-a-threads-planning-anchor-design
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.1; crates/core-design/contract.yaml
+- Touch: crates/core-db/migrations/0043_thread_anchor.sql; crates/core-design/src/anchors.rs,
+  src/store/, src/lib.rs, contract.yaml, tests/anchors.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
+- Done when: `cargo test -p core-design --test anchors` and `-p core-db --test migration_checksums` pass
 
-### B-41 · Ended turns from the journal
+### B-48 · What a turn carried, per session (Harness)
 - Status: done
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-41-ended-turns-from-the-journal-events
-- Read: crates/core-events/contract.yaml; crates/core-operations/src/store/lifecycle.rs
-- Touch: crates/core-events/src/lib.rs, src/store.rs, src/model.rs, src/store_tests.rs, contract.yaml;
-  docs/codebase/README.md
-- Done when: `cargo test -p core-events` passes, with
-  `ended_turns_come_back_in_seq_order_after_the_cursor` and `an_interrupted_turn_is_an_ended_turn`
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-48-what-a-turn-carried-per-session-harness
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml
+- Touch: crates/core-db/migrations/0044_invocation_context.sql; crates/core-harness/src/context_record.rs,
+  src/store/, src/model.rs, src/lib.rs, contract.yaml; crates/shadows/tests/context_record.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
+- Done when: `cargo test -p core-harness` and `cargo test -p shadows --test context_record` pass
 
-### B-42 · The Messages service, groups and their log
+### B-49 · Compile the planning context (Turns)
 - Status: done
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-42-the-messages-service-groups-and-their-log
-- Read: docs/backend/specs/2026-11-03-agent-messaging-design.md §6.2, §7; crates/shadows-core/src/app.rs; docs/codebase/README.md
-- Touch: crates/core-messages/ (new); crates/core-db/migrations/0042_messages.sql;
-  crates/shadows-core/src/app.rs; crates/shadows-core/Cargo.toml; docs/codebase/README.md
-- Done when: `cargo test -p core-messages` and `cargo test -p shadows --test codemap` pass
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-49-compile-the-planning-context-turns
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.2; crates/core-turns/contract.yaml; crates/core-plans/src/design_views.rs
+- Touch: crates/core-turns/src/planning/ (new), src/lib.rs, contract.yaml,
+  tests/planning_context.rs; crates/shadows-core/src/app.rs
+- Done when: `cargo test -p core-turns` passes, with compiler tests in core-turns and the three AppCore cases in shadows/tests/planning_context.rs
 
-### B-43 · Mohammed writes; deliveries are scheduled and dispatched
+### B-50 · Send it when the session has not heard it
 - Status: done
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-43-mohammed-writes-deliveries-are-scheduled-and-dispatched
-- Read: the plan's "Routing rules" and "Delivery rules"; crates/core-turns/contract.yaml (`send`)
-- Touch: crates/core-messages/src/send.rs, mentions.rs, bounds.rs, deliveries.rs, prompt.rs,
-  lib.rs, store/mod.rs, store/write.rs, store/deliveries.rs, Cargo.toml, contract.yaml,
-  tests/send.rs, tests/support/mod.rs; crates/core-turns/src/lib.rs; crates/core-turns/contract.yaml;
-  crates/shadows/tests/group_routes.rs (the tests that need a running turn: AppCore and fake-acp)
-- Done when: `cargo test -p core-messages` verifies routing, ordering and bounded prompts, and
-  `cargo test -p shadows --test group_routes` verifies prompts, one turn per delivery and replay.
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-50-send-it-when-the-session-has-not-heard-it
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.3; crates/core-turns/src/spawn.rs, prompt.rs
+- Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, store/operation.rs, contract.yaml;
+  crates/core-harness/src/context_record.rs, contract.yaml; crates/shadows-core/src/testing/turn.rs;
+  crates/shadows/tests/planning_context.rs, turn_command.rs, plan_boundaries.rs, planner_mcp/standards.rs
+- Done when: `cargo test -p shadows --test planning_context` passes, with the eight tests the task names
 
-### B-44 · Members answer, from the journal, inside bounds
+### B-51 · Routes for the anchor and the record
 - Status: done
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-44-members-answer-from-the-journal-inside-bounds
-- Read: the plan's "Delivery rules"; B-41's `Events::ended_turns_after`
-- Touch: crates/core-messages/src/replies.rs, deliveries.rs, error.rs, lib.rs, contract.yaml;
-  crates/shadows-core/src/app.rs; crates/core-harness/src/settings.rs;
-  crates/core-harness/contract.yaml; crates/fake-acp/src/prompts.rs;
-  crates/fake-acp/src/handlers/session.rs; crates/shadows/tests/group_routes.rs
-- Done when: `group_routes` covers durable recovery, failure, bounds, busy retry and shutdown.
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-51-routes-for-the-anchor-and-the-record
+- Read: crates/shadows-http/src/contract.yaml
+- Needs: docs/shared/requests/2026-11-04-planning-context-routes.md, accepted
+- Touch: crates/shadows-http/src/ (thread routes, openapi.rs, contract.yaml); api/openapi.json;
+  web/src/api/schema.d.ts; crates/shadows/tests/planning_routes.rs (new)
+- Done when: `cargo test -p shadows --test planning_routes --test openapi` passes
 
-### B-45 · Routes; messages on the project stream
+### B-52 · Map refusals say which rule, which parts and what to do
 - Status: done
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-45-routes-messages-on-the-project-stream
-- Read: crates/shadows-http/src/contract.yaml; crates/core-events/contract.yaml
-- Touch: crates/shadows-http/src/groups.rs, lib.rs, sse.rs, failure/other.rs, contract.yaml;
-  crates/core-events/src/store.rs, contract.yaml; api/openapi.json;
-  crates/shadows-core/src/lib.rs; crates/shadows/tests/group_routes.rs;
-  crates/shadows/tests/openapi.rs; crates/shadows/tests/openapi/read_only.rs; web/src/api/schema.d.ts
-- Done when: `cargo test -p shadows --test group_routes --test openapi` passes and the generated
-  API describes the group routes.
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-52-map-refusals-say-which-rule-which-parts-and-what-to-do-defect-1
+- Read: docs/evidence/2026-11-04-planner-session-defects.md §1; crates/core-design/src/map_rules.rs; crates/shadows-mcp/src/refusal.rs
+- Touch: crates/core-design/src/map_rules.rs, error.rs, map_proposals.rs, contract.yaml, tests/;
+  crates/shadows-core (ErrorCode); crates/shadows-mcp/src/refusal.rs, contract.yaml;
+  crates/shadows-http/src/ failure mapping
+- Done when: `cargo test -p core-design` and `cargo test -p shadows-mcp` pass, with the four tests named
 
-### B-46 · When a group started needing Mohammed
+### B-53 · Vision IDs are given when proposed
 - Status: done
-- Plan: docs/backend/plans/2026-11-03-agent-groups.md#task-b-46-when-a-group-started-needing-mohammed
-- Read: crates/core-messages/contract.yaml (`needs_you`); the UI plan's U-10
-  (docs/frontend/plans/2026-11-03-agent-groups-ui.md)
-- Touch: crates/core-messages/src/model.rs, src/store/mod.rs, src/prompt.rs (test fixture),
-  contract.yaml, tests/groups.rs;
-  api/openapi.json; web/src/api/schema.d.ts
-- Done when: `cargo test -p core-messages` and `cargo test -p shadows --test openapi` pass, with
-  `needs_you_since_is_the_first_unanswered_call`
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-53-vision-ids-are-given-when-proposed-defect-2
+- Read: docs/evidence/2026-11-04-planner-session-defects.md §2; crates/core-design/src/store/proposal_approval.rs, store/vision.rs
+- Touch: crates/core-db/migrations/0045_vision_reserved_id.sql; crates/core-design/src/store/,
+  proposals.rs, contract.yaml, tests/; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
+- Done when: `cargo test -p core-design` passes, with the two tests in shadows/tests/vision_proposal_ids.rs
+
+### B-54 · A map proposal lists vision items no part serves
+- Status: done
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-54-a-map-proposal-lists-vision-items-no-part-serves-defect-3
+- Read: docs/evidence/2026-11-04-planner-session-defects.md §3; crates/core-design/src/map_proposals.rs
+- Touch: crates/core-design/src/map_proposals.rs, map_rules.rs, store/map_proposals.rs, contract.yaml;
+  crates/shadows/tests/map_proposal_coverage.rs; api/openapi.json; web/src/api/schema.d.ts
+- Done when: `cargo test -p core-design` passes, with `a_map_answer_lists_the_unserved_vision_items` in shadows/tests/map_proposal_coverage.rs
+
+## Slice 1 integration checks
 
 Outside any task's `Touch:` on this branch, recorded here:
-- `d7342532`: crates/core-db/tests/storage_contract/schema.rs names the B-40 tables and 0042.
-- `4381072f`: the architecture ratchet for B-40 to B-45. The free functions of
-  crates/core-messages/src/bounds.rs, mentions.rs and prompt.rs became `Messages` methods
-  (callers in deliveries.rs, replies.rs and send.rs); store/deliveries.rs lost its formatted
-  SQL; crates/shadows/tests/architecture/table-owners.txt and ownership.allowlist name the
-  message tables and three reviewed exceptions.
-- `aa359acf` (U-10): `MessageAdded` carries `calls_person` (spec §6.7):
-  crates/core-messages/src/store/write.rs, contract.yaml; crates/core-events/contract.yaml;
-  crates/shadows/tests/group_routes.rs.
+- `25733964` (B-48): docs/codebase/README.md (two rows); crates/core-harness/Cargo.toml and
+  crates/core-harness/tests/context_record.rs, both removed again in `2cdf1205`.
+- `3b14e348` (B-49, B-50): Cargo.lock and crates/core-turns/Cargo.toml (`sha2`, a library for
+  infrastructure; `core-design` test-support for tests); crates/core-turns/tests/prompt.rs;
+  crates/core-design/tests/anchors.rs; docs/codebase/README.md (three rows).
+- `f774cde0` (B-51): crates/shadows-core/src/error.rs (`CONTEXT_NOT_CARRIED`) and
+  src/lib.rs (re-exports `CarriedContext`, `ContextSource`); crates/shadows/tests/openapi.rs and
+  tests/openapi/read_only.rs; docs/codebase/README.md; the shared request's status.
+- `2c5ca8b4` (B-52): api/openapi.json and web/src/api/schema.d.ts (`MAP_REFUSED`);
+  crates/shadows-http/src/contract.yaml.
+- `5e2d020d` (B-53): crates/shadows/tests/vision_proposal_ids.rs, the test the plan names.
+- `2cdf1205`: crates/core-db/contract.yaml; crates/core-db/tests/storage_contract/schema.rs
+  (the two new tables); crates/shadows/tests/architecture/table-owners.txt;
+  crates/shadows/tests/context_record.rs (Harness's record tests through AppCore, so
+  core-harness keeps no Runtime dependency); crates/shadows-core/tests/design_vision/proposals.rs
+  and crates/shadows/tests/image_attachments.rs, planner_mcp.rs, planner_mcp/standards.rs
+  (expectations that now include reserved ids and the planning block).
+- The whole-branch review: docs/core/specs/2026-10-08-guided-planning-design.md (vision ids
+  given when proposed, `MAP_REFUSED`, `unserved`) and this file, with Mohammed's approval.
 
-Core's local acceptance used `shadows serve` with synthetic ACP and two agents. Alpha alone
-answered the addressed message. Restart preserved the group and reopened Alpha's member
-session. The local log recorded `OperationCompleted` and graceful shutdown. CI and the AYLUL
-desktop acceptance remain separate gates.
+The source footer and cut markers count toward the index estimate, and depth-two index entries
+keep their parent ids. Local acceptance with real provider and browser is in the
+[dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
+The full workspace gate runs in CI.

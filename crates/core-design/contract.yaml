@@ -125,7 +125,7 @@ shapes:
 enums:
   DesignError:
     source: core_design::DesignError
-    values: [StageBlocked, ReasonMissing, InvalidCommand, GrantScope, Grants, Storage]
+    values: [MapRefused, StageBlocked, ReasonMissing, InvalidCommand, GrantScope, Grants, Storage]
   Stage: [Idea, Vision, Map, Structure, Roadmap, Plans]
   RoadmapAction: [First, Add, Change, Remove]
   WorkspaceOp:
@@ -154,6 +154,12 @@ functions:
     approve_vision_proposal_for_test: Test-only approval using the supplied command and approver.
     propose_vision_for_test: Test-only proposal using the supplied command, writer and operation.
   service:
+    set_thread_anchor:
+      signature: "(&self, command_id: String, thread: &ThreadId, anchor: Option<DesignAnchor>) -> Result<Option<DesignAnchor>, DesignError>"
+      rule: Replay first, validate the live Planner and same-project anchor, then store or clear it atomically.
+    thread_anchor:
+      signature: "(&self, thread: &ThreadId) -> Result<Option<DesignAnchor>, DesignError>"
+      rule: A removed design item remains a readable reference so Turns can announce its removal.
     create_structure:
       signature: "(&self, command_id: String, project: &ProjectId, map_revision: i64) -> Result<StructureWritten, DesignError>"
       # Person HTTP only; daemon mutex, intent before disk, immutable command replay.
@@ -359,6 +365,7 @@ dependencies:
 
 called_by_other_services:
   project_stage: "Design exposes its persisted stage view; Turns reads the rendered line through stage_line_in."
+  thread_anchor: "Turns::planning_context reads the thread's anchor, then vision, parts, outcomes and agreements (pinned versions through agreement) through their public reads."
 
 obligations:
   - rule: Map paths refuse Windows device names and initial files at Shadows-owned output paths.
@@ -626,6 +633,8 @@ tests:
 # Map proposal standards pins are read through Harness::pinned_standards_in.
 
 modules:
+  anchors.rs: Planner anchor commands
+  store/anchors.rs: Planner anchor persistence
   agreement.rs: Shared HTTP agreement value shapes
   agreement_scope.rs: Live grant attribution for agreement proposals
   agreement_validation.rs: Offline validation of canonical shared OpenAPI content
@@ -677,3 +686,30 @@ modules:
   structure_write.rs: Checking
   vision_items.rs: Pure vision item edits with server-assigned identities (PU, U, G, B, TD)
   workspace.rs: A grant's read of its project's workspace, so a Planner plans from it
+
+planning_anchor:
+  modules: [anchors.rs, store/anchors.rs]
+  tables: [design_thread_anchor]
+  set_thread_anchor: 'thread.anchor command, replay first with immutable answer, validates live Planner and project ownership; null clears'
+  thread_anchor: 'Reads the selected anchor for a live thread, retaining references to deleted design items'
+
+map_refusals:
+  type: MapRefusal with stable rule and actionable message.
+  error: DesignError::MapRefused preserves the rule through application translation.
+  rules: [duplicate_part, duplicate_sibling, missing_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part]
+
+vision_reservations:
+  storage: design_vision_proposal.reserved_item_id records the id allocated during Add proposal.
+  projection: The proposal answer and immutable card expose that identity through item_id.
+  transaction: Counter advancement, proposal, command replay and card insertion share one write.
+  approval: Uses the reserved identity; a legacy null reservation allocates from the current counter.
+  discarded: Superseded proposals retain their consumed identity and it is never reused.
+
+map_coverage:
+  answer: 'MapProposal.unserved lists all vision fields in VisionField::ALL and item order, using the complete proposed map.'
+  persistence: 'The original answer and card persist the list. Legacy proposal JSON defaults it to an empty list.'
+  rule: Informational only; an item served by another part is covered even if one part omitted it.
+
+map_refusal_repairs:
+  equal_folder: Equal folder claims require one owner or distinct claims even for parent-child parts.
+  nested_folders: Distinct nested claims may follow the same parent-child relationship as their parts.

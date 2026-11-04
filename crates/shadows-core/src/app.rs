@@ -443,6 +443,7 @@ impl AppCore {
             standards.clone(),
             projects.clone(),
             plans.clone(),
+            design.clone(),
             ui.clone(),
         );
         let events = Arc::new(Events::new(

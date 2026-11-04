@@ -31,6 +31,7 @@ pub type OnCompleted = Arc<dyn Fn(ThreadId) + Send + Sync>;
 
 /// A turn whose operation `TurnsStore::start_turn` has committed `Pending`.
 pub struct PlannerTurnRequest {
+    pub planning: Result<Option<core_harness::CarriedContext>, String>,
     pub thread_id: ThreadId,
     pub root: Option<std::path::PathBuf>,
     /// The thread's harness as the turn command validated it, so nothing is
@@ -66,6 +67,7 @@ impl PlannerTurn {
         bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     ) -> Result<OperationId, StartError> {
         let PlannerTurnRequest {
+            planning,
             thread_id,
             root,
             harness,
@@ -98,19 +100,37 @@ impl PlannerTurn {
             }
             Err(error) => Err(error.into()),
         };
-        let prepared = match facts {
-            Ok(facts) => (sessions.prepare_turn(&thread_id, &opened, &settings).await).map(|()| {
-                Prompt::compose(PromptParts {
-                    text: prompt,
-                    images,
-                    changes: facts.changes,
-                    stage: facts.stage,
-                    focus,
-                    continue_plan,
-                })
-            }),
-            Err(error) => Err(error.to_string()),
-        };
+        let prepared: Result<Prompt, String> = async {
+            let facts = facts.map_err(|error| error.to_string())?;
+            let planning = planning?;
+            let heard = sessions
+                .heard_context_digest(&opened.session_id)
+                .await
+                .map_err(|error| error.to_string())?;
+            let planning = planning.filter(|context| heard.as_ref() != Some(&context.digest));
+            sessions
+                .prepare_turn(&thread_id, &opened, &settings)
+                .await?;
+            let prompt = Prompt::compose(PromptParts {
+                text: prompt,
+                images,
+                changes: facts.changes,
+                stage: facts.stage,
+                focus,
+                continue_plan,
+                planning: planning.as_ref().map(|context| context.text.clone()),
+            });
+            if !prompt.withholds
+                && let Some(context) = planning
+                && let Err(error) = sessions
+                    .prepare_context(&op_id, &thread_id, &opened.session_id, &context)
+                    .await
+            {
+                tracing::error!(parent: &span, %error, "planner.context_record_failed");
+            }
+            Ok(prompt)
+        }
+        .await;
         let Prompt { blocks, withholds } = match prepared {
             Ok(prompt) => prompt,
             Err(reason) => {

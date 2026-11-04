@@ -19,6 +19,7 @@ version: 1
 status: current
 source: crates/shadows-http/src
 modules:
+  planning_context.rs: Planning context HTTP translation
   harness.rs: Harness session HTTP translation
   design.rs: Design service HTTP translation
   plan_design.rs: Plans service design association HTTP translation
@@ -77,3 +78,12 @@ background_tasks:
   stream: The tasks frame carries the current operation if any and the session task list.
   tested_by: [stop_reaches_the_adapter, unknown_task_is_404, an_ended_task_is_not_stopped,
     a_subscriber_gets_the_tasks_after_caught_up]
+
+planning_context:
+  module: planning_context.rs
+  routes: ['PUT /api/threads/{id}/anchor', 'GET /api/threads/{id}/anchor', 'GET /api/operations/{id}/context']
+  methods: [Design::set_thread_anchor, Design::thread_anchor, Harness::context_record]
+  wire: Lowercase anchor kinds map to the existing DesignAnchor enum without changing its other callers.
+  absent_record: 404 CONTEXT_NOT_CARRIED, with no assertion about the reason.
+
+map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; shared adapter fixtures cover it.'

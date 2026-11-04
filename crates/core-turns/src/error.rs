@@ -44,6 +44,11 @@ impl From<sqlx::Error> for TurnsError {
         StorageError::from(error).into()
     }
 }
+impl From<core_design::DesignError> for TurnsError {
+    fn from(error: core_design::DesignError) -> Self {
+        Self::Plans(error.into())
+    }
+}
 impl From<serde_json::Error> for TurnsError {
     fn from(error: serde_json::Error) -> Self {
         StorageError::from(error).into()

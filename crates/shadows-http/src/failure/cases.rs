@@ -39,6 +39,14 @@ impl Case {
         use ErrorCode as E;
         let database = "the daemon could not read or write its database";
         let mut cases = vec![
+            Self::same(
+                shadows_core::DesignError::MapRefused(shadows_core::MapRefusal {
+                    rule: "folder_claimed_twice",
+                    message: "Backend and Frontend both claim src. Give src to one part.".into(),
+                }).into(),
+                E::MapRefused, 422,
+                "folder_claimed_twice: Backend and Frontend both claim src. Give src to one part.",
+            ),
             Self::same(C::PermissionNotFound, E::PermissionNotFound, 404,
                 "permission request is unknown"),
             Self::same(C::PermissionSettled, E::PermissionSettled, 409,

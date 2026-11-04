@@ -109,9 +109,11 @@ async fn a_focused_turn_stores_the_task_with_the_message_and_tells_the_planner()
         "[Shadows] The person is pointing at task T2 (\"task 2\") of plan {v1}, revision 1. \
          Read the plan with workflow_get before changing it."
     );
-    assert_eq!(blocks.len(), 3);
-    assert_eq!(&blocks[..2], ["report", told.as_str()]);
-    assert!(blocks[2].starts_with("[Shadows] Stage: idea."));
+    assert_eq!(blocks.len(), 4);
+    assert_eq!(blocks[0], "report");
+    assert!(blocks[1].starts_with("## Planning context index"));
+    assert_eq!(blocks[2], told);
+    assert!(blocks[3].starts_with("[Shadows] Stage: idea."));
 
     let message = entries(&l.app)
         .await

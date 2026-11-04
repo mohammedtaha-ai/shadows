@@ -22,6 +22,7 @@ pub use core_code::{
 pub use core_agents::{Agent, AgentInput, AgentWorkspace, Agents, AgentsError};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+pub use core_design::MapRefusal;
 pub use core_design::StructureWritten;
 pub use core_design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -40,8 +41,9 @@ pub use core_extensions::{
 };
 pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use core_harness::{
-    AylulConfig, AylulUsageSnapshot, Harness, HarnessError, HarnessInfo, LeaseError, OpenError,
-    OpenSession, PermissionAnswer, PermissionOption, RememberedSettings, WaitingPermission,
+    AylulConfig, AylulUsageSnapshot, CarriedContext, ContextSource, Harness, HarnessError,
+    HarnessInfo, LeaseError, OpenError, OpenSession, PermissionAnswer, PermissionOption,
+    RememberedSettings, WaitingPermission,
 };
 pub use core_instructions::{Instructions, InstructionsVersion};
 pub use core_messages::{

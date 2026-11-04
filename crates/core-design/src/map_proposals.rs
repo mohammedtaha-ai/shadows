@@ -43,6 +43,8 @@ pub struct MapPropose {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MapProposal {
     #[serde(default)]
+    pub unserved: Vec<String>,
+    #[serde(default)]
     pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
@@ -87,7 +89,7 @@ impl Design {
             .await?;
         for part in &mut args.parts {
             super::map_rules::MapRules::normalise(&mut part.content)
-                .map_err(DesignError::InvalidCommand)?;
+                .map_err(DesignError::MapRefused)?;
         }
         let ctx = Self::proposal_command(&writer, &turn, "MapPropose", &args)?;
         self.store

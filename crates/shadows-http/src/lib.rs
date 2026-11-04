@@ -40,6 +40,7 @@ mod harness;
 mod instructions;
 mod openapi;
 mod plan_design;
+mod planning_context;
 mod project;
 mod queue;
 mod roadmap;
@@ -232,6 +233,11 @@ fn routes() -> OpenApiRouter<AppState> {
             thread::remove_thread
         ))
         .routes(routes!(thread::fork_thread))
+        .routes(routes!(
+            planning_context::get_anchor,
+            planning_context::set_anchor
+        ))
+        .routes(routes!(planning_context::context))
         .routes(routes!(workflow::list_plans))
         .routes(routes!(workflow::plan_map))
         .routes(routes!(workflow::get_plan))

@@ -30,7 +30,8 @@ impl Ops {
                         valid_id(reference.as_str())?;
                     }
                     content.title = content.title.trim().into();
-                    super::map_rules::MapRules::normalise(content).map_err(invalid)?;
+                    super::map_rules::MapRules::normalise(content)
+                        .map_err(DesignError::MapRefused)?;
                     if content.title.is_empty() {
                         return Err(invalid(format!("part {id} needs a title")));
                     }
@@ -38,7 +39,8 @@ impl Ops {
                 WorkspaceOp::PartPut { id, content } => {
                     valid_id(id.as_str())?;
                     content.title = content.title.trim().into();
-                    super::map_rules::MapRules::normalise(content).map_err(invalid)?;
+                    super::map_rules::MapRules::normalise(content)
+                        .map_err(DesignError::MapRefused)?;
                     if content.title.is_empty() {
                         return Err(invalid(format!("part {id} needs a title")));
                     }

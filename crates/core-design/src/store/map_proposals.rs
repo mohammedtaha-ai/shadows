@@ -73,12 +73,13 @@ impl DesignStore {
                     shape::MapProposalShapeRows::validate_args(&mut args, &standards)?;
                     let rows = maps::MapVersionsRows::rows(conn, &p).await?;
                     let old = shape::MapProposalShapeRows::old_content(&args, &rows)?;
-                    shape::MapProposalShapeRows::check(
-                        &args,
-                        &shape::MapProposalShapeRows::result(&args, &rows)?,
+                    let proposed_rows = shape::MapProposalShapeRows::result(&args, &rows)?;
+                    shape::MapProposalShapeRows::check(&args, &proposed_rows, &vision, &standards)?;
+                    let contents = maps::MapVersionsRows::contents(&proposed_rows)?;
+                    let unserved = crate::map_rules::MapRules::unserved_items(
+                        &maps::MapVersionsRows::views(&proposed_rows, &contents),
                         &vision,
-                        &standards,
-                    )?;
+                    );
                     if let Some(id) = &args.replaces {
                         let previous =
                             super::map_proposal_read::MapProposalReadRows::load(conn, &p, id)
@@ -121,6 +122,7 @@ impl DesignStore {
                         .filter_map(|id| vision.item(id).map(|i| (id.clone(), i.revision)))
                         .collect();
                     let proposal = MapProposal {
+                        unserved,
                         approved_by: None,
                         id: uuid::Uuid::new_v4().to_string(),
                         thread_id: thread.clone(),

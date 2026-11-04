@@ -89,13 +89,34 @@ impl DesignStore {
                     .bind(serde_json::to_string(&content)?)
                     .execute(&mut *conn)
                     .await?;
+                    let reserved_id = if args.action == VisionAction::Add {
+                        let counters: String = sqlx::query_scalar(
+                            "SELECT vision_counters FROM design_workspace WHERE project_id=?",
+                        )
+                        .bind(project.as_str())
+                        .fetch_one(&mut *conn)
+                        .await?;
+                        let mut counters = serde_json::from_str(&counters)?;
+                        let id = crate::vision_items::VisionItems::next_id(field, &mut counters)
+                            .map_err(StorageError::Constraint)?;
+                        sqlx::query(
+                            "UPDATE design_workspace SET vision_counters=? WHERE project_id=?",
+                        )
+                        .bind(serde_json::to_string(&counters)?)
+                        .bind(project.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                        Some(id)
+                    } else {
+                        None
+                    };
                     let p = VisionProposal {
                         approved_by: None,
                         id: uuid::Uuid::new_v4().to_string(),
                         thread_id: thread.clone(),
                         action: args.action,
                         field,
-                        item_id: args.item_id,
+                        item_id: reserved_id.clone().or(args.item_id),
                         text: args.text,
                         old_text,
                         expected_item_revision,
@@ -141,9 +162,11 @@ impl DesignStore {
                         core_harness::Harness::invocation_standards_in(conn, turn.as_str()).await?;
                     sqlx::query(
                         "INSERT INTO design_vision_proposal
-                (id,project_id,thread_id,operation_id,entry_id,action,field,item_id,text,old_text,
+                (id,project_id,thread_id,operation_id,entry_id,action,field,
+                 item_id,reserved_item_id,
+                 text,old_text,
                  expected_item_revision,status,standards_version,standards_additions_version_id,
-                 created_at,seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,'Pending',?,?,
+                 created_at,seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'Pending',?,?,
                    ?, (SELECT COALESCE(MAX(seq),0)+1 FROM design_vision_proposal
                        WHERE project_id=?))",
                     )
@@ -155,6 +178,7 @@ impl DesignStore {
                     .bind(json["action"].as_str())
                     .bind(json["field"].as_str())
                     .bind(&p.item_id)
+                    .bind(&reserved_id)
                     .bind(&p.text)
                     .bind(&p.old_text)
                     .bind(p.expected_item_revision)

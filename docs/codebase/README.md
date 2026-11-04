@@ -517,3 +517,12 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-events/src/error.rs` | event subscription failures | `crates/core-events/contract.yaml` |
 
 | `crates/core-runtime/src/error.rs` | runtime startup failures | `crates/core-runtime/contract.yaml` |
+| `crates/core-design/src/anchors.rs` | Planner anchor commands | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/anchors.rs` | Planner anchor persistence | `crates/core-design/contract.yaml` |
+| `crates/core-harness/src/context_record.rs` | Planning context records | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/store/context_record.rs` | Planning context persistence | `crates/core-harness/contract.yaml` |
+| `crates/core-turns/src/planning/mod.rs` | Planning context compilation | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/planning/block.rs` | Planning context rendering | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/planning/budget.rs` | Planning context budgets | `crates/core-turns/contract.yaml` |
+| `crates/shadows-http/src/planning_context.rs` | Planning context HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/core-turns/src/planning/` | Planning context assembly | `crates/core-turns/contract.yaml` |
