@@ -366,3 +366,84 @@ fn mcp_spec_debug_never_prints_values() {
     assert!(!debug.contains("secret-header") && !debug.contains("secret-env"));
     assert!(!debug.contains("secret-arg"));
 }
+
+fn frames(updates: Vec<serde_json::Value>) -> Vec<HarnessEvent> {
+    use agent_client_protocol::schema::v1::SessionUpdate;
+    let events = std::sync::Mutex::new(Vec::new());
+    let send = |event| events.lock().unwrap().push(event);
+    for update in updates {
+        let update: SessionUpdate = serde_json::from_value(update).unwrap();
+        crate::acp::mapping::Mapping::forward(&send, update);
+    }
+    events.into_inner().unwrap()
+}
+
+fn compacted(events: &[HarnessEvent]) -> Vec<Option<String>> {
+    events
+        .iter()
+        .filter_map(|e| match e {
+            HarnessEvent::Compacted { trigger } => Some(trigger.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn compact_meta(trigger: &str) -> serde_json::Value {
+    serde_json::json!({"contextCompaction": {"version": 1, "trigger": trigger},
+        "claudeCode": {"toolName": "compact"}})
+}
+
+#[test]
+fn a_completed_compaction_is_reported_with_its_trigger() {
+    let events = frames(vec![
+        serde_json::json!({"sessionUpdate":"tool_call", "toolCallId":"c", "title":"Compact",
+            "kind":"think", "status":"in_progress",
+            "_meta":{"contextCompaction":{"version":1}}}),
+        serde_json::json!({"sessionUpdate":"tool_call_update", "toolCallId":"c",
+            "status":"completed", "rawOutput":{"trigger":"manual"},
+            "_meta": compact_meta("manual")}),
+    ]);
+    assert!(matches!(&events[1], HarnessEvent::ToolCall { .. }));
+    assert!(matches!(&events[2], HarnessEvent::Compacted { trigger }
+        if trigger.as_deref() == Some("manual")));
+    assert_eq!(events.len(), 3);
+}
+
+#[test]
+fn a_compaction_opened_already_terminal_is_reported() {
+    let events = frames(vec![
+        serde_json::json!({"sessionUpdate":"tool_call", "toolCallId":"c", "title":"Compact",
+            "status":"completed", "rawOutput":{"trigger":"automatic"},
+            "_meta":{"contextCompaction":{"version":1}}}),
+    ]);
+    assert_eq!(compacted(&events), vec![Some("automatic".to_owned())]);
+}
+
+#[test]
+fn a_failed_compaction_is_not_reported() {
+    let events = frames(vec![
+        serde_json::json!({"sessionUpdate":"tool_call_update", "toolCallId":"c",
+            "status":"failed", "_meta": compact_meta("manual")}),
+    ]);
+    assert!(compacted(&events).is_empty());
+}
+
+#[test]
+fn a_repeated_metadata_frame_is_not_reported_again() {
+    let events = frames(vec![
+        serde_json::json!({"sessionUpdate":"tool_call_update", "toolCallId":"c",
+            "status":"completed", "_meta": compact_meta("manual")}),
+        serde_json::json!({"sessionUpdate":"tool_call_update", "toolCallId":"c",
+            "_meta": compact_meta("manual")}),
+    ]);
+    assert_eq!(compacted(&events).len(), 1);
+}
+
+#[test]
+fn an_ordinary_completed_tool_is_not_a_compaction() {
+    let events = frames(vec![
+        serde_json::json!({"sessionUpdate":"tool_call_update", "toolCallId":"t",
+            "status":"completed", "_meta":{"claudeCode":{"toolName":"Read"}}}),
+    ]);
+    assert!(compacted(&events).is_empty());
+}

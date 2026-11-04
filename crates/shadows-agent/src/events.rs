@@ -35,6 +35,11 @@ pub enum HarnessEvent {
         agent: Option<Box<AgentFacts>>,
         facts: ToolFacts,
     },
+    /// A compaction completed. `trigger` is `manual` or `automatic` when the
+    /// adapter said.
+    Compacted {
+        trigger: Option<String>,
+    },
     /// A subagent's card changed while its turn runs. Sent by the
     /// Planner's watcher, not the connection, as `TurnEnd` is.
     Subagent(SubagentCard),

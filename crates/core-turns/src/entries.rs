@@ -189,6 +189,7 @@ impl Collector {
             | HarnessEvent::Tool(_)
             | HarnessEvent::Subagent(_)
             | HarnessEvent::TurnEnd { .. }
+            | HarnessEvent::Compacted { .. }
             | HarnessEvent::Task(_) => {}
         }
         out

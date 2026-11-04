@@ -82,7 +82,7 @@ Planner context, slice 2: re-send after a compaction, or on request
 B-57, then B-58. The live acceptance follows them (the plan's last section).
 
 ### B-55 · The adapter's compaction is one event (shadows-agent, fake-acp)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-55-the-adapters-compaction-is-one-event-shadows-agent-fake-acp
 - Read: the plan's "What the adapter sends"; `docs/evidence/2026-11-04-planner-context-probe.md` §1;
   the `shadows-agent` rows of docs/codebase/README.md

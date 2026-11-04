@@ -50,6 +50,37 @@ fn chunk(
     )
 }
 
+/// The adapter's compaction frames for `compact-1`: the opening, then the
+/// terminal update, which carries `rawOutput` only when `known`.
+fn compaction(
+    cx: &ConnectionTo<Client>,
+    id: &str,
+    trigger: &str,
+    status: &str,
+    known: bool,
+) -> agent_client_protocol::Result<()> {
+    let meta = json!({"claudeCode": {"toolName": "compact"}});
+    let call: ToolCall = serde_json::from_value(json!({
+        "toolCallId": "compact-1", "title": "Compact conversation", "kind": "think",
+        "status": "in_progress",
+        "_meta": {"contextCompaction": {"version": 1}, "claudeCode": meta["claudeCode"]}
+    }))
+    .unwrap();
+    update(cx, id, SessionUpdate::ToolCall(call))?;
+    let mut done = json!({
+        "toolCallId": "compact-1", "status": status,
+        "_meta": {
+            "contextCompaction": {"version": 1, "trigger": trigger},
+            "claudeCode": meta["claudeCode"]
+        }
+    });
+    if known {
+        done["rawOutput"] = json!({"trigger": trigger, "preTokens": 1000});
+    }
+    let done: ToolCallUpdate = serde_json::from_value(done).unwrap();
+    update(cx, id, SessionUpdate::ToolCallUpdate(done))
+}
+
 /// What one prompt is answered with.
 pub(crate) struct Turn<'a> {
     pub(crate) id: &'a str,
@@ -94,6 +125,16 @@ pub(crate) async fn answer(
             }
             chunk(cx, id, "m1", "after tasks")?;
         }
+        "/compact" => {
+            compaction(cx, id, "manual", "completed", true)?;
+            chunk(cx, id, "m1", "compacted")?;
+        }
+        "compact-auto" => {
+            chunk(cx, id, "m1", "before")?;
+            compaction(cx, id, "automatic", "completed", true)?;
+            chunk(cx, id, "m2", "after")?;
+        }
+        "compact-failed" => compaction(cx, id, "manual", "failed", false)?,
         "todo-list" => {
             for status in ["pending", "completed"] {
                 let plan = serde_json::from_value(json!({

@@ -23,6 +23,7 @@ impl Mapping {
         }
     }
     pub(super) fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
+        let compacted = compaction(&update);
         let item = match update {
             SessionUpdate::AgentMessageChunk(c) => match c.content {
                 ContentBlock::Text(t) => Some(HarnessEvent::Chunk {
@@ -129,7 +130,31 @@ impl Mapping {
         if let Some(item) = item {
             events(item);
         }
+        if let Some(trigger) = compacted {
+            events(HarnessEvent::Compacted { trigger });
+        }
     }
+}
+
+/// `Some(trigger)` when the update completes a compaction. The adapter marks one
+/// with `_meta.contextCompaction`; a frame without a status repeats it and
+/// does not count.
+fn compaction(update: &SessionUpdate) -> Option<Option<String>> {
+    let (meta, status, raw) = match update {
+        SessionUpdate::ToolCall(t) => (t.meta.as_ref(), Some(t.status), t.raw_output.as_ref()),
+        SessionUpdate::ToolCallUpdate(t) => (
+            t.meta.as_ref(),
+            t.fields.status,
+            t.fields.raw_output.as_ref(),
+        ),
+        _ => return None,
+    };
+    let info = meta?.get("contextCompaction")?;
+    if !matches!(status, Some(ToolCallStatus::Completed)) {
+        return None;
+    }
+    let trigger = info.get("trigger").or_else(|| raw?.get("trigger"));
+    Some(trigger.and_then(Value::as_str).map(str::to_owned))
 }
 
 /// The ACP wire name of a call's status, which the collectors match on.
