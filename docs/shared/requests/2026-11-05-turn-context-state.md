@@ -20,7 +20,8 @@ one by one would be a request per turn.
 Every other answer that carries an `InvocationView` gains the same field.
 
 - `"heard"`: a record exists and the turn ended normally.
-- `"prepared"`: a record exists and the turn did not end normally.
+- `"prepared"`: a record exists and the turn has not completed: it is still running, or it
+  ended without completing. The screen says "not confirmed yet".
 - `null`: no record.
 
 ## Errors

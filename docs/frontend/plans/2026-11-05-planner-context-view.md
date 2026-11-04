@@ -49,10 +49,12 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 2. **A turn from before slice 1, or a command sent alone** (`/compact`). It has no record: the
    turn shows nothing, and opening is not offered. (F-89: `a_turn_without_a_record_shows_nothing`.)
 3. **The draft's anchor call fails after the thread exists.** The person lands in the thread with
-   the error and the text, as a failed first turn does today; a retry does not make a second
-   thread. (F-88: `a_failed_anchor_keeps_the_thread_and_the_text`.)
-4. **Send again while a turn runs.** The button answers at once ("The next turn carries it
-   again"); the running turn is unchanged. (F-87: `send_again_says_the_next_turn_carries_it`.)
+   the error and the text, as a failed first turn does today. The retry anchors first, with the
+   same command id, and never starts the turn unanchored unless the person chooses to.
+   (F-88: `a_retry_sets_the_anchor_first_with_the_same_command_id`.)
+4. **Send again while a turn runs, or with no anchor.** The button answers at once ("Your next
+   message carries it again"); the running turn is unchanged.
+   (F-87: `send_again_says_the_next_message_carries_it`.)
 5. **A long record** (over 8 000 tokens, with cuts). The panel scrolls; cuts and the over-budget
    figure are listed above the text, not lost below it. (F-89: `lists_cuts_before_the_text`.)
 
@@ -62,23 +64,28 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 
 ### Task B-59: Each turn says whether its planning context was heard
 
+**Needs:** `docs/shared/requests/2026-11-05-turn-context-state.md` accepted.
+
 **Files:**
 - Modify: `crates/core-harness/src/model.rs` (`InvocationView`), `src/store/reads.rs`,
   `src/schema_descriptions/invocation.txt`, `contract.yaml`
 - Modify: `api/openapi.json`, `web/src/api/schema.d.ts` (regenerated)
-- Test: `crates/core-harness/tests/context_record.rs`
+- Test: `crates/shadows/tests/context_record.rs` (where the record's tests live today)
 
 **Interfaces:**
 - Produces: `InvocationView.planning_context: Option<PlanningContextState>`, with
   `enum PlanningContextState { Heard, Prepared }` in `model.rs`, serialized `"heard"` /
   `"prepared"`, `#[schema(required)]` like the other optional fields.
+- `Prepared` means "not confirmed yet": the turn may still be running, or it ended without
+  completing.
 
-- [ ] Tests:
+- [ ] Tests, each on an operation that has a real `agent_invocation` row (a turn started through
+  `Turns`, not only `create_pending_operation_for_test`), so the `LEFT JOIN` is what is tested.
+  Each reads the operation through the thread's operations list:
   - `an_invocation_without_a_record_has_no_planning_context`: `planning_context == None`.
   - `a_prepared_record_reads_prepared`: after `prepare_context`, `Some(Prepared)`.
-  - `a_heard_record_reads_heard`: after `mark_context_heard`, `Some(Heard)`; read through
-    both `invocation_in` and `invocations_in`.
-- [ ] Run `cargo test -p core-harness --test context_record`; expect FAIL.
+  - `a_heard_record_reads_heard`: after `mark_context_heard`, `Some(Heard)`.
+- [ ] Run `cargo test -p shadows --test context_record`; expect FAIL.
 - [ ] In both queries of `store/reads.rs`, `LEFT JOIN invocation_context USING (operation_id)` and
   read `heard` as one more column. One row type serves both queries, as today.
 - [ ] Run the test; expect PASS. Run `cargo test -p shadows --test openapi`, then
@@ -119,19 +126,25 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   `@/api/design`.
 - `AnchorChip({ projectId, threadId })` shows one line:
   - no anchor: "Not anchored" and "Anchor…";
-  - anchored: "Anchored at <part or outcome name>", with "Change", "Clear" and "Send context
-    again";
+  - anchored: "Anchored at <part or outcome name>", with "Change" and "Clear";
   - removed: "Anchored part was removed" (or "outcome"), with "Clear".
+- "Send context again" shows in every one of the three states. An unanchored conversation still
+  carries the project index, and the request acts on the thread, not the anchor. It calls
+  `resendContext` and then says "Your next message carries it again". A command sent alone
+  (`/compact`) carries nothing, so the line says "message", not "turn".
 - `AnchorPicker` is a dialog with two tabs, Parts and Outcomes. Each lists one page of a level and
   opens a child level on click; "Load more" uses the next cursor. Choosing calls `setAnchor`.
-- "Send context again" calls `resendContext` and then says "The next turn carries it again".
+- Each level's list is keyed by its parent (`key={parent ?? 'root'}`), so moving to another
+  parent starts from that parent's first page. `useDesignPages` keeps the loaded pages in local
+  state and compares only the revision, which two parents can share.
 
 - [ ] Tests:
   - `shows_the_anchor_name`;
   - `shows_a_removed_anchor` (the part query answers 404);
   - `clear_sends_null_with_a_command_id`;
   - `picking_an_outcome_sets_it`;
-  - `send_again_says_the_next_turn_carries_it`;
+  - `moving_to_another_parent_starts_at_its_first_page`;
+  - `send_again_says_the_next_message_carries_it`, in an unanchored conversation;
   - `not_shown_for_aylul`.
 - [ ] Run `npx vitest run src/app/conversation/anchor-chip.test.tsx`; FAIL, implement, PASS.
 - [ ] Commit `feat(web): the conversation's planning anchor`.
@@ -141,13 +154,23 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 **Files:**
 - Modify: `web/src/router.tsx` (the draft route's `validateSearch` gains `anchor`),
   `web/src/app/conversation/draft.tsx`, `first-send.ts`, `draft.test.tsx`, `contract.yaml`
+- Modify the retry path in the thread: `web/src/app/conversation/carried-send.ts`,
+  `use-send.ts`, `composer.tsx`
 - Modify: `web/src/app/design/parts-view.tsx`, `roadmap-view.tsx`, `contract.yaml`
 
 **Interfaces:**
 - Search value `anchor`: `part:<id>` or `outcome:<id>`; anything else is ignored.
 - `useFirstSend(projectId, harness, planId?, profile?, anchor?)`: after `createThread` and before
-  `startTurn`, it calls `setAnchor` with its own `Attempt`. A failure goes to the thread with the
-  text and the error, exactly as a failed `startTurn` does.
+  `startTurn`, it calls `setAnchor` with its own `Attempt`.
+- **A failed anchor never lets the first turn start unanchored by accident:**
+  - `CarriedSend` gains `anchor?: { value: ThreadPlanningAnchor; attempt: Attempt }`. When the
+    anchor call fails, the thread receives the text, the error and the pending anchor, with its
+    `Attempt`.
+  - In the thread, `use-send.ts`'s send first calls `setAnchor` with that same `Attempt`, and calls
+    `startTurn` only once it succeeds. A lost answer is replayed under the same command id.
+  - Beside the error, the composer offers "Send without the anchor". It drops the pending anchor,
+    then sends as usual.
+  - The pending anchor is dropped once the anchor succeeds.
 - The draft shows "Anchored at <name>" above the composer.
 - The selected part's page and the selected outcome's page show a link "Plan from here" to
   `/projects/$projectId/new?anchor=…`.
@@ -155,7 +178,11 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 - [ ] Tests (in `draft.test.tsx`):
   - `the_first_send_sets_the_anchor_before_the_turn`: the fake daemon records `PUT …/anchor`
     before `POST …/turns`;
-  - `a_failed_anchor_keeps_the_thread_and_the_text`;
+  - `a_failed_anchor_keeps_the_thread_and_the_text`: no `POST …/turns` was made;
+  - `a_retry_sets_the_anchor_first_with_the_same_command_id`: the first `PUT …/anchor` loses its
+    answer. The retry in the thread sends `PUT …/anchor` with the same `command_id`, then
+    `POST …/turns`. One thread exists;
+  - `send_without_the_anchor_starts_the_turn_unanchored`;
   - `an_unknown_anchor_value_is_ignored`.
 - [ ] Run `npx vitest run src/app/conversation/draft.test.tsx`; FAIL, implement, PASS.
 - [ ] Commit `feat(web): start a conversation from a part or an outcome`.
@@ -166,27 +193,40 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 - Create: `web/src/app/conversation/context-mark.tsx`, `context-record-panel.tsx`,
   `context-record-panel.test.tsx`
 - Modify: `web/src/app/conversation/messages.tsx` (under the turn's user message),
-  `conversation.tsx` (the side panel), `contract.yaml`
+  `conversation.tsx` (the side panel), `deleted-conversation.tsx`, `contract.yaml`
 
 **Interfaces:**
 - Consumes: B-59 (`operation.invocation.planning_context`), F-86 (`carriedContextQuery`).
 - `ContextMark` shows under a turn's user message:
   - `"heard"`: "Planning context · heard";
-  - `"prepared"`: "Planning context · not confirmed" (the turn did not end normally);
+  - `"prepared"`: "Planning context · not confirmed yet" (the turn is still running, or it
+    ended without completing);
   - `null`: nothing.
   - Clicking opens the panel.
-- `ContextRecordPanel({ operationId, onClose })` shows, in this order:
-  - heard or not confirmed;
+- **One source for the state.** The mark and the panel both read heard or not from
+  `operation.invocation.planning_context` in the operations list. The stream already refreshes
+  that list on every operation event (`web/src/stream/refresh.ts`). The record query
+  (`carriedContextQuery`) supplies only the text, sources, sizes and cuts, which do not change,
+  and its own `heard` field is not shown. A panel opened during a turn therefore turns to "heard"
+  when the turn completes, without closing.
+- `ContextRecordPanel({ operationId, state, onClose })` shows, in this order:
+  - heard or not confirmed yet (from `state`);
   - the sizes: index, detail and over-budget tokens;
   - the cuts, one per line;
   - the sources, one per line: kind, id, version;
   - the text, in a scrolled block.
 - The panel replaces the plan panel when opened, and the other way round, as the background tasks
   panel does today.
+- The deleted conversation's history (`deleted-conversation.tsx`) also renders `Messages`. It
+  shows the mark, read-only: clicking opens the same panel, since a deleted thread's records stay.
+  `Messages` gains an `onOpenContext` prop, passed by both screens.
 
 - [ ] Tests:
   - `a_heard_turn_shows_heard`;
-  - `a_prepared_turn_shows_not_confirmed`;
+  - `a_prepared_turn_shows_not_confirmed_yet`;
+  - `an_open_panel_turns_to_heard_when_the_turn_completes`: the panel is open while the
+    operation is `prepared`; the operations list refreshes to `heard`; the panel says heard and
+    stays open;
   - `a_turn_without_a_record_shows_nothing`;
   - `lists_cuts_before_the_text`;
   - `lists_each_source_with_its_version`.

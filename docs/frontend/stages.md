@@ -46,7 +46,6 @@ Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-c
 - Read: api/openapi.json (`AnchorResponse`, `SetAnchor`, `ThreadPlanningAnchor`, the context record); web/src/api/contract.yaml
 - Touch: web/src/api/planning-context.ts, planning-context.test.ts, contract.yaml; web/src/test/fake-daemon.ts;
   docs/frontend/codebase/README.md
-- Needs: B-59
 - Done when: `npx vitest run src/api/planning-context.test.ts` passes (the caller's command id; a missing
   record is null)
 
@@ -57,23 +56,24 @@ Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-c
 - Touch: web/src/app/conversation/anchor-chip.tsx, anchor-chip.test.tsx, anchor-picker.tsx, conversation.tsx,
   contract.yaml; docs/frontend/codebase/README.md
 - Needs: F-86
-- Done when: `npx vitest run src/app/conversation/anchor-chip.test.tsx` passes, with the six tests the task names
+- Done when: `npx vitest run src/app/conversation/anchor-chip.test.tsx` passes, with the seven tests the task names
 
 ### F-88 · Start a conversation anchored at a part or an outcome
 - Status: todo
 - Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-88-start-a-conversation-anchored-at-a-part-or-an-outcome
 - Read: web/src/router.tsx (draft route); web/src/app/conversation/first-send.ts, draft.tsx
-- Touch: web/src/router.tsx; web/src/app/conversation/draft.tsx, first-send.ts, draft.test.tsx, contract.yaml;
+- Touch: web/src/router.tsx; web/src/app/conversation/draft.tsx, first-send.ts, draft.test.tsx, carried-send.ts,
+  use-send.ts, composer.tsx, contract.yaml;
   web/src/app/design/parts-view.tsx, roadmap-view.tsx, contract.yaml
 - Needs: F-86
-- Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the three tests the task names
+- Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the five tests the task names
 
 ### F-89 · Each turn's planning context, and its record
-- Status: todo
+- Status: blocked
 - Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-89-each-turns-planning-context-and-its-record
 - Read: web/src/app/conversation/messages.tsx, conversation.tsx, plan-side-panel.tsx
 - Touch: web/src/app/conversation/context-mark.tsx, context-record-panel.tsx, context-record-panel.test.tsx,
-  messages.tsx, conversation.tsx, contract.yaml; docs/frontend/codebase/README.md
+  messages.tsx, conversation.tsx, deleted-conversation.tsx, contract.yaml; docs/frontend/codebase/README.md
 - Needs: B-59, F-86
-- Done when: `npx vitest run src/app/conversation/context-record-panel.test.tsx` passes, with the five tests the
+- Done when: `npx vitest run src/app/conversation/context-record-panel.test.tsx` passes, with the six tests the
   task names
