@@ -145,5 +145,7 @@ depth-two index entries retain their parent ids.
 Focused checks passed: Core architecture (49), code map (1), migration checksums (1),
 foundation storage (9), Core contracts (6), design/vision suites, Turns (36), HTTP (32),
 MCP refusal mapping, OpenAPI (8), the twelve selected application regression targets,
-generated web types and focused all-target Clippy. The production build and live acceptance
-are recorded when run; the full workspace gate remains for CI under Mohammed's instruction.
+generated web types and focused all-target Clippy. After the final review fixes, Turns has 39 passing tests and the application context suite
+has 13. Production Clippy, the executable build and real provider/browser acceptance passed:
+[dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
+The full workspace gate remains for CI under Mohammed's instruction.

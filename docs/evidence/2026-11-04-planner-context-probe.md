@@ -94,3 +94,58 @@ Seen on the way, outside this probe's question:
 - Defects seen on the way are listed in `docs/evidence/2026-11-04-planner-session-defects.md`.
   The `Serves` lists do match the stored IDs; the stored IDs follow the approval order, not the
   conversation's numbering (that file, §2).
+
+
+## 4. Slice 1 implementation acceptance, 2026-11-04
+
+Implementation verified at `86a276de`, following the independent read-only branch review.
+The controller fixed its five Important findings in one pass with observed failing and passing
+regressions. A further regression corrected continuation markers being counted as known children.
+The Minor marker-format difference is left: a removed anchor is readable tagged JSON rather
+than plain `kind id`. Compaction invalidation, inspection UI and owner-thread behavior remain
+later slices of the owner spec.
+
+`shadows serve` used the **existing database and launch paths** from the desktop's saved
+`app.nylra.desktop/desktop-core.json`, after verifying that database already existed. No new
+acceptance database or provider credential was created. The browser used the saved Claude Code
+session configuration, with Haiku 5.5 selected. This was a real provider/browser check; it does
+not establish desktop-native or production acceptance.
+
+- Project: `testing55`, `7eb54073-05a0-4119-b534-2089dd407faa`.
+- New probe thread: `e6772b33-661e-45d8-a80d-13d36b89157d`, anchored through HTTP to
+  Backend (Laravel core), `f06b5ba9-0dd0-456d-989d-f7c91f8106a9`.
+- First operation: `8e9bca1e-85ed-47d2-a9f5-25582516698e`, Completed. The browser displayed
+  `planner context first turn ok`.
+- Its context route answered 200, `heard = true`, with the Backend content, linked plan's
+  numbered task titles (including T10), 16 source tuples, index estimate 710, detail estimate
+  443, no cuts and zero excess. SHA-256 recomputed from the exact recorded UTF-8 text matched
+  `fd249ae15098e1794cd57eacbaaef3e3d6ae3a625c933ff66c9e517c392730dc`.
+- Second operation: `eee74d86-4558-4815-a713-8eb5821985ee`, Completed. The browser displayed
+  `planner context second turn ok`. Its context route answered 404 `CONTEXT_NOT_CARRIED` with
+  the neutral absent-record message.
+- The Core log for this run contained no ERROR, `planner.prepare_refused` or
+  `planner.context_record_failed` entry. Its existing missing-directory warning for CSV Tool
+  was unrelated to this probe.
+
+A new empty refusal-test project correctly answered `STAGE_BLOCKED` to a person trying to
+create its first map: that map must come from the Planner. That temporary project was then
+removed through the project service. The duplicate-folder check was exercised through the
+permitted person edit on testing55's existing map. It answered HTTP 422 `MAP_REFUSED`:
+
+```text
+folder_claimed_twice: parts "Backend" and "Frontend" both claim acceptance-duplicate.
+Give the folder one owner, or change one part's folder claim to a distinct path.
+```
+
+The refused transaction left the map at revision 23, unchanged. New-map proposal coverage and
+refusals also have isolated AppCore and owner tests; this live edit did not bypass first-map
+ownership.
+
+Focused verification after review fixes passed: all core-design tests, 39 core-turns tests,
+architecture 49, code map 1, queue 9, OpenAPI 8, application planning context 13, turn commands
+19, and the strengthened busy-request test. Focused all-target Clippy with test support,
+production Clippy without it, formatting, changed Rust line widths and the executable build
+passed. Earlier branch checks also covered the database, harness, routes, reserved IDs,
+coverage cards, HTTP/MCP mappings, compatibility targets and generated web types.
+The full workspace gate and CI are **pending**, per Mohammed's instruction to run that gate
+in CI after a push.

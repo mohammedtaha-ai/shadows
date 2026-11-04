@@ -397,8 +397,13 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
    - `GET /api/operations/{id}/context` shows the index and Backend detail, their measured
      character-based estimates, sources, cuts and digest;
    - a second turn records nothing.
-3. On a new project, a map with a folder claimed twice is refused with a message naming both
-   parts.
+3. A map with a folder claimed twice is refused with a message naming both parts.
+   Live person edits use an existing map: a new project's first map belongs to the Planner.
+   New-map proposal cases are covered through the owner/AppCore tests.
+
+Local acceptance passed on 2026-11-04; CI remains pending push. Exact operations, estimates,
+refusal and review-fix evidence are in
+`docs/evidence/2026-11-04-planner-context-probe.md` §4.
 
 ## Spec amendments
 

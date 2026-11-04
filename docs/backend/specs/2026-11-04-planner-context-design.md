@@ -1,7 +1,7 @@
 # Planner context: what a Planner session is given, and why
 
-- Status: **slice 1 accepted for implementation**, 2026-11-04, by Mohammed. Later slices remain
-  proposals. Direction was decided in conversation on 2026-11-03 and 2026-11-04.
+- Status: **slice 1 implemented and locally verified**, 2026-11-04; CI pending push.
+  Accepted by Mohammed. Later slices remain proposals. Direction was decided in conversation on 2026-11-03 and 2026-11-04.
 - Roadmap: Stage 3, "Planner context" (`docs/core/roadmap.md`): "Start planning at an explicit
   part or stage with bounded, attributable context; inspect what was included."
 - Builds on, and does not replace:
