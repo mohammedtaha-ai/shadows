@@ -70,7 +70,7 @@ and the commits outside their `Touch:` lists, are in this file at `fc78cb7`. The
 inspection view is built. Local acceptance with real provider and browser is in the
 [dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
 Not built: the inspection view (frontend) and `Plans::owner_thread` (spec §6, slice 4). The re-send
-after a compaction (spec §6, slice 2) is built below; its live acceptance is pending.
+after a compaction (spec §6, slice 2) is built below; its live acceptance passed on 2026-11-04 ([evidence §5](../evidence/2026-11-04-planner-context-probe.md#5-slice-2-live-acceptance-2026-11-04)).
 
 ## Tasks
 
