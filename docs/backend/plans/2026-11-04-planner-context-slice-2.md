@@ -53,7 +53,8 @@ The provider-neutral key is `_meta.contextCompaction`. The plan reads that key, 
 - Rust lines ≤ 100 characters (CI checks it); `cargo fmt`; clippy `-D warnings`.
 - Never the full gate locally. Each task runs its own tests, plus the checks
   `docs/backend/AGENTS.md` rule 5 lists.
-- AYLUL threads get no planning context and cannot be told to forget (`InvalidCommand`).
+- AYLUL threads get no planning context and cannot be told to forget (`InvalidCommand`). Their
+  sessions compact on the same adapter; a compaction there forgets nothing and is no failure.
 - Ordering is the journal sequence: a forget's `seq` from `JournalEntry::append_event`, compared
   with `invocation_context.start_seq`. Never `rowid` or `created_at`.
 
@@ -139,7 +140,8 @@ The provider-neutral key is `_meta.contextCompaction`. The plan reads that key, 
   Option<String> }, Request { command_id: String } }`.
 - **The rule:** `Harness::forget_context(&self, thread: &ThreadId, forget: Forget) ->
   Result<(), HarnessError>`, in one write transaction:
-  1. refuse an AYLUL thread (`HarnessError::InvalidCommand`);
+  1. read the thread; on an AYLUL thread refuse a `Request` (`HarnessError::InvalidCommand`)
+     and answer a `Compaction` with nothing written;
   2. for `Request`: `CommandContext::classify` on aggregate `Thread`, kind
      `thread.context_resend`, params `{thread}`. A replay answers without writing; another param
      set is `CommandConflict`;
@@ -230,7 +232,8 @@ The provider-neutral key is `_meta.contextCompaction`. The plan reads that key, 
 ## Slice 2 acceptance (live, in this cloud environment)
 
 Claude Code 2.1.318 runs here (checked 2026-11-04), so the controller runs the acceptance
-itself, after B-55 to B-58:
+itself, after B-55 to B-58. The live turns run on the Haiku model (Mohammed's choice,
+2026-11-04).
 
 1. `npm install` in `harness/claude` (adapter 0.81.1). Do not commit the lockfile it rewrites.
 2. Start `shadows serve` on a scratch database. Create a project with a vision and two parts,

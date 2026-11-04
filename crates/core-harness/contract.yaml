@@ -239,7 +239,7 @@ functions:
     mark_context_heard: "Acknowledges a recorded context through a serialized write."
     mark_context_heard_in: "Acknowledges context in Turns' successful terminal transaction."
     heard_context_digest: "Reads the newest acknowledged digest in one native session by captured operation sequence."
-    forget_context: "The one rule for a session that lost what it heard: appends a PlannerContextForgotten journal entry and a context_forget row, then resets the thread's held instructions baseline to what its session opened with. A Request replayed with its command_id writes nothing; an AYLUL thread is InvalidCommand."
+    forget_context: "The one rule for a session that lost what it heard: appends a PlannerContextForgotten journal entry and a context_forget row, then resets the thread's held instructions baseline to what its session opened with. The thread is read in the same write transaction: a missing or removed thread is StorageError::NotFound; on an AYLUL thread a Request is InvalidCommand and a Compaction writes nothing and answers Ok; a Request replayed with its command_id writes nothing."
     context_record: "Reads the prepared context and acknowledgement flag, or None when no row exists."
     answer_permission:
       signature: "(&self, command_id: String, thread: &ThreadId, request: &str, option: &str) -> Result<PermissionAnswer, HarnessError>"
@@ -869,9 +869,17 @@ not_the_caller's:
 
 tests:
   - name: a_forget_makes_a_heard_context_owed
-    checks: crates/shadows/tests/context_record.rs; a heard digest recorded before a forget no longer counts, and one prepared after it does.
+    checks: crates/shadows/tests/context_record.rs; a heard digest recorded before a forget no longer counts.
+  - name: a_context_prepared_after_the_forget_counts
+    checks: crates/shadows/tests/context_record.rs; a heard digest prepared after the thread's latest forget counts again.
+  - name: a_forget_in_the_turn_that_carried_it_still_counts_as_lost
+    checks: crates/shadows/tests/context_record.rs; a compaction in the turn that carried the context forgets it, though that turn is marked heard after.
   - name: a_replayed_request_forgets_once
-    checks: crates/shadows/tests/context_record.rs; the same command_id writes one context_forget row, another kind on that id is CommandConflict, an AYLUL thread is InvalidCommand.
+    checks: crates/shadows/tests/context_record.rs; the same command_id writes one context_forget row.
+  - name: a_request_with_other_params_conflicts
+    checks: crates/shadows/tests/context_record.rs; another kind on the same command_id is CommandConflict and writes no row.
+  - name: an_aylul_thread_cannot_forget
+    checks: crates/shadows/tests/context_record.rs; on an AYLUL thread a request is InvalidCommand, a compaction answers Ok, and neither writes a row.
   - name: the_harness_list_carries_the_policy_modes
     checks: >
       tests/list.rs: claude-code and aylul list acceptEdits then auto with

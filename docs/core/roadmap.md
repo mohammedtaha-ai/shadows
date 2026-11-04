@@ -15,8 +15,8 @@
 
 Stages 1 and 2 and §16 1b are merged on `main`; guided planning (§23) PRs 0 to 5
 are merged, PR 3c is not. Stage 3 is in progress: its slice 1 (the anchor and the sourced
-context) is merged in PR #55 (`fc78cb7`); the re-send after a compaction and the inspection view
-are not built. The history of the earlier plans is in
+context) is merged in PR #55 (`fc78cb7`); the re-send after a compaction (slice 2) is built, its live
+acceptance pending; the inspection view is not built. The history of the earlier plans is in
 Git at `f1459dcc`.
 
 ## Shared foundations

@@ -1,7 +1,7 @@
 //! Prepared planning context and the session that heard it.
+use crate::store::Forgot;
 use crate::{CarriedContext, Forget, Harness, HarnessError, StorageError, ThreadId};
 use core_operations::OperationId;
-use shadows_agent::policy;
 
 impl Harness {
     pub async fn mark_context_heard_in(
@@ -36,25 +36,27 @@ impl Harness {
     /// The one rule for "the session lost what it heard": the next turn owes
     /// the planning context and every instructions and standards change since
     /// the session opened. A replayed request answers without writing.
+    /// An AYLUL session runs on the same adapter, so it compacts too; it was
+    /// given no planning context, so its compaction forgets nothing, and only
+    /// a request is refused.
     pub async fn forget_context(
         &self,
         thread: &ThreadId,
         forget: Forget,
     ) -> Result<(), HarnessError> {
-        let context =
-            core_threads::Threads::turn_context_in(&mut *self.store.reader_conn().await?, thread)
-                .await?;
-        if context.harness == policy::AYLUL {
-            return Err(HarnessError::InvalidCommand(
-                "an AYLUL thread has no planning context".into(),
-            ));
+        match self.store.forget_context(thread, &forget).await? {
+            Forgot::Aylul => match forget {
+                Forget::Compaction { .. } => Ok(()),
+                Forget::Request { .. } => Err(HarnessError::InvalidCommand(
+                    "an AYLUL thread has no planning context".into(),
+                )),
+            },
+            Forgot::Replayed => Ok(()),
+            Forgot::Written { fork } => {
+                self.sessions.setups.reset(thread, fork);
+                Ok(())
+            }
         }
-        if self.store.forget_context(thread, &forget).await? {
-            self.sessions
-                .setups
-                .reset(thread, context.fork_session_id.is_some());
-        }
-        Ok(())
     }
 
     pub async fn context_record(

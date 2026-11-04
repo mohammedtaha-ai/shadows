@@ -69,8 +69,8 @@ and the commits outside their `Touch:` lists, are in this file at `fc78cb7`. The
 `docs/shared/requests/2026-11-04-planning-context-routes.md` stays until the frontend slice that shows the
 inspection view is built. Local acceptance with real provider and browser is in the
 [dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
-Not built: the re-send after a compaction (spec §6, slice 2, planned below), the inspection view
-(frontend), and `Plans::owner_thread` (spec §6, slice 4).
+Not built: the inspection view (frontend) and `Plans::owner_thread` (spec §6, slice 4). The re-send
+after a compaction (spec §6, slice 2) is built below; its live acceptance is pending.
 
 ## Tasks
 
@@ -126,3 +126,15 @@ B-57, then B-58. The live acceptance follows them (the plan's last section).
   crates/shadows-http/src/contract.yaml, api/openapi.json, web/src/api/schema.d.ts,
   crates/shadows/tests/planning_routes.rs
 - Done when: `cargo test -p shadows --test planning_routes --test openapi` pass
+
+## Slice 2 integration checks
+
+Outside any task's `Touch:` on this branch, recorded here:
+- `1d39cdb` (B-56): crates/core-harness/src/lib.rs (re-exports `Forget`).
+- `a376db2` (B-58): crates/shadows/tests/openapi.rs (the route list).
+- The whole-branch review: crates/core-harness/src/context_record.rs, store/context_record.rs and
+  store/mod.rs (the AYLUL check inside the forget's write transaction; an AYLUL compaction
+  forgets nothing instead of logging a failure); crates/core-harness/contract.yaml;
+  crates/shadows-http/src/contract.yaml; crates/shadows/tests/context_record.rs and
+  planning_routes.rs (a missing thread is 404); the shared request's answer, the spec's status,
+  docs/core/roadmap.md, the plan's acceptance model, and this file.

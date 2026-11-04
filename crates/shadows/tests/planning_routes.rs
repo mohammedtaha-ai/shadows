@@ -149,3 +149,17 @@ async fn a_resend_replay_answers_the_first_result() {
     assert_eq!(answer["code"], "COMMAND_CONFLICT");
     app::shut_down_app(app).await;
 }
+
+#[tokio::test]
+async fn a_resend_on_a_missing_thread_is_not_found() {
+    let app = app::test_app().await;
+    let path = "/api/threads/no-such-thread/context/resend";
+    let (status, answer) = app::post(&app, path, json!({"command_id":"resend"})).await;
+    assert_eq!(status, 404, "{answer}");
+    let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM context_forget")
+        .fetch_one(app.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(rows, 0);
+    app::shut_down_app(app).await;
+}

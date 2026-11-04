@@ -30,7 +30,8 @@ planning context and every instructions and standards change since the session o
 ## Backend answer
 
 As asked. `Harness` owns what a session heard, so `Harness::forget_context` answers it; a
-completed compaction calls the same method.
+completed compaction calls the same method. A missing thread answers 404 with the code
+`INVALID_COMMAND`, the API's code for a missing record.
 
 ## Frontend reply
 

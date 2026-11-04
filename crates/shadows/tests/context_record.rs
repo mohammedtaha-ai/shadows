@@ -269,6 +269,15 @@ async fn an_aylul_thread_cannot_forget() {
         .forget_context(&thread.id, request("x"))
         .await;
     assert!(matches!(result, Err(HarnessError::InvalidCommand(_))));
+    let compaction = Forget::Compaction {
+        operation: operation(&app).await,
+        trigger: Some("automatic".into()),
+    };
+    app.core
+        .harness()
+        .forget_context(&thread.id, compaction)
+        .await
+        .unwrap();
     assert_eq!(forgets(&app).await, 0);
     app::shut_down_app(app).await;
 }

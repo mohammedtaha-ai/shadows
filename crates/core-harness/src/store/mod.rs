@@ -8,6 +8,7 @@ mod permission;
 mod preferences;
 mod reads;
 mod thread;
+pub(super) use context_record::Forgot;
 use core_db::Storage;
 pub(super) use preferences::Remembered;
 use std::sync::Arc;
