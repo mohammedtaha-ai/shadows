@@ -214,6 +214,8 @@ the planning context was heard, opens what it carried, and asks for it to be sen
     replay is sent before the clear;
   - `send_without_the_anchor_after_a_refusal_only_clears`: the first `PUT` answers 404. No
     replay; `PUT` null, then `POST …/turns`;
+  - `a_lost_clear_answer_retries_the_clear_before_sending`: the clear keeps its own command id
+    and the composer stays on that choice until it succeeds;
   - `an_unknown_anchor_value_is_ignored`.
 - [ ] Run `npx vitest run src/app/conversation/draft.test.tsx`; FAIL, implement, PASS.
 - [ ] Commit `feat(web): start a conversation from a part or an outcome`.

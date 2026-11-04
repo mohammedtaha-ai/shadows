@@ -22,6 +22,9 @@ export function RoadmapView({ projectId, selected }: { projectId: string; select
     <section className="space-y-4">
       {creating && <OutcomeEditor key="create" projectId={projectId} destination={destination} onCreated={() => setCreating(false)} />}
       {detail.isPending && selected && <p>Loading outcome…</p>}{detail.error && <ErrorLine error={detail.error} />}
+      {detail.data !== undefined && <Link to="/projects/$projectId/new" params={{ projectId }}
+        search={{ anchor: `outcome:${detail.data.outcome.id}` }}
+        className="inline-flex text-sm text-accent-line hover:underline">Plan from here</Link>}
       {detail.data && <OutcomeEditor key={selected} projectId={projectId} saved={detail.data} destination={destination} />}
       {detail.data && selected && <section aria-label="Selected outcome children"><h3 className="text-sm">Children</h3><OutcomeBranch key={selected} projectId={projectId} parent={selected} choose={setDestination} /></section>}
       {!creating && !selected && <p className="text-sm text-muted-foreground">Open an outcome to define its result and acceptance. Plan approval or archive does not complete it.</p>}

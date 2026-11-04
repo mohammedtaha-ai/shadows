@@ -39,6 +39,8 @@ planning_anchor:
   AnchorChip: Shows the Planner thread's selected, absent or removed anchor.
   AnchorPicker: Browses paginated design parts or outcomes by parent.
   mutations: Anchor changes update the header from the daemon's answer; context resend works without an anchor.
+  first_send: Set the draft anchor before starting the first turn, then carry unresolved writes into the existing thread.
+  recovery: Reuse the original anchor command on retry. Resolve an uncertain write before clearing with a separate retryable command, then start the turn.
 
 refresh_pinning:
   conversation: "pins conversation refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."

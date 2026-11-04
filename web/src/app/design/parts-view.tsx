@@ -49,6 +49,9 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
       {creating && approved && <PartEditor key="create" projectId={projectId} destination={destination} onCreated={() => setCreating(false)} />}
       {selected !== undefined && detail.isPending && <p>Loading part…</p>}
       {detail.error !== null && <ErrorLine error={detail.error} />}
+      {detail.data !== undefined && <Link to="/projects/$projectId/new" params={{ projectId }}
+        search={{ anchor: `part:${detail.data.part.id}` }}
+        className="inline-flex text-sm text-accent-line hover:underline">Plan from here</Link>}
       {detail.data !== undefined && <PartEditor key={selected} projectId={projectId} saved={detail.data} destination={destination} />}
       {selected !== undefined && detail.data !== undefined && <section aria-label="Selected part children" className="space-y-2">
         <h3 className="text-sm font-medium">Children</h3>

@@ -108,8 +108,8 @@ export function Composer({
   const planId = 'draft' in to ? to.planId : continuedPlan
 
   // Image callbacks run on delivery, after the selection hook has been composed.
-  const { deliver, clearAttempt, sending, inFlight, error: sendError } = useSend({
-    to, threadId, running, initialAttempt: carried?.attempt,
+  const { deliver, clearAttempt, sending, inFlight, error: sendError, anchorRecovery } = useSend({
+    to, threadId, running, initialAttempt: carried?.attempt, initialAnchor: carried?.anchor,
     imagesChanged: () => imagesChanged(),
     dropImages: sent => dropImages(sent),
     clearPrompt: () => setPrompt(''),
@@ -178,16 +178,18 @@ export function Composer({
     settings !== null &&
     (('draft' in to && to.selectableModels === true) || effortsKnown(choices, settings.model)) &&
     sendable(choices, settings)
+  const canSend = ready && !inFlight && (prompt.trim() !== '' || images.length > 0) &&
+    !images.some(image => image.error !== undefined) && (anchorRecovery === null || running === null)
 
-  const submit = () => {
+  const submit = (withoutAnchor = false) => {
     const command = sessionCommand(prompt, choices)
     if (command !== null) return act(command)
     const text = prompt.trim()
-    if ((text === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || settings === null || inFlight) return
+    if (!canSend || settings === null) return
     setSlashFromMenu(false)
     setCarriedError(null)
     resetSettingsError()
-    deliver({ text, settings, pointed, planId, images })
+    deliver({ text, settings, pointed, planId, images }, withoutAnchor)
   }
 
   const error = sendError ?? stopError ?? settingsError ?? carriedError
@@ -290,9 +292,9 @@ export function Composer({
           </>}
           action={running === null ? (
             <ComposerSendButton
-              onClick={submit}
-              disabled={(prompt.trim() === '' && images.length === 0) || images.some(image => image.error !== undefined) || !ready || inFlight}
-              label="Send"
+              onClick={() => submit()}
+              disabled={!canSend}
+              label={anchorRecovery === 'clear' ? 'Send without the anchor' : 'Send'}
             />
           ) : (
             <Button
@@ -334,6 +336,9 @@ export function Composer({
           } : undefined}
         />
         {error !== null && <ErrorLine error={error} />}
+        {anchorRecovery === 'set' && <Button variant="outline" size="sm"
+          disabled={!canSend}
+          onClick={() => submit(true)}>Send without the anchor</Button>}
         {companionProblem && (
           <p role="status" className="text-xs text-muted-foreground">{companionProblem}</p>
         )}

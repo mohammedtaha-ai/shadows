@@ -7,10 +7,11 @@ import { type TurnSettings, changeModel, openSession } from '@/api/sessions'
 import { createThread, startTurn, threadsQuery } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
+import { saveAnchorAnswer, setAnchor, type ThreadPlanningAnchor } from '@/api/planning-context'
 import { agentThreadsQuery } from '@/api/aylul-profiles'
 import {noteCompanionSend} from '@/desktop'
 import { tabId } from '@/stream'
-import { carrySend } from './carried-send'
+import { anchorWriteRefused, carrySend } from './carried-send'
 import { uploadImages, type PendingImage } from './upload-images'
 
 /** The API requires a title; the first message and harness supply its meaningful replacements. */
@@ -23,7 +24,7 @@ const DRAFT_TITLE = 'New conversation'
  * thread with its text and error, so a retry never makes a second thread.
  * A person who left the draft while it sent stays where they went: the
  * thread shows in the sidebar, and nothing pulls them back to it. */
-export function useFirstSend(projectId: string, harness: string, planId?: string, profile?: string) {
+export function useFirstSend(projectId: string, harness: string, planId?: string, profile?: string, anchor?: ThreadPlanningAnchor) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useRef<Attempt | null>(null)
@@ -52,7 +53,14 @@ export function useFirstSend(projectId: string, harness: string, planId?: string
     }
 
     let settings: TurnSettings | null = null
+    let anchorAttempt: Attempt | null = null
     try {
+      if (anchor !== undefined) {
+        anchorAttempt = attemptFor(null, { threadId: thread.id, anchor })
+        const saved = await setAnchor(thread.id, anchorAttempt.commandId, anchor)
+        anchorAttempt = null
+        await saveAnchorAnswer(queryClient, thread.id, saved)
+      }
       let choices = await openSession(thread.id)
       if (profile !== undefined && chosen.model !== choices.current.model) {
         choices = await changeModel(thread.id, chosen.model)
@@ -79,6 +87,9 @@ export function useFirstSend(projectId: string, harness: string, planId?: string
         attempt: attemptFor(null, request, error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT' ? undefined : () => commandId),
         error: error instanceof Error ? error : new Error(String(error)),
         planId,
+        anchor: anchorAttempt !== null && anchor !== undefined
+          ? { value: anchor, attempt: anchorAttempt, refused: anchorWriteRefused(error) }
+          : undefined,
       })
       void open()
       throw error

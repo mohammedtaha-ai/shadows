@@ -3,6 +3,20 @@
 import { useEffect, useState } from 'react'
 import type { PendingImage } from './upload-images'
 import type { Attempt } from '@/api/command-id'
+import { ApiError } from '@/api/error'
+import type { ThreadPlanningAnchor } from '@/api/planning-context'
+
+export interface PendingAnchor {
+  readonly value: ThreadPlanningAnchor
+  readonly attempt: Attempt
+  readonly refused: boolean
+}
+
+/** A transport or server failure can leave the detached write in flight. */
+export function anchorWriteRefused(error: unknown): boolean {
+  return error instanceof ApiError && error.problem.kind === 'daemon' &&
+    error.problem.status >= 400 && error.problem.status < 500
+}
 
 export interface CarriedSend {
   readonly images?: PendingImage[]
@@ -12,6 +26,7 @@ export interface CarriedSend {
   readonly error: Error
   /** The selected plan remains part of a retry's command and prompt context. */
   readonly planId?: string
+  readonly anchor?: PendingAnchor
 }
 
 const carried = new Map<string, CarriedSend>()

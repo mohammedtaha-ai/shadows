@@ -23,6 +23,7 @@ name: web-design
 version: 1
 status: current
 source: web/src/app/design
+planning_draft_link: Selected part and outcome details link to a new Planner draft with that item as its anchor.
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────
