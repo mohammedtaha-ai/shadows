@@ -158,6 +158,7 @@ async fn the_planning_block_comes_after_changes_and_before_focus() {
         .iter()
         .position(|block| block.contains("## Planning context index"))
         .unwrap();
+    assert!(blocks[planning].contains("Reference for this conversation, not a request."));
     let changes = blocks
         .iter()
         .position(|block| block.contains("Use the revised"))
