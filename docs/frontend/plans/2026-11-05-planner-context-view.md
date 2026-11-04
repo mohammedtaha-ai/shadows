@@ -25,7 +25,7 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 §4.4, §6 item 3.
 **Shared requests:** `docs/shared/requests/2026-11-04-planning-context-routes.md` and
 `docs/shared/requests/2026-11-04-planning-context-resend.md` (both accepted);
-`docs/shared/requests/2026-11-05-turn-context-state.md` (B-59, asked).
+`docs/shared/requests/2026-11-05-turn-context-state.md` (B-59, accepted).
 
 ## Global Constraints
 
@@ -64,7 +64,6 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 
 ### Task B-59: Each turn says whether its planning context was heard
 
-**Needs:** `docs/shared/requests/2026-11-05-turn-context-state.md` accepted.
 
 **Files:**
 - Modify: `crates/core-harness/src/model.rs` (`InvocationView`), `src/store/reads.rs`,

@@ -69,7 +69,7 @@ Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-c
 - Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the ten tests the task names
 
 ### F-89 · Each turn's planning context, and its record
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-89-each-turns-planning-context-and-its-record
 - Read: web/src/app/conversation/messages.tsx, conversation.tsx, plan-side-panel.tsx
 - Touch: web/src/app/conversation/context-mark.tsx, context-record-panel.tsx, context-record-panel.test.tsx,

@@ -1,6 +1,6 @@
 # Each turn says whether its planning context was heard
 
-- Status: asked
+- Status: accepted
 - Asked by: Claude for Mohammed, 2026-11-05.
 - Screen: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.4 ("The conversation
   shows, per turn…"); plan `docs/frontend/plans/2026-11-05-planner-context-view.md`, B-59 and F-89.
@@ -30,11 +30,12 @@ None new.
 
 ## Backend answer
 
-<Hamoud.>
+As asked. `Harness` owns the invocation row and the context record, so it reads both together
+for every answer that carries an `InvocationView`.
 
 ## Frontend reply
 
-<Masada.>
+Accepted by Mohammed, 2026-11-05.
 
 ## Ruling
 
