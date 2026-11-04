@@ -35,6 +35,10 @@ permission_answer: Conversations and groups share option submission, replay and 
 composer_surface: Conversations and groups render the same frame, input and send control.
 turn_state: Groups read whether a member thread runs through the same running-turn rule as a conversation.
 source: web/src/app/conversation
+planning_anchor:
+  AnchorChip: Shows the Planner thread's selected, absent or removed anchor.
+  AnchorPicker: Browses paginated design parts or outcomes by parent.
+  mutations: Anchor changes update the header from the daemon's answer; context resend works without an anchor.
 
 refresh_pinning:
   conversation: "pins conversation refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."

@@ -19,6 +19,7 @@ import { ErrorLine } from '../error-line'
 import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { AgentBoard } from './agent-board'
+import { AnchorChip } from './anchor-chip'
 import { BackgroundTasks } from './background-tasks'
 import { Composer } from './composer'
 import { ContextRing } from './context-ring'
@@ -145,7 +146,10 @@ function Conversation({
             <h1 dir="auto" className="truncate text-start text-sm font-medium">
               {thread?.title ?? 'Conversation'}
             </h1>
-            {harness !== 'aylul' && <StageChip projectId={projectId} />}
+            {harness !== 'aylul' && <>
+              <StageChip projectId={projectId} />
+              <AnchorChip projectId={projectId} threadId={threadId} />
+            </>}
             <p className="truncate text-xs text-faint-foreground">
               <bdi>{harness === 'aylul' ? agentLabel : project?.name ?? '…'}</bdi>
               {project?.assistant === true ? null : ' · Planner'}

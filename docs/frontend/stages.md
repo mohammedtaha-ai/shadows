@@ -50,7 +50,7 @@ Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-c
   record is null)
 
 ### F-87 · The anchor chip in the conversation header
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-87-the-anchor-chip-in-the-conversation-header
 - Read: web/src/app/conversation/stage-chip.tsx, conversation.tsx; web/src/api/design.ts
 - Touch: web/src/app/conversation/anchor-chip.tsx, anchor-chip.test.tsx, anchor-picker.tsx, conversation.tsx,

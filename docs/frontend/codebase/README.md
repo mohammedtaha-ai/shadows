@@ -244,6 +244,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/slash-filter.ts` | Decides which / menu entries a composer text lists | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/slash-menu.tsx` | Draws the / menu beside the composer | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/stage-chip.tsx` | Project stage as one line in the header | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/anchor-chip.tsx` | Planner anchor controls | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/anchor-picker.tsx` | Anchor selection in the design hierarchy | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/anchor-chip.test.tsx` | Planner anchor interaction checks | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/status-badge.tsx` | Badge for the latest turn's status | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/stream-banner.tsx` | Says the stream is not live, offering reconnect | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/subagent-card.tsx` | Card for one subagent in the conversation | `web/src/app/conversation/contract.yaml` |
