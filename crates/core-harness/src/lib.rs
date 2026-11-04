@@ -43,7 +43,7 @@ use tokio::sync::broadcast;
 pub use assistant::AylulConfig;
 pub use model::{
     AylulUsageSnapshot, CarriedContext, ContextSource, Forget, HarnessInfo, HarnessMode,
-    InvocationVersions, InvocationView, RememberedSettings,
+    InvocationVersions, InvocationView, PlanningContextState, RememberedSettings,
 };
 use sessions::Sessions;
 pub use sessions::{LeaseError, OpenError, OpenSession, SessionsConfig};

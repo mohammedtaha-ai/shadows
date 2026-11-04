@@ -99,6 +99,16 @@ pub struct InvocationView {
     pub context_used: Option<i64>,
     #[schema(required)]
     pub context_window: Option<i64>,
+    #[schema(required)]
+    pub planning_context: Option<PlanningContextState>,
+}
+
+/// Whether the session acknowledged a recorded planning context.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanningContextState {
+    Heard,
+    Prepared,
 }
 
 /// Versions delivered by the thread's most recent started turn.

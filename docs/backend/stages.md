@@ -83,12 +83,13 @@ Planner context, slice 3 ([plan](../frontend/plans/2026-11-05-planner-context-vi
 inspection view. Its one backend task is below.
 
 ### B-59 · Each turn says whether its planning context was heard
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-b-59-each-turn-says-whether-its-planning-context-was-heard
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml;
   crates/core-harness/src/store/reads.rs
-- Touch: crates/core-harness/src/model.rs, src/store/reads.rs, src/schema_descriptions/invocation.txt,
-  contract.yaml; crates/shadows/tests/context_record.rs; api/openapi.json; web/src/api/schema.d.ts
+- Touch: crates/core-harness/src/model.rs, src/lib.rs, src/store/reads.rs,
+  src/schema_descriptions/invocation.txt, contract.yaml; crates/shadows/tests/context_record.rs;
+  api/openapi.json; web/src/api/schema.d.ts, web/src/test/contract-fixtures.ts
 - Done when: `cargo test -p shadows --test context_record` and `cargo test -p shadows --test openapi`
   pass, with the three tests the task names
 

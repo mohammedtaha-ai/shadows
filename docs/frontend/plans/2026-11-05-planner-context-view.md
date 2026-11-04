@@ -65,9 +65,10 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 ### Task B-59: Each turn says whether its planning context was heard
 
 **Files:**
-- Modify: `crates/core-harness/src/model.rs` (`InvocationView`), `src/store/reads.rs`,
+- Modify: `crates/core-harness/src/model.rs` (`InvocationView`), `src/lib.rs`, `src/store/reads.rs`,
   `src/schema_descriptions/invocation.txt`, `contract.yaml`
 - Modify: `api/openapi.json`, `web/src/api/schema.d.ts` (regenerated)
+- Update: `web/src/test/contract-fixtures.ts` (the shared invocation fixture)
 - Test: `crates/shadows/tests/context_record.rs` (where the record's tests live today)
 
 **Interfaces:**

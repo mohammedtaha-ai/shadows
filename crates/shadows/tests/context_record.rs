@@ -1,3 +1,4 @@
+use serde_json::{Value, json};
 use shadows_core::testing::{CommandContext, acp};
 use shadows_core::{CarriedContext, Forget, HarnessError, OperationId, StorageError, Turns};
 #[path = "fixtures/app.rs"]
@@ -27,6 +28,56 @@ async fn operation(app: &app::App) -> OperationId {
         .await
         .unwrap();
     op
+}
+
+async fn listed_invocation(app: &app::App, op: &OperationId) -> Value {
+    let list: Vec<Value> =
+        app::get_json(app, &format!("/api/threads/{}/operations", app.thread)).await;
+    list.into_iter()
+        .find(|item| item["id"] == op.as_str())
+        .expect("operation is listed")["invocation"]
+        .clone()
+}
+
+#[tokio::test]
+async fn an_invocation_without_a_record_has_no_planning_context() {
+    let app = app::test_app().await;
+    let op = app::start_and_finish(&app, "/compact", app::default_settings()).await;
+    let invocation = listed_invocation(&app, &op.id).await;
+    assert_eq!(invocation.get("planning_context"), Some(&Value::Null));
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn a_prepared_record_reads_prepared() {
+    let app = app::test_app().await;
+    let op = app::start_and_finish(&app, "/compact", app::default_settings()).await;
+    app.core
+        .harness()
+        .prepare_context(&op.id, &app.thread, "session-a", &carried("index"))
+        .await
+        .unwrap();
+    assert_eq!(
+        listed_invocation(&app, &op.id).await["planning_context"],
+        json!("prepared")
+    );
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn a_heard_record_reads_heard() {
+    let app = app::test_app().await;
+    let op = app::start_and_finish(&app, "Read the project", app::default_settings()).await;
+    assert_eq!(
+        listed_invocation(&app, &op.id).await["planning_context"],
+        json!("heard")
+    );
+    let single = Turns::get_operation_for_test(&app.storage, &op.id)
+        .await
+        .unwrap();
+    let single = serde_json::to_value(single).unwrap();
+    assert_eq!(single["invocation"]["planning_context"], json!("heard"));
+    app::shut_down_app(app).await;
 }
 
 #[tokio::test]
