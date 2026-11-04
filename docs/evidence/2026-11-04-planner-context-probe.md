@@ -30,9 +30,8 @@ Read, not run, from the adapter Shadows ships:
   the `CLAUDE_CODE_AUTO_COMPACT_WINDOW` setting). A compaction reaches it as an ordinary tool call
   with that `_meta`.
 
-Not measured: a live `/compact` and a live automatic compaction through `shadows serve`. The read
-above is the adapter's own code at the version Shadows pins; a live run confirms it when slice 2
-is built.
+A live `/compact` and a live automatic compaction through `shadows serve` were run for slice 2;
+the results, and one difference from this read, are in §5.
 
 ## 2. Measured on testing4, the one project with a whole design
 
@@ -149,3 +148,37 @@ passed. Earlier branch checks also covered the database, harness, routes, reserv
 coverage cards, HTTP/MCP mappings, compatibility targets and generated web types.
 The full workspace gate and CI are **pending**, per Mohammed's instruction to run that gate
 in CI after a push.
+
+## 5. Slice 2 live acceptance, 2026-11-04
+
+Run at `2290e66` in the cloud session, by Claude. `shadows serve` (debug build) ran on a scratch
+database in the session's scratchpad, with the real Claude Code 2.1.318 and the pinned adapter
+0.81.1. Every turn used Haiku 5.5 (`haiku`, effort `low`, mode `auto`), as Mohammed asked. The
+project had no design, so each context was the index alone (45 estimated tokens, digest
+`34d858c12d89…`). No anchor was set.
+
+| Case | Turns, in order | Result |
+|---|---|---|
+| Manual | normal, normal, `/compact`, normal | 1st: record, heard. 2nd: none. `/compact`: none. 4th: record, heard. One `context_forget` row, `compaction`, on the `/compact` operation |
+| Request | normal, `POST …/context/resend` twice with one `command_id`, normal, normal | Both answers `200 {owed: true}`; one `request` row. The first turn after it carried the context, heard; the next did not |
+| Automatic | four turns of about 33k tokens each | The 3rd turn compacted (context 112k → 47k). One `compaction` row on that turn. The 4th turn carried the context, heard |
+
+The daemon log held no ERROR, `planner.context_forget_failed`, `planner.prepare_refused` or
+`planner.context_record_failed` line.
+
+**Different from §1: the trigger is not recorded.** All three compactions wrote `trigger = NULL`.
+After a successful compaction the adapter sends the terminal `tool_call_update` with `status
+completed` first, from `compact_result: success`, with no metadata. The `trigger` arrives
+afterwards, from `compact_boundary`, on a second update that has no `status`. Slice 2 counts only
+the frame with `completed`, so a repeat cannot forget twice, and that frame has no trigger. Which
+compactions happen, and the re-send, are unaffected; only the payload's `trigger` is lost.
+
+**Forcing an automatic compaction.** The Planner's harness inherits only `PATH`, `HOME`,
+`TMPDIR` and `LANG`, so a variable set on the daemon does not reach it. An `env` block in the
+project's `.claude/settings.json` did not change the window either, with the window at 40 000 or
+100 000, and with `CLAUDE_CODE_MAX_CONTEXT_TOKENS` and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` added: the
+recorded window stayed 1 000 000 up to 178k used. What worked was a scratch `--harness` wrapper
+that exported `CLAUDE_CODE_MAX_CONTEXT_TOKENS=100000` and `CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000`
+and ran the real Claude Code. The recorded window still read 1 000 000, but the compaction came at
+about 112k. Nothing in the product changed for this.
+
