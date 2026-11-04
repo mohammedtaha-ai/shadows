@@ -302,10 +302,17 @@ impl MapRules {
                     };
                     return Err(MapRefusal::new(
                         "folder_claimed_twice",
-                        format!(
-                            "{message} Give the folder to one part, \
-                             or make one part the other's child."
-                        ),
+                        if folder == path {
+                            format!(
+                                "{message} Give the folder one owner, \
+                                 or change one part's folder claim to a distinct path."
+                            )
+                        } else {
+                            format!(
+                                "{message} Give the folder to one part, \
+                                 or make one part the other's child."
+                            )
+                        },
                     ));
                 }
             }

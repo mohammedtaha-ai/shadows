@@ -59,7 +59,7 @@ fn the_same_folder_twice_names_both_parts() {
     ]);
     assert_eq!(error.rule, "folder_claimed_twice");
     assert!(error.message.contains("Backend") && error.message.contains("Frontend"));
-    assert!(error.message.contains("src") && error.message.contains("child"));
+    assert!(error.message.contains("src") && error.message.contains("one owner"));
 }
 
 #[test]
@@ -272,4 +272,43 @@ fn reserved_initial_files_are_refused() {
             );
         }
     }
+}
+
+#[test]
+fn equal_folder_claims_require_distinct_ownership_even_between_parent_and_child() {
+    let parent = PartContent {
+        title: "Backend".into(),
+        folders: vec!["src".into()],
+        ..Default::default()
+    };
+    let child = PartContent {
+        title: "Services".into(),
+        ..parent.clone()
+    };
+    let parts = [
+        MapPart {
+            key: "parent",
+            parent: None,
+            content: &parent,
+        },
+        MapPart {
+            key: "child",
+            parent: Some("parent"),
+            content: &child,
+        },
+    ];
+    let error = MapRules::check_shape(
+        &parts,
+        &["parent", "child"],
+        &VisionContent::default(),
+        &EffectiveStandards {
+            base: core_standards::Standards::base().clone(),
+            additions: None,
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.rule, "folder_claimed_twice");
+    assert!(error.message.contains("Backend") && error.message.contains("Services"));
+    assert!(!error.message.contains("make one part the other's child"));
+    assert!(error.message.contains("one owner"));
 }

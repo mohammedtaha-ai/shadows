@@ -271,10 +271,6 @@ impl Turns {
             &thread_id,
         )
         .await?;
-        let planning = self
-            .planning_context(&thread_id, &context.project_id)
-            .await
-            .map_err(|error| error.to_string());
         let continue_plan = match &plan {
             Some(plan_id) => Some(
                 self.plans
@@ -323,6 +319,10 @@ impl Turns {
                 .await;
             return Err(TurnsError::ThreadBusy);
         }
+        let planning = self
+            .planning_context(&thread_id, &context.project_id)
+            .await
+            .map_err(|error| error.to_string());
         let turn = Turn {
             command: &command,
             attachments: &attachments,

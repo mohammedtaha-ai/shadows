@@ -3,6 +3,7 @@ mod block;
 mod budget;
 
 use crate::{Turns, TurnsError};
+use block::SourceScope;
 use core_design::{Design, DesignAnchor};
 use core_harness::CarriedContext;
 use core_plans::{PlanId, Plans};
@@ -23,6 +24,7 @@ impl Turns {
         if context.harness == "aylul" {
             return Ok(None);
         }
+        tracing::debug!(%thread, "planner.context_compiling");
         Ok(Some(
             Planning::compile(
                 &self.design,
@@ -68,7 +70,12 @@ impl Planning {
                     "  Part {} (parent {}): {}",
                     child.id, part.id, child.content.title
                 ));
-                block.source("part", child.id.as_str(), child.revision);
+                block.scoped_source(
+                    SourceScope::PartChildren,
+                    "part",
+                    child.id.as_str(),
+                    child.revision,
+                );
             }
             if children.next.is_some() {
                 block.part_children.push("[more parts available]".into());
@@ -89,7 +96,12 @@ impl Planning {
                     "  Outcome {} (parent {}): {}",
                     child.id, outcome.id, child.content.title
                 ));
-                block.source("outcome", child.id.as_str(), child.revision);
+                block.scoped_source(
+                    SourceScope::OutcomeChildren,
+                    "outcome",
+                    child.id.as_str(),
+                    child.revision,
+                );
             }
             if children.next.is_some() {
                 block
@@ -115,7 +127,8 @@ impl Planning {
                     "Agreement {} v{}: {}",
                     agreement.agreement_id, agreement.version, agreement.content.capability
                 ));
-                block.source(
+                block.scoped_source(
+                    SourceScope::IndexAgreements,
                     "agreement",
                     agreement.agreement_id.as_str(),
                     agreement.version,
@@ -161,14 +174,17 @@ impl Planning {
                 }
                 let children = design.parts(project, Some(id), None).await?;
                 for child in children.items {
+                    block
+                        .detail
+                        .push(format!("Child {}: {}", child.id, child.content.title));
                     block.children.push(format!(
-                        "Child {}: {} — {}",
-                        child.id, child.content.title, child.content.responsibility
+                        "Child {} responsibility: {}",
+                        child.id, child.content.responsibility
                     ));
                     block.source("part", child.id.as_str(), child.revision);
                 }
                 if children.next.is_some() {
-                    block.children.push("[more parts available]".into());
+                    block.detail.push("[more parts available]".into());
                 }
                 view.plans
             }
@@ -192,14 +208,17 @@ impl Planning {
                 }
                 let children = design.outcomes(project, Some(id), None).await?;
                 for child in children.items {
+                    block
+                        .detail
+                        .push(format!("Child {}: {}", child.id, child.content.title));
                     block.children.push(format!(
-                        "Child {}: {} — {}",
-                        child.id, child.content.title, child.content.intended_result
+                        "Child {} intended result: {}",
+                        child.id, child.content.intended_result
                     ));
                     block.source("outcome", child.id.as_str(), child.revision);
                 }
                 if children.next.is_some() {
-                    block.children.push("[more outcomes available]".into());
+                    block.detail.push("[more outcomes available]".into());
                 }
                 for part in view.parts {
                     let view = plans.design_part(project, &part).await?;
@@ -235,10 +254,15 @@ impl Planning {
                 let earlier = plans.get(&id).await?;
                 if let Some(reason) = earlier.change_reason {
                     block.older.push(format!(
-                        "Earlier rationale v{}: {}",
-                        earlier.version, reason
+                        "Earlier rationale for plan {} v{}: {}",
+                        earlier.plan_id, earlier.version, reason
                     ));
-                    block.source("plan", earlier.id.as_str(), earlier.version);
+                    block.scoped_source(
+                        SourceScope::OlderRationales,
+                        "plan",
+                        earlier.id.as_str(),
+                        earlier.version,
+                    );
                 }
                 previous = earlier.previous;
             }

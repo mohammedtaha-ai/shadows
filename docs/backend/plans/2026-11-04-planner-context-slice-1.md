@@ -51,7 +51,7 @@ the three Planner defects found on 2026-11-04.
 4. **Two turns in a row with nothing changed.** The second carries no context block, and its
    turn has no record.
 5. **The detail is over budget.** The anchor's own text stays whole, and the block lists what was
-   cut, in the spec's order: older rationales, then children's lines, then agreement bodies.
+   cut, in the spec's order: older rationales, then children's descriptive lines (keeping names and ids), then agreement bodies.
 6. **A map refused for a rule.** The refusal names the part or parts, the paths, the rule, and
    what to do, and two different rules never read the same.
 
@@ -193,6 +193,8 @@ the three Planner defects found on 2026-11-04.
     is over. Each cut is a line `[cut: <what>]` and an entry in `cuts`.
 - **A missing anchor** (deleted after being set): the block holds
   `[anchor removed: <kind> <id>]` and the index only.
+- **Sources after cuts:** remove a source only when none of its content survives in any layer.
+  Each earlier rationale names its logical plan and version.
 - **`digest`:** a hex SHA-256 of `text`.
 
 - [x] **Step 1: tests**, over a design seeded with `Design::seed_map_for_tests` and
@@ -234,6 +236,7 @@ the three Planner defects found on 2026-11-04.
   fake-acp, reading the prompt fake-acp received)
 
 **Interfaces:**
+- **After the session lease:** compile context so a prior turn cannot still change its inputs.
 - **In `spawn`, before compose:** read `Harness::heard_context_digest(&opened.session_id)`. The
   planning text goes into `PromptParts` only when the digest differs or nothing was heard.
 - **Block order:** text, images, changes, **planning**, focus, continue_plan, stage.
@@ -317,9 +320,10 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
 - Exact text for the three seen on 2026-11-04:
   - `file_outside_part: part "<title>" lists <file>, which is outside its folders <folders>.
     Move the file into one of them, or add its folder to the part.`
-  - `folder_claimed_twice: parts "<a>" and "<b>" both claim <folder>. Give the folder to one
-    part, or make one part the other's child.`
-  - The same rule covers a folder inside another part's folder: `parts "<a>" (<folder>) and
+  - `folder_claimed_twice: parts "<a>" and "<b>" both claim <folder>. Give the folder one owner, or change one part's
+    folder claim to a distinct path.`
+  - Nested distinct folder claims can be repaired by making their parts parent and child.
+    The same rule covers a folder inside another part's folder: `parts "<a>" (<folder>) and
     "<b>" (<path>) overlap…`.
 
 - [x] **Step 1: tests**

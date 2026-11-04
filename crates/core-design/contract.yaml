@@ -708,3 +708,7 @@ map_coverage:
   answer: 'MapProposal.unserved lists all vision fields in VisionField::ALL and item order, using the complete proposed map.'
   persistence: 'The original answer and card persist the list. Legacy proposal JSON defaults it to an empty list.'
   rule: Informational only; an item served by another part is covered even if one part omitted it.
+
+map_refusal_repairs:
+  equal_folder: Equal folder claims require one owner or distinct claims even for parent-child parts.
+  nested_folders: Distinct nested claims may follow the same parent-child relationship as their parts.

@@ -361,3 +361,197 @@ async fn an_aylul_thread_gets_nothing() {
     );
     app::shut_down_app(app).await;
 }
+
+#[derive(Clone, Default)]
+struct PlanningLog(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for PlanningLog {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for PlanningLog {
+    type Writer = Self;
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+#[tokio::test]
+async fn a_busy_request_does_not_compile_before_the_session_is_leased() {
+    use tracing::instrument::WithSubscriber;
+    let app = app::test_app().await;
+    let running = app::start_settled(&app, "hang").await;
+    app.core
+        .design()
+        .set_thread_anchor(
+            "anchor-during-turn".into(),
+            &app.thread,
+            Some(DesignAnchor::Part(app.part.clone().unwrap())),
+        )
+        .await
+        .unwrap();
+    let log = PlanningLog::default();
+    let subscriber = tracing_subscriber::fmt()
+        .without_time()
+        .with_ansi(false)
+        .with_max_level(tracing::Level::DEBUG)
+        .with_writer(log.clone())
+        .finish();
+    let busy = app
+        .core
+        .turns()
+        .send(
+            app.thread.clone(),
+            shadows_core::SendTurn {
+                command_id: "busy-compile".into(),
+                prompt: "report".into(),
+                attachments: vec![],
+                model: "fake-large".into(),
+                mode: "acceptEdits".into(),
+                effort: None,
+                focus: None,
+                plan: None,
+                client_tab: None,
+            },
+        )
+        .with_subscriber(subscriber)
+        .await;
+    assert_eq!(
+        busy.unwrap_err().to_string(),
+        "the thread has a turn running"
+    );
+    let captured = String::from_utf8(log.0.lock().unwrap().clone()).unwrap();
+    assert!(
+        !captured.contains("planner.context_compiling"),
+        "{captured}"
+    );
+    app.core.turns().stop(&running).await.unwrap();
+    app::wait_terminal(&app, &running).await;
+    let (op, _) = report(&app).await;
+    let (record, heard) = heard(&app, &op).await.unwrap();
+    assert!(heard);
+    assert!(
+        record["text"]
+            .as_str()
+            .unwrap()
+            .contains("## Planning anchor detail")
+    );
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn earlier_rationales_identify_their_owning_plan() {
+    let app = app::test_app().await;
+    let plans = shadows_core::AppCore::plans_for_tests(app.storage.clone());
+    let part = app.part.clone().unwrap();
+    let mut expected = Vec::new();
+    for n in 1..=2 {
+        let thread = shadows_core::Threads::create_planning_thread_for_test(
+            &app.storage,
+            &app::ctx(&format!("rationale-thread-{n}"), "thread.create"),
+            &app.project,
+            "Planner",
+            "claude-code",
+            None,
+        )
+        .await
+        .unwrap();
+        let writer = plan::planner(&app, &thread.id).await;
+        let reason = format!("First rationale for plan {n}");
+        let v1 = plans
+            .start_draft_for_test(
+                &app::ctx(&format!("rationale-plan-{n}"), "DraftStart"),
+                &writer,
+                &app.project,
+                None,
+                None,
+                Some((&format!("Plan {n}"), "Goal")),
+                Some(&reason),
+                None,
+                None,
+                std::slice::from_ref(&part),
+            )
+            .await
+            .unwrap();
+        plan::edit(&app, &v1.workflow_id, 0, &[plan::add(1)]).await;
+        plans
+            .approve_plan_for_test(
+                &app::ctx(&format!("rationale-approve-{n}"), "PlanApprove"),
+                &v1.workflow_id,
+                1,
+            )
+            .await
+            .unwrap();
+        let v2 = plans
+            .start_draft_for_test(
+                &app::ctx(&format!("rationale-next-{n}"), "DraftStart"),
+                &writer,
+                &app.project,
+                Some(&v1.plan_id),
+                None,
+                None,
+                Some(&reason),
+                None,
+                None,
+                std::slice::from_ref(&part),
+            )
+            .await
+            .unwrap();
+        plans
+            .approve_plan_for_test(
+                &app::ctx(&format!("rationale-approve2-{n}"), "PlanApprove"),
+                &v2.workflow_id,
+                0,
+            )
+            .await
+            .unwrap();
+        plans
+            .start_draft_for_test(
+                &app::ctx(&format!("rationale-third-{n}"), "DraftStart"),
+                &writer,
+                &app.project,
+                Some(&v1.plan_id),
+                None,
+                None,
+                Some("Third version"),
+                None,
+                None,
+                std::slice::from_ref(&part),
+            )
+            .await
+            .unwrap();
+        expected.push((v1.plan_id, reason));
+    }
+    app.core
+        .design()
+        .set_thread_anchor(
+            "rationale-anchor".into(),
+            &app.thread,
+            Some(DesignAnchor::Part(part)),
+        )
+        .await
+        .unwrap();
+    let context = app
+        .core
+        .turns()
+        .planning_context(&app.thread, &app.project)
+        .await
+        .unwrap()
+        .unwrap();
+    for (id, reason) in expected {
+        let line = context
+            .text
+            .lines()
+            .find(|line| line.contains(&reason))
+            .unwrap();
+        assert!(line.contains(id.as_str()), "{line}");
+        assert!(line.contains("v2"));
+    }
+    app::shut_down_app(app).await;
+}

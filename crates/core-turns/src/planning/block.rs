@@ -2,6 +2,15 @@
 use core_harness::{CarriedContext, ContextSource};
 use sha2::{Digest, Sha256};
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum SourceScope {
+    Retained,
+    PartChildren,
+    OutcomeChildren,
+    IndexAgreements,
+    OlderRationales,
+}
+
 #[derive(Default)]
 pub(super) struct Block {
     pub index: Vec<String>,
@@ -12,20 +21,34 @@ pub(super) struct Block {
     pub older: Vec<String>,
     pub children: Vec<String>,
     pub agreement_bodies: Vec<String>,
-    pub sources: Vec<ContextSource>,
+    sources: Vec<(SourceScope, ContextSource)>,
     pub cuts: Vec<String>,
 }
 
 impl Block {
     pub fn source(&mut self, kind: &str, id: &str, version: i64) {
+        self.scoped_source(SourceScope::Retained, kind, id, version);
+    }
+
+    pub fn scoped_source(&mut self, scope: SourceScope, kind: &str, id: &str, version: i64) {
         let source = ContextSource {
             kind: kind.into(),
             id: id.into(),
             version,
         };
-        if !self.sources.contains(&source) {
-            self.sources.push(source);
+        if !self.sources.contains(&(scope, source.clone())) {
+            self.sources.push((scope, source));
         }
+    }
+
+    fn included_sources(&self) -> Vec<ContextSource> {
+        let mut sources = Vec::new();
+        for (_, source) in &self.sources {
+            if !sources.contains(source) {
+                sources.push(source.clone());
+            }
+        }
+        sources
     }
 
     fn index_text(&self) -> String {
@@ -65,7 +88,9 @@ impl Block {
             text.push_str(&format!("\n[cut: {cut}]"));
         }
         text.push_str("\nSources (kind, id, version or revision):\n");
-        text.push_str(&serde_json::to_string(&self.sources).expect("context sources serialize"));
+        text.push_str(
+            &serde_json::to_string(&self.included_sources()).expect("context sources serialize"),
+        );
         text
     }
 
@@ -89,10 +114,23 @@ impl Block {
                 _ => &mut self.index_agreements,
             };
             if !group.is_empty() {
-                let count = group.len();
+                let continuations: Vec<_> = group
+                    .iter()
+                    .filter(|line| line.starts_with("[more "))
+                    .cloned()
+                    .collect();
+                let count = group.len() - continuations.len();
                 group.clear();
                 self.index.push(format!("[{count} {label} omitted]"));
+                self.index.extend(continuations);
                 self.cuts.push(format!("index {label}"));
+                let scope = match slot {
+                    0 => SourceScope::PartChildren,
+                    1 => SourceScope::OutcomeChildren,
+                    _ => SourceScope::IndexAgreements,
+                };
+                self.sources
+                    .retain(|(source_scope, _)| *source_scope != scope);
             }
         }
         for (slot, label) in [
@@ -111,6 +149,10 @@ impl Block {
             if !group.is_empty() {
                 group.clear();
                 self.cuts.push(label.into());
+                if slot == 0 {
+                    self.sources
+                        .retain(|(scope, _)| *scope != SourceScope::OlderRationales);
+                }
             }
         }
         let index = self.index_text();
@@ -122,7 +164,7 @@ impl Block {
         CarriedContext {
             digest: format!("{:x}", Sha256::digest(text.as_bytes())),
             text,
-            sources: self.sources,
+            sources: self.included_sources(),
             index_tokens,
             detail_tokens,
             over_tokens: (index_tokens - index_budget).max(0)
@@ -179,5 +221,21 @@ mod tests {
         let context = block.finish(100, 8_000);
         assert_eq!(context.cuts, ["index part children"]);
         assert!(context.text.contains("Outcome child"));
+    }
+}
+
+#[cfg(test)]
+mod pagination_tests {
+    use super::Block;
+
+    #[test]
+    fn a_cut_keeps_pagination_uncertainty_out_of_the_known_child_count() {
+        let block = Block {
+            part_children: vec!["A known child".into(), "[more parts available]".into()],
+            ..Default::default()
+        };
+        let context = block.finish(1, 8_000);
+        assert!(context.text.contains("[1 part children omitted]"));
+        assert!(context.text.contains("[more parts available]"));
     }
 }

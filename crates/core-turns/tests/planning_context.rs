@@ -31,7 +31,11 @@ impl Fixture {
                 Box::pin(async move {
                     Design::edit_workspace_in(
                         conn,
-                        &CommandContext::user("edit".into(), "design.edit", serde_json::json!({})),
+                        &CommandContext::user(
+                            uuid::Uuid::new_v4().to_string(),
+                            "design.edit",
+                            serde_json::json!({}),
+                        ),
                         &project,
                         revision,
                         ops,
@@ -303,5 +307,165 @@ async fn a_detail_still_over_after_every_cut_is_sent_and_says_by_how_much() {
         .unwrap();
     assert!(context.text.contains("Seeded for tests"));
     assert!(context.over_tokens > 0);
+    f.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_detail_cut_keeps_child_identities_for_both_anchor_kinds() {
+    use core_design::{OutcomeContent, OutcomeId, PartContent, PartId, WorkspaceOp};
+    for outcome_anchor in [false, true] {
+        let f = Fixture::new().await;
+        let part = f
+            .design
+            .parts(&f.project, None, None)
+            .await
+            .unwrap()
+            .items
+            .remove(0)
+            .id;
+        let child_part = PartId::generate();
+        let outcome = OutcomeId::generate();
+        let child_outcome = OutcomeId::generate();
+        f.edit(vec![
+            WorkspaceOp::PartCreate {
+                id: child_part.clone(),
+                parent: Some(part.clone()),
+                before: None,
+                content: PartContent {
+                    title: "Part child identity".into(),
+                    responsibility: "Optional part description".repeat(100),
+                    ..Default::default()
+                },
+            },
+            WorkspaceOp::OutcomeCreate {
+                id: outcome.clone(),
+                parent: None,
+                before: None,
+                content: OutcomeContent {
+                    title: "Outcome anchor".into(),
+                    intended_result: "Root result".into(),
+                    acceptance: vec![],
+                },
+            },
+            WorkspaceOp::OutcomeCreate {
+                id: child_outcome.clone(),
+                parent: Some(outcome.clone()),
+                before: None,
+                content: OutcomeContent {
+                    title: "Outcome child identity".into(),
+                    intended_result: "Optional outcome description".repeat(100),
+                    acceptance: vec![],
+                },
+            },
+        ])
+        .await;
+        let (anchor, id, title, description) = if outcome_anchor {
+            (
+                DesignAnchor::Outcome(outcome),
+                child_outcome.to_string(),
+                "Outcome child identity",
+                "Optional outcome description",
+            )
+        } else {
+            (
+                DesignAnchor::Part(part),
+                child_part.to_string(),
+                "Part child identity",
+                "Optional part description",
+            )
+        };
+        f.design
+            .set_thread_anchor("anchor".into(), &f.thread, Some(anchor))
+            .await
+            .unwrap();
+        let context = TestPlanning::compile(&f.design, &f.plans, &f.thread, &f.project, 1, 1)
+            .await
+            .unwrap();
+        let detail = context
+            .text
+            .split("## Planning anchor detail")
+            .nth(1)
+            .unwrap();
+        assert!(detail.contains(&format!("Child {id}: {title}")));
+        assert!(!context.text.contains(description));
+        assert!(context.sources.iter().any(|source| source.id == id));
+        f.storage.close().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn sources_follow_surviving_content_and_keep_shared_sources() {
+    use core_design::{PartContent, PartId, WorkspaceOp};
+    let f = Fixture::new().await;
+    let root = f
+        .design
+        .parts(&f.project, None, None)
+        .await
+        .unwrap()
+        .items
+        .remove(0)
+        .id;
+    let child = PartId::generate();
+    let content = PartContent {
+        title: "Omitted child".into(),
+        ..Default::default()
+    };
+    f.edit(vec![WorkspaceOp::PartCreate {
+        id: child.clone(),
+        parent: Some(root),
+        before: None,
+        content: content.clone(),
+    }])
+    .await;
+    let compile = || TestPlanning::compile(&f.design, &f.plans, &f.thread, &f.project, 1, 8_000);
+    let before = compile().await.unwrap();
+    assert!(
+        !before
+            .sources
+            .iter()
+            .any(|source| source.id == child.as_str())
+    );
+    f.edit(vec![WorkspaceOp::PartPut {
+        id: child.clone(),
+        content: PartContent {
+            responsibility: "Revised omitted content".into(),
+            ..content
+        },
+    }])
+    .await;
+    let revised = compile().await.unwrap();
+    assert!(
+        !revised
+            .sources
+            .iter()
+            .any(|source| source.id == child.as_str())
+    );
+    assert_eq!(
+        before
+            .sources
+            .iter()
+            .filter(|source| source.kind != "vision")
+            .collect::<Vec<_>>(),
+        revised
+            .sources
+            .iter()
+            .filter(|source| source.kind != "vision")
+            .collect::<Vec<_>>(),
+    );
+    f.design
+        .set_thread_anchor(
+            "anchor".into(),
+            &f.thread,
+            Some(DesignAnchor::Part(child.clone())),
+        )
+        .await
+        .unwrap();
+    let anchored = compile().await.unwrap();
+    assert!(
+        anchored
+            .sources
+            .iter()
+            .any(|source| source.id == child.as_str())
+    );
     f.storage.close().await.unwrap();
 }

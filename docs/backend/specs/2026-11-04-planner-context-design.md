@@ -94,7 +94,9 @@ Three layers, in this order:
 | **On request** | everything else, through the existing workspace tools; a missing read is a tool the plan adds | none |
 
 - **Sources.** Every piece carries `(kind, id, version or revision)`. The context block ends with
-  its source list. The record stores the SHA-256 digest of that exact text alongside it.
+  its source list. A budget cut removes a source only when none of its content remains;
+  child names and ids survive a cut of their descriptive lines. Each earlier rationale names
+  its logical plan and version. The record stores the SHA-256 digest of that exact text alongside it.
 - The source footer and cut markers count toward the index estimate. Detail includes its
   heading. The budgets are soft after the allowed cuts, and the record exposes the excess.
   Parts and outcomes read one page per parent through depth two and announce further pages

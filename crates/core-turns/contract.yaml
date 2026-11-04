@@ -1072,12 +1072,13 @@ planning_context:
   modules: [planning/mod.rs, planning/block.rs, planning/budget.rs]
   dependency: Design is passed once by AppCore.
   method: planning_context reads Design and Plans APIs; AYLUL receives none.
-  sources: Stable source tuples are included in the hashed text; pinned bindings read exact versions.
+  sources: Only surviving content contributes source tuples to hashed text; pinned bindings read exact versions.
   budgets: Index 1500 and detail 8000 estimated tokens, explicit ordered cuts, soft overflow recorded.
+  detail: Child identities survive descriptive cuts; every older rationale names its logical plan and version.
   pagination: One 50-item page per parent through depth two; remaining pages announced without a total.
 
 planning_delivery:
-  request: 'Result<Option<CarriedContext>, String> retains a preparation refusal for the created operation.'
+  request: 'Compilation follows the session lease; Result<Option<CarriedContext>, String> retains a preparation refusal.'
   prompt: 'Normal block order is text, images, changes, planning, focus, continued plan, stage.'
   completion: 'Harness::mark_context_heard_in shares the Completed transaction; other endings keep context owed.'
   command: 'A command alone withholds planning context and creates no context record.'
