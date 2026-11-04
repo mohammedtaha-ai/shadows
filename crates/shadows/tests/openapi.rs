@@ -214,6 +214,7 @@ fn the_document_names_every_route() {
             "POST /api/projects/{id}/threads",
             "POST /api/projects/{id}/vision-proposals/{proposal_id}/approve",
             "POST /api/threads/{id}/attachments",
+            "POST /api/threads/{id}/context/resend",
             "POST /api/threads/{id}/fork",
             "POST /api/threads/{id}/queue",
             "POST /api/threads/{id}/queue/{qid}/send-now",

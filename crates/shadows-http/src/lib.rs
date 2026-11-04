@@ -238,6 +238,7 @@ fn routes() -> OpenApiRouter<AppState> {
             planning_context::set_anchor
         ))
         .routes(routes!(planning_context::context))
+        .routes(routes!(planning_context::resend))
         .routes(routes!(workflow::list_plans))
         .routes(routes!(workflow::plan_map))
         .routes(routes!(workflow::get_plan))

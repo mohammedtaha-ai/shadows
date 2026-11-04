@@ -81,8 +81,9 @@ background_tasks:
 
 planning_context:
   module: planning_context.rs
-  routes: ['PUT /api/threads/{id}/anchor', 'GET /api/threads/{id}/anchor', 'GET /api/operations/{id}/context']
-  methods: [Design::set_thread_anchor, Design::thread_anchor, Harness::context_record]
+  routes: ['PUT /api/threads/{id}/anchor', 'GET /api/threads/{id}/anchor', 'GET /api/operations/{id}/context', 'POST /api/threads/{id}/context/resend']
+  methods: [Design::set_thread_anchor, Design::thread_anchor, Harness::context_record, Harness::forget_context]
+  resend: 'Answers 200 { owed: true } after Harness::forget_context(Forget::Request); an AYLUL thread is 422 INVALID_COMMAND, a replay with other params 409.'
   wire: Lowercase anchor kinds map to the existing DesignAnchor enum without changing its other callers.
   absent_record: 404 CONTEXT_NOT_CARRIED, with no assertion about the reason.
 

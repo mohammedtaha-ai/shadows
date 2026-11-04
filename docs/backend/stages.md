@@ -118,7 +118,7 @@ B-57, then B-58. The live acceptance follows them (the plan's last section).
   `cargo test -p core-turns` pass
 
 ### B-58 · The "send the context again" route (shadows-http)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-58-the-send-the-context-again-route-shadows-http
 - Read: crates/shadows-http/src/contract.yaml; the shared request
   docs/shared/requests/2026-11-04-planning-context-resend.md

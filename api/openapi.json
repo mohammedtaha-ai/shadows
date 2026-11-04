@@ -5232,6 +5232,28 @@
         ],
         "type": "object"
       },
+      "ResendContext": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
+      "ResendResponse": {
+        "properties": {
+          "owed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "owed"
+        ],
+        "type": "object"
+      },
       "RoadmapAction": {
         "enum": [
           "first",
@@ -12995,6 +13017,76 @@
             "description": ""
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/context/resend": {
+      "post": {
+        "operationId": "resend",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendContext"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResendResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
             "content": {
               "application/json": {
                 "schema": {
