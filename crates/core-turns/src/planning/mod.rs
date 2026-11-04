@@ -138,10 +138,11 @@ impl Planning {
         if let Some(anchor) = design.thread_anchor(thread).await?
             && !Self::detail(&mut block, design, plans, project, &anchor).await?
         {
-            block.index.push(format!(
-                "[anchor removed: {}]",
-                serde_json::to_string(&anchor)?
-            ));
+            let (kind, id) = match &anchor {
+                DesignAnchor::Part(id) => ("part", id.as_str()),
+                DesignAnchor::Outcome(id) => ("outcome", id.as_str()),
+            };
+            block.index.push(format!("[anchor removed: {kind} {id}]"));
         }
         Ok(block.finish(index_budget, detail_budget))
     }

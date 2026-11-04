@@ -515,6 +515,8 @@ enums:
 
 
 called_by_other_services:
+  heard_context_digest: "Turns (spawn.rs, before compose): the planning context goes into the prompt only when its digest differs from the session's newest heard one."
+  prepare_context: "Turns (spawn.rs, after compose): a turn that carried planning context records it unheard; a failed write logs planner.context_record_failed and the context stays owed."
   record_limits: "Turns (turns/turn.rs accept): a turn's watcher records the account limits the harness reports, before it publishes the usage that `limits_of` answers (§12.8)"
 
 

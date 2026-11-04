@@ -333,7 +333,11 @@ async fn a_removed_anchor_says_so() {
         .await
         .unwrap()
         .unwrap();
-    assert!(context.text.contains("[anchor removed:"));
+    assert!(
+        context
+            .text
+            .contains(&format!("[anchor removed: part {}]", part.as_str()))
+    );
     assert_eq!(context.detail_tokens, 0);
     app::shut_down_app(app).await;
 }

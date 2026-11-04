@@ -125,7 +125,7 @@ shapes:
 enums:
   DesignError:
     source: core_design::DesignError
-    values: [StageBlocked, ReasonMissing, InvalidCommand, GrantScope, Grants, Storage]
+    values: [MapRefused, StageBlocked, ReasonMissing, InvalidCommand, GrantScope, Grants, Storage]
   Stage: [Idea, Vision, Map, Structure, Roadmap, Plans]
   RoadmapAction: [First, Add, Change, Remove]
   WorkspaceOp:
@@ -365,6 +365,7 @@ dependencies:
 
 called_by_other_services:
   project_stage: "Design exposes its persisted stage view; Turns reads the rendered line through stage_line_in."
+  thread_anchor: "Turns::planning_context reads the thread's anchor, then vision, parts, outcomes and agreements (pinned versions through agreement) through their public reads."
 
 obligations:
   - rule: Map paths refuse Windows device names and initial files at Shadows-owned output paths.
