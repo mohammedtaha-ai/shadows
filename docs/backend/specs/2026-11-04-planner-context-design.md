@@ -226,7 +226,9 @@ No new service.
 > person picks in the mode selector, approving a plan can offer "clear context". The adapter then
 > replaces Claude's conversation under the same session id and reports no compaction, so Shadows
 > still counts the context as heard. Until this closes, the "send the context again" action covers
-> it. Closed when a Planner session is seen using that option, or the adapter reports the reset.
+> it. Mohammed's Planner runs in `auto` or `acceptEdits`, never `plan` (2026-11-04), so the case
+> does not arise today. Closed when a project first allows `plan` for its Planner, or the adapter
+> reports the reset.
 
 > **OPEN — the budgets.** §4.2's numbers are Claude's starting values. testing4 fits with room
 > to spare (§7), so they are not yet tested at their limit. Closed when a project's recorded
