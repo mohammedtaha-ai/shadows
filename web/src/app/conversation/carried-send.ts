@@ -1,6 +1,6 @@
 // Keep the failed first message and its command id together so a retry can replay it.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { PendingImage } from './upload-images'
 import type { Attempt } from '@/api/command-id'
 import { ApiError } from '@/api/error'
@@ -11,6 +11,12 @@ export interface PendingAnchor {
   readonly attempt: Attempt
   readonly refused: boolean
 }
+
+export type AnchorRecovery =
+  | { kind: 'set'; anchor: PendingAnchor }
+  | { kind: 'clear'; attempt: Attempt; unsettled?: PendingAnchor }
+
+export const anchorWriteKey = (threadId: string | null) => ['thread-anchor-write', threadId] as const
 
 /** A transport or server failure can leave the detached write in flight. */
 export function anchorWriteRefused(error: unknown): boolean {
@@ -26,21 +32,52 @@ export interface CarriedSend {
   readonly error: Error
   /** The selected plan remains part of a retry's command and prompt context. */
   readonly planId?: string
-  readonly anchor?: PendingAnchor
+  readonly anchor?: AnchorRecovery
 }
 
 const carried = new Map<string, CarriedSend>()
+const anchorListeners = new Set<() => void>()
+
+function subscribeToAnchor(listener: () => void) {
+  anchorListeners.add(listener)
+  return () => { anchorListeners.delete(listener) }
+}
 
 export function carrySend(threadId: string, send: CarriedSend): void {
   carried.set(threadId, send)
+  if (send.anchor !== undefined) anchorListeners.forEach(listener => listener())
 }
 
-/** What was carried to `threadId`, read once: taken on the first render and
- * dropped after it, so a later visit starts empty. */
+export function readAnchorRecovery(threadId: string | null): AnchorRecovery | null {
+  return threadId === null ? null : carried.get(threadId)?.anchor ?? null
+}
+
+export function saveAnchorRecovery(threadId: string, anchor: AnchorRecovery | null): void {
+  const send = carried.get(threadId)
+  if (send === undefined) return
+  if (anchor === null) carried.delete(threadId)
+  else carried.set(threadId, { ...send, anchor })
+  anchorListeners.forEach(listener => listener())
+}
+
+export function useAnchorRecovery(threadId: string | null): AnchorRecovery | null {
+  return useSyncExternalStore(subscribeToAnchor, () => readAnchorRecovery(threadId))
+}
+
+/** Keep the first draft available on a revisit until its pending anchor has settled. */
 export function useCarriedSend(threadId: string): CarriedSend | null {
-  const [send] = useState(() => carried.get(threadId) ?? null)
+  const [send, setSend] = useState(() => carried.get(threadId) ?? null)
   useEffect(() => {
-    carried.delete(threadId)
+    if (carried.get(threadId)?.anchor === undefined) carried.delete(threadId)
+    const receive = () => {
+      const incoming = carried.get(threadId)
+      if (incoming?.anchor !== undefined) {
+        setSend(previous => previous?.attempt === incoming.attempt ? previous : incoming)
+      }
+    }
+    const unsubscribe = subscribeToAnchor(receive)
+    receive()
+    return unsubscribe
   }, [threadId])
   return send
 }

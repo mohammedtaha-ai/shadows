@@ -41,6 +41,7 @@ planning_anchor:
   mutations: Anchor changes update the header from the daemon's answer; context resend works without an anchor.
   first_send: Set the draft anchor before starting the first turn, then carry unresolved writes into the existing thread.
   recovery: Reuse the original anchor command on retry. Resolve an uncertain write before clearing with a separate retryable command, then start the turn.
+  coordination: Recovery stays with its thread during navigation. An open composer receives a failed first anchor handoff. The header waits for composer recovery, and a replacement header write settles the earlier command first.
 
 refresh_pinning:
   conversation: "pins conversation refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."

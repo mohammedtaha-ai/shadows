@@ -142,6 +142,8 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 - Each level's list is keyed by its parent (`key={parent ?? 'root'}`), so moving to another
   parent starts from that parent's first page. `useDesignPages` keeps the loaded pages in local
   state and compares only the revision, which two parents can share.
+- Disable anchor edits while the composer is recovering its first write. A header edit after
+  an uncertain header write first settles that write with its original command id.
 
 - [ ] Tests:
   - `shows_the_anchor_name`;
@@ -149,6 +151,7 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - `clear_sends_null_with_a_command_id`, and the chip says "Not anchored" without a reload;
   - `picking_an_outcome_sets_it`, and the chip shows the outcome's name without a reload;
   - `moving_to_another_parent_starts_at_its_first_page`;
+  - `changing_the_selection_waits_for_an_unknown_previous_write`;
   - `send_again_says_the_next_message_carries_it`, in an unanchored conversation;
   - `not_shown_for_aylul`.
 - [ ] Run `npx vitest run src/app/conversation/anchor-chip.test.tsx`; FAIL, implement, PASS.
@@ -189,6 +192,10 @@ the planning context was heard, opens what it carried, and asks for it to be sen
     4. Any failure on the way keeps the error, keeps whatever is still pending, and starts no
        turn.
   - The pending anchor is dropped once the anchor succeeds.
+  - Leaving the thread during anchor recovery keeps the pending command and first draft
+    available on return. Header anchor edits are disabled while recovery is pending.
+  - A thread opened from the sidebar while the first anchor write is in flight receives the
+    carried first draft if that write fails. The composer waits while the write is in flight.
 - The draft shows "Anchored at <name>" above the composer.
 - The selected part's page and the selected outcome's page show a link "Plan from here" to
   `/projects/$projectId/new?anchor=…`.
@@ -215,7 +222,9 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - `send_without_the_anchor_after_a_refusal_only_clears`: the first `PUT` answers 404. No
     replay; `PUT` null, then `POST …/turns`;
   - `a_lost_clear_answer_retries_the_clear_before_sending`: the clear keeps its own command id
-    and the composer stays on that choice until it succeeds;
+    and the composer stays on that choice until it succeeds, including after a revisit;
+  - `a_revisited_thread_keeps_its_anchor_attempt_and_blocks_header_writes`;
+  - `the_open_thread_receives_a_draft_whose_anchor_write_fails_late`;
   - `an_unknown_anchor_value_is_ignored`.
 - [ ] Run `npx vitest run src/app/conversation/draft.test.tsx`; FAIL, implement, PASS.
 - [ ] Commit `feat(web): start a conversation from a part or an outcome`.

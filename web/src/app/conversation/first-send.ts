@@ -11,7 +11,7 @@ import { saveAnchorAnswer, setAnchor, type ThreadPlanningAnchor } from '@/api/pl
 import { agentThreadsQuery } from '@/api/aylul-profiles'
 import {noteCompanionSend} from '@/desktop'
 import { tabId } from '@/stream'
-import { anchorWriteRefused, carrySend } from './carried-send'
+import { anchorWriteKey, anchorWriteRefused, carrySend } from './carried-send'
 import { uploadImages, type PendingImage } from './upload-images'
 
 /** The API requires a title; the first message and harness supply its meaningful replacements. */
@@ -56,8 +56,14 @@ export function useFirstSend(projectId: string, harness: string, planId?: string
     let anchorAttempt: Attempt | null = null
     try {
       if (anchor !== undefined) {
-        anchorAttempt = attemptFor(null, { threadId: thread.id, anchor })
-        const saved = await setAnchor(thread.id, anchorAttempt.commandId, anchor)
+        const attempt = anchorAttempt = attemptFor(null, { threadId: thread.id, anchor })
+        // A person can open the newly listed thread while its draft write is in flight.
+        const write = queryClient.getMutationCache().build(queryClient, {
+          mutationKey: anchorWriteKey(thread.id),
+          scope: { id: thread.id },
+          mutationFn: () => setAnchor(thread.id, attempt.commandId, anchor),
+        })
+        const saved = await write.execute(undefined)
         anchorAttempt = null
         await saveAnchorAnswer(queryClient, thread.id, saved)
       }
@@ -88,7 +94,7 @@ export function useFirstSend(projectId: string, harness: string, planId?: string
         error: error instanceof Error ? error : new Error(String(error)),
         planId,
         anchor: anchorAttempt !== null && anchor !== undefined
-          ? { value: anchor, attempt: anchorAttempt, refused: anchorWriteRefused(error) }
+          ? { kind: 'set', anchor: { value: anchor, attempt: anchorAttempt, refused: anchorWriteRefused(error) } }
           : undefined,
       })
       void open()

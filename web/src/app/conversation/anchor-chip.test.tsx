@@ -2,6 +2,7 @@
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import type { Outcome, Part } from '@/api/design'
+import type { ThreadPlanningAnchor } from '@/api/planning-context'
 import { threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { startApp, until, type TestApp } from '@/test/test-app'
@@ -89,6 +90,36 @@ it('moving_to_another_parent_starts_at_its_first_page', async () => {
   await click(app, 'Browse B')
   await until(() => app.button('Select B first') !== undefined)
   expect(app.button('Select A second')).toBeUndefined()
+})
+
+it('changing_the_selection_waits_for_an_unknown_previous_write', async () => {
+  const routes = answers()
+  const second = { ...outcome, id: 'verify', content: { ...outcome.content, title: 'Verify' } }
+  routes['GET /api/projects/p1/design/outcomes'] = { items: [outcome, second], revision: 1 }
+  routes['GET /api/projects/p1/design/outcomes/launch'] = { outcome, parts: [], plans: [], ancestors: [], revision: 1 }
+  routes['GET /api/projects/p1/design/outcomes/verify'] = { outcome: second, parts: [], plans: [], ancestors: [], revision: 1 }
+  const writes: { anchor: ThreadPlanningAnchor; command_id: string }[] = []
+  let finish!: () => void
+  const committed = new Promise<void>(resolve => { finish = resolve })
+  routes['PUT /api/threads/t1/anchor'] = async (request: Request) => {
+    const body = await request.json() as (typeof writes)[number]
+    writes.push(body)
+    if (writes.length === 1) throw new TypeError('Lost response before the write settled')
+    if (body.anchor.id === 'launch') await committed
+    return Response.json({ anchor: body.anchor })
+  }
+  const app = await show(routes)
+  await click(app, 'Anchor…')
+  await click(app, 'Outcomes')
+  await click(app, 'Select Launch')
+  await until(() => app.text().includes('The daemon is not reachable'))
+  await click(app, 'Select Verify')
+  await until(() => writes.length === 2)
+  expect(writes[1]).toEqual(writes[0])
+  await act(async () => finish())
+  await until(() => app.text().includes('Anchored at Verify'))
+  expect(writes[2]?.anchor.id).toBe('verify')
+  expect(writes[2]?.command_id).not.toBe(writes[0]?.command_id)
 })
 
 it('send_again_says_the_next_message_carries_it', async () => {

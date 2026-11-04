@@ -251,6 +251,8 @@ function Conversation({
         )}
         <WaitingMessages threadId={threadId} running={c.running !== null} />
         <Composer
+          // A late anchor handoff replaces the composer that was locked during that write.
+          key={carried?.anchor === undefined ? undefined : carried.attempt.commandId}
           to={{ threadId }}
           carried={carried}
           harness={harness}

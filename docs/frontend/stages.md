@@ -56,17 +56,17 @@ Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-c
 - Touch: web/src/app/conversation/anchor-chip.tsx, anchor-chip.test.tsx, anchor-picker.tsx, conversation.tsx,
   contract.yaml; docs/frontend/codebase/README.md
 - Needs: F-86
-- Done when: `npx vitest run src/app/conversation/anchor-chip.test.tsx` passes, with the seven tests the task names
+- Done when: `npx vitest run src/app/conversation/anchor-chip.test.tsx` passes, with the eight tests the task names
 
 ### F-88 · Start a conversation anchored at a part or an outcome
 - Status: done
 - Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-88-start-a-conversation-anchored-at-a-part-or-an-outcome
 - Read: web/src/router.tsx (draft route); web/src/app/conversation/first-send.ts, draft.tsx
 - Touch: web/src/router.tsx; web/src/app/conversation/draft.tsx, first-send.ts, draft.test.tsx, carried-send.ts,
-  use-send.ts, composer.tsx, contract.yaml;
+  use-send.ts, composer.tsx, conversation.tsx, contract.yaml;
   web/src/app/design/parts-view.tsx, roadmap-view.tsx, contract.yaml
 - Needs: F-86
-- Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the eight tests the task names
+- Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the ten tests the task names
 
 ### F-89 · Each turn's planning context, and its record
 - Status: blocked

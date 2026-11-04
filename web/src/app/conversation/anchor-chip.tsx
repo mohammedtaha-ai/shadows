@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { outcomeQuery, partQuery } from '@/api/design'
@@ -7,6 +7,11 @@ import { anchorQuery, resendContext, saveAnchorAnswer, setAnchor, type ThreadPla
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { AnchorPicker } from './anchor-picker'
+import { anchorWriteKey, anchorWriteRefused, readAnchorRecovery, useAnchorRecovery } from './carried-send'
+
+const pendingChanges = new Map<string, {
+  value: ThreadPlanningAnchor | null; attempt: Attempt; refused: boolean
+}>()
 
 export function AnchorChip({ projectId, threadId }: { projectId: string; threadId: string }) {
   const queryClient = useQueryClient()
@@ -20,15 +25,34 @@ export function AnchorChip({ projectId, threadId }: { projectId: string; threadI
   const removed = detailError instanceof ApiError && 'status' in detailError.problem && detailError.problem.status === 404
 
   const [picking, setPicking] = useState(false)
-  const changeAttempt = useRef<Attempt | null>(null)
+  const recovering = useAnchorRecovery(threadId) !== null
+  const writing = useIsMutating({ mutationKey: anchorWriteKey(threadId), exact: true }) > 0
   const resendAttempt = useRef<Attempt | null>(null)
   const change = useMutation({
-    mutationFn: (value: ThreadPlanningAnchor | null) => {
-      changeAttempt.current = attemptFor(changeAttempt.current, { threadId, anchor: value })
-      return setAnchor(threadId, changeAttempt.current.commandId, value)
+    mutationKey: anchorWriteKey(threadId),
+    scope: { id: threadId },
+    mutationFn: async (value: ThreadPlanningAnchor | null) => {
+      if (readAnchorRecovery(threadId) !== null) throw new Error('Resolve the first message’s anchor in the composer.')
+      const previous = pendingChanges.get(threadId)
+      const attempt = attemptFor(previous?.attempt ?? null, { threadId, anchor: value })
+      if (previous !== undefined && previous.attempt !== attempt && !previous.refused) {
+        try {
+          const answer = await setAnchor(threadId, previous.attempt.commandId, previous.value)
+          await saveAnchorAnswer(queryClient, threadId, answer)
+        } catch (error) {
+          if (!anchorWriteRefused(error)) throw error
+        }
+      }
+      try {
+        const answer = await setAnchor(threadId, attempt.commandId, value)
+        pendingChanges.delete(threadId)
+        return answer
+      } catch (error) {
+        pendingChanges.set(threadId, { value, attempt, refused: anchorWriteRefused(error) })
+        throw error
+      }
     },
     onSuccess: async answer => {
-      changeAttempt.current = null
       await saveAnchorAnswer(queryClient, threadId, answer)
       setPicking(false)
     },
@@ -40,7 +64,8 @@ export function AnchorChip({ projectId, threadId }: { projectId: string; threadI
     },
     onSuccess: () => { resendAttempt.current = null },
   })
-  const busy = change.isPending || resend.isPending
+  const busy = writing || resend.isPending
+  const anchorBusy = busy || recovering
   const error = selected.error ?? (removed ? null : detailError) ?? resend.error ?? (picking ? null : change.error)
   const openPicker = () => { change.reset(); setPicking(true) }
 
@@ -50,16 +75,16 @@ export function AnchorChip({ projectId, threadId }: { projectId: string; threadI
       {anchor != null && <span>
         {removed ? `Anchored ${kind} was removed` : name === undefined ? 'Planning anchor' : <>Anchored at <bdi>{name}</bdi></>}
       </span>}
-      {anchor === null && <Button variant="ghost" size="xs" disabled={busy} onClick={openPicker}>Anchor…</Button>}
+      {anchor === null && <Button variant="ghost" size="xs" disabled={anchorBusy} onClick={openPicker}>Anchor…</Button>}
       {anchor != null && <>
-        {!removed && <Button variant="ghost" size="xs" disabled={busy} onClick={openPicker}>Change</Button>}
-        <Button variant="ghost" size="xs" disabled={busy} onClick={() => change.mutate(null)}>Clear</Button>
+        {!removed && <Button variant="ghost" size="xs" disabled={anchorBusy} onClick={openPicker}>Change</Button>}
+        <Button variant="ghost" size="xs" disabled={anchorBusy} onClick={() => change.mutate(null)}>Clear</Button>
       </>}
       <Button variant="ghost" size="xs" disabled={busy} onClick={() => resend.mutate()}>Send context again</Button>
     </div>
     {resend.isSuccess && <p role="status" className="text-xs text-muted-foreground">Your next normal message carries it again.</p>}
     {error && <ErrorLine error={error} />}
-    {picking && <AnchorPicker projectId={projectId} pending={change.isPending} error={change.error}
+    {picking && <AnchorPicker projectId={projectId} pending={anchorBusy} error={change.error}
       onChoose={value => change.mutate(value)} onClose={() => setPicking(false)} />}
   </div>
 }

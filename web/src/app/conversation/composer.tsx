@@ -109,7 +109,7 @@ export function Composer({
 
   // Image callbacks run on delivery, after the selection hook has been composed.
   const { deliver, clearAttempt, sending, inFlight, error: sendError, anchorRecovery } = useSend({
-    to, threadId, running, initialAttempt: carried?.attempt, initialAnchor: carried?.anchor,
+    to, threadId, running, initialAttempt: carried?.attempt,
     imagesChanged: () => imagesChanged(),
     dropImages: sent => dropImages(sent),
     clearPrompt: () => setPrompt(''),
