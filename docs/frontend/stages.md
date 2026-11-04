@@ -66,7 +66,7 @@ Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-c
   use-send.ts, composer.tsx, contract.yaml;
   web/src/app/design/parts-view.tsx, roadmap-view.tsx, contract.yaml
 - Needs: F-86
-- Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the six tests the task names
+- Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the seven tests the task names
 
 ### F-89 · Each turn's planning context, and its record
 - Status: blocked

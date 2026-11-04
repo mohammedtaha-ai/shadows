@@ -177,11 +177,13 @@ the planning context was heard, opens what it carried, and asks for it to be sen
     while an anchor write may still land. The server runs a command in a task that outlives the
     connection (`Transport::detached`), so a clear sent alone could commit first, and the first
     write would then set the anchor again. So:
-    1. **The first call's outcome is unknown** (no HTTP answer: a network error or a lost
-       answer): replay `setAnchor` with the pending `Attempt`, the same `command_id`. Once it
-       answers, the first write has settled.
-    2. **The first call answered with a refusal** (an HTTP error answer): nothing was saved, so
-       skip the replay.
+    1. **The first call's outcome is unknown:** replay `setAnchor` with the pending `Attempt`,
+       the same `command_id`. Once the daemon answers it, the first write has settled. "Unknown"
+       means any failure that is not the daemon's own answer: `ApiError` with problem kind
+       `unreachable`, or kind `http`, such as a proxy's `504` (`web/src/api/transport/index.ts`).
+    2. **The daemon refused it** (problem kind `daemon`, such as a `404` for a removed part):
+       the daemon answers only once its command has finished, so nothing was saved. Skip the
+       replay.
     3. Then send `setAnchor(null)` under its own `Attempt`. Only once the clear succeeds does it
        drop the pending anchor and call `startTurn`.
     4. Any failure on the way keeps the error, keeps whatever is still pending, and starts no
@@ -198,13 +200,18 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - `a_retry_sets_the_anchor_first_with_the_same_command_id`: the first `PUT …/anchor` loses its
     answer. The retry in the thread sends `PUT …/anchor` with the same `command_id`, then
     `POST …/turns`. One thread exists;
-  - `send_without_the_anchor_settles_then_clears`: the first `PUT …/anchor` fails with no answer.
-    "Send without the anchor" sends, in this order:
-    1. `PUT …/anchor` with the first `command_id`;
-    2. `PUT …/anchor` with `anchor: null` and a new `command_id`;
-    3. `POST …/turns`.
+  - `send_without_the_anchor_waits_for_the_pending_write`: this test stages the race itself.
+    1. The fake daemon holds the first `PUT …/anchor` open and fails the browser's request with
+       no answer, while its write is still pending.
+    2. "Send without the anchor" replays the `PUT` with the first `command_id`. Neither the clear
+       nor the turn is sent while that replay is unanswered.
+    3. The fake completes the pending write (the anchor is saved), then answers the replay.
+    4. Only then come `PUT …/anchor` with `anchor: null` and a new `command_id`, then
+       `POST …/turns`.
 
     The daemon holds no anchor when the turn starts.
+  - `a_gateway_answer_is_treated_as_unknown`: the first `PUT` answers a plain-text `504`. The
+    replay is sent before the clear;
   - `send_without_the_anchor_after_a_refusal_only_clears`: the first `PUT` answers 404. No
     replay; `PUT` null, then `POST …/turns`;
   - `an_unknown_anchor_value_is_ignored`.
