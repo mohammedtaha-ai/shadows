@@ -16,7 +16,7 @@ export function ContextRecordPanel({ operationId, state, onClose }: {
     <header className="flex items-start justify-between gap-2 border-b border-border/70 px-4 py-3">
       <div>
         <h2 className="text-sm font-semibold">Planning context</h2>
-        <p role="status" className="mt-0.5 text-xs text-muted-foreground capitalize"><ContextState state={state} /></p>
+        <p role="status" className="mt-0.5 text-xs text-muted-foreground"><ContextState state={state} /></p>
       </div>
       <button type="button" onClick={onClose} aria-label="Close planning context"
         className="rounded-lg border border-border/60 p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
