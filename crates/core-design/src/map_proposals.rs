@@ -43,6 +43,8 @@ pub struct MapPropose {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MapProposal {
     #[serde(default)]
+    pub unserved: Vec<String>,
+    #[serde(default)]
     pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,

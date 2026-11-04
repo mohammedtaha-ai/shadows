@@ -19,7 +19,8 @@ impl MapRefusal {
         Self::new(
             "invalid_path",
             format!(
-                "part {title:?}: {message}. Use a relative path without parent traversal or reserved names."
+                "part {title:?}: {message}. \
+                 Use a relative path without parent traversal or reserved names."
             ),
         )
     }
@@ -302,7 +303,8 @@ impl MapRules {
                     return Err(MapRefusal::new(
                         "folder_claimed_twice",
                         format!(
-                            "{message} Give the folder to one part, or make one part the other's child."
+                            "{message} Give the folder to one part, \
+                             or make one part the other's child."
                         ),
                     ));
                 }
@@ -362,6 +364,20 @@ impl MapRules {
 }
 
 impl MapRules {
+    pub fn unserved_items(parts: &[MapPart<'_>], vision: &VisionContent) -> Vec<String> {
+        let served: BTreeSet<_> = parts
+            .iter()
+            .flat_map(|part| &part.content.serves)
+            .map(String::as_str)
+            .collect();
+        crate::VisionField::ALL
+            .into_iter()
+            .flat_map(|field| vision.items(field))
+            .filter(|item| !served.contains(item.id.as_str()))
+            .map(|item| item.id.clone())
+            .collect()
+    }
+
     pub fn unserved_goals(parts: &[MapPart<'_>], vision: &VisionContent) -> Vec<String> {
         vision
             .goals

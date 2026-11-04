@@ -154,6 +154,12 @@ functions:
     approve_vision_proposal_for_test: Test-only approval using the supplied command and approver.
     propose_vision_for_test: Test-only proposal using the supplied command, writer and operation.
   service:
+    set_thread_anchor:
+      signature: "(&self, command_id: String, thread: &ThreadId, anchor: Option<DesignAnchor>) -> Result<Option<DesignAnchor>, DesignError>"
+      rule: Replay first, validate the live Planner and same-project anchor, then store or clear it atomically.
+    thread_anchor:
+      signature: "(&self, thread: &ThreadId) -> Result<Option<DesignAnchor>, DesignError>"
+      rule: A removed design item remains a readable reference so Turns can announce its removal.
     create_structure:
       signature: "(&self, command_id: String, project: &ProjectId, map_revision: i64) -> Result<StructureWritten, DesignError>"
       # Person HTTP only; daemon mutex, intent before disk, immutable command replay.
@@ -626,6 +632,8 @@ tests:
 # Map proposal standards pins are read through Harness::pinned_standards_in.
 
 modules:
+  anchors.rs: Planner anchor commands
+  store/anchors.rs: Planner anchor persistence
   agreement.rs: Shared HTTP agreement value shapes
   agreement_scope.rs: Live grant attribution for agreement proposals
   agreement_validation.rs: Offline validation of canonical shared OpenAPI content
@@ -695,3 +703,8 @@ vision_reservations:
   transaction: Counter advancement, proposal, command replay and card insertion share one write.
   approval: Uses the reserved identity; a legacy null reservation allocates from the current counter.
   discarded: Superseded proposals retain their consumed identity and it is never reused.
+
+map_coverage:
+  answer: 'MapProposal.unserved lists all vision fields in VisionField::ALL and item order, using the complete proposed map.'
+  persistence: 'The original answer and card persist the list. Legacy proposal JSON defaults it to an empty list.'
+  rule: Informational only; an item served by another part is covered even if one part omitted it.
