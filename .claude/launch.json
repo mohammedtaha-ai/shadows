@@ -8,7 +8,7 @@
         "serve",
         "--debug",
         "--db",
-        "C:/Users/Mohammed/AppData/Local/shadows-dev/shadows.sqlite3",
+        "C:/Users/Mohammed/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Local/shadows-dev/shadows.sqlite3",
         "--node",
         "C:/Program Files/nodejs/node.exe",
         "--adapter",
