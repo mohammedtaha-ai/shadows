@@ -100,7 +100,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: `cargo test -p shadows --test planning_context` passes, with the eight tests the task names
 
 ### B-51 · Routes for the anchor and the record
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-51-routes-for-the-anchor-and-the-record
 - Read: crates/shadows-http/src/contract.yaml
 - Needs: docs/shared/requests/2026-11-04-planning-context-routes.md, accepted

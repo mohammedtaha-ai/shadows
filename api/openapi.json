@@ -700,6 +700,21 @@
         ],
         "type": "object"
       },
+      "AnchorResponse": {
+        "properties": {
+          "anchor": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadPlanningAnchor"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
       "Answer": {
         "description": "What a question answers.",
         "properties": {
@@ -1016,6 +1031,51 @@
         ],
         "type": "string"
       },
+      "CarriedContext": {
+        "description": "Planning material prepared for one invocation.",
+        "properties": {
+          "cuts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "detail_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "digest": {
+            "type": "string"
+          },
+          "index_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "over_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ContextSource"
+            },
+            "type": "array"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "digest",
+          "text",
+          "sources",
+          "index_tokens",
+          "detail_tokens",
+          "over_tokens",
+          "cuts"
+        ],
+        "type": "object"
+      },
       "ChangeEffort": {
         "description": "The effort a person picked.",
         "properties": {
@@ -1117,6 +1177,41 @@
           "active_limit",
           "active_limit_min",
           "active_limit_max"
+        ],
+        "type": "object"
+      },
+      "ContextResponse": {
+        "properties": {
+          "carried": {
+            "$ref": "#/components/schemas/CarriedContext"
+          },
+          "heard": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "carried",
+          "heard"
+        ],
+        "type": "object"
+      },
+      "ContextSource": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "version"
         ],
         "type": "object"
       },
@@ -2015,6 +2110,7 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\n`Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "CONTEXT_NOT_CARRIED",
           "PERMISSION_NOT_FOUND",
           "PERMISSION_SETTLED",
           "PERMISSION_OPTION_NOT_OFFERED",
@@ -5374,6 +5470,27 @@
         ],
         "type": "object"
       },
+      "SetAnchor": {
+        "properties": {
+          "anchor": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadPlanningAnchor"
+              }
+            ]
+          },
+          "command_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
       "SetEnv": {
         "properties": {
           "command_id": {
@@ -5955,6 +6072,46 @@
       "ThreadId": {
         "format": "uuid",
         "type": "string"
+      },
+      "ThreadPlanningAnchor": {
+        "oneOf": [
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "part"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/OutcomeId"
+              },
+              "kind": {
+                "enum": [
+                  "outcome"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "TodoItem": {
         "properties": {
@@ -9213,6 +9370,46 @@
         "summary": "This document.",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/operations/{id}/context": {
+      "get": {
+        "operationId": "context",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/OperationId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "CONTEXT_NOT_CARRIED"
+          }
+        },
+        "tags": [
+          "threads"
         ]
       }
     },
@@ -12556,6 +12753,114 @@
           }
         },
         "summary": "Changes the thread's CLI before its first turn. A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn, or on a fork (its\nsession is a fork of its source's), is `HARNESS_LOCKED`. A change\ncloses the thread's adapter.",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/anchor": {
+      "get": {
+        "operationId": "get_anchor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnchorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "threads"
+        ]
+      },
+      "put": {
+        "operationId": "set_anchor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAnchor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnchorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
         "tags": [
           "threads"
         ]

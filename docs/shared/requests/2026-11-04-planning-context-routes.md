@@ -26,7 +26,7 @@ cut, and whether the session heard it.
 | When | The screen shows |
 |---|---|
 | The part or outcome is not in the conversation's project (404) | "That part is not in this project." |
-| The conversation is an AYLUL agent's (400 `INVALID_COMMAND`) | The anchor control is not offered for AYLUL conversations. |
+| The conversation is an AYLUL agent's (422 `INVALID_COMMAND`) | The anchor control is not offered for AYLUL conversations. |
 | The turn has no context record (404 `CONTEXT_NOT_CARRIED`) | "No planning context record is available for this turn." |
 | A replay with the same `command_id` and other params (409 `COMMAND_CONFLICT`) | The usual conflict line. |
 
