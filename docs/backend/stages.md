@@ -69,9 +69,60 @@ and the commits outside their `Touch:` lists, are in this file at `fc78cb7`. The
 `docs/shared/requests/2026-11-04-planning-context-routes.md` stays until the frontend slice that shows the
 inspection view is built. Local acceptance with real provider and browser is in the
 [dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
-Not built: the re-send after a compaction (spec §6, slice 2, not yet planned), the inspection view
+Not built: the re-send after a compaction (spec §6, slice 2, planned below), the inspection view
 (frontend), and `Plans::owner_thread` (spec §6, slice 4).
 
 ## Tasks
 
-No task is open. B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
+B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
+
+Planner context, slice 2: re-send after a compaction, or on request
+([spec](specs/2026-11-04-planner-context-design.md) §4.3, [plan](plans/2026-11-04-planner-context-slice-2.md),
+[shared request](../shared/requests/2026-11-04-planning-context-resend.md)). In order: B-55, B-56,
+B-57, then B-58. The live acceptance follows them (the plan's last section).
+
+### B-55 · The adapter's compaction is one event (shadows-agent, fake-acp)
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-55-the-adapters-compaction-is-one-event-shadows-agent-fake-acp
+- Read: the plan's "What the adapter sends"; `docs/evidence/2026-11-04-planner-context-probe.md` §1;
+  the `shadows-agent` rows of docs/codebase/README.md
+- Touch: crates/shadows-agent/src/events.rs, crates/shadows-agent/src/acp/mapping.rs,
+  crates/shadows-agent/src/acp_tests.rs, crates/core-turns/src/entries.rs,
+  crates/fake-acp/src/prompts.rs
+- Done when: `cargo test -p shadows-agent` (the five tests the plan names) and
+  `cargo test -p core-turns` pass
+
+### B-56 · A thread forgets what its session heard (Harness)
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-56-a-thread-forgets-what-its-session-heard-harness
+- Read: crates/core-harness/contract.yaml; spec §4.3 "What a compaction or a request forgets";
+  crates/core-db/contract.yaml (the journal, commands)
+- Touch: crates/core-db/migrations/0046_context_forget.sql,
+  crates/core-db/tests/fixtures/base_migrations.sha384, crates/core-db/tests/migration_checksums.rs,
+  crates/core-db/tests/storage_contract/schema.rs, crates/core-db/contract.yaml,
+  crates/core-harness/src/context_record.rs, crates/core-harness/src/store/context_record.rs,
+  crates/core-harness/src/setup.rs, crates/core-harness/src/model.rs,
+  crates/core-harness/src/error.rs, crates/core-harness/contract.yaml,
+  crates/shadows-core/src/error.rs, crates/shadows-core/src/lib.rs (re-export `Forget`),
+  crates/shadows/tests/architecture/table-owners.txt, crates/shadows/tests/context_record.rs
+- Done when: `cargo test -p core-harness`, `cargo test -p shadows --test context_record`,
+  `cargo test -p core-db --test migration_checksums --test storage_contract` pass
+
+### B-57 · A completed compaction forgets (Turns)
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-57-a-completed-compaction-forgets-turns
+- Read: crates/core-turns/contract.yaml; B-55's event and B-56's method
+- Touch: crates/core-turns/src/turn.rs, crates/core-turns/contract.yaml,
+  crates/shadows/tests/planning_context.rs
+- Done when: `cargo test -p shadows --test planning_context` (the six tests the plan names) and
+  `cargo test -p core-turns` pass
+
+### B-58 · The "send the context again" route (shadows-http)
+- Status: todo
+- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-58-the-send-the-context-again-route-shadows-http
+- Read: crates/shadows-http/src/contract.yaml; the shared request
+  docs/shared/requests/2026-11-04-planning-context-resend.md
+- Touch: crates/shadows-http/src/planning_context.rs, crates/shadows-http/src/lib.rs,
+  crates/shadows-http/src/contract.yaml, api/openapi.json, web/src/api/schema.d.ts,
+  crates/shadows/tests/planning_routes.rs
+- Done when: `cargo test -p shadows --test planning_routes --test openapi` pass

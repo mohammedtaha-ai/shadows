@@ -1,7 +1,8 @@
 # Planner context: what a Planner session is given, and why
 
-- Status: **slice 1 implemented and locally verified**, 2026-11-04; CI pending push.
-  Accepted by Mohammed. Later slices remain proposals. Direction was decided in conversation on 2026-11-03 and 2026-11-04.
+- Status: **slice 1 merged** in PR #55 (`fc78cb7`), 2026-11-04. Slice 2 planned
+  (`docs/backend/plans/2026-11-04-planner-context-slice-2.md`), its §4.3 rules accepted by
+  Mohammed on 2026-11-04. Slices 3 and 4 remain proposals. Direction was decided in conversation on 2026-11-03 and 2026-11-04.
 - Roadmap: Stage 3, "Planner context" (`docs/core/roadmap.md`): "Start planning at an explicit
   part or stage with bounded, attributable context; inspect what was included."
 - Builds on, and does not replace:
@@ -133,7 +134,19 @@ Three layers, in this order:
   `trigger` `manual` or `automatic`. A completed compaction clears the session's heard context
   digest, so the next turn carries the context again.
 - **On request:** a "send the context again" action in the conversation, for anything the
-  compaction rule misses. (Claude's call.)
+  compaction rule misses. (Claude's call.) It is a command on the thread (`thread.context_resend`)
+  and has the same effect as a completed compaction.
+- **What a compaction or a request forgets** (Mohammed, 2026-11-04): both the planning context
+  and the instructions and standards changes. The session's system prompt keeps what it opened
+  with, but every change it heard later was a conversation message, which a compaction may drop.
+  So after either, the next turn compares against what the session **opened with**, and sends
+  again every change since then. One `Harness` method does both.
+  - The planning context's reset is durable: a forget is a journal entry, and a heard row counts
+    only when its turn was prepared after the thread's latest forget.
+  - The instructions and standards reset is held in memory, as the existing "held back by a
+    command turn" state is. A daemon restart between a forget and the next turn re-sends the
+    planning context but not the earlier instructions changes. Accepted as a limit.
+- A failed or cancelled compaction forgets nothing.
 - A turn that carries a command alone (`/compact`, `/clear`) carries no context, as today, and
   the context stays owed.
 
@@ -179,10 +192,11 @@ No new service.
 1. **The anchor and the first-turn context:** anchor on a thread; the index and detail compiled
    and sent on a session's first turn; the record per invocation. Run it in the browser on a real
    project.
-2. **Re-send after a compaction:** a completed compaction (manual or automatic) clears the
-   heard digest; the "send again" action. (Re-sending on any change already ships in slice 1,
-   through the digest.) A live `/compact` and a live automatic
-   compaction through `shadows serve` confirm the evidence's read.
+2. **Re-send after a compaction:** a completed compaction (manual or automatic), or the "send
+   again" action, forgets what the session heard (§4.3). (Re-sending on any change already ships
+   in slice 1, through the digest.) A live `/compact` and a live automatic compaction through
+   `shadows serve` confirm the evidence's read. The action's route ships here; its button ships
+   with the inspection view.
 3. **The inspection view**, in the conversation (frontend).
 4. **The owner thread:** `Plans::owner_thread`. It ships when messaging slice 3 (the manager)
    needs it.
@@ -207,6 +221,12 @@ No new service.
 > **OPEN — a decisions record.** Decisions live in plan version rationales and standards. Whether
 > a project needs its own decision log (Mohammed: "the vision and the decisions") is decided when
 > the manager's slice needs to read them.
+
+> **OPEN — a plan approval that clears the context.** In Claude Code's plan mode, which the
+> person picks in the mode selector, approving a plan can offer "clear context". The adapter then
+> replaces Claude's conversation under the same session id and reports no compaction, so Shadows
+> still counts the context as heard. Until this closes, the "send the context again" action covers
+> it. Closed when a Planner session is seen using that option, or the adapter reports the reset.
 
 > **OPEN — the budgets.** §4.2's numbers are Claude's starting values. testing4 fits with room
 > to spare (§7), so they are not yet tested at their limit. Closed when a project's recorded
