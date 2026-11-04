@@ -207,6 +207,15 @@ impl Setups {
         }
     }
 
+    /// The session lost what it heard: compare the next turn with what it
+    /// opened with. A thread with no held setup has no live session.
+    pub(crate) fn reset(&self, thread: &ThreadId, fork: bool) {
+        let opened = self.heard_first(thread, fork);
+        if let Some(held) = self.lock().get_mut(thread) {
+            held.withheld = opened;
+        }
+    }
+
     /// Before a turn: the context block of what changed, when the versions
     /// the session last heard differ from the current ones. Versions held
     /// back by command turns come first; else the latest started turn's.

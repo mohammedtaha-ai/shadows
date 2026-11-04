@@ -1,8 +1,9 @@
 //! Immutable planning context records with a session acknowledgement.
 use super::HarnessStore;
-use crate::{CarriedContext, ThreadId};
-use core_db::{Storage, StorageError};
+use crate::{CarriedContext, Forget, ThreadId};
+use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_operations::{OperationId, Operations};
+use core_threads::Threads;
 
 impl HarnessStore {
     pub async fn mark_context_heard_in(
@@ -78,11 +79,93 @@ impl HarnessStore {
     ) -> Result<Option<String>, StorageError> {
         Ok(sqlx::query_scalar(
             "SELECT digest FROM invocation_context \
-            WHERE session_id=? AND heard=1 ORDER BY start_seq DESC LIMIT 1",
+            WHERE session_id=? AND heard=1 AND start_seq > COALESCE( \
+              (SELECT MAX(seq) FROM context_forget f \
+                WHERE f.thread_id=invocation_context.thread_id), 0) \
+            ORDER BY start_seq DESC LIMIT 1",
         )
         .bind(session)
         .fetch_optional(self.storage.reader())
         .await?)
+    }
+
+    pub(crate) async fn reader_conn(
+        &self,
+    ) -> Result<sqlx::pool::PoolConnection<sqlx::Sqlite>, StorageError> {
+        Ok(self.storage.reader().acquire().await?)
+    }
+
+    /// Records the forget with its journal event. `false` for a replayed
+    /// request, which wrote nothing.
+    pub async fn forget_context(
+        &self,
+        thread: &ThreadId,
+        forget: &Forget,
+    ) -> Result<bool, StorageError> {
+        let (thread, forget, ts) = (thread.clone(), forget.clone(), Storage::now());
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let (reason, trigger, operation, ctx) = match &forget {
+                        Forget::Compaction { operation, trigger } => {
+                            ("compaction", trigger.clone(), Some(operation.clone()), None)
+                        }
+                        Forget::Request { command_id } => {
+                            let ctx = CommandContext::user(
+                                command_id.clone(),
+                                "thread.context_resend",
+                                serde_json::json!({ "thread": thread.as_str() }),
+                            );
+                            if CommandContext::classify(conn, &ctx, "Thread", thread.as_str())
+                                .await?
+                                .is_some()
+                            {
+                                return Ok(false);
+                            }
+                            ("request", None, None, Some(ctx))
+                        }
+                    };
+                    let project = Threads::project_in(conn, &thread).await?;
+                    let actor = match &ctx {
+                        Some(ctx) => Actor::user(&ctx.principal_id),
+                        None => Actor::system(),
+                    };
+                    let mut event = JournalEntry::new("PlannerContextForgotten", actor)
+                        .with_project(project.as_str())
+                        .with_thread(thread.as_str())
+                        .with_payload(serde_json::json!({ "reason": reason, "trigger": trigger }));
+                    if let Some(op) = &operation {
+                        event = event.with_operation(op.as_str());
+                    }
+                    let seq = JournalEntry::append_event(conn, event, &ts).await?;
+                    sqlx::query(
+                        "INSERT INTO context_forget(seq,thread_id,operation_id,reason,trigger, \
+                        created_at) VALUES (?,?,?,?,?,?)",
+                    )
+                    .bind(seq)
+                    .bind(thread.as_str())
+                    .bind(operation.as_ref().map(OperationId::as_str))
+                    .bind(reason)
+                    .bind(&trigger)
+                    .bind(&ts)
+                    .execute(&mut *conn)
+                    .await?;
+                    if let Some(ctx) = &ctx {
+                        CommandContext::record_command(
+                            conn,
+                            ctx,
+                            "Thread",
+                            thread.as_str(),
+                            "ContextForget",
+                            &seq.to_string(),
+                            &ts,
+                        )
+                        .await?;
+                    }
+                    Ok(true)
+                })
+            })
+            .await
     }
 
     pub async fn context_record(

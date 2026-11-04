@@ -41,7 +41,7 @@ pub use core_extensions::{
 };
 pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use core_harness::{
-    AylulConfig, AylulUsageSnapshot, CarriedContext, ContextSource, Harness, HarnessError,
+    AylulConfig, AylulUsageSnapshot, CarriedContext, ContextSource, Forget, Harness, HarnessError,
     HarnessInfo, LeaseError, OpenError, OpenSession, PermissionAnswer, PermissionOption,
     RememberedSettings, WaitingPermission,
 };

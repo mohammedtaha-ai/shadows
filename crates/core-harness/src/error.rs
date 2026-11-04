@@ -40,6 +40,8 @@ pub enum HarnessError {
     ThreadBusy,
     #[error("{0}")]
     ImagesUnsupported(String),
+    #[error("{0}")]
+    InvalidCommand(String),
     #[error(transparent)]
     Agents(#[from] core_agents::AgentsError),
     #[error(transparent)]

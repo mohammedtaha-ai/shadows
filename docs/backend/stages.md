@@ -93,7 +93,7 @@ B-57, then B-58. The live acceptance follows them (the plan's last section).
   `cargo test -p core-turns` pass
 
 ### B-56 · A thread forgets what its session heard (Harness)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-56-a-thread-forgets-what-its-session-heard-harness
 - Read: crates/core-harness/contract.yaml; spec §4.3 "What a compaction or a request forgets";
   crates/core-db/contract.yaml (the journal, commands)

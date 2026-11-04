@@ -42,7 +42,7 @@ use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
 pub use model::{
-    AylulUsageSnapshot, CarriedContext, ContextSource, HarnessInfo, HarnessMode,
+    AylulUsageSnapshot, CarriedContext, ContextSource, Forget, HarnessInfo, HarnessMode,
     InvocationVersions, InvocationView, RememberedSettings,
 };
 use sessions::Sessions;
