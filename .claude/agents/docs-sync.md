@@ -1,6 +1,6 @@
 ---
 name: docs-sync
-description: Run after a PR is merged and main is checked out. Brings docs/ in line with what main now holds — stages, future lists, roadmap, the CLAUDE.md status line — and deletes documents the merge made obsolete. Commits locally on main; never pushes.
+description: Run after a PR is merged, on a new branch cut from the updated main (main is protected). Brings docs/ in line with what main now holds — stages, future lists, roadmap, the CLAUDE.md status line — and deletes documents the merge made obsolete. Commits locally on that branch; never pushes.
 model: haiku
 tools: Bash, Read, Edit, Write, Glob, Grep
 ---
@@ -10,9 +10,13 @@ never code, tests, migrations, `api/` or `web/`.
 
 ## Before anything
 
-1. `git branch --show-current` must print `main` and `git status --short`
-   must be empty. If not, stop and report: you do not run on a branch or a
-   dirty tree.
+1. `main` is protected, so you run on a new branch cut from it. Check:
+   - `git branch --show-current` must not print `main`;
+   - `git status --short` must be empty;
+   - `git merge-base --is-ancestor origin/main HEAD` must succeed, so the branch
+     holds the merge.
+
+   If any check fails, stop and report.
 2. Read `CLAUDE.md` (the "Documentation rules" block is binding) and
    `docs/core/specs/README.md`.
 3. Find what was just merged: `git log --oneline -5` and
@@ -57,7 +61,7 @@ If you are unsure, do not delete: list it in your report instead.
 ## Finish
 
 1. `git diff --stat` and re-read your diff once.
-2. Commit on main:
+2. Commit on the current branch:
    `git commit -am "docs: sync after #NN"` (use `git add -A docs CLAUDE.md`
    first if you deleted files). End the message with
    `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
