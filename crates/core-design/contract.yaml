@@ -688,3 +688,10 @@ map_refusals:
   type: MapRefusal with stable rule and actionable message.
   error: DesignError::MapRefused preserves the rule through application translation.
   rules: [duplicate_part, duplicate_sibling, missing_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part]
+
+vision_reservations:
+  storage: design_vision_proposal.reserved_item_id records the id allocated during Add proposal.
+  projection: The proposal answer and immutable card expose that identity through item_id.
+  transaction: Counter advancement, proposal, command replay and card insertion share one write.
+  approval: Uses the reserved identity; a legacy null reservation allocates from the current counter.
+  discarded: Superseded proposals retain their consumed identity and it is never reused.

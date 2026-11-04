@@ -118,7 +118,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: `cargo test -p core-design` and `cargo test -p shadows-mcp` pass, with the four tests named
 
 ### B-53 · Vision IDs are given when proposed
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-53-vision-ids-are-given-when-proposed-defect-2
 - Read: docs/evidence/2026-11-04-planner-session-defects.md §2; crates/core-design/src/store/proposal_approval.rs, store/vision.rs
 - Touch: crates/core-db/migrations/0045_vision_reserved_id.sql; crates/core-design/src/store/,

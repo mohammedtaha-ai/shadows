@@ -87,13 +87,22 @@ impl DesignStore {
                         .into());
                     }
                     let new_id = if p.action == VisionAction::Add {
-                        Some(
-                            super::super::vision_items::VisionItems::next_id(
+                        let reserved: Option<String> = sqlx::query_scalar(
+                            "SELECT reserved_item_id FROM design_vision_proposal \
+                             WHERE id=? AND project_id=?",
+                        )
+                        .bind(&proposal)
+                        .bind(project.as_str())
+                        .fetch_one(&mut *conn)
+                        .await?;
+                        Some(match reserved {
+                            Some(id) => id,
+                            None => super::super::vision_items::VisionItems::next_id(
                                 p.field,
                                 &mut counters,
                             )
                             .map_err(StorageError::Constraint)?,
-                        )
+                        })
                     } else {
                         None
                     };
