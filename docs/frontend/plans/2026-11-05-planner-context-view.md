@@ -84,7 +84,9 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   Each reads the operation through the thread's operations list:
   - `an_invocation_without_a_record_has_no_planning_context`: `planning_context == None`.
   - `a_prepared_record_reads_prepared`: after `prepare_context`, `Some(Prepared)`.
-  - `a_heard_record_reads_heard`: after `mark_context_heard`, `Some(Heard)`.
+  - `a_heard_record_reads_heard`: after `mark_context_heard`, `Some(Heard)`, read through both
+    the operations list (`invocations_in`) and the single operation (`Turns` `get_operation`, which
+    reads `invocation_in`).
 - [ ] Run `cargo test -p shadows --test context_record`; expect FAIL.
 - [ ] In both queries of `store/reads.rs`, `LEFT JOIN invocation_context USING (operation_id)` and
   read `heard` as one more column. One row type serves both queries, as today.
@@ -134,6 +136,9 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   (`/compact`) carries nothing, so the line says "message", not "turn".
 - `AnchorPicker` is a dialog with two tabs, Parts and Outcomes. Each lists one page of a level and
   opens a child level on click; "Load more" uses the next cursor. Choosing calls `setAnchor`.
+- No stream event refreshes the anchor (`web/src/stream/refresh.ts` has none for it). So every
+  successful `setAnchor` (Change, Clear, the picker, and F-88's first send) writes its answer
+  into `anchorQuery(threadId)`, and the header shows the new state at once.
 - Each level's list is keyed by its parent (`key={parent ?? 'root'}`), so moving to another
   parent starts from that parent's first page. `useDesignPages` keeps the loaded pages in local
   state and compares only the revision, which two parents can share.
@@ -141,8 +146,8 @@ the planning context was heard, opens what it carried, and asks for it to be sen
 - [ ] Tests:
   - `shows_the_anchor_name`;
   - `shows_a_removed_anchor` (the part query answers 404);
-  - `clear_sends_null_with_a_command_id`;
-  - `picking_an_outcome_sets_it`;
+  - `clear_sends_null_with_a_command_id`, and the chip says "Not anchored" without a reload;
+  - `picking_an_outcome_sets_it`, and the chip shows the outcome's name without a reload;
   - `moving_to_another_parent_starts_at_its_first_page`;
   - `send_again_says_the_next_message_carries_it`, in an unanchored conversation;
   - `not_shown_for_aylul`.
@@ -168,8 +173,11 @@ the planning context was heard, opens what it carried, and asks for it to be sen
     `Attempt`.
   - In the thread, `use-send.ts`'s send first calls `setAnchor` with that same `Attempt`, and calls
     `startTurn` only once it succeeds. A lost answer is replayed under the same command id.
-  - Beside the error, the composer offers "Send without the anchor". It drops the pending anchor,
-    then sends as usual.
+  - Beside the error, the composer offers "Send without the anchor". The anchor call may have
+    been saved with its answer lost, so this first sends `setAnchor(null)` under its own
+    `Attempt`. Only once the clear succeeds does it drop the pending anchor and call `startTurn`.
+    Clearing an absent anchor succeeds, so no replay of the first call is needed. A failed clear
+    keeps the error and starts no turn.
   - The pending anchor is dropped once the anchor succeeds.
 - The draft shows "Anchored at <name>" above the composer.
 - The selected part's page and the selected outcome's page show a link "Plan from here" to
@@ -182,7 +190,9 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - `a_retry_sets_the_anchor_first_with_the_same_command_id`: the first `PUT …/anchor` loses its
     answer. The retry in the thread sends `PUT …/anchor` with the same `command_id`, then
     `POST …/turns`. One thread exists;
-  - `send_without_the_anchor_starts_the_turn_unanchored`;
+  - `send_without_the_anchor_clears_a_saved_anchor_first`: the fake daemon saves the anchor and
+    loses the answer. "Send without the anchor" sends `PUT …/anchor` with `anchor: null`, then
+    `POST …/turns`, in that order, and the daemon holds no anchor when the turn starts;
   - `an_unknown_anchor_value_is_ignored`.
 - [ ] Run `npx vitest run src/app/conversation/draft.test.tsx`; FAIL, implement, PASS.
 - [ ] Commit `feat(web): start a conversation from a part or an outcome`.
@@ -215,8 +225,11 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - the cuts, one per line;
   - the sources, one per line: kind, id, version;
   - the text, in a scrolled block.
-- The panel replaces the plan panel when opened, and the other way round, as the background tasks
-  panel does today.
+- **One side panel at a time.** `conversation.tsx` has three today: the plan (`side`), the
+  background tasks (`tasksOpen`) and a subagent (`agent`). Each opener closes the other two. The
+  context panel joins them as a fourth: opening it closes the other three, and each of the three
+  openers, `openAgent` and a live `plan-show` with `place: 'side'` (`showHere`) included, closes
+  it.
 - The deleted conversation's history (`deleted-conversation.tsx`) also renders `Messages`. It
   shows the mark, read-only: clicking opens the same panel, since a deleted thread's records stay.
   `Messages` gains an `onOpenContext` prop, passed by both screens.
@@ -227,6 +240,8 @@ the planning context was heard, opens what it carried, and asks for it to be sen
   - `an_open_panel_turns_to_heard_when_the_turn_completes`: the panel is open while the
     operation is `prepared`; the operations list refreshes to `heard`; the panel says heard and
     stays open;
+  - `a_plan_show_replaces_the_context_panel`: with the context panel open, a `plan-show` for the
+    side opens the plan panel and closes the context panel;
   - `a_turn_without_a_record_shows_nothing`;
   - `lists_cuts_before_the_text`;
   - `lists_each_source_with_its_version`.

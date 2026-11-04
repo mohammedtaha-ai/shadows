@@ -75,5 +75,5 @@ Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-c
 - Touch: web/src/app/conversation/context-mark.tsx, context-record-panel.tsx, context-record-panel.test.tsx,
   messages.tsx, conversation.tsx, deleted-conversation.tsx, contract.yaml; docs/frontend/codebase/README.md
 - Needs: B-59, F-86
-- Done when: `npx vitest run src/app/conversation/context-record-panel.test.tsx` passes, with the six tests the
+- Done when: `npx vitest run src/app/conversation/context-record-panel.test.tsx` passes, with the seven tests the
   task names
