@@ -64,9 +64,10 @@ impl Planning {
             block.source("part", part.id.as_str(), part.revision);
             let children = design.parts(project, Some(&part.id), None).await?;
             for child in children.items {
-                block
-                    .part_children
-                    .push(format!("  Part {}: {}", child.id, child.content.title));
+                block.part_children.push(format!(
+                    "  Part {} (parent {}): {}",
+                    child.id, part.id, child.content.title
+                ));
                 block.source("part", child.id.as_str(), child.revision);
             }
             if children.next.is_some() {
@@ -84,9 +85,10 @@ impl Planning {
             block.source("outcome", outcome.id.as_str(), outcome.revision);
             let children = design.outcomes(project, Some(&outcome.id), None).await?;
             for child in children.items {
-                block
-                    .outcome_children
-                    .push(format!("  Outcome {}: {}", child.id, child.content.title));
+                block.outcome_children.push(format!(
+                    "  Outcome {} (parent {}): {}",
+                    child.id, outcome.id, child.content.title
+                ));
                 block.source("outcome", child.id.as_str(), child.revision);
             }
             if children.next.is_some() {
@@ -120,13 +122,13 @@ impl Planning {
                 );
             }
         }
-        if let Some(anchor) = design.thread_anchor(thread).await? {
-            if !Self::detail(&mut block, design, plans, project, &anchor).await? {
-                block.index.push(format!(
-                    "[anchor removed: {}]",
-                    serde_json::to_string(&anchor)?
-                ));
-            }
+        if let Some(anchor) = design.thread_anchor(thread).await?
+            && !Self::detail(&mut block, design, plans, project, &anchor).await?
+        {
+            block.index.push(format!(
+                "[anchor removed: {}]",
+                serde_json::to_string(&anchor)?
+            ));
         }
         Ok(block.finish(index_budget, detail_budget))
     }

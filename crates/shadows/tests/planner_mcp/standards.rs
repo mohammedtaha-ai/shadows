@@ -17,8 +17,9 @@ async fn every_turn_ends_with_the_stage_line() {
     let l = listening_app().await;
     let first = report(&l.app).await;
     let sent = blocks(&first);
-    assert_eq!(sent.len(), 2, "{sent:?}");
-    assert!(sent[1].starts_with(STAGE_IDEA), "{}", sent[1]);
+    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert!(sent[1].contains("Seeded part"));
+    assert!(sent[2].starts_with(STAGE_IDEA), "{}", sent[2]);
 
     l.app
         .core
@@ -72,7 +73,7 @@ async fn additions_saved_after_session_open_reach_its_first_turn() {
     save_additions(&l.app, "s1", "billing").await;
     let first = report(&l.app).await;
     let sent = blocks(&first);
-    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert_eq!(sent.len(), 4, "{sent:?}");
     assert!(sent[1].starts_with(STANDARDS) && sent[1].contains("billing"));
     assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
 

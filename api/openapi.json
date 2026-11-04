@@ -713,6 +713,9 @@
             ]
           }
         },
+        "required": [
+          "anchor"
+        ],
         "type": "object"
       },
       "Answer": {
@@ -3131,6 +3134,12 @@
           "thread_id": {
             "$ref": "#/components/schemas/ThreadId"
           },
+          "unserved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "waivers": {
             "items": {
               "$ref": "#/components/schemas/ProposedWaiver"
@@ -5488,7 +5497,8 @@
           }
         },
         "required": [
-          "command_id"
+          "command_id",
+          "anchor"
         ],
         "type": "object"
       },

@@ -1,6 +1,6 @@
 # Planner Context Slice 1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** A Planner conversation can be anchored at a part or a roadmap stage. Its session then
 receives a bounded, sourced context (an index, plus the anchor's detail) whenever that context
@@ -36,6 +36,8 @@ the three Planner defects found on 2026-11-04.
 - The index carries the vision's **purpose items only** (spec §7: the whole vision is about 1,130
   tokens on testing55), never the whole vision.
 - AYLUL threads (`harness == "aylul"`) get no planning context.
+- A new module updates the code map. New tables update the architecture table-owner inventory
+  and the foundation schema test. Focused compatibility and contract checks cover existing callers.
 
 ## Review Focus
 
@@ -43,8 +45,9 @@ the three Planner defects found on 2026-11-04.
    the context on its first turn (B-50 test).
 2. **The anchor is deleted after it was set.** The next turn's context says
    `[anchor removed: <kind> <id>]` and carries the index only. The turn does not fail.
-3. **A command-only turn (`/compact`) on an anchored thread.** It carries no context and records
-   none, and the next normal turn carries it.
+3. **A command-only turn on an anchored thread with context owed.** It carries no context and
+   records none, and the next normal turn carries the owed context. Invalidating a context
+   already heard after compaction belongs to spec §6 slice 2.
 4. **Two turns in a row with nothing changed.** The second carries no context block, and its
    turn has no record.
 5. **The detail is over budget.** The anchor's own text stays whole, and the block lists what was
@@ -69,22 +72,22 @@ the three Planner defects found on 2026-11-04.
   Option<DesignAnchor>) -> Result<Option<DesignAnchor>, DesignError>`. Command
   `thread.anchor`, params `{thread, anchor}`.
   - It refuses an anchor whose part or outcome is not in the thread's project
-    (`DesignError::NotFound`).
+    (`DesignError::Storage(StorageError::NotFound)`).
   - It refuses an AYLUL thread (`InvalidCommand`).
   - `None` clears the anchor.
 - Produces: `Design::thread_anchor(&self, thread: &ThreadId) -> Result<Option<DesignAnchor>,
   DesignError>`.
 
-- [ ] **Step 1: tests**
+- [x] **Step 1: tests**
   - `an_anchor_is_set_read_and_cleared`
   - `an_anchor_from_another_project_is_refused`
   - `an_aylul_thread_cannot_be_anchored`
   - `a_replay_answers_the_first_anchor`
-- [ ] **Step 2:** run `cargo test -p core-design --test anchors`; expect FAIL.
-- [ ] **Step 3:** implement; pin the migration.
-- [ ] **Step 4:** run `cargo test -p core-design` and
+- [x] **Step 2:** run `cargo test -p core-design --test anchors`; expect FAIL.
+- [x] **Step 3:** implement; pin the migration.
+- [x] **Step 4:** run `cargo test -p core-design` and
   `cargo test -p core-db --test migration_checksums`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-design): a thread's planning anchor`.
+- [x] **Step 5:** commit `feat(core-design): a thread's planning anchor`.
 
 ### Task B-48: What a turn carried, per session (Harness)
 
@@ -106,7 +109,7 @@ the three Planner defects found on 2026-11-04.
   - `created_at TEXT NOT NULL`.
 - Modify: `crates/core-harness/src/` (a new `context_record.rs` and its store), `model.rs`,
   `contract.yaml`; the checksum fixture
-- Test: `crates/core-harness/tests/context_record.rs`
+- Test: `crates/shadows/tests/context_record.rs`
 
 **Interfaces:**
 - **Types** (`model.rs`; both serialize to JSON for the record and the route):
@@ -125,15 +128,16 @@ the three Planner defects found on 2026-11-04.
 - **The record a person reads:** `Harness::context_record(&self, op: &OperationId) ->
   Result<Option<(CarriedContext, bool)>, StorageError>` answers the row and its `heard`.
 
-- [ ] **Step 1: tests**
+- [x] **Step 1: tests**
   - `a_prepared_context_is_read_back_unheard`
   - `only_a_heard_context_counts`
   - `a_new_session_on_the_same_thread_has_heard_nothing`
   - `the_newest_heard_digest_wins`
-- [ ] **Step 2:** run them; expect FAIL.
-- [ ] **Step 3:** implement; pin the migration.
-- [ ] **Step 4:** run `cargo test -p core-harness`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-harness): record the context a turn carried, per session`.
+- [x] **Step 2:** run them; expect FAIL.
+- [x] **Step 3:** implement; pin the migration.
+- [x] **Step 4:** run `cargo test -p core-harness` and
+  `cargo test -p shadows --test context_record`; expect PASS.
+- [x] **Step 5:** commit `feat(core-harness): record the context a turn carried, per session`.
 
 ### Task B-49: Compile the planning context (Turns)
 
@@ -144,7 +148,9 @@ the three Planner defects found on 2026-11-04.
   - `Turns` gains `design: core_design::Design`, so `Turns::new` takes it;
   - AppCore passes it in `crates/shadows-core/src/app.rs`;
   - the contract is updated.
-- Test: `crates/core-turns/tests/planning_context.rs`
+- Test: `crates/core-turns/tests/planning_context.rs`, budget tests in `planning/block.rs`,
+  and the pinned-agreement, removed-anchor and AYLUL cases in
+  `crates/shadows/tests/planning_context.rs`.
 
 **Interfaces:**
 - Consumes:
@@ -189,7 +195,7 @@ the three Planner defects found on 2026-11-04.
   `[anchor removed: <kind> <id>]` and the index only.
 - **`digest`:** a hex SHA-256 of `text`.
 
-- [ ] **Step 1: tests**, over a design seeded with `Design::seed_map_for_tests` and
+- [x] **Step 1: tests**, over a design seeded with `Design::seed_map_for_tests` and
   `seed_roadmap_for_tests`:
   - `an_unanchored_thread_gets_the_index_only`
   - `a_part_anchor_adds_its_detail_and_sources`
@@ -205,10 +211,10 @@ the three Planner defects found on 2026-11-04.
   - `a_removed_anchor_says_so`
   - `an_aylul_thread_gets_nothing`
   - `the_same_design_gives_the_same_digest`
-- [ ] **Step 2:** run `cargo test -p core-turns --test planning_context`; expect FAIL.
-- [ ] **Step 3:** implement.
-- [ ] **Step 4:** run `cargo test -p core-turns`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-turns): compile a Planner's planning context`.
+- [x] **Step 2:** run `cargo test -p core-turns --test planning_context`; expect FAIL.
+- [x] **Step 3:** implement.
+- [x] **Step 4:** run `cargo test -p core-turns`; expect PASS.
+- [x] **Step 5:** commit `feat(core-turns): compile a Planner's planning context`.
 
 ### Task B-50: Send it when the session has not heard it
 
@@ -242,7 +248,7 @@ the three Planner defects found on 2026-11-04.
 - **No new error:** a compile error refuses the turn the way a failed stage line does today
   (`FailureStage::Prepare`).
 
-- [ ] **Step 1: tests**
+- [x] **Step 1: tests**
   - `the_first_turn_carries_the_context_and_marks_it_heard`
   - `an_unchanged_context_is_not_sent_again`
   - `a_changed_anchor_sends_it_again`
@@ -253,11 +259,11 @@ the three Planner defects found on 2026-11-04.
   - `a_failed_turn_leaves_it_owed` (fake-acp refuses the prompt)
   - `a_command_alone_carries_and_records_nothing_and_the_next_turn_does`
   - `the_planning_block_comes_after_changes_and_before_focus`
-- [ ] **Step 2:** run them; expect FAIL.
-- [ ] **Step 3:** implement.
-- [ ] **Step 4:** run `cargo test -p shadows --test planning_context` and
+- [x] **Step 2:** run them; expect FAIL.
+- [x] **Step 3:** implement.
+- [x] **Step 4:** run `cargo test -p shadows --test planning_context` and
   `cargo test -p core-turns`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-turns): send the planning context until the session hears it`.
+- [x] **Step 5:** commit `feat(core-turns): send the planning context until the session hears it`.
 
 ### Task B-51: Routes for the anchor and the record
 
@@ -277,15 +283,15 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
 | `GET /api/threads/{id}/anchor` | | `Design::thread_anchor` | the anchor or `null` |
 | `GET /api/operations/{id}/context` | | `Harness::context_record` | `{ carried: CarriedContext, heard: bool }`, or 404 `CONTEXT_NOT_CARRIED` |
 
-- [ ] **Step 1: tests**
+- [x] **Step 1: tests**
   - `an_anchor_is_set_over_http_and_read_back`
   - `a_turns_carried_context_is_read_over_http`
   - `a_turn_that_carried_nothing_answers_not_carried`
-- [ ] **Step 2:** run `cargo test -p shadows --test planning_routes`; expect FAIL.
-- [ ] **Step 3:** implement; regenerate `api/openapi.json`.
-- [ ] **Step 4:** run them and `cargo test -p shadows --test openapi`; expect PASS;
+- [x] **Step 2:** run `cargo test -p shadows --test planning_routes`; expect FAIL.
+- [x] **Step 3:** implement; regenerate `api/openapi.json`.
+- [x] **Step 4:** run them and `cargo test -p shadows --test openapi`; expect PASS;
   `git diff api/` shows only the three routes.
-- [ ] **Step 5:** commit `feat(shadows-http): planning anchor and carried-context routes`.
+- [x] **Step 5:** commit `feat(shadows-http): planning anchor and carried-context routes`.
 
 ### Task B-52: Map refusals say which rule, which parts and what to do (defect §1)
 
@@ -316,16 +322,16 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
   - The same rule covers a folder inside another part's folder: `parts "<a>" (<folder>) and
     "<b>" (<path>) overlap…`.
 
-- [ ] **Step 1: tests**
+- [x] **Step 1: tests**
   - `a_file_outside_its_part_names_the_part_and_its_folders`
   - `the_same_folder_twice_names_both_parts`
   - `a_nested_folder_names_both_parts`
   - `two_rules_never_share_a_message`, which runs one map per rule and checks that the `rule`
     values are distinct
-- [ ] **Step 2:** run them; expect FAIL.
-- [ ] **Step 3:** implement.
-- [ ] **Step 4:** run `cargo test -p core-design`, then `cargo test -p shadows-mcp`; expect PASS.
-- [ ] **Step 5:** commit `fix(core-design): map refusals name the rule, the parts and the fix`.
+- [x] **Step 2:** run them; expect FAIL.
+- [x] **Step 3:** implement.
+- [x] **Step 4:** run `cargo test -p core-design`, then `cargo test -p shadows-mcp`; expect PASS.
+- [x] **Step 5:** commit `fix(core-design): map refusals name the rule, the parts and the fix`.
 
 ### Task B-53: Vision IDs are given when proposed (defect §2)
 
@@ -334,7 +340,7 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
   `ALTER TABLE design_vision_proposal ADD COLUMN reserved_item_id TEXT`
 - Modify: the propose path in `crates/core-design/src/store/` and
   `store/proposal_approval.rs`; the proposal view; the contract; the checksum fixture
-- Test: `crates/core-design/tests/` (the vision proposal tests)
+- Test: `crates/shadows/tests/vision_proposal_ids.rs`, through AppCore; existing vision assertions in `crates/shadows-core/tests/design_vision/proposals.rs`
 
 **Interfaces:**
 - **Proposing an `Add`:** takes the next ID from the counters at proposal time
@@ -344,21 +350,21 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
   the next ID at approval, as today.
 - A superseded or refused proposal leaves its ID unused; IDs are never reused.
 
-- [ ] **Step 1: tests**
+- [x] **Step 1: tests**
   - `an_added_item_keeps_the_id_it_was_proposed_with`: propose TD1, then TD2; approve TD2
     first; the stored IDs are still TD1 and TD2
   - `an_old_proposal_without_a_reserved_id_still_approves`
-- [ ] **Step 2:** run them; expect FAIL.
-- [ ] **Step 3:** implement; pin the migration.
-- [ ] **Step 4:** run `cargo test -p core-design`; expect PASS.
-- [ ] **Step 5:** commit `fix(core-design): a vision item keeps the ID it was proposed with`.
+- [x] **Step 2:** run them; expect FAIL.
+- [x] **Step 3:** implement; pin the migration.
+- [x] **Step 4:** run `cargo test -p core-design`; expect PASS.
+- [x] **Step 5:** commit `fix(core-design): a vision item keeps the ID it was proposed with`.
 
 ### Task B-54: A map proposal lists vision items no part serves (defect §3)
 
 **Files:**
-- Modify: `crates/core-design/src/map_proposals.rs` (the proposal's answer), `model.rs`, the
-  contract; `shadows-mcp`'s `map_propose` answer if it shapes it
-- Test: `crates/core-design/tests/` (the map proposal tests)
+- Modify: `crates/core-design/src/map_proposals.rs` (the proposal's answer), the
+  contract; `src/map_rules.rs` and `src/store/map_proposals.rs`
+- Test: `crates/shadows/tests/map_proposal_coverage.rs`, through AppCore
 
 **Interfaces:**
 - The proposal answer gains `unserved: Vec<String>`: the vision item ids that no part in the
@@ -370,22 +376,22 @@ before this task starts (`docs/backend/AGENTS.md`, rule 4).
   served TD4, it would not have. Whether a part's text matches its `serves` is a judgement for
   the Planner and the person, not a rule in code.
 
-- [ ] **Step 1:** test `a_map_answer_lists_the_unserved_vision_items`.
-- [ ] **Step 2:** run it; expect FAIL.
-- [ ] **Step 3:** implement.
-- [ ] **Step 4:** run `cargo test -p core-design`; expect PASS.
-- [ ] **Step 5:** commit `feat(core-design): a map proposal lists unserved vision items`.
+- [x] **Step 1:** test `a_map_answer_lists_the_unserved_vision_items`.
+- [x] **Step 2:** run it; expect FAIL.
+- [x] **Step 3:** implement.
+- [x] **Step 4:** run `cargo test -p core-design`; expect PASS.
+- [x] **Step 5:** commit `feat(core-design): a map proposal lists unserved vision items`.
 
 ---
 
 ## Acceptance
 
-1. CI passes on the branch.
-2. Mohammed runs `shadows serve` and opens testing55 in the browser:
-   - he anchors its conversation at `Backend (Laravel core)` with
+1. CI passes on the branch (pending push; the full gate is not run locally).
+2. Run `shadows serve` with the saved development database and open testing55 in the browser:
+   - anchor its conversation at `Backend (Laravel core)` with
      `PUT /api/threads/{id}/anchor`, then sends a turn;
-   - `GET /api/operations/{id}/context` shows the index and the Backend detail, about 1 300 and
-     3 100 tokens on that project;
+   - `GET /api/operations/{id}/context` shows the index and Backend detail, their measured
+     character-based estimates, sources, cuts and digest;
    - a second turn records nothing.
 3. On a new project, a map with a folder claimed twice is refused with a message naming both
    parts.

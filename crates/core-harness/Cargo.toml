@@ -42,6 +42,5 @@ uuid = { workspace = true }
 test-support = ["core-db/test-support", "core-threads/test-support", "shadows-process/test-support"]
 
 [dev-dependencies]
-core-runtime = { path = "../core-runtime" }
 core-harness = { path = ".", features = ["test-support"] }
 tempfile = { workspace = true }

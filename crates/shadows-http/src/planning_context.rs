@@ -35,11 +35,13 @@ impl From<DesignAnchor> for ThreadPlanningAnchor {
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct SetAnchor {
     command_id: String,
+    #[schema(required)]
     anchor: Option<ThreadPlanningAnchor>,
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub(super) struct AnchorResponse {
+    #[schema(required)]
     anchor: Option<ThreadPlanningAnchor>,
 }
 

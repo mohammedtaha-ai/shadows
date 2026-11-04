@@ -525,3 +525,4 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-turns/src/planning/block.rs` | Planning context rendering | `crates/core-turns/contract.yaml` |
 | `crates/core-turns/src/planning/budget.rs` | Planning context budgets | `crates/core-turns/contract.yaml` |
 | `crates/shadows-http/src/planning_context.rs` | Planning context HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/core-turns/src/planning/` | Planning context assembly | `crates/core-turns/contract.yaml` |

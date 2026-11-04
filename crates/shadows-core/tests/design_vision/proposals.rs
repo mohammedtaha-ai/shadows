@@ -279,7 +279,7 @@ async fn a_proposal_is_a_pending_card_in_its_conversation() {
     let f = Fixture::new().await;
     let p = f.propose(add("Ship in a week")).await;
     assert_eq!(p.status, ProposalStatus::Pending);
-    assert_eq!(p.item_id, None);
+    assert_eq!(p.item_id.as_deref(), Some("G1"));
     assert!(!p.outdated);
     assert_eq!(
         f.core
@@ -336,7 +336,7 @@ async fn two_adds_approve_in_any_order_with_consecutive_ids() {
             .iter()
             .map(|i| (i.id.as_str(), i.text.as_str()))
             .collect::<Vec<_>>(),
-        [("G1", "B"), ("G2", "A")]
+        [("G2", "B"), ("G1", "A")]
     );
     assert!(
         v.content

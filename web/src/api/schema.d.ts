@@ -1854,7 +1854,7 @@ export interface components {
             operation_id?: null | components["schemas"]["OperationId"];
         };
         AnchorResponse: {
-            anchor?: null | components["schemas"]["ThreadPlanningAnchor"];
+            anchor: null | components["schemas"]["ThreadPlanningAnchor"];
         };
         /** @description What a question answers. */
         Answer: {
@@ -2533,6 +2533,7 @@ export interface components {
             parts: components["schemas"]["ProposedPart"][];
             status: components["schemas"]["ProposalStatus"];
             thread_id: components["schemas"]["ThreadId"];
+            unserved?: string[];
             waivers: components["schemas"]["ProposedWaiver"][];
         };
         McpInput: {
@@ -3130,7 +3131,7 @@ export interface components {
             modes: components["schemas"]["Choice"][];
         };
         SetAnchor: {
-            anchor?: null | components["schemas"]["ThreadPlanningAnchor"];
+            anchor: null | components["schemas"]["ThreadPlanningAnchor"];
             command_id: string;
         };
         SetEnv: {

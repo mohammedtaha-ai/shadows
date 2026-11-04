@@ -234,6 +234,67 @@ async fn the_same_design_gives_the_same_digest() {
 }
 
 #[tokio::test]
+async fn the_index_keeps_each_childs_parent() {
+    use core_design::{PartContent, PartId, WorkspaceOp};
+    let f = Fixture::new().await;
+    let first = f
+        .design
+        .parts(&f.project, None, None)
+        .await
+        .unwrap()
+        .items
+        .remove(0)
+        .id;
+    let second = PartId::generate();
+    f.edit(vec![
+        WorkspaceOp::PartCreate {
+            id: second.clone(),
+            parent: None,
+            before: None,
+            content: PartContent {
+                title: "Other root".into(),
+                ..Default::default()
+            },
+        },
+        WorkspaceOp::PartCreate {
+            id: PartId::generate(),
+            parent: Some(first.clone()),
+            before: None,
+            content: PartContent {
+                title: "First child".into(),
+                ..Default::default()
+            },
+        },
+        WorkspaceOp::PartCreate {
+            id: PartId::generate(),
+            parent: Some(second.clone()),
+            before: None,
+            content: PartContent {
+                title: "Second child".into(),
+                ..Default::default()
+            },
+        },
+    ])
+    .await;
+    let context = f.compile().await;
+    let first_child = context
+        .text
+        .lines()
+        .find(|line| line.contains("First child"))
+        .unwrap();
+    let second_child = context
+        .text
+        .lines()
+        .find(|line| line.contains("Second child"))
+        .unwrap();
+    assert!(first_child.contains(first.as_str()));
+    assert!(!first_child.contains(second.as_str()));
+    assert!(second_child.contains(second.as_str()));
+    assert!(!second_child.contains(first.as_str()));
+    f.storage.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn a_detail_still_over_after_every_cut_is_sent_and_says_by_how_much() {
     let f = Fixture::new().await;
     f.anchor().await;

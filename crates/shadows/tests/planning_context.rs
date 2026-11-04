@@ -199,12 +199,17 @@ async fn a_bound_agreement_is_read_at_its_pinned_version() {
         .await
         .unwrap();
     let operation = "c0000000-0000-4000-8000-000000000001";
-    let first = app.core.design().start_agreement("agreement".into(), &app.project, None,
+    let first = app.core.design().start_agreement(
+        "agreement".into(), &app.project, None,
         Some(AgreementContent {
-            capability: "Login".into(), purpose: "Login".into(), behavior: "Version one behavior".into(),
+            capability: "Login".into(),
+            purpose: "Login".into(),
+            behavior: "Version one behavior".into(),
             acceptance: vec!["Works".into()],
-            parties: vec![AgreementParty { part_id: provider.clone(), role: AgreementRole::Provides },
-                AgreementParty { part_id: consumer, role: AgreementRole::Uses }],
+            parties: vec![
+                AgreementParty { part_id: provider.clone(), role: AgreementRole::Provides },
+                AgreementParty { part_id: consumer, role: AgreementRole::Uses },
+            ],
             openapi: serde_json::json!({"openapi":"3.1.0","info":{"title":"Login","version":"1"},
                 "paths":{"/login":{"post":{"x-shadows-operation-id":operation,
                     "responses":{"200":{"description":"OK"}}}}}}),

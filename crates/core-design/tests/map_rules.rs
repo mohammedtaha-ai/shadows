@@ -83,21 +83,132 @@ fn a_nested_folder_names_both_parts() {
 
 #[test]
 fn two_rules_never_share_a_message() {
-    let outside = refused(&[PartContent {
+    let part = PartContent {
         title: "Backend".into(),
-        files: vec![core_design::InitialFile {
-            path: "composer.json".into(),
-            content: "".into(),
-        }],
         ..Default::default()
-    }]);
-    let unknown = refused(&[PartContent {
-        title: "Backend".into(),
-        serves: vec!["G99".into()],
-        ..Default::default()
-    }]);
-    assert_ne!(outside.rule, unknown.rule);
-    assert_ne!(outside.message, unknown.message);
+    };
+    let file = |path: &str| core_design::InitialFile {
+        path: path.into(),
+        content: "".into(),
+    };
+    let cases = [
+        (vec![part.clone(), part.clone()], "duplicate_sibling"),
+        (
+            vec![PartContent {
+                serves: vec!["G99".into()],
+                ..part.clone()
+            }],
+            "unknown_vision_item",
+        ),
+        (
+            vec![PartContent {
+                contract: core_design::ContractHead {
+                    rules: vec!["unknown".into()],
+                    ..Default::default()
+                },
+                ..part.clone()
+            }],
+            "unknown_rule",
+        ),
+        (
+            vec![PartContent {
+                files: vec![file("outside.json")],
+                ..part.clone()
+            }],
+            "file_outside_part",
+        ),
+        (
+            vec![PartContent {
+                folders: vec!["src".into()],
+                files: vec![file("src/a.rs"), file("src/a.rs")],
+                ..part.clone()
+            }],
+            "duplicate_file",
+        ),
+        (
+            vec![PartContent {
+                folders: vec!["src".into()],
+                files: vec![file("src/api"), file("src/api/main.rs")],
+                ..part.clone()
+            }],
+            "file_is_folder",
+        ),
+        (
+            vec![
+                PartContent {
+                    folders: vec!["src".into()],
+                    ..part.clone()
+                },
+                PartContent {
+                    title: "Frontend".into(),
+                    folders: vec!["src".into()],
+                    ..Default::default()
+                },
+            ],
+            "folder_claimed_twice",
+        ),
+        (
+            vec![PartContent {
+                folders: vec!["src".into()],
+                files: vec![file("src/contract.yaml")],
+                ..part.clone()
+            }],
+            "reserved_file",
+        ),
+        (
+            vec![PartContent {
+                folders: vec!["../src".into()],
+                ..part.clone()
+            }],
+            "invalid_path",
+        ),
+    ];
+    let mut rules = std::collections::BTreeSet::new();
+    let mut messages = std::collections::BTreeSet::new();
+    for (contents, expected) in cases {
+        let error = refused(&contents);
+        assert_eq!(error.rule, expected);
+        assert!(rules.insert(error.rule), "duplicate rule {expected}");
+        assert!(
+            messages.insert(error.message),
+            "duplicate message for {expected}"
+        );
+    }
+    let standards = EffectiveStandards {
+        base: core_standards::Standards::base().clone(),
+        additions: None,
+    };
+    for (parts, expected) in [
+        (
+            vec![
+                MapPart {
+                    key: "same",
+                    parent: None,
+                    content: &part,
+                },
+                MapPart {
+                    key: "same",
+                    parent: None,
+                    content: &part,
+                },
+            ],
+            "duplicate_part",
+        ),
+        (
+            vec![MapPart {
+                key: "child",
+                parent: Some("missing"),
+                content: &part,
+            }],
+            "missing_parent",
+        ),
+    ] {
+        let error =
+            MapRules::check_shape(&parts, &[], &VisionContent::default(), &standards).unwrap_err();
+        assert_eq!(error.rule, expected);
+        assert!(rules.insert(error.rule));
+        assert!(messages.insert(error.message));
+    }
 }
 
 #[test]

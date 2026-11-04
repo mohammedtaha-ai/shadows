@@ -1,7 +1,7 @@
 # Planner context: what a Planner session is given, and why
 
-- Status: **draft**, 2026-11-04. Direction decided by Mohammed on 2026-11-03 and 2026-11-04 in
-  conversation; the rest is Claude's proposal, marked. Not accepted, not built.
+- Status: **slice 1 accepted for implementation**, 2026-11-04, by Mohammed. Later slices remain
+  proposals. Direction was decided in conversation on 2026-11-03 and 2026-11-04.
 - Roadmap: Stage 3, "Planner context" (`docs/core/roadmap.md`): "Start planning at an explicit
   part or stage with bounded, attributable context; inspect what was included."
 - Builds on, and does not replace:
@@ -138,8 +138,9 @@ Three layers, in this order:
   sizes, cuts and digest, plus whether the turn completed normally. A turn with no record
   reports that no planning context record is available. Absence alone does not establish why.
 - **Owner:** `Harness`, which already owns invocation rows.
-- The conversation shows, per turn, "Context: sent / unchanged", opening the record: what was
-  given, from where, at which version, what was cut. (Frontend; its own plan.)
+- The conversation shows, per turn, whether context was acknowledged, prepared, or has no
+  available record. Opening a record shows its text, sources, versions and cuts.
+  (Frontend; its own plan.)
 
 ### 4.5 The plan's owner thread
 
@@ -186,7 +187,7 @@ No new service.
 - `docs/evidence/2026-11-04-planner-context-probe.md`: how the adapter reports a compaction
   (§1), and the sizes measured on testing4 (§2) and on testing55 (§3). On testing55, after one
   plan, the index with the whole vision is about 1 260 tokens and the detail about 3 140, so the
-  index must carry the vision's first paragraph, not the whole vision.
+  index uses the vision's purpose items.
 - Both are well under §4.2's budgets on that project, so the budgets bind only on bigger
   projects. Slice 1's own record (§4.4) keeps measuring every context it sends.
 

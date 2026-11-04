@@ -19,6 +19,7 @@ version: 1
 status: current
 source: crates/shadows-http/src
 modules:
+  planning_context.rs: Planning context HTTP translation
   harness.rs: Harness session HTTP translation
   design.rs: Design service HTTP translation
   plan_design.rs: Plans service design association HTTP translation

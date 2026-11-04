@@ -74,6 +74,8 @@ name: harness
 # The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1
 modules:
+  context_record.rs: Planning context record boundary
+  store/context_record.rs: Planning context record persistence
   permissions.rs: live permission commands
   store/permission.rs: permission answer command persistence
   mode.rs: durable conversation mode commands
@@ -233,6 +235,11 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
+    prepare_context: "Records immutable prepared text, sources, sizes, cuts, digest and native session for an operation."
+    mark_context_heard: "Acknowledges a recorded context through a serialized write."
+    mark_context_heard_in: "Acknowledges context in Turns' successful terminal transaction."
+    heard_context_digest: "Reads the newest acknowledged digest in one native session by captured operation sequence."
+    context_record: "Reads the prepared context and acknowledgement flag, or None when no row exists."
     answer_permission:
       signature: "(&self, command_id: String, thread: &ThreadId, request: &str, option: &str) -> Result<PermissionAnswer, HarnessError>"
       note: Replay first, validate a live AYLUL request and offered option, durably record, then answer; only one settlement wins.
@@ -512,6 +519,7 @@ called_by_other_services:
 
 
 shared_in_transaction:
+  mark_context_heard_in: Harness acknowledges context with the successful turn completion transaction.
   permission_replay: Private store read; Harness classifies a permission answer's command before acting.
   record_permission_answer: Private store write of a classified permission answer and its command record.
   change_mode: Private store command; Harness owns permission persistence and replay.

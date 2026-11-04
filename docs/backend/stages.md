@@ -80,8 +80,8 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-48-what-a-turn-carried-per-session-harness
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml
 - Touch: crates/core-db/migrations/0044_invocation_context.sql; crates/core-harness/src/context_record.rs,
-  src/store/, src/model.rs, src/lib.rs, contract.yaml, tests/context_record.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
-- Done when: `cargo test -p core-harness` passes, with the four tests the task names
+  src/store/, src/model.rs, src/lib.rs, contract.yaml; crates/shadows/tests/context_record.rs; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
+- Done when: `cargo test -p core-harness` and `cargo test -p shadows --test context_record` pass
 
 ### B-49 · Compile the planning context (Turns)
 - Status: done
@@ -89,14 +89,15 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.2; crates/core-turns/contract.yaml; crates/core-plans/src/design_views.rs
 - Touch: crates/core-turns/src/planning/ (new), src/lib.rs, contract.yaml,
   tests/planning_context.rs; crates/shadows-core/src/app.rs
-- Done when: `cargo test -p core-turns` passes, with the twelve tests the task names
+- Done when: `cargo test -p core-turns` passes, with compiler tests in core-turns and the three AppCore cases in shadows/tests/planning_context.rs
 
 ### B-50 · Send it when the session has not heard it
 - Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-50-send-it-when-the-session-has-not-heard-it
 - Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.3; crates/core-turns/src/spawn.rs, prompt.rs
-- Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, turn.rs, contract.yaml;
-  crates/shadows/tests/planning_context.rs (new)
+- Touch: crates/core-turns/src/lib.rs, spawn.rs, prompt.rs, store/operation.rs, contract.yaml;
+  crates/core-harness/src/context_record.rs, contract.yaml; crates/shadows-core/src/testing/turn.rs;
+  crates/shadows/tests/planning_context.rs, turn_command.rs, plan_boundaries.rs, planner_mcp/standards.rs
 - Done when: `cargo test -p shadows --test planning_context` passes, with the eight tests the task names
 
 ### B-51 · Routes for the anchor and the record
@@ -123,12 +124,26 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Read: docs/evidence/2026-11-04-planner-session-defects.md §2; crates/core-design/src/store/proposal_approval.rs, store/vision.rs
 - Touch: crates/core-db/migrations/0045_vision_reserved_id.sql; crates/core-design/src/store/,
   proposals.rs, contract.yaml, tests/; crates/core-db/tests/fixtures/base_migrations.sha384; crates/core-db/tests/migration_checksums.rs
-- Done when: `cargo test -p core-design` passes, with the two tests the task names
+- Done when: `cargo test -p core-design` passes, with the two tests in shadows/tests/vision_proposal_ids.rs
 
 ### B-54 · A map proposal lists vision items no part serves
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-04-planner-context-slice-1.md#task-b-54-a-map-proposal-lists-vision-items-no-part-serves-defect-3
 - Read: docs/evidence/2026-11-04-planner-session-defects.md §3; crates/core-design/src/map_proposals.rs
-- Touch: crates/core-design/src/map_proposals.rs, model.rs, contract.yaml, tests/;
-  crates/shadows-mcp/src/ (the map_propose answer)
-- Done when: `cargo test -p core-design` passes, with `a_map_answer_lists_the_unserved_vision_items`
+- Touch: crates/core-design/src/map_proposals.rs, map_rules.rs, store/map_proposals.rs, contract.yaml;
+  crates/shadows/tests/map_proposal_coverage.rs; api/openapi.json; web/src/api/schema.d.ts
+- Done when: `cargo test -p core-design` passes, with `a_map_answer_lists_the_unserved_vision_items` in shadows/tests/map_proposal_coverage.rs
+
+## Slice 1 integration checks
+
+The branch also updates the canonical contract entries, code map, table-owner inventory,
+foundation schema fixture and existing prompt/vision expectations. Harness context-record
+tests run through AppCore in `crates/shadows/tests/context_record.rs`, preserving its
+no-Runtime dependency boundary. Source footer and cut markers count toward the index estimate;
+depth-two index entries retain their parent ids.
+
+Focused checks passed: Core architecture (49), code map (1), migration checksums (1),
+foundation storage (9), Core contracts (6), design/vision suites, Turns (36), HTTP (32),
+MCP refusal mapping, OpenAPI (8), the twelve selected application regression targets,
+generated web types and focused all-target Clippy. The production build and live acceptance
+are recorded when run; the full workspace gate remains for CI under Mohammed's instruction.

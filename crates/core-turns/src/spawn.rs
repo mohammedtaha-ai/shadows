@@ -122,13 +122,11 @@ impl PlannerTurn {
             });
             if !prompt.withholds
                 && let Some(context) = planning
-            {
-                if let Err(error) = sessions
+                && let Err(error) = sessions
                     .prepare_context(&op_id, &thread_id, &opened.session_id, &context)
                     .await
-                {
-                    tracing::error!(parent: &span, %error, "planner.context_record_failed");
-                }
+            {
+                tracing::error!(parent: &span, %error, "planner.context_record_failed");
             }
             Ok(prompt)
         }

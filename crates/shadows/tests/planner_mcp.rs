@@ -567,14 +567,15 @@ async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
 }
 
 #[tokio::test]
-async fn a_new_threads_first_turn_has_only_the_stage_line() {
+async fn a_new_threads_first_turn_has_planning_context_and_stage() {
     let l = listening_app().await;
     let body = "  Keep every task under a day.  ";
     save_instructions(&l.app, "i1", body).await;
 
     let first = report(&l.app).await;
-    assert_eq!(blocks(&first).len(), 2);
-    assert!(blocks(&first)[1].starts_with(STAGE_IDEA));
+    assert_eq!(blocks(&first).len(), 3);
+    assert!(blocks(&first)[1].contains("Seeded part"));
+    assert!(blocks(&first)[2].starts_with(STAGE_IDEA));
     let append = first["append"].as_str().unwrap();
     assert!(append.starts_with(PROMPT.trim_end()), "{append}");
     assert!(
@@ -601,7 +602,7 @@ async fn instructions_saved_after_the_session_opened_reach_its_first_turn() {
     let first = report(&l.app).await;
     assert!(!first["append"].as_str().unwrap().contains(body));
     let sent = blocks(&first);
-    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert_eq!(sent.len(), 4, "{sent:?}");
     assert!(
         sent[1].starts_with(CHANGED) && sent[1].ends_with(body),
         "{sent:?}"
@@ -648,7 +649,7 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
     assert_eq!(first["how"], "fork");
     assert_locked(&first);
     let sent = blocks(&first);
-    assert_eq!(sent.len(), 4, "{sent:?}");
+    assert_eq!(sent.len(), 5, "{sent:?}");
     assert!(
         sent[1].starts_with(OURS),
         "Shadows' instructions come first"
@@ -659,7 +660,7 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
         sent[1]
     );
     assert_eq!(
-        sent[2],
+        sent[3],
         format!(
             "[Shadows] The person opened this conversation to continue the plan \
              \"{}\" (plan_id {}, latest version workflow_id {}). Read it with \
@@ -667,7 +668,8 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
             plan.title, plan.plan_id, plan.id
         )
     );
-    assert!(sent[3].starts_with(STAGE_IDEA));
+    assert!(sent[2].contains("Seeded part"));
+    assert!(sent[4].starts_with(STAGE_IDEA));
 
     l.app
         .core

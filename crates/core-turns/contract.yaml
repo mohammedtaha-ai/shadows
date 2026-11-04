@@ -54,6 +54,9 @@ version: 1
 status: current
 source: crates/core-turns/src
 modules:
+  planning/mod.rs: Planning context compilation
+  planning/block.rs: Planning context rendering
+  planning/budget.rs: Planning context budgets
   lib.rs: turn execution boundary
   error.rs: turn refusal mapping
   remove.rs: thread removal orchestration
@@ -108,6 +111,7 @@ shapes:
     blocks: Vec<PromptBlock>
     withholds: bool
   Turns:
+    design: Design
     storage: Arc<Storage>
     store: TurnsStore
     operations: Operations
@@ -265,6 +269,7 @@ shapes:
     # A unit struct: `start` and `stop` are associated functions.
     unit: unit
   PlannerTurnRequest:
+    planning: "Result<Option<CarriedContext>, String>"
     images: Vec<ImageBlock>
     # A turn whose operation `start_turn` committed Pending. `harness` is the
     # one the command validated, so nothing is read between the commit and
@@ -290,6 +295,9 @@ functions:
   plan_cards:
     show_plan: "(&self, grant, PlanShow) -> Result<PlanShown, TurnsError>; calls Plans::show, reads its live tab and signals only a non-replay"
   service:
+    planning_context:
+      signature: "(&self, thread: &ThreadId, project: &ProjectId) -> Result<Option<CarriedContext>, TurnsError>"
+      rule: Compile the index and optional anchor detail through Design and Plans; AYLUL answers None.
     live_activity:
       signature: "(&self, thread: &ThreadId) -> Option<LiveActivity>"
       # Latest open calls and list for a registered turn on this thread.
