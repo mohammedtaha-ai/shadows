@@ -157,6 +157,8 @@ it is that folder's `contract.yaml`.
 | `web/src/api/groups.test.ts` | Group HTTP request checks | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | Project design server state | `web/src/api/contract.yaml` |
+| `web/src/api/planning-context.ts` | Planning context API | `web/src/api/contract.yaml` |
+| `web/src/api/planning-context.test.ts` | Planning context API checks | `web/src/api/contract.yaml` |
 | `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
 | `web/src/api/agreements.ts` | Agreement server state | `web/src/api/contract.yaml` |

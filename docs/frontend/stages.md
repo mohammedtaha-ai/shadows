@@ -41,7 +41,7 @@ settings dialog, PR #40) at `1a2b601`.
 Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-context-view.md)).
 
 ### F-86 · Planning context API module
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-86-planning-context-api-module
 - Read: api/openapi.json (`AnchorResponse`, `SetAnchor`, `ThreadPlanningAnchor`, the context record); web/src/api/contract.yaml
 - Touch: web/src/api/planning-context.ts, planning-context.test.ts, contract.yaml; web/src/test/fake-daemon.ts;
