@@ -90,7 +90,7 @@ Three layers, in this order:
 | Layer | Holds | Budget (Claude's numbers) |
 |---|---|---|
 | **Index** | the vision's purpose items; the part tree to depth 2 (names and ids); outcome names and ids; agreement names with their agreed version | about 1 500 tokens |
-| **Detail** (anchored only) | the anchor's full text; its parent chain (names); its children (names and one line each); the plans linked to it: each latest version's title, task list and the rationale of its last 3 versions (§17.3); the agreements those plans bind, at their agreed versions; the project standards in effect | about 8 000 tokens |
+| **Detail** (anchored only) | the anchor's full text; its parent chain (names); its children (names and one line each); the plans linked to it: each latest version's title, task list and the rationale of its last 3 versions (§17.3); the agreements those plans bind, at their pinned versions. The project standards in effect are not in this block: the existing "changes since the session last heard" block carries them | about 8 000 tokens |
 | **On request** | everything else, through the existing workspace tools; a missing read is a tool the plan adds | none |
 
 - **Sources.** Every piece carries `(kind, id, version or revision)`. The context block ends with
@@ -109,8 +109,9 @@ Three layers, in this order:
   The anchor's own text is never cut. The block states what was cut, as `[cut: …]`.
 - Tokens are estimated as characters / 4; the estimate is labelled as one.
 - **Owner:** `Turns` already owns "what a Planner turn sends the model". The compiler is
-  `Turns::planning_context(thread) -> PlanningContext`, reading `Design` and `Plans` through their
-  public methods. Neither of them assembles part of the answer.
+  `Turns::planning_context(thread, project) -> Result<Option<CarriedContext>, TurnsError>`, which
+  answers `None` for an AYLUL thread. It reads `Design` and `Plans` through their public methods;
+  neither of them assembles part of the answer. `CarriedContext` is Harness's type (§4.4).
 
 ### 4.3 When it is sent
 
@@ -120,9 +121,11 @@ Three layers, in this order:
   last heard. A context counts as heard only when its turn ended normally; a stopped or failed
   turn leaves it owed. A new session on an old thread has heard nothing.
   This happens when the anchor changed, a source changed version (a plan version, an agreement, the
-  design revision of a part in the detail), or the index changed. This extends the harness's
-  existing "versions the session last heard" record (`core-harness/src/setup.rs`, `Heard`) with
-  the context digest.
+  design revision of a part in the detail), or the index changed. The digest a session heard is
+  that of its newest acknowledged row in Harness's `invocation_context` table (§4.4), for that
+  harness session, ordered by the operation's journal sequence. It is kept apart from the
+  harness's "versions the session last heard" record (`Heard`), which still covers instructions
+  and standards.
 - **After a compact, automatically.** Mohammed: most people compact by hand, and others let
   Claude Code compact itself at its limit, so both must count. The adapter reports both
   (evidence `docs/evidence/2026-11-04-planner-context-probe.md` §1): today as a `tool_call`

@@ -118,9 +118,13 @@ Decided with Mohammed on 2026-10-12, for PR 2:
 
   `PU` keeps purpose apart from a project rule's `P1` (§23.2); `TD` keeps technical
   direction apart from a plan task's `T1` (user ruling, 2026-10-31). Numbers count
-  per field from 1. An add gets its id when it is approved, so two pending
-  adds never claim the same one. The next number is one past the highest
-  ever issued in that field, so a removed id is never reused.
+  per field from 1. An add gets its id when it is proposed: the proposal
+  reserves the next number, its answer and card show it, and approval uses
+  it, so the Planner can cite it at once, two pending adds never claim the
+  same one, and the order of approval does not change it. A superseded add
+  leaves its id unused. An add proposal stored without a reserved id takes
+  the next number when it is approved. The next number is one past the
+  highest ever issued in that field, so a removed id is never reused.
 - **Versions.** Every change to the vision is a new version, whether an
   approval or a hand edit, and each version is stored. A page to read the
   history comes later, when the person or NYLRA needs to see what changed.
@@ -255,6 +259,14 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 - **Folders.** A folder belongs to one part. A child part's folders may sit
   inside its parent's; any other overlap is an ownership conflict and is
   refused.
+- **Rule refusals.** A map, part, path or folder that breaks a map rule is
+  refused as `MAP_REFUSED: <rule>: <message>`: HTTP `422` with the code
+  `MAP_REFUSED`; over MCP a tool result whose text begins `MAP_REFUSED:`. The
+  rule is one of `duplicate_part`, `duplicate_sibling`, `missing_parent`,
+  `unknown_vision_item`, `unknown_rule`, `file_outside_part`,
+  `duplicate_file`, `file_is_folder`, `folder_claimed_twice`,
+  `reserved_file`, `invalid_path` and `invalid_part`. The message names the
+  parts and the paths involved and says in one sentence what to change.
 - **Waivers.** A waiver of `api` or `frontend` travels inside the first map's
   card, with the Planner's written reason, shown apart so it is not missed.
   Approving the card approves the waiver, recorded with the person who
@@ -277,6 +289,12 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
   boundaries and technical direction guide the map and need no part: a
   boundary may say what is not built. Serving a goal is planned coverage,
   never proof the goal is met.
+- **Unserved items.** A map proposal's answer and card carry `unserved`: the
+  vision item ids, of every field and in vision order, that no part of the
+  proposed map serves. It informs the Planner and refuses nothing. Its limit:
+  it finds an item no part serves, not a part that left out an item another
+  part already serves; whether a part's text matches its `serves` is for the
+  Planner and the person to judge.
 - **Mandatory parts** are recognised by `kind` on a top-level part. Several
   parts may share a kind; one is enough.
 

@@ -136,16 +136,28 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 ## Slice 1 integration checks
 
-The branch also updates the canonical contract entries, code map, table-owner inventory,
-foundation schema fixture and existing prompt/vision expectations. Harness context-record
-tests run through AppCore in `crates/shadows/tests/context_record.rs`, preserving its
-no-Runtime dependency boundary. Source footer and cut markers count toward the index estimate;
-depth-two index entries retain their parent ids.
+Outside any task's `Touch:` on this branch, recorded here:
+- `25733964` (B-48): docs/codebase/README.md (two rows); crates/core-harness/Cargo.toml and
+  crates/core-harness/tests/context_record.rs, both removed again in `2cdf1205`.
+- `3b14e348` (B-49, B-50): Cargo.lock and crates/core-turns/Cargo.toml (`sha2`, a library for
+  infrastructure; `core-design` test-support for tests); crates/core-turns/tests/prompt.rs;
+  crates/core-design/tests/anchors.rs; docs/codebase/README.md (three rows).
+- `f774cde0` (B-51): crates/shadows-core/src/error.rs (`CONTEXT_NOT_CARRIED`) and
+  src/lib.rs (re-exports `CarriedContext`, `ContextSource`); crates/shadows/tests/openapi.rs and
+  tests/openapi/read_only.rs; docs/codebase/README.md; the shared request's status.
+- `2c5ca8b4` (B-52): api/openapi.json and web/src/api/schema.d.ts (`MAP_REFUSED`);
+  crates/shadows-http/src/contract.yaml.
+- `5e2d020d` (B-53): crates/shadows/tests/vision_proposal_ids.rs, the test the plan names.
+- `2cdf1205`: crates/core-db/contract.yaml; crates/core-db/tests/storage_contract/schema.rs
+  (the two new tables); crates/shadows/tests/architecture/table-owners.txt;
+  crates/shadows/tests/context_record.rs (Harness's record tests through AppCore, so
+  core-harness keeps no Runtime dependency); crates/shadows-core/tests/design_vision/proposals.rs
+  and crates/shadows/tests/image_attachments.rs, planner_mcp.rs, planner_mcp/standards.rs
+  (expectations that now include reserved ids and the planning block).
+- The whole-branch review: docs/core/specs/2026-10-08-guided-planning-design.md (vision ids
+  given when proposed, `MAP_REFUSED`, `unserved`) and this file, with Mohammed's approval.
 
-Focused checks passed: Core architecture (49), code map (1), migration checksums (1),
-foundation storage (9), Core contracts (6), design/vision suites, Turns (36), HTTP (32),
-MCP refusal mapping, OpenAPI (8), the twelve selected application regression targets,
-generated web types and focused all-target Clippy. After the final review fixes, Turns has 39 passing tests and the application context suite
-has 13. Production Clippy, the executable build and real provider/browser acceptance passed:
+The source footer and cut markers count toward the index estimate, and depth-two index entries
+keep their parent ids. Local acceptance with real provider and browser is in the
 [dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
-The full workspace gate remains for CI under Mohammed's instruction.
+The full workspace gate runs in CI.
