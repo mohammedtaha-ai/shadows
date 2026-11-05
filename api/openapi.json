@@ -913,12 +913,9 @@
       },
       "BaseStandards": {
         "properties": {
-          "contract_template": {
-            "$ref": "#/components/schemas/ContractTemplate"
-          },
           "parts": {
             "items": {
-              "$ref": "#/components/schemas/MandatoryPart"
+              "$ref": "#/components/schemas/PartKind"
             },
             "type": "array"
           },
@@ -936,8 +933,7 @@
         "required": [
           "version",
           "parts",
-          "rules",
-          "contract_template"
+          "rules"
         ],
         "type": "object"
       },
@@ -1233,27 +1229,6 @@
         "required": [
           "header",
           "rules"
-        ],
-        "type": "object"
-      },
-      "ContractTemplate": {
-        "properties": {
-          "rules": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "shape": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "rules",
-          "shape"
         ],
         "type": "object"
       },
@@ -2793,6 +2768,58 @@
         ],
         "type": "object"
       },
+      "LayerRef": {
+        "description": "A layer another layer may depend on. No kind means the same part.",
+        "properties": {
+          "layer": {
+            "type": "string"
+          },
+          "part_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "layer"
+        ],
+        "type": "object"
+      },
+      "LayerSpec": {
+        "description": "One role inside a part kind, from the catalog.",
+        "properties": {
+          "elements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "may_use": {
+            "items": {
+              "$ref": "#/components/schemas/LayerRef"
+            },
+            "type": "array"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "required",
+          "elements",
+          "may_use"
+        ],
+        "type": "object"
+      },
       "LimitWindow": {
         "description": "One account limit window as the harness reported it: `utilization` from 0\nto 1, `resets_at` in Unix seconds.",
         "properties": {
@@ -2966,25 +2993,6 @@
         },
         "required": [
           "id"
-        ],
-        "type": "object"
-      },
-      "MandatoryPart": {
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "owns": {
-            "type": "string"
-          },
-          "waivable": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "name",
-          "owns",
-          "waivable"
         ],
         "type": "object"
       },
@@ -3828,6 +3836,33 @@
         "format": "uuid",
         "type": "string"
       },
+      "PartKind": {
+        "description": "One part kind, the layers it owns and how it may be absent.",
+        "properties": {
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/LayerSpec"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owns": {
+            "type": "string"
+          },
+          "presence": {
+            "$ref": "#/components/schemas/Presence"
+          }
+        },
+        "required": [
+          "name",
+          "owns",
+          "presence",
+          "layers"
+        ],
+        "type": "object"
+      },
       "PartPage": {
         "properties": {
           "items": {
@@ -4539,6 +4574,15 @@
           "forked_from_thread"
         ],
         "type": "object"
+      },
+      "Presence": {
+        "description": "How a part kind's presence is decided.",
+        "enum": [
+          "required",
+          "waivable",
+          "optional"
+        ],
+        "type": "string"
       },
       "PresetRegion": {
         "enum": [

@@ -1934,8 +1934,7 @@ export interface components {
             name?: string | null;
         };
         BaseStandards: {
-            contract_template: components["schemas"]["ContractTemplate"];
-            parts: components["schemas"]["MandatoryPart"][];
+            parts: components["schemas"]["PartKind"][];
             rules: components["schemas"]["StandardRule"][];
             /** Format: int64 */
             version: number;
@@ -2032,10 +2031,6 @@ export interface components {
         ContractHead: {
             header: string;
             rules: string[];
-        };
-        ContractTemplate: {
-            rules: string[];
-            shape: string[];
         };
         CreateDir: {
             /** @description One new path component that Windows would accept. */
@@ -2464,6 +2459,19 @@ export interface components {
             revision: number;
             summary: string;
         };
+        /** @description A layer another layer may depend on. No kind means the same part. */
+        LayerRef: {
+            layer: string;
+            part_kind?: string | null;
+        };
+        /** @description One role inside a part kind, from the catalog. */
+        LayerSpec: {
+            elements: string[];
+            id: string;
+            may_use: components["schemas"]["LayerRef"][];
+            required: boolean;
+            role: string;
+        };
         /**
          * @description One account limit window as the harness reported it: `utilization` from 0
          *     to 1, `resets_at` in Unix seconds.
@@ -2510,11 +2518,6 @@ export interface components {
             /** Format: int32 */
             context_window?: number | null;
             id: string;
-        };
-        MandatoryPart: {
-            name: string;
-            owns: string;
-            waivable: boolean;
         };
         /** @enum {string} */
         MapAction: "first" | "add" | "change";
@@ -2710,6 +2713,13 @@ export interface components {
         };
         /** Format: uuid */
         PartId: string;
+        /** @description One part kind, the layers it owns and how it may be absent. */
+        PartKind: {
+            layers: components["schemas"]["LayerSpec"][];
+            name: string;
+            owns: string;
+            presence: components["schemas"]["Presence"];
+        };
         PartPage: {
             items: components["schemas"]["Part"][];
             next?: null | components["schemas"]["PartId"];
@@ -2891,6 +2901,11 @@ export interface components {
             status: string;
             title: string;
         };
+        /**
+         * @description How a part kind's presence is decided.
+         * @enum {string}
+         */
+        Presence: "required" | "waivable" | "optional";
         /** @enum {string} */
         PresetRegion: "international" | "china";
         /** @description One broken or missing thing, named so a person can act on it: tasks as `T4`. */
