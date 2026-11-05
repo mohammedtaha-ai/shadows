@@ -7,7 +7,7 @@ fn kinded(kind: &str) -> DesignOp {
         before: None,
         content: PartContent {
             serves: vec![],
-            folders: vec![],
+            folders: vec![kind.trim().into()],
             files: vec![],
             contract: Default::default(),
             kind: Some(kind.into()),
@@ -116,6 +116,7 @@ async fn stage_counts_a_trimmed_kind_and_no_other_case() {
                     before: None,
                     content: PartContent {
                         kind: Some("database".into()),
+                        folders: vec!["parent/nested".into()],
                         ..content("nested")
                     },
                 },

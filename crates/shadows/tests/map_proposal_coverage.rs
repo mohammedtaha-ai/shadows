@@ -16,6 +16,7 @@ async fn a_map_answer_lists_the_unserved_vision_items() {
         .part
         .content;
     content.serves = vec!["TD1".into()];
+    content.folders = vec!["seeded".into()];
     let mut ops: Vec<_> = VisionField::ALL
         .into_iter()
         .map(|field| DesignOp::VisionItemAdd {

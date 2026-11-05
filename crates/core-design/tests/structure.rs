@@ -31,32 +31,19 @@ fn input(parts: &[PartContent]) -> RenderInput<'_> {
 }
 
 #[test]
-fn renders_folders_contracts_files_and_shadows_md() {
+fn structure_writes_no_contract_files() {
     let mut second = part();
     second.title = "Database".into();
     second.folders = vec!["db".into()];
     second.files.clear();
     let result = Structure::render(&input(&[part(), second])).unwrap();
     assert_eq!(result.folders, ["backend", "db", "backend/src"]);
-    assert_eq!(
-        result
-            .files
-            .iter()
-            .map(|f| f.path.as_str())
-            .collect::<Vec<_>>(),
-        [
-            "SHADOWS.md",
-            "backend/src/contract.yaml",
-            "db/contract.yaml",
-            "backend/src/main.rs"
-        ]
-    );
-    assert_eq!(
-        String::from_utf8(result.files[1].bytes.clone()).unwrap(),
-        "# Written by Shadows from the approved map. Shadows is the source.\n\
-         title: Backend\nkind: backend\nresponsibility: Own logic\nserves:\n  - G1\n\
-         header: \"API: safe\"\nrules:\n  - S1\n"
-    );
+    let paths: Vec<_> = result.files.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(paths, ["SHADOWS.md", "backend/src/main.rs"]);
+    assert!(!paths.iter().any(|p| p.ends_with("contract.yaml")));
+    let text = String::from_utf8(result.files[0].bytes.clone()).unwrap();
+    assert!(text.contains("Shadows is the source of truth"));
+    assert!(!text.contains("contract"));
 }
 
 #[test]
@@ -72,10 +59,23 @@ fn a_part_without_a_folder_refuses() {
 #[test]
 fn a_reserved_path_refuses() {
     let mut p = part();
-    p.files[0].path = "backend/src/CONTRACT.yaml".into();
+    p.files[0].path = "shadows.MD".into();
     assert_eq!(
         Structure::render(&input(&[p])).err().unwrap(),
-        "reserved path: backend/src/CONTRACT.yaml"
+        "reserved path: shadows.MD"
+    );
+}
+
+#[test]
+fn a_starter_file_may_now_be_named_contract_yaml() {
+    let mut p = part();
+    p.files[0].path = "backend/src/contract.yaml".into();
+    let result = Structure::render(&input(&[p])).unwrap();
+    assert!(
+        result
+            .files
+            .iter()
+            .any(|f| f.path == "backend/src/contract.yaml")
     );
 }
 
@@ -86,8 +86,8 @@ fn shadows_md_names_map_and_standards() {
         String::from_utf8(result.files[0].bytes.clone()).unwrap(),
         "# Demo\n\nShadows wrote this structure from map version 3.\n\
          Standards: base v1, additions add-2.\n\
-         Shadows is the source of truth for the vision, the map and each part's\n\
-         contract; these files are their output.\n"
+         Shadows is the source of truth for the vision, the map and the plans.\n\
+         Ask Shadows over MCP where a part's code lives.\n"
     );
     assert_eq!(
         Structure::sha256_hex(b"hello"),

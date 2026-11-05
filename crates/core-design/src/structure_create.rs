@@ -64,8 +64,11 @@ impl Design {
             let folders: Vec<String> =
                 serde_json::from_str(&snapshot.intent.folders_json).map_err(StorageError::from)?;
             if recorded != hashes || folders != plan.folders {
+                self.store.cancel_structure(p).await?;
                 return Err(crate::DesignError::StageBlocked(
-                    "recorded structure differs; cannot resume".into(),
+                    "A structure write from an earlier version did not finish. \
+                     Press Create structure again."
+                        .into(),
                 ));
             }
         }

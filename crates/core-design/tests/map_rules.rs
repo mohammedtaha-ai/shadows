@@ -150,7 +150,7 @@ fn two_rules_never_share_a_message() {
         (
             vec![PartContent {
                 folders: vec!["src".into()],
-                files: vec![file("src/contract.yaml")],
+                files: vec![file("SHADOWS.md")],
                 ..part.clone()
             }],
             "reserved_file",
@@ -239,7 +239,7 @@ fn windows_device_names_are_refused() {
 
 #[test]
 fn reserved_initial_files_are_refused() {
-    for path in ["backend/CONTRACT.yaml", "SHADOWS.md"] {
+    for path in ["SHADOWS.md", "shadows.MD"] {
         let content = PartContent {
             title: "Backend".into(),
             folders: vec!["backend".into()],
@@ -262,15 +262,6 @@ fn reserved_initial_files_are_refused() {
             .unwrap_err();
         assert_eq!(error.rule, "reserved_file");
         assert!(error.message.contains(path));
-        // An unchanged part's reserved file never blocks another part's
-        // change: each can then be repaired one at a time. (A root
-        // SHADOWS.md is also outside its part's folders, refused anyway.)
-        if path != "SHADOWS.md" {
-            assert_eq!(
-                MapRules::check_shape(&parts, &[], &VisionContent::default(), &standards),
-                Ok(())
-            );
-        }
     }
 }
 
@@ -311,4 +302,84 @@ fn equal_folder_claims_require_distinct_ownership_even_between_parent_and_child(
     assert!(error.message.contains("Backend") && error.message.contains("Services"));
     assert!(!error.message.contains("make one part the other's child"));
     assert!(error.message.contains("one owner"));
+}
+
+fn tree(parent: &str, child: &str) -> Result<(), core_design::MapRefusal> {
+    let content = |title: &str, folder: &str| PartContent {
+        title: title.into(),
+        folders: if folder.is_empty() {
+            vec![]
+        } else {
+            vec![folder.into()]
+        },
+        ..Default::default()
+    };
+    let (a, b) = (content("Parent", parent), content("Child", child));
+    let parts = [
+        MapPart {
+            key: "p",
+            parent: None,
+            content: &a,
+        },
+        MapPart {
+            key: "c",
+            parent: Some("p"),
+            content: &b,
+        },
+    ];
+    MapRules::check_shape(
+        &parts,
+        &["p", "c"],
+        &VisionContent::default(),
+        &EffectiveStandards {
+            base: core_standards::Standards::base().clone(),
+            additions: None,
+        },
+    )
+}
+
+#[test]
+fn a_part_needs_exactly_one_folder() {
+    for folders in [vec![], vec!["app".into(), "config".into()]] {
+        let error = refused(&[PartContent {
+            title: "Backend".into(),
+            folders,
+            ..Default::default()
+        }]);
+        assert_eq!(error.rule, "one_folder");
+        assert!(error.message.contains("Backend"));
+        assert!(error.message.contains("Give the part exactly one folder"));
+    }
+}
+
+#[test]
+fn a_child_folder_sits_inside_its_parents() {
+    let error = tree("frontend", "dashboard").unwrap_err();
+    assert_eq!(error.rule, "folder_outside_parent");
+    assert!(error.message.contains("dashboard") && error.message.contains("frontend"));
+    assert!(tree("frontend", "frontend/dashboard").is_ok());
+}
+
+#[test]
+fn moving_a_parent_checks_descendant_folders() {
+    assert_eq!(
+        tree("b", "a/child").unwrap_err().rule,
+        "folder_outside_parent"
+    );
+}
+
+#[test]
+fn renaming_a_parent_folder_checks_unchanged_children() {
+    let error = tree("web", "frontend/dashboard").unwrap_err();
+    assert_eq!(error.rule, "folder_outside_parent");
+    assert!(error.message.contains("Child"));
+}
+
+#[test]
+fn windows_case_and_segment_boundaries_use_the_same_policy() {
+    assert!(tree("Frontend", "frontend/dashboard").is_ok());
+    assert_eq!(
+        tree("front", "frontend/x").unwrap_err().rule,
+        "folder_outside_parent"
+    );
 }

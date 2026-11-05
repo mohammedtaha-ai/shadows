@@ -150,6 +150,13 @@ async fn a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval() {
         r["append"]
             .as_str()
             .unwrap()
+            .contains("Each part has exactly one folder")
+    );
+    assert!(!r["append"].as_str().unwrap().contains("contract.yaml"));
+    assert!(
+        r["append"]
+            .as_str()
+            .unwrap()
             .contains("Write only what the person's message asks for")
     );
     assert_eq!(r["allowed"], json!(["mcp__shadows__*"]));

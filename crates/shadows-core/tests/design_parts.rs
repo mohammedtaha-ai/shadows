@@ -54,6 +54,7 @@ fn content(title: &str) -> PartContent {
         responsibility: " مسؤولية ".into(),
         design: " تصميم\n".into(),
         kind: Some("طبقة".into()),
+        folders: vec![title.trim().to_string()],
         ..Default::default()
     }
 }
@@ -64,6 +65,18 @@ fn create(id: &PartId, parent: Option<&PartId>, title: &str) -> DesignOp {
         parent: parent.cloned(),
         before: None,
         content: content(title),
+    }
+}
+
+fn create_in(id: &PartId, parent: Option<&PartId>, title: &str, folder: &str) -> DesignOp {
+    DesignOp::PartCreate {
+        id: id.clone(),
+        parent: parent.cloned(),
+        before: None,
+        content: PartContent {
+            folders: vec![folder.into()],
+            ..content(title)
+        },
     }
 }
 
@@ -106,8 +119,8 @@ async fn part_moves_keep_identity_and_reject_cycles() {
         0,
         vec![
             create(&a, None, " أ "),
-            create(&b, Some(&a), "ب"),
-            create(&c, Some(&b), "ج"),
+            create_in(&b, Some(&a), "ب", "أ/ب"),
+            create_in(&c, Some(&b), "ج", "أ/ب/ج"),
         ],
     )
     .await;
@@ -149,11 +162,22 @@ async fn part_moves_keep_identity_and_reject_cycles() {
         );
         assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
     }
-    let move_b = vec![DesignOp::PartMove {
-        id: b.clone(),
-        parent: None,
-        before: Some(a.clone()),
-    }];
+    let in_b = |id: &PartId, title: &str, folder: &str| DesignOp::PartPut {
+        id: id.clone(),
+        content: PartContent {
+            folders: vec![folder.into()],
+            ..content(title)
+        },
+    };
+    let move_b = vec![
+        in_b(&b, "ب", "ب"),
+        in_b(&c, "ج", "ب/ج"),
+        DesignOp::PartMove {
+            id: b.clone(),
+            parent: None,
+            before: Some(a.clone()),
+        },
+    ];
     let (x, y) = tokio::join!(
         core.plans()
             .edit_design("move-one".into(), &p, 1, move_b.clone()),
@@ -174,7 +198,10 @@ async fn part_moves_keep_identity_and_reject_cycles() {
         2,
         vec![DesignOp::PartPut {
             id: b.clone(),
-            content: content(" جديد "),
+            content: PartContent {
+                folders: vec!["ب".into()],
+                ..content(" جديد ")
+            },
         }],
     )
     .await;
@@ -428,7 +455,10 @@ async fn part_order_is_stable_across_restart() {
         vec![
             DesignOp::PartPut {
                 id: a.clone(),
-                content: content("Renamed"),
+                content: PartContent {
+                    folders: vec!["B/Renamed".into()],
+                    ..content("Renamed")
+                },
             },
             DesignOp::PartMove {
                 id: a.clone(),

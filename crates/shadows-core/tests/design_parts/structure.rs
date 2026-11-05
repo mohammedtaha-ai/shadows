@@ -70,7 +70,7 @@ async fn create_structure_writes_exactly_the_approved_files() {
         .create_structure("write".into(), &p, revision(&core, &p).await)
         .await
         .unwrap();
-    assert_eq!(result.paths.len(), 9);
+    assert_eq!(result.paths.len(), 5);
     assert_eq!(result.map_version, 2);
     assert!(!result.resumed);
     assert_eq!(core.design().stage(&p).await.unwrap().stage, Stage::Roadmap);
@@ -81,10 +81,7 @@ async fn create_structure_writes_exactly_the_approved_files() {
             std::fs::read_to_string(dir.join(format!("{kind}/src/initial.txt"))).unwrap(),
             format!("initial {kind}\n")
         );
-        let contract = std::fs::read_to_string(dir.join(format!("{kind}/contract.yaml"))).unwrap();
-        let yaml = yaml_rust2::YamlLoader::load_from_str(&contract).unwrap();
-        assert_eq!(yaml[0]["title"].as_str(), Some(kind));
-        assert_eq!(yaml[0]["header"].as_str(), Some("Approved"));
+        assert!(!dir.join(format!("{kind}/contract.yaml")).exists());
     }
     assert!(
         std::fs::read_to_string(dir.join("SHADOWS.md"))
@@ -261,14 +258,14 @@ async fn a_stopped_write_resumes() {
         core.design().stage(&p).await.unwrap().stage,
         Stage::Structure
     );
-    assert!(dir.join("api/contract.yaml.shadows-tmp").exists());
+    assert!(dir.join("api/src/initial.txt.shadows-tmp").exists());
     let result = core
         .design()
         .create_structure("resume".into(), &p, revision(&core, &p).await)
         .await
         .unwrap();
     assert!(result.resumed);
-    assert!(!dir.join("api/contract.yaml.shadows-tmp").exists());
+    assert!(!dir.join("api/src/initial.txt.shadows-tmp").exists());
     assert!(result.paths.iter().all(|path| dir.join(path).is_file()));
     assert_eq!(
         core.design()
@@ -306,8 +303,8 @@ async fn a_foreign_or_changed_file_refuses_the_resume() {
             std::fs::read_to_string(dir.join(path)).unwrap(),
             "person's bytes"
         );
-        assert!(dir.join("backend/contract.yaml.shadows-tmp").exists());
-        assert!(!dir.join("backend/contract.yaml").exists());
+        assert!(dir.join("backend/src/initial.txt.shadows-tmp").exists());
+        assert!(!dir.join("backend/src/initial.txt").exists());
 
         core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
             .await
@@ -329,7 +326,7 @@ async fn a_reserved_path_from_an_older_map_refuses() {
     let mut rows: serde_json::Value = serde_json::from_str(&json).unwrap();
     let mut content: serde_json::Value =
         serde_json::from_str(rows[0]["content_json"].as_str().unwrap()).unwrap();
-    content["files"] = serde_json::json!([{"path":"backend/CONTRACT.yaml","content":"foreign"}]);
+    content["files"] = serde_json::json!([{"path":"SHADOWS.md","content":"foreign"}]);
     rows[0]["content_json"] = serde_json::Value::String(content.to_string());
     sqlx::query("UPDATE design_map_version SET parts_json=? WHERE project_id=? AND number=2")
         .bind(rows.to_string())
@@ -341,7 +338,7 @@ async fn a_reserved_path_from_an_older_map_refuses() {
         core.design()
             .create_structure("write".into(), &p, revision(&core, &p).await)
             .await,
-        "reserved path: backend/CONTRACT.yaml",
+        "reserved path: SHADOWS.md",
     );
     assert_eq!(std::fs::read_dir(dir).unwrap().count(), 0);
 
@@ -408,7 +405,7 @@ async fn a_recorded_file_with_a_temp_suffix_is_never_cleaned_up() {
         .unwrap();
     assert!(
         core.design()
-            .create_structure_stopping_after("stop".into(), &p, revision(&core, &p).await, 8)
+            .create_structure_stopping_after("stop".into(), &p, revision(&core, &p).await, 4)
             .await
             .is_err()
     );
@@ -544,6 +541,53 @@ async fn the_revision_is_part_of_the_commands_identity() {
             StorageError::CommandConflict
         ))
     ));
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_unfinished_old_write_is_cancelled_with_a_clear_message() {
+    let (_tmp, storage, core, p, dir) = setup().await;
+    assert!(
+        core.design()
+            .create_structure_stopping_after("stop".into(), &p, revision(&core, &p).await, 1)
+            .await
+            .is_err()
+    );
+    let old = serde_json::json!([{"path":"backend/contract.yaml","sha256":"old"}]);
+    sqlx::query("UPDATE design_structure_write SET files_json=? WHERE project_id=?")
+        .bind(old.to_string())
+        .bind(p.as_str())
+        .execute(storage.reader())
+        .await
+        .unwrap();
+    blocked(
+        core.design()
+            .create_structure("resume".into(), &p, revision(&core, &p).await)
+            .await,
+        "Press Create structure again",
+    );
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM design_structure_write")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+    std::fs::remove_dir_all(&dir).unwrap();
+    std::fs::create_dir(&dir).unwrap();
+    let written = core
+        .design()
+        .create_structure("again".into(), &p, revision(&core, &p).await)
+        .await
+        .unwrap();
+    assert!(
+        !written
+            .paths
+            .iter()
+            .any(|path| path.ends_with("contract.yaml"))
+    );
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

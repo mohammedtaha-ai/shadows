@@ -263,20 +263,27 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
     let b = PartId::generate();
     let child = PartId::generate();
     let outcome = OutcomeId::generate();
-    let make_part = |id: &PartId, parent: Option<PartId>, title: &str| DesignOp::PartCreate {
-        id: id.clone(),
-        parent,
-        before: None,
-        content: PartContent {
-            serves: vec![],
-            folders: vec![],
-            files: vec![],
-            contract: Default::default(),
-            title: title.into(),
-            responsibility: "مسؤولية".into(),
-            design: "تصميم\n".into(),
-            kind: None,
-        },
+    let make_part = |id: &PartId, parent: Option<PartId>, title: &str| {
+        let parent_is_some = parent.is_some();
+        DesignOp::PartCreate {
+            id: id.clone(),
+            parent,
+            before: None,
+            content: PartContent {
+                serves: vec![],
+                folders: vec![if parent_is_some {
+                    format!("باكند/{title}")
+                } else {
+                    title.into()
+                }],
+                files: vec![],
+                contract: Default::default(),
+                title: title.into(),
+                responsibility: "مسؤولية".into(),
+                design: "تصميم\n".into(),
+                kind: None,
+            },
+        }
     };
     let ops = vec![
         make_part(&a, None, "باكند"),

@@ -752,7 +752,6 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
- "yaml-rust2",
 ]
 
 [[package]]

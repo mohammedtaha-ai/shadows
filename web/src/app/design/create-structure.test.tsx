@@ -39,10 +39,10 @@ it('confirms the directory and count, writes, then preserves success after roadm
   const a = app = await startApp('/projects/p1/workspace?view=map', {
     ...answers(),
     'GET /api/projects/p1/stage': () => Response.json({stage:written?'roadmap':'structure',
-      missing:[],drift:[],structure_file_count:3,map_revision:1}),
+      missing:[],drift:[],structure_file_count:2,map_revision:1}),
     'POST /api/projects/p1/structure': () => {
       written = true
-      return Response.json({map_version:2,paths:['SHADOWS.md','backend/contract.yaml','backend/main.rs'],
+      return Response.json({map_version:2,paths:['SHADOWS.md','backend/main.rs'],
         completed_at:'2026-10-12T00:00:00Z',resumed:false})
     },
   })
@@ -51,11 +51,11 @@ it('confirms the directory and count, writes, then preserves success after roadm
   await until(() => a.button('Confirm create structure')?.disabled === false)
   const dialog = a.container.querySelector('[role="dialog"]')!
   expect(dialog.textContent).toContain('C:\\work\\demo')
-  expect(dialog.textContent).toContain('3 files')
+  expect(dialog.textContent).toContain('2 files')
   expect(a.calls.filter(c => c.startsWith('POST'))).toHaveLength(0)
   act(() => a.button('Confirm create structure')?.click())
-  await until(() => a.text().includes('Structure written · 3 files'))
-  expect(a.text()).toContain('backend/contract.yaml')
+  await until(() => a.text().includes('Structure written · 2 files'))
+  expect(a.text()).toContain('backend/main.rs')
   expect(a.bodies.at(-1)).toMatchObject({command_id:expect.any(String),map_revision:1})
   await until(() => a.button('Create structure') === undefined)
   expect(a.queryClient.getQueryData(designKeys.stage('p1'))).toMatchObject({stage:'roadmap'})

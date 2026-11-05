@@ -35,6 +35,7 @@ impl DesignStore {
                                 title: "Seeded part".into(),
                                 responsibility: "Seeded for tests".into(),
                                 design: "Seeded for tests".into(),
+                                folders: vec!["seeded".into()],
                                 ..Default::default()
                             };
                             sqlx::query(
