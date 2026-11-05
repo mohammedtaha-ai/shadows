@@ -24,6 +24,13 @@ F-81 to F-85 (agent groups in the main window) shipped in PR #54 (`9e5b9ab2`), w
 B-40 to B-46; their entries are in this file at `9e5b9ab2`. The plan was
 `docs/frontend/plans/2026-11-03-agent-groups-ui.md` at `9e5b9ab2`.
 
+Planner context, slice 3 (the inspection view): F-86 to F-89 shipped in PR #57 (`1b413fc4`), with
+B-59; their entries are in this file at `1b413fc4`. The plan was
+`docs/frontend/plans/2026-11-05-planner-context-view.md` at `1b413fc4`.
+
+Structure and depth, slice 1 (PR #59, `26bf739e`) is backend-only. Its only web change is a test
+fixture in `web/src/app/design/create-structure.test.tsx`, with no `F-` task.
+
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -38,7 +45,7 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
-Structure and planning depth is in design preparation. The
+Structure and planning depth: slice 1 is on `main` and needs no web task. The
 [workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
 and [slice prerequisites](../backend/plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
 are the review targets. No new `F-` task is executable until its shared
@@ -46,43 +53,3 @@ request is accepted and its backend response exists. Before dispatch,
 expand the API hooks, routing, event refresh, contracts and code-map paths.
 Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
-
-Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-context-view.md)).
-
-### F-86 · Planning context API module
-- Status: done
-- Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-86-planning-context-api-module
-- Read: api/openapi.json (`AnchorResponse`, `SetAnchor`, `ThreadPlanningAnchor`, the context record); web/src/api/contract.yaml
-- Touch: web/src/api/planning-context.ts, planning-context.test.ts, contract.yaml; web/src/test/fake-daemon.ts;
-  docs/frontend/codebase/README.md
-- Done when: `npx vitest run src/api/planning-context.test.ts` passes (the caller's command id; a missing
-  record is null)
-
-### F-87 · The anchor chip in the conversation header
-- Status: done
-- Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-87-the-anchor-chip-in-the-conversation-header
-- Read: web/src/app/conversation/stage-chip.tsx, conversation.tsx; web/src/api/design.ts
-- Touch: web/src/app/conversation/anchor-chip.tsx, anchor-chip.test.tsx, anchor-picker.tsx, conversation.tsx,
-  contract.yaml; docs/frontend/codebase/README.md
-- Needs: F-86
-- Done when: `npx vitest run src/app/conversation/anchor-chip.test.tsx` passes, with the eight tests the task names
-
-### F-88 · Start a conversation anchored at a part or an outcome
-- Status: done
-- Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-88-start-a-conversation-anchored-at-a-part-or-an-outcome
-- Read: web/src/router.tsx (draft route); web/src/app/conversation/first-send.ts, draft.tsx
-- Touch: web/src/router.tsx; web/src/app/conversation/draft.tsx, first-send.ts, draft.test.tsx, carried-send.ts,
-  use-send.ts, composer.tsx, conversation.tsx, contract.yaml;
-  web/src/app/design/parts-view.tsx, roadmap-view.tsx, contract.yaml
-- Needs: F-86
-- Done when: `npx vitest run src/app/conversation/draft.test.tsx` passes, with the ten tests the task names
-
-### F-89 · Each turn's planning context, and its record
-- Status: done
-- Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-f-89-each-turns-planning-context-and-its-record
-- Read: web/src/app/conversation/messages.tsx, conversation.tsx, plan-side-panel.tsx
-- Touch: web/src/app/conversation/context-mark.tsx, context-record-panel.tsx, context-record-panel.test.tsx,
-  messages.tsx, conversation.tsx, deleted-conversation.tsx, contract.yaml; docs/frontend/codebase/README.md
-- Needs: B-59, F-86
-- Done when: `npx vitest run src/app/conversation/context-record-panel.test.tsx` passes, with the eight tests the
-  task names

@@ -55,7 +55,7 @@ UI and API dependencies.
 
 | Slice | Prerequisite | Planning state | Exit evidence |
 |---|---|---|---|
-| 1 | Caller inventory of the four write paths | Ready to number | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
+| 1 | Caller inventory of the four write paths | Implemented in PR #59 (`26bf739e`); live acceptance not recorded | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
 | 2 | Slice 1; spec §10 profile decision; accepted API request | Needs design | Layers on the map card, migration on the daily database, canvas in the app |
 | 3 | Slice 2; agreed revision and proposal API | Needs preparation | Batch element approval, schema view, stale-card recovery |
 | 4 | Slice 3 | Needs preparation | Layer counts and part summary visible |

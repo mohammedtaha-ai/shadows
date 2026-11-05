@@ -3,7 +3,7 @@
 - Status: accepted
 - Asked by: Claude for Mohammed, 2026-11-05.
 - Screen: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.4 ("The conversation
-  shows, per turn…"); plan `docs/frontend/plans/2026-11-05-planner-context-view.md`, B-59 and F-89.
+  shows, per turn…"); plan `docs/frontend/plans/2026-11-05-planner-context-view.md` at `1b413fc4`; B-59 and F-89 in `docs/backend/stages.md` and `docs/frontend/stages.md` at `1b413fc4`.
 
 ## Need
 

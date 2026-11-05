@@ -66,8 +66,7 @@ Planner context, slice 1 ([spec](specs/2026-11-04-planner-context-design.md)): B
 (`fc78cb7`), with the three Planner defects in `docs/evidence/2026-11-04-planner-session-defects.md`. Their entries,
 and the commits outside their `Touch:` lists, are in this file at `fc78cb7`. The plan was
 `docs/backend/plans/2026-11-04-planner-context-slice-1.md` at `fc78cb7`. The shared request
-`docs/shared/requests/2026-11-04-planning-context-routes.md` stays until the frontend slice that shows the
-inspection view is built. Local acceptance with real provider and browser is in the
+`docs/shared/requests/2026-11-04-planning-context-routes.md` is built by the inspection view in PR #57. Local acceptance with real provider and browser is in the
 [dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
 Planner context, slice 2 (the re-send after a compaction, spec §4.3): B-55 to B-58 shipped in PR #56
 (`024432fc`); their entries, and the commits outside their `Touch:` lists, are in this file at
@@ -75,77 +74,24 @@ Planner context, slice 2 (the re-send after a compaction, spec §4.3): B-55 to B
 acceptance passed on 2026-11-04 ([evidence §5](../evidence/2026-11-04-planner-context-probe.md#5-slice-2-live-acceptance-2026-11-04)).
 The shared request `docs/shared/requests/2026-11-04-planning-context-resend.md` stays until the frontend
 slice that shows the button is built.
-Not built: the inspection view (frontend, slice 3) and `Plans::owner_thread` (spec §6, slice 4).
+Planner context, slice 3 (the inspection view): B-59 and F-86 to F-89 shipped in PR #57
+(`1b413fc4`); their entries are in this file at `1b413fc4`. The plan was `docs/frontend/plans/2026-11-05-planner-context-view.md` at `1b413fc4`.
+The shared request `docs/shared/requests/2026-11-05-turn-context-state.md` is built by that PR.
+Not built: `Plans::owner_thread` (spec §6, slice 4), which waits for messaging slice 3.
+
+Structure and depth, slice 1 (one folder per part, no contract files): the design and its plan
+were merged in PR #58 (`96f9ff3d`). Slice 1 shipped in PR #59 (`26bf739e`), with B-60 to B-62;
+their entries, and the commits outside their `Touch:` lists (`d148c111`, `ec20c911`, `6874e9b2`,
+`80c1b934`), are in this file at `26bf739e`. The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`;
+its live acceptance is not recorded.
 
 ## Tasks
 
-Structure and planning depth is in design preparation on
-`feature/structure-and-depth`. Its [draft design](specs/2026-11-05-structure-and-depth-design.md)
-and [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
-define the readiness checklist. No slice is an executable `B-` assignment yet.
-Slice 1 (one folder per part, no contract files) is ready to number once its
-four write paths are listed. Slice 2 waits for the stack/profile decision and
-the accepted part/layer API request. Existing projects are test data: no
-compatibility layer. Coverage and code observation must not be recorded as
-completed execution.
-
-Structure and depth, slice 1 ([plan](plans/2026-11-05-structure-and-depth.md#slice-1-one-folder-per-part-no-contract-files)),
-base `96f9ff3`, owner `core-design` (and `core-harness` for B-62). Caller inventory of the
-write paths: proposal `store/map_proposal_shape.rs` (`MapProposalShapeRows::check`), approval
-`store/map_approval.rs:78` (re-runs the same check on the candidate), person edit
-`store/vision.rs` (`Design::edit_workspace_in`), structure `structure_create.rs`. Their
-integration tests are `crates/shadows/tests/design_routes.rs` (proposal, approval, person
-edit) and `crates/core-design/tests/structure.rs`. Fixture files that build maps are listed
-in each task's `Touch:`; in them only fixture data changes (folders), never an assertion's meaning.
-
-### B-60 · A map part has one folder, inside its parent's
-- Status: done
-- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 1.1 (steps, interfaces, test names)
-- Read: crates/core-design/contract.yaml; crates/core-design/src/map_rules.rs;
-  crates/core-design/src/store/map_proposal_shape.rs, map_approval.rs, vision.rs
-- Touch: crates/core-design/src/map_rules.rs, contract.yaml, tests/map_rules.rs;
-  crates/shadows/tests/design_routes.rs (the write-path regressions
-  `a_new_part_without_a_folder_is_refused_on_every_write_path`, `a_stale_map_approval_writes_nothing`);
-  fixtures only: crates/core-design/tests/structure.rs, crates/shadows-core/tests/design_parts/*.rs,
-  design_outcomes.rs, design_migration.rs, agreement_bindings.rs, agreement_review.rs;
-  crates/shadows/tests/workspace_mcp.rs, workspace_mcp/*.rs, map_proposal_coverage.rs,
-  agreement_journey.rs, openapi/read_only.rs; crates/core-turns/tests/planning_context.rs
-- Done when: `cargo test -p core-design --test map_rules`, `cargo test -p shadows --test design_routes`
-  and the test target of every fixture file changed pass
-
-### B-61 · Create structure writes no contract files; an old unfinished write is cancelled
-- Status: done
-- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 1.2
-- Read: crates/core-design/contract.yaml; crates/core-design/src/structure.rs, structure_create.rs,
-  store/structure.rs, map_rules.rs (`check_reserved`)
-- Touch: crates/core-design/src/structure.rs, structure_create.rs, store/structure.rs, map_rules.rs,
-  contract.yaml, tests/structure.rs; crates/shadows/tests/design_routes.rs;
-  crates/shadows-core/tests/design_parts/structure.rs (fixtures and the contract-file
-  expectation only); web/src/app/design/create-structure.test.tsx (fixture paths only)
-- Done when: `cargo test -p core-design --test structure`, `cargo test -p shadows --test design_routes`,
-  `cargo test -p shadows-core --test design_parts`, and in `web/`
-  `npx vitest run src/app/design/create-structure.test.tsx` pass
-
-### B-62 · The Planner is told the new map rules
-- Status: done
-- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 1.3
-- Read: crates/core-harness/contract.yaml; crates/core-harness/src/prompt.txt
-- Touch: crates/core-harness/src/prompt.txt, contract.yaml (only if it quotes the prompt);
-  crates/shadows/tests/planner_mcp.rs
-- Done when: `cargo test -p shadows --test planner_mcp` passes
-
-Planner context, slice 3 ([plan](../frontend/plans/2026-11-05-planner-context-view.md)): the
-inspection view. Its one backend task is below.
-
-### B-59 · Each turn says whether its planning context was heard
-- Status: done
-- Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-b-59-each-turn-says-whether-its-planning-context-was-heard
-- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml;
-  crates/core-harness/src/store/reads.rs
-- Touch: crates/core-harness/src/model.rs, src/lib.rs, src/store/reads.rs,
-  src/schema_descriptions/invocation.txt, contract.yaml; crates/shadows/tests/context_record.rs;
-  api/openapi.json; web/src/api/schema.d.ts, web/src/test/contract-fixtures.ts
-- Done when: `cargo test -p shadows --test context_record` and `cargo test -p shadows --test openapi`
-  pass, with the three tests the task names
+Structure and planning depth, slices 2 to 9: no slice is an executable `B-` assignment yet.
+The [design](specs/2026-11-05-structure-and-depth-design.md) and
+[delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the
+readiness checklist. Slice 2 waits for the stack/profile decision and the accepted part/layer
+API request. Existing projects are test data: no compatibility layer. Coverage and code
+observation must not be recorded as completed execution.
 
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
