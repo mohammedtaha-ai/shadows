@@ -97,7 +97,7 @@ D4). Each task's steps, interfaces and test names are in the plan. Run the tasks
 because each builds on the one before. Rust lines stay within 100 columns.
 
 ### B-63 · Standards v2 names each kind's layers
-- Status: todo
+- Status: done
 - Plan: Task 2.1
 - Read: crates/core-standards/contract.yaml; crates/core-standards/src/standards.yaml, model.rs, base.rs;
   crates/core-harness/src/standards.rs
@@ -109,7 +109,7 @@ because each builds on the one before. Rust lines stay within 100 columns.
   --test design_parts`, `cargo test -p core-harness` and `cargo test -p core-design` pass
 
 ### B-64 · A part has one folder and its layers; old parts are migrated
-- Status: todo
+- Status: done
 - Plan: Task 2.2 (its Files list names every fixture file)
 - Read: crates/core-design/contract.yaml; crates/core-design/src/model.rs, map_rules.rs, structure.rs;
   crates/core-db/migrations/0014_design_parts.sql, 0023_project_map.sql
