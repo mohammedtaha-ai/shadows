@@ -1,2 +1,3 @@
 What a turn asked for and what the harness reported.
 Anything not reported is `None`, never estimated.
+Planning context is heard after normal completion, prepared while unconfirmed, or null without a record.

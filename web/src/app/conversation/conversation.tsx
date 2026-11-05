@@ -19,9 +19,11 @@ import { ErrorLine } from '../error-line'
 import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { AgentBoard } from './agent-board'
+import { AnchorChip } from './anchor-chip'
 import { BackgroundTasks } from './background-tasks'
 import { Composer } from './composer'
 import { ContextRing } from './context-ring'
+import { ContextRecordPanel } from './context-record-panel'
 import { DeletedConversation } from './deleted-conversation'
 import type { PointedTask } from './focus-chip'
 import { Messages } from './messages'
@@ -72,6 +74,12 @@ export function ConversationRoute() {
   )
 }
 
+type ConversationPanel =
+  | { kind: 'plan'; shown: SideShown }
+  | { kind: 'subagent'; id: string }
+  | { kind: 'tasks' }
+  | { kind: 'context'; operationId: string }
+
 function Conversation({
   projectId,
   threadId,
@@ -84,17 +92,13 @@ function Conversation({
   project: Project | undefined
 }) {
   const navigate = useNavigate()
-  const [side, setSide] = useState<SideShown | null>(null)
+  const [side, setSide] = useState<ConversationPanel | null>(null)
   const [pointed, setPointed] = useState<PointedTask | null>(null)
-  const [agent, setAgent] = useState<string | null>(null)
-  const [tasksOpen, setTasksOpen] = useState(false)
   const [view, setView] = useState<'chat' | 'agent'>('chat')
   // Only a live `plan-show` for this tab arrives here (see `useConversation`).
   const showHere = (show: PlanShowFrame) => {
     if (show.place === 'side') {
-      setAgent(null)
-      setTasksOpen(false)
-      setSide({ workflowId: show.workflowId, taskNumber: show.taskNumber })
+      setSide({ kind: 'plan', shown: { workflowId: show.workflowId, taskNumber: show.taskNumber } })
     } else if (show.place === 'page') {
       void navigate({
         to: '/projects/$projectId/workflows/$workflowId',
@@ -123,16 +127,20 @@ function Conversation({
   // daemon last kept them for the harness.
   const limits = c.limits ?? (info?.limits == null ? null : toLimits(info.limits))
   const live = Object.values(c.stream.subagents)
-  const agentCard = agent === null ? null : cardOf(agent, c.entries.data ?? [], live)
+  const agentCard = side?.kind === 'subagent' ? cardOf(side.id, c.entries.data ?? [], live) : null
+  const contextState = side?.kind === 'context'
+    ? c.operations?.find(op => op.id === side.operationId)?.invocation?.planning_context
+    : null
   const modelLabel =
     session.state === 'ready'
       ? (session.choices.models.find((m) => m.id === session.choices.current.model)?.label ??
         session.choices.current.model)
       : label
   const openAgent = useCallback((id: string) => {
-    setSide(null)
-    setTasksOpen(false)
-    setAgent(id)
+    setSide({ kind: 'subagent', id })
+  }, [])
+  const openContext = useCallback((operationId: string) => {
+    setSide({ kind: 'context', operationId })
   }, [])
 
   return (
@@ -145,7 +153,10 @@ function Conversation({
             <h1 dir="auto" className="truncate text-start text-sm font-medium">
               {thread?.title ?? 'Conversation'}
             </h1>
-            {harness !== 'aylul' && <StageChip projectId={projectId} />}
+            {harness !== 'aylul' && <>
+              <StageChip projectId={projectId} />
+              <AnchorChip projectId={projectId} threadId={threadId} />
+            </>}
             <p className="truncate text-xs text-faint-foreground">
               <bdi>{harness === 'aylul' ? agentLabel : project?.name ?? '…'}</bdi>
               {project?.assistant === true ? null : ' · Planner'}
@@ -178,7 +189,7 @@ function Conversation({
                 </button>
               ))}
             </div>
-            {c.stream.tasks.length > 0 && <button type="button" aria-expanded={tasksOpen} onClick={() => { setSide(null); setAgent(null); setTasksOpen(true) }} className="text-xs text-muted-foreground hover:text-foreground">
+            {c.stream.tasks.length > 0 && <button type="button" aria-expanded={side?.kind === 'tasks'} onClick={() => setSide({ kind: 'tasks' })} className="text-xs text-muted-foreground hover:text-foreground">
               Background tasks: {c.stream.tasks.filter(task => task.state === 'running').length} running
             </button>}
             <CliPicker
@@ -243,10 +254,13 @@ function Conversation({
             tools={c.stream.tools}
             todos={c.stream.todos}
             onOpenSubagent={openAgent}
+            onOpenContext={openContext}
           />
         )}
         <WaitingMessages threadId={threadId} running={c.running !== null} />
         <Composer
+          // A late anchor handoff replaces the composer that was locked during that write.
+          key={carried?.anchor === undefined ? undefined : carried.attempt.commandId}
           to={{ threadId }}
           carried={carried}
           harness={harness}
@@ -264,19 +278,22 @@ function Conversation({
           onPointed={(done) => setPointed((now) => (now === done ? null : now))}
         />
       </div>
-      {tasksOpen && <BackgroundTasks threadId={threadId} tasks={c.stream.tasks} onClose={() => setTasksOpen(false)} />}
-      {side !== null && (
+      {side?.kind === 'tasks' && <BackgroundTasks threadId={threadId} tasks={c.stream.tasks} onClose={() => setSide(null)} />}
+      {side?.kind === 'plan' && (
         <PlanSidePanel
           // Another version is another graph, fitted afresh.
-          key={side.workflowId}
-          shown={side}
+          key={side.shown.workflowId}
+          shown={side.shown}
           projectId={projectId}
           onClose={() => setSide(null)}
           onPointAt={onPointAt}
         />
       )}
       {agentCard !== null && (
-        <SubagentPanel key={agentCard.id} card={agentCard} onClose={() => setAgent(null)} />
+        <SubagentPanel key={agentCard.id} card={agentCard} onClose={() => setSide(null)} />
+      )}
+      {side?.kind === 'context' && contextState != null && (
+        <ContextRecordPanel operationId={side.operationId} state={contextState} onClose={() => setSide(null)} />
       )}
     </div>
   )

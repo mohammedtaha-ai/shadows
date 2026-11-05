@@ -3,6 +3,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ThreadPlanningAnchor } from '@/api/planning-context'
 import { fakeChoices, planFixture, planListing, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, startApp, typeInto, until } from '@/test/test-app'
@@ -12,6 +13,215 @@ afterEach(() => {
   open?.unmount()
   open = null
   vi.restoreAllMocks()
+})
+
+const draftAnchor: ThreadPlanningAnchor = { kind: 'part', id: 'auth' }
+const anchoredDraft = '/projects/p1/new?anchor=part%3Aauth'
+const anchorRoute = 'PUT /api/threads/t1/anchor'
+const turnRoute = 'POST /api/threads/t1/turns'
+
+function anchorDaemon() {
+  let anchor: ThreadPlanningAnchor | null = null
+  const sentAnchors: (ThreadPlanningAnchor | null)[] = []
+  const writes: { command_id: string; anchor: ThreadPlanningAnchor | null }[] = []
+  const routes = answers({ start: () => {
+    sentAnchors.push(anchor)
+    return Response.json({ operation_id: 'op1' }, { status: 202 })
+  } })
+  routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
+  routes['GET /api/threads/t1/anchor'] = () => Response.json({ anchor })
+  routes['GET /api/projects/p1/design/parts/auth'] = {
+    part: { id: 'auth', content: { title: 'Authentication' } },
+  }
+  const answer = (value: ThreadPlanningAnchor | null) => {
+    anchor = value
+    return Response.json({ anchor })
+  }
+  const intercept = (respond: (body: (typeof writes)[number], call: number) => Response | Promise<Response>) => {
+    routes[anchorRoute] = async (request: Request) => {
+      const body = await request.json() as (typeof writes)[number]
+      writes.push(body)
+      return respond(body, writes.length)
+    }
+  }
+  intercept(body => answer(body.anchor))
+  return { routes, sentAnchors, writes, answer, intercept }
+}
+
+async function pressSend(app: TestApp, label = 'Send') {
+  await until(() => app.button(label)?.disabled === false)
+  await act(async () => app.button(label)?.click())
+}
+
+async function submitDraft(routes: ReturnType<typeof answers>, url = anchoredDraft) {
+  const app = open = await startApp(url, routes)
+  await until(() => app.container.querySelector('textarea') !== null)
+  typeInto(app.container.querySelector('textarea')!, 'Plan the release')
+  await pressSend(app)
+  return app
+}
+
+async function appRouter() {
+  return (await import('@/router')).router
+}
+
+async function revisitThread(app: TestApp) {
+  const router = await appRouter()
+  await act(() => router.navigate({ to: '/projects/$projectId/settings', params: { projectId: 'p1' } }))
+  await until(() => app.path() === '/projects/p1/settings')
+  await act(() => router.navigate({
+    to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't1' },
+  }))
+}
+
+it('the_first_send_sets_the_anchor_before_the_turn', async () => {
+  const daemon = anchorDaemon()
+  const app = open = await startApp(anchoredDraft, daemon.routes)
+  await until(() => app.text().includes('Anchored at Authentication'))
+  typeInto(app.container.querySelector('textarea')!, 'Plan the release')
+  await pressSend(app)
+  await until(() => daemon.sentAnchors.length === 1)
+  expect(app.calls.filter(c => c === anchorRoute || c === turnRoute)).toEqual([anchorRoute, turnRoute])
+  expect(daemon.sentAnchors).toEqual([draftAnchor])
+})
+
+it('a_failed_anchor_keeps_the_thread_and_the_text', async () => {
+  const daemon = anchorDaemon()
+  daemon.intercept(() => Response.json({ code: 'NOT_FOUND', message: 'The part was removed.' }, { status: 404 }))
+  const app = await submitDraft(daemon.routes)
+  await until(() => app.path() === '/projects/p1/threads/t1' && app.text().includes('The part was removed.'))
+  expect(app.container.querySelector('textarea')?.value).toBe('Plan the release')
+  expect(app.calls).not.toContain(turnRoute)
+})
+
+it('a_retry_sets_the_anchor_first_with_the_same_command_id', async () => {
+  const daemon = anchorDaemon()
+  daemon.intercept((body, call) => {
+    const response = daemon.answer(body.anchor)
+    if (call === 1) throw new TypeError('Response lost')
+    return response
+  })
+  const app = await submitDraft(daemon.routes)
+  await until(() => app.path() === '/projects/p1/threads/t1')
+  await pressSend(app)
+  await until(() => daemon.sentAnchors.length === 1)
+  expect(daemon.writes[1]).toEqual(daemon.writes[0])
+  expect(app.calls.filter(c => c === anchorRoute || c === turnRoute)).toEqual([anchorRoute, anchorRoute, turnRoute])
+  expect(app.calls.filter(c => c === 'POST /api/projects/p1/threads')).toHaveLength(1)
+  expect(daemon.sentAnchors).toEqual([draftAnchor])
+})
+
+it('send_without_the_anchor_waits_for_the_pending_write', async () => {
+  const daemon = anchorDaemon()
+  let finishWrite: () => void = () => { throw new Error('The first write has not started.') }
+  const committed = new Promise<void>(resolve => {
+    daemon.intercept(async (body, call) => {
+      if (call === 1) {
+        finishWrite = () => { daemon.answer(body.anchor); resolve() }
+        throw new TypeError('Connection closed with the write pending')
+      }
+      if (body.anchor === null) return daemon.answer(null)
+      await committed
+      return Response.json({ anchor: body.anchor })
+    })
+  })
+  const app = await submitDraft(daemon.routes)
+  await until(() => app.path() === '/projects/p1/threads/t1')
+  await pressSend(app, 'Send without the anchor')
+  await until(() => daemon.writes.length === 2)
+  expect(daemon.writes[1]).toEqual(daemon.writes[0])
+  expect(app.calls.filter(c => c === anchorRoute || c === turnRoute)).toEqual([anchorRoute, anchorRoute])
+  await act(async () => finishWrite())
+  await until(() => daemon.sentAnchors.length === 1)
+  expect(app.calls.filter(c => c === anchorRoute || c === turnRoute)).toEqual([anchorRoute, anchorRoute, anchorRoute, turnRoute])
+  expect(daemon.writes[2]?.anchor).toBeNull()
+  expect(daemon.writes[2]?.command_id).not.toBe(daemon.writes[0]?.command_id)
+  expect(daemon.sentAnchors).toEqual([null])
+})
+
+it.each([
+  ['a_gateway_answer_is_treated_as_unknown', true, () => new Response('Gateway timeout', { status: 504 })],
+  ['send_without_the_anchor_after_a_refusal_only_clears', false,
+    () => Response.json({ code: 'NOT_FOUND', message: 'The part was removed.' }, { status: 404 })],
+  ['a_daemon_server_error_only_clears', false,
+    () => Response.json({ code: 'INTERNAL', message: 'The write failed.' }, { status: 500 })],
+] as const)('%s', async (_name, replay, firstAnswer) => {
+  const daemon = anchorDaemon()
+  daemon.intercept((body, call) => call === 1 ? firstAnswer() : daemon.answer(body.anchor))
+  const app = await submitDraft(daemon.routes)
+  await until(() => app.path() === '/projects/p1/threads/t1')
+  await pressSend(app, 'Send without the anchor')
+  await until(() => daemon.sentAnchors.length === 1)
+  expect(daemon.writes.map(write => write.anchor)).toEqual(replay ? [draftAnchor, draftAnchor, null] : [draftAnchor, null])
+  if (replay) expect(daemon.writes[1]).toEqual(daemon.writes[0])
+  expect(daemon.sentAnchors).toEqual([null])
+})
+
+it('an_unknown_anchor_value_is_ignored', async () => {
+  const daemon = anchorDaemon()
+  const app = await submitDraft(daemon.routes, '/projects/p1/new?anchor=unknown%3Aauth')
+  await until(() => daemon.sentAnchors.length === 1)
+  expect(app.calls).not.toContain(anchorRoute)
+  expect(daemon.sentAnchors).toEqual([null])
+})
+
+it('a_lost_clear_answer_retries_the_clear_before_sending', async () => {
+  const daemon = anchorDaemon()
+  daemon.intercept((body, call) => {
+    if (call === 1) return Response.json({ code: 'NOT_FOUND', message: 'The part was removed.' }, { status: 404 })
+    const response = daemon.answer(body.anchor)
+    if (call === 2) throw new TypeError('Clear response lost')
+    return response
+  })
+  const app = await submitDraft(daemon.routes)
+  await until(() => app.path() === '/projects/p1/threads/t1')
+  await pressSend(app, 'Send without the anchor')
+  await until(() => app.text().includes('The daemon is not reachable'))
+  expect(app.calls).not.toContain(turnRoute)
+  expect(app.button('Send')).toBeUndefined()
+  await revisitThread(app)
+  await pressSend(app, 'Send without the anchor')
+  await until(() => daemon.sentAnchors.length === 1)
+  expect(daemon.writes[1]?.anchor).toBeNull()
+  expect(daemon.writes[2]).toEqual(daemon.writes[1])
+  expect(daemon.sentAnchors).toEqual([null])
+})
+
+it('a_revisited_thread_keeps_its_anchor_attempt_and_blocks_header_writes', async () => {
+  const daemon = anchorDaemon()
+  daemon.intercept((body, call) => {
+    if (call === 1) throw new TypeError('Anchor response lost')
+    return daemon.answer(body.anchor)
+  })
+  const app = await submitDraft(daemon.routes)
+  await until(() => app.path() === '/projects/p1/threads/t1')
+  await revisitThread(app)
+  await until(() => app.button('Anchor…') !== undefined)
+  expect(app.button('Anchor…')?.disabled).toBe(true)
+  expect(app.container.querySelector('textarea')?.value).toBe('Plan the release')
+  await pressSend(app)
+  await until(() => daemon.sentAnchors.length === 1)
+  expect(daemon.writes[1]).toEqual(daemon.writes[0])
+  expect(daemon.sentAnchors).toEqual([draftAnchor])
+})
+
+it('the_open_thread_receives_a_draft_whose_anchor_write_fails_late', async () => {
+  const daemon = anchorDaemon()
+  let refuse!: (error: Error) => void
+  daemon.intercept(() => new Promise<Response>((_resolve, reject) => { refuse = reject }))
+  const app = await submitDraft(daemon.routes)
+  await until(() => daemon.writes.length === 1)
+  const router = await appRouter()
+  await act(() => router.navigate({
+    to: '/projects/$projectId/threads/$threadId', params: { projectId: 'p1', threadId: 't1' },
+  }))
+  await until(() => app.container.querySelector('textarea')?.readOnly === true)
+  expect(app.container.querySelector('textarea')?.value).toBe('')
+  await act(async () => refuse(new TypeError('Connection closed')))
+  await until(() => app.button('Send without the anchor') !== undefined)
+  expect(app.container.querySelector('textarea')?.value).toBe('Plan the release')
+  expect(app.text()).toContain('The daemon is not reachable')
+  expect(app.calls).not.toContain(turnRoute)
 })
 
 describe('the draft', () => {
@@ -135,7 +345,7 @@ describe('leaving a draft while it sends', () => {
     app.button('Send')?.click()
     await until(() => app.calls.includes('POST /api/projects/p1/threads'))
 
-    const { router } = await import('@/router')
+    const router = await appRouter()
     await act(() =>
       router.navigate({ to: '/projects/$projectId/settings', params: { projectId: 'p1' } }),
     )

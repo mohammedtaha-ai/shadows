@@ -2416,6 +2416,7 @@ export interface components {
         /**
          * @description What a turn asked for and what the harness reported.
          *     Anything not reported is `None`, never estimated.
+         *     Planning context is heard after normal completion, prepared while unconfirmed, or null without a record.
          */
         InvocationView: {
             agent_version: string;
@@ -2426,6 +2427,7 @@ export interface components {
             harness_kind: string;
             harness_version: string;
             observed_model: string | null;
+            planning_context: null | components["schemas"]["PlanningContextState"];
             requested_effort: string | null;
             requested_mode: string;
             requested_model: string;
@@ -2867,6 +2869,11 @@ export interface components {
             state: components["schemas"]["PlanState"];
             versions: components["schemas"]["VersionLine"][];
         };
+        /**
+         * @description Whether the session acknowledged a recorded planning context.
+         * @enum {string}
+         */
+        PlanningContextState: "heard" | "prepared";
         PlanningThread: {
             created_at: string;
             /** @description The thread this one was forked from, if it is a fork. */

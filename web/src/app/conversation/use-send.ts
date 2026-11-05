@@ -1,13 +1,15 @@
 // Own delivery attempts so retries keep the command for the same message.
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
 import type { TurnSettings } from '@/api/sessions'
 import { type Focus, queueMessage, startTurn, queuedQuery } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
+import { saveAnchorAnswer, setAnchor } from '@/api/planning-context'
 import { noteCompanionSend } from '@/desktop'
 import { tabId } from '@/stream'
+import { type AnchorRecovery, anchorWriteKey, anchorWriteRefused, readAnchorRecovery, saveAnchorRecovery, useAnchorRecovery } from './carried-send'
 import { uploadImages, type PendingImage } from './upload-images'
 import type { SendTo } from './composer'
 import type { PointedTask } from './focus-chip'
@@ -41,12 +43,48 @@ export function useSend({
   // dropped when it succeeds or when the prompt or a setting changes, so a
   // changed request is a new command rather than a COMMAND_CONFLICT.
   const pending = useRef<Attempt | null>(initialAttempt)
+  const anchorRecovery = useAnchorRecovery(threadId)
+  const anchorMutations = useIsMutating({ mutationKey: anchorWriteKey(threadId), exact: true })
+  const queryClient = useQueryClient()
 
   const clearAttempt = useCallback(() => { pending.current = null }, [])
 
+  async function finishAnchor(threadId: string, recovery: AnchorRecovery, withoutAnchor: boolean) {
+    if (recovery.kind === 'set' && !withoutAnchor) {
+      const { anchor } = recovery
+      const answer = await setAnchor(threadId, anchor.attempt.commandId, anchor.value).catch(error => {
+        saveAnchorRecovery(threadId, { kind: 'set', anchor: { ...anchor, refused: anchorWriteRefused(error) } })
+        throw error
+      })
+      await saveAnchorAnswer(queryClient, threadId, answer)
+    } else {
+      const clear = recovery.kind === 'clear' ? recovery : {
+        kind: 'clear' as const,
+        attempt: attemptFor(null, { threadId, anchor: null }),
+        unsettled: recovery.anchor.refused ? undefined : recovery.anchor,
+      }
+      // Once clear is chosen, even a lost clear answer must retry that same command.
+      saveAnchorRecovery(threadId, clear)
+      if (clear.unsettled !== undefined) {
+        try {
+          await setAnchor(threadId, clear.unsettled.attempt.commandId, clear.unsettled.value)
+        } catch (error) {
+          if (!anchorWriteRefused(error)) throw error
+        }
+        saveAnchorRecovery(threadId, { ...clear, unsettled: undefined })
+      }
+      await saveAnchorAnswer(queryClient, threadId, await setAnchor(threadId, clear.attempt.commandId, null))
+    }
+    saveAnchorRecovery(threadId, null)
+  }
+
   const send = useMutation({
-    mutationFn: async ({ commandId, text, settings, pointed, planId, images }: Send) =>{
+    mutationKey: anchorWriteKey(threadId),
+    scope: threadId === null ? undefined : { id: threadId },
+    mutationFn: async ({ commandId, text, settings, pointed, planId, images, withoutAnchor }: Send & { withoutAnchor: boolean }) =>{
       if('draft' in to)return to.draft(commandId,text,settings,images,imagesChanged)
+      const recovery = readAnchorRecovery(to.threadId)
+      if (recovery !== null) await finishAnchor(to.threadId, recovery, withoutAnchor)
       const attachments = await uploadImages(to.threadId, images, imagesChanged)
       await noteCompanionSend(to.threadId)
       return startTurn(to.threadId,commandId,text,settings,{
@@ -67,7 +105,6 @@ export function useSend({
 
   // While a turn runs Enter queues the message with the settings the menus
   // hold; it is sent when the turn ends or by Send now.
-  const queryClient = useQueryClient()
   const queue = useMutation({
     mutationFn: async ({commandId,text,settings,pointed,planId,images}:Send)=>{
       const attachments = await uploadImages(threadId as string, images, imagesChanged)
@@ -89,21 +126,23 @@ export function useSend({
     },
   })
 
-  const deliver = ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>) => {
+  const deliver = ({ text, settings, pointed, planId, images }: Omit<Send, 'commandId'>, withoutAnchor = false) => {
+    if (anchorRecovery !== null && running !== null) return
     // The focus is part of the command: pointing elsewhere is a new one.
     pending.current = attemptFor(pending.current, { text, settings, ...(images.length === 0 ? {} : { attachments: images.map(image => image.key) }), focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
     const args = { commandId: pending.current.commandId, text, settings, pointed, planId, images: [...images] }
     if (running !== null && threadId !== null) {
       queue.mutate(args)
-    } else send.mutate(args)
+    } else send.mutate({ ...args, withoutAnchor })
   }
 
   return {
     deliver,
     clearAttempt,
     sending: send.isPending,
-    inFlight: send.isPending || queue.isPending,
+    inFlight: send.isPending || queue.isPending || anchorMutations > 0,
     error: send.error ?? queue.error,
+    anchorRecovery: anchorRecovery?.kind ?? null,
   }
 }
 

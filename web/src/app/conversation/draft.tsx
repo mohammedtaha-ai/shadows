@@ -5,6 +5,8 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { Code2, MessageSquarePlus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { harnessesQuery, policyOf } from '@/api/harnesses'
+import { outcomeQuery, partQuery } from '@/api/design'
+import type { ThreadPlanningAnchor } from '@/api/planning-context'
 import { planVersionsQuery, plansQuery } from '@/api/workflows'
 import { projectsQuery } from '@/api/projects'
 import { agentsQuery, providersQuery, type Provider } from '@/api/aylul-profiles'
@@ -22,8 +24,10 @@ const route = getRouteApi('/projects/$projectId/new')
 /** Keyed by project, so a draft never carries its text to another project. */
 export function DraftRoute() {
   const { projectId } = route.useParams()
-  const { plan } = route.useSearch()
-  return <Draft key={projectId} projectId={projectId} planId={plan} />
+  const { plan, anchor } = route.useSearch()
+  const selection: ThreadPlanningAnchor | undefined = anchor === undefined ? undefined
+    : anchor.startsWith('part:') ? { kind: 'part', id: anchor.slice(5) } : { kind: 'outcome', id: anchor.slice(8) }
+  return <Draft key={projectId} projectId={projectId} planId={plan} anchor={selection} />
 }
 
 export function AgentDraftRoute() {
@@ -40,8 +44,9 @@ export function AgentDraftRoute() {
     provider={provider} defaultModel={agent.default_model} agentName={agent.name} />
 }
 
-function Draft({ projectId, planId, profile, provider, defaultModel, agentName }: {
+function Draft({ projectId, planId, profile, provider, defaultModel, agentName, anchor }: {
   projectId: string; planId?: string; profile?: string; provider?: Provider; defaultModel?: string; agentName?: string
+  anchor?: ThreadPlanningAnchor
 }) {
   const navigate = useNavigate()
   const project = useQuery(projectsQuery).data?.find((p) => p.id === projectId)
@@ -59,7 +64,11 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
     harnesses.data === undefined && harnesses.isError && !harnesses.isFetching
       ? { state: 'failed', error: harnesses.error, retry: () => void harnesses.refetch() }
       : ready
-  const draft = useFirstSend(projectId, harness, planId, profile)
+  const selectedAnchor = harness === AYLUL_HARNESS ? undefined : anchor
+  const draft = useFirstSend(projectId, harness, planId, profile, selectedAnchor)
+  const part = useQuery({ ...partQuery(projectId, selectedAnchor?.id ?? ''), enabled: selectedAnchor?.kind === 'part' })
+  const outcome = useQuery({ ...outcomeQuery(projectId, selectedAnchor?.id ?? ''), enabled: selectedAnchor?.kind === 'outcome' })
+  const anchorName = selectedAnchor?.kind === 'part' ? part.data?.part.content.title : outcome.data?.outcome.content.title
 
   const planVersions = useQuery({
     ...planVersionsQuery(planId ?? ''),
@@ -75,7 +84,7 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
     void navigate({
       to: '/projects/$projectId/new',
       params: { projectId },
-      search: {},
+      search: prev => ({ ...prev, plan: undefined }),
       replace: true,
     })
   }
@@ -136,6 +145,11 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName }
           </div>
         </div>
       )}
+      {selectedAnchor !== undefined && <div className="px-6 pb-2">
+        <div className="mx-auto max-w-3xl text-sm text-muted-foreground">
+          {anchorName === undefined ? 'Planning anchor selected' : <>Anchored at <bdi>{anchorName}</bdi></>}
+        </div>
+      </div>}
       <Composer
         to={{ draft, planId, selectableModels: profile !== undefined }}
         harness={harness}

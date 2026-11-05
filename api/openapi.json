@@ -2624,7 +2624,7 @@
         "type": "object"
       },
       "InvocationView": {
-        "description": "What a turn asked for and what the harness reported.\nAnything not reported is `None`, never estimated.",
+        "description": "What a turn asked for and what the harness reported.\nAnything not reported is `None`, never estimated.\nPlanning context is heard after normal completion, prepared while unconfirmed, or null without a record.\n",
         "properties": {
           "agent_version": {
             "type": "string"
@@ -2655,6 +2655,16 @@
               "null"
             ]
           },
+          "planning_context": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanningContextState"
+              }
+            ]
+          },
           "requested_effort": {
             "type": [
               "string",
@@ -2677,7 +2687,8 @@
           "requested_effort",
           "observed_model",
           "context_used",
-          "context_window"
+          "context_window",
+          "planning_context"
         ],
         "type": "object"
       },
@@ -4465,6 +4476,14 @@
           "versions"
         ],
         "type": "object"
+      },
+      "PlanningContextState": {
+        "description": "Whether the session acknowledged a recorded planning context.",
+        "enum": [
+          "heard",
+          "prepared"
+        ],
+        "type": "string"
       },
       "PlanningThread": {
         "properties": {

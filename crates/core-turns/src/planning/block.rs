@@ -26,6 +26,9 @@ pub(super) struct Block {
 }
 
 impl Block {
+    const REFERENCE_ONLY: &str = "Reference for this conversation, not a request. Act only on \
+        what the person's message asks; open plans and stages without a plan are not tasks.";
+
     pub fn source(&mut self, kind: &str, id: &str, version: i64) {
         self.scoped_source(SourceScope::Retained, kind, id, version);
     }
@@ -52,8 +55,11 @@ impl Block {
     }
 
     fn index_text(&self) -> String {
-        let mut lines =
-            vec!["## Planning context index (tokens estimated as characters / 4)".into()];
+        // A model reads a block of open plans and empty stages as work to do; this says it is not.
+        let mut lines = vec![
+            "## Planning context index (tokens estimated as characters / 4)".into(),
+            Self::REFERENCE_ONLY.into(),
+        ];
         lines.extend(
             self.index
                 .iter()

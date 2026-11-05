@@ -69,72 +69,28 @@ and the commits outside their `Touch:` lists, are in this file at `fc78cb7`. The
 `docs/shared/requests/2026-11-04-planning-context-routes.md` stays until the frontend slice that shows the
 inspection view is built. Local acceptance with real provider and browser is in the
 [dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
-Not built: the inspection view (frontend) and `Plans::owner_thread` (spec §6, slice 4). The re-send
-after a compaction (spec §6, slice 2) is built below; its live acceptance passed on 2026-11-04 ([evidence §5](../evidence/2026-11-04-planner-context-probe.md#5-slice-2-live-acceptance-2026-11-04)).
+Planner context, slice 2 (the re-send after a compaction, spec §4.3): B-55 to B-58 shipped in PR #56
+(`024432fc`); their entries, and the commits outside their `Touch:` lists, are in this file at
+`024432fc`. The plan was `docs/backend/plans/2026-11-04-planner-context-slice-2.md` at `024432fc`. Its live
+acceptance passed on 2026-11-04 ([evidence §5](../evidence/2026-11-04-planner-context-probe.md#5-slice-2-live-acceptance-2026-11-04)).
+The shared request `docs/shared/requests/2026-11-04-planning-context-resend.md` stays until the frontend
+slice that shows the button is built.
+Not built: the inspection view (frontend, slice 3) and `Plans::owner_thread` (spec §6, slice 4).
 
 ## Tasks
 
+Planner context, slice 3 ([plan](../frontend/plans/2026-11-05-planner-context-view.md)): the
+inspection view. Its one backend task is below.
+
+### B-59 · Each turn says whether its planning context was heard
+- Status: done
+- Plan: docs/frontend/plans/2026-11-05-planner-context-view.md#task-b-59-each-turn-says-whether-its-planning-context-was-heard
+- Read: docs/backend/specs/2026-11-04-planner-context-design.md §4.4; crates/core-harness/contract.yaml;
+  crates/core-harness/src/store/reads.rs
+- Touch: crates/core-harness/src/model.rs, src/lib.rs, src/store/reads.rs,
+  src/schema_descriptions/invocation.txt, contract.yaml; crates/shadows/tests/context_record.rs;
+  api/openapi.json; web/src/api/schema.d.ts, web/src/test/contract-fixtures.ts
+- Done when: `cargo test -p shadows --test context_record` and `cargo test -p shadows --test openapi`
+  pass, with the three tests the task names
+
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
-
-Planner context, slice 2: re-send after a compaction, or on request
-([spec](specs/2026-11-04-planner-context-design.md) §4.3, [plan](plans/2026-11-04-planner-context-slice-2.md),
-[shared request](../shared/requests/2026-11-04-planning-context-resend.md)). In order: B-55, B-56,
-B-57, then B-58. The live acceptance follows them (the plan's last section).
-
-### B-55 · The adapter's compaction is one event (shadows-agent, fake-acp)
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-55-the-adapters-compaction-is-one-event-shadows-agent-fake-acp
-- Read: the plan's "What the adapter sends"; `docs/evidence/2026-11-04-planner-context-probe.md` §1;
-  the `shadows-agent` rows of docs/codebase/README.md
-- Touch: crates/shadows-agent/src/events.rs, crates/shadows-agent/src/acp/mapping.rs,
-  crates/shadows-agent/src/acp_tests.rs, crates/core-turns/src/entries.rs,
-  crates/fake-acp/src/prompts.rs
-- Done when: `cargo test -p shadows-agent` (the five tests the plan names) and
-  `cargo test -p core-turns` pass
-
-### B-56 · A thread forgets what its session heard (Harness)
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-56-a-thread-forgets-what-its-session-heard-harness
-- Read: crates/core-harness/contract.yaml; spec §4.3 "What a compaction or a request forgets";
-  crates/core-db/contract.yaml (the journal, commands)
-- Touch: crates/core-db/migrations/0046_context_forget.sql,
-  crates/core-db/tests/fixtures/base_migrations.sha384, crates/core-db/tests/migration_checksums.rs,
-  crates/core-db/tests/storage_contract/schema.rs, crates/core-db/contract.yaml,
-  crates/core-harness/src/context_record.rs, crates/core-harness/src/store/context_record.rs,
-  crates/core-harness/src/setup.rs, crates/core-harness/src/model.rs,
-  crates/core-harness/src/error.rs, crates/core-harness/contract.yaml,
-  crates/shadows-core/src/error.rs, crates/shadows-core/src/lib.rs (re-export `Forget`),
-  crates/shadows/tests/architecture/table-owners.txt, crates/shadows/tests/context_record.rs
-- Done when: `cargo test -p core-harness`, `cargo test -p shadows --test context_record`,
-  `cargo test -p core-db --test migration_checksums --test storage_contract` pass
-
-### B-57 · A completed compaction forgets (Turns)
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-57-a-completed-compaction-forgets-turns
-- Read: crates/core-turns/contract.yaml; B-55's event and B-56's method
-- Touch: crates/core-turns/src/turn.rs, crates/core-turns/contract.yaml,
-  crates/shadows/tests/planning_context.rs
-- Done when: `cargo test -p shadows --test planning_context` (the six tests the plan names) and
-  `cargo test -p core-turns` pass
-
-### B-58 · The "send the context again" route (shadows-http)
-- Status: done
-- Plan: docs/backend/plans/2026-11-04-planner-context-slice-2.md#task-b-58-the-send-the-context-again-route-shadows-http
-- Read: crates/shadows-http/src/contract.yaml; the shared request
-  docs/shared/requests/2026-11-04-planning-context-resend.md
-- Touch: crates/shadows-http/src/planning_context.rs, crates/shadows-http/src/lib.rs,
-  crates/shadows-http/src/contract.yaml, api/openapi.json, web/src/api/schema.d.ts,
-  crates/shadows/tests/planning_routes.rs
-- Done when: `cargo test -p shadows --test planning_routes --test openapi` pass
-
-## Slice 2 integration checks
-
-Outside any task's `Touch:` on this branch, recorded here:
-- `1d39cdb` (B-56): crates/core-harness/src/lib.rs (re-exports `Forget`).
-- `a376db2` (B-58): crates/shadows/tests/openapi.rs (the route list).
-- The whole-branch review: crates/core-harness/src/context_record.rs, store/context_record.rs and
-  store/mod.rs (the AYLUL check inside the forget's write transaction; an AYLUL compaction
-  forgets nothing instead of logging a failure); crates/core-harness/contract.yaml;
-  crates/shadows-http/src/contract.yaml; crates/shadows/tests/context_record.rs and
-  planning_routes.rs (a missing thread is 404); the shared request's answer, the spec's status,
-  docs/core/roadmap.md, the plan's acceptance model, and this file.

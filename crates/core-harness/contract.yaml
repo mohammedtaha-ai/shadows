@@ -542,8 +542,8 @@ shared_in_transaction:
   remember_settings_in: "Turns' start (turns/store/turn.rs start_turn): the turn's model is remembered for its harness, and its effort for that model, in the same write that records the turn, so a refused or replayed start remembers nothing"
   record_invocation_in: "Turns records immutable invocation input and the conversation mode with its turn command in the same write."
   observe_invocation_in: "Turns records the harness observation with terminal status and measured usage."
-  invocation_in: "Turns enriches an operation or completion event from Harness metadata."
-  invocations_in: "Turns enriches an operation list with bounded batches in its read snapshot."
+  invocation_in: "Turns enriches an operation or completion event from Harness metadata, including planning context state."
+  invocations_in: "Turns enriches an operation list with bounded batches in its read snapshot, including planning context state."
   invocation_versions_in: "Turns reads recorded versions while composing delivered context from Threads and Operations."
   invocation_model_in: "Plans reads model and harness provenance without SQL into Harness tables."
   invocation_standards_in: "The pinned additions id; missing invocation is NotFound(invocation)."
@@ -552,6 +552,9 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: invocation_in and invocations_in read planning_context from the turn's context record (LEFT JOIN invocation_context), heard if acknowledged, prepared if unconfirmed, null without a record.
+    tested_by: ["integration: an_invocation_without_a_record_has_no_planning_context", "integration: a_prepared_record_reads_prepared", "integration: a_heard_record_reads_heard"]
+    note: The tests live in crates/shadows/tests/context_record.rs and read through the operations list and Turns get_operation.
   - rule: A session option RPC waits at most the setup deadline, so its caller releases the session lease and shutdown stays bounded.
     tested_by: [shutdown_is_bounded_while_group_settings_are_unanswered]
   - rule: The connection settles a prompt session's outstanding requests before returning its result or disconnect error, so Turns drains and journals their end in the same turn.

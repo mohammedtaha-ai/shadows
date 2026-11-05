@@ -1,6 +1,6 @@
 //! Invocation metadata read in a caller's snapshot.
 use super::HarnessStore;
-use crate::{InvocationUsage, InvocationVersions, InvocationView};
+use crate::{InvocationUsage, InvocationVersions, InvocationView, PlanningContextState};
 use core_db::StorageError;
 use sqlx::SqliteConnection;
 use std::collections::HashMap;
@@ -17,6 +17,7 @@ type InvocationRow = (
     Option<String>,
     Option<i64>,
     Option<i64>,
+    Option<bool>,
 );
 
 fn into_view(r: InvocationRow) -> InvocationView {
@@ -30,6 +31,10 @@ fn into_view(r: InvocationRow) -> InvocationView {
         observed_model: r.7,
         context_used: r.8,
         context_window: r.9,
+        planning_context: r.10.map(|heard| match heard {
+            true => PlanningContextState::Heard,
+            false => PlanningContextState::Prepared,
+        }),
     }
 }
 
@@ -41,8 +46,9 @@ impl HarnessStore {
         let row: Option<InvocationRow> = sqlx::query_as(
             "SELECT operation_id, harness_kind, harness_version, agent_version,
                 requested_model, requested_mode, requested_effort,
-                observed_model, context_used, context_window
-           FROM agent_invocation WHERE operation_id = ?",
+                observed_model, context_used, context_window, invocation_context.heard
+           FROM agent_invocation LEFT JOIN invocation_context USING (operation_id)
+           WHERE operation_id = ?",
         )
         .bind(op)
         .fetch_optional(&mut *conn)
@@ -60,8 +66,9 @@ impl HarnessStore {
             let mut query = sqlx::query_as::<_, InvocationRow>(
                 "SELECT operation_id, harness_kind, harness_version, agent_version,
                     requested_model, requested_mode, requested_effort,
-                    observed_model, context_used, context_window
-               FROM agent_invocation WHERE operation_id IN (
+                    observed_model, context_used, context_window, invocation_context.heard
+               FROM agent_invocation LEFT JOIN invocation_context USING (operation_id)
+               WHERE operation_id IN (
                     ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
                     ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
                     ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,

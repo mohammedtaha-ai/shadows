@@ -133,6 +133,7 @@ export const invocationFixture: InvocationView = {
   observed_model: 'fake-large',
   context_used: null,
   context_window: null,
+  planning_context: null,
 }
 
 function operation(status_kind: string, invocation: InvocationView | null): Operation {

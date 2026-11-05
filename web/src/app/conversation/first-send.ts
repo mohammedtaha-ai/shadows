@@ -7,23 +7,25 @@ import { type TurnSettings, changeModel, openSession } from '@/api/sessions'
 import { createThread, startTurn, threadsQuery } from '@/api/threads'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { ApiError } from '@/api/error'
+import { saveAnchorAnswer, setAnchor, type ThreadPlanningAnchor } from '@/api/planning-context'
 import { agentThreadsQuery } from '@/api/aylul-profiles'
 import {noteCompanionSend} from '@/desktop'
 import { tabId } from '@/stream'
-import { carrySend } from './carried-send'
+import { anchorWriteKey, anchorWriteRefused, carrySend } from './carried-send'
 import { uploadImages, type PendingImage } from './upload-images'
 
 /** The API requires a title; the first message and harness supply its meaningful replacements. */
 const DRAFT_TITLE = 'New conversation'
 
-/** Send from a draft: create the thread, open its session for the model it
- * holds, start the turn with the chosen mode, then replace the draft's URL
+/** Send from a draft: create the thread, set its planning anchor when the draft
+ * has one, open its session for the model it holds, start the turn with the chosen mode, then replace the draft's URL
  * with the thread's. A failed create stays in the draft for a retry with the
  * same command id; a turn that fails once the thread exists goes to the
  * thread with its text and error, so a retry never makes a second thread.
+ * A failed anchor goes with them, so the thread's retry sets it before any turn.
  * A person who left the draft while it sent stays where they went: the
  * thread shows in the sidebar, and nothing pulls them back to it. */
-export function useFirstSend(projectId: string, harness: string, planId?: string, profile?: string) {
+export function useFirstSend(projectId: string, harness: string, planId?: string, profile?: string, anchor?: ThreadPlanningAnchor) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useRef<Attempt | null>(null)
@@ -52,7 +54,20 @@ export function useFirstSend(projectId: string, harness: string, planId?: string
     }
 
     let settings: TurnSettings | null = null
+    let anchorAttempt: Attempt | null = null
     try {
+      if (anchor !== undefined) {
+        const attempt = anchorAttempt = attemptFor(null, { threadId: thread.id, anchor })
+        // A person can open the newly listed thread while its draft write is in flight.
+        const write = queryClient.getMutationCache().build(queryClient, {
+          mutationKey: anchorWriteKey(thread.id),
+          scope: { id: thread.id },
+          mutationFn: () => setAnchor(thread.id, attempt.commandId, anchor),
+        })
+        const saved = await write.execute(undefined)
+        anchorAttempt = null
+        await saveAnchorAnswer(queryClient, thread.id, saved)
+      }
       let choices = await openSession(thread.id)
       if (profile !== undefined && chosen.model !== choices.current.model) {
         choices = await changeModel(thread.id, chosen.model)
@@ -79,6 +94,9 @@ export function useFirstSend(projectId: string, harness: string, planId?: string
         attempt: attemptFor(null, request, error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'COMMAND_CONFLICT' ? undefined : () => commandId),
         error: error instanceof Error ? error : new Error(String(error)),
         planId,
+        anchor: anchorAttempt !== null && anchor !== undefined
+          ? { kind: 'set', anchor: { value: anchor, attempt: anchorAttempt, refused: anchorWriteRefused(error) } }
+          : undefined,
       })
       void open()
       throw error

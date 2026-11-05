@@ -14,7 +14,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Feature | What it gives the person | Status | Why |
 |---|---|---|---|
 | Project switches (§23 PR 3c) | Connectors, skills and `CLAUDE.md` widen the Planner's reach per project | next | [§23.9](specs/2026-10-08-approval-authority-design.md), [§24.3](specs/2026-10-08-approval-authority-design.md) |
-| Focused Planner context (§18 Stage 3) | Plan an explicitly chosen part, with a visible, bounded context manifest | planned | [vision §9](./vision.md#9-the-roadmap-shared-contracts-and-the-effect-of-a-change), [planner context spec §6](../backend/specs/2026-11-04-planner-context-design.md#6-order-of-building); slice 1 is in PR #55 |
+| Focused Planner context (§18 Stage 3) | Plan an explicitly chosen part, with a visible, bounded context manifest | planned | [vision §9](./vision.md#9-the-roadmap-shared-contracts-and-the-effect-of-a-change), [planner context spec §6](../backend/specs/2026-11-04-planner-context-design.md#6-order-of-building); slices 1 and 2 are in PR #55 and PR #56 (`024432fc`) |
 | Decision records | The reasons behind a plan are kept, not only its edits. Plan versions already keep their reasons; the rest is not built | planned | [vision §8](./vision.md#8-the-plan-belongs-to-the-project-and-remembers-who-decided-what-and-why), [§16 1a](specs/2026-10-01-project-plans-design.md) |
 | Clarifying messages | A new conversation asks the one that wrote a decision what it meant | idea | [vision §8](./vision.md#8-the-plan-belongs-to-the-project-and-remembers-who-decided-what-and-why) |
 | Executable task contracts | Each task carries its contracts and the functions it must write | planned | [§17](specs/2026-10-01-task-contracts-and-evidence-design.md) |
