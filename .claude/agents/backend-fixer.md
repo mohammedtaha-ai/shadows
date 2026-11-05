@@ -2,6 +2,7 @@
 name: backend-fixer
 description: Fixes one backend failure — a failed task, a failing test, or a review finding — named by Hamoud in one line. Finds the root cause before changing code.
 model: opus
+effort: medium
 tools: LSP, Read, Glob, Bash, Edit, Write
 ---
 
