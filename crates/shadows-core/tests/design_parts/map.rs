@@ -120,7 +120,7 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
                 before: None,
                 content: c,
             },
-            mapped(&api, None, "api", &[]),
+            mapped(&api, None, "api", &["api"]),
         ],
     )
     .await;
@@ -133,23 +133,38 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         .part
         .content;
     c.kind = None;
+    let mut inside = core
+        .plans()
+        .design_part(&p, &backend)
+        .await
+        .map_err(shadows_core::CoreError::from)
+        .unwrap()
+        .part
+        .content;
+    inside.folders = vec!["api/backend".into()];
     for (n, op) in [
-        DesignOp::PartPut {
+        vec![DesignOp::PartPut {
             id: backend.clone(),
             content: c,
-        },
-        DesignOp::PartMove {
-            id: backend,
-            parent: Some(api),
-            before: None,
-        },
+        }],
+        vec![
+            DesignOp::PartPut {
+                id: backend.clone(),
+                content: inside,
+            },
+            DesignOp::PartMove {
+                id: backend,
+                parent: Some(api),
+                before: None,
+            },
+        ],
     ]
     .into_iter()
     .enumerate()
     {
         assert!(matches!(
             core.plans()
-                .edit_design(format!("drop-{n}"), &p, 1, vec![op])
+                .edit_design(format!("drop-{n}"), &p, 1, op)
                 .await
                 .map_err(shadows_core::CoreError::from),
             Err(CoreError::Refused {

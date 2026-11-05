@@ -272,6 +272,41 @@ impl MapRules {
                 ));
             }
         }
+        for part in parts {
+            let [folder] = part.content.folders.as_slice() else {
+                if !written.contains(&part.key) {
+                    continue;
+                }
+                return Err(MapRefusal::new(
+                    "one_folder",
+                    format!(
+                        "part {:?} has {} folders. Give the part exactly one folder.",
+                        part.content.title,
+                        part.content.folders.len()
+                    ),
+                ));
+            };
+            let Some(parent) = part.parent.and_then(|k| parts.iter().find(|p| p.key == k)) else {
+                continue;
+            };
+            let Some(parent_folder) = parent.content.folders.first() else {
+                continue;
+            };
+            let (child, outer) = (folder.to_lowercase(), parent_folder.to_lowercase());
+            let (child, outer) = (child.replace('\\', "/"), outer.replace('\\', "/"));
+            let (child, outer) = (child.trim_end_matches('/'), outer.trim_end_matches('/'));
+            if child != outer && !inside(child, outer) {
+                return Err(MapRefusal::new(
+                    "folder_outside_parent",
+                    format!(
+                        "part {:?} has folder {folder:?}, outside its parent {:?} folder \
+                         {parent_folder:?}. Put the folder inside the parent's, \
+                         or choose another parent.",
+                        part.content.title, parent.content.title
+                    ),
+                ));
+            }
+        }
         for (i, (owner, folder)) in folders.iter().enumerate() {
             for (other, path) in &folders[i + 1..] {
                 if folder == path

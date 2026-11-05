@@ -99,7 +99,7 @@ edit) and `crates/core-design/tests/structure.rs`. Fixture files that build maps
 in each task's `Touch:`; in them only fixture data changes (folders), never an assertion's meaning.
 
 ### B-60 · A map part has one folder, inside its parent's
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 1.1 (steps, interfaces, test names)
 - Read: crates/core-design/contract.yaml; crates/core-design/src/map_rules.rs;
   crates/core-design/src/store/map_proposal_shape.rs, map_approval.rs, vision.rs

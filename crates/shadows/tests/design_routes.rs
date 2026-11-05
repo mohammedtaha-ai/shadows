@@ -133,7 +133,7 @@ async fn map_proposal_routes_list_and_approve() {
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"serves":["G1"]}})
+            "kind":kind,"folders":[kind],"serves":["G1"]}})
         })
         .collect();
     let mut args = json!({"action":"first","parts":parts,
@@ -160,7 +160,7 @@ async fn map_proposal_routes_list_and_approve() {
     args["parts"] =
         json!(["backend","database","api"].into_iter().map(|kind|
         json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"serves":["G1"]}})).collect::<Vec<_>>());
+            "kind":kind,"folders":[kind],"serves":["G1"]}})).collect::<Vec<_>>());
     let good = app
         .core
         .design()
@@ -416,7 +416,7 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     });
     let body = json!({"command_id":"outcomes","expected_revision":0,"ops":[
         {"kind":"PartCreate","id":part,"parent":null,"before":null,
-         "content":{"title":"جزء","responsibility":"","design":"","kind":null}},
+         "content":{"title":"جزء","responsibility":"","design":"","kind":null,"folders":["part"]}},
         {"kind":"OutcomeCreate","id":root,"parent":null,"before":null,"content":content},
         {"kind":"OutcomeCreate","id":child,"parent":root,"before":null,"content":content},
         {"kind":"OutcomePartPut","outcome":child,"part":part}
@@ -484,18 +484,21 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     let a = uuid::Uuid::new_v4().to_string();
     let b = uuid::Uuid::new_v4().to_string();
     let content = json!({
+        "folders":["a"],
         "title":" قسم ",
         "responsibility":" مسؤولية ",
         "design":"تصميم\n",
         "kind":null
     });
+    let mut child_content = content.clone();
+    child_content["folders"] = json!(["a/b"]);
     let result = app::call(
         &app,
         "POST",
         &edits,
         Some(json!({"command_id":"parts","expected_revision":0,"ops":[
             {"kind":"PartCreate","id":a,"parent":null,"before":null,"content":content},
-            {"kind":"PartCreate","id":b,"parent":a,"before":null,"content":content}
+            {"kind":"PartCreate","id":b,"parent":a,"before":null,"content":child_content}
         ]})),
     )
     .await;
@@ -609,6 +612,33 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     assert_eq!(payload["vision_changed"], true);
     assert!(payload.get("content").is_none());
 
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_new_part_without_a_folder_is_refused_on_every_write_path() {
+    let app = app::test_app_unseeded().await;
+    shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_map_for_tests(&app.project)
+        .await
+        .unwrap();
+    let edits = format!("/api/projects/{}/design/edits", app.project);
+    let body = json!({"command_id":"nofolder","expected_revision":0,"ops":[
+        {"kind":"PartCreate","id":uuid::Uuid::new_v4().to_string(),"parent":null,
+         "before":null,"content":{"title":"x","responsibility":"","design":"","kind":null}}
+    ]});
+    let (status, error) = app::call(&app, "POST", &edits, Some(body)).await;
+    assert_eq!(status, 422, "{error}");
+    assert_eq!(error["code"], "MAP_REFUSED");
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("exactly one folder")
+    );
     app.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

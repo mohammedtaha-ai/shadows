@@ -108,6 +108,7 @@ async fn no_get_route_changes_state() {
         content: PartContent {
             title: "Part".into(),
             responsibility: "Owns logic".into(),
+            folders: vec!["part".into()],
             ..Default::default()
         },
     });

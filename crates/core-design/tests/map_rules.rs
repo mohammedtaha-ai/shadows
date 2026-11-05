@@ -312,3 +312,83 @@ fn equal_folder_claims_require_distinct_ownership_even_between_parent_and_child(
     assert!(!error.message.contains("make one part the other's child"));
     assert!(error.message.contains("one owner"));
 }
+
+fn tree(parent: &str, child: &str) -> Result<(), core_design::MapRefusal> {
+    let content = |title: &str, folder: &str| PartContent {
+        title: title.into(),
+        folders: if folder.is_empty() {
+            vec![]
+        } else {
+            vec![folder.into()]
+        },
+        ..Default::default()
+    };
+    let (a, b) = (content("Parent", parent), content("Child", child));
+    let parts = [
+        MapPart {
+            key: "p",
+            parent: None,
+            content: &a,
+        },
+        MapPart {
+            key: "c",
+            parent: Some("p"),
+            content: &b,
+        },
+    ];
+    MapRules::check_shape(
+        &parts,
+        &["p", "c"],
+        &VisionContent::default(),
+        &EffectiveStandards {
+            base: core_standards::Standards::base().clone(),
+            additions: None,
+        },
+    )
+}
+
+#[test]
+fn a_part_needs_exactly_one_folder() {
+    for folders in [vec![], vec!["app".into(), "config".into()]] {
+        let error = refused(&[PartContent {
+            title: "Backend".into(),
+            folders,
+            ..Default::default()
+        }]);
+        assert_eq!(error.rule, "one_folder");
+        assert!(error.message.contains("Backend"));
+        assert!(error.message.contains("Give the part exactly one folder"));
+    }
+}
+
+#[test]
+fn a_child_folder_sits_inside_its_parents() {
+    let error = tree("frontend", "dashboard").unwrap_err();
+    assert_eq!(error.rule, "folder_outside_parent");
+    assert!(error.message.contains("dashboard") && error.message.contains("frontend"));
+    assert!(tree("frontend", "frontend/dashboard").is_ok());
+}
+
+#[test]
+fn moving_a_parent_checks_descendant_folders() {
+    assert_eq!(
+        tree("b", "a/child").unwrap_err().rule,
+        "folder_outside_parent"
+    );
+}
+
+#[test]
+fn renaming_a_parent_folder_checks_unchanged_children() {
+    let error = tree("web", "frontend/dashboard").unwrap_err();
+    assert_eq!(error.rule, "folder_outside_parent");
+    assert!(error.message.contains("Child"));
+}
+
+#[test]
+fn windows_case_and_segment_boundaries_use_the_same_policy() {
+    assert!(tree("Frontend", "frontend/dashboard").is_ok());
+    assert_eq!(
+        tree("front", "frontend/x").unwrap_err().rule,
+        "folder_outside_parent"
+    );
+}
