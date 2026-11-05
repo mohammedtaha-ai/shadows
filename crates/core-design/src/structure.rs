@@ -38,13 +38,11 @@ impl Structure {
     pub fn render(input: &RenderInput<'_>) -> Result<Planned, String> {
         use super::map_rules::MapRules;
         let mut folders = std::collections::BTreeSet::new();
-        let mut contracts = Vec::new();
         let mut initial = Vec::new();
         for part in input.parts {
-            let first = part
-                .folders
-                .first()
-                .ok_or_else(|| format!("part has no folder: {}", part.title))?;
+            if part.folders.is_empty() {
+                return Err(format!("part has no folder: {}", part.title));
+            }
             for folder in &part.folders {
                 let folder = MapRules::normalise_folder(folder)?;
                 let mut parent = String::new();
@@ -56,16 +54,9 @@ impl Structure {
                     folders.insert(parent.clone());
                 }
             }
-            contracts.push(PlannedFile {
-                path: format!("{}/contract.yaml", MapRules::normalise_folder(first)?),
-                bytes: contract(part)?.into_bytes(),
-            });
             for file in &part.files {
                 let path = MapRules::normalise_folder(&file.path)?;
-                MapRules::check_reserved(
-                    &path,
-                    input.parts.iter().filter_map(|p| p.folders.first()),
-                )?;
+                MapRules::check_reserved(&path)?;
                 initial.push(PlannedFile {
                     path,
                     bytes: file.content.as_bytes().to_vec(),
@@ -77,8 +68,8 @@ impl Structure {
             bytes: format!(
                 "# {}\n\nShadows wrote this structure from map version {}.\n\
          Standards: base v{}, additions {}.\n\
-         Shadows is the source of truth for the vision, the map and each part's\n\
-         contract; these files are their output.\n",
+         Shadows is the source of truth for the vision, the map and the plans.\n\
+         Ask Shadows over MCP where a part's code lives.\n",
                 input.project_name,
                 input.map_number,
                 input.standards_base,
@@ -86,7 +77,6 @@ impl Structure {
             )
             .into_bytes(),
         }];
-        files.extend(contracts);
         files.extend(initial);
         let mut seen = std::collections::BTreeSet::new();
         for file in &files {
@@ -109,29 +99,6 @@ impl Structure {
     }
 }
 
-fn contract(part: &PartContent) -> Result<String, String> {
-    use yaml_rust2::{Yaml, YamlEmitter, yaml::Hash};
-    let string = |s: &str| Yaml::String(s.into());
-    let list = |values: &[String]| Yaml::Array(values.iter().map(|s| string(s)).collect());
-    let mut fields = Hash::new();
-    fields.insert(string("title"), string(&part.title));
-    fields.insert(
-        string("kind"),
-        part.kind.as_deref().map(string).unwrap_or(Yaml::Null),
-    );
-    fields.insert(string("responsibility"), string(&part.responsibility));
-    fields.insert(string("serves"), list(&part.serves));
-    fields.insert(string("header"), string(&part.contract.header));
-    fields.insert(string("rules"), list(&part.contract.rules));
-    let mut out = String::new();
-    YamlEmitter::new(&mut out)
-        .dump(&Yaml::Hash(fields))
-        .map_err(|e| e.to_string())?;
-    Ok(format!(
-        "# Written by Shadows from the approved map. Shadows is the source.\n{}\n",
-        out.strip_prefix("---\n").unwrap_or(&out)
-    ))
-}
 impl Structure {
     pub fn sha256_hex(bytes: &[u8]) -> String {
         use sha2::{Digest, Sha256};

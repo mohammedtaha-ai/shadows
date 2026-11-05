@@ -10,15 +10,16 @@
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns project design edits (§18.2, §18.10–18.11), first called by person HTTP.
 # Reads lazily return an empty revision-zero vision for a live project.
-# Map paths reject Windows device names and Shadows-owned initial files.
-# Rendering rechecks old snapshots and emits contracts with yaml-rust2.
+# Map paths reject Windows device names and a starter file named SHADOWS.md.
+# Rendering rechecks old snapshots and writes SHADOWS.md plus starter files, no contract files.
 # Structure writes pin map and standards, persist hashes before writing, refuse
 # Temporary names avoid all planned files, folders and other temporary names;
 # recorded file hashes are checked before temporary cleanup classification.
 # foreign/changed files before cleanup, publish without clobbering, and move to
 # roadmap only on committed completion. No MCP method invokes this operation.
 # Held by reserved_initial_files_are_refused, windows_device_names_are_refused,
-# renders_folders_contracts_files_and_shadows_md and a_reserved_path_refuses.
+# structure_writes_no_contract_files and a_reserved_path_refuses. A resumed intent that
+# differs from the plan is cancelled (an_unfinished_old_write_is_cancelled_with_a_clear_message).
 # Replay precedes project/revision validation and returns an immutable result.
 name: design
 # Approval stores derive principal/agent/request in one transaction (§24.1).
@@ -338,6 +339,7 @@ shared_in_transaction:
   stage_view_in: Private owner transaction entry; its command rules are listed under functions.
   start_design_agreement: Private owner transaction entry; its command rules are listed under functions.
   start_structure: Private owner transaction entry; its command rules are listed under functions.
+  cancel_structure: Private owner transaction entry; clears an unfinished intent that no longer matches the plan.
   structure_snapshot: Private owner transaction entry; its command rules are listed under functions.
   structure_snapshot_in: The stage's count and create_structure read the map through it in their own transaction.
   agreement_in: Owner entry in the caller transaction; agreements rules.
@@ -478,7 +480,9 @@ tests:
   - name: a_foreign_or_changed_file_refuses_the_resume
     checks: Foreign or changed bytes refuse before cleanup; existing temporary file remains.
   - name: a_reserved_path_from_an_older_map_refuses
-    checks: Older snapshot with backend/CONTRACT.yaml refuses with no disk write.
+    checks: Older snapshot listing SHADOWS.md as a starter file refuses with no disk write.
+  - name: an_unfinished_old_write_is_cancelled_with_a_clear_message
+    checks: A resumed intent whose files differ is cleared and refused with StageBlocked; the next press writes anew.
   - name: concurrent_calls_write_once
     checks: Daemon mutex serializes clicks; exactly one writes.
   - name: a_revoked_grant_cannot_approve

@@ -150,7 +150,7 @@ fn two_rules_never_share_a_message() {
         (
             vec![PartContent {
                 folders: vec!["src".into()],
-                files: vec![file("src/contract.yaml")],
+                files: vec![file("SHADOWS.md")],
                 ..part.clone()
             }],
             "reserved_file",
@@ -239,7 +239,7 @@ fn windows_device_names_are_refused() {
 
 #[test]
 fn reserved_initial_files_are_refused() {
-    for path in ["backend/CONTRACT.yaml", "SHADOWS.md"] {
+    for path in ["SHADOWS.md", "shadows.MD"] {
         let content = PartContent {
             title: "Backend".into(),
             folders: vec!["backend".into()],
@@ -262,15 +262,6 @@ fn reserved_initial_files_are_refused() {
             .unwrap_err();
         assert_eq!(error.rule, "reserved_file");
         assert!(error.message.contains(path));
-        // An unchanged part's reserved file never blocks another part's
-        // change: each can then be repaired one at a time. (A root
-        // SHADOWS.md is also outside its part's folders, refused anyway.)
-        if path != "SHADOWS.md" {
-            assert_eq!(
-                MapRules::check_shape(&parts, &[], &VisionContent::default(), &standards),
-                Ok(())
-            );
-        }
     }
 }
 

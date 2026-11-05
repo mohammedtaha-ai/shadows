@@ -71,16 +71,8 @@ fn device_name(segment: &str) -> bool {
 }
 
 impl MapRules {
-    pub fn check_reserved<'a>(
-        path: &str,
-        first_folders: impl Iterator<Item = &'a String>,
-    ) -> Result<(), String> {
-        if path.eq_ignore_ascii_case("SHADOWS.md")
-            || first_folders.into_iter().any(|f| {
-                MapRules::normalise_folder(f)
-                    .is_ok_and(|f| path.eq_ignore_ascii_case(&format!("{f}/contract.yaml")))
-            })
-        {
+    pub fn check_reserved(path: &str) -> Result<(), String> {
+        if path.eq_ignore_ascii_case("SHADOWS.md") {
             return Err(format!("reserved path: {path}"));
         }
         Ok(())
@@ -211,12 +203,16 @@ impl MapRules {
                 // Only the parts this write changes: an older part's reserved file
                 // must not block the change that removes another's.
                 if written.contains(&part.key) {
-                    MapRules::check_reserved(
-                        &file.path,
-                        parts.iter().filter_map(|p| p.content.folders.first()),
-                    ).map_err(|message| MapRefusal::new("reserved_file", format!(
-                        "part {:?}: {message}. Remove the generated file from the proposal.",
-                        part.content.title)))?;
+                    MapRules::check_reserved(&file.path).map_err(|message| {
+                        MapRefusal::new(
+                            "reserved_file",
+                            format!(
+                                "part {:?}: {message}. \
+                                 Remove the generated file from the proposal.",
+                                part.content.title
+                            ),
+                        )
+                    })?;
                 }
                 let path = MapRules::normalise_folder(&file.path)
                     .map_err(|message| MapRefusal::path(&part.content.title, message))?

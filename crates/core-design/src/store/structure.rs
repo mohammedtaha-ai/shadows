@@ -188,6 +188,25 @@ impl DesignStore {
             .await
     }
 
+    /// Clears an unfinished intent so the next press records a new one.
+    pub(crate) async fn cancel_structure(&self, p: &ProjectId) -> Result<(), crate::DesignError> {
+        let p = p.clone();
+        self.storage
+            .write_txn_as::<_, _, crate::DesignError>(move |conn| {
+                Box::pin(async move {
+                    sqlx::query(
+                        "DELETE FROM design_structure_write
+                         WHERE project_id=? AND completed_at IS NULL",
+                    )
+                    .bind(p.as_str())
+                    .execute(conn)
+                    .await?;
+                    Ok(())
+                })
+            })
+            .await
+    }
+
     pub(crate) async fn finish_structure(
         &self,
         ctx: &CommandContext,

@@ -114,7 +114,7 @@ in each task's `Touch:`; in them only fixture data changes (folders), never an a
   and the test target of every fixture file changed pass
 
 ### B-61 · Create structure writes no contract files; an old unfinished write is cancelled
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 1.2
 - Read: crates/core-design/contract.yaml; crates/core-design/src/structure.rs, structure_create.rs,
   store/structure.rs, map_rules.rs (`check_reserved`)

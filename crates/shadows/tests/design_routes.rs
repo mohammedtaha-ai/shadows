@@ -65,7 +65,7 @@ async fn create_structure_route_writes_and_refuses() {
     assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 0);
     let (status, result) = app::call(&app, "POST", &route, Some(body("write"))).await;
     assert_eq!(status, 200, "{result}");
-    assert_eq!(result["paths"].as_array().unwrap().len(), 5);
+    assert_eq!(result["paths"].as_array().unwrap().len(), 1);
     let (status, error) = app::call(
         &app,
         "POST",
@@ -78,7 +78,7 @@ async fn create_structure_route_writes_and_refuses() {
         (409, &json!("COMMAND_CONFLICT")),
         "{error}"
     );
-    assert!(temp.path().join("backend/contract.yaml").is_file());
+    assert!(!temp.path().join("backend/contract.yaml").exists());
     let (status, error) = app::call(&app, "POST", &route, Some(body("second"))).await;
     assert_eq!(status, 409);
     assert_eq!(error["code"], "STAGE_BLOCKED");
