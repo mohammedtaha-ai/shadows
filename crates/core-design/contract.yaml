@@ -380,6 +380,12 @@ obligations:
   - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
     tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
   - rule: >
+      A first-map waiver names a kind whose standards presence is waivable, with
+      a reason. A required kind needs no waiver and a waiver naming it is
+      refused; an optional kind needs no waiver, and one naming it is refused
+      with the same message.
+    tested_by: [first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database, a_waiver_naming_an_optional_kind_is_refused]
+  - rule: >
       Stage is plans once the structure write is complete and roadmap_revision is above zero.
       Hand outcome edits and outcome plan links refuse STAGE_BLOCKED while it is zero.
     tested_by: [create_structure_writes_exactly_the_approved_files, hand_outcome_edits_wait_for_the_first_roadmap]

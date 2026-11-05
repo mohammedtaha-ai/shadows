@@ -262,6 +262,28 @@ async fn first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database() {
     f.close().await;
 }
 
+#[tokio::test]
+async fn a_waiver_naming_an_optional_kind_is_refused() {
+    let f = Fixture::new().await;
+    let mut args = first();
+    args.waivers.push(ProposedWaiver {
+        part: "integration".into(),
+        reason: "no outside services".into(),
+    });
+    assert!(matches!(
+        f.core
+            .design()
+            .propose_map(&f.grant, args)
+            .await
+            .map_err(shadows_core::CoreError::from),
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::InvalidCommand,
+            ..
+        })
+    ));
+    f.close().await;
+}
+
 async fn approved(f: &Fixture) -> shadows_core::PartId {
     let p = f
         .core

@@ -725,7 +725,7 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
             .unwrap()
             .unwrap();
     assert_eq!((versions.prompt, versions.instructions), recorded);
-    assert_eq!(versions.standards, Some(1));
+    assert_eq!(versions.standards, Some(2));
     assert_eq!(versions.additions, None);
 
     l.app

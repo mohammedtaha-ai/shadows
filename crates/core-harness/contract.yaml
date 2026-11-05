@@ -614,6 +614,9 @@ obligations:
       base or additions version change, between turns. A fork receives them
       even before it has an invocation of its own. Every person's prompt ends
       with the stage line, including Send now.
+      The Planner's standards text names each base kind with its presence
+      (`required`, `waivable with a reason` or `optional`) and the base rules.
+      It carries no contract template.
     tested_by:
       - a_session_opens_with_the_effective_standards
       - changed_standards_reach_the_next_turn_once
@@ -952,7 +955,7 @@ tests:
   - name: a_pending_turn_delivers_the_standards_version_it_recorded
     checks: An additions save between recording and sending waits for the following turn.
   - name: a_session_opens_with_the_effective_standards
-    checks: Session append contains base rules, mandatory parts and saved additions.
+    checks: Session append contains the base rules, each kind with its presence, and saved additions.
   - name: changed_standards_reach_the_next_turn_once
     checks: Changed additions arrive once before the following turn's stage.
   - name: additions_saved_after_session_open_reach_its_first_turn

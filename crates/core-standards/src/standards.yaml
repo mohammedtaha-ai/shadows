@@ -1,21 +1,102 @@
 # Compiled-in base standards. A reviewed change increments version.
-version: 1
+version: 2
 parts:
   - name: backend
     owns: "All logic: one core; every operation is a method of one service."
-    waivable: false
+    presence: required
+    layers:
+      - id: domain
+        role: "Business rules and the state they guard"
+        required: true
+        elements: [entity, value, rule, domain_event]
+        may_use: []
+      - id: application
+        role: "Use cases: one operation each, and the ports it needs"
+        required: true
+        elements: [use_case, port]
+        may_use: [domain]
+      - id: interface
+        role: "Receives HTTP/queue/console input and calls one use case"
+        required: true
+        elements: [endpoint, job, command]
+        may_use: [application, api.contract]
+      - id: infrastructure
+        role: >-
+          Implements the application's ports: repositories over the database,
+          and technical adapters such as mail, files and clock
+        required: true
+        elements: [repository, adapter]
+        may_use: [domain, application, database.schema, database.connection]
+      - id: composition
+        role: "Builds every module once and wires ports to implementations"
+        required: true
+        elements: [module]
+        may_use:
+          [domain, application, interface, infrastructure, integration.adapters]
   - name: database
     owns: >-
       The schema and storage: the only part that touches the database;
       migrations are append-only.
-    waivable: false
+    presence: required
+    layers:
+      - id: schema
+        role: "Tables, columns, keys and relations"
+        required: true
+        elements: [table]
+        may_use: []
+      - id: migrations
+        role: "Append-only changes that produce the schema"
+        required: true
+        elements: [migration]
+        may_use: [schema]
+      - id: connection
+        role: "How the application connects: driver, pool, transactions"
+        required: true
+        elements: [connection]
+        may_use: []
   - name: api
     owns: >-
       The only path between the frontend and the backend, with a versioned contract.
-    waivable: true
+    presence: waivable
+    layers:
+      - id: contract
+        role: "The versioned contract the clients build against"
+        required: true
+        elements: [operation, schema_type]
+        may_use: []
   - name: frontend
     owns: "The interface only, with no business rules."
-    waivable: true
+    presence: waivable
+    layers:
+      - id: screens
+        role: "What the person sees: routes and pages"
+        required: true
+        elements: [screen]
+        may_use: [features, design_system]
+      - id: features
+        role: "A feature's interactions and its state"
+        required: true
+        elements: [feature, store]
+        may_use: [data_access, design_system]
+      - id: data_access
+        role: "The only code that calls the api"
+        required: true
+        elements: [client_call]
+        may_use: [api.contract]
+      - id: design_system
+        role: "Shared components and tokens"
+        required: false
+        elements: [component]
+        may_use: []
+  - name: integration
+    owns: "The adapters to outside services, each one talking to one of them."
+    presence: optional
+    layers:
+      - id: adapters
+        role: "Talks to one outside service and implements a backend port"
+        required: true
+        elements: [adapter]
+        may_use: [backend.application]
 rules:
   - id: S1
     text: >-
@@ -25,7 +106,7 @@ rules:
     text: "The frontend reaches data only through the api."
     parts: [frontend, api]
   - id: S3
-    text: "Every part has a contract, written to the contract template below."
+    text: "Every part has a contract head in Shadows."
     parts: []
   - id: S4
     text: "Migrations are never edited; a change is a new migration."
@@ -36,41 +117,18 @@ rules:
       never insertion order.
     parts: [backend, database]
   - id: S6
-    text: "The backend and the database are separate parts, never one file."
+    text: "The backend and the database are separate parts, each with its own folder."
     parts: [backend, database]
-contract_template:
-  rules:
-    - >-
-      Trace, never skim: every claim comes from code that was read; when a
-      comment disagrees with the code, describe the code and record a gap.
-    - >-
-      A gap names a symbol in this source (function, type, constant), never a
-      line number; a suspicion about another source is an open question.
-    - >-
-      An obligation names the test that holds it, or says none or unknown;
-      read test bodies, not only their names.
-    - >-
-      Reference a type owned elsewhere by its source; do not copy its
-      members. Describe only what this source owns.
-    - >-
-      The header says what only this source can do: its responsibility,
-      invariants, boundaries and traps, not a list of functions.
-    - >-
-      Group functions as the source reads best (reads, writes, checks);
-      mark a function private when its privacy holds an invariant.
-    - >-
-      Two paths that must give the same answer are an agreement, with its
-      test; one that does not hold is also a gap.
-    - "Keep the file valid YAML; quote signatures that contain ': '."
-    - "Contradict yourself nowhere: every section agrees with the others."
-  shape:
-    - header
-    - shapes
-    - functions
-    - enums
-    - obligations
-    - agreements
-    - not_the_caller's
-    - gaps
-    - open_questions
-    - tests
+  - id: S7
+    text: "A layer depends only on the layers its may_use lists."
+    parts: []
+  - id: S8
+    text: >-
+      The domain and application layers never name a database, framework or
+      outside service. They declare a port, and an outer layer implements it.
+    parts: []
+  - id: S9
+    text: >-
+      Each part owns one folder. Each layer owns one place inside its part:
+      a folder, or one path per module.
+    parts: []

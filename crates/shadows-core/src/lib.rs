@@ -91,7 +91,7 @@ pub use shadows_agent::events::{TodoItem, TodoListCard, TodoStatus, ToolLive};
 pub use shadows_agent::profile::ClaudeProfile;
 
 pub use core_standards::{
-    AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
+    AdditionalPart, BaseStandards, EffectiveStandards, LayerRef, LayerSpec, PartKind, Presence,
     StandardRule, Standards, StandardsAdditions, StandardsAdditionsVersion,
 };
 

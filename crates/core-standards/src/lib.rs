@@ -10,7 +10,7 @@ mod error;
 use core_db::{CommandContext, Storage};
 pub use error::StandardsError;
 pub use model::{
-    AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
+    AdditionalPart, BaseStandards, EffectiveStandards, LayerRef, LayerSpec, PartKind, Presence,
     StandardRule, StandardsAdditions, StandardsAdditionsVersion,
 };
 use std::sync::Arc;
