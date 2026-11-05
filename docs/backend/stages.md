@@ -79,6 +79,16 @@ Not built: the inspection view (frontend, slice 3) and `Plans::owner_thread` (sp
 
 ## Tasks
 
+Structure and planning depth is in design preparation on
+`feature/structure-and-depth`. Its [draft design](specs/2026-11-05-structure-and-depth-design.md)
+and [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
+define the readiness checklist. No slice is an executable `B-` assignment yet.
+Slice 1 (one folder per part, no contract files) is ready to number once its
+four write paths are listed. Slice 2 waits for the stack/profile decision and
+the accepted part/layer API request. Existing projects are test data: no
+compatibility layer. Coverage and code observation must not be recorded as
+completed execution.
+
 Planner context, slice 3 ([plan](../frontend/plans/2026-11-05-planner-context-view.md)): the
 inspection view. Its one backend task is below.
 
