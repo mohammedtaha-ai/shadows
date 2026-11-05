@@ -652,20 +652,35 @@ fix.
 |---|---|
 | `missing_layer` | A part of a catalog kind, which is not a grouping part (D3), lacks a required layer and has no `not_used` entry for it |
 | `unknown_layer` | A layer id is not in its kind's catalog, appears twice, or the part has no catalog kind |
-| `layer_outside_part` | A place is not inside the part's folder |
+| `layer_outside_part` | A place, or any one of a pattern place's expansions, is not inside the part's folder |
 | `layer_place_shared` | Two layers of one part can name the same path, or one can lie inside another, for some module name (case-insensitive) |
 | `layer_not_used_without_reason` | `not_used` is blank, or `not_used` is set while `place` is not empty |
 | `layer_inside_child` | A place, or any expansion of a pattern place, can lie inside a child part's folder |
 
-**Pattern places are compared by their expansions.** `{module}` stands for
-any one non-empty path segment text without `/`. Two places conflict when
-some module name makes them equal, or makes one lie inside the other.
-Example: `backend/modules/{module}/src` and `backend/modules/users/src`
-conflict, because the module `users` makes them equal. The comparison is a
-segment-by-segment match in which `{module}` matches any text. It needs no
-list of modules. Slice 3 records modules as elements. Its Task 3.2 checks
-the expanded places of each recorded module again on proposal and approval,
-using this same function.
+**Pattern places: two different questions.** `{module}` stands for any
+non-empty text without `/`. It may be a whole segment (`backend/{module}`)
+or part of one (`crates/core-{module}`).
+
+1. **Conflict: is there one module name that makes the paths overlap?**
+   - It is used for `layer_place_shared` and `layer_inside_child`.
+   - One possible overlap is enough to refuse.
+   - Example: `backend/modules/{module}/src` and `backend/modules/users/src`
+     conflict, because the module `users` makes them equal. So do
+     `crates/core-{module}` and `crates/core-users`.
+2. **Ownership: does every module name keep the path inside the folder?**
+   - It is used for `layer_outside_part`.
+   - One possible match is not enough. Every expansion must lie inside the
+     part's folder.
+   - It holds only when the part folder's segments are a literal prefix of
+     the place, with no marker among them, and the place has at least one
+     more segment.
+   - Example: part folder `backend` and place `{module}/src` are refused.
+     The module `backend` would put the place inside the folder, but the
+     module `billing` puts it outside.
+
+Neither question needs a list of modules. Slice 3 records modules as
+elements. Its Task 3.2 checks the expanded places of each recorded module
+again, on proposal and approval, with these same functions.
 
 - [ ] **Step 1: Write the failing tests** in `map_rules.rs`, one per row
   above:
@@ -687,9 +702,15 @@ using this same function.
   - `a_pattern_conflicts_with_a_place_it_can_expand_to`:
     `backend/modules/{module}/src` and `backend/modules/users/src` in one
     part are refused with `layer_place_shared`.
+  - `a_marker_inside_a_folder_name_conflicts_too`: `crates/core-{module}`
+    and `crates/core-users` in one part are refused with
+    `layer_place_shared`.
   - `a_pattern_that_can_reach_a_child_folder_is_refused`: the parent's
     place `backend/{module}` and a child part's folder `backend/billing`
     are refused with `layer_inside_child`.
+  - `a_pattern_must_stay_inside_its_part_for_every_module`: part folder
+    `backend` with place `{module}/src` is refused with
+    `layer_outside_part`. Place `backend/{module}/src` passes.
   - `layer_places_use_windows_case_rules`: `Backend/App/Domain` and
     `backend/app/domain` count as one place.
   - `moving_a_parent_rechecks_child_layer_places`: a person edit moves a
@@ -708,10 +729,17 @@ using this same function.
     This covers slice 1's `one_folder`, `folder_outside_parent` and
     `folder_claimed_twice`, and this task's layer rules.
     `check_shape` calls it, so there is still one policy.
-  - Write one private matcher,
-    `fn may_overlap(a: &str, b: &str) -> Overlap { Equal, AInsideB, BInsideA, None }`,
-    over lowercase segments where `{module}` matches any segment. Every
-    place rule uses it.
+  - Write two private functions over lowercase segments:
+    - `fn may_overlap(a: &str, b: &str) -> Overlap { Equal, AInsideB, BInsideA, None }`
+      answers question 1. A segment with `{module}` matches a literal
+      segment that starts with the text before the marker and ends with the
+      text after it, with at least one character between them. Two
+      segments that both hold a marker match when their prefixes agree and
+      their suffixes agree, meaning one is a prefix (or suffix) of the
+      other. `layer_place_shared` and `layer_inside_child` use it.
+    - `fn always_inside(place: &str, folder: &str) -> bool` answers
+      question 2, as defined above. `layer_outside_part` uses it.
+    - No rule uses one function for the other's question.
 
 - [ ] **Step 4: Run the same commands and see them pass.**
   Then update the `obligations` in `contract.yaml`.
