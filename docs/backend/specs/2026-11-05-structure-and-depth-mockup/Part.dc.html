@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Backend layers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#c4b5fd;text-decoration:none}a:hover{color:#ddd6fe}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; background: #0d0b14; color: #ece9f5; font-family: Inter, system-ui, sans-serif; overflow: hidden">
+
+<div style="position: absolute; left: 64px; top: 36px; font-size: 12px; color: #a6a1b8"><a href="Main.dc.html">Project map</a> › Backend</div>
+<div style="position: absolute; left: 64px; top: 56px; font-size: 26px; font-weight: 600">Backend · layers</div>
+<div style="position: absolute; left: 64px; top: 96px; width: 820px; font-size: 13px; color: #a6a1b8">Rings are roles from standards v2. Dependencies point inward: an outer ring may use an inner one, never the reverse (S7). Inner rings never name a database or framework; they declare ports (S8).</div>
+
+<div style="position: absolute; left: 64px; top: 140px; width: 820px; height: 700px; box-sizing: border-box; border: 1px dashed #3a3150; border-radius: 22px; background: rgba(100,116,139,0.05)"></div>
+<div style="position: absolute; left: 104px; top: 200px; width: 740px; height: 600px; box-sizing: border-box; border: 1px solid #2f4a7a; border-radius: 20px; background: rgba(59,130,246,0.05)"></div>
+<div style="position: absolute; left: 144px; top: 270px; width: 660px; height: 490px; box-sizing: border-box; border: 1.5px solid #6d4fc2; border-radius: 18px; background: rgba(139,92,246,0.08)"></div>
+<div style="position: absolute; left: 184px; top: 380px; width: 580px; height: 340px; box-sizing: border-box; border: 2px solid #10b981; border-radius: 16px; background: rgba(16,185,129,0.08)"></div>
+
+<div style="position: absolute; left: 84px; top: 152px; width: 780px; display: flex; justify-content: space-between; font-size: 12px"><span style="color: #c9c5d6"><b>infrastructure</b> · repositories over the database, technical adapters</span><span style="display: flex; gap: 8px; align-items: center"><span style="font-family: 'JetBrains Mono', monospace; color: #a6a1b8">backend/app/Infrastructure</span><span style="padding: 2px 8px; border-radius: 999px; background: #1e3a6e; color: #bfdbfe">1 Designed</span></span></div>
+<div style="position: absolute; left: 84px; top: 806px; display: flex; gap: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace"><span style="padding: 4px 8px; border-radius: 6px; background: #1a1408; border: 1px solid #b7791f; color: #fde68a">TicketRepository implements TicketStore · reads tickets</span><span style="padding: 4px 8px; border-radius: 6px; background: #1a1408; border: 1px solid #b7791f; color: #fde68a">AgentRepository implements AgentStore</span></div>
+<div style="position: absolute; left: 124px; top: 212px; width: 700px; display: flex; justify-content: space-between; font-size: 12px"><span style="color: #c9c5d6"><b>interface</b> · HTTP, queue jobs, console · each calls one use case</span><span style="display: flex; gap: 8px; align-items: center"><span style="font-family: 'JetBrains Mono', monospace; color: #a6a1b8">backend/app/Http</span><span style="padding: 2px 8px; border-radius: 999px; background: #2a2538; color: #c9c5d6">0 Not discussed</span></span></div>
+<div style="position: absolute; left: 164px; top: 282px; width: 620px; display: flex; justify-content: space-between; font-size: 12px"><span style="color: #ddd6fe"><b>application</b> · use cases and their ports</span><span style="display: flex; gap: 8px; align-items: center"><span style="font-family: 'JetBrains Mono', monospace; color: #a6a1b8">backend/app/Application</span><span style="padding: 2px 8px; border-radius: 999px; background: #1e3a6e; color: #bfdbfe">1 Designed</span></span></div>
+<div style="position: absolute; left: 204px; top: 392px; width: 540px; display: flex; justify-content: space-between; font-size: 12px"><span style="color: #a7f3d0"><b>domain</b> · business rules and the state they guard</span><span style="display: flex; gap: 8px; align-items: center"><span style="font-family: 'JetBrains Mono', monospace; color: #a6a1b8">backend/app/Domain</span><span style="padding: 2px 8px; border-radius: 999px; background: #1e3a6e; color: #bfdbfe">1 Designed</span></span></div>
+
+<div style="position: absolute; left: 124px; top: 240px; font-size: 12px; color: #8f8aa3">No elements yet: endpoints come after the API contract is designed.</div>
+
+<div style="position: absolute; left: 164px; top: 312px; width: 620px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace">
+<span style="padding: 4px 8px; border-radius: 6px; background: #2a2047; border: 1px solid #4c3a85">OpenTicket</span>
+<span style="padding: 4px 8px; border-radius: 6px; background: #2a2047; border: 1px solid #8b5cf6; color: #ffffff">TakeTicket</span>
+<span style="padding: 4px 8px; border-radius: 6px; background: #2a2047; border: 1px solid #4c3a85">ReplyToTicket</span>
+<span style="padding: 4px 8px; border-radius: 6px; background: #2a2047; border: 1px solid #4c3a85">CloseTicket</span>
+<span style="padding: 4px 8px; border-radius: 6px; background: #2a2047; border: 1px solid #4c3a85">MoveUpQueue</span>
+<span style="padding: 4px 8px; border-radius: 6px; background: #1a1408; border: 1px dashed #b7791f; color: #fde68a">port TicketStore</span>
+<span style="padding: 4px 8px; border-radius: 6px; background: #1a1408; border: 1px dashed #b7791f; color: #fde68a">port TelegramSender</span>
+<span style="padding: 4px 8px; border-radius: 6px; background: #1a1408; border: 1px dashed #b7791f; color: #fde68a">port Notifier</span>
+</div>
+
+<div style="position: absolute; left: 204px; top: 424px; width: 540px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; background: #0f2a22; border: 1px solid #1f6b52; font-size: 12px; line-height: 17px"><b style="font-size: 13px; color: #a7f3d0">module tickets</b><span style="font-family: 'JetBrains Mono', monospace">entity Ticket</span><span style="font-family: 'JetBrains Mono', monospace">value TicketStatus</span><span style="color: #c9c5d6">rule: one open ticket per customer</span><span style="color: #8f8aa3">owns tables: tickets, ticket_messages</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; background: #0f2a22; border: 1px solid #1f6b52; font-size: 12px; line-height: 17px"><b style="font-size: 13px; color: #a7f3d0">module queue</b><span style="font-family: 'JetBrains Mono', monospace">value QueuePosition</span><span style="color: #c9c5d6">rule: only the owner moves a waiting ticket up</span><span style="color: #8f8aa3">asks module tickets; owns no table</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; background: #0f2a22; border: 1px solid #1f6b52; font-size: 12px; line-height: 17px"><b style="font-size: 13px; color: #a7f3d0">module agents</b><span style="font-family: 'JetBrains Mono', monospace">entity Agent</span><span style="color: #c9c5d6">rule: a deactivated agent’s tickets return to waiting</span><span style="color: #8f8aa3">owns tables: agents</span></div>
+</div>
+
+<div style="position: absolute; left: 204px; top: 640px; width: 540px; font-size: 12px; color: #8f8aa3">Modules run across domain and application. Each table names one owning module; a module reads only its own tables and asks the owner for the rest (S1).</div>
+
+<div style="position: absolute; left: 920px; top: 140px; width: 456px; height: 700px; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; gap: 14px; background: #15111f; border: 1px solid #2c2540; border-radius: 14px">
+<span style="display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 10px; background: #1b1530; border: 1px solid #3a3150"><span style="display: flex; justify-content: space-between; font-size: 13px"><b>composition · the project’s AppCore</b><span style="padding: 2px 8px; border-radius: 999px; background: #2a2538; color: #c9c5d6; font-size: 12px">0 Not discussed</span></span><span style="font-size: 12px; color: #a6a1b8; font-family: 'JetBrains Mono', monospace">backend/app/Providers</span><span style="font-size: 12px; line-height: 18px; color: #c9c5d6">Builds every module once and wires each port to its implementation. A layer, not the whole backend.</span></span>
+
+<span style="font-size: 12px; color: #a6a1b8; text-transform: uppercase; letter-spacing: 0.06em">Selected layer</span>
+<span style="display: flex; justify-content: space-between; align-items: center"><b style="font-size: 18px">application</b><span style="padding: 3px 10px; border-radius: 999px; background: #1e3a6e; color: #bfdbfe; font-size: 12px">1 Designed</span></span>
+<span style="font-size: 13px; line-height: 20px; color: #c9c5d6">Use cases: one operation each, and the ports it needs. May use: <span style="font-family: 'JetBrains Mono', monospace">domain</span>.</span>
+
+<span style="display: flex; flex-direction: column; gap: 8px; font-size: 12px">
+<span style="display: flex; justify-content: space-between"><span>Use cases designed</span><b>5</b></span>
+<span style="display: flex; justify-content: space-between"><span>Ports designed</span><b>3</b></span>
+<span style="display: flex; justify-content: space-between"><span>Elements with file and symbols</span><b style="color: #fbbf24">0 of 8</b></span>
+</span>
+
+<span style="height: 1px; background: #2c2540"></span>
+<span style="font-size: 12px; color: #a6a1b8; text-transform: uppercase; letter-spacing: 0.06em">Ports and who implements them</span>
+<span style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; font-family: 'JetBrains Mono', monospace">
+<span style="display: flex; justify-content: space-between"><span style="color: #fde68a">TicketStore</span><span style="color: #a6a1b8">backend.infrastructure</span></span>
+<span style="display: flex; justify-content: space-between"><span style="color: #fde68a">TelegramSender</span><span style="color: #a6a1b8">integrations.adapters</span></span>
+<span style="display: flex; justify-content: space-between"><span style="color: #fde68a">Notifier</span><span style="color: #a6a1b8">integrations.adapters</span></span>
+</span>
+
+<span style="height: 1px; background: #2c2540"></span>
+<span style="font-size: 12px; color: #a6a1b8; text-transform: uppercase; letter-spacing: 0.06em">Rules held</span>
+<span style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; line-height: 18px">
+<span><b style="color: #6ee7b7">S7</b> no use case depends on interface or infrastructure</span>
+<span><b style="color: #6ee7b7">S8</b> no use case names MySQL, Laravel or Telegram</span>
+<span><b style="color: #6ee7b7">S9</b> one folder, inside backend/</span>
+</span>
+
+<span style="margin-top: auto; display: flex; gap: 10px">
+<button type="button" style="flex: 1; min-height: 44px; border-radius: 10px; border: 0; background: #7c3aed; color: #ffffff; font: 600 13px Inter, sans-serif">Plan files for this layer</button>
+<a href="Plan.dc.html" style="flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #4c3a85; font-size: 13px">Tasks that build it</a>
+</span>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

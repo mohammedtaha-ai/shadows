@@ -38,6 +38,15 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
+Structure and planning depth is in design preparation. The
+[workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
+and [slice prerequisites](../backend/plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
+are the review targets. No new `F-` task is executable until its shared
+request is accepted and its backend response exists. Before dispatch,
+expand the API hooks, routing, event refresh, contracts and code-map paths.
+Use Roadmap for outcome coverage and Project map for ownership. The old
+mockup's `Built` label cannot be used as evidence of completion.
+
 Planner context, slice 3: the inspection view ([plan](plans/2026-11-05-planner-context-view.md)).
 
 ### F-86 · Planning context API module

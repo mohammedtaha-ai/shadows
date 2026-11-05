@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Database schema</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#c4b5fd;text-decoration:none}a:hover{color:#ddd6fe}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; background: #0d0b14; color: #ece9f5; font-family: Inter, system-ui, sans-serif; overflow: hidden">
+
+<div style="position: absolute; left: 64px; top: 36px; font-size: 12px; color: #a6a1b8"><a href="Main.dc.html">Project map</a> › Database › schema</div>
+<div style="position: absolute; left: 64px; top: 56px; display: flex; align-items: center; gap: 14px"><span style="font-size: 26px; font-weight: 600">schema · tables and relations</span><span style="padding: 3px 10px; border-radius: 999px; background: #3d2c0a; color: #fde68a; font-size: 12px">2 Planned to files</span></div>
+
+<div style="position: absolute; left: 64px; top: 104px; display: flex; gap: 6px; font-size: 13px">
+<span style="padding: 7px 14px; border-radius: 999px; background: #3b2a66">schema</span>
+<span style="padding: 7px 14px; border-radius: 999px; border: 1px solid #2c2540; color: #c9c5d6">migrations · 2</span>
+<span style="padding: 7px 14px; border-radius: 999px; border: 1px solid #2c2540; color: #c9c5d6">connection · 1</span>
+</div>
+<div style="position: absolute; left: 64px; top: 160px; font-size: 13px; color: #a6a1b8">An arrow points from a foreign key to the table it references. Each table names the module that owns it.</div>
+
+<svg width="99" height="8" viewBox="0 0 99 8" preserveAspectRatio="none" style="position: absolute; left: 321px; top: 351px; width: 99px; height: 8px; overflow: visible; fill: none; stroke: #7c6fa3; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-1" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#7c6fa3" stroke="none" style="stroke: none; fill: #7c6fa3; fill: context-stroke"/></marker></defs><path d="M 99 4 L 4 4" marker-end="url(#dc-arrow-head-filled-1)"></path></svg>
+<svg width="99" height="8" viewBox="0 0 99 8" preserveAspectRatio="none" style="position: absolute; left: 321px; top: 516px; width: 99px; height: 8px; overflow: visible; fill: none; stroke: #7c6fa3; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-2" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#7c6fa3" stroke="none" style="stroke: none; fill: #7c6fa3; fill: context-stroke"/></marker></defs><path d="M 99 4 L 4 4" marker-end="url(#dc-arrow-head-filled-2)"></path></svg>
+<svg width="99" height="8" viewBox="0 0 99 8" preserveAspectRatio="none" style="position: absolute; left: 681px; top: 376px; width: 99px; height: 8px; overflow: visible; fill: none; stroke: #7c6fa3; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-3" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#7c6fa3" stroke="none" style="stroke: none; fill: #7c6fa3; fill: context-stroke"/></marker></defs><path d="M 99 4 L 4 4" marker-end="url(#dc-arrow-head-filled-3)"></path></svg>
+<svg width="99" height="8" viewBox="0 0 99 8" preserveAspectRatio="none" style="position: absolute; left: 681px; top: 564px; width: 99px; height: 8px; overflow: visible; fill: none; stroke: #7c6fa3; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-4" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#7c6fa3" stroke="none" style="stroke: none; fill: #7c6fa3; fill: context-stroke"/></marker></defs><path d="M 99 4 L 4 4" marker-end="url(#dc-arrow-head-filled-4)"></path></svg>
+
+<div style="position: absolute; left: 80px; top: 300px; width: 240px; height: 110px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; background: #15111f; border: 1px solid #2c2540; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 17px"><span style="display: flex; justify-content: space-between; font-family: Inter, sans-serif"><b style="font-size: 14px">customers</b><span style="color: #8f8aa3">tickets</span></span><span>id · bigint · pk</span><span>telegram_chat_id · unique</span><span>blocked · bool = false</span></div>
+
+<div style="position: absolute; left: 80px; top: 460px; width: 240px; height: 120px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; background: #15111f; border: 1px solid #2c2540; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 17px"><span style="display: flex; justify-content: space-between; font-family: Inter, sans-serif"><b style="font-size: 14px">agents</b><span style="color: #8f8aa3">agents</span></span><span>id · bigint · pk</span><span>name · varchar</span><span>token_hash · varchar</span><span>active · bool = true</span></div>
+
+<div style="position: absolute; left: 420px; top: 300px; width: 260px; height: 280px; box-sizing: border-box; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; background: #1b1530; border: 2px solid #8b5cf6; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 18px"><span style="display: flex; justify-content: space-between; font-family: Inter, sans-serif"><b style="font-size: 15px">tickets</b><span style="color: #c4b5fd">module tickets</span></span><span>id · bigint · pk</span><span>customer_id · fk customers</span><span>assigned_agent_id · fk agents · null</span><span>status · waiting | assigned | closed</span><span>queue_position · int · null</span><span>opened_at · timestamp</span><span>closed_at · timestamp · null</span><span style="color: #8f8aa3">unique: one open ticket per customer</span></div>
+
+<div style="position: absolute; left: 780px; top: 300px; width: 260px; height: 160px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; background: #15111f; border: 1px solid #2c2540; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 17px"><span style="display: flex; justify-content: space-between; font-family: Inter, sans-serif"><b style="font-size: 14px">ticket_messages</b><span style="color: #8f8aa3">tickets</span></span><span>id · bigint · pk</span><span>ticket_id · fk tickets</span><span>sequence · int (ordinal)</span><span>sender · customer | agent</span><span>body · text</span><span>delivery_state · enum</span></div>
+
+<div style="position: absolute; left: 780px; top: 508px; width: 260px; height: 120px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; background: #15111f; border: 1px solid #2c2540; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 17px"><span style="display: flex; justify-content: space-between; font-family: Inter, sans-serif"><b style="font-size: 14px">ratings</b><span style="color: #8f8aa3">tickets</span></span><span>id · bigint · pk</span><span>ticket_id · fk · unique</span><span>score · 1 to 5</span></div>
+
+<div style="position: absolute; left: 335px; top: 327px; width: 70px; text-align: center; font-size: 12px; line-height: 16px; color: #a6a1b8">customer</div>
+<div style="position: absolute; left: 345px; top: 492px; width: 50px; text-align: center; font-size: 12px; line-height: 16px; color: #a6a1b8">agent</div>
+<div style="position: absolute; left: 705px; top: 352px; width: 50px; text-align: center; font-size: 12px; line-height: 16px; color: #a6a1b8">ticket</div>
+<div style="position: absolute; left: 705px; top: 540px; width: 50px; text-align: center; font-size: 12px; line-height: 16px; color: #a6a1b8">ticket</div>
+
+<div style="position: absolute; left: 64px; top: 670px; width: 976px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; color: #c9c5d6"><b>Next layers down the same part</b></span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; font-family: 'JetBrains Mono', monospace">
+<span style="padding: 6px 10px; border-radius: 8px; background: #3d2c0a; border: 1px solid #b7791f; color: #fde68a">migrations · create_customers_and_agents · 2 Planned</span>
+<span style="padding: 6px 10px; border-radius: 8px; background: #3d2c0a; border: 1px solid #b7791f; color: #fde68a">migrations · create_tickets_and_messages · 2 Planned</span>
+<span style="padding: 6px 10px; border-radius: 8px; background: #172a4d; border: 1px solid #3b82f6; color: #bfdbfe">connection · mysql via Laravel DB · 1 Designed</span>
+<span style="padding: 6px 10px; border-radius: 8px; background: #172a4d; border: 1px solid #3b82f6; color: #bfdbfe">backend.infrastructure · TicketRepository reads and writes tickets · 1 Designed</span>
+</span>
+<span style="font-size: 12px; color: #8f8aa3">A change of database touches these three layers and the repositories in backend.infrastructure. Domain and application only know the port TicketStore.</span>
+</div>
+
+<div style="position: absolute; left: 1080px; top: 140px; width: 296px; height: 700px; box-sizing: border-box; padding: 18px; display: flex; flex-direction: column; gap: 12px; background: #15111f; border: 1px solid #2c2540; border-radius: 14px">
+<span style="font-size: 12px; color: #a6a1b8; text-transform: uppercase; letter-spacing: 0.06em">Element</span>
+<span style="display: flex; justify-content: space-between; align-items: center"><b style="font-size: 18px; font-family: 'JetBrains Mono', monospace">tickets</b><span style="padding: 2px 8px; border-radius: 999px; background: #3d2c0a; color: #fde68a; font-size: 12px">2 Planned</span></span>
+<span style="font-size: 12px; line-height: 18px; color: #c9c5d6">table · database.schema · owned by module tickets</span>
+<span style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span style="color: #a6a1b8">File</span><span style="font-family: 'JetBrains Mono', monospace; line-height: 17px; word-break: break-all">database/migrations/ 2026_11_05_000002_create_tickets_and_messages.php</span></span>
+<span style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span style="color: #a6a1b8">Symbols</span><span style="font-family: 'JetBrains Mono', monospace">up(): creates tickets</span><span style="font-family: 'JetBrains Mono', monospace">down(): drops it</span></span>
+<span style="display: flex; flex-direction: column; gap: 4px; font-size: 12px"><span style="color: #a6a1b8">Built by</span><a href="Plan.dc.html" style="font-size: 12px">Stage 1 · T1 · phase 2 ›</a></span>
+<span style="height: 1px; background: #2c2540"></span>
+<span style="font-size: 12px; color: #a6a1b8; text-transform: uppercase; letter-spacing: 0.06em">Trace through every part</span>
+<span style="display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 17px">
+<span style="padding: 5px 8px; border-radius: 6px; background: #221d30">agent-app.screens · <b>QueueScreen</b></span>
+<span style="padding-left: 10px; color: #8f8aa3">↓ calls</span>
+<span style="padding: 5px 8px; border-radius: 6px; background: #221d30">api.contract · <b>POST /tickets/{id}/take</b></span>
+<span style="padding-left: 10px; color: #8f8aa3">↓ served by</span>
+<span style="padding: 5px 8px; border-radius: 6px; background: #221d30">backend.application · <b>TakeTicket</b></span>
+<span style="padding-left: 10px; color: #8f8aa3">↓ uses port</span>
+<span style="padding: 5px 8px; border-radius: 6px; background: #221d30">backend.application · <b>TicketStore</b></span>
+<span style="padding-left: 10px; color: #8f8aa3">↑ implemented by</span>
+<span style="padding: 5px 8px; border-radius: 6px; background: #221d30">backend.infrastructure · <b>TicketRepository</b></span>
+<span style="padding-left: 10px; color: #8f8aa3">↓ writes</span>
+<span style="padding: 5px 8px; border-radius: 6px; background: #2a2047; border: 1px solid #8b5cf6">database.schema · <b>tickets</b></span>
+</span>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
