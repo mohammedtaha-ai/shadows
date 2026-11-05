@@ -14,6 +14,8 @@ request to improve this design. They do not record his approval of new APIs.
   alone.
 - **Repository implementations live in backend infrastructure.**
 - **The task view and Show phases (§6.2)** are approved as drawn.
+- **The stack profile (§5.3, D1 to D4)** was left to the controller's best
+  choice. It is recorded in §5.3 and closes the former OPEN 2.
 
 **Words used with one meaning each:**
 
@@ -133,7 +135,9 @@ Plan version
   - The rule checks the whole candidate map. An old test map that breaks it
     is refused on its next write, with a message naming the part.
   - A grouping part can contain physical child parts without duplicating
-    their required layers. The grouping role is explicit in the approved map.
+    their required layers. A part with a child of its own kind is a grouping
+    part, for example a `frontend` holding `web` and `mobile`. It needs no
+    layers, and nothing new is stored (D3).
   - **Migration.** Slice 2 turns `folders` into `folder`:
     - it keeps the first stored folder;
     - an empty list becomes the part's slug;
@@ -227,15 +231,16 @@ in Shadows". Base v2 replaces v1 for every project.
 - **S8. Ports.** The domain and application layers never name a database,
   framework or outside service. They declare a port, and an outer layer
   implements it.
-- **S9. One folder.** Each physical part and each physical layer owns one folder,
-  inside its parent's folder.
+- **S9. One folder.** Each part owns one folder. Each layer owns one place
+  inside its part: a folder, or one path per module.
 
-The catalog above is the initial layered profile. Before v2 is dispatched,
-its stack mapping must fit both a layered Laravel example and a
-service-per-crate Rust example. Roles may be grouped by module in navigation.
-A required role's inapplicability needs an explicit person-reviewed reason
-in the map. An optional unused role remains visible as unused. Project
-additions cannot silently weaken a mandatory base rule.
+The catalog is one profile for every stack. A stack maps it through each
+layer's place (§5.3, D1). Both a layered Laravel project and a
+service-per-crate Rust project fit, and so does a mobile client, which uses
+the same frontend layers as the web (D4). A required role's inapplicability
+needs an explicit person-reviewed reason in the map (D2). An optional unused
+role remains visible as unused. Project additions cannot silently weaken a
+mandatory base rule.
 
 `may_use` is permission, not a list of actual dependencies. Same-layer links
 are allowed when their link kind and module ownership permit them, including
@@ -253,15 +258,29 @@ behavior need their own checks under §17.
 
 - every required layer of its kind, plus the optional ones the person
   wants;
-- each with its project-relative folder inside the part root, chosen for the stack.
-  Example for Laravel: `domain` → `backend/app/Domain`, `interface` →
-  `backend/app/Http`, `composition` → `backend/app/Providers`.
+- each with its **place**: a project-relative path inside the part's
+  folder, chosen for the stack (D1).
+  - **One folder per layer** for a layered stack. Example for Laravel:
+    `domain` → `backend/app/Domain`, `interface` → `backend/app/Http`,
+    `composition` → `backend/app/Providers`.
+  - **One place per module** for a stack that gives each module its own
+    folder. The place holds one `{module}` marker. Example for
+    service-per-crate Rust: `domain` → `crates/core-{module}/src/model.rs`,
+    `infrastructure` → `crates/core-{module}/src/store`. A pattern may name a
+    file or a folder. Shadows creates nothing for it until modules exist as
+    elements. An element is still recorded once, in its own layer, so no
+    stack is forced to duplicate entity classes.
+- A required layer the project does not use is marked **not used**, with a
+  written reason and an empty place. The person approves the reason with
+  the map card (D2).
 
 **Shadows refuses the map** when:
 
-- a required layer is missing;
-- a layer folder lies outside its part;
-- or two layers share a folder.
+- a required layer is missing and not marked not used;
+- a layer is not in its kind's catalog;
+- a place lies outside its part, or inside a child part's folder;
+- two layers share a place;
+- or a not-used layer has no reason.
 
 The values sent and stored are project-relative, for example
 `backend/app/Domain`. A form may display them relative to `backend`.
@@ -761,11 +780,9 @@ Each slice is usable on its own, in this order.
 1. **Where an external agent's proposal cards appear.** A thread is needed
    today. Closes when the external-agent design is taken up with the global
    connection (deferred).
-2. **OPEN — stack profile mapping.** Before slice 2 can be dispatched,
-   validate the catalog against Laravel, service-per-crate Rust and a mobile
-   client. Agree how role applicability and module folder bindings fit S9
-   without forcing duplicate entity classes. This blocks slice 2, not the
-   missing-folder correction in slice 1.
+2. **Closed 2026-11-05: stack profile mapping.** It is decided in §5.3 as
+   D1 to D4: layer places with a `{module}` marker, not-used layers with a
+   reason, derived grouping parts, and one frontend catalog.
 3. **OPEN — execution integration.** Before outcome verification or phase
    completion can be implemented, §17 must supply attempt/result identity,
    check and review records and their owner APIs. The current branch only

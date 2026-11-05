@@ -56,7 +56,7 @@ UI and API dependencies.
 | Slice | Prerequisite | Planning state | Exit evidence |
 |---|---|---|---|
 | 1 | Caller inventory of the four write paths | Implemented in PR #59 (`26bf739e`); live acceptance not recorded | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
-| 2 | Slice 1; Mohammed approves D1–D4; accepted API request | Written to step level; waits for D1–D4 | Layers on the map card, migration on the daily database, canvas in the app |
+| 2 | Slice 1; accepted API request (B-64) before F-90 | Numbered B-63 to B-67, F-90, F-91 | Layers on the map card, migration on the daily database, canvas in the app |
 | 3 | Slice 2; agreed revision and proposal API | Needs preparation | Batch element approval, schema view, stale-card recovery |
 | 4 | Slice 3 | Needs preparation | Layer counts and part summary visible |
 | 5 | Slice 4; accepted binding and context contract | Needs preparation | Gate refuses an unspecified element; an agent reads bounded context |
@@ -405,10 +405,9 @@ git commit -m "feat(core-harness): the Planner proposes one folder per part"
 
 ### Decisions for this slice
 
-Spec §10 OPEN 2 (stack profile mapping) is closed by D1 to D4 below. These
-are the controller's proposal, and **Mohammed approves them before any task
-is `todo`**. When he approves, amend spec §§5.1–5.3 and §10 in the same
-commit as the stages entries.
+D1 to D4 close the former spec §10 OPEN 2 (stack profile mapping).
+Mohammed left the choice to the controller on 2026-11-05. The spec records
+them in §§5.1–5.3.
 
 - **D1. A layer has one place.**
   - `place` is a project-relative path inside the part's folder.

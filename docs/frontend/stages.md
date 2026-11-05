@@ -53,3 +53,22 @@ request is accepted and its backend response exists. Before dispatch,
 expand the API hooks, routing, event refresh, contracts and code-map paths.
 Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
+
+Structure and depth, slice 2 ([plan](../backend/plans/2026-11-05-structure-and-depth.md#slice-2-standards-v2-and-layers-on-the-map)),
+on `feature/structure-layers`. Both tasks wait for the shared request from B-64
+(`docs/shared/requests/2026-11-05-part-folder-and-layers.md`) to be accepted.
+
+### F-90 · The part form, the map card and the standards page carry layers
+- Status: blocked (the shared request from B-64)
+- Plan: Task 2.6
+- Touch: web/src/app/design/part-editor.tsx, map-part-details.tsx, standards-view.tsx;
+  web/src/app/conversation/map-proposal-card.tsx; web/src/test/fake-daemon.ts,
+  web/src/test/contract-fixtures.ts; the tests the plan lists
+- Done when: `npx vitest run src/app/design src/app/conversation` passes in `web/`
+
+### F-91 · The Project map is a canvas
+- Status: blocked (F-90)
+- Plan: Task 2.7
+- Touch: web/src/app/design/map-canvas.tsx (new), map-part-details.tsx, workspace-page.tsx;
+  their tests
+- Done when: the five tests the plan names pass with `npx vitest run src/app/design`

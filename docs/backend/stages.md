@@ -65,18 +65,16 @@ stalls dispatch for every group (`crates/core-messages/src/deliveries.rs`).
 Planner context, slice 1 ([spec](specs/2026-11-04-planner-context-design.md)): B-47 to B-54 shipped in PR #55
 (`fc78cb7`), with the three Planner defects in `docs/evidence/2026-11-04-planner-session-defects.md`. Their entries,
 and the commits outside their `Touch:` lists, are in this file at `fc78cb7`. The plan was
-`docs/backend/plans/2026-11-04-planner-context-slice-1.md` at `fc78cb7`. The shared request
-`docs/shared/requests/2026-11-04-planning-context-routes.md` is built by the inspection view in PR #57. Local acceptance with real provider and browser is in the
+`docs/backend/plans/2026-11-04-planner-context-slice-1.md` at `fc78cb7`. Its shared request (`docs/shared/requests/2026-11-04-planning-context-routes.md`, at `1b413fc4`) was built by the inspection view in PR #57. Local acceptance with real provider and browser is in the
 [dated results](../evidence/2026-11-04-planner-context-probe.md#4-slice-1-implementation-acceptance-2026-11-04).
 Planner context, slice 2 (the re-send after a compaction, spec §4.3): B-55 to B-58 shipped in PR #56
 (`024432fc`); their entries, and the commits outside their `Touch:` lists, are in this file at
 `024432fc`. The plan was `docs/backend/plans/2026-11-04-planner-context-slice-2.md` at `024432fc`. Its live
 acceptance passed on 2026-11-04 ([evidence §5](../evidence/2026-11-04-planner-context-probe.md#5-slice-2-live-acceptance-2026-11-04)).
-The shared request `docs/shared/requests/2026-11-04-planning-context-resend.md` stays until the frontend
-slice that shows the button is built.
+Its shared request (`docs/shared/requests/2026-11-04-planning-context-resend.md`, at `1b413fc4`) was built in PR #57.
 Planner context, slice 3 (the inspection view): B-59 and F-86 to F-89 shipped in PR #57
 (`1b413fc4`); their entries are in this file at `1b413fc4`. The plan was `docs/frontend/plans/2026-11-05-planner-context-view.md` at `1b413fc4`.
-The shared request `docs/shared/requests/2026-11-05-turn-context-state.md` is built by that PR.
+Its shared request (`docs/shared/requests/2026-11-05-turn-context-state.md`, at `1b413fc4`) was built by that PR.
 Not built: `Plans::owner_thread` (spec §6, slice 4), which waits for messaging slice 3.
 
 Structure and depth, slice 1 (one folder per part, no contract files): the design and its plan
@@ -87,11 +85,63 @@ its live acceptance is not recorded.
 
 ## Tasks
 
-Structure and planning depth, slices 2 to 9: no slice is an executable `B-` assignment yet.
+Structure and planning depth, slices 3 to 9: no slice is an executable `B-` assignment yet.
 The [design](specs/2026-11-05-structure-and-depth-design.md) and
 [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the
-readiness checklist. Slice 2 waits for the stack/profile decision and the accepted part/layer
-API request. Existing projects are test data: no compatibility layer. Coverage and code
+readiness checklist. Existing projects are test data: no compatibility layer. Coverage and code
 observation must not be recorded as completed execution.
+
+Structure and depth, slice 2 ([plan](plans/2026-11-05-structure-and-depth.md#slice-2-standards-v2-and-layers-on-the-map)),
+on `feature/structure-layers`, base `26bf739e`. The stack profile is decided (spec §5.3, D1 to
+D4). Each task's steps, interfaces and test names are in the plan. Run the tasks in order,
+because each builds on the one before. Rust lines stay within 100 columns.
+
+### B-63 · Standards v2 names each kind's layers
+- Status: todo
+- Plan: Task 2.1
+- Read: crates/core-standards/contract.yaml; crates/core-standards/src/standards.yaml, model.rs, base.rs;
+  crates/core-harness/src/standards.rs
+- Touch: crates/core-standards/src/standards.yaml, model.rs, base.rs, validation.rs, lib.rs,
+  contract.yaml, tests/base.rs; crates/core-harness/src/standards.rs; crates/shadows-core/src/lib.rs,
+  tests/design_vision/standards.rs
+- Done when: `cargo test -p core-standards`, `cargo test -p shadows-core --test design_vision` and
+  `cargo test -p core-harness` pass
+
+### B-64 · A part has one folder and its layers; old parts are migrated
+- Status: todo
+- Plan: Task 2.2 (its Files list names every fixture file)
+- Read: crates/core-design/contract.yaml; crates/core-design/src/model.rs, map_rules.rs, structure.rs;
+  crates/core-db/migrations/0014_design_parts.sql, 0023_project_map.sql
+- Touch: crates/core-design/src/model.rs, map_rules.rs, structure.rs, structure_create.rs,
+  structure_write.rs, store/structure.rs, store/roadmap_seed.rs, contract.yaml;
+  crates/core-db/migrations/0047_part_folder.sql; crates/shadows-mcp/src/workspace_tools.rs;
+  api/openapi.json; web/src/api/schema.d.ts; docs/shared/requests/2026-11-05-part-folder-and-layers.md;
+  the fixture files the plan lists (fixture data only)
+- Done when: the commands in Task 2.2 Step 5 pass
+
+### B-65 · The map refuses a missing, unknown or misplaced layer
+- Status: todo
+- Plan: Task 2.3
+- Read: crates/core-design/contract.yaml; crates/core-design/src/map_rules.rs
+- Touch: crates/core-design/src/map_rules.rs, contract.yaml, tests/map_rules.rs;
+  crates/shadows/tests/design_routes.rs
+- Done when: `cargo test -p core-design --test map_rules` and `cargo test -p shadows --test design_routes` pass
+
+### B-66 · Create structure makes each layer's folder
+- Status: todo
+- Plan: Task 2.4
+- Read: crates/core-design/src/structure.rs, map_rules.rs
+- Touch: crates/core-design/src/structure.rs, contract.yaml, tests/structure.rs;
+  crates/shadows-core/tests/design_parts/structure.rs
+- Done when: `cargo test -p core-design --test structure` and `cargo test -p shadows-core --test design_parts` pass
+
+### B-67 · The Planner is told each kind's layers
+- Status: todo
+- Plan: Task 2.5
+- Read: crates/core-harness/contract.yaml; crates/core-harness/src/standards.rs, prompt.txt;
+  crates/shadows-mcp/src/workspace_tools.rs
+- Touch: crates/core-harness/src/standards.rs, prompt.txt, contract.yaml;
+  crates/shadows-mcp/src/workspace_tools.rs; crates/shadows/tests/planner_mcp.rs
+- Done when: `cargo test -p shadows --test planner_mcp` and `cargo test -p core-harness` pass
 
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
