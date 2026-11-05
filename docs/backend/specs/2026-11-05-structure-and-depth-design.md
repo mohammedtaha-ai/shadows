@@ -328,6 +328,17 @@ The mockup shows each view with data from the testing56 support system.
    - A phase of another task that this one waits for, or that waits for
      it, appears as a dashed node with its task number. Clicking it opens
      that task's view.
+   - **Show phases** is a button in the plan header, beside Versions. It
+     opens every task at once, in the same graph:
+     - each task becomes a frame titled with its number and title;
+     - its phases sit inside the frame as cards, each with a badge such as
+       `T3 · P2`, so every phase shows the task it belongs to;
+     - the graph grows to fit;
+     - edges run phase to phase, for example `T1 · P3` → `T3 · P3`, so the
+       person sees exactly which part of a task waits.
+     - **Hide phases** returns the graph to task cards.
+     - The minimap and zoom stay.
+     (Mohammed, 2026-11-05.)
 6. **Zoom.** A breadcrumb (Project › Backend › Application › TakeTicket)
    and Escape step out one level. The minimap stays.
 

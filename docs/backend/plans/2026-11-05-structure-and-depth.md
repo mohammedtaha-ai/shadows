@@ -497,6 +497,22 @@ Mockup screen 4:
 - other tasks' phases are dashed nodes;
 - the Back button returns to the plan graph.
 
+### Task 6.4 (web, F-): Show phases on the plan graph
+- A **Show phases** / **Hide phases** button in the plan header, beside
+  Versions.
+- When shown:
+  - every task is a React Flow group node, a frame with its number and
+    title;
+  - its phases are child nodes with badges such as `T3 · P2`;
+  - task-to-task edges are replaced by phase-to-phase edges from
+    `waits_for`.
+- The layout runs left to right by dependency rank, as today. Frames size
+  to their phases.
+- **Tests:**
+  - `show_phases_draws_a_frame_per_task_with_its_phases`
+  - `an_edge_joins_the_waiting_phase_to_the_phase_it_waits_for`
+  - `hide_phases_returns_to_task_cards`
+
 ---
 
 ## Slice 7: the trace view
