@@ -127,7 +127,7 @@ in each task's `Touch:`; in them only fixture data changes (folders), never an a
   `npx vitest run src/app/design/create-structure.test.tsx` pass
 
 ### B-62 · The Planner is told the new map rules
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 1.3
 - Read: crates/core-harness/contract.yaml; crates/core-harness/src/prompt.txt
 - Touch: crates/core-harness/src/prompt.txt, contract.yaml (only if it quotes the prompt);
