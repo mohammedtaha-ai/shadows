@@ -442,12 +442,19 @@ them in §§5.1–5.3.
 **Files:**
 - Modify: `crates/core-standards/src/standards.yaml`, `src/model.rs`,
   `src/base.rs`, `src/validation.rs`, `src/lib.rs`, `contract.yaml`
-- Modify: `crates/core-harness/src/standards.rs`, to drop the contract
-  template from the Planner's standards text (the layers are added in
-  Task 2.5)
+- Modify: `crates/core-harness/src/standards.rs`, `contract.yaml`:
+  - drop the contract template from the Planner's standards text;
+  - print each kind's presence (`required`, `waivable with a reason`,
+    `optional`) in place of `waivable`.
+  The layers are added to this text in Task 2.5.
+- Modify: `crates/core-design/src/store/map_proposal_shape.rs`
+  (`MapProposalShapeRows::validate_args` reads `presence == Waivable` in
+  place of `waivable`), `crates/core-design/contract.yaml`
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
 - Test: `crates/core-standards/tests/base.rs`,
-  `crates/shadows-core/tests/design_vision/standards.rs`
+  `crates/shadows-core/tests/design_vision/standards.rs`,
+  `crates/shadows-core/tests/design_parts/map_proposals.rs` (the waiver
+  tests, unchanged in meaning)
 
 **Interfaces (produces):**
 - `pub struct PartKind { name: String, owns: String, presence: Presence, layers: Vec<LayerSpec> }`.
@@ -504,9 +511,13 @@ Rules:
     the same part.
   - Remove the `contract_template` parsing.
 
-- [ ] **Step 4: Update the callers.**
+- [ ] **Step 4: Update the callers.** No crate may still read `waivable`
+  or `contract_template` when this task commits.
   - In `core-harness/src/standards.rs`, delete the "Contract template"
-    block.
+    block and print the presence.
+  - In `map_proposal_shape.rs`, a first-map waiver is accepted only for a
+    kind whose presence is `Waivable`. An `Optional` kind needs no waiver,
+    and a waiver naming it is refused with the existing message.
   - In `shadows-core/src/lib.rs`, re-export `PartKind`, `Presence`,
     `LayerSpec` and `LayerRef` in place of `MandatoryPart` and
     `ContractTemplate`.
@@ -514,11 +525,14 @@ Rules:
 
 - [ ] **Step 5: Run the tests and see them pass.**
   - `cargo test -p core-standards`
-  - `cargo test -p shadows-core --test design_vision`
+  - `cargo test -p shadows-core --test design_vision --test design_parts`
   - `cargo test -p core-harness`
+  - `cargo test -p core-design`
 
-- [ ] **Step 6: Update the contract and commit.** Rewrite the shapes and
-  the test list in `core-standards/contract.yaml`, then commit:
+- [ ] **Step 6: Update the contracts and commit.** Rewrite the shapes and
+  the test list in `core-standards/contract.yaml`. Update the waiver line in
+  `core-design/contract.yaml` and the standards text line in
+  `core-harness/contract.yaml`. Then commit:
   `feat(backend): B-63 standards v2 names each kind's layers`.
 
 ### Task 2.2 (B-64): one `folder`, `layers`, and the migration
@@ -572,8 +586,9 @@ is test data.
   - when that is missing, use `lower(replace(trim($.title),' ','-'))`;
   - remove `$.folders`;
   - set `$.layers` to `[]`.
-- `design_map_version.parts_json`: the same rewrite for each element's
-  content. Keep the element order with `json_group_array(... ORDER BY key)`
+- `design_map_version.parts_json`: an array of rows, each holding its
+  part as a JSON *string* in `content_json`. Rewrite that string with the
+  same change, through `json(...)` and back to text, for each element. Keep the element order with `json_group_array(... ORDER BY key)`
   over `json_each`.
 - `design_map_proposal`: every `Pending` row becomes `Superseded`. The
   Planner proposes again under v2. Old payloads still read, with an empty
@@ -638,9 +653,19 @@ fix.
 | `missing_layer` | A part of a catalog kind, which is not a grouping part (D3), lacks a required layer and has no `not_used` entry for it |
 | `unknown_layer` | A layer id is not in its kind's catalog, appears twice, or the part has no catalog kind |
 | `layer_outside_part` | A place is not inside the part's folder |
-| `layer_place_shared` | Two layers of one part have equal places (case-insensitive), or one non-pattern place lies inside another |
+| `layer_place_shared` | Two layers of one part can name the same path, or one can lie inside another, for some module name (case-insensitive) |
 | `layer_not_used_without_reason` | `not_used` is blank, or `not_used` is set while `place` is not empty |
-| `layer_inside_child` | A non-pattern place lies inside a child part's folder |
+| `layer_inside_child` | A place, or any expansion of a pattern place, can lie inside a child part's folder |
+
+**Pattern places are compared by their expansions.** `{module}` stands for
+any one non-empty path segment text without `/`. Two places conflict when
+some module name makes them equal, or makes one lie inside the other.
+Example: `backend/modules/{module}/src` and `backend/modules/users/src`
+conflict, because the module `users` makes them equal. The comparison is a
+segment-by-segment match in which `{module}` matches any text. It needs no
+list of modules. Slice 3 records modules as elements. Its Task 3.2 checks
+the expanded places of each recorded module again on proposal and approval,
+using this same function.
 
 - [ ] **Step 1: Write the failing tests** in `map_rules.rs`, one per row
   above:
@@ -659,6 +684,12 @@ fix.
     - application `crates/core-{module}/src/lib.rs`;
     - infrastructure `crates/core-{module}/src/store`.
   - `a_second_module_marker_is_refused`
+  - `a_pattern_conflicts_with_a_place_it_can_expand_to`:
+    `backend/modules/{module}/src` and `backend/modules/users/src` in one
+    part are refused with `layer_place_shared`.
+  - `a_pattern_that_can_reach_a_child_folder_is_refused`: the parent's
+    place `backend/{module}` and a child part's folder `backend/billing`
+    are refused with `layer_inside_child`.
   - `layer_places_use_windows_case_rules`: `Backend/App/Domain` and
     `backend/app/domain` count as one place.
   - `moving_a_parent_rechecks_child_layer_places`: a person edit moves a
@@ -671,10 +702,16 @@ fix.
   - `cargo test -p core-design --test map_rules`
   - `cargo test -p shadows --test design_routes`
 
-- [ ] **Step 3: Write the checks in `check_shape`.**
-  - Reuse the segment-based `inside` and the lowercase comparison there.
-  - A pattern place is compared by its text before `{module}`, for the
-    inside-part check.
+- [ ] **Step 3: Write the checks.**
+  - Split the folder and place checks out of `check_shape` into
+    `pub fn check_places(parts: &[MapPart<'_>], standards: &EffectiveStandards) -> Result<(), MapRefusal>`.
+    This covers slice 1's `one_folder`, `folder_outside_parent` and
+    `folder_claimed_twice`, and this task's layer rules.
+    `check_shape` calls it, so there is still one policy.
+  - Write one private matcher,
+    `fn may_overlap(a: &str, b: &str) -> Overlap { Equal, AInsideB, BInsideA, None }`,
+    over lowercase segments where `{module}` matches any segment. Every
+    place rule uses it.
 
 - [ ] **Step 4: Run the same commands and see them pass.**
   Then update the `obligations` in `contract.yaml`.
@@ -685,15 +722,29 @@ fix.
 ### Task 2.4 (B-66): layer folders on disk
 
 **Files:**
-- Modify: `crates/core-design/src/structure.rs`, `contract.yaml`
+- Modify: `crates/core-design/src/structure.rs`,
+  `src/store/structure.rs` (`Snapshot` and its loader), `contract.yaml`
 - Test: `crates/core-design/tests/structure.rs`;
   `crates/shadows-core/tests/design_parts/structure.rs`
 
 **Interfaces:**
 - `Structure::render` adds every non-pattern, non-empty layer place to
   `Planned.folders`, with its parent folders as it already does for parts.
-- It calls `MapRules::check_shape` on the snapshot first (spec §5.1: "the
-  same policy before its disk checks"). It maps a refusal to its message.
+- Render runs the place policy, not the whole `check_shape`. Vision and
+  served items were checked when the map was approved, and the snapshot is
+  immutable. The folder and layer rules are what the disk write depends
+  on.
+- **Where the inputs come from:** the snapshot loader in
+  `store/structure.rs` already reads the map version's `MapRow`s (`id`,
+  `parent_id`) and the effective standards.
+  - `Snapshot` gains `parents: Vec<(String, Option<String>)>`, in the same
+    order as `parts`, and `standards: EffectiveStandards`.
+  - `RenderInput` gains `parents: &[(String, Option<String>)]` and
+    `standards: &EffectiveStandards`.
+  - Render builds `MapPart`s from these and calls
+    `MapRules::check_places` (Task 2.3) before its disk checks. A refusal
+    becomes its message.
+  - No default or empty value stands in for a missing input.
 - The `SHADOWS.md` text says `Standards: base v2`.
 
 - [ ] **Step 1: Write the failing tests:**
@@ -706,6 +757,9 @@ fix.
   - `render_refuses_a_snapshot_that_breaks_the_map_rules`: a snapshot
     part with an empty folder is refused with the `one_folder` message,
     before any disk check.
+  - `render_checks_child_folders_against_their_parents`: a snapshot whose
+    child folder lies outside its parent's folder is refused with
+    `folder_outside_parent`. This proves the parents reached render.
 
 - [ ] **Step 2: Run and see them fail.**
   Run `cargo test -p core-design --test structure`.
@@ -764,7 +818,13 @@ These tasks need the shared request from B-64 to be `accepted`.
 - Modify: `web/src/app/design/part-editor.tsx`
   - One "Folder" input.
   - A "Layers" table with one row per catalog layer of the chosen kind.
-    Each row has a place input and a "Not used" reason input.
+    Each row first asks **Used** or **Not used** (a two-option control).
+    "Used" shows the place input. "Not used" shows the reason input, and is
+    offered only for a required layer. An optional layer has no row until
+    the person adds it. The two inputs never show together.
+  - A grouping part (D3) shows "Groups: web, mobile", with a link to each
+    child, in place of the layers table. The map card and part details show
+    the same line, so missing layers never look like an error.
 - Modify: `web/src/app/design/map-part-details.tsx` (folder and layers,
   read-only); `web/src/app/conversation/map-proposal-card.tsx` (layers on
   the card).
@@ -781,6 +841,8 @@ These tasks need the shared request from B-64 to be `accepted`.
 **Tests:**
 - `the_part_form_sends_one_folder_and_its_layers`
 - `a_not_used_layer_needs_a_reason_before_save`
+- `choosing_not_used_hides_the_place_and_asks_for_a_reason`
+- `a_grouping_part_links_its_children_instead_of_layers`
 - `the_standards_page_lists_each_kinds_layers`
 - `the_map_card_shows_each_parts_layers`
 
@@ -860,6 +922,7 @@ in `web/`.
   - `Design::propose_elements(&Grant, ElementPropose) -> ProposalCard`
   - `approve_element_proposal` and `approve_element_proposal_as_planner`
 - **Rules:**
+  - a recorded or renamed `module` expands every `{module}` place of its part; the expanded paths go through `MapRules::check_places` again (Task 2.3), on proposal and on approval;
   - the kind is allowed by its layer;
   - a link's direction obeys S7 (`may_use`);
   - a table's foreign keys name tables that exist;

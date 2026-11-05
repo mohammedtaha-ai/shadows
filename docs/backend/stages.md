@@ -102,10 +102,11 @@ because each builds on the one before. Rust lines stay within 100 columns.
 - Read: crates/core-standards/contract.yaml; crates/core-standards/src/standards.yaml, model.rs, base.rs;
   crates/core-harness/src/standards.rs
 - Touch: crates/core-standards/src/standards.yaml, model.rs, base.rs, validation.rs, lib.rs,
-  contract.yaml, tests/base.rs; crates/core-harness/src/standards.rs; crates/shadows-core/src/lib.rs,
-  tests/design_vision/standards.rs
-- Done when: `cargo test -p core-standards`, `cargo test -p shadows-core --test design_vision` and
-  `cargo test -p core-harness` pass
+  contract.yaml, tests/base.rs; crates/core-harness/src/standards.rs, contract.yaml;
+  crates/core-design/src/store/map_proposal_shape.rs, contract.yaml; crates/shadows-core/src/lib.rs,
+  tests/design_vision/standards.rs, tests/design_parts/map_proposals.rs
+- Done when: `cargo test -p core-standards`, `cargo test -p shadows-core --test design_vision
+  --test design_parts`, `cargo test -p core-harness` and `cargo test -p core-design` pass
 
 ### B-64 · A part has one folder and its layers; old parts are migrated
 - Status: todo
@@ -130,8 +131,8 @@ because each builds on the one before. Rust lines stay within 100 columns.
 ### B-66 · Create structure makes each layer's folder
 - Status: todo
 - Plan: Task 2.4
-- Read: crates/core-design/src/structure.rs, map_rules.rs
-- Touch: crates/core-design/src/structure.rs, contract.yaml, tests/structure.rs;
+- Read: crates/core-design/src/structure.rs, map_rules.rs, store/structure.rs, store/map_versions.rs
+- Touch: crates/core-design/src/structure.rs, store/structure.rs, contract.yaml, tests/structure.rs;
   crates/shadows-core/tests/design_parts/structure.rs
 - Done when: `cargo test -p core-design --test structure` and `cargo test -p shadows-core --test design_parts` pass
 
