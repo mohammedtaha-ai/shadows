@@ -30,7 +30,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
-yaml-rust2 = { workspace = true }
 
 [features]
 test-support = ["core-db/test-support", "core-threads/test-support"]
