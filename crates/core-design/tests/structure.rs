@@ -6,7 +6,7 @@ fn part() -> PartContent {
         title: "Backend".into(),
         kind: Some("backend".into()),
         responsibility: "Own logic".into(),
-        folders: vec!["backend/src".into()],
+        folder: "backend/src".into(),
         serves: vec!["G1".into()],
         contract: ContractHead {
             header: "API: safe".into(),
@@ -34,7 +34,7 @@ fn input(parts: &[PartContent]) -> RenderInput<'_> {
 fn structure_writes_no_contract_files() {
     let mut second = part();
     second.title = "Database".into();
-    second.folders = vec!["db".into()];
+    second.folder = "db".into();
     second.files.clear();
     let result = Structure::render(&input(&[part(), second])).unwrap();
     assert_eq!(result.folders, ["backend", "db", "backend/src"]);
@@ -49,7 +49,7 @@ fn structure_writes_no_contract_files() {
 #[test]
 fn a_part_without_a_folder_refuses() {
     let mut p = part();
-    p.folders.clear();
+    p.folder.clear();
     assert_eq!(
         Structure::render(&input(&[p])).err().unwrap(),
         "part has no folder: Backend"

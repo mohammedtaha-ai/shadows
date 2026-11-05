@@ -44,7 +44,8 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .unwrap();
     let part_content = PartContent {
         serves: vec![],
-        folders: vec!["api".into()],
+        folder: "api".into(),
+        layers: vec![],
         files: vec![],
         contract: Default::default(),
         title: "API".into(),

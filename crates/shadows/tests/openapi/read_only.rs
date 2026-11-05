@@ -108,7 +108,7 @@ async fn no_get_route_changes_state() {
         content: PartContent {
             title: "Part".into(),
             responsibility: "Owns logic".into(),
-            folders: vec!["part".into()],
+            folder: "part".into(),
             ..Default::default()
         },
     });
@@ -165,7 +165,7 @@ async fn no_get_route_changes_state() {
             &grant,
             serde_json::from_value(json!({"action":"add",
         "parts":[{"key":"future","content":{"title":"Future","responsibility":"Future",
-            "design":"","serves":["G1"],"folders":["future"]}}]}))
+            "design":"","serves":["G1"],"folder":"future"}}]}))
             .unwrap(),
         )
         .await

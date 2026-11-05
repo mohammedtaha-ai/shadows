@@ -1,4 +1,5 @@
-//! Preservation across 0013–0015 on a populated pre-workspace database.
+//! Preservation across 0013–0015 on a populated pre-workspace database,
+//! and the 0047 move from a part's folders to its one folder and layers.
 use std::{borrow::Cow, str::FromStr};
 
 use shadows_core::testing::{CommandContext, Storage};
@@ -271,11 +272,12 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
             before: None,
             content: PartContent {
                 serves: vec![],
-                folders: vec![if parent_is_some {
+                folder: if parent_is_some {
                     format!("باكند/{title}")
                 } else {
                     title.into()
-                }],
+                },
+                layers: vec![],
                 files: vec![],
                 contract: Default::default(),
                 title: title.into(),
@@ -390,4 +392,271 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
 
     pool.close().await;
     reopened.close().await.unwrap();
+}
+
+/// A database at the migration before 0047, so the rows it reads are v1 rows.
+async fn seeded_at_0046(path: &std::path::Path) -> sqlx::SqlitePool {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(path)
+                .create_if_missing(true)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+    let mut old = sqlx::migrate!("../core-db/migrations");
+    old.migrations = Cow::Owned(
+        old.migrations
+            .iter()
+            .filter(|m| m.version <= 46)
+            .cloned()
+            .collect(),
+    );
+    old.run(&pool).await.unwrap();
+    pool
+}
+
+/// A live project, a thread, a finished operation and an entry: what a
+/// pending map proposal refers to.
+async fn seed_v1_design(pool: &sqlx::SqlitePool) {
+    sqlx::raw_sql(
+        "INSERT INTO project(id,slug,name,directory,created_at)
+         VALUES ('P','old','Old','C:/old','old');
+         INSERT INTO planning_thread(id,project_id,title,status,created_at,title_source)
+         VALUES ('T','P','Old','Open','old','client');
+         INSERT INTO runtime_instance(id,version,started_at) VALUES ('R','old','old');
+         INSERT INTO operation(id,kind,status_kind,thread_id,runtime_instance_id,
+          outcome_json,started_at,finished_at,created_at)
+         VALUES ('O','PlannerTurn','Completed','T','R','{}','old','old','old');
+         INSERT INTO thread_entry(id,thread_id,ordinal,kind,author_kind,author_id,body,created_at)
+         VALUES ('E','T',1,'VisionProposal','Thread','T','Old','old');
+         INSERT INTO design_workspace(project_id,revision,vision_revision,vision_content)
+         VALUES ('P',0,0,'{\"purpose\":[],\"users\":[],\"goals\":[],\"boundaries\":[],
+         \"technical_direction\":[]}');",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+async fn seed_v1_part(pool: &sqlx::SqlitePool, id: &str, content_json: &str) {
+    sqlx::query(
+        "INSERT INTO design_part(id,project_id,parent_id,revision,ordinal,content_json,
+         served_revisions) VALUES (?,'P',NULL,1,0,?,'{}')",
+    )
+    .bind(id)
+    .bind(content_json)
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+/// A map version whose rows hold their part as a JSON string.
+async fn seed_v1_map_version(pool: &sqlx::SqlitePool, content_json: &str) {
+    let row = serde_json::json!({
+        "id": "backend",
+        "parent_id": null,
+        "ordinal": 0,
+        "revision": 1,
+        "content_json": content_json,
+        "served_revisions": "{}",
+    });
+    sqlx::query(
+        "INSERT INTO design_map_version
+         (project_id,number,parts_json,vision_revision,proposal_id,standards_version,
+          standards_additions_version_id,created_at)
+         VALUES ('P',1,?,0,NULL,1,NULL,'old')",
+    )
+    .bind(serde_json::json!([row]).to_string())
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+async fn seed_v1_pending_proposal(pool: &sqlx::SqlitePool) {
+    let payload = serde_json::json!({
+        "id": "M",
+        "thread_id": "T",
+        "action": "first",
+        "parts": [],
+        "part_id": null,
+        "old": null,
+        "waivers": [],
+        "status": "Pending",
+        "outdated": false,
+        "created_at": "old",
+    });
+    sqlx::query(
+        "INSERT INTO design_map_proposal
+         (id,project_id,thread_id,operation_id,entry_id,action,payload_json,vision_revision,
+          map_revision,status,standards_version,created_at,seq)
+         VALUES ('M','P','T','O','E','first',?,0,0,'Pending',1,'old',1)",
+    )
+    .bind(payload.to_string())
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+async fn stored_part(storage: &std::sync::Arc<Storage>, id: &str) -> PartContent {
+    let json: String = sqlx::query_scalar("SELECT content_json FROM design_part WHERE id=?")
+        .bind(id)
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    serde_json::from_str(&json).unwrap()
+}
+
+async fn stored_map_version(storage: &std::sync::Arc<Storage>) -> PartContent {
+    let json: String = sqlx::query_scalar(
+        "SELECT parts_json FROM design_map_version WHERE project_id='P' AND number=1",
+    )
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
+    let rows: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+    let inner = rows[0]["content_json"].as_str().expect("a JSON string");
+    serde_json::from_str(inner).unwrap()
+}
+
+#[tokio::test]
+async fn a_stored_part_with_folders_reads_back_with_its_first_folder() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("v1-folders.sqlite3");
+    let pool = seeded_at_0046(&path).await;
+    seed_v1_design(&pool).await;
+    let content = r#"{"title":"Backend","responsibility":"","design":"","kind":null,
+        "serves":[],"folders":["api","api/v2"],"files":[],
+        "contract":{"header":"","rules":[]}}"#;
+    seed_v1_part(&pool, "backend", content).await;
+    seed_v1_map_version(&pool, content).await;
+    pool.close().await;
+
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    let part = stored_part(&storage, "backend").await;
+    assert_eq!(part.folder, "api");
+    assert!(part.layers.is_empty());
+    let version = stored_map_version(&storage).await;
+    assert_eq!(version.folder, "api");
+    assert!(version.layers.is_empty());
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_part_without_folders_gets_its_title_slug() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("v1-slug.sqlite3");
+    let pool = seeded_at_0046(&path).await;
+    seed_v1_design(&pool).await;
+    seed_v1_part(
+        &pool,
+        "web",
+        r#"{"title":"Web App","responsibility":"","design":"","kind":null,
+        "serves":[],"folders":[],"files":[],"contract":{"header":"","rules":[]}}"#,
+    )
+    .await;
+    pool.close().await;
+
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    let part = stored_part(&storage, "web").await;
+    assert_eq!(part.folder, "web-app");
+    assert!(part.layers.is_empty());
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn the_daemon_starts_on_a_database_with_old_parts() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("v1-daemon.sqlite3");
+    let pool = seeded_at_0046(&path).await;
+    seed_v1_design(&pool).await;
+    let content = r#"{"title":"Backend","responsibility":"","design":"","kind":null,
+        "serves":[],"folders":["backend"],"files":[],
+        "contract":{"header":"","rules":[]}}"#;
+    seed_v1_part(&pool, "backend", content).await;
+    seed_v1_map_version(&pool, content).await;
+    seed_v1_pending_proposal(&pool).await;
+    pool.close().await;
+
+    let config = shadows_core::StartConfig {
+        secret_key: shadows_core::KeySource::Given(None),
+        db_path: path.clone(),
+        node_path: tmp.path().join("node"),
+        adapter_path: tmp.path().join("adapter"),
+        harness_path: tmp.path().join("harness"),
+        aylul: None,
+    };
+    let core = shadows_core::AppCore::start(&config, String::new())
+        .await
+        .unwrap();
+    let project = ProjectId::from_literal("P");
+    let parts = core.design().parts(&project, None, None).await.unwrap();
+    assert_eq!(parts.items.len(), 1);
+    assert_eq!(parts.items[0].content.folder, "backend");
+    let proposals = core.design().map_proposals(&project).await.unwrap();
+    assert_eq!(proposals.len(), 1);
+    assert_eq!(
+        proposals[0].status,
+        shadows_core::ProposalStatus::Superseded
+    );
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_part_round_trips_its_layers() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("layers.sqlite3");
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    sqlx::raw_sql(
+        "INSERT INTO project(id,slug,name,directory,created_at)
+         VALUES ('P','old','Old','C:/old','old');
+         INSERT INTO design_workspace(project_id,revision,vision_revision,vision_content)
+         VALUES ('P',0,0,'{\"purpose\":[],\"users\":[],\"goals\":[],\"boundaries\":[],
+         \"technical_direction\":[]}');",
+    )
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    let content = serde_json::json!({
+        "title": "Backend",
+        "responsibility": "",
+        "design": "",
+        "kind": null,
+        "serves": [],
+        "folder": "backend",
+        "layers": [
+            {"layer": "domain", "place": "backend/app/Domain", "not_used": null},
+            {"layer": "interface", "place": "", "not_used": "no clients yet"},
+        ],
+        "files": [],
+        "contract": {"header": "", "rules": []},
+    });
+    sqlx::query(
+        "INSERT INTO design_part(id,project_id,parent_id,revision,ordinal,content_json,
+         served_revisions) VALUES ('backend','P',NULL,1,0,?,'{}')",
+    )
+    .bind(content.to_string())
+    .execute(storage.reader())
+    .await
+    .unwrap();
+
+    let project = ProjectId::from_literal("P");
+    let parts = shadows_core::AppCore::design_for_tests(storage.clone())
+        .parts(&project, None, None)
+        .await
+        .unwrap();
+    let read = &parts.items[0].content;
+    assert_eq!(read.folder, "backend");
+    assert_eq!(read.layers.len(), 2);
+    assert_eq!(read.layers[0].layer, "domain");
+    assert_eq!(read.layers[0].place, "backend/app/Domain");
+    assert!(read.layers[0].not_used.is_none());
+    assert_eq!(read.layers[1].layer, "interface");
+    assert!(read.layers[1].place.is_empty());
+    assert_eq!(read.layers[1].not_used.as_deref(), Some("no clients yet"));
+    storage.close().await.unwrap();
 }

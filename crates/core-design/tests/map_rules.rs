@@ -29,7 +29,7 @@ fn refused(contents: &[PartContent]) -> core_design::MapRefusal {
 fn a_file_outside_its_part_names_the_part_and_its_folders() {
     let error = refused(&[PartContent {
         title: "Backend".into(),
-        folders: vec!["app".into()],
+        folder: "app".into(),
         files: vec![core_design::InitialFile {
             path: "composer.json".into(),
             content: "".into(),
@@ -48,12 +48,12 @@ fn the_same_folder_twice_names_both_parts() {
     let error = refused(&[
         PartContent {
             title: "Backend".into(),
-            folders: vec!["src".into()],
+            folder: "src".into(),
             ..Default::default()
         },
         PartContent {
             title: "Frontend".into(),
-            folders: vec!["src".into()],
+            folder: "src".into(),
             ..Default::default()
         },
     ]);
@@ -67,12 +67,12 @@ fn a_nested_folder_names_both_parts() {
     let error = refused(&[
         PartContent {
             title: "Backend".into(),
-            folders: vec!["app".into()],
+            folder: "app".into(),
             ..Default::default()
         },
         PartContent {
             title: "Services".into(),
-            folders: vec!["app/services".into()],
+            folder: "app/services".into(),
             ..Default::default()
         },
     ]);
@@ -119,7 +119,7 @@ fn two_rules_never_share_a_message() {
         ),
         (
             vec![PartContent {
-                folders: vec!["src".into()],
+                folder: "src".into(),
                 files: vec![file("src/a.rs"), file("src/a.rs")],
                 ..part.clone()
             }],
@@ -127,7 +127,7 @@ fn two_rules_never_share_a_message() {
         ),
         (
             vec![PartContent {
-                folders: vec!["src".into()],
+                folder: "src".into(),
                 files: vec![file("src/api"), file("src/api/main.rs")],
                 ..part.clone()
             }],
@@ -136,12 +136,12 @@ fn two_rules_never_share_a_message() {
         (
             vec![
                 PartContent {
-                    folders: vec!["src".into()],
+                    folder: "src".into(),
                     ..part.clone()
                 },
                 PartContent {
                     title: "Frontend".into(),
-                    folders: vec!["src".into()],
+                    folder: "src".into(),
                     ..Default::default()
                 },
             ],
@@ -149,7 +149,7 @@ fn two_rules_never_share_a_message() {
         ),
         (
             vec![PartContent {
-                folders: vec!["src".into()],
+                folder: "src".into(),
                 files: vec![file("SHADOWS.md")],
                 ..part.clone()
             }],
@@ -157,7 +157,7 @@ fn two_rules_never_share_a_message() {
         ),
         (
             vec![PartContent {
-                folders: vec!["../src".into()],
+                folder: "../src".into(),
                 ..part.clone()
             }],
             "invalid_path",
@@ -217,7 +217,7 @@ fn a_duplicate_file_names_both_owners() {
         .into_iter()
         .map(|title| PartContent {
             title: title.into(),
-            folders: vec!["src".into()],
+            folder: "src".into(),
             files: vec![core_design::InitialFile {
                 path: "src/main.rs".into(),
                 content: "".into(),
@@ -242,7 +242,7 @@ fn reserved_initial_files_are_refused() {
     for path in ["SHADOWS.md", "shadows.MD"] {
         let content = PartContent {
             title: "Backend".into(),
-            folders: vec!["backend".into()],
+            folder: "backend".into(),
             files: vec![core_design::InitialFile {
                 path: path.into(),
                 content: "".into(),
@@ -269,7 +269,7 @@ fn reserved_initial_files_are_refused() {
 fn equal_folder_claims_require_distinct_ownership_even_between_parent_and_child() {
     let parent = PartContent {
         title: "Backend".into(),
-        folders: vec!["src".into()],
+        folder: "src".into(),
         ..Default::default()
     };
     let child = PartContent {
@@ -307,11 +307,7 @@ fn equal_folder_claims_require_distinct_ownership_even_between_parent_and_child(
 fn tree(parent: &str, child: &str) -> Result<(), core_design::MapRefusal> {
     let content = |title: &str, folder: &str| PartContent {
         title: title.into(),
-        folders: if folder.is_empty() {
-            vec![]
-        } else {
-            vec![folder.into()]
-        },
+        folder: folder.into(),
         ..Default::default()
     };
     let (a, b) = (content("Parent", parent), content("Child", child));
@@ -340,16 +336,13 @@ fn tree(parent: &str, child: &str) -> Result<(), core_design::MapRefusal> {
 
 #[test]
 fn a_part_needs_exactly_one_folder() {
-    for folders in [vec![], vec!["app".into(), "config".into()]] {
-        let error = refused(&[PartContent {
-            title: "Backend".into(),
-            folders,
-            ..Default::default()
-        }]);
-        assert_eq!(error.rule, "one_folder");
-        assert!(error.message.contains("Backend"));
-        assert!(error.message.contains("Give the part exactly one folder"));
-    }
+    let error = refused(&[PartContent {
+        title: "Backend".into(),
+        ..Default::default()
+    }]);
+    assert_eq!(error.rule, "one_folder");
+    assert!(error.message.contains("Backend"));
+    assert!(error.message.contains("Give the part one folder"));
 }
 
 #[test]
@@ -382,4 +375,26 @@ fn windows_case_and_segment_boundaries_use_the_same_policy() {
         tree("front", "frontend/x").unwrap_err().rule,
         "folder_outside_parent"
     );
+}
+
+#[test]
+fn a_second_module_marker_is_refused() {
+    let layer = |place: &str| core_design::PartLayer {
+        layer: "domain".into(),
+        place: place.into(),
+        not_used: None,
+    };
+    let mut content = PartContent {
+        title: "Backend".into(),
+        folder: "crates".into(),
+        layers: vec![layer(r"crates\core-{module}\src\model.rs")],
+        ..Default::default()
+    };
+    MapRules::normalise(&mut content).unwrap();
+    assert_eq!(content.layers[0].place, "crates/core-{module}/src/model.rs");
+
+    content.layers = vec![layer("crates/{module}/{module}")];
+    let error = MapRules::normalise(&mut content).unwrap_err();
+    assert_eq!(error.rule, "invalid_path");
+    assert!(error.message.contains("marker twice"));
 }

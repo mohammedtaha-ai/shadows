@@ -64,7 +64,8 @@ fn part(id: &PartId, title: &str) -> DesignOp {
         before: None,
         content: PartContent {
             serves: vec![],
-            folders: vec![title.into()],
+            folder: title.into(),
+            layers: vec![],
             files: vec![],
             contract: Default::default(),
             title: title.into(),
@@ -198,7 +199,8 @@ async fn outcome_spans_parts_without_copying_them() {
             id: a.clone(),
             content: PartContent {
                 serves: vec![],
-                folders: vec!["الخدمات".into()],
+                folder: "الخدمات".into(),
+                layers: vec![],
                 files: vec![],
                 contract: Default::default(),
                 title: "الخدمات".into(),

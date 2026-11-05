@@ -40,19 +40,17 @@ impl Structure {
         let mut folders = std::collections::BTreeSet::new();
         let mut initial = Vec::new();
         for part in input.parts {
-            if part.folders.is_empty() {
+            if part.folder.is_empty() {
                 return Err(format!("part has no folder: {}", part.title));
             }
-            for folder in &part.folders {
-                let folder = MapRules::normalise_folder(folder)?;
-                let mut parent = String::new();
-                for segment in folder.split('/') {
-                    if !parent.is_empty() {
-                        parent.push('/');
-                    }
-                    parent.push_str(segment);
-                    folders.insert(parent.clone());
+            let folder = MapRules::normalise_folder(&part.folder)?;
+            let mut parent = String::new();
+            for segment in folder.split('/') {
+                if !parent.is_empty() {
+                    parent.push('/');
                 }
+                parent.push_str(segment);
+                folders.insert(parent.clone());
             }
             for file in &part.files {
                 let path = MapRules::normalise_folder(&file.path)?;

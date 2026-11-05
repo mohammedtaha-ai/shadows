@@ -3800,17 +3800,22 @@
             },
             "type": "array"
           },
-          "folders": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
+          "folder": {
+            "description": "The one folder this part owns.",
+            "type": "string"
           },
           "kind": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "layers": {
+            "description": "The layers of this part, each with its place inside the folder.",
+            "items": {
+              "$ref": "#/components/schemas/PartLayer"
+            },
+            "type": "array"
           },
           "responsibility": {
             "type": "string"
@@ -3860,6 +3865,28 @@
           "owns",
           "presence",
           "layers"
+        ],
+        "type": "object"
+      },
+      "PartLayer": {
+        "description": "One layer of a part: its catalog id, the place it owns and, when the\nlayer is not used, the reason a person approved.",
+        "properties": {
+          "layer": {
+            "type": "string"
+          },
+          "not_used": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "place": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "layer",
+          "place"
         ],
         "type": "object"
       },

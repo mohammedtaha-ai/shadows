@@ -79,6 +79,22 @@ impl MapRules {
     }
 }
 
+/// The marker a place holds when the stack gives every module its own folder.
+const MODULE_MARKER: &str = "{module}";
+
+impl MapRules {
+    /// A layer's place: a path that may hold one `{module}` marker.
+    fn normalise_place(raw: &str) -> Result<String, String> {
+        let path = MapRules::normalise_folder(raw)?;
+        if path.matches(MODULE_MARKER).count() > 1 {
+            return Err(format!(
+                "{raw} holds the {MODULE_MARKER} marker twice. Keep one marker"
+            ));
+        }
+        Ok(path)
+    }
+}
+
 impl MapRules {
     pub fn normalise(content: &mut PartContent) -> Result<(), MapRefusal> {
         content.title = content.title.trim().into();
@@ -88,9 +104,24 @@ impl MapRules {
                 "a part needs a title. Add a title.".into(),
             ));
         }
-        for folder in &mut content.folders {
-            *folder = MapRules::normalise_folder(folder)
+        if !content.folder.is_empty() {
+            content.folder = MapRules::normalise_folder(&content.folder)
                 .map_err(|message| MapRefusal::path(&content.title, message))?;
+        }
+        for layer in &mut content.layers {
+            if layer.place.is_empty() {
+                continue;
+            }
+            layer.place = MapRules::normalise_place(&layer.place).map_err(|message| {
+                MapRefusal::new(
+                    "invalid_path",
+                    format!(
+                        "part {:?} layer {}: {message}. Use a relative path \
+                         inside the part, with at most one {MODULE_MARKER}.",
+                        content.title, layer.layer
+                    ),
+                )
+            })?;
         }
         for file in &mut content.files {
             file.path = MapRules::normalise_folder(&file.path)
@@ -194,8 +225,8 @@ impl MapRules {
                     }
                 }
             }
-            for folder in &part.content.folders {
-                let path = MapRules::normalise_folder(folder)
+            if !part.content.folder.is_empty() {
+                let path = MapRules::normalise_folder(&part.content.folder)
                     .map_err(|message| MapRefusal::path(&part.content.title, message))?;
                 folders.push((part.key, path.to_lowercase()));
             }
@@ -217,18 +248,13 @@ impl MapRules {
                 let path = MapRules::normalise_folder(&file.path)
                     .map_err(|message| MapRefusal::path(&part.content.title, message))?
                     .to_lowercase();
-                if !part
-                    .content
-                    .folders
-                    .iter()
-                    .any(|f| inside(&path, &f.to_lowercase()))
-                {
+                if !inside(&path, &part.content.folder.to_lowercase()) {
                     return Err(MapRefusal::new(
                         "file_outside_part",
                         format!(
-                            "part {:?} lists {}, which is outside its folders {:?}. \
-                        Move the file into one of them, or add its folder to the part.",
-                            part.content.title, file.path, part.content.folders
+                            "part {:?} lists {}, which is outside its folder {:?}. \
+                        Move the file into it, or change the part's folder.",
+                            part.content.title, file.path, part.content.folder
                         ),
                     ));
                 }
@@ -269,22 +295,23 @@ impl MapRules {
             }
         }
         for part in parts {
-            let [folder] = part.content.folders.as_slice() else {
+            if part.content.folder.is_empty() {
                 return Err(MapRefusal::new(
                     "one_folder",
                     format!(
-                        "part {:?} has {} folders. Give the part exactly one folder.",
-                        part.content.title,
-                        part.content.folders.len()
+                        "part {:?} has no folder. Give the part one folder.",
+                        part.content.title
                     ),
                 ));
-            };
+            }
+            let folder = &part.content.folder;
             let Some(parent) = part.parent.and_then(|k| parts.iter().find(|p| p.key == k)) else {
                 continue;
             };
-            let Some(parent_folder) = parent.content.folders.first() else {
+            let parent_folder = &parent.content.folder;
+            if parent_folder.is_empty() {
                 continue;
-            };
+            }
             let (child, outer) = (folder.to_lowercase(), parent_folder.to_lowercase());
             let (child, outer) = (child.replace('\\', "/"), outer.replace('\\', "/"));
             let (child, outer) = (child.trim_end_matches('/'), outer.trim_end_matches('/'));

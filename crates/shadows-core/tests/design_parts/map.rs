@@ -16,9 +16,9 @@ async fn setup() -> (tempfile::TempDir, Arc<Storage>, Arc<AppCore>, ProjectId) {
     (tmp, storage, core, p)
 }
 
-fn mapped(id: &PartId, parent: Option<&PartId>, title: &str, folders: &[&str]) -> DesignOp {
+fn mapped(id: &PartId, parent: Option<&PartId>, title: &str, folder: &str) -> DesignOp {
     let mut c = content(title);
-    c.folders = folders.iter().map(|s| s.to_string()).collect();
+    c.folder = folder.into();
     DesignOp::PartCreate {
         id: id.clone(),
         parent: parent.cloned(),
@@ -36,8 +36,8 @@ async fn folders_nest_only_under_their_parent() {
         &p,
         0,
         vec![
-            mapped(&parent, None, "backend", &["backend"]),
-            mapped(&child, Some(&parent), "core", &["backend/src/core"]),
+            mapped(&parent, None, "backend", "backend"),
+            mapped(&child, Some(&parent), "core", "backend/src/core"),
         ],
     )
     .await;
@@ -47,12 +47,7 @@ async fn folders_nest_only_under_their_parent() {
             "overlap".into(),
             &p,
             1,
-            vec![mapped(
-                &PartId::generate(),
-                None,
-                "sibling",
-                &["BACKEND/src"],
-            )],
+            vec![mapped(&PartId::generate(), None, "sibling", "BACKEND/src")],
         )
         .await
         .map_err(shadows_core::CoreError::from);
@@ -75,7 +70,7 @@ async fn a_folder_with_dot_dot_or_absolute_is_refused() {
                     format!("bad-{path}"),
                     &p,
                     0,
-                    vec![mapped(&PartId::generate(), None, "x", &[path])]
+                    vec![mapped(&PartId::generate(), None, "x", path)]
                 )
                 .await
                 .map_err(shadows_core::CoreError::from)
@@ -83,7 +78,7 @@ async fn a_folder_with_dot_dot_or_absolute_is_refused() {
         );
     }
     let id = PartId::generate();
-    edit(&core, &p, 0, vec![mapped(&id, None, "x", &["./a/b/"])]).await;
+    edit(&core, &p, 0, vec![mapped(&id, None, "x", "./a/b/")]).await;
     assert_eq!(
         core.plans()
             .design_part(&p, &id)
@@ -92,8 +87,8 @@ async fn a_folder_with_dot_dot_or_absolute_is_refused() {
             .unwrap()
             .part
             .content
-            .folders,
-        ["a/b"]
+            .folder,
+        "a/b"
     );
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
@@ -120,7 +115,7 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
                 before: None,
                 content: c,
             },
-            mapped(&api, None, "api", &["api"]),
+            mapped(&api, None, "api", "api"),
         ],
     )
     .await;
@@ -141,7 +136,7 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         .unwrap()
         .part
         .content;
-    inside.folders = vec!["api/backend".into()];
+    inside.folder = "api/backend".into();
     for (n, op) in [
         vec![DesignOp::PartPut {
             id: backend.clone(),
@@ -254,7 +249,7 @@ async fn removed_links_and_metadata_edits_preserve_drift() {
         &core,
         &p,
         4,
-        vec![mapped(&PartId::generate(), None, "unrelated", &["web"])],
+        vec![mapped(&PartId::generate(), None, "unrelated", "web")],
     )
     .await;
     assert!(
@@ -277,7 +272,7 @@ async fn removed_links_and_metadata_edits_preserve_drift() {
 async fn initial_files_cannot_escape_part_ownership() {
     let (_tmp, _storage, core, p) = setup().await;
     let mut c = content("core");
-    c.folders = vec!["src".into()];
+    c.folder = "src".into();
     c.files = vec![shadows_core::InitialFile {
         path: "other/x.rs".into(),
         content: String::new(),
@@ -318,7 +313,7 @@ async fn initial_files_cannot_also_be_directories() {
     .enumerate()
     {
         let mut c = content("core");
-        c.folders = vec!["src".into()];
+        c.folder = "src".into();
         c.files = files
             .into_iter()
             .map(|path| shadows_core::InitialFile {
@@ -334,12 +329,7 @@ async fn initial_files_cannot_also_be_directories() {
             content: c,
         }];
         if folder != "src" {
-            ops.push(mapped(
-                &PartId::generate(),
-                Some(&parent),
-                "child",
-                &[folder],
-            ));
+            ops.push(mapped(&PartId::generate(), Some(&parent), "child", folder));
         }
         let result = core
             .plans()

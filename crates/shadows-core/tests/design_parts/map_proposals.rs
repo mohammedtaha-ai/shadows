@@ -80,7 +80,7 @@ fn first() -> MapPropose {
                 let mut content = content(kind);
                 content.kind = Some(kind.into());
                 content.serves = vec!["G1".into()];
-                content.folders = vec![kind.into()];
+                content.folder = kind.into();
                 ProposedPart {
                     key: kind.into(),
                     parent_key: None,
@@ -104,7 +104,7 @@ async fn equivalent_map_retries_replay_the_original_card() {
         .unwrap();
     let mut retry = first();
     retry.parts[0].content.title = " backend ".into();
-    retry.parts[0].content.folders = vec!["./backend/".into()];
+    retry.parts[0].content.folder = "./backend/".into();
     let repeated = f
         .core
         .design()

@@ -31,7 +31,7 @@ async fn create_structure_route_writes_and_refuses() {
                 title: kind.into(),
                 responsibility: kind.into(),
                 kind: Some(kind.into()),
-                folders: vec![kind.into()],
+                folder: kind.into(),
                 ..Default::default()
             },
         })
@@ -133,7 +133,7 @@ async fn map_proposal_routes_list_and_approve() {
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folders":[kind],"serves":["G1"]}})
+            "kind":kind,"folder":kind,"serves":["G1"]}})
         })
         .collect();
     let mut args = json!({"action":"first","parts":parts,
@@ -160,7 +160,7 @@ async fn map_proposal_routes_list_and_approve() {
     args["parts"] =
         json!(["backend","database","api"].into_iter().map(|kind|
         json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folders":[kind],"serves":["G1"]}})).collect::<Vec<_>>());
+            "kind":kind,"folder":kind,"serves":["G1"]}})).collect::<Vec<_>>());
     let good = app
         .core
         .design()
@@ -416,7 +416,7 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     });
     let body = json!({"command_id":"outcomes","expected_revision":0,"ops":[
         {"kind":"PartCreate","id":part,"parent":null,"before":null,
-         "content":{"title":"جزء","responsibility":"","design":"","kind":null,"folders":["part"]}},
+         "content":{"title":"جزء","responsibility":"","design":"","kind":null,"folder":"part"}},
         {"kind":"OutcomeCreate","id":root,"parent":null,"before":null,"content":content},
         {"kind":"OutcomeCreate","id":child,"parent":root,"before":null,"content":content},
         {"kind":"OutcomePartPut","outcome":child,"part":part}
@@ -484,14 +484,14 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     let a = uuid::Uuid::new_v4().to_string();
     let b = uuid::Uuid::new_v4().to_string();
     let content = json!({
-        "folders":["a"],
+        "folder":"a",
         "title":" قسم ",
         "responsibility":" مسؤولية ",
         "design":"تصميم\n",
         "kind":null
     });
     let mut child_content = content.clone();
-    child_content["folders"] = json!(["a/b"]);
+    child_content["folder"] = json!("a/b");
     let result = app::call(
         &app,
         "POST",
@@ -649,7 +649,7 @@ async fn mapped_app() -> (app::App, shadows_core::OperationId, shadows_core::Gra
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folders":[kind],"serves":["G1"]}})
+            "kind":kind,"folder":kind,"serves":["G1"]}})
         })
         .collect();
     let args = json!({"action":"first","parts":parts,
@@ -669,9 +669,9 @@ async fn mapped_app() -> (app::App, shadows_core::OperationId, shadows_core::Gra
     (app, op, grant)
 }
 
-fn add_part(folders: Value) -> Value {
+fn add_part(folder: Value) -> Value {
     json!({"action":"add","parts":[{"key":"web","content":{"title":"web",
-        "responsibility":"web","design":"","folders":folders,"serves":["G1"]}}]})
+        "responsibility":"web","design":"","folder":folder,"serves":["G1"]}}]})
 }
 
 async fn design_changes(app: &app::App) -> usize {
@@ -695,13 +695,13 @@ async fn root_parts(app: &app::App) -> usize {
 #[tokio::test]
 async fn a_new_part_without_a_folder_is_refused_on_every_write_path() {
     let (app, op, grant) = mapped_app().await;
-    let refused = |message: &str| message.contains("exactly one folder");
+    let refused = |message: &str| message.contains("Give the part one folder");
 
     // Proposal: the Planner's add is refused before it is recorded.
     let proposal = app
         .core
         .design()
-        .propose_map(&grant, serde_json::from_value(add_part(json!([]))).unwrap())
+        .propose_map(&grant, serde_json::from_value(add_part(json!(""))).unwrap())
         .await
         .unwrap_err();
     assert!(refused(&proposal.to_string()), "{proposal}");
@@ -712,14 +712,14 @@ async fn a_new_part_without_a_folder_is_refused_on_every_write_path() {
         .design()
         .propose_map(
             &grant,
-            serde_json::from_value(add_part(json!(["web"]))).unwrap(),
+            serde_json::from_value(add_part(json!("web"))).unwrap(),
         )
         .await
         .unwrap();
     // Represents a proposal recorded before a part needed a folder.
     sqlx::query(
         "UPDATE design_map_proposal
-         SET payload_json=json_set(payload_json,'$.parts[0].content.folders',json('[]'))
+         SET payload_json=json_set(payload_json,'$.parts[0].content.folder',json_quote(''))
          WHERE id=?",
     )
     .bind(&pending.id)
@@ -763,7 +763,7 @@ async fn a_stale_map_approval_writes_nothing() {
         .design()
         .propose_map(
             &grant,
-            serde_json::from_value(add_part(json!(["web"]))).unwrap(),
+            serde_json::from_value(add_part(json!("web"))).unwrap(),
         )
         .await
         .unwrap();
@@ -772,7 +772,7 @@ async fn a_stale_map_approval_writes_nothing() {
     let body = json!({"command_id":"claim","expected_revision":2,"ops":[
         {"kind":"PartCreate","id":uuid::Uuid::new_v4().to_string(),"parent":null,
          "before":null,"content":{"title":"site","responsibility":"","design":"",
-         "kind":null,"folders":["web"]}}
+         "kind":null,"folder":"web"}}
     ]});
     assert_eq!(
         app::call(&app, "POST", &edits, Some(body)).await,
@@ -809,7 +809,7 @@ async fn a_stale_map_approval_writes_nothing() {
     let body = json!({"command_id":"after","expected_revision":3,"ops":[
         {"kind":"PartCreate","id":uuid::Uuid::new_v4().to_string(),"parent":null,
          "before":null,"content":{"title":"docs","responsibility":"","design":"",
-         "kind":null,"folders":["docs"]}}
+         "kind":null,"folder":"docs"}}
     ]});
     assert_eq!(
         app::call(&app, "POST", &edits, Some(body)).await,

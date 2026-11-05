@@ -94,7 +94,8 @@ async fn a_planner_reads_the_workspace_a_person_wrote() {
     .collect();
     let part = PartContent {
         serves: vec![],
-        folders: vec!["backend".into()],
+        folder: "backend".into(),
+        layers: vec![],
         files: vec![],
         contract: Default::default(),
         title: "Backend".into(),

@@ -91,13 +91,18 @@ shapes:
     revision: DesignRevision
   PartContent:
     serves: Vec<String>
-    folders: Vec<String>
+    folder: String  # serde default; an old JSON value with folders reads with folder empty
+    layers: Vec<PartLayer>  # serde default
     files: Vec<InitialFile>
     contract: ContractHead
     title: String
     responsibility: String
     design: String
     kind: Option<String>
+  PartLayer:
+    layer: String
+    place: String  # project-relative, inside the part's folder; empty when not used
+    not_used: Option<String>  # the reason the person approves with the map card
   Part:
     id: PartId
     parent: Option<PartId>
@@ -545,7 +550,7 @@ tests:
   - name: folders_nest_only_under_their_parent
     checks: Ancestor-owned folders allow child ownership; sibling overlap rolls back.
   - name: initial_files_cannot_escape_part_ownership
-    checks: A starter file outside its part's folders is refused.
+    checks: A starter file outside its part's folder is refused.
   - name: initial_files_cannot_also_be_directories
     checks: A file equal to a folder or containing a folder/file below it refuses the whole write.
   - name: a_hand_edit_cannot_drop_a_mandatory_part
@@ -724,5 +729,7 @@ map_coverage:
 map_refusal_repairs:
   equal_folder: Equal folder claims require one owner or distinct claims even for parent-child parts.
   nested_folders: Distinct nested claims may follow the same parent-child relationship as their parts.
-  one_folder: Every part in the candidate map has exactly one folder, over the whole candidate map; an older part without one is refused on its map's next write, with the part named.
+  one_folder: 'Every part in the candidate map has a non-empty folder ("part {title} has no folder. Give the part one folder."), over the whole candidate map; an older part without one is refused on its map''s next write, with the part named.'
+  layer_place: 'MapRules::normalise normalises the folder and each non-empty layer place; a place keeps one {module} marker literally and a second is refused as invalid_path (map_rules: a_second_module_marker_is_refused).'
+  migration_0047: 'design_part and each design_map_version row (its inner content_json string, element order kept) move folders[0], or the title slug, to folder, drop folders and set layers to []; every Pending design_map_proposal becomes Superseded (design_migration: a_stored_part_with_folders_reads_back_with_its_first_folder, a_part_without_folders_gets_its_title_slug, the_daemon_starts_on_a_database_with_old_parts, a_part_round_trips_its_layers).'
   folder_outside_parent: Every child's folder sits inside its parent's folder, by segment and ignoring case, over the whole candidate map.

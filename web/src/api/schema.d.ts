@@ -2705,8 +2705,11 @@ export interface components {
             contract?: components["schemas"]["ContractHead"];
             design: string;
             files?: components["schemas"]["InitialFile"][];
-            folders?: string[];
+            /** @description The one folder this part owns. */
+            folder?: string;
             kind?: string | null;
+            /** @description The layers of this part, each with its place inside the folder. */
+            layers?: components["schemas"]["PartLayer"][];
             responsibility: string;
             serves?: string[];
             title: string;
@@ -2719,6 +2722,15 @@ export interface components {
             name: string;
             owns: string;
             presence: components["schemas"]["Presence"];
+        };
+        /**
+         * @description One layer of a part: its catalog id, the place it owns and, when the
+         *     layer is not used, the reason a person approved.
+         */
+        PartLayer: {
+            layer: string;
+            not_used?: string | null;
+            place: string;
         };
         PartPage: {
             items: components["schemas"]["Part"][];
