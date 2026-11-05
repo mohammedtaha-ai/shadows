@@ -182,11 +182,12 @@ functions:
       signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, DesignError>"
     approve_map_proposal:
       signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, DesignError>"
+      # Rechecks the whole candidate map against the live map; a refusal writes nothing.
     seed_map_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<(), DesignError>"
     seed_roadmap_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, DesignError>"
-      # Seeds the map if absent, one part and roadmap_revision 1; answers the part. Idempotent.
+      # Seeds the map if absent, one part with folder "seeded" and roadmap_revision 1; answers the part. Idempotent.
     propose_roadmap:
       signature: "(&self, grant: &Grant, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
       # Planner/thread grant plus running turn; structure write and roadmap revision checked in the store.
@@ -717,5 +718,5 @@ map_coverage:
 map_refusal_repairs:
   equal_folder: Equal folder claims require one owner or distinct claims even for parent-child parts.
   nested_folders: Distinct nested claims may follow the same parent-child relationship as their parts.
-  one_folder: A part written by an operation has exactly one folder; parts the write does not touch are not rechecked.
+  one_folder: Every part in the candidate map has exactly one folder, over the whole candidate map; an older part without one is refused on its map's next write, with the part named.
   folder_outside_parent: Every child's folder sits inside its parent's folder, by segment and ignoring case, over the whole candidate map.

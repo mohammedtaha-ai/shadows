@@ -268,7 +268,7 @@ async fn the_index_keeps_each_childs_parent() {
             before: None,
             content: PartContent {
                 title: "First child".into(),
-                folders: vec!["first-child".into()],
+                folders: vec!["seeded/first-child".into()],
                 ..Default::default()
             },
         },
@@ -337,7 +337,7 @@ async fn a_detail_cut_keeps_child_identities_for_both_anchor_kinds() {
                 before: None,
                 content: PartContent {
                     title: "Part child identity".into(),
-                    folders: vec!["child-identity".into()],
+                    folders: vec!["seeded/child-identity".into()],
                     responsibility: "Optional part description".repeat(100),
                     ..Default::default()
                 },
@@ -413,7 +413,7 @@ async fn sources_follow_surviving_content_and_keep_shared_sources() {
     let child = PartId::generate();
     let content = PartContent {
         title: "Omitted child".into(),
-        folders: vec!["omitted".into()],
+        folders: vec!["seeded/omitted".into()],
         ..Default::default()
     };
     f.edit(vec![WorkspaceOp::PartCreate {

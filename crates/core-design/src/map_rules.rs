@@ -270,9 +270,6 @@ impl MapRules {
         }
         for part in parts {
             let [folder] = part.content.folders.as_slice() else {
-                if !written.contains(&part.key) {
-                    continue;
-                }
                 return Err(MapRefusal::new(
                     "one_folder",
                     format!(
