@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Task view with phases</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#c4b5fd;text-decoration:none}a:hover{color:#ddd6fe}
+</style>
+</helmet>
+<div style="position: relative; width: 1520px; height: 900px; background: #08060d; color: #f4f1ff; font-family: Inter, system-ui, sans-serif; overflow: hidden">
+
+<div style="position: absolute; left: 0px; top: 0px; width: 1520px; height: 226px; background: #0d0b14; border-bottom: 1px solid #2c214a"></div>
+
+<div style="position: absolute; left: 40px; top: 26px; font-size: 12px; color: #a6a1b8"><a href="Main.dc.html">Project map</a> › Plans › Stage 1: working support loop › T3</div>
+<div style="position: absolute; left: 40px; top: 50px; display: flex; align-items: center; gap: 12px"><span style="padding: 2px 8px; border-radius: 6px; background: #2a1f4a; color: #c4b5fd; font-size: 13px; font-weight: 600">T3</span><span style="font-size: 20px; font-weight: 600">Backend: queue and taking a ticket</span><span style="padding: 3px 10px; border-radius: 999px; border: 1px solid #6d4fc2; color: #c4b5fd; font-size: 12px">Stage 1 · Draft v2</span></div>
+<div style="position: absolute; left: 40px; top: 84px; font-size: 13px; color: #a6a1b8">List waiting tickets in queue order and let an agent take one, moving it to assigned. · needs T1 · P3 only</div>
+
+<div style="position: absolute; left: 40px; top: 114px; width: 420px; height: 92px; box-sizing: border-box; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; border: 1px dashed #3a3150; border-radius: 12px"><span style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="padding: 2px 10px; border-radius: 999px; border: 1px solid #b7791f; color: #fbbf24">Planned</span><span style="color: #c9c5d6">Phase progress · 4 phases · 0 done</span></span><span style="display: flex; gap: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace"><span style="padding: 3px 9px; border-radius: 6px; border: 1px solid #2c2540">P1</span><span style="padding: 3px 9px; border-radius: 6px; border: 1px solid #2c2540">P2</span><span style="padding: 3px 9px; border-radius: 6px; border: 1px solid #8b5cf6; color: #ddd6fe">P3</span><span style="padding: 3px 9px; border-radius: 6px; border: 1px solid #2c2540">P4</span></span></div>
+
+<div style="position: absolute; left: 488px; top: 114px; display: flex; gap: 8px; font-size: 13px"><span style="padding: 9px 14px; border-radius: 10px; border: 1px solid #2c2540; background: #15111f">Acceptance · 3</span><span style="padding: 9px 14px; border-radius: 10px; border: 1px solid #2c2540; background: #15111f">Elements · 6</span><a href="Main.dc.html" style="padding: 9px 14px; border-radius: 10px; border: 1px solid #2c2540; background: #15111f; color: #f4f1ff">‹ Back to the Stage 1 graph</a></div>
+
+<div style="position: absolute; left: 488px; top: 172px; font-size: 13px; color: #fbbf24">Blocks plan approval: TakeTicket and TicketStore are designed, TakeTicketController is not discussed.</div>
+
+<div style="position: absolute; left: 1140px; top: 246px; display: flex; gap: 18px; align-items: center; padding: 8px 14px; border: 1px solid #2c214a; border-radius: 10px; background: #0d0b14; font-size: 12px; color: #c9c5d6"><span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 2px; background: #8b5cf6"></span>needs: starts after</span><span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 0px; border-top: 2px dashed #a6a1b8"></span>completes after: parts wait</span></div>
+
+<svg width="63" height="8" viewBox="0 0 63 8" preserveAspectRatio="none" style="position: absolute; left: 248px; top: 391px; width: 63px; height: 8px; overflow: visible; fill: none; stroke: #4c3a85; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-1" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#4c3a85" stroke="none" style="stroke: none; fill: #4c3a85; fill: context-stroke"/></marker></defs><path d="M 0 4 L 59 4" marker-end="url(#dc-arrow-head-filled-1)"></path></svg>
+<svg width="79" height="8" viewBox="0 0 79 8" preserveAspectRatio="none" style="position: absolute; left: 532px; top: 391px; width: 79px; height: 8px; overflow: visible; fill: none; stroke: #8b5cf6; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-2" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#8b5cf6" stroke="none" style="stroke: none; fill: #8b5cf6; fill: context-stroke"/></marker></defs><path d="M 0 4 L 75 4" marker-end="url(#dc-arrow-head-filled-2)"></path></svg>
+<svg width="79" height="8" viewBox="0 0 79 8" preserveAspectRatio="none" style="position: absolute; left: 832px; top: 391px; width: 79px; height: 8px; overflow: visible; fill: none; stroke: #8b5cf6; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-3" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#8b5cf6" stroke="none" style="stroke: none; fill: #8b5cf6; fill: context-stroke"/></marker></defs><path d="M 0 4 L 75 4" marker-end="url(#dc-arrow-head-filled-3)"></path></svg>
+<svg width="99" height="8" viewBox="0 0 99 8" preserveAspectRatio="none" style="position: absolute; left: 1132px; top: 391px; width: 99px; height: 8px; overflow: visible; fill: none; stroke: #8b5cf6; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-4" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#8b5cf6" stroke="none" style="stroke: none; fill: #8b5cf6; fill: context-stroke"/></marker></defs><path d="M 0 4 L 95 4" marker-end="url(#dc-arrow-head-filled-4)"></path></svg>
+<svg width="8" height="129" viewBox="0 0 8 129" preserveAspectRatio="none" style="position: absolute; left: 1018px; top: 471px; width: 8px; height: 129px; overflow: visible; fill: none; stroke: #8b5cf6; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-5" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#8b5cf6" stroke="none" style="stroke: none; fill: #8b5cf6; fill: context-stroke"/></marker></defs><path d="M 4 129 L 4 4" marker-end="url(#dc-arrow-head-filled-5)"></path></svg>
+<svg width="8" height="129" viewBox="0 0 8 129" preserveAspectRatio="none" style="position: absolute; left: 1338px; top: 470px; width: 8px; height: 129px; overflow: visible; fill: none; stroke: #a6a1b8; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 6" aria-hidden="true"><defs><marker id="dc-arrow-head-filled-6" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#a6a1b8" stroke="none" style="stroke: none; fill: #a6a1b8; fill: context-stroke"/></marker></defs><path d="M 4 0 L 4 125" marker-end="url(#dc-arrow-head-filled-6)"></path></svg>
+
+<div style="position: absolute; left: 48px; top: 340px; width: 200px; height: 110px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: #120e1d; border: 1px solid #2c214a; border-radius: 12px; font-size: 11px; line-height: 15px"><b style="font-size: 13px">Queue and taking a ticket</b><span style="color: #c9c5d6">Start of T3. Its acceptance decides when it is done.</span><span style="color: #8f8aa3">3 acceptance items</span></div>
+
+<div style="position: absolute; left: 312px; top: 320px; width: 220px; height: 150px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: #120e1d; border: 1px solid #2c214a; border-radius: 12px; font-size: 11px; line-height: 15px"><span style="padding: 1px 6px; border-radius: 5px; background: #2a1f4a; color: #c4b5fd; font-size: 10px; font-weight: 600; align-self: flex-start">P1</span><b style="font-size: 13px">Domain: a ticket can be taken</b><span style="color: #c9c5d6">Ticket.take() moves waiting to assigned, once.</span><span style="font-family: 'JetBrains Mono', monospace; color: #8f8aa3">backend/app/Domain/Tickets/</span><span style="color: #34d399">starts now</span></div>
+
+<div style="position: absolute; left: 612px; top: 320px; width: 220px; height: 150px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: #120e1d; border: 1px solid #2c214a; border-radius: 12px; font-size: 11px; line-height: 15px"><span style="padding: 1px 6px; border-radius: 5px; background: #2a1f4a; color: #c4b5fd; font-size: 10px; font-weight: 600; align-self: flex-start">P2</span><b style="font-size: 13px">Port: TicketStore</b><span style="color: #c9c5d6">What the use case needs from storage: take, waiting list.</span><span style="font-family: 'JetBrains Mono', monospace; color: #8f8aa3">backend/app/Application/Tickets/</span><span style="color: #34d399">needs P1</span></div>
+
+<div style="position: absolute; left: 912px; top: 320px; width: 220px; height: 150px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: #1d1533; border: 1px solid #8b5cf6; border-radius: 12px; font-size: 11px; line-height: 15px"><span style="display: flex; justify-content: space-between"><span style="padding: 1px 6px; border-radius: 5px; background: #2a1f4a; color: #c4b5fd; font-size: 10px; font-weight: 600">P3</span><span style="padding: 1px 6px; border-radius: 5px; background: #3b2a66; color: #ddd6fe; font-size: 10px">selected</span></span><b style="font-size: 13px">Use case: TakeTicket</b><span style="color: #c9c5d6">Take a waiting ticket, tested on the real repository.</span><span style="font-family: 'JetBrains Mono', monospace; color: #8f8aa3">backend/app/Application/Tickets/</span><span style="color: #34d399">needs P2, T1 · P3</span></div>
+
+<div style="position: absolute; left: 1232px; top: 320px; width: 220px; height: 150px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: #120e1d; border: 1px solid #2c214a; border-radius: 12px; font-size: 11px; line-height: 15px"><span style="padding: 1px 6px; border-radius: 5px; background: #2a1f4a; color: #c4b5fd; font-size: 10px; font-weight: 600; align-self: flex-start">P4</span><b style="font-size: 13px">Endpoint: take a ticket</b><span style="color: #c9c5d6">POST /tickets/{id}/take calls TakeTicket.</span><span style="font-family: 'JetBrains Mono', monospace; color: #8f8aa3">backend/app/Http/</span><span style="color: #34d399">needs P3</span><span style="color: #fbbf24">1 element not discussed</span></div>
+
+<a href="Layer.dc.html" style="position: absolute; left: 912px; top: 600px; width: 220px; height: 110px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: transparent; border: 1px dashed #6b6582; border-radius: 12px; font-size: 11px; line-height: 15px; color: #f4f1ff"><span style="padding: 1px 6px; border-radius: 5px; background: #221d30; color: #c9c5d6; font-size: 10px; font-weight: 600; align-self: flex-start">T1 · P3</span><b style="font-size: 13px">Repository: TicketRepository</b><span style="font-family: 'JetBrains Mono', monospace; color: #8f8aa3">backend/app/Infrastructure/</span><span style="color: #c4b5fd">another task · open ›</span></a>
+
+<div style="position: absolute; left: 1232px; top: 600px; width: 220px; height: 110px; box-sizing: border-box; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: transparent; border: 1px dashed #6b6582; border-radius: 12px; font-size: 11px; line-height: 15px"><span style="padding: 1px 6px; border-radius: 5px; background: #221d30; color: #c9c5d6; font-size: 10px; font-weight: 600; align-self: flex-start">T8 · P1</span><b style="font-size: 13px">API: take operation</b><span style="font-family: 'JetBrains Mono', monospace; color: #8f8aa3">api/</span><span style="color: #a6a1b8">completes after T3 · P4</span></div>
+
+<div style="position: absolute; left: 540px; top: 368px; width: 64px; padding: 1px 0px; text-align: center; border: 1px solid #3a2d63; border-radius: 6px; background: #0d0b14; font-size: 10px; line-height: 14px; font-family: 'JetBrains Mono', monospace; color: #c4b5fd">take rule</div>
+<div style="position: absolute; left: 840px; top: 368px; width: 64px; padding: 1px 0px; text-align: center; border: 1px solid #3a2d63; border-radius: 6px; background: #0d0b14; font-size: 10px; line-height: 14px; font-family: 'JetBrains Mono', monospace; color: #c4b5fd">port</div>
+<div style="position: absolute; left: 1142px; top: 368px; width: 80px; padding: 1px 0px; text-align: center; border: 1px solid #3a2d63; border-radius: 6px; background: #0d0b14; font-size: 10px; line-height: 14px; font-family: 'JetBrains Mono', monospace; color: #c4b5fd">TakeTicket</div>
+<div style="position: absolute; left: 1034px; top: 527px; width: 84px; padding: 1px 0px; text-align: center; border: 1px solid #3a2d63; border-radius: 6px; background: #0d0b14; font-size: 10px; line-height: 14px; font-family: 'JetBrains Mono', monospace; color: #c4b5fd">repository</div>
+<div style="position: absolute; left: 1354px; top: 527px; width: 72px; padding: 1px 0px; text-align: center; border: 1px solid #3a2d63; border-radius: 6px; background: #0d0b14; font-size: 10px; line-height: 14px; font-family: 'JetBrains Mono', monospace; color: #c4b5fd">endpoint</div>
+
+<div style="position: absolute; left: 48px; top: 760px; display: flex; flex-direction: column; border: 1px solid #2c214a; border-radius: 6px; overflow: hidden; background: #15111f"><button type="button" aria-label="Zoom in" style="width: 32px; height: 32px; border: 0; border-bottom: 1px solid #2c214a; background: transparent; color: #f4f1ff; font-size: 16px">+</button><button type="button" aria-label="Zoom out" style="width: 32px; height: 32px; border: 0; border-bottom: 1px solid #2c214a; background: transparent; color: #f4f1ff; font-size: 16px">−</button><button type="button" aria-label="Fit view" style="width: 32px; height: 32px; border: 0; background: transparent; color: #f4f1ff; font-size: 12px">⛶</button></div>
+
+<div style="position: absolute; left: 1296px; top: 740px; width: 180px; height: 120px; background: #1c1a24"></div>
+<div style="position: absolute; left: 1316px; top: 760px; width: 140px; height: 80px; background: #0b0a10"></div>
+<div style="position: absolute; left: 1324px; top: 790px; width: 14px; height: 8px; background: #2a2540"></div>
+<div style="position: absolute; left: 1346px; top: 786px; width: 16px; height: 12px; background: #2a2540"></div>
+<div style="position: absolute; left: 1370px; top: 786px; width: 16px; height: 12px; background: #2a2540"></div>
+<div style="position: absolute; left: 1394px; top: 786px; width: 16px; height: 12px; background: #3b2a66"></div>
+<div style="position: absolute; left: 1418px; top: 786px; width: 16px; height: 12px; background: #2a2540"></div>
+<div style="position: absolute; left: 1394px; top: 812px; width: 16px; height: 9px; background: #2a2540"></div>
+<div style="position: absolute; left: 1418px; top: 812px; width: 16px; height: 9px; background: #2a2540"></div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1520,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
