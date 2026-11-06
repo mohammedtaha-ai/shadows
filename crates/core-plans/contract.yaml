@@ -357,7 +357,7 @@ functions:
     # Active plans, or archived ones too when requested.
     get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>, project: Option<&str>) -> Result<Plan, PlansError>"
     task_context:
-      signature: "(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32) -> Result<TaskContext, PlansError>"
+      signature: "(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
       rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot; grants nothing and writes nothing.
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
@@ -1023,3 +1023,8 @@ dependencies:
 # approval run inside their writer transaction, including mixed cycles.
 # Plan.linked_phases is derived preview data, excluded from PlanContent;
 # missing targets retain their raw reference and named broken reason.
+
+# Optional TaskContext.phase selects only a phase belonging to the named task.
+# The full task acceptance remains present. phase_dependencies include raw
+# pins, exact target metadata and phase content, or a named broken reason;
+# the same PhaseRows resolver runs in the existing read snapshot.

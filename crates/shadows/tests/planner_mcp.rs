@@ -50,6 +50,8 @@ async fn the_planner_follows_the_stacks_layout() {
     assert!(append.contains("S10 [all]"));
     assert!(append.contains("declared dependencies"));
     assert!(append.contains("read task_context before building"));
+    assert!(append.contains("never mark a phase complete"));
+    assert!(append.contains("phases_set"));
     shut_down_app(l.app).await;
 }
 

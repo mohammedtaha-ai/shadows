@@ -38,3 +38,5 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # both grant kinds. Its description directs the first read before building
 # and states that it grants no execution permission. Scope and approval
 # requirements remain in Plans; no adapter reads tables or grants authority.
+# Optional phase_id selects a phase through Plans. plan_edit describes
+# phases_set with retained IDs, new server identities and derived numbers.

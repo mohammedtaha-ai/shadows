@@ -1552,23 +1552,28 @@ architecture, codemap, contracts and affected clippy passed.
   No completion field, checkbox, permission or execution method is added.
 - The MCP tool gains `phase_id?: string`.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `the_planner_adds_a_phase_with_plan_edit`
-  - `phase_context_keeps_task_acceptance_and_pinned_dependencies`
-  - `a_phase_outside_the_named_task_is_refused`
-  - the prompt contains "never mark a phase complete".
-- [ ] **Step 2: Run them and see them fail.**
-- [ ] **Step 3: Implement,** and regenerate the API files.
-- [ ] **Step 4: Run** `cargo test -p shadows --test planner_mcp --test openapi`
+- [x] **Step 1: Tests.** `the_planner_edits_phases_and_reads_selected_phase_context`
+  proves MCP edits, selected reads and wrong-phase refusal.
+  `selected_phase_context_keeps_all_acceptance_and_exact_dependency_content`
+  proves full task acceptance and pinned target content. Planner prompt checks
+  include "never mark a phase complete".
+- [x] **Step 2: Observe phase selection returning no selected phase.**
+- [x] **Step 3: Implement,** and verify HTTP artifacts remain current.
+- [x] **Step 4: Run** `cargo test -p shadows --test planner_mcp --test openapi`
   and `cargo test -p core-plans`; `cargo test -p shadows --test mcp_tools`;
   `cargo test -p shadows-core --test task_context`.
-- [ ] **Step 5: Update the contracts and commit:**
+- [x] **Step 5: Update the contracts and commit:**
   `feat(backend): the Planner edits phases`.
 
 ### Task 5.4 (web, F-93): the task view
 
 **Files:**
 - Create: `web/src/app/workflows/task-view.tsx`, `task-view.test.tsx`
+- Create: `web/src/app/workflows/phase-node.tsx`, `phase-layout.ts`,
+  `phase-layout.test.ts` at their first consumer; Task 5.5 extends them.
+- Modify: `web/src/router.tsx`, `web/src/api/workflows.ts`,
+  `web/src/api/contract.yaml`, `web/src/app/workflows/layout.ts`,
+  `web/src/app/workflows/plan-edge.tsx`, `docs/frontend/codebase/README.md`.
 - Modify: `web/src/app/workflows/plan-page.tsx` (route state for the
   opened task), `plan-graph.tsx` (open a task), `contract.yaml`
 - Modify: `web/src/test/fake-daemon.ts`
@@ -1617,8 +1622,8 @@ architecture, codemap, contracts and affected clippy passed.
   `plan-page.tsx` (the header button), `task-node.tsx`, `plan-camera.ts`,
   `plan-edge.tsx`, `linked-layout.ts`, `contract.yaml`,
   `web/src/test/fake-daemon.ts`, `docs/frontend/codebase/README.md`
-- Create: `web/src/app/workflows/phase-node.tsx`,
-  `web/src/app/workflows/phase-layout.ts`, `phase-layout.test.ts`
+- Extend: `web/src/app/workflows/phase-node.tsx`,
+  `web/src/app/workflows/phase-layout.ts`, `phase-layout.test.ts` from F-93.
 - Test: `plan-graph.test.tsx`, `layout.test.ts`
 
 **Interfaces:**

@@ -265,13 +265,14 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 
 ### B-81 · Read selected phase context through MCP
-- Status: todo
+- Status: done
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.3.
 - Owner: Plans; adapters translate; its current contract and AppCore owner row.
 - Read: owner spec §5.5/§6/§8; exact Task 5.3 interfaces, files and tests; owner contracts and code map.
 - Touch: the exact Files list in Task 5.3, this stages file and that plan task. Compiler-reported constructor fixtures are recorded before edits.
 - Needs: B-80.
+- Verified: context integration 3, MCP tools 17, Planner 24, pure rules 24, OpenAPI 8, codemap/contracts and affected clippy passed. Selected phase dependencies reuse the exact resolver in one snapshot; whole-task acceptance stays present.
 - Done when: cargo test -p shadows-core --test task_context; cargo test -p shadows --test planner_mcp --test mcp_tools --test openapi; affected clippy; fmt; architecture, codemap and contracts. No live acceptance claimed by unit tests.
 
 - Modify: `crates/shadows-mcp/src/plan_tools.rs` (the `plan_edit`

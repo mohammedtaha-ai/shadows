@@ -129,5 +129,6 @@ pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayou
 
 pub use core_plans::{ContextPlan, ContextStandards, TaskContext, TaskPart, TaskPath};
 
+pub use core_plans::PhaseDependency;
 pub use core_plans::{LinkedPhase, PhaseEndpoint};
 pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};

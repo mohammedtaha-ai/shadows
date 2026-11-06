@@ -47,6 +47,9 @@ struct TaskContextArgs {
     #[schemars(with = "Option<String>")]
     workflow_id: Option<WorkflowId>,
     task_number: u32,
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    phase_id: Option<shadows_core::PhaseId>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -182,7 +185,12 @@ impl Shadows {
         answer(
             self.core
                 .plans()
-                .task_context(&grant, args.workflow_id.as_ref(), args.task_number)
+                .task_context(
+                    &grant,
+                    args.workflow_id.as_ref(),
+                    args.task_number,
+                    args.phase_id.as_ref(),
+                )
                 .await
                 .map_err(Refusal::from),
         )
@@ -234,7 +242,9 @@ impl Shadows {
     #[tool(
         description = "Edit a draft plan version at expected_revision with a list of \
                        operations: plan_put, task_add, task_update, task_remove, link_put, \
-                       link_remove. Put changes made together in one call."
+                       link_remove, phases_set. phases_set replaces the ordered phase list: \
+                       retain existing ids, omit ids for new phases. Numbers are server-derived. \
+                       Put changes made together in one call."
     )]
     async fn plan_edit(
         &self,

@@ -12,6 +12,7 @@ impl PlansStore {
         grant: &Grant,
         workflow: Option<&WorkflowId>,
         number: u32,
+        phase_id: Option<&crate::PhaseId>,
     ) -> Result<TaskContext, PlansError> {
         let workflow = Scope::named(workflow)?;
         let mut tx = self.storage.reader().begin().await?;
@@ -36,6 +37,39 @@ impl PlansStore {
             })?
             .content
             .clone();
+        let phase = phase_id
+            .map(|id| {
+                task.phases
+                    .iter()
+                    .find(|p| p.id == *id)
+                    .cloned()
+                    .ok_or_else(|| {
+                        PlansError::InvalidCommand(format!("T{number} has no phase {id}"))
+                    })
+            })
+            .transpose()?;
+        let mut phase_dependencies = Vec::new();
+        if let Some(phase) = &phase {
+            use super::phase_refs::{PhaseRows, VersionSnapshot};
+            let source = VersionSnapshot::from_plan(&plan);
+            for reference in &phase.waits_for {
+                let (target, phase, broken) = match PhaseRows::resolve(&mut tx, &source, reference)
+                    .await
+                {
+                    Ok((target, number, phase)) => {
+                        (Some(target.endpoint(number, &phase)), Some(phase), None)
+                    }
+                    Err(core_db::StorageError::Constraint(reason)) => (None, None, Some(reason)),
+                    Err(error) => return Err(error.into()),
+                };
+                phase_dependencies.push(crate::PhaseDependency {
+                    reference: reference.clone(),
+                    target,
+                    phase,
+                    broken,
+                });
+            }
+        }
         let tied = Plans::plan_parts_in(&mut tx, &plan.project_id, &plan.plan_id).await?;
         let layout = Design::layout_in(&mut tx, &plan.project_id).await?;
         let mut paths = Vec::new();
@@ -73,6 +107,8 @@ impl PlansStore {
             })
             .collect();
         let context = TaskContext {
+            phase,
+            phase_dependencies,
             plan: ContextPlan {
                 plan_id: plan.plan_id,
                 workflow_id: plan.id,
