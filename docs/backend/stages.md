@@ -176,7 +176,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 - Verified: design_parts 41 passed; core-design suite, architecture, codemap, contract_tests, affected all-target clippy and fmt passed.
 ### B-77 · Read approved task context
-- Status: todo
+- Status: done
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 4.2.
 - Owner: Plans; its current contract and AppCore owner row.
@@ -193,8 +193,9 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   `crates/shadows-core/tests/task_context.rs` (standalone integration target).
 
 
+- Verified: task_context integration cases and core-plans passed; architecture, codemap, contract_tests and affected all-target clippy passed. Scope helper moved with this task.
 ### B-78 · Expose task_context over MCP
-- Status: blocked
+- Status: todo
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 4.3.
 - Owner: Plans; Grants owns tool policy; Harness owns instructions; its current contract and AppCore owner row.

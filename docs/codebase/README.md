@@ -525,3 +525,6 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-design/src/layout.rs` | project layout ownership | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/layout.rs` | snapshot layout projection | `crates/core-design/contract.yaml` |
+
+| `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |

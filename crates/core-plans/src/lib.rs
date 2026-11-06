@@ -26,6 +26,8 @@ mod map;
 mod model;
 mod ops;
 mod rules;
+mod task_context;
+pub use task_context::{ContextPlan, ContextStandards, TaskContext, TaskPart, TaskPath};
 mod scope;
 mod signal;
 pub use signal::UiSignal;

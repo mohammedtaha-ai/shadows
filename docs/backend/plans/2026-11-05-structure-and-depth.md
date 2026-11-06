@@ -1254,6 +1254,7 @@ contract_tests, affected all-target clippy and fmt passed. Manual acceptance pen
 ### Task 4.2: `task_context` (`core-plans`)
 
 **Files:**
+- Modify: `crates/core-plans/src/scope.rs` (shared named-workflow guidance).
 - Create: `crates/core-plans/src/task_context.rs`
 - Modify: `crates/core-plans/src/lib.rs`, `crates/core-plans/src/store/mod.rs`,
   `crates/core-plans/src/store/design_parts.rs`, `crates/core-plans/contract.yaml`,
@@ -1292,32 +1293,19 @@ contract_tests, affected all-target clippy and fmt passed. Manual acceptance pen
 - The method calls `Design::layout_in`. It never reads Design tables.
 - It grants nothing and writes nothing.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `task_context_names_the_part_its_layers_and_the_rules`: an approved
-    plan whose T1 writes `backend/app/Domain/Ticket.php`; the context
-    names the backend part, its five layers with places, and S10.
-  - `a_nested_part_owns_its_own_paths`: T1 writes
-    `backend/database/migrations/x.php`; the path belongs to the database
-    part, not the backend.
-  - `a_layer_place_brings_its_part_and_its_rules`: T1 writes
-    `backend/config/database.php`. The context names the backend part by
-    folder and the database part by its `connection` layer, with the
-    database's rules (S4).
-  - `an_unowned_path_is_listed_not_guessed`: `docs/notes.md` is in
-    `unowned_paths`.
-  - `task_context_reads_the_approved_version_not_the_draft`: a draft
-    changes T1's paths; the approved version's paths are returned.
-  - `a_foreign_project_grant_cannot_read_task_context`
-  - `a_missing_task_is_refused_by_number`
-  - `task_context_refuses_a_named_draft`
-  - `task_context_keeps_tied_parts_without_paths_and_multiple_ownership_reasons`
-  - `task_context_uses_one_snapshot_and_never_writes`: assert no new command,
-    event, grant or disk artifact; concurrent map/standards edits cannot mix.
-- [ ] **Step 2: Run them and see them fail.**
-- [ ] **Step 3: Implement `Plans::task_context`** in `task_context.rs`.
-- [ ] **Step 4: Run** `cargo test -p shadows-core --test task_context` and
+- [x] **Step 1: Context integration cases.**
+  `task_context_refuses_drafts_then_returns_frozen_content_without_writes`
+  covers explicit approved versions after a new Draft, missing task/workflow,
+  foreign scope, tied parts, and command/event immutability.
+  `task_context_joins_layout_rules_nested_owners_and_stable_paths`
+  covers nested ownership, out-of-folder layer ownership, catalog rules,
+  stable duplicate removal and unowned paths. Design's layout snapshot test
+  holds the shared transaction-local API's snapshot behavior.
+- [x] **Step 2: Run them and see them fail.**
+- [x] **Step 3: Implement `Plans::task_context`** in `task_context.rs`.
+- [x] **Step 4: Run** `cargo test -p shadows-core --test task_context` and
   `cargo test -p core-plans`.
-- [ ] **Step 5: Add its contract line and commit:**
+- [x] **Step 5: Add its contract line and commit:**
   `feat(backend): task_context tells an agent where it works`.
 
 ### Task 4.3: the MCP tool

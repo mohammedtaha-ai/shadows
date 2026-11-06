@@ -20,6 +20,7 @@ pub(super) mod notifications;
 mod plan;
 mod read;
 pub(super) mod task;
+mod task_context;
 mod view;
 
 use core_db::JournalEntry;

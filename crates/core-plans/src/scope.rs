@@ -23,11 +23,7 @@ impl Plans {
         named: Option<&WorkflowId>,
         latest_only: bool,
     ) -> Result<Plan, PlansError> {
-        let id = named.cloned().ok_or_else(|| {
-            Scope::scope(
-                "name the plan version with workflow_id; workflow_list lists the project's plans",
-            )
-        })?;
+        let id = Scope::named(named)?.clone();
         let plan = match self
             .store
             .get_plan_scoped(&id, Some(&grant.project_id), None)
@@ -283,3 +279,13 @@ impl Scope {
 }
 
 pub struct Scope;
+
+impl Scope {
+    pub(super) fn named(named: Option<&WorkflowId>) -> Result<&WorkflowId, PlansError> {
+        named.ok_or_else(|| {
+            Self::scope(
+                "name the plan version with workflow_id; workflow_list lists the project's plans",
+            )
+        })
+    }
+}
