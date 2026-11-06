@@ -150,7 +150,7 @@ and nothing tells which tests protect real behaviour. Three tools answer it, che
 They are tooling, so they need no spec. Each ships on `feature/structure-layers`.
 
 ### B-68 · Contracts and tests name each other
-- Status: todo
+- Status: done
 - Read: crates/shadows/tests/codemap/main.rs (the pattern to follow); docs/codebase/contracts/TEMPLATE.yaml;
   three contracts with different shapes: crates/core-design/contract.yaml,
   crates/core-standards/contract.yaml, crates/core-harness/contract.yaml
@@ -174,7 +174,7 @@ They are tooling, so they need no spec. Each ships on `feature/structure-layers`
   lists. The report gives the counts.
 
 ### B-69 · A coverage report in CI
-- Status: todo
+- Status: done
 - Touch: .github/workflows/coverage.yml (new)
 - What it does: on `workflow_dispatch` and once a week (never on push, to save minutes), on
   `ubuntu-latest`:
@@ -188,7 +188,7 @@ They are tooling, so they need no spec. Each ships on `feature/structure-layers`
   once from the Actions tab after the push.
 
 ### B-70 · Mutation testing in CI, one crate at a time
-- Status: todo
+- Status: done
 - Touch: .github/workflows/mutants.yml (new)
 - What it does: on `workflow_dispatch` only, with input `package` (default `core-design`), on
   `ubuntu-latest`:
