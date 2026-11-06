@@ -195,7 +195,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 - Verified: task_context integration cases and core-plans passed; architecture, codemap, contract_tests and affected all-target clippy passed. Scope helper moved with this task.
 ### B-78 · Expose task_context over MCP
-- Status: todo
+- Status: done
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 4.3.
 - Owner: Plans; Grants owns tool policy; Harness owns instructions; its current contract and AppCore owner row.
@@ -214,8 +214,9 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   `crates/shadows/tests/mcp_tools.rs`, `crates/shadows/tests/mcp_server.rs`.
 
 
+- Verified: planner_mcp 24, mcp_tools 16, mcp_server 6, codemap and contract_tests passed; affected all-target clippy and fmt passed.
 ### B-79 · Persist phase values in task contracts
-- Status: blocked
+- Status: todo
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.1.
 - Owner: Plans; its current contract and AppCore owner row.

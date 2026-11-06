@@ -18,6 +18,7 @@ Shadows' tools (in your tool list as mcp__shadows__<name>)
 - workflow_list: list this project's plans and each one's latest version.
 - workflow_get: read a plan version by workflow_id, with its revision and what still blocks approval.
 - task_get: read one task by its number.
+- task_context: read task_context before building a task. Name its approved workflow_id and task_number; it returns its parts, layers and rules, and grants no execution permission.
 - draft_start: start a plan version. Give plan_id to continue that plan; leave it out to start a new plan with a title and goal. Every later version needs a reason. parts: the part ids this plan changes; a plan cannot be approved until it is tied to at least one part.
 - plan_edit: change the draft. Give expected_revision and a list of operations: plan_put, task_add, task_update, task_remove, link_put, link_remove.
 - plan_show: show the person the plan, or one task of it by number, while you talk: place "inline" in the conversation, "side" in a panel beside it, "page" on the plan's own page. Use it when they ask to see the plan or a task ("show me T4", "open it on the side", "take me to its page"). It changes nothing.

@@ -33,3 +33,8 @@ map_layers: 'map_propose describes the single folder and layer places; the typed
 vision_propose_args: 'vision_propose names which arguments each action takes: field for an add only, item_id (and text for an edit) for an edit or removal, never field; each argument carries its own description in the schema. Core refuses the wrong shape either way. Tested by mcp_server::the_discover_lifecycle_works_without_a_session.'
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
+
+# task_context translates workflow_id/task_number to Plans::task_context for
+# both grant kinds. Its description directs the first read before building
+# and states that it grants no execution permission. Scope and approval
+# requirements remain in Plans; no adapter reads tables or grants authority.

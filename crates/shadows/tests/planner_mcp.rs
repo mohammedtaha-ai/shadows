@@ -49,6 +49,7 @@ async fn the_planner_follows_the_stacks_layout() {
     assert!(!append.contains("SHADOWS.md"));
     assert!(append.contains("S10 [all]"));
     assert!(append.contains("declared dependencies"));
+    assert!(append.contains("read task_context before building"));
     shut_down_app(l.app).await;
 }
 

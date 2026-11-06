@@ -57,7 +57,7 @@ UI and API dependencies.
 | 1 | Caller inventory of the four write paths | Implemented in PR #59 (`26bf739e`); live acceptance not recorded | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
 | 2 | Slice 1; accepted API request (B-64) before F-90 | Implemented in PR #60 (`b64242a7`), with B-68 to B-70 tooling; live acceptance not recorded | Layers on the map card, migration on the daily database, canvas in the app |
 | 3 | Slice 2; accepted API request `2026-11-06-principles-not-layout` | Implemented locally through `3deb1333`; manual acceptance pending with Mohammed | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
-| 4 | Slice 3 | B-76–B-78 prepared; not implemented | A fresh external agent reads a task's parts, layers and rules |
+| 4 | Slice 3 | B-76–B-78 implemented and automated checks passed; live acceptance pending | A fresh external agent reads a task's parts, layers and rules |
 | 5 | Slice 4; accepted API request for task phases | B-79–B-81, F-93–F-94 prepared; API request accepted; implementation pending | Mixed dependency cycles refused; both graph modes work |
 
 **Dropped on 2026-11-06:** the former slices 3 (elements), 4 (planning
@@ -1329,16 +1329,16 @@ contract_tests, affected all-target clippy and fmt passed. Manual acceptance pen
 - Its description says it is the first read before building a task, and
   that it grants no permission to execute.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `the_planner_reads_task_context`
-  - `an_external_agent_reads_task_context`
-  - `task_context_is_listed_for_both_grants`
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 1: Write the failing tests.**
+  - `both_grants_read_approved_task_context_without_execution_authority`
+    covers listing and successful/refused reads through both grant kinds.
+  - `the_planner_follows_the_stacks_layout` verifies the prompt instruction.
+- [x] **Step 2: Run them and see them fail.**
   `cargo test -p shadows --test planner_mcp --test mcp_tools --test mcp_server`.
-- [ ] **Step 3: Add the tool and the prompt line.**
-- [ ] **Step 4: Run** those three test targets and
+- [x] **Step 3: Add the tool and the prompt line.**
+- [x] **Step 4: Run** those three test targets and
   `cargo test -p shadows --test contract_tests --test codemap`.
-- [ ] **Step 5: Update the contracts and commit:**
+- [x] **Step 5: Update the contracts and commit:**
   `feat(backend): the task_context MCP tool`.
 
 **Slice 4 acceptance:**

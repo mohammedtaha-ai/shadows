@@ -466,3 +466,5 @@ tests:
       project, an expired ref and another grant's ref are GrantScope and stay
       unbound, with no plan or thread created; a replay after expiry answers
       the first.
+
+# Both tools_for allowlists include task_context, a read with no execution authority.

@@ -42,6 +42,14 @@ struct TaskArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskContextArgs {
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    workflow_id: Option<WorkflowId>,
+    task_number: u32,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct DraftStartArgs {
     /// The first version's title. Needed only when starting a new plan.
     #[serde(default)]
@@ -157,6 +165,24 @@ impl Shadows {
             self.core
                 .plans()
                 .task_for(&grant, args.workflow_id.as_ref(), args.number)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "First read before building a task: its approved content, parts, layers \
+                       and rules. This grants no permission to execute. Name workflow_id."
+    )]
+    async fn task_context(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskContextArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .plans()
+                .task_context(&grant, args.workflow_id.as_ref(), args.task_number)
                 .await
                 .map_err(Refusal::from),
         )

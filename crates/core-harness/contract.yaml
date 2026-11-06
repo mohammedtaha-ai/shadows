@@ -1117,3 +1117,5 @@ planning_context:
 
 context_completion:
   mark_context_heard_in: Turns acknowledges a prepared context in the successful completion transaction.
+
+# Planner prompt directs building agents to read task_context for the approved task first.

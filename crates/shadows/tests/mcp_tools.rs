@@ -608,3 +608,49 @@ async fn a_planner_edits_only_the_plan_latest_version() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn both_grants_read_approved_task_context_without_execution_authority() {
+    let l = listening_app().await;
+    let workflow = approved_v1(&l.app).await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let (_, external) = project_client(&l).await;
+    for client in [&planner, &external] {
+        let tools = client.list_all_tools().await.unwrap();
+        let tool = tools.iter().find(|t| t.name == "task_context").unwrap();
+        assert!(
+            tool.description
+                .as_deref()
+                .unwrap()
+                .contains("no permission to execute")
+        );
+        let context = ok(
+            client,
+            "task_context",
+            json!({
+                "workflow_id": workflow, "task_number": 1,
+            }),
+        )
+        .await;
+        assert_eq!(context["plan"]["workflow_id"], json!(workflow));
+        assert_eq!(context["task"]["number"], 1);
+        assert!(context["standards"]["base"].as_i64().unwrap() >= 3);
+        assert!(context.get("execute").is_none());
+        assert!(
+            refused(
+                client,
+                "task_context",
+                json!({
+                    "workflow_id": workflow, "task_number": 99,
+                })
+            )
+            .await
+            .contains("T99")
+        );
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
