@@ -13,9 +13,13 @@ use shadows_core::{Grant, VisionAction, VisionField, VisionPropose};
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub(super) struct VisionProposeArgs {
     action: VisionAction,
+    /// add only: the field the new item joins. An edit or a removal is refused with it.
     field: Option<VisionField>,
+    /// edit and remove only: the item's id, such as G2. It names its field.
     item_id: Option<String>,
+    /// add and edit: the item's whole text. A removal has none.
     text: Option<String>,
+    /// A pending card's proposal id, to replace that card with this one.
     replaces: Option<String>,
 }
 
@@ -118,9 +122,10 @@ impl Shadows {
         )
     }
     #[tool(
-        description = "Propose one change to the vision: add an item to a field, or edit or \
-        remove an item by its id. One call is one card; several calls in a reply are several \
-        cards. Nothing changes until the button or Planner approval tool approves."
+        description = "Propose one change to the vision: add an item to a field (give field and \
+        text), or edit or remove an item by its id (give item_id, and text for an edit; never \
+        field). One call is one card; several calls in a reply are several cards. Nothing \
+        changes until the button or Planner approval tool approves."
     )]
     async fn vision_propose(
         &self,

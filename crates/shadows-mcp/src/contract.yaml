@@ -30,3 +30,4 @@ agreements:
 
 map_refusals: 'The generic refusal mapping preserves MAP_REFUSED and its rule-prefixed message; shared adapter fixtures cover it.'
 map_layers: 'map_propose describes the single folder and layer places; the typed schema comes from Core. Tested by planner_mcp::the_map_tool_names_layers.'
+vision_propose_args: 'vision_propose names which arguments each action takes: field for an add only, item_id (and text for an edit) for an edit or removal, never field; each argument carries its own description in the schema. Core refuses the wrong shape either way. Tested by mcp_server::the_discover_lifecycle_works_without_a_session.'
