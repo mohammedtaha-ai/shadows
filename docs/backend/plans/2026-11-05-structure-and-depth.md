@@ -1,19 +1,17 @@
-# Structure, layers and planning depth: implementation plan
+# Structure and layers: implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Shadows holds each project's structure: parts with one folder
-each, layers from the standards, and elements inside the layers. It shows
-how much of each part is planned, reports whether a project stage is fully
-planned, gates plan approval on recorded detail, and gives the agent
-building a task bounded context instead of `contract.yaml` files.
+**Goal:** Shadows holds each project's structure as principles: parts with
+one folder each, and layers from the standards with where they live in the
+chosen stack. It checks the principles, never a folder layout. It gives the
+agent building a task bounded context, and lets a task have phases.
 
 **Architecture:** No new service.
-- `core-standards` holds the layer catalog.
-- `core-design` holds layers, versioned elements, links and outcome
-  criteria.
-- `core-plans` holds task bindings, coverage, phases and the approval gate.
-  It reads `core-design` and `core-code` through their service APIs.
+- `core-standards` holds the layer catalog and rules.
+- `core-design` holds parts and their layers, and the map rules.
+- `core-plans` holds `task_context`, phases and the combined graph. It
+  reads `core-design` through its service API.
 - Adapters translate only: HTTP in `shadows-http`, MCP tools in
   `shadows-mcp`.
 - The web views follow spec §6.
@@ -22,48 +20,51 @@ building a task bounded context instead of `contract.yaml` files.
 Flow in `web/`.
 
 **Spec:** [docs/backend/specs/2026-11-05-structure-and-depth-design.md](../specs/2026-11-05-structure-and-depth-design.md).
-Mockup sources are in [2026-11-05-structure-and-depth-mockup/](../specs/2026-11-05-structure-and-depth-mockup/README.md).
 
 **Words.** These terms are defined at the top of the spec and used with one
 meaning each:
-- a **planning step** is one of Idea, Vision, Map, Structure, Roadmap or
-  Plans;
+- a **planning step** is one of Idea, Vision, Map, Roadmap or Plans;
 - a **project stage** is a roadmap outcome, such as "Stage 1";
-- a **delivery slice** is slice 1 to 9 below.
+- a **delivery slice** is slice 1 to 5 below.
 
-**Mohammed's decisions (2026-11-05):**
-- **No backward compatibility:** every existing project is test data.
-- **Shadows never writes `contract.yaml`** after slice 1.
-- **Repositories live in backend infrastructure.**
-- **The task view and Show phases are approved.**
+**Mohammed's decisions:**
+- **2026-11-05**
+  - **No backward compatibility:** every existing project is test data.
+  - **Shadows never writes `contract.yaml`** after slice 1.
+  - **The task view and Show phases are approved.**
+- **2026-11-06**
+  - **The standards hold principles, not a layout.**
+  - **Each runnable part has one owner object at runtime.**
+  - **Elements, element detail and the trace view are dropped.**
+  - **No command writes the structure.** An executor task or the Planner
+    in Agent Mode writes it. Create structure, the Structure step and
+    `SHADOWS.md` are removed.
 
-**How this plan grows.** Mohammed asked for the whole plan now, with detail
-added as each slice starts.
-- **Slice 1** is written to step level.
-- **Slices 2 to 9** are written to task level: files, interfaces, test
-  names and acceptance. They are preparation packets, not builder
-  assignments.
-- When a slice starts, its tasks get `B-`/`F-` numbers in
-  `docs/backend/stages.md` and `docs/frontend/stages.md`, and its steps are
-  written here.
+**How this plan grows.**
+- Slices 1 and 2 are built. Their sections below stay as the record of what
+  was built.
+- Slice 3 is written to task level, with files, interfaces and test names.
+  It gets `B-`/`F-` numbers when it starts.
+- Slices 4 and 5 are preparation packets. Their steps are written when each
+  one starts.
 
 ## Dispatch and progress
 
-No slice is marked done, and this document dispatches no builder. The
-controller prepares one runnable vertical slice at a time, including its
+The controller prepares one runnable vertical slice at a time, including its
 UI and API dependencies.
 
 | Slice | Prerequisite | Planning state | Exit evidence |
 |---|---|---|---|
 | 1 | Caller inventory of the four write paths | Implemented in PR #59 (`26bf739e`); live acceptance not recorded | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
 | 2 | Slice 1; accepted API request (B-64) before F-90 | Implemented in PR #60 (`b64242a7`), with B-68 to B-70 tooling; live acceptance not recorded | Layers on the map card, migration on the daily database, canvas in the app |
-| 3 | Slice 2; agreed revision and proposal API | Needs preparation | Batch element approval, schema view, stale-card recovery |
-| 4 | Slice 3 | Needs preparation | Layer counts and part summary visible |
-| 5 | Slice 4; accepted binding and context contract | Needs preparation | Gate refuses an unspecified element; an agent reads bounded context |
-| 6 | Slice 5; stable criterion model | Needs preparation | One project stage reported as Needs planning or Planning covered |
-| 7 | Slice 5; accepted combined graph semantics | Needs preparation | Mixed dependency cycles refused; both graph modes work |
-| 8 | Slice 5 | Needs preparation | Bounded trace, with incomplete relationships visible |
-| 9 | Slice 5; a supported index language | Needs preparation | Source observation and its uncertainty visible |
+| 3 | Slice 2; accepted API request for the removed `elements` and `files` fields | Task level; not numbered | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
+| 4 | Slice 3 | Needs preparation | A fresh external agent reads a task's parts, layers and rules |
+| 5 | Slice 4; accepted combined graph semantics | Needs preparation | Mixed dependency cycles refused; both graph modes work |
+
+**Dropped on 2026-11-06:** the former slices 3 (elements), 4 (planning
+detail), 6 (outcome coverage on elements), 8 (trace) and 9 (code
+observation). Outcome coverage on tasks and code observation of the layer
+rules are deferred, with no plan.
 
 **Before a task is `todo`,** its `B-` or `F-` entry in its side's
 `stages.md` names:
@@ -115,43 +116,28 @@ reports a missing path or decision instead of widening its own assignment.
   - Migrations may convert old rows crudely.
   - The daemon must still start on the daily database.
   - Nothing on the person's disk is deleted.
-- **Planning coverage, code observation and verification are separate.**
-  Use spec §§5.5–5.7 and §17's execution owner. There is no `Built`
-  shortcut.
-- **This work covers planning and observation only.** Task execution,
-  verified completion of a stage and parallel scheduling wait for their
-  roadmap owners.
+- **Shadows checks principles, never a folder layout.** No rule may refuse a
+  map because of where a layer's place sits.
+- **This work covers planning only.** Task execution, phase completion and
+  verified completion of a stage wait for §17.
 
 ## Review Focus
 
-1. **A parent move or folder rename puts a child outside it.** Check the
-   affected descendants on every write path: proposal, approval and person
-   edit. (Task 1.1: `moving_a_parent_checks_descendant_folders`.)
-2. **An unfinished structure write from before the update.** It must be
-   cancelled with a clear message, never stuck and never resumed with
-   contracts. (Task 1.2:
-   `an_unfinished_old_write_is_cancelled_with_a_clear_message`.)
-3. **The daemon on the daily database after the `folders` → `folder`
-   migration.** It starts, and old parts read back. (Task 2.2:
-   `the_daemon_starts_on_a_database_with_old_parts`.)
-4. **A link that breaks dependency direction across parts.** Example: a
-   domain element linking to a table. Refuse it at proposal time. (Task 3.2:
-   `a_domain_element_cannot_link_to_a_table`.)
-5. **A part summary over an unknown inventory.** It never says complete,
-   and an empty optional layer does not count against it. (Task 4.1:
-   `an_unknown_inventory_never_reports_complete`.)
-6. **A task names an element that is later removed.** Plan approval reports
-   the missing element by name. (Task 5.2:
-   `a_removed_element_blocks_approval_by_name`.)
-7. **A linked plan alone does not cover a project stage.** (Task 6.2:
-   `a_linked_plan_alone_does_not_cover_an_outcome`.)
-8. **Phase waits that form a cycle through another plan.** Refuse them,
-   naming the whole path. (Task 7.1:
+1. **A Laravel-shaped map.** The database part is a child of the backend,
+   and the connection's place is outside the database part's folder. It must
+   be approved. (Task 3.2:
+   `a_laravel_map_with_a_nested_database_part_is_approved`.)
+2. **Two layers of one part at the same place.** It must still be refused
+   with `layer_place_shared`, in any letter case. (Task 3.2.)
+3. **A project whose old map passed the Structure step.** After the
+   removal it reads as Map approved, and Roadmap opens. (Task 3.3:
+   `a_project_past_the_old_structure_step_opens_roadmap`.)
+4. **The daemon on the daily database after the `files` field is removed.**
+   It starts, and parts read back. (Task 3.1:
+   `parts_with_starter_files_read_back_after_the_migration`.)
+5. **Phase waits that form a cycle through another plan.** Refuse them,
+   naming the whole path. (Task 5.1:
    `a_cycle_through_another_plan_is_refused`.)
-9. **Show phases hides a whole-task constraint.** Both graph modes keep
-   `needs` and `completes_after`, including tasks with no phases. (Task 7.4.)
-10. **A found symbol is a stub or belongs to another declaration.** This is
-    an observation only, not completion. (Task 9.2.)
 
 ---
 
@@ -915,295 +901,195 @@ in `web/`.
 
 ---
 
-## Slice 3: elements, schema first
+## Slice 3: principles, not layout
 
 **Outcome.**
-- The Planner proposes elements in cards, and the person approves them.
-- The layer view draws the schema as an ER diagram.
-- An element panel shows the element's fields, location, symbols and
-  links.
+- The standards are base v3: the same kinds and layers, no `elements`, and
+  rules S6, S9 and S10 as in spec §5.2.
+- The map is refused only on principle (spec §5.3). Where a place sits is
+  free.
+- No command writes the structure. Create structure, the Structure step,
+  `SHADOWS.md` and part starter files are removed.
+- The Planner is told to follow the stack's own layout.
 
-### Task 3.1: the element model and store (`core-design`)
-- **Interfaces:**
-  - `Element { id, revision, part, layer, kind, name, summary, module, fields, location, symbols, links }`
-  - **Revisions:** approved revisions are immutable. Current heads and
-    tombstones keep history.
-  - **Location:** typed as source, artifact or logical, as in spec §5.4.
-    A table's implementation points to its migration elements.
-  - **Module:** a stable identity. A backend with no split uses one default
-    module.
-  - `ElementFields` is one enum variant per kind. The schema slice has
-    `Table { columns: Vec<Column>, keys: Vec<Key> }`.
-  - `Symbol { name, signature, job }`
-  - `ElementLink { kind: LinkKind (Uses|Implements|Reads|Writes|Calls), to: ElementId }`
-- **Store:** new tables `element` and `element_link`, ordered by an
-  explicit ordinal.
-- **Tests:**
-  - `an_element_round_trips`
-  - `links_keep_their_order`
-  - `a_table_uses_migrations_without_claiming_their_folder`
-  - `renaming_an_element_preserves_id_and_old_revision`
-  - `removing_an_element_retains_its_historical_content`
+**Shared request first.** Two serialized shapes change:
+- `LayerSpec` loses `elements` (the standards route);
+- `PartContent` loses `files` (every route and MCP tool that returns parts).
 
-### Task 3.2: element proposals and approval
-- **Interfaces:**
-  - `Design::propose_elements(&Grant, ElementPropose) -> ProposalCard`
-  - `approve_element_proposal` and `approve_element_proposal_as_planner`
-- **Rules:**
-  - a recorded or renamed `module` expands every `{module}` place of its part; the expanded paths go through `MapRules::check_places` again (Task 2.3), on proposal and on approval;
-  - the kind is allowed by its layer;
-  - a link's direction obeys S7 (`may_use`);
-  - a table's foreign keys name tables that exist;
-  - validation runs over the complete candidate batch, including ids within
-    the same card. Same-layer schema links can form a cycle without becoming
-    execution edges;
-  - CommandId replay and revision checks run in the same transaction as the
-    approved revision write, with §24 authority and provenance.
-- **Tests:**
-  - `a_domain_element_cannot_link_to_a_table`
-  - `a_foreign_key_to_a_missing_table_is_refused`
-  - `one_card_carries_many_elements`
-  - `same_card_mutual_foreign_keys_resolve_atomically`
-  - `a_stale_element_card_cannot_overwrite_a_new_revision`
-  - `lost_approval_response_replays_one_version`
-  - `a_foreign_project_element_is_refused`
-  - `a_repository_cannot_claim_another_modules_table`
+The backend lead writes
+`docs/shared/requests/2026-11-06-principles-not-layout.md`, and the web side
+accepts it, before F- work starts.
 
-### Task 3.3: the MCP tools
-- **Tools:**
-  - `element_propose` and `element_approve`, for the thread grant;
-  - `layer_get`, for the thread and project grants.
-- **Files:** `core-grants/src/tools.rs` (both lists) and
-  `shadows-mcp/src/workspace_tools.rs`.
-- **Test:** `planner_mcp` lists them per grant.
+### Task 3.1: base v3, and parts without starter files
 
-### Task 3.4: HTTP
-- **Routes:**
-  - `GET /api/projects/{id}/layers/{part}/{layer}`;
-  - the card approve route.
-- **Also:** a shared request and the OpenAPI document. They define:
-  - bounded pagination;
-  - revisions;
-  - stale, unknown and forbidden results;
-  - invalidation events.
-- No route is invented inside a component.
+**Files:**
+- Modify: `crates/core-standards/src/standards.yaml` (version 3, no
+  `elements`, S6 and S9 texts, S10 added; the backend's `owns` no longer
+  says "one core")
+- Modify: `crates/core-standards/src/model.rs`, `src/base.rs`,
+  `contract.yaml`
+- Modify: `crates/core-design/src/model.rs` (remove `files` and
+  `InitialFile`), `src/lib.rs`, `contract.yaml`
+- Create: `crates/core-db/migrations/0048_part_files_removed.sql`
+- Modify: every reader the compiler names, among them
+  `crates/core-harness/src/standards.rs`,
+  `crates/shadows-mcp/src/workspace_tools.rs` and the test fixtures
+- Regenerate: `api/openapi.json`, `web/src/api/schema.d.ts`
+- Test: `crates/core-standards/tests/base.rs`,
+  `crates/shadows-core/tests/design_migration.rs`
 
-### Task 3.5 (web, F-): the layer view and element panel
-- **Files:** `web/src/app/design/layer-view.tsx`, `element-panel.tsx`, and
-  the element card in the conversation.
-- **Tests:**
-  - `the_schema_view_draws_a_card_per_table_and_an_edge_per_foreign_key`
-  - `the_element_panel_shows_location_and_symbols`
-  - `logical_elements_show_implementation_links`
-  - `a_stale_card_preserves_the_draft_and_offers_review`
+**Interfaces:**
+- `LayerSpec { id, role, required, may_use }`.
+- `PartContent` has no `files`.
+- Migration 0048 removes the `files` key from `design_part.content_json`
+  and from each element of `design_map_version.parts_json` (the inner
+  `content_json` string, as 0047 did). It keeps row order.
+- Additions that name `elements` are refused as an unknown field, if the
+  additions parser refuses unknown fields today. Otherwise the field is
+  ignored. The builder reports which.
 
-### Task 3.6: further element kinds
-`use_case`, `port`, `endpoint`, `repository`, `screen` and `client_call`,
-each with its fields and its view:
-- a list for use cases;
-- operations grouped by path for the API;
-- a route tree for screens.
+**Tests:**
+- `base_v3_has_no_element_kinds_and_states_s10`
+- `parts_with_starter_files_read_back_after_the_migration`
+- `a_map_version_keeps_its_row_order` (the 0047 test, extended to 0048)
 
-**Gate:** persisting elements needs an approved map with applicable layers.
-Proposals can be discussed earlier. Browsing never moves the session's
-anchor.
+### Task 3.2: map rules on principle only
+
+**Files:**
+- Modify: `crates/core-design/src/map_rules.rs`, `contract.yaml`
+- Test: `crates/core-design/tests/map_rules.rs`
+
+**Interfaces:**
+- `check_places` keeps the slice 1 folder rules and these layer rules:
+  `missing_layer`, `unknown_layer`, `layer_not_used_without_reason`,
+  `invalid_path`, and `layer_place_shared` for equal places only
+  (case-insensitive, normalised).
+- Remove `layer_outside_part`, `layer_inside_child`, `may_overlap`,
+  `always_inside`, and the one-marker limit. `{module}` is allowed anywhere
+  in a layer place. A part folder stays literal, with no marker.
+
+**Tests:**
+- `a_laravel_map_with_a_nested_database_part_is_approved`: the backend at
+  `backend`, the database as its child at `backend/database`, and the
+  connection's place at `backend/config/database.php`.
+- `a_place_outside_its_part_is_accepted`
+- `two_layers_at_the_same_place_are_refused` (with different letter case)
+- `a_marker_may_appear_more_than_once`
+- Delete the tests of the removed rules, and say so in the commit.
+
+### Task 3.3: remove Create structure and the Structure step
+
+**Files:**
+- Delete: `crates/core-design/src/structure.rs`, `src/structure_create.rs`,
+  `src/structure_write.rs`, and their store code in `src/store/structure.rs`
+- Modify: `crates/core-design/src/stage.rs` (no `Stage::Structure`),
+  `src/store/stage.rs` (no structure file count), `src/lib.rs`,
+  `contract.yaml`
+- Modify: `crates/shadows-http/src/design.rs`, `src/lib.rs` (the route
+  goes), `crates/shadows-core/src/app.rs` if it names the method
+- Create: `crates/core-db/migrations/0049_structure_write_dropped.sql`
+  (drops `design_structure_write`)
+- Regenerate: `api/openapi.json`, `web/src/api/schema.d.ts`
+- Delete or rewrite: `crates/core-design/tests/structure.rs`,
+  `crates/shadows-core/tests/design_parts/structure.rs`, and the structure
+  cases in `crates/shadows/tests/design_routes.rs`
+- Update: `docs/codebase/README.md` (the code map rows of the deleted
+  modules)
+
+**Interfaces:**
+- The stage line is Idea, Vision, Map, Roadmap, Plans. Roadmap opens once
+  the map is approved.
+- The stage view has no structure fields.
+- Nothing on disk is deleted.
+
+**Tests:**
+- `roadmap_opens_once_the_map_is_approved`
+- `a_project_past_the_old_structure_step_opens_roadmap`
+- `the_create_structure_route_is_gone` (the openapi test lists no such
+  route)
+
+### Task 3.4: the Planner follows the stack
+
+**Files:**
+- Modify: `crates/core-harness/src/prompt.txt` (the map section, as spec
+  §7), `src/standards.rs` (no element kinds; S10 printed),
+  `contract.yaml`
+- Test: `crates/shadows/tests/planner_mcp.rs`
+
+**Tests:**
+- The appended prompt says "follow the framework's own layout" and
+  "Shadows writes no folders", and no longer names Create structure.
+- The standards text holds S10 and no "Elements:" line.
+
+### Task 3.5 (web, F-): the form, the standards page and the stage line
+
+**Files:**
+- Modify: `web/src/app/design/part-editor.tsx` (no starter files; the place
+  hint as spec §6.1), `map-part-details.tsx`, `standards-view.tsx`,
+  the stage line, and delete `create-structure.tsx` and its test, `map-canvas.tsx` (the "Recorded elements" sentence
+  goes), `map-proposal-card.tsx`
+- Modify: `web/src/test/fake-daemon.ts`, the contract fixtures, and the
+  design `contract.yaml`
+- Test: the files' own tests
+
+**Tests:**
+- `the_part_form_has_no_starter_files`
+- `the_standards_page_shows_s10_and_no_element_kinds`
+- `the_stage_line_has_no_structure_step`
+
+**Slice 3 acceptance:**
+1. Start `shadows serve` on the daily database. It starts.
+2. In a new project, agree a Laravel map with the Planner: the database part
+   inside the backend. The map is approved.
+3. Roadmap opens. There is no Create structure button and no Structure
+   step.
+4. In Agent Mode, ask the Planner to run
+   `composer create-project laravel/laravel backend`. It runs.
 
 ---
 
-## Slice 4: planning detail and the part summary
+## Slice 4: `task_context`
 
-### Task 4.1: computing detail (`core-design`)
-- **Interfaces:**
-  - `Design::depth(&ProjectId) -> ProjectDepth { parts: Vec<PartDepth> }`
-  - `PartDepth { part, summary: PartSummary, layers: Vec<LayerDepth> }`
-  - `PartSummary { described, specified, need_decisions, inventory_confirmed: bool }`
-  - `LayerDepth` gives counts per state, the source revisions and the
-    unresolved requirements.
-  - The states are `NotRecorded`, `Designed` and `ImplementationSpecified`.
-    There is no `Built`.
-- **Scope:** this read is project-wide planning detail. It makes no claim
-  about whether a project stage is ready.
-- **Tests:**
-  - `a_layer_with_an_unresolved_link_is_not_designed`
-  - `kind_specific_requirements_decide_implementation_detail`
-  - `an_empty_optional_layer_is_left_out_of_the_summary`
-  - `one_table_does_not_certify_a_whole_layer`
-  - `an_unknown_inventory_never_reports_complete`
-  - `the_part_summary_counts_described_specified_and_open`
+**Outcome.** The agent building a task asks Shadows where it works and
+which rules hold, instead of reading per-part files.
 
-### Task 4.2: detail over MCP and HTTP
-- `depth_get`, for both grants;
-- `GET /api/projects/{id}/depth`, with a shared request.
-
-### Task 4.3 (web, F-): detail on the map
-- Each part node shows its summary sentence, for example "8 described, 5
-  specified, 3 need decisions". It is marked "list not confirmed" until
-  confirmed.
-- The panel lists layer counts and the missing requirements.
-- State is shown as text plus colour.
-- Empty, partial and failed-query states are distinct.
-
----
-
-## Slice 5: tasks name elements, the approval gate, `task_context`
-
-Build order: 5.1 → 5.2 → 5.3 → 5.4 → 5.5.
-
-### Task 5.1: task elements (`core-plans`)
-- **Interfaces:**
-  - A task binding carries the element id, the approved revision and an
-    access mode (`read`, `create`, `change` or `remove`).
-  - `plan_edit`'s task operations carry `elements`.
-  - Element locations suggest paths. The author reviews and freezes the
-    full scope, including tests, manifests and generated files.
-  - A new non-element task needs an explicit kind, scope and reason.
-- **Tests:**
-  - `a_task_derives_its_paths_from_its_elements`
-  - `reading_a_port_does_not_grant_a_write`
-  - `moving_an_element_does_not_change_frozen_task_scope`
-  - `an_empty_element_list_cannot_bypass_new_task_validation`
-  - `a_test_or_manifest_can_be_in_reviewed_explicit_scope`
-
-### Task 5.2: the element approval gate
-- **What:** a new blocker, `element_not_specified`, read through
-  `core-design` (`core-plans` already depends on it).
-- **It also reports:**
-  - stale revisions;
-  - missing agreements;
-  - unresolved decisions;
-  - overlapping resources that have no ordering constraint.
-- All approval facts are read in one transaction snapshot.
-- **Tests:**
-  - `approval_is_blocked_by_a_designed_element`
-  - `a_removed_element_blocks_approval_by_name`
-  - `two_elements_in_one_file_have_a_shared_write_conflict`
-  - `a_read_write_dependency_requires_explicit_order`
-  - `shared_generated_files_and_migration_order_are_not_independent`
-
-### Task 5.3: `task_context`, the builder's question
+### Task 4.1: the read (`core-plans`)
 - **Interface:**
   `Plans::task_context(&Grant, workflow_id, task: u32) -> TaskContext`.
-  - It returns the fields, provenance and budget diagnostics in spec §7,
-    with exact plan, element and agreement revisions.
-  - This read grants no execution authority.
-  - `ElementContext` carries kind-appropriate source, artifact or logical
-    locations.
-  - For observed symbols, it adds `where_is` and `who_uses` from
-    `core-code`.
-- **MCP:** `task_context`, for both grants.
-- **Also:** add `task_context` to the `SHADOWS.md` text.
+  - It returns the fields in spec §5.5, with the plan and standards
+    versions it read.
+  - It reads parts and layers through `Design`'s API, never its tables.
+  - A task path inside no part's folder is listed as unowned.
+  - It grants no execution authority.
 - **Tests:**
-  - `task_context_names_files_and_the_port_it_calls`
-  - `an_external_agent_reads_task_context`
-  - `required_context_over_budget_is_not_silently_dropped`
+  - `task_context_names_the_part_its_layers_and_the_rules`
+  - `an_unowned_path_is_listed_not_guessed`
   - `a_foreign_project_grant_cannot_read_task_context`
-  - `task_context_preserves_frozen_locations_and_labels_live_observations`
-  - `resuming_without_conversation_history_retains_task_obligations`
+  - `task_context_reads_the_approved_version_not_the_draft`
 
-### Task 5.4 (web, F-): element chips and the blocker text
-- The chips appear on task cards; the blockers appear in the plan header.
-- Blockers link to their target, with exact versions.
-- Back navigation restores the selected task.
-- A failed blocker read shows an error, never zero blockers.
-
-### Task 5.5: design changes reach the anchored Planner context
-- Follow `AppCore` to the existing context compilation and recording
-  owners. Expand their exact contracts and paths before dispatch.
-- Select the scoped layers and element revisions within the existing
-  budget and provenance policy. Invalidate on those revisions.
+### Task 4.2: the MCP tool
+- `task_context` for the thread and project grants, in `shadows-mcp`,
+  calling the one method.
 - **Tests:**
-  - `an_approved_element_refreshes_affected_anchored_context`
-  - `browsing_a_layer_does_not_change_the_planning_anchor`
+  - `an_external_agent_reads_task_context`
 
-**Slice 5 acceptance:**
-1. Plan one Stage 1 task through its schema, port, repository and endpoint
-   elements.
-2. Approval is refused while one of them is only designed, and passes once
-   it is specified.
-3. A fresh external agent reads the task's context, and it names the files
-   and the port.
-4. No executor and no completed-stage verdict is claimed.
+**Slice 4 acceptance:**
+1. Approve a plan with one task in the Laravel project.
+2. A fresh external agent reads the task's context.
+3. It names the backend part, its layers with their places, and S10.
 
 ---
 
-## Slice 6: outcome coverage, "is this project stage fully planned?"
+## Slice 5: phases inside tasks
 
-Comes right after slice 5, because it needs task bindings. The phases in
-slice 7 do not need it.
-
-### Task 6.1: stable outcome criteria (`core-design`)
-- Each acceptance item of an outcome gets a stable identity and a revision.
-- Editing a criterion changes its revision. Removing it keeps its history.
-  A recreated criterion never reuses an old identity.
-- Define the wire change in a shared request.
-- **Tests:**
-  - `recreated_criterion_does_not_reuse_identity`
-  - `editing_a_criterion_changes_its_revision`
-
-### Task 6.2: coverage bindings and the composed read (`core-plans`)
-- **Ownership:** Plans owns the criterion bindings. A binding points at
-  element revisions, at task acceptance items in exact plan versions, and
-  at agreements. Plans reads the criterion revision through Design.
-- **The read** takes project, outcome id and expected revision. It returns:
-  - each criterion's coverage;
-  - missing decisions and stale references;
-  - `Needs planning` or `Planning covered`;
-  - execution evidence marked unsupported;
-  - `next`, with a blocker code, a reason and target ids.
-- **Writes** carry a CommandId, expected revisions and project authority.
-- **Tests:**
-  - `a_linked_plan_alone_does_not_cover_an_outcome`
-  - `a_required_unplanned_reply_path_blocks_stage_one`
-  - `deferred_required_work_still_blocks_the_original_outcome`
-  - `an_unplanned_stage_two_does_not_block_stage_one`
-  - `changing_one_criterion_marks_only_its_coverage_stale`
-  - `an_outcome_revision_change_refuses_a_stale_coverage_read`
-
-### Task 6.3: the gate checks the candidate's coverage
-- **What:**
-  - Plan approval validates the candidate together with its assigned
-    coverage, then pins the resulting version atomically.
-  - Bindings to other drafts stay provisional.
-- **Tests:**
-  - `a_candidate_plan_and_its_coverage_freeze_atomically`
-  - `a_stale_criterion_rolls_back_plan_approval_and_coverage`
-  - `backend_can_approve_while_frontend_coverage_is_provisional`
-  - `outcome_is_covered_only_after_all_required_plan_bindings_are_approved`
-
-### Task 6.4 (web, F-): the Roadmap coverage view
-- **What it shows, per spec §6.1:**
-  - each outcome's coverage rows;
-  - its blockers, each with one next action;
-  - its related plans and parts.
-- "Continue planning" opens an anchored draft. It never sends a message or
-  approves anything by itself.
-- The page labels the project stage so it cannot be confused with a
-  planning step or a delivery slice.
-- **Before dispatch:** this view needs a UI prototype.
-
-### Task 6.5: coverage reaches the anchored Planner context
-- **Test:** `compaction_retains_outcome_blockers_and_source_versions`.
-
-**Slice 6 acceptance:**
-1. In testing56, Stage 1 reports `Needs planning`, naming "the reply reaches
-   the customer in Telegram" as uncovered.
-2. Planning it moves Stage 1 to `Planning covered`.
-3. Stage 2 stays coarse and blocks nothing.
-
----
-
-## Slice 7: phases inside tasks
-
-### Task 7.1: the phase model (`core-plans`)
+### Task 5.1: the phase model (`core-plans`)
 - **Interfaces:**
   - `TaskContent.phases: Vec<Phase>`.
-  - A `Phase` has a stable id, a display number, a goal, a subset of the
-    task's element bindings, acceptance references and `waits_for`.
-  - A `PhaseRef` pins the plan, version, task and phase identity. A draft's
-    UI can suggest a newer approved target; frozen content never retargets
-    itself.
+  - A `Phase` has a stable id, a display number, a title, a goal,
+    acceptance references and `waits_for`.
+  - A `PhaseRef` pins the plan, version, task and phase identity. Frozen
+    content never retargets itself.
 - **Rules:**
-  - a phase's elements are a subset of its task's;
   - implicit sequential phase edges, explicit waits and the existing task
     `needs` and `completes_after` form one event graph, extended in
     `dependency_graph.rs`;
@@ -1211,7 +1097,6 @@ slice 7 do not need it.
   - missing or removed targets are blockers;
   - new cross-plan phase links stay inside the current project.
 - **Tests:**
-  - `phase_elements_must_belong_to_the_task`
   - `a_cycle_through_another_plan_is_refused`
   - `a_wait_on_an_unapproved_plan_is_refused`
   - `implicit_phase_order_and_task_links_can_form_a_cycle`
@@ -1220,7 +1105,7 @@ slice 7 do not need it.
   - `a_removed_phase_is_a_named_blocker`
   - `concurrent_approvals_cannot_commit_a_combined_cycle`
 
-### Task 7.2: plan editing and tools
+### Task 5.2: plan editing and tools
 - The `plan_edit` operations `phase_put` and `phase_remove`, with the MCP
   descriptions and the prompt.
 - **Editing rules:**
@@ -1234,14 +1119,14 @@ slice 7 do not need it.
   - `phase_context_keeps_task_acceptance_and_pinned_dependencies`
   - `a_phase_outside_the_named_task_is_refused`
 
-### Task 7.3 (web, F-): the task view
-As in mockup screen 4:
+### Task 5.3 (web, F-): the task view
+As spec §6.2:
 - the same React Flow look as `PlanGraph`;
 - the task is the start node;
 - other tasks' phases are dashed nodes;
 - the Back button returns to the plan graph.
 
-### Task 7.4 (web, F-): Show phases on the plan graph
+### Task 5.4 (web, F-): Show phases on the plan graph
 - **The button:** Show phases / Hide phases, in the plan header beside
   Versions.
 - **When shown:**
@@ -1263,86 +1148,26 @@ As in mockup screen 4:
   - `expansion_keeps_selection_and_viewport`
   - `keyboard_list_and_graph_open_the_same_task`
 
-**Slice 7 acceptance:**
-1. Open Stage 1, toggle Show phases, follow a foreign phase, and come back
+**Slice 5 acceptance:**
+1. Open a plan, toggle Show phases, follow a foreign phase, and come back
    without losing the selection.
 2. Exercise a task without phases, and both task dependency kinds.
 3. Check the 1024px and 375px layouts, and a fixture of 100 tasks and 400
    phases.
 
----
-
-## Slice 8: the trace view
-
-### Task 8.1: a bounded `Design::trace` at approved element revisions
-- **The walk:** it follows links across parts, both ways, up to the first
-  client and the deepest table.
-- **It returns:**
-  - each edge's kind and direction;
-  - the source revision;
-  - the visited identities;
-  - the truncation reason, with a continuation when bounded.
-- Schema cycles and multiple clients cannot cause an infinite walk or an
-  invented linear path.
-- **Tests:**
-  - `the_tickets_table_traces_to_the_queue_screen`
-  - `a_cyclic_schema_trace_terminates`
-  - `a_large_trace_marks_truncation`
-  - `an_unrecorded_link_stays_unknown`
-
-### Task 8.2 (web, F-): the trace in the element panel
-As in mockup screen 3.
-
----
-
-## Slice 9: code observation
-
-**Waits for:** slice 5's location bindings.
-- Rust, TypeScript and JavaScript can exercise the first path.
-- PHP and Dart observations need the separate index owner's accepted task.
-  Neither blocks planning for those languages.
-
-### Task 9.1: index grammars
-- `tree-sitter-php` and `tree-sitter-dart` in `shadows-index`, with tag
-  queries.
-- **Tests:** a PHP class and method are tagged; a Dart class and function
-  are tagged.
-- **Owner:** assigned through the code-intelligence owner, with its own
-  scope and contracts.
-
-### Task 9.2: observe an implementation without certifying it
-- `core-plans` composes the existing `core-code` observations with task
-  context. Design state stays independent of the disposable index.
-- **It exposes:**
-  - `found`, `missing`, `ambiguous`, `stale` or `unsupported`;
-  - the source digest;
-  - qualified target details.
-- **Tests:**
-  - `a_found_stub_does_not_complete_a_task`
-  - `an_unsupported_language_is_not_missing_code`
-  - `same_named_methods_require_disambiguation`
-  - `a_changed_source_digest_invalidates_the_old_observation`
-
 ## Acceptance inventory
-
-Every slice prepares its exact tests and live journey before `todo`. The
-controller records each result against the checked commit. Plan checkboxes
-stay open until that evidence exists.
 
 | Concern | Tasks |
 |---|---|
-| Missing folder, moves and renames | 1.1, 2.3 |
-| No contract files; unfinished old write | 1.2, 2.4 |
-| Migration on the daily database | 2.2 |
-| Standards fit | 2.1 |
-| Revisioned elements, same-card links and deletion | 3.1, 3.2 |
-| Part summary and unknown inventory | 4.1, 4.3 |
-| Frozen scopes, agreements and shared files | 5.1, 5.2 |
-| Agent context, missing inputs and compaction | 5.3, 5.5, 6.5 |
-| Is a project stage fully planned | 6.1–6.4 |
-| Task and phase ordering, both graph modes | 7.1–7.4 |
-| Bounded trace and uncertain code matches | 8.1, 9.2 |
-| Theme, accessibility, loading and navigation | 2.6, 3.5, 4.3, 5.4, 6.4, 7.4 |
+| Missing folder, moves and renames | 1.1, 3.2 |
+| No contract files; no command writes the structure | 1.2, 3.3 |
+| Migrations on the daily database | 2.2, 3.1 |
+| Standards fit any stack | 3.1, 3.2, 3.4 |
+| The stage line without Structure | 3.3, 3.5 |
+| Agent context without the old chat | 4.1, 4.2 |
+| Task and phase ordering, both graph modes | 5.1–5.4 |
+| Theme, accessibility, loading and navigation | 2.6, 3.5, 5.4 |
 
-Execution evidence, verification and final acceptance of a project stage
-are tracked by the §17 delivery. This plan shows their absence honestly.
+Phase completion, execution evidence and verified completion of a project
+stage are tracked by the §17 delivery. This plan shows their absence
+honestly.
