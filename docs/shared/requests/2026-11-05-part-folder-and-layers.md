@@ -1,6 +1,6 @@
 # A part has one folder and its layers; standards v2
 
-- Status: asked
+- Status: accepted
 - Asked by: Hamoud, 2026-11-06
 - Screen: docs/backend/plans/2026-11-05-structure-and-depth.md, Slice 2 (B-63, B-64, B-65)
 
@@ -53,5 +53,9 @@ Hamoud: as asked. `core-design` owns `PartContent` and `PartLayer`
 `web/src/api/schema.d.ts`.
 
 ## Frontend reply
+
+Accepted by the inline controller, 2026-11-06: B-63/B-64 expose these shapes in
+the generated API schema. F-90 consumes them through the existing design API.
+The component shows Core's refusal messages; it adds no independent map policy.
 
 ## Ruling

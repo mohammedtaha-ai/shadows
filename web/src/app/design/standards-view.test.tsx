@@ -8,13 +8,23 @@ let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })
 
 const base = {
-  version: 1,
-  parts: [{ name: 'backend', owns: 'All logic.', waivable: false }],
+  version: 2,
+  parts: [{ name: 'backend', owns: 'All logic.', presence: 'required', layers: [] }],
   rules: [{ id: 'S1', text: 'Each service owns its tables.', parts: ['backend'] }],
-  contract_template: { rules: ['Trace every claim.'], shape: ['header', 'obligations'] },
 }
 const fixture = () => ({ ...answers(), 'GET /api/projects/p1/standards': { base, additions: null } })
 const field = (a: TestApp, label: string) => a.container.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[aria-label="${label}"]`)!
+
+it('the_standards_page_lists_each_kinds_layers', async () => {
+  const a = app = await startApp('/projects/p1/workspace?view=standards', {...answers(),
+    'GET /api/projects/p1/standards':{base:{version:2,parts:[{name:'backend',owns:'Logic',presence:'required',
+      layers:[{id:'domain',role:'Business rules',required:true,elements:['entity'],may_use:[]}]}],rules:[]},additions:null},
+  })
+  await until(() => a.text().includes('Business rules'))
+  expect(a.text()).toContain('domain')
+  expect(a.text()).toContain('required')
+  expect(a.text()).not.toContain('Contract template')
+})
 
 it('shows the read-only base and saves a project part as a new version', async () => {
   const a = app = await startApp('/projects/p1/workspace?view=standards', {
@@ -25,8 +35,8 @@ it('shows the read-only base and saves a project part as a new version', async (
     },
   })
   await until(() => a.text().includes('Each service owns its tables.'))
-  expect(a.text()).toContain('never waived')
-  expect(a.text()).toContain('Trace every claim.')
+  expect(a.text()).toContain('required')
+  expect(a.text()).not.toContain('Contract template')
   expect(a.container.querySelector('input, textarea')).toBeNull()
   act(() => a.button('Add part')?.click())
   typeInto(field(a, 'Part 1 name'), 'billing')

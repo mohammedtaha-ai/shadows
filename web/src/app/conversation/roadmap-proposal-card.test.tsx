@@ -19,7 +19,7 @@ const pending = (): RoadmapProposal => ({id:'r1',thread_id:'t1',action:'first',o
 const entry = (card: RoadmapProposal = pending()) =>
   ({...agentEntry('e1','Roadmap proposal'),kind:'RoadmapProposal' as const,card:{...card}})
 const part = {revision:1,part:{id:'part-1',revision:1,parent:null,ordinal:0,content:{title:'Backend',
-  responsibility:'',design:'',kind:'backend',serves:[],folders:[],files:[],
+  responsibility:'',design:'',kind:'backend',serves:[],folder:'',layers:[],files:[],
   contract:{header:'',rules:[]}}},ancestors:[],plans:[]}
 
 it('shows the outcome tree with the titles of the parts it references', async () => {

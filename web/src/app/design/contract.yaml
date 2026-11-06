@@ -233,7 +233,7 @@ obligations:
     note: "The drift list is also asserted by the test above."
 
   - rule: >
-      A part save sends folders split on lines with the starter files and served goals
+      A part save sends one folder and its layers with the starter files and served goals
       unchanged, and shows the daemon's refusal verbatim.
     tested_by: edits served goals and normalised folder input without dropping starter files
 
@@ -415,7 +415,7 @@ gaps:
     gap: >
       The acceptance textarea is split on newlines and the outcome's contentOp passes
       the array unchanged. A blank line or a trailing newline therefore sends an empty
-      acceptance item. PartEditor's contentOp removes blank lines from folders and
+      acceptance item. PartEditor's contentOp trims its single folder and removes blank
       rules, so the two editors disagree on the same input.
 
 
@@ -470,7 +470,7 @@ tests:
       shows, and the pending proposal count and its conversation link show.
   - name: edits served goals and normalised folder input without dropping starter files
     checks: >
-      Typed folders 'src' and 'lib' reach PartPut as ['src','lib'], with serves ['G1']
+      The edited folder reaches PartPut as 'lib', with serves ['G1']
       and the starter file kept. A daemon refusal text shows.
   - name: part save replays the committed command after its follow-up read fails
     checks: >
@@ -569,3 +569,5 @@ feature_entry: "index.ts exposes MapPartDetails, VISION_FIELDS."
 pagination_owner: "api/design.ts owns useDesignPages and usePartPages; design views import part pagination directly from that owner."
 
 route_entries: "workspace-page.tsx remain separate public lazy route modules declared by index.ts."
+
+layer_editor: 'Standards v2 exposes presence and the layer catalog. The form edits one folder, used places or required-layer exemption reasons; optional layers are added explicitly. Same-kind child groups link to children. Tested by the_part_form_sends_one_folder_and_its_layers, a_not_used_layer_needs_a_reason_before_save, choosing_not_used_hides_the_place_and_asks_for_a_reason, a_grouping_part_links_its_children_instead_of_layers.'

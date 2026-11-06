@@ -19,7 +19,63 @@ const answers = () => ({ ...baseAnswers(),
   'GET /api/projects/p1/stage': {stage:'structure',missing:[],drift:[]} })
 afterEach(() => { app?.unmount(); app = null })
 const part = (id: string, title = id, parent: string | null = null) => ({ id, parent, ordinal: 0, revision: 1,
-  content: { title, responsibility: 'مسؤولية', design: 'تصميم', kind: null } })
+  content: { title, responsibility: 'مسؤولية', design: 'تصميم', kind: null, folder: id, layers: [] } })
+
+it('choosing_not_used_hides_the_place_and_asks_for_a_reason', async () => {
+  const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,kind:'backend',
+    layers:[{layer:'domain',place:'n1/domain',not_used:null}]}},ancestors:[],plans:[]}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {...answers(),
+    'GET /api/projects/p1/design/parts/n1':saved,
+    'GET /api/projects/p1/standards':{base:{version:2,parts:[{name:'backend',owns:'Logic',presence:'required',
+      layers:[{id:'domain',role:'Business rules',required:true,elements:['entity'],may_use:[]}]}],rules:[]},additions:null},
+  })
+  await until(() => a.container.querySelector('[aria-label="domain usage"]') !== null)
+  const usage = a.container.querySelector<HTMLSelectElement>('[aria-label="domain usage"]')!
+  act(() => { usage.value='not-used'; usage.dispatchEvent(new Event('change',{bubbles:true})) })
+  expect(a.container.querySelector('[aria-label="domain place"]')).toBeNull()
+  expect(a.container.querySelector('[aria-label="domain reason"]')).not.toBeNull()
+  expect(a.button('Save part')?.disabled).toBe(true)
+})
+
+it('the_part_form_sends_one_folder_and_its_layers', async () => {
+  const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,kind:'backend',
+    layers:[{layer:'domain',place:'n1/domain',not_used:null}]}},ancestors:[],plans:[]}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {...answers(),
+    'GET /api/projects/p1/design/parts/n1':saved,
+    'POST /api/projects/p1/design/edits':() => Response.json({code:'STAGE_BLOCKED',message:'Synthetic refusal'},{status:409}),
+  })
+  await until(() => a.container.querySelector('[aria-label="Part folder"]') !== null)
+  typeInto(a.container.querySelector<HTMLInputElement>('[aria-label="Part folder"]')!, 'backend')
+  act(() => a.button('Save part')?.click())
+  await until(() => a.bodies.length > 0)
+  expect(a.bodies.at(-1)).toMatchObject({ops:[{kind:'PartPut',content:{folder:'backend',layers:saved.part.content.layers}}]})
+  expect(JSON.stringify(a.bodies.at(-1))).not.toContain('folders')
+})
+
+it('a_not_used_layer_needs_a_reason_before_save', async () => {
+  const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,kind:'backend',
+    layers:[{layer:'domain',place:'',not_used:'  '}]}},ancestors:[],plans:[]}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {...answers(),
+    'GET /api/projects/p1/design/parts/n1':saved,
+  })
+  await until(() => a.container.querySelector('[aria-label="domain reason"]') !== null)
+  expect(a.button('Save part')?.disabled).toBe(true)
+  typeInto(a.container.querySelector<HTMLInputElement>('[aria-label="domain reason"]')!, 'No domain rules')
+  expect(a.button('Save part')?.disabled).toBe(false)
+})
+
+it('a_grouping_part_links_its_children_instead_of_layers', async () => {
+  const parent = {...part('clients','Clients'),content:{...part('clients').content,kind:'frontend'}}
+  const child = {...part('web','Web','clients'),content:{...part('web').content,kind:'frontend'}}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=clients', {...answers(),
+    'GET /api/projects/p1/design/parts':(r:Request) => Response.json({revision:1,
+      items:new URL(r.url).searchParams.get('parent') === 'clients' ? [child] : [parent],next:null}),
+    'GET /api/projects/p1/design/parts/clients':{revision:1,part:parent,ancestors:[],plans:[]},
+  })
+  await until(() => a.text().includes('Groups:'))
+  expect(a.container.querySelector('[aria-label="Part layers"]')).toBeNull()
+  expect(a.container.querySelector('a[href="/projects/p1/workspace?view=map&part=web"]')).not.toBeNull()
+})
 
 it('hides creation before the first map and shows drift with actionable proposals', async () => {
   const a = app = await startApp('/projects/p1/workspace?view=map', {
@@ -34,19 +90,19 @@ it('hides creation before the first map and shows drift with actionable proposal
 })
 
 it('edits served goals and normalised folder input without dropping starter files', async () => {
-  const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,serves:['G1'],folders:['src'],
+  const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,serves:['G1'],folder:'src',
     files:[{path:'src/main.rs',content:'fn main() {}'}],contract:{header:'Core contract',rules:['S1']}}},ancestors:[],plans:[]}
   const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {...answers(),
     'GET /api/projects/p1/design/parts/n1':saved,
     'GET /api/projects/p1/design/vision':{revision:1,content:{purpose:[],users:[],goals:[{id:'G1',text:'Read',revision:1,approved_from:null}],boundaries:[],technical_direction:[]}},
     'POST /api/projects/p1/design/edits':() => Response.json({code:'STAGE_BLOCKED',message:'missing part: backend'},{status:409}),
   })
-  await until(() => a.container.querySelector('[aria-label="Part folders"]') !== null)
-  typeInto(a.container.querySelector<HTMLTextAreaElement>('[aria-label="Part folders"]')!,'src\nlib')
+  await until(() => a.container.querySelector('[aria-label="Part folder"]') !== null)
+  typeInto(a.container.querySelector<HTMLTextAreaElement>('[aria-label="Part folder"]')!,'lib')
   act(() => a.button('Save part')?.click())
   await until(() => a.text().includes('missing part: backend'))
   const body = a.bodies.at(-1) as DesignEdit
-  expect(body.ops[0]).toMatchObject({kind:'PartPut',content:{folders:['src','lib'],serves:['G1'],files:saved.part.content.files}})
+  expect(body.ops[0]).toMatchObject({kind:'PartPut',content:{folder:'lib',serves:['G1'],files:saved.part.content.files}})
 })
 
 it('part save replays the committed command after its follow-up read fails', async () => {

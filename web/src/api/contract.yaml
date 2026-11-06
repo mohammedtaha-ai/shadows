@@ -21,6 +21,7 @@
 # exposes its operations, query identities and generated schema aliases together.
 
 name: web-api
+part_layers: 'PartLayer is a generated-schema alias; PartContent carries folder and layers through the existing design operations.'
 version: 1
 status: current
 source: web/src/api
