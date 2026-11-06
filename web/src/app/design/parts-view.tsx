@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { type Part } from '@/api/design'
-import { partQuery, stageQuery, mapProposalsQuery } from '@/api/design'
+import { partQuery, stageQuery, mapProposalsQuery, standardsQuery } from '@/api/design'
 import { threadsQuery } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
@@ -82,11 +82,18 @@ function MapScope({projectId,branch,selected}: {
   projectId:string;branch:ReturnType<typeof usePartPages>;selected?:Part
 }) {
   const parts = selected ? [selected,...branch.items.filter(part => part.id !== selected.id)] : branch.items
+  const [overlay,setOverlay] = useState(false)
+  const standards = useQuery({...standardsQuery(projectId),enabled:overlay})
   return <div className="space-y-2">
     {branch.pending && <p>Loading map parts…</p>}
     {branch.error && <ErrorLine error={branch.error} />}
     {!branch.pending && !branch.error && parts.length === 0 && <p>No parts recorded yet.</p>}
-    {parts.length > 0 && <MapCanvas parts={parts} projectId={projectId} selected={selected?.id} />}
+    {parts.length > 0 && <Button size="sm" variant="secondary" aria-pressed={overlay}
+      onClick={() => setOverlay(!overlay)}>{overlay ? 'Hide allowed dependencies' : 'Show allowed dependencies'}</Button>}
+    {overlay && standards.isPending && <p>Loading allowed dependencies…</p>}
+    {overlay && standards.error && <ErrorLine error={standards.error} />}
+    {parts.length > 0 && <MapCanvas parts={parts} projectId={projectId} selected={selected?.id}
+      allowed={overlay ? standards.data?.base.parts : undefined} />}
     {branch.next && <Button size="sm" variant="secondary" disabled={branch.loading}
       onClick={() => void branch.more()}>Load more map parts</Button>}
   </div>

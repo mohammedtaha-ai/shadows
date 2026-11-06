@@ -65,8 +65,9 @@ function PartTree({parts,projectId,first,parent=null,depth=0}: {parts:MapProposa
         {p.content.design}
       </p>
       <MapPartDetails content={p.content} projectId={projectId} groups={first ? parts.filter(child =>
-        child.parent_key===p.key && child.content.kind===p.content.kind).map(child => ({
-          title:child.content.title,href:`#map-part-${child.key}`,
+        child.parent_key===p.key && p.content.kind != null
+        && child.content.kind?.trim()===p.content.kind.trim()).map(child => ({
+          title:child.content.title,anchor:`map-part-${child.key}`,
         })) : []} />
       {first && parts.some(child => child.parent_key===p.key) && (
         <PartTree

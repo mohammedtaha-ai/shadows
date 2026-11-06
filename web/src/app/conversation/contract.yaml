@@ -28,7 +28,7 @@
 # A created draft thread is targeted before session opening; binding errors remain
 # independent of the command and never replace its idempotency key.
 name: web-conversation
-map_layers: 'Map cards show each part folder and layer places, not-used reasons and grouping-child anchors. Approval continues to display Core refusals and retain command identity.'
+map_layers: 'Map cards show each part folder and layer places, not-used reasons and grouping-child anchors. A part groups only when it has a kind and a child of that kind, as Core reads it; an untyped part groups nothing. Approval continues to display Core refusals and retain command identity. Tested by the_map_card_shows_each_parts_layers, the_map_card_links_a_grouping_parts_children.'
 version: 1
 status: current
 reply_text: The group log reuses the conversation Markdown renderer and its per-block text direction.

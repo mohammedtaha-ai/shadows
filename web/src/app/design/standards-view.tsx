@@ -34,14 +34,15 @@ export function StandardsView({ projectId }: { projectId: string }) {
         {saved.data.base.parts.map(part => <div key={part.name} className="rounded-md border p-3 text-sm">
           <p><bdi>{part.name}</bdi> · {part.presence === 'waivable' ? 'waivable with a reason' : part.presence}</p>
           <p dir="auto">{part.owns}</p>
-          <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs" aria-label={`${part.name} layers`}>
-            <thead><tr>{['Layer','Role','Presence','May use'].map(label => <th key={label} className="p-2">{label}</th>)}</tr></thead>
+          {part.layers.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">No layers in the catalog.</p>
+            : <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs" aria-label={`${part.name} layers`}>
+            <thead><tr>{['Layer','Role','Required','May use'].map(label => <th key={label} className="p-2">{label}</th>)}</tr></thead>
             <tbody>{part.layers.map(layer => <tr key={layer.id} className="border-t border-border">
-              <th scope="row" className="p-2">{layer.id}</th><td className="p-2">{layer.role}</td>
-              <td className="p-2">{layer.required ? 'required' : 'optional'}</td>
+              <th scope="row" className="p-2">{layer.id}</th><td className="p-2" dir="auto">{layer.role}</td>
+              <td className="p-2">{layer.required ? 'Yes' : 'No'}</td>
               <td className="p-2">{layer.may_use.map(ref => ref.part_kind ? `${ref.part_kind}.${ref.layer}` : ref.layer).join(', ') || 'Nothing'}</td>
             </tr>)}</tbody>
-          </table></div>
+          </table></div>}
         </div>)}
       </section>
       <section className="space-y-2">

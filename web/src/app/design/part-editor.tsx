@@ -1,4 +1,5 @@
 // A part edit retains local input until explicitly replaced or saved.
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Part, PartContent, PartView } from '@/api/design'
@@ -40,12 +41,20 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
     moving, setMoving, before, setBefore, id, dirty, newer,
     createRevision, reloading, reloadError, save, submit, reload,
   } = useDesignEditor(EDITOR, { projectId, saved, destination: destination?.id, onCreated })
-  const catalog = standards.data?.base.parts.find(part => part.name === draft.kind?.trim())?.layers ?? []
-  const groups = saved ? children.items.filter(part => part.content.kind?.trim() === draft.kind?.trim()) : []
-  const needsReason = (draft.layers ?? []).some(layer => layer.not_used != null && !layer.not_used.trim())
+  const [adding, setAdding] = useState('')
+  const kind = draft.kind
+  const catalog = standards.data?.base.parts.find(part => part.name === kind?.trim())?.layers ?? []
+  // Core sends no grouping fact: a typed part with a child of its own kind groups it, as the map rules read it.
+  const groups = saved && kind != null ? children.items.filter(part => part.content.kind?.trim() === kind.trim()) : []
+  const grouping = saved !== undefined && kind != null
+  const childScopeKnown = !grouping || (!children.pending && !children.error && !children.next)
+  const offCatalog = standards.data ? (draft.layers ?? []).filter(layer => !catalog.some(spec => spec.id === layer.layer)) : []
+  const served = draft.serves ?? []
+  const unserved = items.filter(item => !served.includes(item.id))
   const changeLayer = (layer: NonNullable<PartContent['layers']>[number]) => setDraft({
     ...draft, layers: [...(draft.layers ?? []).filter(item => item.layer !== layer.layer), layer],
   })
+  const removeLayer = (id: string) => setDraft({...draft, layers: (draft.layers ?? []).filter(layer => layer.layer !== id)})
   return <div className="space-y-3 rounded border p-4">
     <h3>{base ? 'Part design' : 'New part'}</h3>
     {saved && <nav aria-label="Part breadcrumb" className="flex flex-wrap gap-2 text-sm">
@@ -59,18 +68,37 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
       <label className="block text-sm">Title<input aria-label="Part title" dir="auto" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>
       {(['responsibility', 'design', 'kind'] as const).map(field => <label key={field} className="block text-sm">{field}
         <textarea aria-label={`Part ${field}`} dir="auto" rows={field === 'design' ? 5 : 2} value={draft[field] ?? ''} onChange={e => setDraft({ ...draft, [field]: field === 'kind' ? e.target.value || null : e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>)}
-      <div><h4>Served vision items</h4>{[...new Set([...items.map(i => i.id),...(draft.serves ?? [])])].map(id =>
-        <label key={id} className="block text-sm"><input type="checkbox" aria-label={`Serves ${id}`}
-          checked={(draft.serves ?? []).includes(id)} onChange={e => setDraft({...draft,serves:e.target.checked
-            ? [...(draft.serves ?? []),id] : (draft.serves ?? []).filter(i => i !== id)})} />
-          {id} · {items.find(i => i.id === id)?.text ?? 'Removed item'}</label>)}</div>
+      <section className="space-y-2" aria-label="Served vision items"><h4>Served vision items</h4>
+        {served.length === 0 && <p className="text-sm text-muted-foreground">No linked items</p>}
+        {served.map(id => <div key={id} className="flex items-center gap-2 text-sm">
+          <span className="flex-1" dir="auto">{id} · {items.find(i => i.id === id)?.text ?? 'Removed item'}</span>
+          <Button size="sm" variant="ghost" aria-label={`Stop serving ${id}`}
+            onClick={() => setDraft({...draft,serves:served.filter(i => i !== id)})}>Remove</Button>
+        </div>)}
+        {unserved.length > 0 && <div className="flex flex-wrap items-center gap-2 text-sm">
+          <select aria-label="Vision item to serve" value={adding} onChange={e => setAdding(e.target.value)}
+            className="min-w-0 flex-1 rounded border bg-background p-2">
+            <option value="">Choose a vision item</option>
+            {unserved.map(item => <option key={item.id} value={item.id}>{item.id} · {item.text}</option>)}
+          </select>
+          <Button size="sm" variant="secondary" disabled={!adding}
+            onClick={() => { setDraft({...draft,serves:[...served,adding]}); setAdding('') }}>Add</Button>
+        </div>}
+        {vision.error && <ErrorLine error={vision.error} />}
+      </section>
       <label className="block text-sm">Folder<input aria-label="Part folder"
         value={draft.folder ?? ''} onChange={e => setDraft({...draft,folder:e.target.value})}
         className="block w-full rounded border bg-transparent p-2" /></label>
-      {groups.length > 0 ? <p className="text-sm">Groups: {groups.map(child => <Link key={child.id}
-        to="/projects/$projectId/workspace" params={{projectId}} search={{view:'map',part:child.id}}
-        className="mr-2 text-accent-line hover:underline">{child.content.title}</Link>)}</p> : <section className="space-y-2" aria-label="Part layers">
+      {grouping && children.pending && <p>Loading child parts…</p>}
+      {grouping && children.error && <ErrorLine error={children.error} />}
+      {grouping && children.next && <div className="space-y-2 text-sm">
+        <p>Child list is incomplete. Load the remaining parts to inspect grouping.</p>
+        <Button size="sm" variant="secondary" disabled={children.loading}
+          onClick={() => void children.more()}>Load more child parts</Button>
+      </div>}
+      {groups.length > 0 || !childScopeKnown ? null : <section className="space-y-2" aria-label="Part layers">
         <h4 className="font-medium">Layers</h4>
+        {kind == null && <p className="text-sm text-muted-foreground">Choose a kind to see its layers.</p>}
         {catalog.map(spec => {
           const layer = draft.layers?.find(layer => layer.layer === spec.id)
           if (!spec.required && !layer) return <Button key={spec.id} size="sm" variant="secondary"
@@ -84,8 +112,7 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
               onChange={e => changeLayer({...value,place:'',not_used:e.target.value === 'not-used' ? '' : null})}
               className="ml-2 rounded border bg-input-background p-2">
               <option value="used">Used</option><option value="not-used">Not used</option>
-            </select></label> : <Button size="sm" variant="ghost" onClick={() => setDraft({...draft,
-              layers:(draft.layers ?? []).filter(layer => layer.layer !== spec.id)})}>Remove {spec.id} layer</Button>}
+            </select></label> : <Button size="sm" variant="ghost" onClick={() => removeLayer(spec.id)}>Remove {spec.id} layer</Button>}
             {unused ? <label className="block">Reason<input aria-label={`${spec.id} reason`} dir="auto"
               value={value.not_used ?? ''} onChange={e => changeLayer({...value,not_used:e.target.value})}
               className="block w-full rounded border bg-input-background p-2" /></label>
@@ -94,6 +121,11 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
                 className="block w-full rounded border bg-input-background p-2" /></label>}
           </div>
         })}
+        {offCatalog.map(layer => <div key={layer.layer} className="space-y-2 rounded-lg border border-border bg-card p-3 text-sm">
+          <p className="font-medium">{layer.layer} · not in the {kind?.trim() || 'untyped'} catalog</p>
+          <p className="break-words text-muted-foreground">{layer.not_used != null ? `Not used: ${layer.not_used}` : layer.place || 'Place not recorded'}</p>
+          <Button size="sm" variant="ghost" onClick={() => removeLayer(layer.layer)}>Remove {layer.layer} layer</Button>
+        </div>)}
         {standards.isPending && <p>Loading layer catalog…</p>}
         {standards.error && <ErrorLine error={standards.error} />}
       </section>}
@@ -105,7 +137,8 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
         value={(draft.contract?.rules ?? []).join('\n')} onChange={e => setDraft({...draft,
           contract:{header:draft.contract?.header ?? '',rules:e.target.value.split('\n')}})}
         className="block w-full rounded border bg-transparent p-2" /></label>
-      <MapPartDetails content={draft} projectId={projectId} />
+      <MapPartDetails content={draft} projectId={projectId}
+        groups={groups.map(child => ({title:child.content.title,part:child.id}))} />
       {base && <label className="block text-sm"><input type="checkbox" checked={moving} onChange={e => { setMoving(e.target.checked); setBefore('') }} /> Move part to {destination?.content.title ?? 'Project root'}</label>}
       {(moving || !base) && <PartOrder key={destination?.id ?? 'root'} projectId={projectId} parent={destination?.id} id={id} value={before} change={setBefore} />}
       <div className="space-y-1"><h4 className="text-sm">Linked plans (including archived)</h4>
@@ -121,7 +154,7 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
         <p>{p.current ? 'Current' : 'Historical'} · {p.plan_state} · {p.binding.role} · contract v{p.binding.version}</p>
       </div>)}
     </section>}
-    <Button size="sm" onClick={submit} disabled={!draft.title.trim() || needsReason || !dirty || save.isPending || reloading || (!base && createRevision === undefined)}>{base ? 'Save part' : 'Create'}</Button>
+    <Button size="sm" onClick={submit} disabled={!draft.title.trim() || !dirty || save.isPending || reloading || (!base && createRevision === undefined)}>{base ? 'Save part' : 'Create'}</Button>
     {save.error && <ErrorLine error={save.error} />}{reloadError && <ErrorLine error={reloadError} />}
     {plans.error && <ErrorLine error={plans.error} />}
   </div>

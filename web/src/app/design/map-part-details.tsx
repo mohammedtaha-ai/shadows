@@ -1,12 +1,16 @@
 // Read-only layer places, served items, starter files and contract inspection.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import type { PartContent } from '@/api/design'
 import { visionQuery } from '@/api/design'
 import { Button } from '@/components/ui/button'
 
+/** A child the part groups: a saved part opens on the map, a proposed one is an anchor on its card. */
+type GroupedChild = {title:string} & ({part:string} | {anchor:string})
+
 export function MapPartDetails({content,projectId,groups=[]}: {
-  content:PartContent;projectId:string;groups?:{title:string;href:string}[]
+  content:PartContent;projectId:string;groups?:GroupedChild[]
 }) {
   const vision = useQuery(visionQuery(projectId))
   const items = Object.values(vision.data?.content ?? {}).flat()
@@ -16,8 +20,12 @@ export function MapPartDetails({content,projectId,groups=[]}: {
     <p>Serves: {(content.serves ?? []).length ? (content.serves ?? []).map(id =>
       <span key={id} title={items.find(i => i.id === id)?.text ?? 'Removed vision item'} className="mr-2">{id}</span>) : 'No linked items'}</p>
     <p>Folder: {content.folder || 'None'}</p>
-    {groups.length > 0 ? <p>Groups: {groups.map(group => <a key={group.href} href={group.href}
-      className="mr-2 text-accent-line hover:underline">{group.title}</a>)}</p>
+    {groups.length > 0 ? <p>Groups: {groups.map(group => 'part' in group
+      ? <Link key={group.part} to="/projects/$projectId/workspace" params={{projectId}}
+        search={{view:'map',part:group.part}} className="mr-2 text-accent-line hover:underline"
+        dir="auto">{group.title}</Link>
+      : <a key={group.anchor} href={`#${group.anchor}`} className="mr-2 text-accent-line hover:underline"
+        dir="auto">{group.title}</a>)}</p>
       : (content.layers ?? []).length > 0 && <ul aria-label={`${content.title} layers`} className="space-y-1">
         {content.layers?.map(layer => <li key={layer.layer} className="break-words">
           <span className="font-medium">{layer.layer}</span> · {layer.not_used != null

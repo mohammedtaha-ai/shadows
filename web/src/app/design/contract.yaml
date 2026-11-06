@@ -101,19 +101,43 @@ parts:
       the map is approved (stage structure or roadmap, or an Approved first map
       proposal). Expand loads one child branch and never the whole tree.
   MapCanvas:
-    signature: '({ parts, projectId, selected? }) -> JSX.Element'
+    signature: '({ parts, projectId, selected?, allowed? }) -> JSX.Element'
     note: >
-      Pure React Flow presentation of the caller's visible ownership scope, with
-      keyboard links and theme tokens. No actual dependency edges before elements.
-      PartsView loads root pages or the selected part's children through usePartPages.
+      Pure React Flow presentation of the caller's visible ownership scope, set up as
+      PlanGraph is (theme tokens, controls, minimap). One node per part shows its kind,
+      folder, served ids and layer ids. It says "Dependencies not recorded" and draws
+      no actual dependency edge before elements exist. `allowed` is the standards part
+      catalog when the caller shows the overlay: dashed edges for the cross-part
+      may_use between the shown parts' used layers, a legend that names them
+      permissions, and the same pairs as a text list. A parts list beside the canvas
+      serves keyboard use, and is the only view below the sm width.
+      PartsView's MapScope loads root pages or the selected part's children through
+      usePartPages, and reads the standards only while the overlay is shown.
       Canvas/list toggles retain URL selection; browser Back restores the selection.
+    tested_by: [the_canvas_draws_one_node_per_part, multiple_frontends_keep_distinct_part_ids,
+      permissions_do_not_render_as_actual_dependencies, served_items_show_only_the_parts_own,
+      map_and_list_preserve_selection_and_browser_back]
+  grouping_reads:
+    note: >
+      Core sends no grouping fact, so the editor reads it the way Core's map rules
+      do: a part with a kind groups its children of the same kind; an untyped part
+      groups nothing. For a typed part the editor exposes child-list pagination,
+      loading and errors before deciding whether layer controls apply. Grouped
+      children link through MapPartDetails with router links. Incomplete or failed
+      reads never claim there is no group.
+    tested_by: [a_grouping_part_links_its_children_instead_of_layers, grouping_children_on_later_pages_are_reachable,
+      a_failed_child_read_does_not_claim_the_part_has_no_group, an_untyped_parent_does_not_group_untyped_children]
   PartEditor:
     signature: "({ projectId, saved?, destination, onCreated? }) -> JSX.Element"
     note: >
       Its EDITOR config is internal: contentOp trims blank folder and rule lines,
       and turns an empty kind into null.
   PartReferences: "({ projectId, selected, change }) -> JSX.Element"
-  MapPartDetails: "({ content, projectId }) -> JSX.Element"
+  MapPartDetails:
+    signature: "({ content, projectId, groups? }) -> JSX.Element"
+    note: >
+      A group is a saved child (router link to it on the map) or a proposed child (an
+      anchor on its card). With groups it shows the Groups line in place of layers.
   CreateStructure:
     signature: "({ projectId }) -> JSX.Element"
     note: >
@@ -418,6 +442,13 @@ gaps:
       newer data for the person's own change. The tests only press Save again with
       the same content, which replays.
 
+  - at: PartEditor and MapProposalCard (grouping)
+    gap: >
+      Whether a part groups its children is Core's rule (MapRules), but no read sends
+      it, so the editor and the map card each derive it from kinds. A grouping fact on
+      the part read and the map card would remove both copies; that needs a shared
+      request.
+
   - at: OutcomeEditor
     gap: >
       The acceptance textarea is split on newlines and the outcome's contentOp passes
@@ -577,4 +608,6 @@ pagination_owner: "api/design.ts owns useDesignPages and usePartPages; design vi
 
 route_entries: "workspace-page.tsx remain separate public lazy route modules declared by index.ts."
 
-layer_editor: 'Standards v2 exposes presence and the layer catalog. The form edits one folder, used places or required-layer exemption reasons; optional layers are added explicitly. Same-kind child groups link to children. Tested by the_part_form_sends_one_folder_and_its_layers, a_not_used_layer_needs_a_reason_before_save, choosing_not_used_hides_the_place_and_asks_for_a_reason, a_grouping_part_links_its_children_instead_of_layers.'
+layer_editor: 'Standards v2 exposes presence and the layer catalog (id, role, required, may use). The form edits one folder. A required layer first asks Used or Not used: Used shows the place, Not used the reason, never both. An optional layer has no row until added, and offers Remove instead of Not used. Layers off the kind''s catalog stay visible with Remove. The form does not check the reason: Core refuses a blank one and the form shows that refusal. Same-kind child groups link to children. Tested by the_part_form_sends_one_folder_and_its_layers, a_not_used_layer_needs_a_reason_before_save, choosing_not_used_hides_the_place_and_asks_for_a_reason, an_optional_layer_has_no_row_until_added, a_grouping_part_links_its_children_instead_of_layers.'
+
+served_list: 'The part form lists only the vision items the part serves, each with Remove, and an Add button over the items it does not serve. Tested by served_items_show_only_the_parts_own.'

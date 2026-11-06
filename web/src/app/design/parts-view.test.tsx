@@ -16,6 +16,7 @@ it('shows mandatory kinds added after map approval', async () => {
   await until(() => a.text().includes('Missing mandatory parts: billing'))
 })
 const answers = () => ({ ...baseAnswers(),
+  'GET /api/projects/p1/design/parts':{revision:1,items:[],next:null},
   'GET /api/projects/p1/stage': {stage:'structure',missing:[],drift:[]} })
 afterEach(() => { app?.unmount(); app = null })
 const part = (id: string, title = id, parent: string | null = null) => ({ id, parent, ordinal: 0, revision: 1,
@@ -34,7 +35,24 @@ it('choosing_not_used_hides_the_place_and_asks_for_a_reason', async () => {
   act(() => { usage.value='not-used'; usage.dispatchEvent(new Event('change',{bubbles:true})) })
   expect(a.container.querySelector('[aria-label="domain place"]')).toBeNull()
   expect(a.container.querySelector('[aria-label="domain reason"]')).not.toBeNull()
-  expect(a.button('Save part')?.disabled).toBe(true)
+  act(() => { usage.value='used'; usage.dispatchEvent(new Event('change',{bubbles:true})) })
+  expect(a.container.querySelector('[aria-label="domain reason"]')).toBeNull()
+  expect(a.container.querySelector('[aria-label="domain place"]')).not.toBeNull()
+})
+
+it('an_optional_layer_has_no_row_until_added', async () => {
+  const saved = {revision:1,part:{...part('web'),content:{...part('web').content,kind:'frontend'}},ancestors:[],plans:[]}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=web', {...answers(),
+    'GET /api/projects/p1/design/parts/web':saved,
+    'GET /api/projects/p1/standards':{base:{version:2,parts:[{name:'frontend',owns:'UI',presence:'waivable',
+      layers:[{id:'design_system',role:'Shared components',required:false,elements:['component'],may_use:[]}]}],rules:[]},additions:null},
+  })
+  await until(() => a.button('Add design_system layer') !== undefined)
+  expect(a.container.querySelector('[aria-label="design_system place"]')).toBeNull()
+  act(() => a.button('Add design_system layer')!.click())
+  expect(a.container.querySelector('[aria-label="design_system place"]')).not.toBeNull()
+  expect(a.container.querySelector('[aria-label="design_system usage"]')).toBeNull()
+  expect(a.container.querySelector('[aria-label="design_system reason"]')).toBeNull()
 })
 
 it('the_part_form_sends_one_folder_and_its_layers', async () => {
@@ -52,16 +70,30 @@ it('the_part_form_sends_one_folder_and_its_layers', async () => {
   expect(JSON.stringify(a.bodies.at(-1))).not.toContain('folders')
 })
 
+// The reason rule is Core's: the form sends the blank reason and shows Core's refusal.
 it('a_not_used_layer_needs_a_reason_before_save', async () => {
   const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,kind:'backend',
-    layers:[{layer:'domain',place:'',not_used:'  '}]}},ancestors:[],plans:[]}
+    layers:[{layer:'domain',place:'n1/domain',not_used:null}]}},ancestors:[],plans:[]}
   const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {...answers(),
     'GET /api/projects/p1/design/parts/n1':saved,
+    'POST /api/projects/p1/design/edits':async (r:Request) => {
+      const body = await r.json() as DesignEdit
+      const put = body.ops.find(op => op.kind === 'PartPut')
+      return put?.kind === 'PartPut' && put.content.layers?.[0]?.not_used?.trim()
+        ? Response.json({revision:2})
+        : Response.json({code:'MAP_REFUSED',message:'layer domain of part n1 is not used and has no reason'},{status:409})
+    },
   })
-  await until(() => a.container.querySelector('[aria-label="domain reason"]') !== null)
-  expect(a.button('Save part')?.disabled).toBe(true)
+  await until(() => a.container.querySelector('[aria-label="domain usage"]') !== null)
+  const usage = a.container.querySelector<HTMLSelectElement>('[aria-label="domain usage"]')!
+  act(() => { usage.value='not-used'; usage.dispatchEvent(new Event('change',{bubbles:true})) })
+  act(() => a.button('Save part')?.click())
+  await until(() => a.text().includes('is not used and has no reason'))
+  expect(a.bodies.at(-1)).toMatchObject({ops:[{kind:'PartPut',content:{layers:[{layer:'domain',place:'',not_used:''}]}}]})
   typeInto(a.container.querySelector<HTMLInputElement>('[aria-label="domain reason"]')!, 'No domain rules')
-  expect(a.button('Save part')?.disabled).toBe(false)
+  act(() => a.button('Save part')?.click())
+  await until(() => a.bodies.length === 2)
+  expect(a.bodies.at(-1)).toMatchObject({ops:[{kind:'PartPut',content:{layers:[{layer:'domain',place:'',not_used:'No domain rules'}]}}]})
 })
 
 it('a_grouping_part_links_its_children_instead_of_layers', async () => {
@@ -74,7 +106,50 @@ it('a_grouping_part_links_its_children_instead_of_layers', async () => {
   })
   await until(() => a.text().includes('Groups:'))
   expect(a.container.querySelector('[aria-label="Part layers"]')).toBeNull()
-  expect(a.container.querySelector('a[href="/projects/p1/workspace?view=map&part=web"]')).not.toBeNull()
+  const line = [...a.container.querySelectorAll('p')].find(p => p.textContent?.startsWith('Groups:'))!
+  expect(line.querySelector('a[href="/projects/p1/workspace?view=map&part=web"]')?.textContent).toBe('web')
+})
+
+it('grouping_children_on_later_pages_are_reachable', async () => {
+  const parent = {...part('clients'),content:{...part('clients').content,kind:'frontend'}}
+  const child = {...part('web','Web','clients'),content:{...part('web').content,kind:'frontend'}}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=clients', {...answers(),
+    'GET /api/projects/p1/design/parts':(r:Request) => {
+      const query = new URL(r.url).searchParams
+      return Response.json({revision:1,items:!query.has('parent') ? [parent]
+        : query.has('after') ? [child] : [part('other','Other','clients')],
+        next:query.has('parent') && !query.has('after') ? 'other' : null})
+    },
+    'GET /api/projects/p1/design/parts/clients':{revision:1,part:parent,ancestors:[],plans:[]},
+  })
+  await until(() => a.button('Load more child parts') !== undefined)
+  act(() => a.button('Load more child parts')!.click())
+  await until(() => a.text().includes('Groups:'))
+  expect(a.container.querySelector('[aria-label="Part layers"]')).toBeNull()
+})
+
+it('a_failed_child_read_does_not_claim_the_part_has_no_group', async () => {
+  const parent = {...part('clients'),content:{...part('clients').content,kind:'frontend'}}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=clients', {...answers(),
+    'GET /api/projects/p1/design/parts':(r:Request) => new URL(r.url).searchParams.has('parent')
+      ? Response.json({code:'STORAGE',message:'Children unavailable'},{status:503})
+      : Response.json({revision:1,items:[parent],next:null}),
+    'GET /api/projects/p1/design/parts/clients':{revision:1,part:parent,ancestors:[],plans:[]},
+  })
+  await until(() => a.text().includes('Children unavailable'))
+  expect(a.container.querySelector('[aria-label="Part layers"]')).toBeNull()
+})
+
+it('an_untyped_parent_does_not_group_untyped_children', async () => {
+  const parent = part('parent')
+  const child = part('child','Child','parent')
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=parent', {...answers(),
+    'GET /api/projects/p1/design/parts':(r:Request) => Response.json({revision:1,
+      items:new URL(r.url).searchParams.has('parent') ? [child] : [parent],next:null}),
+    'GET /api/projects/p1/design/parts/parent':{revision:1,part:parent,ancestors:[],plans:[]},
+  })
+  await until(() => a.text().includes('Child'))
+  expect(a.text()).not.toContain('Groups:')
 })
 
 it('hides creation before the first map and shows drift with actionable proposals', async () => {
