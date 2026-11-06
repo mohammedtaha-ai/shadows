@@ -1,0 +1,42 @@
+name: Coverage
+
+# Instrumented builds need their own RUSTFLAGS, so this runs in CI only, and
+# weekly or on request, never on push, to save Actions minutes.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_DEV_DEBUG: 0
+
+jobs:
+  coverage:
+    name: Coverage report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Run the tests with coverage
+        run: cargo llvm-cov --workspace --features fake-acp/test-support --html
+      - name: Upload the HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: target/llvm-cov/html
+      - name: Summary
+        run: |
+          {
+            echo '## Coverage'
+            echo '```'
+            cargo llvm-cov report --summary-only
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
