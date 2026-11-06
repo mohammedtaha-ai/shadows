@@ -825,3 +825,7 @@ transport_boundary:
 background_task_stop: "sessions.ts stopTask posts the selected task stop request; the stream supplies the resulting state."
 
 layout_only: "PartContent and StageView use the regenerated schema without starter files or structure counts; no createStructure operation remains."
+
+# workflows aliases generated Phase, PhaseRef, PhaseEndpoint and LinkedPhase.
+# Exact foreign navigation uses the server-captured workflow_id with planQuery;
+# no new transport, endpoint or inferred latest-version lookup is introduced.

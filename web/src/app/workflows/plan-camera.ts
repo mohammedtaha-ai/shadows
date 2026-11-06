@@ -5,9 +5,9 @@
 // canvas at that size opens at its start. Zoom itself is never locked, so the wheel
 // and the Controls' fit button can still show a 60-task plan whole.
 
-import { getNodesBounds, getViewportForBounds, type FitViewOptions, useNodesInitialized, useReactFlow } from '@xyflow/react'
+import { getNodesBounds, getViewportForBounds, type FitViewOptions, type Node, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { type PlanNode, taskNodeId } from './layout'
+import { taskNodeId } from './layout'
 
 /** How far the person may zoom out, by wheel or button. */
 export const MIN_ZOOM = 0.01
@@ -65,7 +65,7 @@ export function useCamera({
   compact: boolean
   focusTask: number | undefined
   lastClicked: number | null
-  nodes: PlanNode[]
+  nodes: Node[]
 }): void {
   const { fitView, getZoom, setViewport } = useReactFlow()
   const ready = useNodesInitialized()

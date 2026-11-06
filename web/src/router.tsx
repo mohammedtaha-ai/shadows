@@ -69,6 +69,14 @@ const threadRoute = createRoute({
 const planRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId/workflows/$workflowId',
+  validateSearch: (search: Record<string, unknown>): { task?: number; selected?: number; invalidTask?: boolean } => {
+    const positive = (value: unknown) => {
+      const n = typeof value === 'number' ? value : typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : NaN
+      return Number.isSafeInteger(n) && n > 0 ? n : undefined
+    }
+    return { task: positive(search.task), selected: positive(search.selected),
+      invalidTask: search.task !== undefined && positive(search.task) === undefined || undefined }
+  },
   component: PlanPage,
 })
 

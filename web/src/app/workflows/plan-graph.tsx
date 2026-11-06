@@ -79,7 +79,7 @@ export function PlanGraph({
         {!compact && <MiniMap pannable zoomable />}
         {!compact && (
           <Panel position="top-right">
-            <Legend className="rounded-md border border-border bg-background/90 px-2 py-1" />
+            <PlanLegend className="rounded-md border border-border bg-background/90 px-2 py-1" />
           </Panel>
         )}
         <Camera size={size} compact={compact} focusTask={focusTask} lastClicked={lastClicked} nodes={shown} />
@@ -92,15 +92,16 @@ export function PlanGraph({
   return (
     <div>
       {flow}
-      <Legend className="border-t border-border px-3 py-1.5" />
+      <PlanLegend className="border-t border-border px-3 py-1.5" />
     </div>
   )
 }
 
-function Legend({ className }: { className: string }) {
+export function PlanLegend({ className, phases = false }: { className: string; phases?: boolean }) {
   return (
     <div data-plan-legend className={className}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        {phases && <span>then: phase order · waits for: phase prerequisite</span>}
         <span className="flex items-center gap-1.5">
           <svg width="22" height="6" aria-hidden>
             <line x1="0" y1="3" x2="22" y2="3" stroke="var(--accent-line)" strokeWidth="1.5" />

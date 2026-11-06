@@ -5,6 +5,8 @@ const STROKE: Record<string, string> = {
   needs: 'var(--accent-line)',
   completes_after: 'var(--muted-foreground)',
   start: 'var(--border)',
+  phase_order: 'var(--faint-foreground)',
+  phase_wait: 'var(--accent-line)',
 }
 
 export function LinkEdge({

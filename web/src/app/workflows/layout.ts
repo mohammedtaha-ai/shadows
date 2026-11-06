@@ -38,7 +38,7 @@ export type PlanNode = StartNode | TaskNode | LinkedNode | MissingNode
 
 export interface LinkData extends Record<string, unknown> {
   /** `start` for the faint edge from the start node to a task nothing precedes. */
-  kind: LinkKind | 'start'
+  kind: LinkKind | 'start' | 'phase_order' | 'phase_wait'
   label: string
   broken?: boolean
   sourceYOffset?: number

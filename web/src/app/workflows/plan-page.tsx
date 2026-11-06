@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
 import { cn } from 'cn'
 import { Archive, ChevronDown, Layers, Lock } from 'lucide-react'
-import { useState } from 'react'
-import { type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
+import { useEffect, useRef } from 'react'
+import { type PhaseEndpoint, type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
 import { planVersionsQuery, workflowsKey } from '@/api/workflows'
 import { Planned } from '@/components/ui/planned'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ErrorLine } from '../error-line'
 import { ApproveBar } from './approve-bar'
-import { InspectPanel } from './inspect-panel'
+import { TaskView } from './task-view'
 import { PlanGraph } from './plan-graph'
 import { stateLabel } from './plan-state'
 import { usePlan } from './use-plan'
@@ -34,7 +34,25 @@ export function PlanPage() {
 
 function PlanView({ projectId, workflowId }: { projectId: string; workflowId: string }) {
   const plan = usePlan(workflowId)
-  const [inspected, setInspected] = useState<number | null>(null)
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
+  const selected = search.selected ?? search.task
+  const opened = search.task !== undefined || search.invalidTask === true
+  const taskButtons = useRef(new Map<number, HTMLButtonElement>())
+  const wasOpen = useRef(opened)
+  useEffect(() => {
+    if (wasOpen.current && !opened && selected !== undefined) taskButtons.current.get(selected)?.focus()
+    wasOpen.current = opened
+  }, [opened, selected])
+  const back = () => { void navigate({ search: previous => ({ ...previous,
+    task: undefined, invalidTask: undefined, selected }) }) }
+  const open = (task: number) => { void navigate({ search: previous => ({ ...previous,
+    task, selected: task, invalidTask: undefined }) }) }
+  const openForeign = (endpoint: PhaseEndpoint) => { void navigate({
+    to: '/projects/$projectId/workflows/$workflowId',
+    params: { projectId, workflowId: endpoint.workflow_id },
+    search: { task: endpoint.task, selected: endpoint.task },
+  }) }
 
   if (plan.data === undefined) {
     return (
@@ -44,7 +62,7 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
     )
   }
   const p = plan.data
-  const task = p.tasks.find((t) => t.number === inspected)
+  const task = p.tasks.find((t) => t.number === search.task)
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -75,15 +93,25 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
           <ErrorLine error={plan.error} />
         </div>
       )}
-      <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1">
+      <nav aria-label="Tasks" className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-4 py-1.5">
+        {p.tasks.map(t => <Button key={t.id} size="sm" variant="ghost" title={t.title}
+          ref={button => { if (button) taskButtons.current.set(t.number, button); else taskButtons.current.delete(t.number) }}
+          aria-pressed={selected === t.number} onClick={() => open(t.number)}>T{t.number}</Button>)}
+      </nav>
+      <div className="relative min-h-0 flex-1">
+        <div data-main-plan inert={opened} aria-hidden={opened || undefined}
+          className={cn('absolute inset-0', opened && 'invisible pointer-events-none')}>
           {/* One canvas throughout: when Inspect opens or closes, the graph
               refits to the width left (see `plan-camera.ts`). */}
-          <PlanGraph plan={p} onSelectTask={(t) => setInspected(t.number)} />
+          <PlanGraph plan={p} focusTask={selected} onSelectTask={(t) => open(t.number)} />
         </div>
-        {task !== undefined && (
-          <InspectPanel plan={p} task={task} onClose={() => setInspected(null)} />
-        )}
+        {opened && <div className="absolute inset-0">
+          {task ? <TaskView plan={p} task={task} onBack={back} onOpenTask={openForeign} />
+            : <section role="alert" className="space-y-3 p-6">
+              <p>Task {search.task === undefined ? '' : `T${search.task} `}is unavailable</p>
+              <Button onClick={back}>Back to plan</Button>
+            </section>}
+        </div>}
       </div>
     </div>
   )

@@ -585,3 +585,12 @@ feature_entry: "index.ts exposes PlanGraph and usePlan. plan-state.ts is a secon
 feature_imports: "Cross-feature production imports use declared public entries."
 
 route_entries: "plan-page.tsx, plan-map.tsx remain separate public lazy route modules declared by index.ts."
+
+# TaskView opens from positive task search state; selected retains the graph
+# selection. The main canvas stays mounted/inert behind the task view, so
+# closing it retains viewport and keyboard focus returns to the task button.
+# phase-layout projects server phase order, local waits and linked_phases;
+# foreign cards are dashed and open the exact endpoint.workflow_id.
+# TaskView reuses InspectPanel for scope, bindings and full acceptance.
+# Empty/unavailable states are explicit; phase completion is never invented.
+# PlanLegend and the camera policy are shared by both canvas surfaces.

@@ -376,6 +376,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/plan-page.tsx` | Workflows page for one plan version | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-state.ts` | How a plan version's state reads to a person | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-node.tsx` | Draws one node of the plan graph | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/task-view.tsx` | Show a task's phase graph | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/phase-node.tsx` | Draw phase cards | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/phase-layout.ts` | Project exact phase dependencies | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/use-plan.ts` | One plan version, kept current for a component | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/version-line.tsx` | Line naming a version's writer, with its reason | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/index.ts` | Expose app/workflows public capabilities | `web/src/app/workflows/contract.yaml` |

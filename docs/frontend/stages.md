@@ -76,15 +76,16 @@ mockup's `Built` label cannot be used as evidence of completion.
 
 
 ### F-93 · Task phases view
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.4.
 - Read: structure spec §6.2; workflows, routes and API contracts; frontend code map.
 - Touch: exact Task 5.4 Files, workflows contract and frontend code map, this stages file; route search validation in `web/src/router.tsx`.
 - Needs: B-80 and accepted request `2026-11-07-task-phases`.
+- Verified: workflows/codemap/architecture 127 passed; 7 focused task-view cases include the added loading/error checks. Typecheck, lint and build passed. Exact foreign navigation, Back/Escape focus, empty/missing states and stream refresh are covered. Browser acceptance is recorded after both UI tasks.
 - Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; browser checks reported separately.
 
 ### F-94 · Expand phases in the plan graph
-- Status: blocked
+- Status: todo
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.5.
 - Read: structure spec §6.2; workflows contract; frontend code map.
 - Touch: exact Task 5.5 Files, workflows contract and frontend code map, this stages file.

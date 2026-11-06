@@ -1576,7 +1576,8 @@ architecture, codemap, contracts and affected clippy passed.
   `web/src/app/workflows/plan-edge.tsx`, `docs/frontend/codebase/README.md`.
 - Modify: `web/src/app/workflows/plan-page.tsx` (route state for the
   opened task), `plan-graph.tsx` (open a task), `contract.yaml`
-- Modify: `web/src/test/fake-daemon.ts`
+- Modify: `web/src/app/workflows/plan-camera.ts` to share the readable camera
+  policy with the task canvas. Tests use existing fake-daemon overrides.
 
 **Interfaces:**
 - The existing `/projects/$projectId/workflows/$workflowId` route validates
@@ -1599,20 +1600,17 @@ architecture, codemap, contracts and affected clippy passed.
 - A task with no phases shows "This task has no phases" and its
   acceptance.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `opening_a_task_shows_its_phases_in_order`
-  - `a_foreign_phase_is_dashed_and_opens_its_task`
-  - `back_returns_to_the_plan_with_the_selection_kept`
-  - `a_task_without_phases_says_so`
-  - `a_pinned_foreign_phase_never_opens_the_latest_draft`
-  - `task_view_has_loading_empty_error_and_keyboard_paths`
-  - `task_view_survives_workflow_event_refresh`
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 1: Phase layout and task route tests.** Two pure projection
+  cases cover ordered arrows and exact incoming/outgoing metadata. Seven
+  app cases cover URL opening, retained canvas/selection, empty/unavailable,
+  exact foreign workflow with browser Back, Escape/focus, event refresh,
+  pending and failed reads.
+- [x] **Step 2: Observe absent phase layout and ignored task search.**
   `npx vitest run src/app/workflows`.
-- [ ] **Step 3: Build the view.**
-- [ ] **Step 4: Run** `npm run typecheck`, `npm run lint` and
+- [x] **Step 3: Build the view.**
+- [x] **Step 4: Run** `npm run typecheck`, `npm run lint` and
   `npx vitest run src/app/workflows src/codemap.test.ts src/architecture`.
-- [ ] **Step 5: Update the contract and commit:**
+- [x] **Step 5: Update the contract and commit:**
   `feat(web): the task view shows its phases`.
 
 ### Task 5.5 (web, F-94): Show phases on the plan graph
