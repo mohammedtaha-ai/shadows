@@ -121,7 +121,7 @@ because each builds on the one before. Rust lines stay within 100 columns.
 - Done when: the commands in Task 2.2 Step 5 pass
 
 ### B-65 · The map refuses a missing, unknown or misplaced layer
-- Status: todo
+- Status: done
 - Plan: Task 2.3
 - Read: crates/core-design/contract.yaml; crates/core-design/src/map_rules.rs
 - Touch: crates/core-design/src/map_rules.rs, contract.yaml, tests/map_rules.rs;

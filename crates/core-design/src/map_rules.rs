@@ -135,6 +135,84 @@ fn inside(inner: &str, outer: &str) -> bool {
     inner.starts_with(&format!("{outer}/"))
 }
 
+/// Whether two paths can be the same path, or one inside the other, for
+/// some module name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Overlap {
+    Equal,
+    AInsideB,
+    BInsideA,
+    None,
+}
+
+/// The path's segments, lowercased.
+fn segments(path: &str) -> Vec<String> {
+    path.replace('\\', "/")
+        .split('/')
+        .map(|s| s.to_lowercase())
+        .collect()
+}
+
+/// The text before and after the marker, when a segment holds one.
+fn marker_parts(segment: &str) -> Option<(&str, &str)> {
+    segment.split_once(MODULE_MARKER)
+}
+
+/// Whether a literal segment can be the module name a marker segment names.
+fn literal_matches_marker(literal: &str, before: &str, after: &str) -> bool {
+    literal.len() > before.len() + after.len()
+        && literal.starts_with(before)
+        && literal.ends_with(after)
+}
+
+/// Whether two marker segments can name the same module.
+fn markers_may_match(a_before: &str, a_after: &str, b_before: &str, b_after: &str) -> bool {
+    (a_before.starts_with(b_before) || b_before.starts_with(a_before))
+        && (a_after.ends_with(b_after) || b_after.ends_with(a_after))
+}
+
+/// Whether two segments can name the same path segment.
+fn segments_may_match(a: &str, b: &str) -> bool {
+    match (marker_parts(a), marker_parts(b)) {
+        (None, None) => a == b,
+        (Some((before, after)), None) => literal_matches_marker(b, before, after),
+        (None, Some((before, after))) => literal_matches_marker(a, before, after),
+        (Some((a_before, a_after)), Some((b_before, b_after))) => {
+            markers_may_match(a_before, a_after, b_before, b_after)
+        }
+    }
+}
+
+/// Whether one module name can make the two paths overlap: the same path,
+/// or one inside the other.
+fn may_overlap(a: &str, b: &str) -> Overlap {
+    let a = segments(a);
+    let b = segments(b);
+    if !a.iter().zip(&b).all(|(x, y)| segments_may_match(x, y)) {
+        return Overlap::None;
+    }
+    match a.len().cmp(&b.len()) {
+        std::cmp::Ordering::Equal => Overlap::Equal,
+        std::cmp::Ordering::Less => Overlap::BInsideA,
+        std::cmp::Ordering::Greater => Overlap::AInsideB,
+    }
+}
+
+/// Whether every module name keeps the place inside the folder. The folder's
+/// segments must be a literal prefix of the place, and the place must be
+/// deeper than the folder.
+fn always_inside(place: &str, folder: &str) -> bool {
+    let place = segments(place);
+    let folder = segments(folder);
+    if place.len() <= folder.len() {
+        return false;
+    }
+    folder
+        .iter()
+        .enumerate()
+        .all(|(index, segment)| !segment.contains(MODULE_MARKER) && place[index] == *segment)
+}
+
 fn descendant<'a>(parts: &[MapPart<'a>], mut child: &'a str, ancestor: &str) -> bool {
     for _ in 0..parts.len() {
         let Some(parent) = parts.iter().find(|p| p.key == child).and_then(|p| p.parent) else {
@@ -294,6 +372,18 @@ impl MapRules {
                 ));
             }
         }
+        MapRules::check_places(parts, standards)
+    }
+}
+
+impl MapRules {
+    /// The one policy for a part's folder and its layer places: the folder
+    /// rules of the map, and the layers the standards' catalog asks for.
+    pub fn check_places(
+        parts: &[MapPart<'_>],
+        standards: &EffectiveStandards,
+    ) -> Result<(), MapRefusal> {
+        let mut folders: Vec<(&str, String)> = Vec::new();
         for part in parts {
             if part.content.folder.is_empty() {
                 return Err(MapRefusal::new(
@@ -304,29 +394,44 @@ impl MapRules {
                     ),
                 ));
             }
-            let folder = &part.content.folder;
+            let folder = MapRules::normalise_folder(&part.content.folder)
+                .map_err(|message| MapRefusal::path(&part.content.title, message))?
+                .to_lowercase();
+            folders.push((part.key, folder.clone()));
             let Some(parent) = part.parent.and_then(|k| parts.iter().find(|p| p.key == k)) else {
                 continue;
             };
-            let parent_folder = &parent.content.folder;
-            if parent_folder.is_empty() {
+            if parent.content.folder.is_empty() {
                 continue;
             }
-            let (child, outer) = (folder.to_lowercase(), parent_folder.to_lowercase());
-            let (child, outer) = (child.replace('\\', "/"), outer.replace('\\', "/"));
-            let (child, outer) = (child.trim_end_matches('/'), outer.trim_end_matches('/'));
+            let outer = parent.content.folder.to_lowercase();
+            let (child, outer) = (folder.trim_end_matches('/'), outer.trim_end_matches('/'));
             if child != outer && !inside(child, outer) {
                 return Err(MapRefusal::new(
                     "folder_outside_parent",
                     format!(
-                        "part {:?} has folder {folder:?}, outside its parent {:?} folder \
-                         {parent_folder:?}. Put the folder inside the parent's, \
-                         or choose another parent.",
-                        part.content.title, parent.content.title
+                        "part {:?} has folder {:?}, outside its parent {:?} folder {:?}. \
+                         Put the folder inside the parent's, or choose another parent.",
+                        part.content.title,
+                        part.content.folder,
+                        parent.content.title,
+                        parent.content.folder
                     ),
                 ));
             }
         }
+        MapRules::check_folder_claims(parts, &folders)?;
+        MapRules::check_layers(parts, standards)
+    }
+}
+
+impl MapRules {
+    /// Two parts cannot own the same folder, and a file cannot stand where
+    /// another part's folder is.
+    fn check_folder_claims(
+        parts: &[MapPart<'_>],
+        folders: &[(&str, String)],
+    ) -> Result<(), MapRefusal> {
         for (i, (owner, folder)) in folders.iter().enumerate() {
             for (other, path) in &folders[i + 1..] {
                 if folder == path
@@ -394,6 +499,164 @@ impl MapRules {
                             part.content.title, file.path, owner.content.title
                         ),
                     ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl MapRules {
+    /// A part that holds a child of its own kind groups them, and needs no
+    /// layers of its own.
+    fn is_grouping(part: &MapPart<'_>, parts: &[MapPart<'_>]) -> bool {
+        let Some(kind) = part.content.kind.as_deref() else {
+            return false;
+        };
+        parts.iter().any(|child| {
+            child.parent == Some(part.key)
+                && child.content.kind.as_deref().map(str::trim) == Some(kind.trim())
+        })
+    }
+}
+
+impl MapRules {
+    /// The layers of every part, against the standards' catalog.
+    fn check_layers(
+        parts: &[MapPart<'_>],
+        standards: &EffectiveStandards,
+    ) -> Result<(), MapRefusal> {
+        for part in parts {
+            let catalog = standards.layers(part.content.kind.as_deref().unwrap_or_default().trim());
+            for (index, layer) in part.content.layers.iter().enumerate() {
+                if !catalog.iter().any(|c| c.id == layer.layer) {
+                    return Err(MapRefusal::new(
+                        "unknown_layer",
+                        format!(
+                            "part {:?} names unknown layer {:?}. Use a layer of its kind \
+                             from the standards.",
+                            part.content.title, layer.layer
+                        ),
+                    ));
+                }
+                if part.content.layers[..index]
+                    .iter()
+                    .any(|other| other.layer == layer.layer)
+                {
+                    return Err(MapRefusal::new(
+                        "unknown_layer",
+                        format!(
+                            "part {:?} names layer {:?} twice. Give each layer one entry.",
+                            part.content.title, layer.layer
+                        ),
+                    ));
+                }
+            }
+            for layer in &part.content.layers {
+                let Some(reason) = &layer.not_used else {
+                    continue;
+                };
+                if reason.trim().is_empty() {
+                    return Err(MapRefusal::new(
+                        "layer_not_used_without_reason",
+                        format!(
+                            "part {:?} layer {} is not used without a reason. \
+                             Write why the layer is not used.",
+                            part.content.title, layer.layer
+                        ),
+                    ));
+                }
+                if !layer.place.is_empty() {
+                    return Err(MapRefusal::new(
+                        "layer_not_used_without_reason",
+                        format!(
+                            "part {:?} layer {} is not used and still has the place {:?}. \
+                             Give a reason and no place, or a place and no reason.",
+                            part.content.title, layer.layer, layer.place
+                        ),
+                    ));
+                }
+            }
+            if !MapRules::is_grouping(part, parts) {
+                for required in catalog.iter().filter(|c| c.required) {
+                    let provided = part
+                        .content
+                        .layers
+                        .iter()
+                        .find(|l| l.layer == required.id)
+                        .is_some_and(|l| {
+                            !l.place.is_empty()
+                                || l.not_used
+                                    .as_deref()
+                                    .is_some_and(|reason| !reason.trim().is_empty())
+                        });
+                    if !provided {
+                        return Err(MapRefusal::new(
+                            "missing_layer",
+                            format!(
+                                "part {:?} has no {} layer. Give it a place inside its \
+                                 folder, or mark it not used with a reason.",
+                                part.content.title, required.id
+                            ),
+                        ));
+                    }
+                }
+            }
+            for layer in &part.content.layers {
+                if layer.place.is_empty() {
+                    continue;
+                }
+                if !always_inside(&layer.place, &part.content.folder) {
+                    return Err(MapRefusal::new(
+                        "layer_outside_part",
+                        format!(
+                            "part {:?} layer {} has the place {:?}, outside its folder {:?}. \
+                             Put the place inside the folder.",
+                            part.content.title, layer.layer, layer.place, part.content.folder
+                        ),
+                    ));
+                }
+            }
+            let places: Vec<(&str, &str)> = part
+                .content
+                .layers
+                .iter()
+                .filter(|l| !l.place.is_empty())
+                .map(|l| (l.layer.as_str(), l.place.as_str()))
+                .collect();
+            for (index, (id, place)) in places.iter().enumerate() {
+                for (other_id, other_place) in &places[index + 1..] {
+                    if may_overlap(place, other_place) != Overlap::None {
+                        return Err(MapRefusal::new(
+                            "layer_place_shared",
+                            format!(
+                                "part {:?} layers {id} and {other_id} can name the same \
+                                 place. Give each layer its own place.",
+                                part.content.title
+                            ),
+                        ));
+                    }
+                }
+            }
+            for (id, place) in &places {
+                for child in parts.iter().filter(|c| c.parent == Some(part.key)) {
+                    if child.content.folder.is_empty() {
+                        continue;
+                    }
+                    if matches!(
+                        may_overlap(place, &child.content.folder),
+                        Overlap::Equal | Overlap::AInsideB
+                    ) {
+                        return Err(MapRefusal::new(
+                            "layer_inside_child",
+                            format!(
+                                "part {:?} layer {id} has the place {place:?}, which can \
+                                 reach its child {:?}'s folder {:?}. Keep the place out \
+                                 of the child's folder.",
+                                part.content.title, child.content.title, child.content.folder
+                            ),
+                        ));
+                    }
                 }
             }
         }

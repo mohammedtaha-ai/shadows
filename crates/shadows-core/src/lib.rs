@@ -28,9 +28,9 @@ pub use core_design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
     AgreementVersion, AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange,
     DesignRevision, InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent,
-    OutcomeId, OutcomePage, Part, PartContent, PartId, PartPage, PartWaiver, ProposedPart,
-    ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
-    WorkspaceView,
+    OutcomeId, OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver,
+    ProposedPart, ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem,
+    VisionView, WorkspaceView,
 };
 pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use core_design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};

@@ -32,6 +32,7 @@ async fn create_structure_route_writes_and_refuses() {
                 responsibility: kind.into(),
                 kind: Some(kind.into()),
                 folder: kind.into(),
+                layers: layers(kind),
                 ..Default::default()
             },
         })
@@ -133,7 +134,7 @@ async fn map_proposal_routes_list_and_approve() {
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folder":kind,"serves":["G1"]}})
+            "kind":kind,"folder":kind,"layers":layers(kind),"serves":["G1"]}})
         })
         .collect();
     let mut args = json!({"action":"first","parts":parts,
@@ -157,10 +158,15 @@ async fn map_proposal_routes_list_and_approve() {
     .await;
     assert_eq!(status, 409);
     assert_eq!(error["code"], "STAGE_BLOCKED");
-    args["parts"] =
-        json!(["backend","database","api"].into_iter().map(|kind|
-        json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folder":kind,"serves":["G1"]}})).collect::<Vec<_>>());
+    args["parts"] = json!(
+        ["backend", "database", "api"]
+            .into_iter()
+            .map(
+                |kind| json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
+            "kind":kind,"folder":kind,"layers":layers(kind),"serves":["G1"]}})
+            )
+            .collect::<Vec<_>>()
+    );
     let good = app
         .core
         .design()
@@ -649,7 +655,7 @@ async fn mapped_app() -> (app::App, shadows_core::OperationId, shadows_core::Gra
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folder":kind,"serves":["G1"]}})
+            "kind":kind,"folder":kind,"layers":layers(kind),"serves":["G1"]}})
         })
         .collect();
     let args = json!({"action":"first","parts":parts,
@@ -672,6 +678,97 @@ async fn mapped_app() -> (app::App, shadows_core::OperationId, shadows_core::Gra
 fn add_part(folder: Value) -> Value {
     json!({"action":"add","parts":[{"key":"web","content":{"title":"web",
         "responsibility":"web","design":"","folder":folder,"serves":["G1"]}}]})
+}
+
+fn layers(kind: &str) -> Vec<shadows_core::PartLayer> {
+    shadows_core::Standards::base()
+        .parts
+        .iter()
+        .find(|part| part.name == kind)
+        .unwrap()
+        .layers
+        .iter()
+        .filter(|layer| layer.required)
+        .map(|layer| shadows_core::PartLayer {
+            layer: layer.id.clone(),
+            place: format!("{kind}/{}", layer.id),
+            not_used: None,
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn a_map_without_a_required_layer_is_refused_on_every_write_path() {
+    let (app, op, grant) = mapped_app().await;
+    let mut args = add_part(json!("web"));
+    args["parts"][0]["content"]["kind"] = json!("frontend");
+    let error = app
+        .core
+        .design()
+        .propose_map(&grant, serde_json::from_value(args.clone()).unwrap())
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("screens"), "{error}");
+
+    let mut web_layers = layers("frontend");
+    for layer in &mut web_layers {
+        layer.place = layer.place.replacen("frontend/", "web/", 1);
+    }
+    args["parts"][0]["content"]["layers"] = json!(web_layers);
+    let pending = app
+        .core
+        .design()
+        .propose_map(&grant, serde_json::from_value(args).unwrap())
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE design_map_proposal SET payload_json=\
+        json_set(payload_json,'$.parts[0].content.layers',json('[]')) WHERE id=?",
+    )
+    .bind(&pending.id)
+    .execute(app.storage.reader())
+    .await
+    .unwrap();
+    let before = design_changes(&app).await;
+    let route = format!(
+        "/api/projects/{}/map-proposals/{}/approve",
+        app.project, pending.id
+    );
+    let (status, error) = app::call(
+        &app,
+        "POST",
+        &route,
+        Some(json!({"command_id":"missing-layer"})),
+    )
+    .await;
+    assert_eq!(status, 422, "{error}");
+    assert!(error["message"].as_str().unwrap().contains("screens"));
+    assert_eq!(design_changes(&app).await, before);
+
+    let route = format!("/api/projects/{}/design/edits", app.project);
+    let (status, error) = app::call(
+        &app,
+        "POST",
+        &route,
+        Some(json!({
+            "command_id":"missing-layer-edit", "expected_revision":2, "ops":[{
+                "kind":"PartCreate", "id":uuid::Uuid::new_v4().to_string(),
+                "parent":null,"before":null,"content":{
+                    "title":"web","kind":"frontend","folder":"web",
+                    "responsibility":"web","design":""
+                }
+            }]
+        })),
+    )
+    .await;
+    assert_eq!(status, 422, "{error}");
+    assert!(
+        error["message"].as_str().unwrap().contains("screens"),
+        "{error}"
+    );
+    assert_eq!(design_changes(&app).await, before);
+    app.core.turns().stop(&op).await.unwrap();
+    app::shut_down_app(app).await;
 }
 
 async fn design_changes(app: &app::App) -> usize {

@@ -104,6 +104,7 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
     let api = PartId::generate();
     let mut c = content("backend");
     c.kind = Some("backend".into());
+    c.layers = catalog_layers("backend", "backend");
     edit(
         &core,
         &p,
@@ -128,6 +129,7 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         .part
         .content;
     c.kind = None;
+    c.layers.clear();
     let mut inside = core
         .plans()
         .design_part(&p, &backend)
@@ -137,6 +139,7 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         .part
         .content;
     inside.folder = "api/backend".into();
+    inside.layers = catalog_layers("backend", "api/backend");
     for (n, op) in [
         vec![DesignOp::PartPut {
             id: backend.clone(),

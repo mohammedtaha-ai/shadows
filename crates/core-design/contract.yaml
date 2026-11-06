@@ -712,7 +712,7 @@ planning_anchor:
 map_refusals:
   type: MapRefusal with stable rule and actionable message.
   error: DesignError::MapRefused preserves the rule through application translation.
-  rules: [duplicate_part, duplicate_sibling, missing_parent, one_folder, folder_outside_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part]
+  rules: [duplicate_part, duplicate_sibling, missing_parent, one_folder, folder_outside_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part, missing_layer, unknown_layer, layer_outside_part, layer_place_shared, layer_not_used_without_reason, layer_inside_child]
 
 vision_reservations:
   storage: design_vision_proposal.reserved_item_id records the id allocated during Add proposal.
@@ -733,3 +733,5 @@ map_refusal_repairs:
   layer_place: 'MapRules::normalise normalises the folder and each non-empty layer place; a place keeps one {module} marker literally and a second is refused as invalid_path (map_rules: a_second_module_marker_is_refused).'
   migration_0047: 'design_part and each design_map_version row (its inner content_json string, element order kept) move folders[0], or the title slug, to folder, drop folders and set layers to []; every Pending design_map_proposal becomes Superseded (design_migration: a_stored_part_with_folders_reads_back_with_its_first_folder, a_part_without_folders_gets_its_title_slug, the_daemon_starts_on_a_database_with_old_parts, a_part_round_trips_its_layers).'
   folder_outside_parent: Every child's folder sits inside its parent's folder, by segment and ignoring case, over the whole candidate map.
+  check_places: 'MapRules::check_places(parts, standards) is the shared folder and layer policy, also called by check_shape. Catalog-required layers need places or explicit reasons; same-kind parents group their children without requiring their own layers.'
+  layer_ownership: 'Every expansion must remain inside its part. Possible equality or nesting conflicts between layer places and entry into a child folder are refused, including embedded {module} markers. Tests: map_rules; design_routes::a_map_without_a_required_layer_is_refused_on_every_write_path.'

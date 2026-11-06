@@ -26,6 +26,7 @@ pub(super) async fn setup() -> (
                 responsibility: format!("Own {kind}"),
                 kind: Some(kind.into()),
                 folder: kind.into(),
+                layers: catalog_layers(kind, kind),
                 serves: vec!["G1".into()],
                 files: vec![InitialFile {
                     path: format!("{kind}/src/initial.txt"),

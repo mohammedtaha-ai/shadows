@@ -1,7 +1,7 @@
 use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{
     AcceptanceItem, AppCore, CoreError, CoreParts, DesignAnchor, DesignOp, DraftStart, PartContent,
-    PartId, PlanEdit, PlanOp, ProjectId, StorageError, TaskContent,
+    PartId, PartLayer, PlanEdit, PlanOp, ProjectId, StorageError, TaskContent,
 };
 use std::sync::Arc;
 
@@ -66,6 +66,30 @@ fn create(id: &PartId, parent: Option<&PartId>, title: &str) -> DesignOp {
         before: None,
         content: content(title),
     }
+}
+
+/// The layers a kind's catalog asks for, each with a place inside the folder.
+fn catalog_layers(kind: &str, folder: &str) -> Vec<PartLayer> {
+    let ids: &[&str] = match kind {
+        "backend" => &[
+            "domain",
+            "application",
+            "interface",
+            "infrastructure",
+            "composition",
+        ],
+        "database" => &["schema", "migrations", "connection"],
+        "api" => &["contract"],
+        "frontend" => &["screens", "features", "data_access"],
+        _ => &[],
+    };
+    ids.iter()
+        .map(|id| PartLayer {
+            layer: (*id).into(),
+            place: format!("{folder}/{id}"),
+            not_used: None,
+        })
+        .collect()
 }
 
 fn create_in(id: &PartId, parent: Option<&PartId>, title: &str, folder: &str) -> DesignOp {

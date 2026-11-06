@@ -81,6 +81,7 @@ fn first() -> MapPropose {
                 content.kind = Some(kind.into());
                 content.serves = vec!["G1".into()];
                 content.folder = kind.into();
+                content.layers = catalog_layers(kind, kind);
                 ProposedPart {
                     key: kind.into(),
                     parent_key: None,
