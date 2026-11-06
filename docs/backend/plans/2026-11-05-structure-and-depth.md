@@ -43,10 +43,9 @@ meaning each:
 **How this plan grows.**
 - Slices 1 and 2 are built. Their sections below stay as the record of what
   was built.
-- Slice 3 is written to task level, with files, interfaces and test names.
-  It gets `B-`/`F-` numbers when it starts.
-- Slices 4 and 5 are preparation packets. Their steps are written when each
-  one starts.
+- Slices 3 to 5 are written to step level: files, interfaces, tests and
+  commands. Each slice gets `B-`/`F-` numbers in the stages files when it
+  starts.
 
 ## Dispatch and progress
 
@@ -57,9 +56,9 @@ UI and API dependencies.
 |---|---|---|---|
 | 1 | Caller inventory of the four write paths | Implemented in PR #59 (`26bf739e`); live acceptance not recorded | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
 | 2 | Slice 1; accepted API request (B-64) before F-90 | Implemented in PR #60 (`b64242a7`), with B-68 to B-70 tooling; live acceptance not recorded | Layers on the map card, migration on the daily database, canvas in the app |
-| 3 | Slice 2; accepted API request for the removed `elements` and `files` fields | Task level; not numbered | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
-| 4 | Slice 3 | Needs preparation | A fresh external agent reads a task's parts, layers and rules |
-| 5 | Slice 4; accepted combined graph semantics | Needs preparation | Mixed dependency cycles refused; both graph modes work |
+| 3 | Slice 2; accepted API request `2026-11-06-principles-not-layout` | Step level; not numbered | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
+| 4 | Slice 3 | Step level; not numbered | A fresh external agent reads a task's parts, layers and rules |
+| 5 | Slice 4; accepted API request for task phases | Step level; not numbered | Mixed dependency cycles refused; both graph modes work |
 
 **Dropped on 2026-11-06:** the former slices 3 (elements), 4 (planning
 detail), 6 (outcome coverage on elements), 8 (trace) and 9 (code
@@ -136,7 +135,7 @@ reports a missing path or decision instead of widening its own assignment.
    It starts, and parts read back. (Task 3.1:
    `parts_with_starter_files_read_back_after_the_migration`.)
 5. **Phase waits that form a cycle through another plan.** Refuse them,
-   naming the whole path. (Task 5.1:
+   naming the whole path. (Task 5.2:
    `a_cycle_through_another_plan_is_refused`.)
 
 ---
@@ -912,46 +911,84 @@ in `web/`.
   `SHADOWS.md` and part starter files are removed.
 - The Planner is told to follow the stack's own layout.
 
-**Shared request first.** Two serialized shapes change:
-- `LayerSpec` loses `elements` (the standards route);
-- `PartContent` loses `files` (every route and MCP tool that returns parts).
+**Build order:** 3.1 → 3.2 → 3.3 → 3.4 on the backend; 3.5 on the web once
+the shared request is accepted and 3.3 is committed.
 
-The backend lead writes
-`docs/shared/requests/2026-11-06-principles-not-layout.md`, and the web side
-accepts it, before F- work starts.
+**Shared request first.** Three serialized shapes change:
+- `LayerSpec` loses `elements` (the standards route);
+- `PartContent` loses `files` (every route and MCP tool that returns parts);
+- the Create structure route goes, and the stage view loses `Structure`
+  and its file count.
+
+Before 3.1 starts, the backend lead writes
+`docs/shared/requests/2026-11-06-principles-not-layout.md` with these three
+changes. The web side accepts it before 3.5 starts.
 
 ### Task 3.1: base v3, and parts without starter files
 
 **Files:**
-- Modify: `crates/core-standards/src/standards.yaml` (version 3, no
-  `elements`, S6 and S9 texts, S10 added; the backend's `owns` no longer
-  says "one core")
-- Modify: `crates/core-standards/src/model.rs`, `src/base.rs`,
-  `contract.yaml`
+- Modify: `crates/core-standards/src/standards.yaml`, `src/model.rs`,
+  `src/base.rs`, `contract.yaml`
 - Modify: `crates/core-design/src/model.rs` (remove `files` and
-  `InitialFile`), `src/lib.rs`, `contract.yaml`
+  `InitialFile`), `src/lib.rs`, `src/map_rules.rs` (the `files` checks),
+  `contract.yaml`
 - Create: `crates/core-db/migrations/0048_part_files_removed.sql`
 - Modify: every reader the compiler names, among them
-  `crates/core-harness/src/standards.rs`,
-  `crates/shadows-mcp/src/workspace_tools.rs` and the test fixtures
+  `crates/core-harness/src/standards.rs`, `src/prompt.txt` (the "files"
+  argument line only), `crates/shadows-mcp/src/workspace_tools.rs`, and the
+  test fixtures
 - Regenerate: `api/openapi.json`, `web/src/api/schema.d.ts`
 - Test: `crates/core-standards/tests/base.rs`,
   `crates/shadows-core/tests/design_migration.rs`
 
 **Interfaces:**
-- `LayerSpec { id, role, required, may_use }`.
+- `LayerSpec { id: String, role: String, required: bool, may_use: Vec<LayerRef> }`.
 - `PartContent` has no `files`.
-- Migration 0048 removes the `files` key from `design_part.content_json`
-  and from each element of `design_map_version.parts_json` (the inner
-  `content_json` string, as 0047 did). It keeps row order.
-- Additions that name `elements` are refused as an unknown field, if the
-  additions parser refuses unknown fields today. Otherwise the field is
-  ignored. The builder reports which.
+- `standards.yaml` is `version: 3`:
+  - every `elements:` line goes;
+  - the backend's `owns` reads "The business logic, in modules, reached
+    through one owner object.";
+  - S6, S9 and S10 read as spec §5.2.
 
-**Tests:**
-- `base_v3_has_no_element_kinds_and_states_s10`
-- `parts_with_starter_files_read_back_after_the_migration`
-- `a_map_version_keeps_its_row_order` (the 0047 test, extended to 0048)
+- [ ] **Step 1: Write the failing tests.**
+  - `base_v3_has_no_element_kinds_and_states_s10` in `tests/base.rs`:
+    - `Standards::base().version == 3`;
+    - the rule `S10` exists, and its text contains "one owner object";
+    - the rule `S6`'s text does not contain "own folder".
+  - `parts_with_starter_files_read_back_after_the_migration` in
+    `design_migration.rs`:
+    - seed a `design_part` row whose `content_json` has
+      `"files":[{"path":"backend/composer.json","content":"{}"}]`, and a
+      map version row holding the same part;
+    - migrate;
+    - neither JSON has a `files` key, and the part reads back through
+      `Design::parts`.
+  - Extend `a_map_version_keeps_its_row_order` to run through 0048.
+- [ ] **Step 2: Run them and see them fail.**
+  `cargo test -p core-standards --test base` and
+  `cargo test -p shadows-core --test design_migration`.
+- [ ] **Step 3: Change the catalog and the model.**
+  - Remove `elements` from `LayerSpec` and its parsing in `base.rs`.
+  - Remove `files` and `InitialFile` from `core-design`, and every
+    `files` check in `MapRules`. `check_reserved` loses its last caller in
+    3.3; leave it until then.
+- [ ] **Step 4: Write migration 0048.**
+  - `design_part.content_json`: `json_remove(content_json, '$.files')`.
+  - `design_map_version.parts_json`: rebuild the array as 0047 did, with
+    the inner `content_json` string passed through
+    `json_remove(json(...), '$.files')` and back to text, ordered by `key`.
+- [ ] **Step 5: Fix every caller the compiler names,** regenerate
+  `api/openapi.json` and `web/src/api/schema.d.ts` (`npm run gen:api` in
+  `web/`), and run:
+  - `cargo test -p core-standards`
+  - `cargo test -p shadows-core --test design_migration --test design_parts --test design_vision`
+  - `cargo test -p core-design`
+  - `cargo test -p core-harness`
+  - `cargo test -p shadows --test openapi --test workspace_mcp --test planner_mcp`
+- [ ] **Step 6: Update the contracts and commit.**
+  `core-standards`, `core-design` and, if they name the fields,
+  `core-harness` and `shadows-mcp`. Commit:
+  `feat(backend): base v3 standards and parts without starter files`.
 
 ### Task 3.2: map rules on principle only
 
@@ -960,82 +997,146 @@ accepts it, before F- work starts.
 - Test: `crates/core-design/tests/map_rules.rs`
 
 **Interfaces:**
-- `check_places` keeps the slice 1 folder rules and these layer rules:
-  `missing_layer`, `unknown_layer`, `layer_not_used_without_reason`,
-  `invalid_path`, and `layer_place_shared` for equal places only
-  (case-insensitive, normalised).
-- Remove `layer_outside_part`, `layer_inside_child`, `may_overlap`,
-  `always_inside`, and the one-marker limit. `{module}` is allowed anywhere
-  in a layer place. A part folder stays literal, with no marker.
+- `MapRules::check_places` keeps the slice 1 folder rules (`one_folder`,
+  `folder_outside_parent`, `folder_claimed_twice`, a literal part folder)
+  and these layer rules:
+  - `missing_layer`, `unknown_layer`, `layer_not_used_without_reason`;
+  - `invalid_path` for a place that is absolute, holds `..` or `\`, or is
+    empty while used;
+  - `layer_place_shared` for two layers of one part whose normalised places
+    are equal, ignoring case.
+- Removed: `layer_outside_part`, `layer_inside_child`, `may_overlap`,
+  `always_inside`, the `Overlap` type and the one-marker limit.
+- `{module}` may appear any number of times in a layer place.
 
-**Tests:**
-- `a_laravel_map_with_a_nested_database_part_is_approved`: the backend at
-  `backend`, the database as its child at `backend/database`, and the
-  connection's place at `backend/config/database.php`.
-- `a_place_outside_its_part_is_accepted`
-- `two_layers_at_the_same_place_are_refused` (with different letter case)
-- `a_marker_may_appear_more_than_once`
-- Delete the tests of the removed rules, and say so in the commit.
+- [ ] **Step 1: Write the failing tests.**
+  - `a_laravel_map_with_a_nested_database_part_is_approved`:
+    - part `Backend`, kind `backend`, folder `backend`, places
+      `backend/app/Domain`, `backend/app/Application`, `backend/app/Http`,
+      `backend/app/Infrastructure`, `backend/app/Providers`;
+    - part `Database`, kind `database`, a child of `Backend`, folder
+      `backend/database`, places `backend/database/schema`,
+      `backend/database/migrations` and `backend/config/database.php`;
+    - `check_places` returns `Ok`.
+  - `a_place_outside_its_part_is_accepted`: the connection place above,
+    alone, passes.
+  - `two_layers_at_the_same_place_are_refused`: `backend/app/Domain` and
+    `Backend/App/domain` in one part give `layer_place_shared`.
+  - `a_marker_may_appear_more_than_once`:
+    `backend/{module}/src/{module}` passes.
+- [ ] **Step 2: Run them and see them fail.**
+  `cargo test -p core-design --test map_rules`.
+- [ ] **Step 3: Remove the rules and the matchers.** Delete the tests of
+  the removed rules; the commit message names each deleted test.
+- [ ] **Step 4: Run the tests.**
+  - `cargo test -p core-design`
+  - `cargo test -p shadows-core --test design_parts`
+  - `cargo test -p shadows --test design_routes`
+- [ ] **Step 5: Update the contract and commit.** The MapRules section
+  lists the kept refusals only. Commit:
+  `feat(backend): map rules check principles, not places`.
 
 ### Task 3.3: remove Create structure and the Structure step
 
 **Files:**
 - Delete: `crates/core-design/src/structure.rs`, `src/structure_create.rs`,
-  `src/structure_write.rs`, and their store code in `src/store/structure.rs`
+  `src/structure_write.rs`, and the structure code in
+  `src/store/structure.rs`
 - Modify: `crates/core-design/src/stage.rs` (no `Stage::Structure`),
-  `src/store/stage.rs` (no structure file count), `src/lib.rs`,
-  `contract.yaml`
+  `src/store/stage.rs` (no structure file count, no
+  `design_structure_write` read), `src/map_rules.rs` (remove
+  `check_reserved`), `src/lib.rs`, `contract.yaml`
 - Modify: `crates/shadows-http/src/design.rs`, `src/lib.rs` (the route
-  goes), `crates/shadows-core/src/app.rs` if it names the method
+  goes), and `crates/shadows-core/src/app.rs` if it names the method
 - Create: `crates/core-db/migrations/0049_structure_write_dropped.sql`
-  (drops `design_structure_write`)
 - Regenerate: `api/openapi.json`, `web/src/api/schema.d.ts`
 - Delete or rewrite: `crates/core-design/tests/structure.rs`,
   `crates/shadows-core/tests/design_parts/structure.rs`, and the structure
   cases in `crates/shadows/tests/design_routes.rs`
-- Update: `docs/codebase/README.md` (the code map rows of the deleted
+- Update: `docs/codebase/README.md` (remove the rows of the deleted
   modules)
 
 **Interfaces:**
-- The stage line is Idea, Vision, Map, Roadmap, Plans. Roadmap opens once
+- `Stage` is `Idea | Vision | Map | Roadmap | Plans`. Roadmap opens once
   the map is approved.
-- The stage view has no structure fields.
-- Nothing on disk is deleted.
+- `StageView` has no structure fields.
+- Migration 0049 drops `design_structure_write`. Nothing on disk is
+  deleted.
 
-**Tests:**
-- `roadmap_opens_once_the_map_is_approved`
-- `a_project_past_the_old_structure_step_opens_roadmap`
-- `the_create_structure_route_is_gone` (the openapi test lists no such
-  route)
+- [ ] **Step 1: Write the failing tests.**
+  - `roadmap_opens_once_the_map_is_approved`: a project whose map is
+    approved reads `Stage::Roadmap` from `Design::stage`.
+  - `a_project_past_the_old_structure_step_opens_roadmap`: a database with
+    a completed `design_structure_write` row migrates, and the project
+    reads `Stage::Roadmap`.
+  - In `crates/shadows/tests/openapi.rs`, the route list holds no
+    `create-structure` path.
+- [ ] **Step 2: Run them and see them fail.**
+  `cargo test -p shadows-core --test design_parts` and
+  `cargo test -p shadows --test openapi`.
+- [ ] **Step 3: Delete the modules, the route, the stage and the table.**
+  Follow the compiler. No caller may keep a structure field.
+- [ ] **Step 4: Regenerate and run.**
+  - `npm run gen:api` in `web/`, then `git diff --exit-code api/` shows only
+    the expected change;
+  - `cargo test -p core-design`
+  - `cargo test -p shadows-core --test design_parts --test design_migration`
+  - `cargo test -p shadows --test openapi --test design_routes --test codemap --test contract_tests --test architecture`
+- [ ] **Step 5: Update the contracts and the code map, and commit:**
+  `feat(backend): no command writes the structure`.
 
 ### Task 3.4: the Planner follows the stack
 
 **Files:**
 - Modify: `crates/core-harness/src/prompt.txt` (the map section, as spec
-  §7), `src/standards.rs` (no element kinds; S10 printed),
-  `contract.yaml`
+  §7), `src/standards.rs` (no element kinds; S10 printed), `contract.yaml`
 - Test: `crates/shadows/tests/planner_mcp.rs`
 
-**Tests:**
-- The appended prompt says "follow the framework's own layout" and
-  "Shadows writes no folders", and no longer names Create structure.
-- The standards text holds S10 and no "Elements:" line.
+- [ ] **Step 1: Write the failing assertions** in `planner_mcp.rs`:
+  - the appended prompt contains "follow the framework's own layout" and
+    "Shadows writes no folders";
+  - it contains neither "Create structure" nor "SHADOWS.md";
+  - the standards text contains "S10" and no "Elements:".
+- [ ] **Step 2: Run them and see them fail.**
+  `cargo test -p shadows --test planner_mcp`.
+- [ ] **Step 3: Rewrite the map section** with the five bullets of spec
+  §7, and remove every Create structure line from the stage text.
+- [ ] **Step 4: Run** `cargo test -p shadows --test planner_mcp` and
+  `cargo test -p core-harness`.
+- [ ] **Step 5: Update the contract and commit:**
+  `feat(backend): the Planner follows the stack's layout`.
 
 ### Task 3.5 (web, F-): the form, the standards page and the stage line
 
 **Files:**
 - Modify: `web/src/app/design/part-editor.tsx` (no starter files; the place
-  hint as spec §6.1), `map-part-details.tsx`, `standards-view.tsx`,
-  the stage line, and delete `create-structure.tsx` and its test, `map-canvas.tsx` (the "Recorded elements" sentence
-  goes), `map-proposal-card.tsx`
+  hint), `map-part-details.tsx`, `map-proposal-card.tsx`,
+  `standards-view.tsx`, `map-canvas.tsx` (the "Recorded elements" sentence
+  goes), the stage line component, `web/src/api/design.ts`
+- Delete: `web/src/app/design/create-structure.tsx` and its test
 - Modify: `web/src/test/fake-daemon.ts`, the contract fixtures, and the
   design `contract.yaml`
 - Test: the files' own tests
 
-**Tests:**
-- `the_part_form_has_no_starter_files`
-- `the_standards_page_shows_s10_and_no_element_kinds`
-- `the_stage_line_has_no_structure_step`
+**Interfaces:**
+- The place input's hint: "Where this layer lives in your stack's own
+  layout, for example backend/app/Domain."
+- The stage line shows Idea, Vision, Map, Roadmap, Plans.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `the_part_form_has_no_starter_files`
+  - `the_place_hint_names_the_stack_layout`
+  - `the_standards_page_shows_s10_and_no_element_kinds`
+  - `the_stage_line_has_no_structure_step`
+  - `the_map_page_has_no_create_structure_button`
+- [ ] **Step 2: Run them and see them fail.**
+  `npx vitest run src/app/design src/app/workspace`.
+- [ ] **Step 3: Change the views,** delete the panel, and update
+  `fake-daemon.ts` to the regenerated schema.
+- [ ] **Step 4: Run** `npm run typecheck`, `npm run lint` and
+  `npx vitest run src/app/design src/app/workspace src/codemap.test.ts src/architecture`.
+- [ ] **Step 5: Update the contract and commit:**
+  `feat(web): the map follows the stack, with no structure step`.
 
 **Slice 3 acceptance:**
 1. Start `shadows serve` on the daily database. It starts.
@@ -1051,27 +1152,123 @@ accepts it, before F- work starts.
 ## Slice 4: `task_context`
 
 **Outcome.** The agent building a task asks Shadows where it works and
-which rules hold, instead of reading per-part files.
+which rules hold, instead of reading files on disk.
 
-### Task 4.1: the read (`core-plans`)
-- **Interface:**
-  `Plans::task_context(&Grant, workflow_id, task: u32) -> TaskContext`.
-  - It returns the fields in spec §5.5, with the plan and standards
-    versions it read.
-  - It reads parts and layers through `Design`'s API, never its tables.
-  - A task path inside no part's folder is listed as unowned.
-  - It grants no execution authority.
-- **Tests:**
-  - `task_context_names_the_part_its_layers_and_the_rules`
-  - `an_unowned_path_is_listed_not_guessed`
+**Build order:** 4.1 → 4.2 → 4.3. No web task: the read is for agents.
+
+**Shared request:** none. `task_context` is an MCP tool, not an HTTP route.
+
+### Task 4.1: the layout read (`core-design`)
+
+**Files:**
+- Create: `crates/core-design/src/layout.rs`
+- Modify: `crates/core-design/src/lib.rs`, `src/model.rs`, the store read
+  it needs, `contract.yaml`
+- Test: `crates/shadows-core/tests/design_parts/layout.rs` (new module of
+  `design_parts`)
+
+**Interfaces:**
+- `Design::layout(&self, project: &ProjectId) -> Result<ProjectLayout, DesignError>`.
+- `ProjectLayout { standards_base: u32, standards_additions: Option<String>, parts: Vec<LayoutPart> }`,
+  in map order.
+- `LayoutPart { id: PartId, parent: Option<PartId>, title, kind: Option<String>, folder, grouping: bool, layers: Vec<LayoutLayer>, rules: Vec<RuleText> }`.
+- `LayoutLayer { id, role, place: Option<String>, not_used: Option<String>, may_use: Vec<LayerRef> }`,
+  the part's recorded layer joined with its catalog line.
+- `RuleText { id, text }`: the rules whose `parts` name this kind, and the
+  rules with no `parts`.
+- It reads the approved map only, never a pending proposal.
+- `grouping` is `MapRules::is_grouping`, the one existing rule.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `layout_joins_each_layer_with_its_role_and_may_use`: a seeded backend
+    part with `domain` at `backend/app/Domain`; its `LayoutLayer` has the
+    catalog role and an empty `may_use`.
+  - `layout_lists_the_rules_for_each_kind`: the backend part's rules
+    include S1 and S10; the api part's rules do not include S1.
+  - `layout_marks_a_grouping_part`: a frontend with two frontend children
+    has `grouping: true` and no layers.
+  - `layout_reads_the_approved_map_not_a_proposal`
+- [ ] **Step 2: Run them and see them fail.**
+  `cargo test -p shadows-core --test design_parts layout`.
+- [ ] **Step 3: Implement `Design::layout`** in `layout.rs`, reading the
+  approved map's parts and the effective standards in one transaction.
+- [ ] **Step 4: Run** `cargo test -p shadows-core --test design_parts`
+  and `cargo test -p core-design`.
+- [ ] **Step 5: Add its contract line and commit:**
+  `feat(backend): Design reads a project's layout`.
+
+### Task 4.2: `task_context` (`core-plans`)
+
+**Files:**
+- Create: `crates/core-plans/src/task_context.rs`
+- Modify: `crates/core-plans/src/lib.rs`, `src/model.rs`, `contract.yaml`
+- Test: `crates/shadows-core/tests/plans/task_context.rs` (or the existing
+  plans test target the code map names)
+
+**Interfaces:**
+- `Plans::task_context(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32) -> Result<TaskContext, PlansError>`.
+  - The plan version is resolved as `task_for` resolves it, so the grant
+    rules are the same.
+- `TaskContext`:
+  - `plan: { plan_id, workflow_id, version, title }`;
+  - `task: TaskContent`, as frozen in that version;
+  - `parts: Vec<TaskPart>`: the plan's tied parts, and every part whose
+    folder holds one of the task's `reads` or `writes`;
+  - `unowned_paths: Vec<String>`: task paths inside no part's folder;
+  - `standards: { base, additions }`.
+- `TaskPart { part: LayoutPart, paths: Vec<String> }`: the task's paths
+  inside that part. A path belongs to the deepest part whose folder holds
+  it, compared by normalised segments, ignoring case.
+- The method reads `Design::layout`. It never reads design tables.
+- It grants nothing and writes nothing.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `task_context_names_the_part_its_layers_and_the_rules`: an approved
+    plan whose T1 writes `backend/app/Domain/Ticket.php`; the context
+    names the backend part, its five layers with places, and S10.
+  - `a_nested_part_owns_its_own_paths`: T1 writes
+    `backend/database/migrations/x.php`; the path belongs to the database
+    part, not the backend.
+  - `an_unowned_path_is_listed_not_guessed`: `docs/notes.md` is in
+    `unowned_paths`.
+  - `task_context_reads_the_approved_version_not_the_draft`: a draft
+    changes T1's paths; the approved version's paths are returned.
   - `a_foreign_project_grant_cannot_read_task_context`
-  - `task_context_reads_the_approved_version_not_the_draft`
+  - `a_missing_task_is_refused_by_number`
+- [ ] **Step 2: Run them and see them fail.**
+- [ ] **Step 3: Implement `Plans::task_context`** in `task_context.rs`.
+- [ ] **Step 4: Run** the plans tests and `cargo test -p core-plans`.
+- [ ] **Step 5: Add its contract line and commit:**
+  `feat(backend): task_context tells an agent where it works`.
 
-### Task 4.2: the MCP tool
-- `task_context` for the thread and project grants, in `shadows-mcp`,
-  calling the one method.
-- **Tests:**
+### Task 4.3: the MCP tool
+
+**Files:**
+- Modify: `crates/shadows-mcp/src/plan_tools.rs`, `contract.yaml`
+- Modify: `crates/core-harness/src/prompt.txt` (one line: the building
+  agent reads `task_context` first)
+- Test: `crates/shadows/tests/planner_mcp.rs`,
+  `crates/shadows/tests/external_mcp.rs` (or the external-grant test the
+  code map names)
+
+**Interfaces:**
+- Tool `task_context`, arguments `{ workflow_id?: string, task_number: u32 }`,
+  for the thread and project grants. It calls `Plans::task_context` and
+  returns its JSON.
+- Its description says it is the first read before building a task, and
+  that it grants no permission to execute.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `the_planner_reads_task_context`
   - `an_external_agent_reads_task_context`
+  - `task_context_is_listed_for_both_grants`
+- [ ] **Step 2: Run them and see them fail.**
+  `cargo test -p shadows --test planner_mcp` and the external test.
+- [ ] **Step 3: Add the tool and the prompt line.**
+- [ ] **Step 4: Run** the two test targets and
+  `cargo test -p shadows --test contract_tests --test codemap`.
+- [ ] **Step 5: Update the contracts and commit:**
+  `feat(backend): the task_context MCP tool`.
 
 **Slice 4 acceptance:**
 1. Approve a plan with one task in the Laravel project.
@@ -1082,56 +1279,170 @@ which rules hold, instead of reading per-part files.
 
 ## Slice 5: phases inside tasks
 
+**Outcome.** A task has ordered phases. A phase can wait for a phase of
+another task, in this plan or another plan of the project. The plan graph
+shows phases (spec §6.2).
+
+**Build order:** 5.1 → 5.2 → 5.3 on the backend; 5.4 → 5.5 on the web once
+the shared request is accepted and 5.2 is committed.
+
+**Shared request first:** `TaskContent` gains `phases`, and `plan_edit`
+gains `phase_put` and `phase_remove`. The backend lead writes
+`docs/shared/requests/<date>-task-phases.md` before 5.1 starts.
+
 ### Task 5.1: the phase model (`core-plans`)
-- **Interfaces:**
-  - `TaskContent.phases: Vec<Phase>`.
-  - A `Phase` has a stable id, a display number, a title, a goal,
-    acceptance references and `waits_for`.
-  - A `PhaseRef` pins the plan, version, task and phase identity. Frozen
-    content never retargets itself.
-- **Rules:**
-  - implicit sequential phase edges, explicit waits and the existing task
-    `needs` and `completes_after` form one event graph, extended in
-    `dependency_graph.rs`;
-  - there is no cycle across the combined graph;
-  - missing or removed targets are blockers;
-  - new cross-plan phase links stay inside the current project.
-- **Tests:**
+
+**Files:**
+- Modify: `crates/core-plans/src/model.rs`, `contract.yaml`
+- Test: `crates/core-plans/tests/workflow_rules.rs`
+
+**Interfaces:**
+- `TaskContent.phases: Vec<Phase>`, `#[serde(default)]`. It is stored in
+  the task's existing `contract_json`, so no migration is needed.
+- `Phase { id: PhaseId, number: u32, title: String, goal: String, acceptance: Vec<u32>, waits_for: Vec<PhaseRef> }`.
+  - `id` is a stable string, given by the server on `phase_put` when
+    absent.
+  - `number` is the display order, 1-based and contiguous in a task.
+  - `acceptance` names the task's acceptance item numbers.
+- `PhaseRef`:
+  - `Local { task: u32, phase: PhaseId }`;
+  - `Plan { plan_id: PlanId, version: u32, task: u32, phase: PhaseId }`.
+  A cross-plan wait pins an exact approved version.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `a_task_without_phases_reads_back_unchanged`: old `contract_json`
+    without `phases` reads as an empty list.
+  - `phase_acceptance_must_name_the_tasks_items`
+  - `phase_numbers_are_contiguous_from_one`
+- [ ] **Step 2: Run them and see them fail.**
+  `cargo test -p core-plans --test workflow_rules`.
+- [ ] **Step 3: Add the types and the checks** to the existing task rules.
+- [ ] **Step 4: Run** `cargo test -p core-plans`.
+- [ ] **Step 5: Update the contract and commit:**
+  `feat(backend): tasks have phases`.
+
+### Task 5.2: the combined graph and the edit operations
+
+**Files:**
+- Modify: `crates/core-plans/src/dependency_graph.rs`, `src/ops.rs`,
+  `src/rules.rs`, the cross-plan check in `src/store/graph.rs` or
+  `src/store/linked.rs` (whichever loads other plans' links today),
+  `contract.yaml`
+- Test: `crates/core-plans/tests/workflow_rules.rs`,
+  `crates/shadows-core/tests/plans/` (cross-plan cases)
+
+**Interfaces:**
+- `DependencyGraph` gains a start and a complete event per phase:
+  - a task's start precedes its first phase's start;
+  - each phase's complete precedes the next phase's start;
+  - the last phase's complete precedes the task's complete;
+  - a `waits_for` adds the target phase's complete → this phase's start.
+  The existing `needs` and `completes_after` edges stay as they are.
+- `cycle()` names the path with phases as `T3 · P2`.
+- `PlanOp::PhasePut { task: u32, phase: Phase }` adds or replaces by `id`.
+  `PlanOp::PhaseRemove { task: u32, phase: PhaseId }`.
+  Their `Object` is the task, so a batch cannot also edit that task.
+- A cross-plan `PhaseRef` must name an approved version of a plan in the
+  same project, and an existing task and phase in it. Otherwise the edit
+  is refused naming the target.
+- Approval reloads every cross-plan target. A removed or missing target is
+  a blocker naming it.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `implicit_phase_order_and_task_links_can_form_a_cycle`: T1 · P2 waits
+    for T2 · P1, and T2 `needs` T1: refused, naming the path.
   - `a_cycle_through_another_plan_is_refused`
   - `a_wait_on_an_unapproved_plan_is_refused`
-  - `implicit_phase_order_and_task_links_can_form_a_cycle`
   - `a_new_target_version_does_not_redirect_a_frozen_phase_wait`
-  - `reordering_phases_preserves_their_identity`
+  - `reordering_phases_preserves_their_identity`: `phase_put` with new
+    numbers keeps every `id`, and waits on them still resolve.
   - `a_removed_phase_is_a_named_blocker`
   - `concurrent_approvals_cannot_commit_a_combined_cycle`
+  - `a_phase_op_and_a_task_update_on_one_task_are_refused`
+- [ ] **Step 2: Run them and see them fail.**
+- [ ] **Step 3: Extend the graph, the operations and the approval check.**
+- [ ] **Step 4: Run** `cargo test -p core-plans` and the shadows-core
+  plans tests.
+- [ ] **Step 5: Update the contract and commit:**
+  `feat(backend): phase waits join one dependency graph`.
 
-### Task 5.2: plan editing and tools
-- The `plan_edit` operations `phase_put` and `phase_remove`, with the MCP
-  descriptions and the prompt.
-- **Editing rules:**
-  - every operation is atomic under the expected revision and command
-    replay;
-  - edits to a frozen version are refused;
-  - phase numbers are never reused as ids;
-  - the prompt never marks a phase complete.
-- `task_context` takes an optional stable phase id.
-- **Tests:**
+### Task 5.3: the tools and `task_context`
+
+**Files:**
+- Modify: `crates/shadows-mcp/src/plan_tools.rs` (the `plan_edit`
+  description lists `phase_put` and `phase_remove`), `contract.yaml`
+- Modify: `crates/core-harness/src/prompt.txt` (phases: when to use them,
+  and that the Planner never marks a phase complete)
+- Modify: `crates/core-plans/src/task_context.rs`: an optional
+  `phase: Option<PhaseId>`
+- Regenerate: `api/openapi.json`, `web/src/api/schema.d.ts`
+- Test: `crates/shadows/tests/planner_mcp.rs`, the `task_context` tests
+
+**Interfaces:**
+- `Plans::task_context(grant, workflow, task, phase: Option<&PhaseId>)`.
+  With a phase, the context adds the phase and the targets it waits for,
+  at their pinned versions. The task's acceptance stays whole.
+- The MCP tool gains `phase_id?: string`.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `the_planner_adds_a_phase_with_plan_edit`
   - `phase_context_keeps_task_acceptance_and_pinned_dependencies`
   - `a_phase_outside_the_named_task_is_refused`
+  - the prompt contains "never mark a phase complete".
+- [ ] **Step 2: Run them and see them fail.**
+- [ ] **Step 3: Implement,** and regenerate the API files.
+- [ ] **Step 4: Run** `cargo test -p shadows --test planner_mcp --test openapi`
+  and `cargo test -p core-plans`.
+- [ ] **Step 5: Update the contracts and commit:**
+  `feat(backend): the Planner edits phases`.
 
-### Task 5.3 (web, F-): the task view
-As spec §6.2:
-- the same React Flow look as `PlanGraph`;
-- the task is the start node;
-- other tasks' phases are dashed nodes;
-- the Back button returns to the plan graph.
+### Task 5.4 (web, F-): the task view
 
-### Task 5.4 (web, F-): Show phases on the plan graph
+**Files:**
+- Create: `web/src/app/workflows/task-view.tsx`, `task-view.test.tsx`
+- Modify: `web/src/app/workflows/plan-page.tsx` (route state for the
+  opened task), `plan-graph.tsx` (open a task), `contract.yaml`
+- Modify: `web/src/test/fake-daemon.ts`
+
+**Interfaces:**
+- The URL names the opened task (`?task=3`). Back returns to the plan
+  graph with the selection kept.
+- The view uses `PlanGraph`'s React Flow look: the task is the start
+  node, its phases are task-card nodes, edges carry labels, and the legend,
+  zoom and minimap stay.
+- A foreign phase (another task's or another plan's) is a dashed node with
+  `T2 · P1` and, for another plan, its version. Clicking it opens that
+  task's view.
+- A task with no phases shows "This task has no phases" and its
+  acceptance.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `opening_a_task_shows_its_phases_in_order`
+  - `a_foreign_phase_is_dashed_and_opens_its_task`
+  - `back_returns_to_the_plan_with_the_selection_kept`
+  - `a_task_without_phases_says_so`
+- [ ] **Step 2: Run them and see them fail.**
+  `npx vitest run src/app/workflows`.
+- [ ] **Step 3: Build the view.**
+- [ ] **Step 4: Run** `npm run typecheck`, `npm run lint` and
+  `npx vitest run src/app/workflows src/codemap.test.ts src/architecture`.
+- [ ] **Step 5: Update the contract and commit:**
+  `feat(web): the task view shows its phases`.
+
+### Task 5.5 (web, F-): Show phases on the plan graph
+
+**Files:**
+- Modify: `web/src/app/workflows/plan-graph.tsx`, `layout.ts`,
+  `plan-page.tsx` (the header button), `task-node.tsx`, `contract.yaml`
+- Create: `web/src/app/workflows/phase-node.tsx`
+- Test: `plan-graph.test.tsx`, `layout.test.ts`
+
+**Interfaces:**
 - **The button:** Show phases / Hide phases, in the plan header beside
   Versions.
 - **When shown:**
-  - every task is a React Flow group node: a frame with its number and
-    title;
+  - every task with phases is a React Flow group node: a frame with its
+    number and title;
   - its phases are child nodes, with badges such as `T3 · P2`;
   - explicit waits join phase nodes;
   - whole-task constraints keep their start and completion endpoints and
@@ -1139,7 +1450,9 @@ As spec §6.2:
   - tasks with no phases remain plain nodes.
 - **Layout:** left to right by dependency rank, as today. Frames size to
   their phases.
-- **Tests:**
+- Selection, filters and viewport are kept on toggle.
+
+- [ ] **Step 1: Write the failing tests.**
   - `show_phases_draws_a_frame_per_task_with_its_phases`
   - `an_edge_points_from_prerequisite_to_waiting_phase`
   - `hide_phases_returns_to_task_cards`
@@ -1147,6 +1460,13 @@ As spec §6.2:
   - `foreign_phase_nodes_show_the_pinned_version`
   - `expansion_keeps_selection_and_viewport`
   - `keyboard_list_and_graph_open_the_same_task`
+  - in `layout.test.ts`: `a_plan_of_100_tasks_and_400_phases_lays_out`
+- [ ] **Step 2: Run them and see them fail.**
+- [ ] **Step 3: Build the frames, the phase nodes and the toggle.**
+- [ ] **Step 4: Run** `npm run typecheck`, `npm run lint` and
+  `npx vitest run src/app/workflows src/codemap.test.ts src/architecture`.
+- [ ] **Step 5: Update the contract and commit:**
+  `feat(web): Show phases on the plan graph`.
 
 **Slice 5 acceptance:**
 1. Open a plan, toggle Show phases, follow a foreign phase, and come back
@@ -1161,12 +1481,12 @@ As spec §6.2:
 |---|---|
 | Missing folder, moves and renames | 1.1, 3.2 |
 | No contract files; no command writes the structure | 1.2, 3.3 |
-| Migrations on the daily database | 2.2, 3.1 |
+| Migrations on the daily database | 2.2, 3.1, 3.3 |
 | Standards fit any stack | 3.1, 3.2, 3.4 |
 | The stage line without Structure | 3.3, 3.5 |
-| Agent context without the old chat | 4.1, 4.2 |
-| Task and phase ordering, both graph modes | 5.1–5.4 |
-| Theme, accessibility, loading and navigation | 2.6, 3.5, 5.4 |
+| Agent context without the old chat | 4.1, 4.2, 4.3 |
+| Task and phase ordering, both graph modes | 5.1–5.5 |
+| Theme, accessibility, loading and navigation | 2.6, 3.5, 5.4, 5.5 |
 
 Phase completion, execution evidence and verified completion of a project
 stage are tracked by the §17 delivery. This plan shows their absence
