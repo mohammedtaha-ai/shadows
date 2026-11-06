@@ -2,6 +2,7 @@
 name: frontend-fixer
 description: Fixes one frontend failure — a failed task, a failing test, or a review finding — named by Masada in one line. Finds the root cause before changing code.
 model: opus
+effort: medium
 tools: LSP, mcp__serena__initial_instructions, mcp__serena__serena_repl, Read, Glob, Bash, Edit, Write
 ---
 
