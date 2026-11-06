@@ -20,13 +20,6 @@ export type PartContent = components['schemas']['PartContent']
 export type PartLayer = components['schemas']['PartLayer']
 export type PartView = components['schemas']['PartView']
 export type PartPage = components['schemas']['PartPage']
-export type StructureWritten = components['schemas']['StructureWritten']
-/** `mapRevision` is the revision of the count the person confirmed; Core refuses a moved map. */
-export function createStructure(projectId: string, commandId: string, mapRevision: number): Promise<StructureWritten> {
-  return unwrap(client.POST('/api/projects/{id}/structure', {
-    params: {path:{id:projectId}}, body: {command_id:commandId, map_revision:mapRevision},
-  }))
-}
 export type Outcome = components['schemas']['Outcome']
 export type OutcomeContent = components['schemas']['OutcomeContent']
 export type OutcomeView = components['schemas']['OutcomeView']

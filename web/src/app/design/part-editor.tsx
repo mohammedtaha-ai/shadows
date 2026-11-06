@@ -13,7 +13,7 @@ import { MapPartDetails } from './map-part-details'
 
 const EDITOR: DesignEditorConfig<PartView, PartContent> = {
   entityKind: 'Part',
-  empty: { title: '', responsibility: '', design: '', kind: null, serves:[],folder:'',layers:[],files:[],contract:{header:'',rules:[]} },
+  empty: { title: '', responsibility: '', design: '', kind: null, serves:[],folder:'',layers:[],contract:{header:'',rules:[]} },
   idOf: view => view.part.id,
   contentOf: view => view.part.content,
   detailQuery: partQuery,
@@ -99,6 +99,9 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
       </div>}
       {groups.length > 0 || !childScopeKnown ? null : <section className="space-y-2" aria-label="Part layers">
         <h4 className="font-medium">Layers</h4>
+        <p id={`${id}-layer-places`} className="text-xs text-muted-foreground">
+          Where this layer lives in your stack's own layout, for example backend/app/Domain.
+        </p>
         {kind == null && <p className="text-sm text-muted-foreground">Choose a kind to see its layers.</p>}
         {catalog.map(spec => {
           const layer = draft.layers?.find(layer => layer.layer === spec.id)
@@ -117,7 +120,7 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
             {unused ? <label className="block">Reason<input aria-label={`${spec.id} reason`} dir="auto"
               value={value.not_used ?? ''} onChange={e => changeLayer({...value,not_used:e.target.value})}
               className="block w-full rounded border bg-input-background p-2" /></label>
-              : <label className="block">Place<input aria-label={`${spec.id} place`} value={value.place}
+              : <label className="block">Place<input aria-label={`${spec.id} place`} aria-describedby={`${id}-layer-places`} value={value.place}
                 onChange={e => changeLayer({...value,place:e.target.value})}
                 className="block w-full rounded border bg-input-background p-2" /></label>}
           </div>

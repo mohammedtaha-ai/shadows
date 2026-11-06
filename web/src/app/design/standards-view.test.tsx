@@ -15,14 +15,18 @@ const base = {
 const fixture = () => ({ ...answers(), 'GET /api/projects/p1/standards': { base, additions: null } })
 const field = (a: TestApp, label: string) => a.container.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[aria-label="${label}"]`)!
 
-it('the_standards_page_lists_each_kinds_layers', async () => {
+it('the_standards_page_shows_s10_and_no_element_kinds', async () => {
   const a = app = await startApp('/projects/p1/workspace?view=standards', {...answers(),
-    'GET /api/projects/p1/standards':{base:{version:2,parts:[{name:'backend',owns:'Logic',presence:'required',
-      layers:[{id:'domain',role:'Business rules',required:true,elements:['entity'],may_use:[]}]}],rules:[]},additions:null},
+    'GET /api/projects/p1/standards':{base:{version:3,parts:[{name:'backend',owns:'Logic',presence:'required',
+      layers:[{id:'domain',role:'Business rules',required:true,may_use:[]}]}],
+      rules:[{id:'S10',text:'One owner object; services use declared dependencies.',parts:[]}]},additions:null},
   })
   await until(() => a.text().includes('Business rules'))
   expect(a.text()).toContain('domain')
   expect(a.text()).toContain('required')
+  expect(a.text()).toContain('S10')
+  expect(a.text()).toContain('declared dependencies')
+  expect(a.text()).not.toContain('Elements')
   expect(a.text()).not.toContain('Contract template')
 })
 

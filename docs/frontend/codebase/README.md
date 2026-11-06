@@ -273,7 +273,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/index.ts` | Declare lazy route surfaces | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/copy-button.tsx` | Button that copies a text to the clipboard | `web/src/app/error-line.tsx` |
 | `web/src/app/daemon-status.tsx` | Shows whether the daemon answers, with the reason | `web/src/app/error-line.tsx` |
-| `web/src/app/design/create-structure.tsx` | Confirms the project's structure write | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/map-part-details.tsx` | Read-only details of one map part | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/outcome-editor.tsx` | Editor for one outcome, keeping unsaved input | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/part-editor.tsx` | Editor for one part, keeping unsaved input | `web/src/app/design/contract.yaml` |

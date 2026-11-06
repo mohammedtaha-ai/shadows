@@ -10,7 +10,6 @@ import { ErrorLine } from '../error-line'
 import { PartEditor } from './part-editor'
 import { usePartPages } from '@/api/design'
 import { MapPartDetails } from './map-part-details'
-import { CreateStructure } from './create-structure'
 import { MapCanvas } from './map-canvas'
 
 export function PartsView({ projectId, selected }: { projectId: string; selected?: string }) {
@@ -21,14 +20,13 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
   const stage = useQuery(stageQuery(projectId))
   const proposals = useQuery(mapProposalsQuery(projectId))
   const threads = useQuery(threadsQuery(projectId))
-  const approved = stage.data?.stage === 'structure' || stage.data?.stage === 'roadmap' || proposals.data?.some(p => p.action === 'first' && p.status === 'Approved')
+  const approved = (stage.data?.map_revision ?? 0) > 0 || proposals.data?.some(p => p.action === 'first' && p.status === 'Approved')
   const pending = proposals.data?.filter(p => p.status === 'Pending' && !p.outdated) ?? []
   const counts = new Map<string,number>()
   for (const p of pending) counts.set(p.thread_id,(counts.get(p.thread_id) ?? 0)+1)
   const detail = useQuery({ ...partQuery(projectId, selected ?? ''), enabled: selected !== undefined })
   return <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
     <section className="min-w-0 space-y-3" aria-label="Project parts">
-      <CreateStructure projectId={projectId} />
       {!approved && !stage.isPending && !proposals.isPending && stage.error === null && proposals.error === null &&
         <p>The first map comes from the Planner. Ask for it in a conversation.</p>}
       {pending.length > 0 && <aside role="status" className="rounded border p-3 text-sm">
@@ -39,7 +37,7 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
       </aside>}
       {(stage.data?.drift?.length ?? 0) > 0 && <aside aria-label="Map drift" className="rounded border p-3">
         <h3>Drift</h3><ul>{stage.data?.drift?.map(d => <li key={d} dir="auto">{d}</li>)}</ul></aside>}
-      {stage.data?.stage === 'structure' && stage.data.missing.length > 0 && <aside role="status" className="rounded border p-3">
+      {stage.data && stage.data.map_revision > 0 && stage.data.missing.length > 0 && <aside role="status" className="rounded border p-3">
         Missing mandatory parts: {stage.data?.missing.join(', ')}
       </aside>}
       {stage.error && <ErrorLine error={stage.error} />}{proposals.error && <ErrorLine error={proposals.error} />}

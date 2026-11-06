@@ -11,14 +11,53 @@ let app: TestApp | null = null
 it('shows mandatory kinds added after map approval', async () => {
   const a = app = await startApp('/projects/p1/workspace?view=map', {
     ...answers(),
-    'GET /api/projects/p1/stage': {stage:'structure',missing:['billing'],drift:[]},
+    'GET /api/projects/p1/stage': {stage:'map',missing:['billing'],drift:[],map_revision:1},
   })
   await until(() => a.text().includes('Missing mandatory parts: billing'))
 })
 const answers = () => ({ ...baseAnswers(),
   'GET /api/projects/p1/design/parts':{revision:1,items:[],next:null},
-  'GET /api/projects/p1/stage': {stage:'structure',missing:[],drift:[]} })
+  'GET /api/projects/p1/stage': {stage:'roadmap',missing:[],drift:[],map_revision:1} })
 afterEach(() => { app?.unmount(); app = null })
+
+it('the_part_form_has_no_starter_files', async () => {
+  const a = app = await startApp('/projects/p1/workspace?view=map', {
+    ...answers(),
+    'GET /api/projects/p1/stage': {stage:'roadmap',missing:[],drift:[],map_revision:1},
+    'POST /api/projects/p1/design/edits': () => Response.json(
+      {code:'STAGE_BLOCKED',message:'Synthetic refusal'}, {status:409}),
+  })
+  await until(() => a.button('Create part') !== undefined)
+  act(() => a.button('Create part')!.click())
+  await until(() => a.container.querySelector('[aria-label="Part title"]') !== null)
+  typeInto(a.container.querySelector<HTMLInputElement>('[aria-label="Part title"]')!, 'Backend')
+  act(() => a.button('Create')!.click())
+  await until(() => a.bodies.length > 0)
+  const body = a.bodies.at(-1) as {ops:{content:Record<string,unknown>}[]}
+  expect(body.ops[0].content).not.toHaveProperty('files')
+})
+
+it('the_map_page_has_no_create_structure_button', async () => {
+  const a = app = await startApp('/projects/p1/workspace?view=map', {
+    ...answers(),
+    'GET /api/projects/p1/stage': {stage:'roadmap',missing:[],drift:[],map_revision:1},
+  })
+  await until(() => a.button('Create part') !== undefined)
+  expect(a.text()).not.toContain('Structure written')
+  expect(a.button('Create structure')).toBeUndefined()
+})
+
+it('the_place_hint_names_the_stack_layout', async () => {
+  const saved = {revision:1,part:{...part('backend'),content:{...part('backend').content,
+    kind:'backend',layers:[{layer:'domain',place:'backend/app/Domain',not_used:null}]}},
+    ancestors:[],plans:[]}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=backend', {
+    ...answers(),
+    'GET /api/projects/p1/design/parts/backend': saved,
+  })
+  await until(() => a.container.querySelector('[aria-label="domain place"]') !== null)
+  expect(a.text()).toContain("stack's own layout")
+})
 const part = (id: string, title = id, parent: string | null = null) => ({ id, parent, ordinal: 0, revision: 1,
   content: { title, responsibility: 'مسؤولية', design: 'تصميم', kind: null, folder: id, layers: [] } })
 
@@ -164,9 +203,9 @@ it('hides creation before the first map and shows drift with actionable proposal
   expect(a.container.querySelector('a[href="/projects/p1/threads/t1"]')).not.toBeNull()
 })
 
-it('edits served goals and normalised folder input without dropping starter files', async () => {
+it('edits served goals and normalised folder input', async () => {
   const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,serves:['G1'],folder:'src',
-    files:[{path:'src/main.rs',content:'fn main() {}'}],contract:{header:'Core contract',rules:['S1']}}},ancestors:[],plans:[]}
+    contract:{header:'Core contract',rules:['S1']}}},ancestors:[],plans:[]}
   const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {...answers(),
     'GET /api/projects/p1/design/parts/n1':saved,
     'GET /api/projects/p1/design/vision':{revision:1,content:{purpose:[],users:[],goals:[{id:'G1',text:'Read',revision:1,approved_from:null}],boundaries:[],technical_direction:[]}},
@@ -177,7 +216,7 @@ it('edits served goals and normalised folder input without dropping starter file
   act(() => a.button('Save part')?.click())
   await until(() => a.text().includes('missing part: backend'))
   const body = a.bodies.at(-1) as DesignEdit
-  expect(body.ops[0]).toMatchObject({kind:'PartPut',content:{folder:'lib',serves:['G1'],files:saved.part.content.files}})
+  expect(body.ops[0]).toMatchObject({kind:'PartPut',content:{folder:'lib',serves:['G1']}})
 })
 
 it('part save replays the committed command after its follow-up read fails', async () => {

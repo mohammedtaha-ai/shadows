@@ -12,7 +12,7 @@ afterEach(() => {app?.unmount();app=null})
 const pending = (): MapProposal => ({id:'m1',thread_id:'t1',action:'first',part_id:null,old:null,
   status:'Pending',outdated:false,created_at:'2026-10-12',waivers:[{part:'frontend',reason:'Terminal tool'}],
   parts:[{key:'backend',parent_key:null,parent:null,content:{title:'Backend',responsibility:'Logic',design:'',
-    kind:'backend',serves:['G1'],folder:'backend',layers:[],files:[{path:'backend/main.rs',content:'fn main() {}'}],
+    kind:'backend',serves:['G1'],folder:'backend',layers:[],
     contract:{header:'Backend contract',rules:['S1']}}}]})
 const entry = () => ({...agentEntry('e1','Project map proposal'),kind:'MapProposal' as const,card:{...pending()}})
 

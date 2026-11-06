@@ -57,3 +57,15 @@ request is accepted and its backend response exists. Before dispatch,
 expand the API hooks, routing, event refresh, contracts and code-map paths.
 Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
+
+### F-92 · The map follows the stack, with no Structure step
+- Status: done
+- Base: `2003992a`
+- Plan: `docs/backend/plans/2026-11-05-structure-and-depth.md#task-35-web-f--the-form-the-standards-page-and-the-stage-line`
+- Owner: web Design views and the design API client; conversation owns its map-card fixture.
+- Read: frontend code map; design/API/conversation contracts; structure spec §6.1; accepted principles-not-layout request.
+- Touch: `web/src/app/design/part-editor.tsx`, `map-part-details.tsx`, `parts-view.tsx`, `map-canvas.tsx`, `create-structure.tsx`, `create-structure.test.tsx`, `parts-view.test.tsx`, `standards-view.test.tsx`, `contract.yaml`; `web/src/api/design.ts`, `contract.yaml`; `web/src/test/fake-daemon.ts`; `web/src/app/conversation/map-proposal-card.test.tsx`, `contract.yaml`; `docs/frontend/codebase/README.md`; this stages file.
+- Needs: B-71 through B-74 and regenerated API for accepted `2026-11-06-principles-not-layout.md`.
+- Input/output: no structure controls, writer call, counts, starter-file field or inspection; layer hint follows the stack; S10 renders from Core. StageChip already renders Core's selected stage without a static step list, so no additional stage machine is introduced.
+- Failure cases: old writer survives at Roadmap; new part request still sends files; map approval controls disappear when nested kinds are missing; stale fake schema.
+- Done when: typecheck, lint, production build; focused Design/conversation/API tests plus frontend codemap and architecture. Slice live acceptance is tracked separately.

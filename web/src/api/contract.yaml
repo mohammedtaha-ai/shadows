@@ -198,7 +198,6 @@ grants_and_fs:
 
 design:
   # design.ts
-  createStructure: "(projectId: string, commandId: string) -> Promise<StructureWritten>"
   getOutcome: "(projectId: string, outcomeId: string) -> Promise<OutcomeView>"
   getOutcomes: "(projectId: string, parent?: string, after?: string) -> Promise<OutcomePage>"
   getPart: "(projectId: string, partId: string) -> Promise<PartView>"
@@ -692,7 +691,7 @@ workflow_cache:
 
 design_cache:
   owner: design.ts
-  keys: "designKeys owns design prefixes, details, proposals, hierarchy pages and structure-preview; arrays preserve null pagination and existing values"
+  keys: "designKeys owns design prefixes, details, proposals, hierarchy pages and the stage; arrays preserve null pagination and existing values"
   queries: "Design queries are defined beside designKeys and imported directly by callers; designPageQuery appends the existing cursor to the supplied branch key"
   saveStandardsAnswer: "writeSaved cancels the exact standards read, retains a newer cached additions version and uses the saved snapshot only when the cache is absent"
 
@@ -824,3 +823,5 @@ transport_boundary:
   startup: "startup_api rejects static transport reachability from main.tsx and the desktop startup entries"
 
 background_task_stop: "sessions.ts stopTask posts the selected task stop request; the stream supplies the resulting state."
+
+layout_only: "PartContent and StageView use the regenerated schema without starter files or structure counts; no createStructure operation remains."
