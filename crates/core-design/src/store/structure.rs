@@ -30,7 +30,7 @@ pub(crate) struct Snapshot {
 }
 pub(crate) enum Read {
     Replay(StructureWritten),
-    Snapshot(Snapshot),
+    Snapshot(Box<Snapshot>),
 }
 
 impl DesignStore {
@@ -53,7 +53,7 @@ impl DesignStore {
         }
         let snapshot = Self::structure_snapshot_in(&mut tx, p, Some(confirmed)).await?;
         tx.commit().await?;
-        Ok(Read::Snapshot(snapshot))
+        Ok(Read::Snapshot(Box::new(snapshot)))
     }
 
     /// What a structure write would use for the map now. `confirmed` is the revision a

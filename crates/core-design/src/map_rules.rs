@@ -80,7 +80,7 @@ impl MapRules {
 }
 
 /// The marker a place holds when the stack gives every module its own folder.
-const MODULE_MARKER: &str = "{module}";
+pub(crate) const MODULE_MARKER: &str = "{module}";
 
 impl MapRules {
     /// A layer's place: a path that may hold one `{module}` marker.
@@ -357,6 +357,16 @@ impl MapRules {
                 .iter()
                 .any(|(_, folder)| folder == file || inside(folder, file))
                 || files.keys().any(|other| inside(other, file))
+                || parts
+                    .iter()
+                    .flat_map(|part| &part.content.layers)
+                    .any(|layer| {
+                        if layer.place.is_empty() || layer.place.contains(MODULE_MARKER) {
+                            return false;
+                        }
+                        let path = layer.place.to_lowercase();
+                        path == *file || inside(&path, file)
+                    })
             {
                 let owner = parts
                     .iter()
@@ -604,6 +614,16 @@ impl MapRules {
             }
             for layer in &part.content.layers {
                 if layer.place.is_empty() {
+                    if layer.not_used.is_none() {
+                        return Err(MapRefusal::new(
+                            "missing_layer",
+                            format!(
+                                "part {:?} layer {} has no place. Give it a place, \
+                                 or remove the optional layer.",
+                                part.content.title, layer.layer
+                            ),
+                        ));
+                    }
                     continue;
                 }
                 if !always_inside(&layer.place, &part.content.folder) {

@@ -28,7 +28,7 @@ fn checked(parts: &[(&str, Option<&str>, PartContent)]) -> Result<(), core_desig
     let views: Vec<MapPart<'_>> = parts
         .iter()
         .map(|(key, parent, content)| MapPart {
-            key: *key,
+            key,
             parent: *parent,
             content,
         })
@@ -556,7 +556,7 @@ fn a_layer_inside_a_child_part_is_refused() {
         "Backend",
         "backend",
         vec![
-            layer("domain", "backend/{module}"),
+            layer("domain", "backend/billing"),
             not_used("application", "one operation"),
             not_used("interface", "no input"),
             not_used("infrastructure", "no ports"),
@@ -664,23 +664,12 @@ fn a_marker_inside_a_folder_name_conflicts_too() {
 
 #[test]
 fn a_pattern_that_can_reach_a_child_folder_is_refused() {
-    let parent = part_of(
-        "backend",
-        "Backend",
-        "backend",
-        vec![
-            layer("domain", "backend/{module}/src"),
-            layer("application", "backend/app/Application"),
-            layer("interface", "backend/app/Http"),
-            layer("infrastructure", "backend/app/Infrastructure"),
-            layer("composition", "backend/app/Providers"),
-        ],
-    );
+    let parent = backend_with("backend", vec![layer("domain", "backend/{module}")]);
     let child = part_of(
         "backend",
         "Service",
-        "backend/billing/src",
-        backend_layers("backend/billing/src"),
+        "backend/billing",
+        backend_layers("backend/billing"),
     );
     let error = refused_tree(&[("parent", None, parent), ("child", Some("parent"), child)]);
     assert_eq!(error.rule, "layer_inside_child");
@@ -722,4 +711,22 @@ fn moving_a_parent_rechecks_child_layer_places() {
     let error = refused_tree(&[("parent", None, parent), ("child", Some("parent"), child)]);
     assert_eq!(error.rule, "layer_outside_part");
     assert!(error.message.contains("domain"));
+}
+
+#[test]
+fn a_starter_file_cannot_replace_a_layer_directory() {
+    let mut p = backend_with("backend", vec![layer("domain", "backend/domain")]);
+    p.files.push(core_design::InitialFile {
+        path: "backend/domain".into(),
+        content: "file".into(),
+    });
+    assert_eq!(refused(&[p]).rule, "file_is_folder");
+}
+
+#[test]
+fn an_included_optional_layer_needs_a_place() {
+    let mut p = part_of("frontend", "Web", "web", frontend_layers("web"));
+    p.layers.retain(|layer| layer.layer != "design_system");
+    p.layers.push(layer("design_system", ""));
+    assert_eq!(refused(&[p]).rule, "missing_layer");
 }

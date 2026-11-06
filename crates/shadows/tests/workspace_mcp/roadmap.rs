@@ -35,6 +35,7 @@ async fn structured(
                 responsibility: kind.into(),
                 kind: Some(kind.into()),
                 folder: kind.into(),
+                layers: catalog_layers(kind),
                 ..Default::default()
             },
         })

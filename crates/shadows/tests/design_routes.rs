@@ -771,6 +771,86 @@ async fn a_map_without_a_required_layer_is_refused_on_every_write_path() {
     app::shut_down_app(app).await;
 }
 
+#[tokio::test]
+async fn layer_file_collisions_and_empty_optional_places_are_refused_on_every_write_path() {
+    for rule in ["file_is_folder", "missing_layer"] {
+        let (app, op, grant) = mapped_app().await;
+        let layers: Vec<_> = ["screens", "features", "data_access"]
+            .into_iter()
+            .map(|id| json!({"layer":id,"place":format!("web/{id}"),"not_used":null}))
+            .collect();
+        let valid = json!({"title":"web","responsibility":"Client","design":"",
+            "kind":"frontend","folder":"web","layers":layers,"serves":["G1"]});
+        let mut invalid = valid.clone();
+        if rule == "file_is_folder" {
+            invalid["files"] = json!([{"path":"web/screens","content":"file"}]);
+        } else {
+            invalid["layers"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"layer":"design_system","place":"","not_used":null}));
+        }
+        let propose = |content| json!({"action":"add","parts":[{"key":"web","content":content}]});
+        let error = app
+            .core
+            .design()
+            .propose_map(
+                &grant,
+                serde_json::from_value(propose(invalid.clone())).unwrap(),
+            )
+            .await
+            .unwrap_err();
+        assert!(format!("{error:?}").contains(rule), "{error}");
+        let pending = app
+            .core
+            .design()
+            .propose_map(&grant, serde_json::from_value(propose(valid)).unwrap())
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE design_map_proposal SET payload_json=\
+            json_set(payload_json,'$.parts[0].content',json(?)) WHERE id=?",
+        )
+        .bind(invalid.to_string())
+        .bind(&pending.id)
+        .execute(app.storage.reader())
+        .await
+        .unwrap();
+        let before = design_changes(&app).await;
+        let route = format!(
+            "/api/projects/{}/map-proposals/{}/approve",
+            app.project, pending.id
+        );
+        let (status, error) = app::call(
+            &app,
+            "POST",
+            &route,
+            Some(json!({"command_id":"invalid-layer"})),
+        )
+        .await;
+        assert_eq!(status, 422, "{error}");
+        assert!(error["message"].as_str().unwrap().contains(rule), "{error}");
+        let route = format!("/api/projects/{}/design/edits", app.project);
+        let (status, error) = app::call(
+            &app,
+            "POST",
+            &route,
+            Some(json!({
+                "command_id":"invalid-layer-edit","expected_revision":2,"ops":[{
+                    "kind":"PartCreate","id":uuid::Uuid::new_v4().to_string(),
+                    "parent":null,"before":null,"content":invalid,
+                }]
+            })),
+        )
+        .await;
+        assert_eq!(status, 422, "{error}");
+        assert!(error["message"].as_str().unwrap().contains(rule), "{error}");
+        assert_eq!(design_changes(&app).await, before);
+        app.core.turns().stop(&op).await.unwrap();
+        app::shut_down_app(app).await;
+    }
+}
+
 async fn design_changes(app: &app::App) -> usize {
     app.core
         .events()

@@ -122,11 +122,15 @@ fn shadows_md_names_map_and_standards() {
 #[test]
 fn structure_makes_each_layer_folder() {
     let mut p = part();
-    p.layers[0].place = "backend/src/app/Domain".into();
+    p.folder = "backend".into();
+    p.layers[0].place = "backend/app/Domain".into();
     p.layers[0].not_used = None;
+    p.layers[2].place = "backend/app/Http".into();
+    p.layers[2].not_used = None;
     let plan = render(&[p]).unwrap();
-    assert!(plan.folders.iter().any(|p| p == "backend/src/app/Domain"));
-    assert!(plan.folders.iter().any(|p| p == "backend/src/app"));
+    for folder in ["backend/app", "backend/app/Domain", "backend/app/Http"] {
+        assert!(plan.folders.iter().any(|p| p == folder), "{folder}");
+    }
 }
 
 #[test]

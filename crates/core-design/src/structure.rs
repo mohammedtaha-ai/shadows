@@ -58,16 +58,13 @@ impl Structure {
         let mut folders = std::collections::BTreeSet::new();
         let mut initial = Vec::new();
         for part in input.parts {
-            if part.folder.is_empty() {
-                return Err(format!("part has no folder: {}", part.title));
-            }
             for place in std::iter::once(part.folder.as_str()).chain(
                 part.layers
                     .iter()
                     .filter(|layer| {
                         layer.not_used.is_none()
                             && !layer.place.is_empty()
-                            && !layer.place.contains("{module}")
+                            && !layer.place.contains(super::map_rules::MODULE_MARKER)
                     })
                     .map(|layer| layer.place.as_str()),
             ) {

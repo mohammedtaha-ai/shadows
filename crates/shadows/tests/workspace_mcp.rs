@@ -14,6 +14,23 @@ mod approval;
 #[path = "workspace_mcp/roadmap.rs"]
 mod roadmap;
 
+fn catalog_layers(kind: &str) -> Vec<shadows_core::PartLayer> {
+    shadows_core::Standards::base()
+        .parts
+        .iter()
+        .find(|part| part.name == kind)
+        .unwrap()
+        .layers
+        .iter()
+        .filter(|layer| layer.required)
+        .map(|layer| shadows_core::PartLayer {
+            layer: layer.id.clone(),
+            place: format!("{kind}/{}", layer.id),
+            not_used: None,
+        })
+        .collect()
+}
+
 #[tokio::test]
 async fn map_propose_before_a_complete_vision_answers_stage_blocked() {
     let l = listening_app().await;
