@@ -563,3 +563,35 @@ fn a_nested_part_satisfies_its_required_kind() {
         Vec::<String>::new(),
     );
 }
+
+#[test]
+fn equivalent_normalized_layer_places_are_refused() {
+    let content = backend_with(
+        "backend",
+        vec![
+            layer("domain", "backend/app/Domain"),
+            layer("application", "./backend/app/domain/"),
+        ],
+    );
+    let parts = [MapPart {
+        key: "backend",
+        parent: None,
+        content: &content,
+    }];
+    assert_eq!(
+        MapRules::check_places(&parts, &standards())
+            .unwrap_err()
+            .rule,
+        "layer_place_shared"
+    );
+}
+
+#[test]
+fn a_missing_layer_requests_a_stack_specific_place() {
+    let mut content = part_of("backend", "Backend", "backend", backend_layers("backend"));
+    content.layers.retain(|layer| layer.layer != "composition");
+    let error = refused(&[content]);
+    assert_eq!(error.rule, "missing_layer");
+    assert!(error.message.contains("stack"));
+    assert!(!error.message.contains("inside its folder"));
+}

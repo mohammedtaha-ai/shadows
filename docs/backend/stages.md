@@ -149,3 +149,12 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Input/output: Planner instructions describe stack-native layouts, nested kinds, no generated files and Agent Mode when explicitly requested. Standards rendering already prints roles and S10 without element kinds.
 - Failure cases: opening prompt still imposes a layout or asks for Structure; recorded standards version diverges from v3.
 - Done when: `cargo test -p shadows --test planner_mcp`; `cargo test -p core-harness`; fmt check.
+
+### B-75 · Review fixes for layer-place policy
+- Status: done
+- Base: `016a22f9`
+- Owner: `core-design`, `crates/core-design/contract.yaml`.
+- Read: AppCore owner table; structure spec §5.3; independent Slice 3 review.
+- Touch: `crates/core-design/src/map_rules.rs`, `tests/map_rules.rs`, `contract.yaml`; this stages file.
+- Input/output: compare canonical case-folded places, including direct policy calls; missing-layer guidance requests the stack layout rather than part containment.
+- Done when: both new regressions observed RED to GREEN; core-design, design_parts, design_routes and contract_tests; affected clippy; fmt check.

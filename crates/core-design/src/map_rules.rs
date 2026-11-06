@@ -413,14 +413,15 @@ impl MapRules {
                         return Err(MapRefusal::new(
                             "missing_layer",
                             format!(
-                                "part {:?} has no {} layer. Give it a place inside its \
-                                 folder, or mark it not used with a reason.",
+                                "part {:?} has no {} layer. Give it a place in this \
+                                 stack, or mark it not used with a reason.",
                                 part.content.title, required.id
                             ),
                         ));
                     }
                 }
             }
+            let mut places = Vec::new();
             for layer in &part.content.layers {
                 if layer.place.is_empty() {
                     if layer.not_used.is_none() {
@@ -435,7 +436,7 @@ impl MapRules {
                     }
                     continue;
                 }
-                MapRules::normalise_place(&layer.place).map_err(|message| {
+                let place = MapRules::normalise_place(&layer.place).map_err(|message| {
                     MapRefusal::new(
                         "invalid_path",
                         format!(
@@ -444,17 +445,11 @@ impl MapRules {
                         ),
                     )
                 })?;
+                places.push((layer.layer.as_str(), place.to_lowercase()));
             }
-            let places: Vec<(&str, &str)> = part
-                .content
-                .layers
-                .iter()
-                .filter(|l| !l.place.is_empty())
-                .map(|l| (l.layer.as_str(), l.place.as_str()))
-                .collect();
             for (index, (id, place)) in places.iter().enumerate() {
                 for (other_id, other_place) in &places[index + 1..] {
-                    if place.eq_ignore_ascii_case(other_place) {
+                    if place == other_place {
                         return Err(MapRefusal::new(
                             "layer_place_shared",
                             format!(
