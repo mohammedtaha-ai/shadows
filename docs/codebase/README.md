@@ -530,3 +530,5 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |
 
 | `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/phase_projection.rs` | pinned foreign-phase previews | `crates/core-plans/contract.yaml` |

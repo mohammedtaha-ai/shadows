@@ -240,13 +240,14 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Constructor fixture Touch: `crates/core-plans/tests/workflow_rules.rs`, `crates/shadows-core/tests/design_outcomes.rs`, `crates/shadows-core/tests/design_parts.rs`, `crates/shadows-core/tests/design_parts/roadmap_gate.rs`, `crates/shadows-core/tests/fixtures/cross_plan.rs`, `crates/shadows/tests/fixtures/plan.rs`.
 - Verified: workspace all-target check; 21 core-plans rules tests; persisted phase reopen; OpenAPI 8, schema generation and web typecheck; architecture/codemap/contracts; affected clippy.
 ### B-80 · Edit phases with one version-aware dependency graph
-- Status: todo
+- Status: done
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.2.
 - Owner: Plans; its current contract and AppCore owner row.
 - Read: owner spec §5.5/§6/§8; exact Task 5.2 interfaces, files and tests; owner contracts and code map.
 - Touch: the exact Files list in Task 5.2, this stages file and that plan task. Compiler-reported constructor fixtures are recorded before edits.
 - Needs: B-79.
+- Verified: 24 pure workflow cases; 3 phase integration cases, 9 existing cross-plan cases; replay/fingerprint checks, OpenAPI, generated schema/typecheck, architecture, codemap, contracts and affected clippy passed. Added `src/phases.rs` and private `store/phase_refs.rs` to the exact owner scope. Disk-space failures were retried successfully after pruning obsolete local incremental variants; dependency artifacts were retained.
 - Done when: cargo test -p core-plans; cargo test -p shadows-core --test phase_dependencies --test cross_plan_resolution --test cross_plan_links; affected clippy; fmt; architecture, codemap and contracts. No live acceptance claimed by unit tests.
 
 - Modify: `crates/core-plans/src/dependency_graph.rs`, `src/ops.rs`,
@@ -264,7 +265,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 
 ### B-81 · Read selected phase context through MCP
-- Status: blocked
+- Status: todo
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.3.
 - Owner: Plans; adapters translate; its current contract and AppCore owner row.

@@ -2843,6 +2843,37 @@
         ],
         "type": "string"
       },
+      "LinkedPhase": {
+        "properties": {
+          "broken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reference": {
+            "$ref": "#/components/schemas/PhaseRef"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PhaseEndpoint"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhaseEndpoint"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "reference"
+        ],
+        "type": "object"
+      },
       "LinkedTask": {
         "description": "The other end of an outgoing or incoming cross-plan dependency.",
         "properties": {
@@ -4075,9 +4106,94 @@
         ],
         "type": "object"
       },
+      "PhaseEndpoint": {
+        "properties": {
+          "phase_id": {
+            "$ref": "#/components/schemas/PhaseId"
+          },
+          "phase_number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_title": {
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "plan_id",
+          "workflow_id",
+          "version",
+          "plan_title",
+          "task",
+          "phase_id",
+          "phase_number",
+          "title"
+        ],
+        "type": "object"
+      },
       "PhaseId": {
         "format": "uuid",
         "type": "string"
+      },
+      "PhaseInput": {
+        "properties": {
+          "acceptance": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhaseId"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "waits_for": {
+            "items": {
+              "$ref": "#/components/schemas/PhaseRef"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "goal",
+          "acceptance",
+          "waits_for"
+        ],
+        "type": "object"
       },
       "PhaseRef": {
         "oneOf": [
@@ -4198,6 +4314,12 @@
                 "description": "`None` until the version is first edited."
               }
             ]
+          },
+          "linked_phases": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedPhase"
+            },
+            "type": "array"
           },
           "linked_tasks": {
             "description": "Live dependency metadata; never part of the frozen content digest.",
@@ -4467,6 +4589,33 @@
             },
             "required": [
               "task",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "op": {
+                "enum": [
+                  "phases_set"
+                ],
+                "type": "string"
+              },
+              "phases": {
+                "items": {
+                  "$ref": "#/components/schemas/PhaseInput"
+                },
+                "type": "array"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task",
+              "phases",
               "op"
             ],
             "type": "object"

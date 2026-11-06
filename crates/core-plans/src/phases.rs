@@ -74,6 +74,26 @@ pub struct PhaseInput {
     pub waits_for: Vec<PhaseRef>,
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PhaseEndpoint {
+    pub plan_id: PlanId,
+    pub workflow_id: crate::WorkflowId,
+    pub version: i64,
+    pub plan_title: String,
+    pub task: u32,
+    pub phase_id: PhaseId,
+    pub phase_number: u32,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct LinkedPhase {
+    pub source: PhaseEndpoint,
+    pub reference: PhaseRef,
+    pub target: Option<PhaseEndpoint>,
+    pub broken: Option<String>,
+}
+
 pub(super) struct PhaseRules;
 
 impl PhaseRules {

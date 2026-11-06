@@ -70,6 +70,12 @@ impl PlansStore {
                     let applied = Ops::apply(&plan.content(), &ops)
                         .map_err(crate::PlansError::PlanInvalid)?;
                     super::graph::GraphRows::check_parents(conn, &plan, &ops).await?;
+                    let graph =
+                        super::graph::GraphRows::check(conn, &plan, None, Some(&applied.content))
+                            .await?;
+                    if graph.has_phases && !graph.problems.is_empty() {
+                        return Err(crate::PlansError::PlanInvalid(graph.problems));
+                    }
                     super::bindings::BindingsRows::validate(
                         conn,
                         &project,

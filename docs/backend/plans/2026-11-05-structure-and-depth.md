@@ -1442,6 +1442,8 @@ architecture, codemap, contracts and affected clippy passed.
   `web/src/api/schema.d.ts`, `docs/codebase/README.md`.
 - Create: `crates/core-plans/src/store/phase_projection.rs` and
   `crates/shadows-core/tests/phase_dependencies.rs`.
+- Create: `crates/core-plans/src/store/phase_refs.rs` for one shared exact
+  Frozen-target resolver. Extend pure phase contracts in `src/phases.rs`.
 - Test: `crates/core-plans/tests/workflow_rules.rs`,
   `crates/shadows-core/tests/cross_plan_resolution.rs`,
   `crates/shadows-core/tests/cross_plan_links.rs`.
@@ -1499,37 +1501,27 @@ architecture, codemap, contracts and affected clippy passed.
   current latest source version, while target resolution follows its exact
   pin. Preview edges are projections, excluded from canonical PlanContent.
   An incoming edge shown on v1 must actually pin v1.
+- Preview wire shape is `{ source: PhaseEndpoint, reference: PhaseRef,
+  target: Option<PhaseEndpoint>, broken: Option<String> }`. The raw reference
+  survives an unavailable target, without invented metadata.
 - Existing project WorkflowEdited/WorkflowFrozen invalidation already
   refreshes the workflow query family. Verify phase edits use those events;
   add no second event stream or client completion state.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `implicit_phase_order_and_task_links_can_form_a_cycle`: T1 · P2 waits
-    for T2 · P1, and T2 `needs` T1: refused, naming the path.
-  - `a_cycle_through_another_plan_is_refused`
-  - `a_wait_on_an_unapproved_plan_is_refused`
-  - `a_new_target_version_does_not_redirect_a_frozen_phase_wait`
-  - `reordering_phases_preserves_their_identity`: one `phases_set` that
-    swaps P1 and P2 keeps both `id`s, renumbers them, and waits on them
-    still resolve.
-  - `phases_set_refuses_an_unknown_or_repeated_id`
-  - `a_removed_phase_is_a_named_blocker`
-  - `concurrent_approvals_cannot_commit_a_combined_cycle`: two real
-    connections contend; assert no committed invalid graph. Since new
-    cross-plan phase waits require an already Frozen target, two drafts
-    cannot manufacture reciprocal new pins; separately cover legacy
-    latest-version task links mixed with an existing Frozen phase pin.
-  - `phase_edit_failure_rolls_back_content_revision_command_and_event`
-  - `phase_ids_survive_replay_and_database_reopen`
-  - `linked_phase_previews_keep_pins_and_name_missing_targets`
-  - `phases_set_and_a_task_update_on_one_task_are_refused`
-- [ ] **Step 2: Run them and see them fail.**
-- [ ] **Step 3: Extend the graph, the operations and the approval check.**
-- [ ] **Step 4: Run** `cargo test -p core-plans`;
+- [x] **Step 1: Dependency cases.** Pure tests cover stable reordering,
+  forged/duplicate IDs, same-task batch conflicts, phase removal and mixed
+  local cycles. `phase_pins_require_approved_versions_and_never_follow_latest`
+  covers failed edit rollback/retry, replayed identities, exact pins and
+  incoming/broken previews. `concurrent_approval_and_a_mixed_phase_cycle_cannot_freeze_invalid_content`
+  races two real connections and checks that only valid content freezes.
+  `stored_phases_survive_task_updates_and_database_reopen` holds persistence.
+- [x] **Step 2: Observe missing PhasesSet and acceptance of an unapproved pin.**
+- [x] **Step 3: Extend the graph, the operations and the approval check.**
+- [x] **Step 4: Run** `cargo test -p core-plans`;
   `cargo test -p shadows-core --test phase_dependencies --test cross_plan_resolution --test cross_plan_links`;
   `cargo test -p shadows --test core_plans --test openapi`; regenerate both
   generated files after the new operation/projection, then typecheck web.
-- [ ] **Step 5: Update the contract and commit:**
+- [x] **Step 5: Update the contract and commit:**
   `feat(backend): phase waits join one dependency graph`.
 
 ### Task 5.3: the tools and `task_context`

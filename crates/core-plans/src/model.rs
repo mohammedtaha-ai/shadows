@@ -200,6 +200,8 @@ pub struct LastEdit {
 /// One stored version of a plan, as a reader sees it now.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Plan {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub linked_phases: Vec<crate::LinkedPhase>,
     #[serde(default)]
     pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: WorkflowId,

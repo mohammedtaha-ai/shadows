@@ -50,6 +50,8 @@ impl PlansStore {
         }
         let mut plan = ReadRows::load_plan(&mut snapshot, workflow, origin).await?;
         plan.linked_tasks = super::linked::LinkedRows::read(&mut snapshot, &plan, origin).await?;
+        plan.linked_phases =
+            super::phase_projection::PhaseProjection::read(&mut snapshot, &plan).await?;
         snapshot.commit().await.map_err(StorageError::from)?;
         Ok(plan)
     }
@@ -259,6 +261,7 @@ impl ReadRows {
                 changed_tasks: e.changed_tasks,
             });
         let mut plan = Plan {
+            linked_phases: Vec::new(),
             approved_by: {
                 let (principal, agent, request): (Option<String>, Option<String>, Option<String>) =
                     sqlx::query_as(

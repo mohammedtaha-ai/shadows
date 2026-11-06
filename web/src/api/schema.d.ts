@@ -2469,6 +2469,12 @@ export interface components {
          * @enum {string}
          */
         LinkKind: "needs" | "completes_after";
+        LinkedPhase: {
+            broken?: string | null;
+            reference: components["schemas"]["PhaseRef"];
+            source: components["schemas"]["PhaseEndpoint"];
+            target?: null | components["schemas"]["PhaseEndpoint"];
+        };
         /** @description The other end of an outgoing or incoming cross-plan dependency. */
         LinkedTask: {
             broken?: string | null;
@@ -2752,8 +2758,28 @@ export interface components {
             title: string;
             waits_for: components["schemas"]["PhaseRef"][];
         };
+        PhaseEndpoint: {
+            phase_id: components["schemas"]["PhaseId"];
+            /** Format: int32 */
+            phase_number: number;
+            plan_id: components["schemas"]["PlanId"];
+            plan_title: string;
+            /** Format: int32 */
+            task: number;
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         /** Format: uuid */
         PhaseId: string;
+        PhaseInput: {
+            acceptance: number[];
+            goal: string;
+            id?: null | components["schemas"]["PhaseId"];
+            title: string;
+            waits_for: components["schemas"]["PhaseRef"][];
+        };
         PhaseRef: {
             /** @enum {string} */
             kind: "local";
@@ -2789,6 +2815,7 @@ export interface components {
             goal: string;
             id: components["schemas"]["WorkflowId"];
             last_edit?: null | components["schemas"]["LastEdit"];
+            linked_phases?: components["schemas"]["LinkedPhase"][];
             /** @description Live dependency metadata; never part of the frozen content digest. */
             linked_tasks?: components["schemas"]["LinkedTask"][];
             links: components["schemas"]["Link"][];
@@ -2854,6 +2881,12 @@ export interface components {
             /** @enum {string} */
             op: "task_update";
             task: components["schemas"]["TaskContent"];
+        } | {
+            /** @enum {string} */
+            op: "phases_set";
+            phases: components["schemas"]["PhaseInput"][];
+            /** Format: int32 */
+            task: number;
         } | {
             /** Format: int32 */
             number: number;

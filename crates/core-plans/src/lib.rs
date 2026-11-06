@@ -25,7 +25,7 @@ mod dependency_graph;
 mod map;
 mod model;
 mod phases;
-pub use phases::{Phase, PhaseId, PhaseInput, PhaseRef};
+pub use phases::{LinkedPhase, Phase, PhaseEndpoint, PhaseId, PhaseInput, PhaseRef};
 mod ops;
 mod rules;
 mod task_context;

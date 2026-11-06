@@ -432,3 +432,188 @@ fn direct_task_operations_cannot_forge_phase_identities() {
     let error = Ops::apply(&empty(), &[PlanOp::TaskAdd { task: t }]).unwrap_err();
     assert!(messages(error).join("; ").contains("phases_set"));
 }
+
+fn phase_input(id: Option<core_plans::PhaseId>, title: &str) -> core_plans::PhaseInput {
+    core_plans::PhaseInput {
+        id,
+        title: title.into(),
+        goal: "Deliver".into(),
+        acceptance: vec![1],
+        waits_for: vec![],
+    }
+}
+
+#[test]
+fn reordering_phases_preserves_ids_and_refuses_forged_or_duplicate_ids() {
+    let base = Ops::apply(
+        &empty(),
+        &[PlanOp::TaskAdd {
+            task: task(1, "Build"),
+        }],
+    )
+    .unwrap()
+    .content;
+    let content = Ops::apply(
+        &base,
+        &[PlanOp::PhasesSet {
+            task: 1,
+            phases: vec![phase_input(None, "Prepare"), phase_input(None, "Build")],
+        }],
+    )
+    .unwrap()
+    .content;
+    let old = &content.tasks[&1].phases;
+    let swapped = Ops::apply(
+        &content,
+        &[PlanOp::PhasesSet {
+            task: 1,
+            phases: vec![
+                phase_input(Some(old[1].id.clone()), "Build"),
+                phase_input(Some(old[0].id.clone()), "Prepare"),
+            ],
+        }],
+    )
+    .unwrap()
+    .content;
+    assert_eq!(swapped.tasks[&1].phases[0].id, old[1].id);
+    assert_eq!(swapped.tasks[&1].phases[1].number, 2);
+    for ids in [
+        vec![old[0].id.clone(), old[0].id.clone()],
+        vec![core_plans::PhaseId::generate()],
+    ] {
+        assert!(
+            Ops::apply(
+                &content,
+                &[PlanOp::PhasesSet {
+                    task: 1,
+                    phases: ids
+                        .into_iter()
+                        .map(|id| phase_input(Some(id), "Build"))
+                        .collect()
+                }]
+            )
+            .is_err()
+        );
+    }
+    assert!(
+        Ops::apply(
+            &content,
+            &[
+                PlanOp::PhasesSet {
+                    task: 1,
+                    phases: vec![]
+                },
+                PlanOp::TaskUpdate {
+                    task: task(1, "Change")
+                }
+            ]
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn implicit_phase_order_and_task_links_share_cycle_validation() {
+    let content = Ops::apply(
+        &empty(),
+        &[
+            PlanOp::TaskAdd {
+                task: task(1, "Build"),
+            },
+            PlanOp::TaskAdd {
+                task: task(2, "Prepare"),
+            },
+        ],
+    )
+    .unwrap()
+    .content;
+    let content = Ops::apply(
+        &content,
+        &[
+            PlanOp::PhasesSet {
+                task: 1,
+                phases: vec![phase_input(None, "Build")],
+            },
+            PlanOp::PhasesSet {
+                task: 2,
+                phases: vec![phase_input(None, "Prepare")],
+            },
+        ],
+    )
+    .unwrap()
+    .content;
+    let mut phase = phase_input(Some(content.tasks[&1].phases[0].id.clone()), "Build");
+    phase.waits_for.push(core_plans::PhaseRef::Local {
+        task: 2,
+        phase: content.tasks[&2].phases[0].id.clone(),
+    });
+    let error = Ops::apply(
+        &content,
+        &[
+            PlanOp::PhasesSet {
+                task: 1,
+                phases: vec![phase],
+            },
+            PlanOp::LinkPut { link: needs(2, 1) },
+        ],
+    )
+    .unwrap_err();
+    let text = messages(error).join("; ");
+    assert!(text.contains("cycle"), "{text}");
+    assert!(text.contains("P1"), "{text}");
+}
+
+#[test]
+fn removing_a_phase_still_referenced_by_another_task_is_a_named_refusal() {
+    let content = Ops::apply(
+        &empty(),
+        &[
+            PlanOp::TaskAdd {
+                task: task(1, "Build"),
+            },
+            PlanOp::TaskAdd {
+                task: task(2, "Prepare"),
+            },
+        ],
+    )
+    .unwrap()
+    .content;
+    let content = Ops::apply(
+        &content,
+        &[
+            PlanOp::PhasesSet {
+                task: 1,
+                phases: vec![phase_input(None, "Build")],
+            },
+            PlanOp::PhasesSet {
+                task: 2,
+                phases: vec![phase_input(None, "Prepare")],
+            },
+        ],
+    )
+    .unwrap()
+    .content;
+    let mut input = phase_input(Some(content.tasks[&1].phases[0].id.clone()), "Build");
+    input.waits_for.push(core_plans::PhaseRef::Local {
+        task: 2,
+        phase: content.tasks[&2].phases[0].id.clone(),
+    });
+    let content = Ops::apply(
+        &content,
+        &[PlanOp::PhasesSet {
+            task: 1,
+            phases: vec![input],
+        }],
+    )
+    .unwrap()
+    .content;
+    let error = Ops::apply(
+        &content,
+        &[PlanOp::PhasesSet {
+            task: 2,
+            phases: vec![],
+        }],
+    )
+    .unwrap_err();
+    assert!(messages(error).join("; ").contains("missing T2 phase"));
+}

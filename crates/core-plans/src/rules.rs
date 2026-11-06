@@ -107,7 +107,7 @@ impl Rules {
             );
         }
         if let Some(tasks) = cycle(content) {
-            let names: Vec<String> = tasks.iter().map(|n| format!("T{n}")).collect();
+            let names = tasks;
             problems.push(Problem::new(format!(
                 "these links form a cycle: {}",
                 names.join(", ")
@@ -170,17 +170,33 @@ fn link_problems(content: &PlanContent, removed: &BTreeSet<u32>, link: &Link) ->
 /// A cycle is a strongly connected set of more than one event; its tasks are
 /// named, never a task that merely comes after it. When several exist, the one
 /// whose sorted task list is smallest is reported, so the message is stable.
-fn cycle(content: &PlanContent) -> Option<Vec<u32>> {
+fn cycle(content: &PlanContent) -> Option<Vec<String>> {
     let mut graph = DependencyGraph::new();
-    for number in content.tasks.keys() {
-        graph.task("", *number);
+    for task in content.tasks.values() {
+        graph.phases("", task);
+    }
+    for task in content.tasks.values() {
+        for phase in &task.phases {
+            for target in &phase.waits_for {
+                if let crate::PhaseRef::Local {
+                    task: number,
+                    phase: id,
+                } = target
+                {
+                    graph.wait(
+                        ("", task.number, phase.id.as_str()),
+                        ("", *number, id.as_str()),
+                    );
+                }
+            }
+        }
     }
     for link in &content.links {
         graph.link("", link);
     }
     graph
         .cycle()
-        .map(|tasks| tasks.into_iter().map(|(_, number)| number).collect())
+        .map(|tasks| tasks.into_iter().map(|event| event.task_label()).collect())
 }
 
 pub struct Rules;

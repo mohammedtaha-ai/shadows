@@ -14,7 +14,7 @@ Show ordered phases in a task view and optionally in the plan graph, with exact 
 - Phase: opaque server `id`, server-derived contiguous `number`, `title`, `goal`, acceptance item numbers and `waits_for`.
 - Phase refs use `kind: local` with `task, phase`, or `kind: plan` with `plan_id, version, task, phase`. Version is a positive i64 and must name a Frozen version in this project.
 - `phases_set` replaces one task’s ordered list using optional IDs for existing/new phases. It is atomic and conflicts with another edit to that task in one batch.
-- Plan gains derived `linked_phases` previews: source/target exact plan/workflow/version/task/phase metadata, with nullable broken-target reason. This is display data, excluded from PlanContent.
+- Plan gains derived `linked_phases` previews: exact `source` metadata, raw `reference`, nullable exact `target` metadata and nullable `broken` reason. Missing metadata is never invented. This is display data, excluded from PlanContent.
 - MCP `task_context` gains optional `phase_id`; task acceptance remains complete and dependency pins never follow latest versions.
 
 ## Errors

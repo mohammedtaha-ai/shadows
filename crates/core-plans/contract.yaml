@@ -46,6 +46,13 @@ shapes:
     waits_for: Vec<PhaseRef>
   PhaseInput:
     note: Optional retained identity, title, goal, acceptance and waits; number is server-derived.
+  PhaseEndpoint:
+    note: Exact plan/workflow/version, task, phase identity/number/title and plan title.
+  LinkedPhase:
+    source: PhaseEndpoint
+    reference: PhaseRef
+    target: Option<PhaseEndpoint>
+    broken: Option<String>
   PhaseRef:
     Local: "{ task: u32, phase: PhaseId }"
     Plan: "{ plan_id: PlanId, version: i64, task: u32, phase: PhaseId }"
@@ -279,6 +286,7 @@ shapes:
     revision: i64
     frozen_at: String
   PlanOp:
+    PhasesSet: "{ task: u32, phases: Vec<PhaseInput> }"
     BindingPut: "{ binding: AgreementBinding }"
     BindingRemove: "{ task: u32, agreement_id: AgreementId, role: AgreementRole }"
     # Tagged `op`, snake_case. `link_put` replaces the link with the same
@@ -936,6 +944,8 @@ tests:
 # WrittenBy Planner provenance reads Harness::invocation_model_in in the caller snapshot.
 
 modules:
+  store/phase_refs.rs: Exact phase target resolution
+  store/phase_projection.rs: Pinned foreign-phase previews
   phases.rs: Ordered phase contracts
   task_context.rs: Approved task context boundary
   store/task_context.rs: Snapshot task context assembly
@@ -1003,3 +1013,13 @@ dependencies:
 # rules check contiguous numbers, identities, titles/goals, acceptance and
 # local references. TaskAdd refuses supplied phases; TaskUpdate preserves them
 # when omitted and directs changed lists to phases_set.
+
+# PhasesSet is one task object: retained IDs must exist once, new IDs are
+# allocated by Ops after the writer/replay/revision checks in edit_plan's
+# serialized transaction. Removing a referenced phase is a named refusal.
+# DependencyGraph uses workflow-qualified task/phase start/complete events.
+# Legacy task parents follow latest; phase pins resolve an exact Frozen
+# same-project version through PhaseRows. Candidate graph validation and
+# approval run inside their writer transaction, including mixed cycles.
+# Plan.linked_phases is derived preview data, excluded from PlanContent;
+# missing targets retain their raw reference and named broken reason.
