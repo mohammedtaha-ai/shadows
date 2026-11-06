@@ -948,12 +948,15 @@ changes. The web side accepts it before 3.5 starts.
   - every `elements:` line goes;
   - the backend's `owns` reads "The business logic, in modules, reached
     through one owner object.";
-  - S6, S9 and S10 read as spec §5.2.
+  - S6, S9 and S10 read as spec §5.2. S10 says the owner builds the
+    services and is the one way in from outside; services reach each other
+    through their declared dependencies, never through the owner.
 
 - [ ] **Step 1: Write the failing tests.**
   - `base_v3_has_no_element_kinds_and_states_s10` in `tests/base.rs`:
     - `Standards::base().version == 3`;
-    - the rule `S10` exists, and its text contains "one owner object";
+    - the rule `S10` exists, and its text contains "one owner object"
+      and "declared dependencies";
     - the rule `S6`'s text does not contain "own folder".
   - `parts_with_starter_files_read_back_after_the_migration` in
     `design_migration.rs`:
@@ -1055,6 +1058,17 @@ changes. The web side accepts it before 3.5 starts.
   cases in `crates/shadows/tests/design_routes.rs`
 - Update: `docs/codebase/README.md` (remove the rows of the deleted
   modules)
+- Amend: `docs/core/specs/2026-10-08-guided-planning-design.md` §23, the
+  owner of the planning gates, in the same commit:
+  - the step list and stage line drop Structure: Idea, Vision, Map,
+    Roadmap, Plans;
+  - the gate table drops the "Create structure" row, and the roadmap row
+    reads "Propose or approve a roadmap | The map is not approved";
+  - §23.7 "Writing the structure" is replaced by one paragraph: no command
+    writes the structure; the approved map records the layout, and a plan's
+    tasks or the Planner in Agent Mode write it (link to the structure
+    spec §5.4);
+  - the delivery and acceptance lines that name the structure write follow.
 
 **Interfaces:**
 - `Stage` is `Idea | Vision | Map | Roadmap | Plans`. Roadmap opens once
@@ -1178,6 +1192,16 @@ which rules hold, instead of reading files on disk.
   rules with no `parts`.
 - It reads the approved map only, never a pending proposal.
 - `grouping` is `MapRules::is_grouping`, the one existing rule.
+- `ProjectLayout::owners(&self, path: &str) -> Vec<PathOwner>`: every part
+  that claims the path, so the rule "who owns this path" has one owner.
+  - `PathOwner { part: PartId, via: OwnedVia }`, with
+    `OwnedVia::Folder` or `OwnedVia::Layer(String)` (the layer id).
+  - **By folder:** the deepest part whose folder holds the path.
+  - **By layer place:** every part with a used layer whose place equals
+    the path or holds it. In a place, `{module}` matches any one
+    non-empty segment text, also inside a segment such as `core-{module}`.
+  - Paths compare by normalised segments, ignoring case. Owners come in map
+    order, the folder owner first.
 
 - [ ] **Step 1: Write the failing tests.**
   - `layout_joins_each_layer_with_its_role_and_may_use`: a seeded backend
@@ -1188,6 +1212,14 @@ which rules hold, instead of reading files on disk.
   - `layout_marks_a_grouping_part`: a frontend with two frontend children
     has `grouping: true` and no layers.
   - `layout_reads_the_approved_map_not_a_proposal`
+  - `a_layer_place_outside_the_folder_names_its_part`: the backend at
+    `backend`, the database as its child at `backend/database` with its
+    connection at `backend/config/database.php`. `owners` of that path is
+    the backend (`Folder`) and the database (`Layer("connection")`).
+  - `a_module_place_owns_each_module_path`: a place
+    `backend/app/Modules/{module}/Domain` owns
+    `backend/app/Modules/Tickets/Domain/Ticket.php`, and not
+    `backend/app/Modules/Tickets/Http/x.php`.
 - [ ] **Step 2: Run them and see them fail.**
   `cargo test -p shadows-core --test design_parts layout`.
 - [ ] **Step 3: Implement `Design::layout`** in `layout.rs`, reading the
@@ -1212,13 +1244,14 @@ which rules hold, instead of reading files on disk.
 - `TaskContext`:
   - `plan: { plan_id, workflow_id, version, title }`;
   - `task: TaskContent`, as frozen in that version;
-  - `parts: Vec<TaskPart>`: the plan's tied parts, and every part whose
-    folder holds one of the task's `reads` or `writes`;
-  - `unowned_paths: Vec<String>`: task paths inside no part's folder;
+  - `parts: Vec<TaskPart>`: the plan's tied parts, and every owner
+    `ProjectLayout::owners` names for one of the task's `reads` or
+    `writes`;
+  - `unowned_paths: Vec<String>`: task paths no part owns;
   - `standards: { base, additions }`.
-- `TaskPart { part: LayoutPart, paths: Vec<String> }`: the task's paths
-  inside that part. A path belongs to the deepest part whose folder holds
-  it, compared by normalised segments, ignoring case.
+- `TaskPart { part: LayoutPart, paths: Vec<TaskPath> }`, with
+  `TaskPath { path: String, via: OwnedVia }`: the task's paths this part
+  owns, and how. One path can appear under two parts.
 - The method reads `Design::layout`. It never reads design tables.
 - It grants nothing and writes nothing.
 
@@ -1229,6 +1262,10 @@ which rules hold, instead of reading files on disk.
   - `a_nested_part_owns_its_own_paths`: T1 writes
     `backend/database/migrations/x.php`; the path belongs to the database
     part, not the backend.
+  - `a_layer_place_brings_its_part_and_its_rules`: T1 writes
+    `backend/config/database.php`. The context names the backend part by
+    folder and the database part by its `connection` layer, with the
+    database's rules (S4).
   - `an_unowned_path_is_listed_not_guessed`: `docs/notes.md` is in
     `unowned_paths`.
   - `task_context_reads_the_approved_version_not_the_draft`: a draft
@@ -1287,7 +1324,7 @@ shows phases (spec §6.2).
 the shared request is accepted and 5.2 is committed.
 
 **Shared request first:** `TaskContent` gains `phases`, and `plan_edit`
-gains `phase_put` and `phase_remove`. The backend lead writes
+gains `phases_set`. The backend lead writes
 `docs/shared/requests/<date>-task-phases.md` before 5.1 starts.
 
 ### Task 5.1: the phase model (`core-plans`)
@@ -1300,9 +1337,11 @@ gains `phase_put` and `phase_remove`. The backend lead writes
 - `TaskContent.phases: Vec<Phase>`, `#[serde(default)]`. It is stored in
   the task's existing `contract_json`, so no migration is needed.
 - `Phase { id: PhaseId, number: u32, title: String, goal: String, acceptance: Vec<u32>, waits_for: Vec<PhaseRef> }`.
-  - `id` is a stable string, given by the server on `phase_put` when
+  - `id` is a stable string, given by the server on `phases_set` when
     absent.
   - `number` is the display order, 1-based and contiguous in a task.
+    The server derives it from the phase's position in the list; a client
+    never sends it.
   - `acceptance` names the task's acceptance item numbers.
 - `PhaseRef`:
   - `Local { task: u32, phase: PhaseId }`;
@@ -1313,7 +1352,7 @@ gains `phase_put` and `phase_remove`. The backend lead writes
   - `a_task_without_phases_reads_back_unchanged`: old `contract_json`
     without `phases` reads as an empty list.
   - `phase_acceptance_must_name_the_tasks_items`
-  - `phase_numbers_are_contiguous_from_one`
+  - `phase_numbers_follow_list_order`
 - [ ] **Step 2: Run them and see them fail.**
   `cargo test -p core-plans --test workflow_rules`.
 - [ ] **Step 3: Add the types and the checks** to the existing task rules.
@@ -1339,9 +1378,14 @@ gains `phase_put` and `phase_remove`. The backend lead writes
   - a `waits_for` adds the target phase's complete → this phase's start.
   The existing `needs` and `completes_after` edges stay as they are.
 - `cycle()` names the path with phases as `T3 · P2`.
-- `PlanOp::PhasePut { task: u32, phase: Phase }` adds or replaces by `id`.
-  `PlanOp::PhaseRemove { task: u32, phase: PhaseId }`.
-  Their `Object` is the task, so a batch cannot also edit that task.
+- `PlanOp::PhasesSet { task: u32, phases: Vec<PhaseInput> }` replaces the
+  task's whole phase list in one operation. This is how phases are added,
+  removed and reordered, so a reorder is never two edits.
+  - `PhaseInput { id: Option<PhaseId>, title, goal, acceptance, waits_for }`.
+  - An `id` that exists keeps its identity at its new position. A missing
+    `id` gets a new one. An `id` left out of the list is removed.
+  - An unknown or repeated `id` is refused.
+  - Its `Object` is the task, so a batch cannot also update that task.
 - A cross-plan `PhaseRef` must name an approved version of a plan in the
   same project, and an existing task and phase in it. Otherwise the edit
   is refused naming the target.
@@ -1354,11 +1398,13 @@ gains `phase_put` and `phase_remove`. The backend lead writes
   - `a_cycle_through_another_plan_is_refused`
   - `a_wait_on_an_unapproved_plan_is_refused`
   - `a_new_target_version_does_not_redirect_a_frozen_phase_wait`
-  - `reordering_phases_preserves_their_identity`: `phase_put` with new
-    numbers keeps every `id`, and waits on them still resolve.
+  - `reordering_phases_preserves_their_identity`: one `phases_set` that
+    swaps P1 and P2 keeps both `id`s, renumbers them, and waits on them
+    still resolve.
+  - `phases_set_refuses_an_unknown_or_repeated_id`
   - `a_removed_phase_is_a_named_blocker`
   - `concurrent_approvals_cannot_commit_a_combined_cycle`
-  - `a_phase_op_and_a_task_update_on_one_task_are_refused`
+  - `phases_set_and_a_task_update_on_one_task_are_refused`
 - [ ] **Step 2: Run them and see them fail.**
 - [ ] **Step 3: Extend the graph, the operations and the approval check.**
 - [ ] **Step 4: Run** `cargo test -p core-plans` and the shadows-core
@@ -1370,7 +1416,7 @@ gains `phase_put` and `phase_remove`. The backend lead writes
 
 **Files:**
 - Modify: `crates/shadows-mcp/src/plan_tools.rs` (the `plan_edit`
-  description lists `phase_put` and `phase_remove`), `contract.yaml`
+  description lists `phases_set`), `contract.yaml`
 - Modify: `crates/core-harness/src/prompt.txt` (phases: when to use them,
   and that the Planner never marks a phase complete)
 - Modify: `crates/core-plans/src/task_context.rs`: an optional

@@ -16,8 +16,9 @@ Status: revised and approved 2026-11-06. Slices 1 and 2 are built
     or optional) and a list of layers. Each layer has a role, and the
     layers it may use. That is the whole catalog.
   - Every project follows one runtime rule: each runnable part has one
-    owner object (its AppCore), and its layers are reached through it. One
-    rule lives in one place, with no duplicate way in.
+    owner object (its AppCore). It builds every service once and is the one
+    way in from outside. One rule lives in one place, with no duplicate way
+    in.
   - Where the folders go is decided by the Planner and the person, for the
     stack they chose. Laravel, FastAPI and Node each have their own layout,
     and their own tools create it. Shadows does not dictate it.
@@ -83,7 +84,8 @@ the other side.
 ## 2. Goals
 
 1. **The standards name each part's layers as roles, with the direction of
-   dependency,** and one runtime rule: one owner object per runnable part.
+   dependency,** and one runtime rule: one owner object per runnable part,
+   which builds the services and is the one way in from outside.
 2. **Every part has one folder, and every required layer is accounted
    for:** the map says where it lives in this stack, or why it is not used.
 3. **The layout follows the stack.** The Planner proposes it with the
@@ -183,8 +185,12 @@ S10 is new:
   folder. Each layer records where it lives, in the layout the framework
   and the person chose.
 - **S10. One owner at runtime.** Each runnable part has one owner object
-  (its AppCore). It builds every service once, and every layer is reached
-  through it. A rule lives in one service, and there is no second way in.
+  (its AppCore). It builds every service once and is the one way in from
+  outside: an adapter such as an HTTP route or a CLI reaches a service only
+  through it. Services reach each other through the dependencies they
+  declare, never through the owner, so it does not become a go-between for
+  every internal call. A rule lives in one service, and there is no second
+  way in.
 
 The base standards are compiled in. Base v3 replaces v2 for every project,
 and needs no migration, because no stored row holds `elements`.
@@ -246,8 +252,12 @@ map, and the next task follows it. Agents learn the layout from
 **`task_context`: the building agent's question.** It takes a task of an
 approved plan version, and answers from records Shadows already holds:
 - the task's title, purpose, acceptance and paths;
-- the parts its paths fall in, with their folders, and each part's layers
-  with places and not-used reasons;
+- the parts that own its paths: the deepest part whose folder holds a
+  path, and every part with a layer whose place names it. A Laravel
+  database part owns `backend/config/database.php` through its connection
+  layer, though the file is in the backend's folder. Each part comes with
+  its folder, its layers with places and not-used reasons, and how it owns
+  each path;
 - the layers' `may_use` and the rules (S1 to S10) that apply to those
   parts;
 - the plan and standards versions it read.
@@ -261,6 +271,9 @@ guesses an owner.
   references;
 - and `waits_for`, a list of `{task, phase}`. The target may be in this
   plan, or in another plan of this project at an exact approved version.
+
+A task's phases are written as one ordered list. Adding, removing and
+reordering are one edit, and each phase keeps its id at its new position.
 
 **Phase rules:**
 - A task's acceptance items still decide when the task is done. Phases give
