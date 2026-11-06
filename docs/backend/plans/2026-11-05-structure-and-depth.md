@@ -1234,37 +1234,22 @@ which rules hold, instead of reading files on disk.
     preserve distinct folder/layer claims, including two claims by one part.
     Map order is the explicit `(ordinal,id)` order of current accepted rows.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `layout_joins_each_layer_with_its_role_and_may_use`: a seeded backend
-    part with `domain` at `backend/app/Domain`; its `LayoutLayer` has the
-    catalog role and an empty `may_use`.
-  - `layout_lists_the_rules_for_each_kind`: the backend part's rules
-    include S1 and S10; the api part's rules do not include S1.
-  - `layout_marks_a_grouping_part`: a frontend with two frontend children
-    has `grouping: true` and no layers.
-  - `layout_reads_the_approved_map_not_a_proposal`
-  - `layout_snapshot_keeps_parts_and_standards_consistent`: hold one reader,
-    save newer standards/map through another connection, and assert layout_in
-    still returns the captured revision and rules.
-  - `owners_use_segment_boundaries_and_repeated_markers`: case folding,
-    embedded/repeated markers, deepest nesting, and invalid/unowned paths.
-  - `layout_refuses_a_missing_or_removed_project`
-  - `a_layer_place_outside_the_folder_names_its_part`: the backend at
-    `backend`, the database as its child at `backend/database` with its
-    connection at `backend/config/database.php`. `owners` of that path is
-    the backend (`Folder`) and the database (`Layer("connection")`).
-  - `a_module_place_owns_each_module_path`: a place
-    `backend/app/Modules/{module}/Domain` owns
-    `backend/app/Modules/Tickets/Domain/Ticket.php`, and not
-    `backend/app/Modules/Tickets/Http/x.php`.
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 1: Layout tests.** `layout_lists_the_rules_for_each_kind`,
+  `layout_joins_layers_and_owns_nested_and_external_places`,
+  `layout_snapshot_keeps_parts_and_standards_consistent`,
+  `layout_marks_grouping_parts_without_copying_the_rule`; proposal exclusion
+  is asserted in `equivalent_map_retries_replay_the_original_card`.
+- [x] **Step 2: Run them and see them fail.**
   `cargo test -p shadows-core --test design_parts layout`.
-- [ ] **Step 3: Implement `Design::layout`** in `layout.rs`, reading the
+- [x] **Step 3: Implement `Design::layout`** in `layout.rs`, reading the
   approved map's parts and the effective standards in one transaction.
-- [ ] **Step 4: Run** `cargo test -p shadows-core --test design_parts`
+- [x] **Step 4: Run** `cargo test -p shadows-core --test design_parts`
   and `cargo test -p core-design`.
-- [ ] **Step 5: Add its contract line and commit:**
+- [x] **Step 5: Add its contract line and commit:**
   `feat(backend): Design reads a project's layout`.
+
+**Verified:** design_parts 41 passing; core-design, architecture, codemap,
+contract_tests, affected all-target clippy and fmt passed. Manual acceptance pending.
 
 ### Task 4.2: `task_context` (`core-plans`)
 

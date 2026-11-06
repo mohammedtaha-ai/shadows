@@ -162,7 +162,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: both new regressions observed RED to GREEN; core-design, design_parts, design_routes and contract_tests; affected clippy; fmt check.
 
 ### B-76 · Read accepted layout through Design
-- Status: todo
+- Status: done
 - Base: `ae70fa04`, `feature/structure-elements`; controller serializes commits.
 - Plan: `docs/backend/plans/2026-11-05-structure-and-depth.md#task-41-the-layout-read-core-design`
 - Owner: Design; `crates/core-design/contract.yaml`.
@@ -174,8 +174,9 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Done when: tests named in Task 4.1 (including snapshot, invalid paths and liveness) pass via `cargo test -p shadows-core --test design_parts` and `cargo test -p core-design`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; fmt. Parent runs required affected clippy/checks and owns commit/push. No live acceptance claimed.
 
 
+- Verified: design_parts 41 passed; core-design suite, architecture, codemap, contract_tests, affected all-target clippy and fmt passed.
 ### B-77 · Read approved task context
-- Status: blocked
+- Status: todo
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 4.2.
 - Owner: Plans; its current contract and AppCore owner row.

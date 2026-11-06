@@ -79,7 +79,7 @@ mockup's `Built` label cannot be used as evidence of completion.
 - Status: blocked
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.4.
 - Read: structure spec §6.2; workflows, routes and API contracts; frontend code map.
-- Touch: exact Task 5.4 Files, workflows contract and frontend code map, this stages file; route search validation in `web/src/app/routes.tsx`.
+- Touch: exact Task 5.4 Files, workflows contract and frontend code map, this stages file; route search validation in `web/src/router.tsx`.
 - Needs: B-80 and accepted request `2026-11-07-task-phases`.
 - Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; browser checks reported separately.
 
