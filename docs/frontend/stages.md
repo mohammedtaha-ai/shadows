@@ -31,6 +31,10 @@ B-59; their entries are in this file at `1b413fc4`. The plan was
 Structure and depth, slice 1 (PR #59, `26bf739e`) is backend-only. Its only web change is a test
 fixture in `web/src/app/design/create-structure.test.tsx`, with no `F-` task.
 
+Structure and depth, slice 2 (PR #60, `b64242a7`): F-90 and F-91 shipped with B-63 to B-70. Their
+entries, and the web fix `fb46cac4` outside their `Touch:` lists, are in this file at `b64242a7`.
+The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`.
+
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -45,7 +49,7 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
-Structure and planning depth: slice 1 is on `main` and needs no web task. The
+Structure and planning depth: slices 1 and 2 are on `main`; slice 1 needs no web task. The
 [workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
 and [slice prerequisites](../backend/plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
 are the review targets. No new `F-` task is executable until its shared
@@ -53,22 +57,3 @@ request is accepted and its backend response exists. Before dispatch,
 expand the API hooks, routing, event refresh, contracts and code-map paths.
 Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
-
-Structure and depth, slice 2 ([plan](../backend/plans/2026-11-05-structure-and-depth.md#slice-2-standards-v2-and-layers-on-the-map)),
-on `feature/structure-layers`. The shared request from B-64
-(`docs/shared/requests/2026-11-05-part-folder-and-layers.md`) is accepted.
-
-### F-90 · The part form, the map card and the standards page carry layers
-- Status: done
-- Plan: Task 2.6
-- Touch: web/src/app/design/part-editor.tsx, map-part-details.tsx, standards-view.tsx;
-  web/src/app/conversation/map-proposal-card.tsx; web/src/test/fake-daemon.ts,
-  web/src/test/contract-fixtures.ts; web/src/api/design.ts and affected contracts; the tests the plan lists
-- Done when: `npx vitest run src/app/design src/app/conversation` passes in `web/`
-
-### F-91 · The Project map is a canvas
-- Status: done
-- Plan: Task 2.7
-- Touch: web/src/app/design/map-canvas.tsx (new), parts-view.tsx, map-part-details.tsx, workspace-page.tsx;
-  their tests
-- Done when: the five tests the plan names pass with `npx vitest run src/app/design`

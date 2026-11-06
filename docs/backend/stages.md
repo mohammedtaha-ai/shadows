@@ -83,6 +83,13 @@ their entries, and the commits outside their `Touch:` lists (`d148c111`, `ec20c9
 `80c1b934`), are in this file at `26bf739e`. The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`;
 its live acceptance is not recorded.
 
+Structure and depth, slice 2 (standards v2 and layers on the map): B-63 to B-70 shipped in PR #60
+(`b64242a7`), with F-90 and F-91. Their entries, and the commits outside their `Touch:` lists
+(`ed4005a7`, `d0fdc70a`, `0774ac2a`), are in this file at `b64242a7`. B-68 to B-70 are test tooling:
+a contract-to-test name check (`cargo test -p shadows --test contract_tests`), a weekly coverage
+report and an on-demand mutation run. The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`;
+its live acceptance is not recorded.
+
 ## Tasks
 
 Structure and planning depth, slices 3 to 9: no slice is an executable `B-` assignment yet.
@@ -90,118 +97,5 @@ The [design](specs/2026-11-05-structure-and-depth-design.md) and
 [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the
 readiness checklist. Existing projects are test data: no compatibility layer. Coverage and code
 observation must not be recorded as completed execution.
-
-Structure and depth, slice 2 ([plan](plans/2026-11-05-structure-and-depth.md#slice-2-standards-v2-and-layers-on-the-map)),
-on `feature/structure-layers`, base `26bf739e`. The stack profile is decided (spec §5.3, D1 to
-D4). Each task's steps, interfaces and test names are in the plan. Run the tasks in order,
-because each builds on the one before. Rust lines stay within 100 columns.
-
-### B-63 · Standards v2 names each kind's layers
-- Status: done
-- Plan: Task 2.1
-- Read: crates/core-standards/contract.yaml; crates/core-standards/src/standards.yaml, model.rs, base.rs;
-  crates/core-harness/src/standards.rs
-- Touch: crates/core-standards/src/standards.yaml, model.rs, base.rs, validation.rs, lib.rs,
-  contract.yaml, tests/base.rs; crates/core-harness/src/standards.rs, contract.yaml;
-  crates/core-design/src/store/map_proposal_shape.rs, contract.yaml; crates/shadows-core/src/lib.rs,
-  tests/design_vision/standards.rs, tests/design_parts/map_proposals.rs
-- Done when: `cargo test -p core-standards`, `cargo test -p shadows-core --test design_vision
-  --test design_parts`, `cargo test -p core-harness` and `cargo test -p core-design` pass
-
-### B-64 · A part has one folder and its layers; old parts are migrated
-- Status: done
-- Plan: Task 2.2 (its Files list names every fixture file)
-- Read: crates/core-design/contract.yaml; crates/core-design/src/model.rs, map_rules.rs, structure.rs;
-  crates/core-db/migrations/0014_design_parts.sql, 0023_project_map.sql
-- Touch: crates/core-design/src/model.rs, map_rules.rs, structure.rs, structure_create.rs,
-  structure_write.rs, store/structure.rs, store/roadmap_seed.rs, contract.yaml;
-  crates/core-db/migrations/0047_part_folder.sql; crates/shadows-mcp/src/workspace_tools.rs;
-  api/openapi.json; web/src/api/schema.d.ts; docs/shared/requests/2026-11-05-part-folder-and-layers.md;
-  the fixture files the plan lists (fixture data only)
-- Done when: the commands in Task 2.2 Step 5 pass
-
-### B-65 · The map refuses a missing, unknown or misplaced layer
-- Status: done
-- Plan: Task 2.3
-- Read: crates/core-design/contract.yaml; crates/core-design/src/map_rules.rs
-- Touch: crates/core-design/src/map_rules.rs, contract.yaml, tests/map_rules.rs;
-  crates/shadows/tests/design_routes.rs
-- Done when: `cargo test -p core-design --test map_rules` and `cargo test -p shadows --test design_routes` pass
-
-### B-66 · Create structure makes each layer's folder
-- Status: done
-- Plan: Task 2.4
-- Read: crates/core-design/src/structure.rs, map_rules.rs, store/structure.rs, store/map_versions.rs
-- Touch: crates/core-design/src/structure.rs, store/structure.rs, contract.yaml, tests/structure.rs;
-  crates/shadows-core/tests/design_parts/structure.rs
-- Done when: `cargo test -p core-design --test structure` and `cargo test -p shadows-core --test design_parts` pass
-
-### B-67 · The Planner is told each kind's layers
-- Status: done
-- Plan: Task 2.5
-- Read: crates/core-harness/contract.yaml; crates/core-harness/src/standards.rs, prompt.txt;
-  crates/shadows-mcp/src/workspace_tools.rs
-- Touch: crates/core-harness/src/standards.rs, prompt.txt, contract.yaml;
-  crates/shadows-mcp/src/workspace_tools.rs; crates/shadows/tests/planner_mcp.rs
-- Done when: `cargo test -p shadows --test planner_mcp` and `cargo test -p core-harness` pass
-
-Tests that prove something (Mohammed, 2026-11-06): the test count now nearly equals the code,
-and nothing tells which tests protect real behaviour. Three tools answer it, cheapest first.
-They are tooling, so they need no spec. Each ships on `feature/structure-layers`.
-
-### B-68 · Contracts and tests name each other
-- Status: done
-- Read: crates/shadows/tests/codemap/main.rs (the pattern to follow); docs/codebase/contracts/TEMPLATE.yaml;
-  three contracts with different shapes: crates/core-design/contract.yaml,
-  crates/core-standards/contract.yaml, crates/core-harness/contract.yaml
-- Touch: crates/shadows/tests/contract_tests/main.rs (new); crates/shadows/Cargo.toml (dev-dependency
-  `yaml-rust2`, already a workspace dependency); any `crates/**/contract.yaml` whose test name is stale
-- What it does: read every `crates/**/contract.yaml`. Collect the test names each one cites:
-  - `obligations[].tested_by`, which may be one name, a list, `none` or `unknown`;
-  - `tests[].name`.
-  Collect the Rust test functions in the workspace: a `fn` right after `#[test]` or
-  `#[tokio::test]`, in `crates/**/*.rs`.
-- Fails on: a cited name that matches no test function, meaning a stale contract. Name the
-  contract and the test.
-- Prints, and does not fail on:
-  - each obligation whose `tested_by` is `none`, `unknown` or empty, meaning a rule no test
-    protects;
-  - per crate, the test functions no contract cites.
-  These are the two lists to act on later. Print them with counts, and sort them for stable output.
-- Stale names found on the first run: fix the contract when the renamed test is obvious from
-  its file. Otherwise list them in the report, and do not guess.
-- Done when: `cargo test -p shadows --test contract_tests -- --nocapture` passes and prints both
-  lists. The report gives the counts.
-
-### B-69 · A coverage report in CI
-- Status: done
-- Touch: .github/workflows/coverage.yml (new)
-- What it does: on `workflow_dispatch` and once a week (never on push, to save minutes), on
-  `ubuntu-latest`:
-  1. install `cargo-llvm-cov` with `taiki-e/install-action`;
-  2. run `cargo llvm-cov --workspace --features fake-acp/test-support --html`;
-  3. upload `target/llvm-cov/html` as an artifact;
-  4. write `cargo llvm-cov report --summary-only` to the job summary.
-  It runs in CI only, because it needs instrumented `RUSTFLAGS` and the local build cache must
-  not change.
-- Done when: the workflow file passes `actionlint` (or the YAML is valid), and the person runs it
-  once from the Actions tab after the push.
-
-### B-70 · Mutation testing in CI, one crate at a time
-- Status: done
-- Touch: .github/workflows/mutants.yml (new)
-- What it does: on `workflow_dispatch` only, with input `package` (default `core-design`), on
-  `ubuntu-latest`:
-  1. install `cargo-mutants` with `taiki-e/install-action`;
-  2. run `cargo mutants --package <package> --test-package <package> --test-package shadows-core
-     --test-package shadows -- --features fake-acp/test-support`;
-  3. upload `mutants.out/` as an artifact;
-  4. write the counts (caught, missed, timeout, unviable) and the list of missed mutants to the
-     job summary.
-  The tests of `core-design` mostly live in `shadows-core` and `shadows`, so those packages run
-  too. Without them, nearly every mutant would show as "missed".
-  Set a job `timeout-minutes` of 300.
-- Done when: the workflow file is valid YAML, and the person runs it once for `core-design` after
-  the push. The missed list is the answer to "which code do our tests not really check".
 
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
