@@ -130,8 +130,8 @@ parts:
   PartEditor:
     signature: "({ projectId, saved?, destination, onCreated? }) -> JSX.Element"
     note: >
-      Its EDITOR config is internal: contentOp trims blank folder and rule lines,
-      and turns an empty kind into null.
+      Its EDITOR config is internal: contentOp trims the one folder, drops blank
+      rule lines, and turns an empty kind into null.
   PartReferences: "({ projectId, selected, change }) -> JSX.Element"
   MapPartDetails:
     signature: "({ content, projectId, groups? }) -> JSX.Element"

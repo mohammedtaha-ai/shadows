@@ -55,8 +55,8 @@ Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
 
 Structure and depth, slice 2 ([plan](../backend/plans/2026-11-05-structure-and-depth.md#slice-2-standards-v2-and-layers-on-the-map)),
-on `feature/structure-layers`. The shared request from B-64 is accepted:
-(`docs/shared/requests/2026-11-05-part-folder-and-layers.md`) to be accepted.
+on `feature/structure-layers`. The shared request from B-64
+(`docs/shared/requests/2026-11-05-part-folder-and-layers.md`) is accepted.
 
 ### F-90 · The part form, the map card and the standards page carry layers
 - Status: done

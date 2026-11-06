@@ -687,6 +687,15 @@ fn a_pattern_must_stay_inside_its_part_for_every_module() {
 }
 
 #[test]
+fn a_part_folder_cannot_hold_a_module_marker() {
+    let content = backend_with("crates/core-{module}", vec![]);
+    let error = refused(&[content]);
+    assert_eq!(error.rule, "invalid_path");
+    assert!(error.message.contains("Backend"));
+    assert!(error.message.contains("layer place"));
+}
+
+#[test]
 fn layer_places_use_windows_case_rules() {
     let content = backend_with(
         "backend",

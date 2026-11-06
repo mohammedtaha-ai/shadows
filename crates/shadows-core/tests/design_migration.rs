@@ -567,6 +567,64 @@ async fn a_part_without_folders_gets_its_title_slug() {
 }
 
 #[tokio::test]
+async fn a_map_version_keeps_its_row_order() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("v1-order.sqlite3");
+    let pool = seeded_at_0046(&path).await;
+    seed_v1_design(&pool).await;
+    let row = |id: &str, ordinal: i64, content: &str| {
+        serde_json::json!({
+            "id": id, "parent_id": null, "ordinal": ordinal, "revision": 1,
+            "content_json": content, "served_revisions": "{}",
+        })
+    };
+    // Rows out of id order, and a title whose quotes the inner string must escape.
+    let rows = serde_json::json!([
+        row(
+            "zeta",
+            0,
+            r#"{"title":"Say \"hi\"","responsibility":"","design":"","folders":["zeta"]}"#
+        ),
+        row(
+            "alpha",
+            1,
+            r#"{"title":"واجهة","responsibility":"","design":"","folders":[]}"#
+        ),
+    ]);
+    sqlx::query(
+        "INSERT INTO design_map_version
+         (project_id,number,parts_json,vision_revision,proposal_id,standards_version,
+          standards_additions_version_id,created_at)
+         VALUES ('P',1,?,0,NULL,1,NULL,'old')",
+    )
+    .bind(rows.to_string())
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    let json: String = sqlx::query_scalar(
+        "SELECT parts_json FROM design_map_version WHERE project_id='P' AND number=1",
+    )
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
+    let rows: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+    let ids: Vec<_> = rows.iter().map(|r| r["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, ["zeta", "alpha"]);
+    let parts: Vec<PartContent> = rows
+        .iter()
+        .map(|r| serde_json::from_str(r["content_json"].as_str().unwrap()).unwrap())
+        .collect();
+    assert_eq!(parts[0].title, "Say \"hi\"");
+    assert_eq!(parts[0].folder, "zeta");
+    assert_eq!(parts[1].folder, "واجهة");
+    assert!(parts.iter().all(|p| p.layers.is_empty()));
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn the_daemon_starts_on_a_database_with_old_parts() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("v1-daemon.sqlite3");

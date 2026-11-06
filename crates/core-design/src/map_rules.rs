@@ -407,6 +407,17 @@ impl MapRules {
             let folder = MapRules::normalise_folder(&part.content.folder)
                 .map_err(|message| MapRefusal::path(&part.content.title, message))?
                 .to_lowercase();
+            // A pattern is a layer's place; a folder Create structure makes must be literal.
+            if folder.contains(MODULE_MARKER) {
+                return Err(MapRefusal::new(
+                    "invalid_path",
+                    format!(
+                        "part {:?} has the folder {:?}, which holds {MODULE_MARKER}. \
+                         Give the part one literal folder and write the marker in a layer place.",
+                        part.content.title, part.content.folder
+                    ),
+                ));
+            }
             folders.push((part.key, folder.clone()));
             let Some(parent) = part.parent.and_then(|k| parts.iter().find(|p| p.key == k)) else {
                 continue;
