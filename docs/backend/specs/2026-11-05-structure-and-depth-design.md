@@ -1,7 +1,9 @@
 # Project structure and layers
 
 Status: revised and approved 2026-11-06. Slices 1 and 2 are built
-(PRs #59 and #60). Slices 3 to 5 are designed here and not built.
+(PRs #59 and #60). Slice 3 is implemented locally on 2026-11-07
+(B-71 to B-75, F-92); Mohammed owns its pending manual acceptance on an
+existing project. Slices 4 and 5 are designed here and not built.
 
 **Mohammed's decisions.**
 - **2026-11-05**

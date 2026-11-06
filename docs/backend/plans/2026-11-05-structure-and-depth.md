@@ -43,9 +43,9 @@ meaning each:
 **How this plan grows.**
 - Slices 1 and 2 are built. Their sections below stay as the record of what
   was built.
-- Slices 3 to 5 are written to step level: files, interfaces, tests and
-  commands. Each slice gets `B-`/`F-` numbers in the stages files when it
-  starts.
+- Slice 3 is implemented locally as B-71 to B-75 and F-92, through
+  `3deb1333`. Its automated checks passed; Mohammed will perform manual
+  acceptance on an existing project. Slices 4 and 5 remain unassigned.
 
 ## Dispatch and progress
 
@@ -56,7 +56,7 @@ UI and API dependencies.
 |---|---|---|---|
 | 1 | Caller inventory of the four write paths | Implemented in PR #59 (`26bf739e`); live acceptance not recorded | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
 | 2 | Slice 1; accepted API request (B-64) before F-90 | Implemented in PR #60 (`b64242a7`), with B-68 to B-70 tooling; live acceptance not recorded | Layers on the map card, migration on the daily database, canvas in the app |
-| 3 | Slice 2; accepted API request `2026-11-06-principles-not-layout` | Step level; not numbered | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
+| 3 | Slice 2; accepted API request `2026-11-06-principles-not-layout` | Implemented locally through `3deb1333`; manual acceptance pending with Mohammed | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
 | 4 | Slice 3 | Step level; not numbered | A fresh external agent reads a task's parts, layers and rules |
 | 5 | Slice 4; accepted API request for task phases | Step level; not numbered | Mixed dependency cycles refused; both graph modes work |
 
@@ -957,7 +957,7 @@ them two commits later. The completed slice's interfaces are unchanged.
     services and is the one way in from outside; services reach each other
     through their declared dependencies, never through the owner.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `base_v3_has_no_element_kinds_and_states_s10` in `tests/base.rs`:
     - `Standards::base().version == 3`;
     - the rule `S10` exists, and its text contains "one owner object"
@@ -972,20 +972,20 @@ them two commits later. The completed slice's interfaces are unchanged.
     - neither JSON has a `files` key, and the part reads back through
       `Design::parts`.
   - Extend `a_map_version_keeps_its_row_order` to run through 0048.
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 2: Run them and see them fail.**
   `cargo test -p core-standards --test base` and
   `cargo test -p shadows-core --test design_migration`.
-- [ ] **Step 3: Change the catalog and the model.**
+- [x] **Step 3: Change the catalog and the model.**
   - Remove `elements` from `LayerSpec` and its parsing in `base.rs`.
   - Remove `files` and `InitialFile` from `core-design`, and every
     `files` check in `MapRules`. `check_reserved` loses its last caller in
     3.3; leave it until then.
-- [ ] **Step 4: Write migration 0048.**
+- [x] **Step 4: Write migration 0048.**
   - `design_part.content_json`: `json_remove(content_json, '$.files')`.
   - `design_map_version.parts_json`: rebuild the array as 0047 did, with
     the inner `content_json` string passed through
     `json_remove(json(...), '$.files')` and back to text, ordered by `key`.
-- [ ] **Step 5: Fix every caller the compiler names,** regenerate
+- [x] **Step 5: Fix every caller the compiler names,** regenerate
   `api/openapi.json` and `web/src/api/schema.d.ts` (`npm run gen:api` in
   `web/`), and run:
   - `cargo test -p core-standards`
@@ -993,7 +993,7 @@ them two commits later. The completed slice's interfaces are unchanged.
   - `cargo test -p core-design`
   - `cargo test -p core-harness`
   - `cargo test -p shadows --test openapi --test workspace_mcp --test planner_mcp`
-- [ ] **Step 6: Update the contracts and commit.**
+- [x] **Step 6: Update the contracts and commit.**
   `core-standards`, `core-design` and, if they name the fields,
   `core-harness` and `shadows-mcp`. Commit:
   `feat(backend): base v3 standards and parts without starter files`.
@@ -1017,7 +1017,7 @@ them two commits later. The completed slice's interfaces are unchanged.
   `always_inside`, the `Overlap` type and the one-marker limit.
 - `{module}` may appear any number of times in a layer place.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `a_laravel_map_with_a_nested_database_part_is_approved`:
     - part `Backend`, kind `backend`, folder `backend`, places
       `backend/app/Domain`, `backend/app/Application`, `backend/app/Http`,
@@ -1032,15 +1032,15 @@ them two commits later. The completed slice's interfaces are unchanged.
     `Backend/App/domain` in one part give `layer_place_shared`.
   - `a_marker_may_appear_more_than_once`:
     `backend/{module}/src/{module}` passes.
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 2: Run them and see them fail.**
   `cargo test -p core-design --test map_rules`.
-- [ ] **Step 3: Remove the rules and the matchers.** Delete the tests of
+- [x] **Step 3: Remove the rules and the matchers.** Delete the tests of
   the removed rules; the commit message names each deleted test.
-- [ ] **Step 4: Run the tests.**
+- [x] **Step 4: Run the tests.**
   - `cargo test -p core-design`
   - `cargo test -p shadows-core --test design_parts`
   - `cargo test -p shadows --test design_routes`
-- [ ] **Step 5: Update the contract and commit.** The MapRules section
+- [x] **Step 5: Update the contract and commit.** The MapRules section
   lists the kept refusals only. Commit:
   `feat(backend): map rules check principles, not places`.
 
@@ -1082,7 +1082,7 @@ them two commits later. The completed slice's interfaces are unchanged.
 - Migration 0049 drops `design_structure_write`. Nothing on disk is
   deleted.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `roadmap_opens_once_the_map_is_approved`: a project whose map is
     approved reads `Stage::Roadmap` from `Design::stage`.
   - `a_project_past_the_old_structure_step_opens_roadmap`: a database with
@@ -1090,18 +1090,18 @@ them two commits later. The completed slice's interfaces are unchanged.
     reads `Stage::Roadmap`.
   - In `crates/shadows/tests/openapi.rs`, the route list holds no
     `create-structure` path.
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 2: Run them and see them fail.**
   `cargo test -p shadows-core --test design_parts` and
   `cargo test -p shadows --test openapi`.
-- [ ] **Step 3: Delete the modules, the route, the stage and the table.**
+- [x] **Step 3: Delete the modules, the route, the stage and the table.**
   Follow the compiler. No caller may keep a structure field.
-- [ ] **Step 4: Regenerate and run.**
+- [x] **Step 4: Regenerate and run.**
   - `npm run gen:api` in `web/`, then `git diff --exit-code api/` shows only
     the expected change;
   - `cargo test -p core-design`
   - `cargo test -p shadows-core --test design_parts --test design_migration`
   - `cargo test -p shadows --test openapi --test design_routes --test codemap --test contract_tests --test architecture`
-- [ ] **Step 5: Update the contracts and the code map, and commit:**
+- [x] **Step 5: Update the contracts and the code map, and commit:**
   `feat(backend): no command writes the structure`.
 
 ### Task 3.4: the Planner follows the stack
@@ -1111,18 +1111,18 @@ them two commits later. The completed slice's interfaces are unchanged.
   §7), `src/standards.rs` (no element kinds; S10 printed), `contract.yaml`
 - Test: `crates/shadows/tests/planner_mcp.rs`
 
-- [ ] **Step 1: Write the failing assertions** in `planner_mcp.rs`:
+- [x] **Step 1: Write the failing assertions** in `planner_mcp.rs`:
   - the appended prompt contains "follow the framework's own layout" and
     "Shadows writes no folders";
   - it contains neither "Create structure" nor "SHADOWS.md";
   - the standards text contains "S10" and no "Elements:".
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 2: Run them and see them fail.**
   `cargo test -p shadows --test planner_mcp`.
-- [ ] **Step 3: Rewrite the map section** with the five bullets of spec
+- [x] **Step 3: Rewrite the map section** with the five bullets of spec
   §7, and remove every Create structure line from the stage text.
-- [ ] **Step 4: Run** `cargo test -p shadows --test planner_mcp` and
+- [x] **Step 4: Run** `cargo test -p shadows --test planner_mcp` and
   `cargo test -p core-harness`.
-- [ ] **Step 5: Update the contract and commit:**
+- [x] **Step 5: Update the contract and commit:**
   `feat(backend): the Planner follows the stack's layout`.
 
 ### Task 3.5 (web, F-): the form, the standards page and the stage line
@@ -1142,29 +1142,35 @@ them two commits later. The completed slice's interfaces are unchanged.
   layout, for example backend/app/Domain."
 - The stage line shows Idea, Vision, Map, Roadmap, Plans.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `the_part_form_has_no_starter_files`
   - `the_place_hint_names_the_stack_layout`
   - `the_standards_page_shows_s10_and_no_element_kinds`
   - `the_stage_line_has_no_structure_step`
   - `the_map_page_has_no_create_structure_button`
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 2: Run them and see them fail.**
   `npx vitest run src/app/design src/app/workspace`.
-- [ ] **Step 3: Change the views,** delete the panel, and update
+- [x] **Step 3: Change the views,** delete the panel, and update
   `fake-daemon.ts` to the regenerated schema.
-- [ ] **Step 4: Run** `npm run typecheck`, `npm run lint` and
+- [x] **Step 4: Run** `npm run typecheck`, `npm run lint` and
   `npx vitest run src/app/design src/app/workspace src/codemap.test.ts src/architecture`.
-- [ ] **Step 5: Update the contract and commit:**
+- [x] **Step 5: Update the contract and commit:**
   `feat(web): the map follows the stack, with no structure step`.
 
 **Slice 3 acceptance:**
+Manual acceptance belongs to Mohammed (2026-11-07). Automated test results
+do not close this checklist. Use an existing project; create no new project
+for this acceptance.
+
 1. Start `shadows serve` on the daily database. It starts.
-2. In a new project, agree a Laravel map with the Planner: the database part
+2. In the existing project, agree a Laravel map with the Planner: the database part
    inside the backend. The map is approved.
 3. Roadmap opens. There is no Create structure button and no Structure
    step.
-4. In Agent Mode, ask the Planner to run
-   `composer create-project laravel/laravel backend`. It runs.
+4. If the backend target is empty, in Agent Mode ask the Planner to run
+   `composer create-project laravel/laravel backend`. It runs. If the
+   existing project already has its scaffold, inspect it instead; never
+   recreate the framework over existing files.
 
 ---
 

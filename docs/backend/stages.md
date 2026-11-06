@@ -92,7 +92,9 @@ its live acceptance is not recorded.
 
 ## Tasks
 
-Structure and planning depth: Slice 3 is being implemented inline by the controller.
+Structure and planning depth: Slice 3 implementation and automated checks are complete
+locally (B-71 to B-75, F-92, through `3deb1333`). Manual acceptance belongs to Mohammed
+on the existing project; it is pending. Nothing is pushed or merged by this work.
 Slices 4 and 5 remain unassigned; elements and trace are dropped.
 The [design](specs/2026-11-05-structure-and-depth-design.md) and
 [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the

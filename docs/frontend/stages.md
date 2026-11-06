@@ -49,6 +49,10 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
+Slice 3 is implemented locally as F-92 with B-71 to B-75. The 425 focused web
+tests, typecheck, lint and build passed. Mohammed will perform manual
+acceptance on the existing project; it is pending. The branch is not merged.
+
 Structure and planning depth: slices 1 and 2 are on `main`; slice 1 needs no web task. The
 [workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
 and [slice prerequisites](../backend/plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
