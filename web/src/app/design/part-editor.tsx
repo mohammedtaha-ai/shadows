@@ -59,25 +59,26 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
     <h3>{base ? 'Part design' : 'New part'}</h3>
     {saved && <nav aria-label="Part breadcrumb" className="flex flex-wrap gap-2 text-sm">
       <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'map' }}>Project</Link>
-      {saved.ancestors.map(p => <Link key={p.id} to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'map', part: p.id }} dir="auto">/ {p.content.title}</Link>)}
-      <span dir="auto">/ {saved.part.content.title}</span>
+      {saved.ancestors.map(p => <Link key={p.id} to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'map', part: p.id }}>/ <bdi>{p.content.title}</bdi></Link>)}
+      <span>/ <bdi>{saved.part.content.title}</bdi></span>
     </nav>}
     {newer && <div role="status">Newer part data exists. Your unsaved text is kept.
       <Button size="sm" variant="secondary" disabled={save.isPending || reloading} onClick={() => void reload()}>Reload</Button></div>}
-    <fieldset disabled={save.isPending || reloading} className="space-y-3">
+    <fieldset disabled={save.isPending || reloading} className="min-w-0 space-y-3">
       <label className="block text-sm">Title<input aria-label="Part title" dir="auto" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>
       {(['responsibility', 'design', 'kind'] as const).map(field => <label key={field} className="block text-sm">{field}
         <textarea aria-label={`Part ${field}`} dir="auto" rows={field === 'design' ? 5 : 2} value={draft[field] ?? ''} onChange={e => setDraft({ ...draft, [field]: field === 'kind' ? e.target.value || null : e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>)}
       <section className="space-y-2" aria-label="Served vision items"><h4>Served vision items</h4>
         {served.length === 0 && <p className="text-sm text-muted-foreground">No linked items</p>}
         {served.map(id => <div key={id} className="flex items-center gap-2 text-sm">
-          <span className="flex-1" dir="auto">{id} · {items.find(i => i.id === id)?.text ?? 'Removed item'}</span>
+          <span className="shrink-0 self-start font-medium">{id}</span>
+          <span className="min-w-0 flex-1" dir="auto">{items.find(i => i.id === id)?.text ?? 'Removed item'}</span>
           <Button size="sm" variant="ghost" aria-label={`Stop serving ${id}`}
             onClick={() => setDraft({...draft,serves:served.filter(i => i !== id)})}>Remove</Button>
         </div>)}
         {unserved.length > 0 && <div className="flex flex-wrap items-center gap-2 text-sm">
           <select aria-label="Vision item to serve" value={adding} onChange={e => setAdding(e.target.value)}
-            className="min-w-0 flex-1 rounded border bg-background p-2">
+            className="w-full min-w-0 flex-1 rounded border bg-background p-2">
             <option value="">Choose a vision item</option>
             {unserved.map(item => <option key={item.id} value={item.id}>{item.id} · {item.text}</option>)}
           </select>
@@ -162,7 +163,7 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
 
 function PartOrder({ projectId, parent, id, value, change }: { projectId: string; parent?: string; id: string; value: string; change: (value: string) => void }) {
   const branch = usePartPages(projectId, parent)
-  return <div><label className="block text-sm">Place before<select aria-label="Place before" className="ml-2 rounded border bg-background p-2" value={value} onChange={e => change(e.target.value)}>
+  return <div><label className="block text-sm">Place before<select aria-label="Place before" className="ml-2 max-w-full rounded border bg-background p-2" value={value} onChange={e => change(e.target.value)}>
     <option value="">End of branch</option>{branch.items.filter(p => p.id !== id).map(p => <option value={p.id} key={p.id}>{p.content.title}</option>)}
   </select></label>
     {branch.next && <Button size="sm" variant="secondary" disabled={branch.loading} onClick={() => void branch.more()}>More destinations</Button>}

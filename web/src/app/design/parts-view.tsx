@@ -26,8 +26,8 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
   const counts = new Map<string,number>()
   for (const p of pending) counts.set(p.thread_id,(counts.get(p.thread_id) ?? 0)+1)
   const detail = useQuery({ ...partQuery(projectId, selected ?? ''), enabled: selected !== undefined })
-  return <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,3fr)_2fr]">
-    <section className="space-y-3" aria-label="Project parts">
+  return <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+    <section className="min-w-0 space-y-3" aria-label="Project parts">
       <CreateStructure projectId={projectId} />
       {!approved && !stage.isPending && !proposals.isPending && stage.error === null && proposals.error === null &&
         <p>The first map comes from the Planner. Ask for it in a conversation.</p>}
@@ -43,7 +43,7 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
         Missing mandatory parts: {stage.data?.missing.join(', ')}
       </aside>}
       {stage.error && <ErrorLine error={stage.error} />}{proposals.error && <ErrorLine error={proposals.error} />}
-      <div className="flex gap-2">{approved && <Button size="sm" onClick={() => setCreating(true)}>Create part</Button>}
+      <div className="flex flex-wrap gap-2">{approved && <Button size="sm" onClick={() => setCreating(true)}>Create part</Button>}
         <Button size="sm" variant="secondary" onClick={() => setDestination(null)}>Use project root</Button></div>
       <p className="text-sm text-muted-foreground">Destination: {destination?.content.title ?? 'Project root'}. Choose a part in the tree to create or move inside it.</p>
       <div className="flex flex-wrap items-center gap-2">
@@ -56,7 +56,7 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
         : <MapScope projectId={projectId} branch={roots} />
         : <BranchRows projectId={projectId} branch={roots} choose={setDestination} />}
     </section>
-    <section className="space-y-4">
+    <section className="min-w-0 space-y-4">
       {creating && approved && <PartEditor key="create" projectId={projectId} destination={destination} onCreated={() => setCreating(false)} />}
       {selected !== undefined && detail.isPending && <p>Loading part…</p>}
       {detail.error !== null && <ErrorLine error={detail.error} />}

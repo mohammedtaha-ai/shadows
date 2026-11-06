@@ -54,7 +54,7 @@ export function OutcomeEditor({ projectId, saved, destination, onCreated }: {
     </nav>}
     {newer && <div role="status">Newer outcome data exists. Your unsaved text is kept.
       <Button size="sm" variant="secondary" disabled={save.isPending || reloading} onClick={() => void reload()}>Reload</Button></div>}
-    <fieldset disabled={save.isPending || reloading} className="space-y-3">
+    <fieldset disabled={save.isPending || reloading} className="min-w-0 space-y-3">
       <label className="block text-sm">Title<input aria-label="Outcome title" dir="auto" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>
       <label className="block text-sm">Intended result<textarea aria-label="Outcome result" dir="auto" rows={4} value={draft.intended_result} onChange={e => setDraft({ ...draft, intended_result: e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>
       <label className="block text-sm">Acceptance items (one per line)<textarea aria-label="Outcome acceptance" dir="auto" rows={4} value={draft.acceptance.join('\n')} onChange={e => setDraft({ ...draft, acceptance: e.target.value === '' ? [] : e.target.value.split('\n') })} className="block w-full rounded border bg-transparent p-2" /></label>

@@ -38,7 +38,7 @@ export function ThreadList({ projectId, selected, profile }: { projectId: string
                 )}
               >
                 <MessageSquare className={cn('size-3.5 shrink-0', isSelected && 'text-accent-line')} />
-                <span dir="auto" className="min-w-0 flex-1 truncate text-start">
+                <span dir="auto" className="min-w-0 flex-1 truncate text-left">
                   {thread.title}
                 </span>
               </Link>

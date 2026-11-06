@@ -88,7 +88,9 @@ hooks:
     signature: "(projectId: string, parent?: string) -> useDesignPages result"
 
 vision:
-  VisionEditor: "({ projectId }) -> JSX.Element"
+  VisionEditor:
+    signature: "({ projectId }) -> JSX.Element"
+    note: An item shows its id apart from its text, which takes its own direction (dir=auto); a conversation title is isolated (bdi).
   ItemOrigin: "({ projectId, item, titles }) -> JSX.Element"
   fieldLabel: "(field: VisionField) -> string"
   VISION_FIELDS: "['purpose','users','goals','boundaries','technical_direction']"
@@ -99,12 +101,17 @@ parts:
     note: >
       The tree on the left; the editor on the right. Create part shows only once
       the map is approved (stage structure or roadmap, or an Approved first map
-      proposal). Expand loads one child branch and never the whole tree.
+      proposal). Expand loads one child branch and never the whole tree. Both columns
+      and the editor's fieldset may shrink to zero, so long text or a long option in a
+      select wraps instead of widening the page.
   MapCanvas:
     signature: '({ parts, projectId, selected?, allowed? }) -> JSX.Element'
     note: >
       Pure React Flow presentation of the caller's visible ownership scope, set up as
-      PlanGraph is (theme tokens, controls, minimap). One node per part shows its kind,
+      PlanGraph is (workflows' THEME, controls, minimap). Cards sit two to a row, each
+      row below the tallest measured card above it, and the measured sizes go back on
+      the nodes so the minimap draws them; the view fits again once every card is
+      measured. One node per part shows its kind,
       folder, served ids and layer ids. It says "Dependencies not recorded" and draws
       no actual dependency edge before elements exist. `allowed` is the standards part
       catalog when the caller shows the overlay: dashed edges for the cross-part
@@ -131,7 +138,8 @@ parts:
     signature: "({ projectId, saved?, destination, onCreated? }) -> JSX.Element"
     note: >
       Its EDITOR config is internal: contentOp trims the one folder, drops blank
-      rule lines, and turns an empty kind into null.
+      rule lines, and turns an empty kind into null. A served item shows its id apart
+      from its text, which takes its own direction (dir=auto), as VisionEditor does.
   PartReferences: "({ projectId, selected, change }) -> JSX.Element"
   MapPartDetails:
     signature: "({ content, projectId, groups? }) -> JSX.Element"

@@ -1,27 +1,24 @@
 import '@xyflow/react/dist/style.css'
-import { Controls, type Edge, MarkerType, MiniMap, type Node, Panel, ReactFlow } from '@xyflow/react'
+import { Controls, type Edge, MarkerType, MiniMap, type Node, type NodeChange, Panel, ReactFlow, useReactFlow } from '@xyflow/react'
 import { Link } from '@tanstack/react-router'
-import { type CSSProperties, useMemo } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import type { EffectiveStandards, Part } from '@/api/design'
+import { THEME as FLOW_THEME } from '../workflows/flow-theme'
 
 type PartKind = EffectiveStandards['base']['parts'][number]
 
-/** React Flow's own colours, taken from Shadows' theme tokens, as the plan graph sets them. */
+/** The shared canvas colours, plus the default node's, which this canvas alone uses. */
 const THEME = {
-  '--xy-background-color': 'var(--background)',
+  ...FLOW_THEME,
   '--xy-node-background-color': 'var(--card)',
   '--xy-node-color': 'var(--foreground)',
   '--xy-node-border': '1px solid var(--border)',
-  '--xy-edge-label-background-color': 'var(--background)',
-  '--xy-minimap-background-color': 'var(--sidebar)',
-  '--xy-minimap-node-background-color': 'var(--muted)',
-  '--xy-controls-button-background-color': 'var(--card)',
-  '--xy-controls-button-background-color-hover': 'var(--muted)',
-  '--xy-controls-button-color': 'var(--muted-foreground)',
-  '--xy-controls-button-color-hover': 'var(--foreground)',
-  '--xy-controls-button-border-color': 'var(--border)',
-  '--xy-attribution-background-color': 'transparent',
 } as CSSProperties
+
+const WIDTH = 280
+const GAP = { x: 30, y: 36 }
+/** A card's height before React Flow has measured it. */
+const UNMEASURED = 190
 
 const ARROW = { type: MarkerType.ArrowClosed, width: 14, height: 14, color: 'var(--faint-foreground)' }
 const DASH = '6 5'
@@ -37,13 +34,27 @@ export function MapCanvas({parts,projectId,selected,allowed}: {
   parts:Part[];projectId:string;selected?:string;allowed?:PartKind[]
 }) {
   const permissions = useMemo(() => allowed ? permitted(parts,allowed) : [],[parts,allowed])
+  // Cards grow with their layers, so each row starts below the tallest card above it. The
+  // measured sizes also go back on the nodes: the minimap draws only nodes with a size.
+  const [heights,setHeights] = useState<Record<string,number>>({})
+  const onNodesChange = (changes: NodeChange[]) => {
+    const measured = changes.flatMap(c => c.type === 'dimensions' && c.dimensions ? [[c.id,c.dimensions.height] as const] : [])
+    if (measured.length > 0) setHeights(old => measured.every(([id,h]) => old[id] === h) ? old : {...old,...Object.fromEntries(measured)})
+  }
   const nodes = useMemo<Node[]>(() => {
     // Persistence sits on the bottom rank; edge meaning never depends on position.
     const shown = [...parts].sort((a,b) => Number(a.content.kind === 'database') - Number(b.content.kind === 'database'))
+    const height = (part: Part) => heights[part.id] ?? UNMEASURED
+    const rows: number[] = []
+    for (let row = 0, y = 0; row * 2 < shown.length; row++) {
+      rows.push(y)
+      y += Math.max(...shown.slice(row * 2, row * 2 + 2).map(height)) + GAP.y
+    }
     return shown.map((part,index) => ({id:part.id,
-      position:{x:(index % 2)*310,y:Math.floor(index/2)*225},
+      position:{x:(index % 2)*(WIDTH + GAP.x),y:rows[Math.floor(index/2)]},
+      ...(heights[part.id] === undefined ? {} : {measured:{width:WIDTH,height:heights[part.id]}}),
       selected:part.id === selected,
-      style:{width:280,borderRadius:16,padding:0,textAlign:'left'},
+      style:{width:WIDTH,borderRadius:16,padding:0,textAlign:'left'},
       data:{label:<article data-map-part={part.id} className="space-y-2 p-4 text-sm">
         <Link to="/projects/$projectId/workspace" params={{projectId}} search={{view:'map',part:part.id}}
           className="nodrag font-semibold text-accent-line hover:underline" dir="auto">{part.content.title}</Link>
@@ -57,16 +68,18 @@ export function MapCanvas({parts,projectId,selected,allowed}: {
         </li>)}</ul>
       </article>},
     }))
-  },[parts,projectId,selected])
+  },[parts,projectId,selected,heights])
+  const laidOut = parts.every(part => heights[part.id] !== undefined)
   const edges = useMemo<Edge[]>(() => permissions.map(({from,to}) => ({
     id:`allowed:${from.id}:${to.id}`, source:from.id, target:to.id, focusable:false,
     style:{stroke:'var(--muted-foreground)',strokeDasharray:DASH}, markerEnd:ARROW,
   })),[permissions])
   return <section aria-label="Project map canvas" data-project-map className="space-y-3">
     <div className="hidden h-[32rem] min-w-0 overflow-hidden rounded-2xl border border-border bg-background sm:block">
-      <ReactFlow nodes={nodes} edges={edges} nodesDraggable={false} nodesConnectable={false}
-        edgesFocusable={false} colorMode="dark" fitView fitViewOptions={{padding:0.2,maxZoom:1}} minZoom={0.15}
+      <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} nodesDraggable={false} nodesConnectable={false}
+        edgesFocusable={false} colorMode="dark" fitView fitViewOptions={FIT} minZoom={0.15}
         style={THEME}>
+        <FitOnLayout ready={laidOut} />
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable />
         {allowed && <Panel position="top-right"><Legend /></Panel>}
@@ -91,6 +104,15 @@ export function MapCanvas({parts,projectId,selected,allowed}: {
       </li>)}</ul>
     </nav>
   </section>
+}
+
+const FIT = {padding:0.2,maxZoom:1}
+
+/** The first fit runs before the cards are measured; fit again once they are laid out. */
+function FitOnLayout({ready}: {ready:boolean}) {
+  const flow = useReactFlow()
+  useEffect(() => { if (ready) void flow.fitView(FIT) },[ready,flow])
+  return null
 }
 
 function Legend() {

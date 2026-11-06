@@ -96,7 +96,7 @@ function PlanRow({
           }`}
           aria-hidden
         />
-        <span dir="auto" className="min-w-0 flex-1 truncate text-start">
+        <span dir="auto" className="min-w-0 flex-1 truncate text-left">
           {plan.title}
         </span>
         <span className="shrink-0 text-[11px] text-faint-foreground">{stateLabel(plan)}</span>
