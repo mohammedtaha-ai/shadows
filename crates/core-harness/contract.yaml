@@ -59,6 +59,7 @@
 # owns whether it replaces the title.
 
 name: harness
+layer_catalog: 'Planner standards text lists every kind presence and its layers with required/optional roles and allowed dependencies. The prompt explains places, module patterns, not-used reasons and grouping parts. Tested by planner_mcp::the_standards_text_lists_backend_layers.'
 # Planner instructions reserve generated contracts and SHADOWS.md for Shadows;
 # Create structure remains a person's HTTP action, never a Planner tool.
 # Every new, resumed or forked Planner session sends its Shadows HTTP MCP server

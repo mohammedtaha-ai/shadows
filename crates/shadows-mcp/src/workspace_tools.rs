@@ -60,7 +60,8 @@ impl Shadows {
         description = "Propose a project map. first proposes all parts with slug keys
         and parent_key;
         add/change proposes one part, change names part_id. Include served vision ids, the folder,
-        starter files and contract rules. First-map api/frontend waivers need written reasons.
+        layers with their places, starter files and contract rules.
+        First-map api/frontend waivers need written reasons.
         One call draws one card. Approval is separate; this tool writes no approved parts."
     )]
     async fn map_propose(

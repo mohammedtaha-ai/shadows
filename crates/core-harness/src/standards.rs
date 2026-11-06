@@ -17,6 +17,32 @@ impl super::Harness {
                 Presence::Optional => "optional",
             };
             out.push_str(&format!("- {} ({presence}): {}\n", p.name, p.owns));
+            for layer in &p.layers {
+                let required = if layer.required {
+                    "required"
+                } else {
+                    "optional"
+                };
+                let dependencies: Vec<_> = layer
+                    .may_use
+                    .iter()
+                    .map(|reference| {
+                        reference.part_kind.as_ref().map_or_else(
+                            || reference.layer.clone(),
+                            |kind| format!("{kind}.{}", reference.layer),
+                        )
+                    })
+                    .collect();
+                let dependencies = if dependencies.is_empty() {
+                    "nothing".to_string()
+                } else {
+                    dependencies.join(", ")
+                };
+                out.push_str(&format!(
+                    "  - {} ({required}): {}. May use: {dependencies}.\n",
+                    layer.id, layer.role,
+                ));
+            }
         }
         for p in additions.iter().flat_map(|a| &a.content.parts) {
             out.push_str(&format!("- {} (project): {}\n", p.name, p.owns));

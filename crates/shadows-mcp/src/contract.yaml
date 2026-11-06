@@ -29,3 +29,4 @@ agreements:
 # Harness errors translate through CoreError with unchanged tool refusals.
 
 map_refusals: 'The generic refusal mapping preserves MAP_REFUSED and its rule-prefixed message; shared adapter fixtures cover it.'
+map_layers: 'map_propose describes the single folder and layer places; the typed schema comes from Core. Tested by planner_mcp::the_map_tool_names_layers.'

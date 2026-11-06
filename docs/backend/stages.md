@@ -137,7 +137,7 @@ because each builds on the one before. Rust lines stay within 100 columns.
 - Done when: `cargo test -p core-design --test structure` and `cargo test -p shadows-core --test design_parts` pass
 
 ### B-67 · The Planner is told each kind's layers
-- Status: todo
+- Status: done
 - Plan: Task 2.5
 - Read: crates/core-harness/contract.yaml; crates/core-harness/src/standards.rs, prompt.txt;
   crates/shadows-mcp/src/workspace_tools.rs
