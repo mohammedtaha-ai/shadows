@@ -143,6 +143,8 @@ pub struct TaskContent {
     /// Paths the task may change (its declared scope).
     pub writes: Vec<String>,
     pub acceptance: Vec<AcceptanceItem>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub phases: Vec<crate::Phase>,
 }
 
 /// `task` waits for `after`.

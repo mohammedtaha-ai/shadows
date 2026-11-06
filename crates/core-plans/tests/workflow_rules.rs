@@ -3,6 +3,7 @@ use core_plans::{AcceptanceItem, Link, LinkKind, PlanContent, PlanOp, Problem, T
 
 fn task(n: u32, title: &str) -> TaskContent {
     TaskContent {
+        phases: Vec::new(),
         number: n,
         title: title.into(),
         goal: format!("goal {n}"),
@@ -393,4 +394,41 @@ fn two_stored_links_of_one_kind_are_refused() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn phase_model_defaults_to_empty_without_changing_existing_wire_content() {
+    let original = task(1, "Ship");
+    let json = serde_json::to_value(&original).unwrap();
+    assert!(json.get("phases").is_none());
+    let restored: TaskContent = serde_json::from_value(json).unwrap();
+    assert!(restored.phases.is_empty());
+    assert_eq!(restored, original);
+}
+
+#[test]
+fn phase_numbers_and_acceptance_are_validated_by_the_task_owner() {
+    let mut content = empty();
+    let mut t = task(1, "Ship");
+    t.phases = serde_json::from_value(serde_json::json!([{
+        "id":"phase-one", "number":2, "title":"Build", "goal":"Deliver",
+        "acceptance":[99], "waits_for":[]
+    }]))
+    .unwrap();
+    content.tasks.insert(1, t);
+    let problems = messages(Rules::edit_problems(&content)).join("; ");
+    assert!(problems.contains("phase number"), "{problems}");
+    assert!(problems.contains("acceptance item 99"), "{problems}");
+}
+
+#[test]
+fn direct_task_operations_cannot_forge_phase_identities() {
+    let mut t = task(1, "Ship");
+    t.phases = serde_json::from_value(serde_json::json!([{
+        "id":"forged", "number":1, "title":"Build", "goal":"Deliver",
+        "acceptance":[1], "waits_for":[]
+    }]))
+    .unwrap();
+    let error = Ops::apply(&empty(), &[PlanOp::TaskAdd { task: t }]).unwrap_err();
+    assert!(messages(error).join("; ").contains("phases_set"));
 }

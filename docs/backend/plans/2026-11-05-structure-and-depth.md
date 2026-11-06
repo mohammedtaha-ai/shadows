@@ -1369,16 +1369,22 @@ to implement the existing design on this branch.
 ### Task 5.1: the phase model (`core-plans`)
 
 **Files:**
+- Modify: `crates/core-plans/src/ops.rs`, `crates/core-plans/src/store/task.rs`.
+- Test: `crates/shadows-core/tests/phase_dependencies.rs` (contract persistence).
 - Modify: `crates/core-plans/src/model.rs`, `crates/core-plans/src/lib.rs`,
   `crates/core-plans/src/rules.rs`, `crates/core-plans/contract.yaml`,
   `crates/shadows-core/src/lib.rs`, `api/openapi.json`,
   `web/src/api/schema.d.ts`, `docs/codebase/README.md`.
 - Create: `crates/core-plans/src/phases.rs` for pure public phase values.
 - Test: `crates/core-plans/tests/workflow_rules.rs`.
-- Constructor fixture inventory must be completed by the controller before
-  B-79 dispatch: adding a Rust struct field breaks every `TaskContent` literal.
-  The exact compiler-identified fixture files are appended to B-79 Touch; no
-  blanket permission to edit arbitrary tests or unrelated product modules.
+- Compiler-identified constructor fixtures (empty phases only):
+  - `crates/core-plans/tests/workflow_rules.rs`
+  - `crates/shadows-core/tests/design_outcomes.rs`
+  - `crates/shadows-core/tests/design_parts.rs`
+  - `crates/shadows-core/tests/design_parts/roadmap_gate.rs`
+  - `crates/shadows-core/tests/fixtures/cross_plan.rs`
+  - `crates/shadows/tests/fixtures/plan.rs`
+
 
 **Interfaces:**
 - `TaskContent.phases: Vec<Phase>`, `#[serde(default)]`. It is stored in
@@ -1406,19 +1412,23 @@ to implement the existing design on this branch.
   OpenAPI and web schema in B-79, not only at 5.3. Preserve old command
   fingerprints for absent/empty phases (omit empty serialization).
 
-- [ ] **Step 1: Write the failing tests.**
-  - `a_task_without_phases_reads_back_unchanged`: old `contract_json`
-    without `phases` reads as an empty list.
-  - `phase_acceptance_must_name_the_tasks_items`
-  - `phase_numbers_follow_list_order`
-- [ ] **Step 2: Run them and see them fail.**
+- [x] **Step 1: Phase contract tests.**
+  `phase_model_defaults_to_empty_without_changing_existing_wire_content`,
+  `phase_numbers_and_acceptance_are_validated_by_the_task_owner`,
+  `direct_task_operations_cannot_forge_phase_identities`, and integration
+  `stored_phases_survive_task_updates_and_database_reopen`.
+- [x] **Step 2: Run them and see them fail.**
   `cargo test -p core-plans --test workflow_rules`.
   Also prove old contract JSON and a phase-bearing JSON round-trip, and that
   omitted/empty phases preserve existing command-fingerprint assertions.
-- [ ] **Step 3: Add the types and the checks** to the existing task rules.
-- [ ] **Step 4: Run** `cargo test -p core-plans`.
-- [ ] **Step 5: Update the contract and commit:**
+- [x] **Step 3: Add the types and the checks** to the existing task rules.
+- [x] **Step 4: Run** `cargo test -p core-plans`.
+- [x] **Step 5: Update the contract and commit:**
   `feat(backend): tasks have phases`.
+
+**Verified:** all-target workspace check, core-plans (21 rules cases), real
+phase persistence/reopen, OpenAPI (8 cases), generated web schema/typecheck,
+architecture, codemap, contracts and affected clippy passed.
 
 ### Task 5.2: the combined graph and the edit operations
 

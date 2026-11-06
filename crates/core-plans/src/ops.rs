@@ -216,7 +216,9 @@ fn apply_one(content: &mut PlanContent, op: &PlanOp, removed: &mut BTreeSet<u32>
             format!("added T{}", task.number)
         }
         PlanOp::TaskUpdate { task } => {
-            content.tasks.insert(task.number, task.clone());
+            let mut updated = task.clone();
+            updated.phases = content.tasks[&task.number].phases.clone();
+            content.tasks.insert(task.number, updated);
             format!("updated T{}", task.number)
         }
         PlanOp::TaskRemove { number } => {
@@ -278,6 +280,18 @@ fn refusal(current: &PlanContent, op: &PlanOp) -> Option<String> {
     }
     let exists = |n: &u32| current.tasks.contains_key(n);
     match op {
+        PlanOp::TaskAdd { task } if !task.phases.is_empty() => {
+            Some("use phases_set to create phases with server identities".into())
+        }
+        PlanOp::TaskUpdate { task }
+            if !task.phases.is_empty()
+                && current
+                    .tasks
+                    .get(&task.number)
+                    .is_some_and(|old| old.phases != task.phases) =>
+        {
+            Some("use phases_set to change phases".into())
+        }
         PlanOp::TaskAdd { task } if exists(&task.number) => Some(format!(
             "T{} already exists; use task_update to change it",
             task.number

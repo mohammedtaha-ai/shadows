@@ -24,6 +24,8 @@ pub use design_ops::DesignOp;
 mod dependency_graph;
 mod map;
 mod model;
+mod phases;
+pub use phases::{Phase, PhaseId, PhaseInput, PhaseRef};
 mod ops;
 mod rules;
 mod task_context;

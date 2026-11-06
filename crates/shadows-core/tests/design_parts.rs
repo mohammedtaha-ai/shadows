@@ -325,6 +325,7 @@ async fn part_order_is_stable_across_restart() {
                 command_id: Some("plan-edit".into()),
                 ops: vec![PlanOp::TaskAdd {
                     task: TaskContent {
+                        phases: Vec::new(),
                         number: 1,
                         title: "Task".into(),
                         goal: "Goal".into(),

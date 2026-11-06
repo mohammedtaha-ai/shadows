@@ -4034,6 +4034,112 @@
         },
         "type": "object"
       },
+      "Phase": {
+        "properties": {
+          "acceptance": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/PhaseId"
+          },
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "waits_for": {
+            "items": {
+              "$ref": "#/components/schemas/PhaseRef"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "goal",
+          "acceptance",
+          "waits_for"
+        ],
+        "type": "object"
+      },
+      "PhaseId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "PhaseRef": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "local"
+                ],
+                "type": "string"
+              },
+              "phase": {
+                "$ref": "#/components/schemas/PhaseId"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task",
+              "phase",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "plan"
+                ],
+                "type": "string"
+              },
+              "phase": {
+                "$ref": "#/components/schemas/PhaseId"
+              },
+              "plan_id": {
+                "$ref": "#/components/schemas/PlanId"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "version": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "plan_id",
+              "version",
+              "task",
+              "phase",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Plan": {
         "description": "One stored version of a plan, as a reader sees it now.",
         "properties": {
@@ -5896,6 +6002,12 @@
             "format": "int32",
             "minimum": 0,
             "type": "integer"
+          },
+          "phases": {
+            "items": {
+              "$ref": "#/components/schemas/Phase"
+            },
+            "type": "array"
           },
           "reads": {
             "description": "Paths the task reads (its declared scope).",

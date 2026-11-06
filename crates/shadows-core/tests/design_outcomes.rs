@@ -402,6 +402,7 @@ async fn plan_lifecycle_never_completes_outcomes() {
     let p = project(&core, tmp.path(), "one").await;
     let (v, thread) = draft(&storage, &core, &p, "login").await;
     let task = TaskContent {
+        phases: Vec::new(),
         number: 1,
         title: "Task".into(),
         goal: "Goal".into(),

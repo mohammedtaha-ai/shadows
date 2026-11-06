@@ -216,7 +216,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 - Verified: planner_mcp 24, mcp_tools 16, mcp_server 6, codemap and contract_tests passed; affected all-target clippy and fmt passed.
 ### B-79 · Persist phase values in task contracts
-- Status: todo
+- Status: done
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.1.
 - Owner: Plans; its current contract and AppCore owner row.
@@ -237,8 +237,10 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   blanket permission to edit arbitrary tests or unrelated product modules.
 
 
+- Constructor fixture Touch: `crates/core-plans/tests/workflow_rules.rs`, `crates/shadows-core/tests/design_outcomes.rs`, `crates/shadows-core/tests/design_parts.rs`, `crates/shadows-core/tests/design_parts/roadmap_gate.rs`, `crates/shadows-core/tests/fixtures/cross_plan.rs`, `crates/shadows/tests/fixtures/plan.rs`.
+- Verified: workspace all-target check; 21 core-plans rules tests; persisted phase reopen; OpenAPI 8, schema generation and web typecheck; architecture/codemap/contracts; affected clippy.
 ### B-80 · Edit phases with one version-aware dependency graph
-- Status: blocked
+- Status: todo
 - Base: previous task commit on `feature/structure-elements`.
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.2.
 - Owner: Plans; its current contract and AppCore owner row.

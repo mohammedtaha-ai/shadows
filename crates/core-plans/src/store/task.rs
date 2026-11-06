@@ -48,6 +48,8 @@ struct Contract {
     title: String,
     goal: String,
     acceptance: Vec<AcceptanceItem>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    phases: Vec<crate::Phase>,
 }
 
 /// `scope_json` as stored: the declared scope.
@@ -82,6 +84,7 @@ impl TaskRows {
                         reads: scope.reads,
                         writes: scope.writes,
                         acceptance: contract.acceptance,
+                        phases: contract.phases,
                     },
                 })
             })
@@ -307,6 +310,7 @@ fn columns(task: &TaskContent) -> Result<(String, String), StorageError> {
         title: task.title.clone(),
         goal: task.goal.clone(),
         acceptance: task.acceptance.clone(),
+        phases: task.phases.clone(),
     };
     let scope = Scope {
         reads: task.reads.clone(),

@@ -2743,6 +2743,33 @@ export interface components {
             name?: string | null;
             theme?: components["schemas"]["Theme"];
         };
+        Phase: {
+            acceptance: number[];
+            goal: string;
+            id: components["schemas"]["PhaseId"];
+            /** Format: int32 */
+            number: number;
+            title: string;
+            waits_for: components["schemas"]["PhaseRef"][];
+        };
+        /** Format: uuid */
+        PhaseId: string;
+        PhaseRef: {
+            /** @enum {string} */
+            kind: "local";
+            phase: components["schemas"]["PhaseId"];
+            /** Format: int32 */
+            task: number;
+        } | {
+            /** @enum {string} */
+            kind: "plan";
+            phase: components["schemas"]["PhaseId"];
+            plan_id: components["schemas"]["PlanId"];
+            /** Format: int32 */
+            task: number;
+            /** Format: int64 */
+            version: number;
+        };
         /** @description One stored version of a plan, as a reader sees it now. */
         Plan: {
             approved_by?: null | components["schemas"]["ApprovedBy"];
@@ -3245,6 +3272,7 @@ export interface components {
             goal: string;
             /** Format: int32 */
             number: number;
+            phases?: components["schemas"]["Phase"][];
             /** @description Paths the task reads (its declared scope). */
             reads: string[];
             title: string;

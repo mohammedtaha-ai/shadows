@@ -37,6 +37,18 @@ source: crates/core-plans/src
 
 
 shapes:
+  Phase:
+    id: PhaseId
+    number: u32
+    title: String
+    goal: String
+    acceptance: Vec<u32>
+    waits_for: Vec<PhaseRef>
+  PhaseInput:
+    note: Optional retained identity, title, goal, acceptance and waits; number is server-derived.
+  PhaseRef:
+    Local: "{ task: u32, phase: PhaseId }"
+    Plan: "{ plan_id: PlanId, version: i64, task: u32, phase: PhaseId }"
   TaskContext:
     note: Approved task, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
   TaskPart:
@@ -212,6 +224,7 @@ shapes:
     reads: Vec<String>
     writes: Vec<String>
     acceptance: Vec<AcceptanceItem>
+    phases: Vec<Phase> # serde default, omitted when empty
   AcceptanceItem:
     number: u32
     text: String
@@ -923,6 +936,7 @@ tests:
 # WrittenBy Planner provenance reads Harness::invocation_model_in in the caller snapshot.
 
 modules:
+  phases.rs: Ordered phase contracts
   task_context.rs: Approved task context boundary
   store/task_context.rs: Snapshot task context assembly
   store/event_projection.rs: identifier-only plan event projection
@@ -982,3 +996,10 @@ dependencies:
 # in the snapshot. Design::layout_in is the sole map reader. Plans-owned part
 # associations retain tied parts even without task paths. Distinct claims and
 # stable reads-then-writes path order are preserved; no command/event is written.
+
+# TaskContent.phases defaults to empty; empty serialization is omitted so
+# existing command fingerprints stay stable. TaskRows stores nonempty phases
+# in contract_json and rehydrates them on every read/version copy. Pure phase
+# rules check contiguous numbers, identities, titles/goals, acceptance and
+# local references. TaskAdd refuses supplied phases; TaskUpdate preserves them
+# when omitted and directs changed lists to phases_set.
