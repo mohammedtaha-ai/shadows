@@ -43,7 +43,7 @@ impl DesignStore {
             .await?;
             return Ok(serde_json::from_str(&json)?);
         }
-        super::roadmap_shape::RoadmapShapeRows::require_structure(conn, p).await?;
+        super::roadmap_shape::RoadmapShapeRows::require_map(conn, p).await?;
         let proposal = read::RoadmapProposalReadRows::load(conn, p, id).await?;
         if proposal.status != ProposalStatus::Pending {
             return Err(StorageError::Constraint(

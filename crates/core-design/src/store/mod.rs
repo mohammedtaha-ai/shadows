@@ -24,7 +24,6 @@ mod roadmap_proposals;
 mod roadmap_seed;
 mod roadmap_shape;
 mod stage;
-pub(super) mod structure;
 mod vision;
 mod vision_versions;
 

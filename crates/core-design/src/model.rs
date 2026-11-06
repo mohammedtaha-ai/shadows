@@ -63,11 +63,9 @@ pub struct PartContent {
     /// The one folder this part owns.
     #[serde(default)]
     pub folder: String,
-    /// The layers of this part, each with its place inside the folder.
+    /// The layers of this part, each with its place in the chosen stack.
     #[serde(default)]
     pub layers: Vec<PartLayer>,
-    #[serde(default)]
-    pub files: Vec<InitialFile>,
     #[serde(default)]
     pub contract: ContractHead,
 }
@@ -89,21 +87,6 @@ pub struct PartLayer {
     pub place: String,
     #[serde(default)]
     pub not_used: Option<String>,
-}
-
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    utoipa::ToSchema,
-    schemars::JsonSchema,
-)]
-pub struct InitialFile {
-    pub path: String,
-    pub content: String,
 }
 
 #[derive(

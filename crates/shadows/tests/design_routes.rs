@@ -4,107 +4,6 @@ use shadows_core::testing::{EventCursor, acp};
 mod app;
 
 #[tokio::test]
-async fn create_structure_route_writes_and_refuses() {
-    use shadows_core::{DesignOp, PartContent, PartId};
-    let app = app::test_app().await;
-    let temp = tempfile::tempdir().unwrap();
-    let p = app
-        .core
-        .project_lifecycle()
-        .create(
-            "structure-project".into(),
-            "structure",
-            "Structure",
-            temp.path().to_str().unwrap(),
-        )
-        .await
-        .unwrap()
-        .id;
-    app.core.design().seed_map_for_tests(&p).await.unwrap();
-    let ops = ["backend", "database", "api", "frontend"]
-        .into_iter()
-        .map(|kind| DesignOp::PartCreate {
-            id: PartId::generate(),
-            parent: None,
-            before: None,
-            content: PartContent {
-                title: kind.into(),
-                responsibility: kind.into(),
-                kind: Some(kind.into()),
-                folder: kind.into(),
-                layers: layers(kind),
-                ..Default::default()
-            },
-        })
-        .collect();
-    app.core
-        .plans()
-        .edit_design("parts".into(), &p, 0, ops)
-        .await
-        .unwrap();
-    let route = format!("/api/projects/{p}/structure");
-    let (status, stage) = app::call(&app, "GET", &format!("/api/projects/{p}/stage"), None).await;
-    assert_eq!(status, 200, "{stage}");
-    let revision = stage["map_revision"].as_i64().unwrap();
-    let body = |command: &str| json!({"command_id":command,"map_revision":revision});
-    std::fs::write(temp.path().join("foreign.txt"), "foreign").unwrap();
-    let (status, error) = app::call(&app, "POST", &route, Some(body("blocked"))).await;
-    assert_eq!(status, 409);
-    assert_eq!(error["code"], "STAGE_BLOCKED");
-    assert!(
-        error["message"]
-            .as_str()
-            .unwrap()
-            .contains("directory not empty")
-    );
-    std::fs::remove_file(temp.path().join("foreign.txt")).unwrap();
-    let stale = json!({"command_id":"stale","map_revision":revision - 1});
-    let (status, error) = app::call(&app, "POST", &route, Some(stale)).await;
-    assert_eq!(status, 409, "{error}");
-    assert_eq!(error["code"], "REVISION_CONFLICT");
-    assert_eq!(error["current_revision"], revision);
-    assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 0);
-    let (status, result) = app::call(&app, "POST", &route, Some(body("write"))).await;
-    assert_eq!(status, 200, "{result}");
-    assert_eq!(result["paths"].as_array().unwrap().len(), 1);
-    let (status, error) = app::call(
-        &app,
-        "POST",
-        &route,
-        Some(json!({"command_id":"write","map_revision":revision + 1})),
-    )
-    .await;
-    assert_eq!(
-        (status, &error["code"]),
-        (409, &json!("COMMAND_CONFLICT")),
-        "{error}"
-    );
-    assert!(!temp.path().join("backend/contract.yaml").exists());
-    let (status, error) = app::call(&app, "POST", &route, Some(body("second"))).await;
-    assert_eq!(status, 409);
-    assert_eq!(error["code"], "STAGE_BLOCKED");
-    assert_eq!(error["message"], "structure already written");
-    assert_eq!(
-        app::call(&app, "POST", &route, Some(body("write"))).await,
-        (200, result)
-    );
-    let events = app
-        .core
-        .events()
-        .read_project_events_after(EventCursor(0), &p, 100)
-        .await
-        .unwrap();
-    assert_eq!(
-        events
-            .iter()
-            .filter(|e| e.kind == "ProjectStructureWritten")
-            .count(),
-        1
-    );
-    app::shut_down_app(app).await;
-}
-
-#[tokio::test]
 async fn map_proposal_routes_list_and_approve() {
     use shadows_core::{DesignOp, VisionField};
     let app = app::test_app_unseeded().await;
@@ -318,7 +217,7 @@ async fn standards_routes_read_the_base_and_save_additions() {
         (
             200,
             json!({"stage":"idea","missing":[],"drift":[],
-            "map_revision":1,"structure_file_count":null})
+            "map_revision":1})
         )
     );
     for suffix in ["standards", "stage"] {
@@ -772,8 +671,8 @@ async fn a_map_without_a_required_layer_is_refused_on_every_write_path() {
 }
 
 #[tokio::test]
-async fn layer_file_collisions_and_empty_optional_places_are_refused_on_every_write_path() {
-    for rule in ["file_is_folder", "missing_layer"] {
+async fn empty_optional_places_are_refused_on_every_write_path() {
+    for rule in ["missing_layer"] {
         let (app, op, grant) = mapped_app().await;
         let layers: Vec<_> = ["screens", "features", "data_access"]
             .into_iter()
@@ -782,14 +681,10 @@ async fn layer_file_collisions_and_empty_optional_places_are_refused_on_every_wr
         let valid = json!({"title":"web","responsibility":"Client","design":"",
             "kind":"frontend","folder":"web","layers":layers,"serves":["G1"]});
         let mut invalid = valid.clone();
-        if rule == "file_is_folder" {
-            invalid["files"] = json!([{"path":"web/screens","content":"file"}]);
-        } else {
-            invalid["layers"]
-                .as_array_mut()
-                .unwrap()
-                .push(json!({"layer":"design_system","place":"","not_used":null}));
-        }
+        invalid["layers"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"layer":"design_system","place":"","not_used":null}));
         let propose = |content| json!({"action":"add","parts":[{"key":"web","content":content}]});
         let error = app
             .core

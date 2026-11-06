@@ -1,4 +1,4 @@
-//! Roadmap proposals: structure first, one card, approval opens the plans stage.
+//! Roadmap proposals after map approval; approval opens the plans stage.
 use super::*;
 use shadows_core::{
     ErrorCode, Grant, OutcomeContent, OutcomeId, ProposalStatus, ProposedOutcome, RoadmapAction,
@@ -15,18 +15,14 @@ pub(super) struct Fixture {
 }
 
 impl Fixture {
-    /// A project whose structure is written, with a Planner turn running.
-    pub(super) async fn new(write_structure: bool) -> Self {
-        let (tmp, storage, core, p, _dir) = super::structure::setup().await;
-        if write_structure {
-            core.design()
-                .create_structure(
-                    "write".into(),
-                    &p,
-                    super::structure::revision(&core, &p).await,
-                )
+    /// A project with a Planner turn running and an optionally approved map.
+    pub(super) async fn new(approve_map: bool) -> Self {
+        let (tmp, storage, core, p, _dir) = setup().await;
+        if !approve_map {
+            sqlx::query("UPDATE design_workspace SET map_revision=0 WHERE project_id=?")
+                .bind(p.as_str())
+                .execute(storage.reader())
                 .await
-                .map_err(shadows_core::CoreError::from)
                 .unwrap();
         }
         let thread = core
@@ -155,7 +151,7 @@ pub(super) fn refused<T: std::fmt::Debug>(
 }
 
 #[tokio::test]
-async fn a_roadmap_waits_for_the_structure() {
+async fn a_roadmap_waits_for_map_approval() {
     let f = Fixture::new(false).await;
     refused(
         f.core
@@ -164,7 +160,7 @@ async fn a_roadmap_waits_for_the_structure() {
             .await
             .map_err(shadows_core::CoreError::from),
         ErrorCode::StageBlocked,
-        "press Create structure first",
+        "approve the map first",
     );
     assert!(f.proposals().await.is_empty());
     f.close().await;
@@ -458,4 +454,46 @@ async fn a_malformed_roadmap_is_refused_whole() {
     }
     assert!(f.proposals().await.is_empty());
     f.close().await;
+}
+
+pub(super) async fn setup() -> (
+    tempfile::TempDir,
+    Storage,
+    Arc<AppCore>,
+    ProjectId,
+    std::path::PathBuf,
+) {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().join("project");
+    std::fs::create_dir(&dir).unwrap();
+    let db = tmp.path().join("s.sqlite3");
+    let core = core_at(&db).await;
+    let p = project(&core, "structure", &dir).await;
+    core.design().seed_map_for_tests(&p).await.unwrap();
+    let mut ops = super::stage::vision("Developers");
+    for kind in ["backend", "database", "api", "frontend"] {
+        ops.push(DesignOp::PartCreate {
+            id: PartId::generate(),
+            parent: None,
+            before: None,
+            content: PartContent {
+                title: kind.into(),
+                responsibility: format!("Own {kind}"),
+                kind: Some(kind.into()),
+                folder: kind.into(),
+                layers: catalog_layers(kind, kind),
+                serves: vec!["G1".into()],
+                contract: shadows_core::ContractHead {
+                    header: "Approved".into(),
+                    rules: vec!["S1".into()],
+                },
+                ..Default::default()
+            },
+        });
+    }
+    core.plans()
+        .edit_design("map".into(), &p, 0, ops)
+        .await
+        .unwrap();
+    (tmp, Storage::open(&db).await.unwrap(), core, p, dir)
 }

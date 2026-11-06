@@ -50,7 +50,7 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
                     serves: vec![],
                     folder: "web".into(),
                     layers: vec![],
-                    files: vec![],
+
                     contract: Default::default(),
                     title: "Web".into(),
                     responsibility: "Login".into(),

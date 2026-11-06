@@ -40,12 +40,24 @@ fn document() -> Value {
 }
 
 #[test]
-fn structure_route_is_person_http_only_and_describes_its_result() {
+fn no_structure_command_is_exposed() {
     let doc = document();
-    let route = &doc["paths"]["/api/projects/{id}/structure"]["post"];
-    assert!(route["responses"]["200"].is_object());
-    assert!(route["responses"]["409"].is_object());
-    assert!(doc["components"]["schemas"]["StructureWritten"]["properties"]["paths"].is_object());
+    assert!(doc["paths"].get("/api/projects/{id}/structure").is_none());
+    assert!(
+        doc["components"]["schemas"]
+            .get("StructureWritten")
+            .is_none()
+    );
+    assert!(
+        doc["components"]["schemas"]["PartContent"]["properties"]
+            .get("files")
+            .is_none()
+    );
+    assert!(
+        doc["components"]["schemas"]["StageView"]["properties"]
+            .get("structure_file_count")
+            .is_none()
+    );
 }
 
 #[test]
@@ -210,7 +222,6 @@ fn the_document_names_every_route() {
             "POST /api/projects/{id}/map-proposals/{proposal_id}/approve",
             "POST /api/projects/{id}/mcp-grants",
             "POST /api/projects/{id}/roadmap-proposals/{proposal_id}/approve",
-            "POST /api/projects/{id}/structure",
             "POST /api/projects/{id}/threads",
             "POST /api/projects/{id}/vision-proposals/{proposal_id}/approve",
             "POST /api/threads/{id}/attachments",

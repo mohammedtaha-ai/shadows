@@ -264,10 +264,6 @@ pattern to follow, not merely an example.
 | `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
 | `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
 | `crates/core-design/src/` | a project's design workspace | `crates/core-design/src/lib.rs` |
-| `crates/core-design/src/structure.rs` | rendering an approved map as files | `crates/core-design/src/structure.rs` |
-| `crates/core-design/src/structure_create.rs` | coordinating a person's structure write | `crates/core-design/src/structure_create.rs` |
-| `crates/core-design/src/structure_write.rs` | publishing recorded files safely | `crates/core-design/src/structure_write.rs` |
-| `crates/core-design/src/store/structure.rs` | structure write records | `crates/core-design/src/store/structure.rs` |
 | `crates/core-design/src/vision_items.rs` | applying vision item changes | `crates/core-design/src/vision_items.rs` |
 | `crates/core-design/src/store/vision_versions.rs` | stored vision versions | `crates/core-design/src/store/vision_versions.rs` |
 | `crates/core-design/src/proposals.rs` | vision proposal entry points | `crates/core-design/src/proposals.rs` |

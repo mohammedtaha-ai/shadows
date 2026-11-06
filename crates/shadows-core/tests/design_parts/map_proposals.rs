@@ -94,6 +94,34 @@ fn first() -> MapPropose {
 }
 
 #[tokio::test]
+async fn roadmap_opens_once_the_map_is_approved() {
+    let f = Fixture::new().await;
+    let mut args = first();
+    let database = args.parts.iter_mut().find(|p| p.key == "database").unwrap();
+    database.parent_key = Some("backend".into());
+    database.content.folder = "backend/database".into();
+    database.content.layers = catalog_layers("database", "backend/database");
+    database
+        .content
+        .layers
+        .iter_mut()
+        .find(|l| l.layer == "connection")
+        .unwrap()
+        .place = "backend/config/database.php".into();
+    let proposal = f.core.design().propose_map(&f.grant, args).await.unwrap();
+    f.core
+        .design()
+        .approve_map_proposal("approve".into(), &f.p, &proposal.id)
+        .await
+        .unwrap();
+    let stage = f.core.design().stage(&f.p).await.unwrap();
+    assert_eq!(stage.stage, shadows_core::Stage::Roadmap);
+    assert!(stage.missing.is_empty(), "{:?}", stage.missing);
+    assert!(!f._tmp.path().join("backend").exists());
+    f.close().await;
+}
+
+#[tokio::test]
 async fn equivalent_map_retries_replay_the_original_card() {
     let f = Fixture::new().await;
     let original = f

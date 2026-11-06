@@ -93,22 +93,20 @@ fn check_parent_keys(args: &RoadmapPropose) -> Result<(), StorageError> {
     Ok(())
 }
 
-/// A roadmap is proposed and approved only once the structure write is complete.
+/// A roadmap is proposed and approved only after the map is approved.
 impl RoadmapShapeRows {
-    pub(super) async fn require_structure(
+    pub(super) async fn require_map(
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<(), crate::DesignError> {
-        let written: Option<String> = sqlx::query_scalar(
-            "SELECT completed_at FROM design_structure_write WHERE project_id=?",
-        )
-        .bind(project.as_str())
-        .fetch_optional(&mut *conn)
-        .await?
-        .flatten();
-        if written.is_none() {
+        let map: Option<i64> =
+            sqlx::query_scalar("SELECT map_revision FROM design_workspace WHERE project_id=?")
+                .bind(project.as_str())
+                .fetch_optional(&mut *conn)
+                .await?;
+        if map.unwrap_or(0) == 0 {
             return Err(crate::DesignError::StageBlocked(
-                "structure not written: press Create structure first".into(),
+                "map not approved: approve the map first".into(),
             ));
         }
         Ok(())

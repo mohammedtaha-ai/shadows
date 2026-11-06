@@ -70,15 +70,6 @@ fn device_name(segment: &str) -> bool {
         })
 }
 
-impl MapRules {
-    pub fn check_reserved(path: &str) -> Result<(), String> {
-        if path.eq_ignore_ascii_case("SHADOWS.md") {
-            return Err(format!("reserved path: {path}"));
-        }
-        Ok(())
-    }
-}
-
 /// The marker a place holds when the stack gives every module its own folder.
 pub(crate) const MODULE_MARKER: &str = "{module}";
 
@@ -118,10 +109,6 @@ impl MapRules {
                 )
             })?;
         }
-        for file in &mut content.files {
-            file.path = MapRules::normalise_folder(&file.path)
-                .map_err(|message| MapRefusal::path(&content.title, message))?;
-        }
         Ok(())
     }
 }
@@ -152,8 +139,6 @@ impl MapRules {
     ) -> Result<(), MapRefusal> {
         let mut keys = BTreeSet::new();
         let mut identities = BTreeSet::new();
-        let mut folders = Vec::new();
-        let mut files = BTreeMap::new();
         let rules: BTreeSet<_> = standards
             .base
             .rules
@@ -219,84 +204,6 @@ impl MapRules {
                         ));
                     }
                 }
-            }
-            if !part.content.folder.is_empty() {
-                let path = MapRules::normalise_folder(&part.content.folder)
-                    .map_err(|message| MapRefusal::path(&part.content.title, message))?;
-                folders.push((part.key, path.to_lowercase()));
-            }
-            for file in &part.content.files {
-                // Only the parts this write changes: an older part's reserved file
-                // must not block the change that removes another's.
-                if written.contains(&part.key) {
-                    MapRules::check_reserved(&file.path).map_err(|message| {
-                        MapRefusal::new(
-                            "reserved_file",
-                            format!(
-                                "part {:?}: {message}. \
-                                 Remove the generated file from the proposal.",
-                                part.content.title
-                            ),
-                        )
-                    })?;
-                }
-                let path = MapRules::normalise_folder(&file.path)
-                    .map_err(|message| MapRefusal::path(&part.content.title, message))?
-                    .to_lowercase();
-                if !inside(&path, &part.content.folder.to_lowercase()) {
-                    return Err(MapRefusal::new(
-                        "file_outside_part",
-                        format!(
-                            "part {:?} lists {}, which is outside its folder {:?}. \
-                        Move the file into it, or change the part's folder.",
-                            part.content.title, file.path, part.content.folder
-                        ),
-                    ));
-                }
-                if let Some(owner_key) = files.insert(path, part.key) {
-                    let owner = parts
-                        .iter()
-                        .find(|part| part.key == owner_key)
-                        .expect("listed file has an owner");
-                    return Err(MapRefusal::new(
-                        "duplicate_file",
-                        format!(
-                            "parts {:?} and {:?} both list {}. \
-                            Give each file one owner and one entry.",
-                            owner.content.title, part.content.title, file.path
-                        ),
-                    ));
-                }
-            }
-        }
-        for (file, owner_key) in &files {
-            if folders
-                .iter()
-                .any(|(_, folder)| folder == file || inside(folder, file))
-                || files.keys().any(|other| inside(other, file))
-                || parts
-                    .iter()
-                    .flat_map(|part| &part.content.layers)
-                    .any(|layer| {
-                        if layer.place.is_empty() || layer.place.contains(MODULE_MARKER) {
-                            return false;
-                        }
-                        let path = layer.place.to_lowercase();
-                        path == *file || inside(&path, file)
-                    })
-            {
-                let owner = parts
-                    .iter()
-                    .find(|part| part.key == *owner_key)
-                    .expect("listed file has an owner");
-                return Err(MapRefusal::new(
-                    "file_is_folder",
-                    format!(
-                        "part {:?} lists {file} as a file and a directory. \
-                    Use separate paths for the file and directory.",
-                        owner.content.title
-                    ),
-                ));
             }
         }
         MapRules::check_places(parts, standards)
@@ -364,8 +271,7 @@ impl MapRules {
 }
 
 impl MapRules {
-    /// Two parts cannot own the same folder, and a file cannot stand where
-    /// another part's folder is.
+    /// Two parts cannot claim the same folder or nest outside their containment.
     fn check_folder_claims(
         parts: &[MapPart<'_>],
         folders: &[(&str, String)],
@@ -411,31 +317,6 @@ impl MapRules {
                                  or make one part the other's child."
                             )
                         },
-                    ));
-                }
-            }
-            // A parent's file cannot claim a child's folder.
-            for part in parts
-                .iter()
-                .filter(|p| p.key != *owner && !descendant(parts, p.key, owner))
-            {
-                if let Some(file) = part
-                    .content
-                    .files
-                    .iter()
-                    .find(|f| inside(&f.path.to_lowercase(), folder))
-                {
-                    let owner = parts
-                        .iter()
-                        .find(|part| part.key == *owner)
-                        .expect("listed folder has an owner");
-                    return Err(MapRefusal::new(
-                        "folder_claimed_twice",
-                        format!(
-                            "part {:?} lists {} under {:?}'s folder {folder}. \
-                        Give the file to that folder's owner or change the part containment.",
-                            part.content.title, file.path, owner.content.title
-                        ),
                     ));
                 }
             }

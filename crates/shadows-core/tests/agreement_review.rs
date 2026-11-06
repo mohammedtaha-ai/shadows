@@ -46,7 +46,7 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         serves: vec![],
         folder: "api".into(),
         layers: vec![],
-        files: vec![],
+
         contract: Default::default(),
         title: "API".into(),
         responsibility: "Login".into(),

@@ -1296,23 +1296,6 @@
         ],
         "type": "object"
       },
-      "CreateStructure": {
-        "properties": {
-          "command_id": {
-            "type": "string"
-          },
-          "map_revision": {
-            "description": "The map revision the person confirmed, from the stage read.",
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "command_id",
-          "map_revision"
-        ],
-        "type": "object"
-      },
       "CreateThread": {
         "properties": {
           "command_id": {
@@ -2561,21 +2544,6 @@
           }
         ]
       },
-      "InitialFile": {
-        "properties": {
-          "content": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "content"
-        ],
-        "type": "object"
-      },
       "InstructionsVersion": {
         "description": "One saved version of a project's instructions. `id` is what an\n`agent_invocation` records; a client sees the number instead.",
         "properties": {
@@ -3787,12 +3755,6 @@
           "design": {
             "type": "string"
           },
-          "files": {
-            "items": {
-              "$ref": "#/components/schemas/InitialFile"
-            },
-            "type": "array"
-          },
           "folder": {
             "description": "The one folder this part owns.",
             "type": "string"
@@ -3804,7 +3766,7 @@
             ]
           },
           "layers": {
-            "description": "The layers of this part, each with its place inside the folder.",
+            "description": "The layers of this part, each with its place in the chosen stack.",
             "items": {
               "$ref": "#/components/schemas/PartLayer"
             },
@@ -5699,7 +5661,6 @@
           "idea",
           "vision",
           "map",
-          "structure",
           "roadmap",
           "plans"
         ],
@@ -5714,7 +5675,7 @@
             "type": "array"
           },
           "map_revision": {
-            "description": "The map revision `structure_file_count` was taken at; the revision a person\nconfirms when creating the structure.",
+            "description": "The approved map revision behind this view.",
             "format": "int64",
             "type": "integer"
           },
@@ -5727,22 +5688,12 @@
           },
           "stage": {
             "$ref": "#/components/schemas/Stage"
-          },
-          "structure_file_count": {
-            "description": "Files `create_structure` would write for the map now; none when it would\nrefuse.",
-            "format": "int32",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
           }
         },
         "required": [
           "stage",
           "missing",
-          "map_revision",
-          "structure_file_count"
+          "map_revision"
         ],
         "type": "object"
       },
@@ -5926,33 +5877,6 @@
           "model",
           "mode",
           "effort"
-        ],
-        "type": "object"
-      },
-      "StructureWritten": {
-        "properties": {
-          "completed_at": {
-            "type": "string"
-          },
-          "map_version": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "paths": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "resumed": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "map_version",
-          "paths",
-          "completed_at",
-          "resumed"
         ],
         "type": "object"
       },
@@ -12226,87 +12150,6 @@
         },
         "tags": [
           "projects"
-        ]
-      }
-    },
-    "/api/projects/{id}/structure": {
-      "post": {
-        "operationId": "create_structure",
-        "parameters": [
-          {
-            "description": "The project",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateStructure"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StructureWritten"
-                }
-              }
-            },
-            "description": ""
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": ""
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STAGE_BLOCKED, COMMAND_CONFLICT, or REVISION_CONFLICT with `current_revision` when the map moved after `map_revision`"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": ""
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": ""
-          }
-        },
-        "tags": [
-          "design"
         ]
       }
     },

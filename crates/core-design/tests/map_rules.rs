@@ -38,24 +38,6 @@ fn checked(parts: &[(&str, Option<&str>, PartContent)]) -> Result<(), core_desig
 }
 
 #[test]
-fn a_file_outside_its_part_names_the_part_and_its_folders() {
-    let error = refused(&[PartContent {
-        title: "Backend".into(),
-        folder: "app".into(),
-        files: vec![core_design::InitialFile {
-            path: "composer.json".into(),
-            content: "".into(),
-        }],
-        ..Default::default()
-    }]);
-    assert_eq!(error.rule, "file_outside_part");
-    assert!(error.message.contains("Backend"));
-    assert!(error.message.contains("composer.json"));
-    assert!(error.message.contains("app"));
-    assert!(error.message.contains("Move"));
-}
-
-#[test]
 fn the_same_folder_twice_names_both_parts() {
     let error = refused(&[
         PartContent {
@@ -99,10 +81,6 @@ fn two_rules_never_share_a_message() {
         title: "Backend".into(),
         ..Default::default()
     };
-    let file = |path: &str| core_design::InitialFile {
-        path: path.into(),
-        content: "".into(),
-    };
     let cases = [
         (vec![part.clone(), part.clone()], "duplicate_sibling"),
         (
@@ -123,29 +101,6 @@ fn two_rules_never_share_a_message() {
             "unknown_rule",
         ),
         (
-            vec![PartContent {
-                files: vec![file("outside.json")],
-                ..part.clone()
-            }],
-            "file_outside_part",
-        ),
-        (
-            vec![PartContent {
-                folder: "src".into(),
-                files: vec![file("src/a.rs"), file("src/a.rs")],
-                ..part.clone()
-            }],
-            "duplicate_file",
-        ),
-        (
-            vec![PartContent {
-                folder: "src".into(),
-                files: vec![file("src/api"), file("src/api/main.rs")],
-                ..part.clone()
-            }],
-            "file_is_folder",
-        ),
-        (
             vec![
                 PartContent {
                     folder: "src".into(),
@@ -158,14 +113,6 @@ fn two_rules_never_share_a_message() {
                 },
             ],
             "folder_claimed_twice",
-        ),
-        (
-            vec![PartContent {
-                folder: "src".into(),
-                files: vec![file("SHADOWS.md")],
-                ..part.clone()
-            }],
-            "reserved_file",
         ),
         (
             vec![PartContent {
@@ -224,56 +171,9 @@ fn two_rules_never_share_a_message() {
 }
 
 #[test]
-fn a_duplicate_file_names_both_owners() {
-    let contents: Vec<_> = ["Backend", "Frontend"]
-        .into_iter()
-        .map(|title| PartContent {
-            title: title.into(),
-            folder: "src".into(),
-            files: vec![core_design::InitialFile {
-                path: "src/main.rs".into(),
-                content: "".into(),
-            }],
-            ..Default::default()
-        })
-        .collect();
-    let error = refused(&contents);
-    assert_eq!(error.rule, "duplicate_file");
-    assert!(error.message.contains("Backend") && error.message.contains("Frontend"));
-}
-
-#[test]
 fn windows_device_names_are_refused() {
     for path in ["nul", "backend/con.txt", "Com1", "LPT9.rs"] {
         assert!(MapRules::normalise_folder(path).is_err(), "{path}");
-    }
-}
-
-#[test]
-fn reserved_initial_files_are_refused() {
-    for path in ["SHADOWS.md", "shadows.MD"] {
-        let content = PartContent {
-            title: "Backend".into(),
-            folder: "backend".into(),
-            files: vec![core_design::InitialFile {
-                path: path.into(),
-                content: "".into(),
-            }],
-            ..Default::default()
-        };
-        let parts = [MapPart {
-            key: "p1",
-            parent: None,
-            content: &content,
-        }];
-        let standards = EffectiveStandards {
-            base: core_standards::Standards::base().clone(),
-            additions: None,
-        };
-        let error = MapRules::check_shape(&parts, &["p1"], &VisionContent::default(), &standards)
-            .unwrap_err();
-        assert_eq!(error.rule, "reserved_file");
-        assert!(error.message.contains(path));
     }
 }
 
@@ -583,16 +483,6 @@ fn layer_places_use_windows_case_rules() {
     );
     let error = refused(&[content]);
     assert_eq!(error.rule, "layer_place_shared");
-}
-
-#[test]
-fn a_starter_file_cannot_replace_a_layer_directory() {
-    let mut p = backend_with("backend", vec![layer("domain", "backend/domain")]);
-    p.files.push(core_design::InitialFile {
-        path: "backend/domain".into(),
-        content: "file".into(),
-    });
-    assert_eq!(refused(&[p]).rule, "file_is_folder");
 }
 
 #[test]

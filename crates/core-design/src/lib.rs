@@ -21,10 +21,6 @@ pub use proposals::{ProposalStatus, VisionAction, VisionProposal, VisionPropose}
 pub use roadmap_proposals::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub mod stage;
 mod store;
-mod structure;
-mod structure_create;
-mod structure_write;
-pub use structure_create::StructureWritten;
 mod vision_items;
 mod workspace;
 
@@ -33,16 +29,15 @@ use std::sync::Arc;
 use core_projects::ProjectId;
 pub use model::WorkspaceOp;
 pub use model::{
-    ContractHead, DesignAnchor, DesignChange, DesignRevision, InitialFile, Outcome, OutcomeContent,
-    OutcomeId, OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver,
-    VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
+    ContractHead, DesignAnchor, DesignChange, DesignRevision, Outcome, OutcomeContent, OutcomeId,
+    OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver, VisionContent,
+    VisionField, VisionItem, VisionView, WorkspaceView,
 };
 
 #[derive(Clone)]
 pub struct Design {
     store: Arc<store::DesignStore>,
     operations: core_operations::Operations,
-    structure_lock: Arc<tokio::sync::Mutex<()>>,
 }
 pub use agreement::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -76,7 +71,6 @@ impl Design {
         Self {
             store: Arc::new(store::DesignStore { storage }),
             operations,
-            structure_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -130,8 +124,3 @@ use core_threads::ThreadId;
 pub use map_rules::{MapPart as TestMapPart, MapRules as TestMapRules};
 #[cfg(feature = "test-support")]
 pub use stage::StageRules as TestStageRules;
-#[cfg(feature = "test-support")]
-pub use structure::{RenderInput as TestRenderInput, Structure as TestStructure};
-
-#[cfg(feature = "test-support")]
-pub use structure::{Planned as TestPlanned, PlannedFile as TestPlannedFile};

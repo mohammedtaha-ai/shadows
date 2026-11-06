@@ -278,7 +278,7 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
                     title.into()
                 },
                 layers: vec![],
-                files: vec![],
+
                 contract: Default::default(),
                 title: title.into(),
                 responsibility: "مسؤولية".into(),
@@ -716,5 +716,103 @@ async fn a_part_round_trips_its_layers() {
     assert_eq!(read.layers[1].layer, "interface");
     assert!(read.layers[1].place.is_empty());
     assert_eq!(read.layers[1].not_used.as_deref(), Some("no clients yet"));
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn parts_with_starter_files_read_back_after_the_migration() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("starter-files.sqlite3");
+    let pool = seeded_at_0046(&path).await;
+    seed_v1_design(&pool).await;
+    let content = r#"{"title":"Backend","responsibility":"","design":"","kind":null,
+        "folders":["backend"],
+        "files":[{"path":"backend/composer.json","content":"{}"}]}"#;
+    seed_v1_part(&pool, "backend", content).await;
+    seed_v1_map_version(&pool, content).await;
+    pool.close().await;
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    let json: String =
+        sqlx::query_scalar("SELECT content_json FROM design_part WHERE id='backend'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&json)
+            .unwrap()
+            .get("files")
+            .is_none()
+    );
+    let json: String =
+        sqlx::query_scalar("SELECT parts_json FROM design_map_version WHERE project_id='P'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    let rows: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let content: serde_json::Value =
+        serde_json::from_str(rows[0]["content_json"].as_str().unwrap()).unwrap();
+    assert!(content.get("files").is_none());
+    let parts = shadows_core::AppCore::design_for_tests(storage.clone())
+        .parts(&ProjectId::from_literal("P"), None, None)
+        .await
+        .unwrap();
+    assert_eq!(parts.items[0].content.folder, "backend");
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_project_past_the_old_structure_step_opens_roadmap() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("completed-structure.sqlite3");
+    let pool = seeded_at_0046(&path).await;
+    seed_v1_design(&pool).await;
+    let mut vision = serde_json::json!({});
+    for (field, id) in [
+        ("purpose", "PU1"),
+        ("users", "U1"),
+        ("goals", "G1"),
+        ("boundaries", "B1"),
+        ("technical_direction", "TD1"),
+    ] {
+        vision[field] =
+            serde_json::json!([{"id":id,"text":"Approved","revision":1,"approved_from":null}]);
+    }
+    sqlx::query("UPDATE design_workspace SET vision_content=?,map_revision=1 WHERE project_id='P'")
+        .bind(vision.to_string())
+        .execute(&pool)
+        .await
+        .unwrap();
+    for kind in ["backend", "database", "api", "frontend"] {
+        seed_v1_part(
+            &pool,
+            kind,
+            &serde_json::json!({
+                "title":kind,"responsibility":"","design":"","kind":kind,"folders":[kind]
+            })
+            .to_string(),
+        )
+        .await;
+    }
+    sqlx::query(
+        "INSERT INTO design_structure_write(project_id,map_number,standards_version,
+        files_json,folders_json,started_at,completed_at) VALUES ('P',1,2,'[]','[]','old','old')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = std::sync::Arc::new(Storage::open(&path).await.unwrap());
+    let exists: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_schema WHERE name='design_structure_write'",
+    )
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(exists, 0);
+    let stage = shadows_core::AppCore::design_for_tests(storage.clone())
+        .stage(&ProjectId::from_literal("P"))
+        .await
+        .unwrap();
+    assert_eq!(stage.stage, shadows_core::Stage::Roadmap);
     storage.close().await.unwrap();
 }

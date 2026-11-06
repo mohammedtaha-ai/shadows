@@ -1142,22 +1142,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{id}/structure": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_structure"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/projects/{id}/threads": {
         parameters: {
             query?: never;
@@ -2057,14 +2041,6 @@ export interface components {
             name: string;
             slug: string;
         };
-        CreateStructure: {
-            command_id: string;
-            /**
-             * Format: int64
-             * @description The map revision the person confirmed, from the stage read.
-             */
-            map_revision: number;
-        };
         CreateThread: {
             /** @description The idempotency key, scoped to the project. */
             command_id: string;
@@ -2391,10 +2367,6 @@ export interface components {
             /** @enum {string} */
             state: "directory_missing";
         };
-        InitialFile: {
-            content: string;
-            path: string;
-        };
         /**
          * @description One saved version of a project's instructions. `id` is what an
          *     `agent_invocation` records; a client sees the number instead.
@@ -2703,11 +2675,10 @@ export interface components {
         PartContent: {
             contract?: components["schemas"]["ContractHead"];
             design: string;
-            files?: components["schemas"]["InitialFile"][];
             /** @description The one folder this part owns. */
             folder?: string;
             kind?: string | null;
-            /** @description The layers of this part, each with its place inside the folder. */
+            /** @description The layers of this part, each with its place in the chosen stack. */
             layers?: components["schemas"]["PartLayer"][];
             responsibility: string;
             serves?: string[];
@@ -3212,24 +3183,17 @@ export interface components {
             kind: "shadows";
         };
         /** @enum {string} */
-        Stage: "idea" | "vision" | "map" | "structure" | "roadmap" | "plans";
+        Stage: "idea" | "vision" | "map" | "roadmap" | "plans";
         StageView: {
             drift?: string[];
             /**
              * Format: int64
-             * @description The map revision `structure_file_count` was taken at; the revision a person
-             *     confirms when creating the structure.
+             * @description The approved map revision behind this view.
              */
             map_revision: number;
             /** @description Missing vision field names at vision; mandatory part names at map. */
             missing: string[];
             stage: components["schemas"]["Stage"];
-            /**
-             * Format: int32
-             * @description Files `create_structure` would write for the map now; none when it would
-             *     refuse.
-             */
-            structure_file_count: number | null;
         };
         StandardRule: {
             id: string;
@@ -3274,13 +3238,6 @@ export interface components {
             model: string;
             plan?: null | components["schemas"]["PlanId"];
             prompt: string;
-        };
-        StructureWritten: {
-            completed_at: string;
-            /** Format: int64 */
-            map_version: number;
-            paths: string[];
-            resumed: boolean;
         };
         /** @description A task as the plan holds it, shown as `T{number}`. */
         TaskContent: {
@@ -7430,65 +7387,6 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    create_structure: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateStructure"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StructureWritten"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STAGE_BLOCKED, COMMAND_CONFLICT, or REVISION_CONFLICT with `current_revision` when the map moved after `map_revision` */
             409: {
                 headers: {
                     [name: string]: unknown;

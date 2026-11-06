@@ -9,12 +9,11 @@
   §13.9 (showing a card in the conversation), §12.2 (what a turn's entries
   are), §17.5 (the bounded execution packet, later), §14 (core ownership).
 
-This section owns how a new project is planned from an idea to a structure on
-disk: a free conversation, a vision agreed item by item, a project map that
-follows Shadows' standards, the folders and contracts written to an empty
-directory, then the roadmap and plans. Each step is proposed by the Planner,
-approved by the person, and gated in code: the Planner cannot skip a step,
-and neither can the person.
+This section owns planning from an idea to approved roadmap and plans:
+a free conversation, a vision agreed item by item, and a project map that
+records parts and layers in the chosen stack's layout. Each planning step
+is proposed and approved through its owning service. Framework tools and
+building agents create the files; Shadows records the layout.
 
 Any AI asked "how do we build this?" proposes the quickest thing that runs —
 one PHP file, a backend and database mixed together. A Shadows project never
@@ -29,13 +28,10 @@ message, and the code refuses a map that lacks a mandatory part.
    vision fields (§23.3) one at a time. When an item is agreed it proposes it
    as a card; the person approves it and it is written.
 3. **Map.** With the vision complete, the Planner proposes the project map:
-   parts, folder structure, initial files and each part's contract head
+   parts, one folder each, layers and each part's contract head
    (§23.5). The person approves it.
-4. **Structure.** The person presses **Create structure**; Shadows writes the
-   approved folders, files and contracts into the project's empty directory
-   (§23.7).
-5. **Roadmap and plans.** Outcomes, then plans, each tied to the parts they
-   serve (§18.3).
+4. **Roadmap and plans.** After map approval, outcomes, then plans, each
+   tied to the parts they serve (§18.3).
 
 The vision and map keep growing after their first approval (§23.6). Every
 project goes through this journey; there is no unguided mode. Existing
@@ -140,10 +136,10 @@ database, never from the conversation:
 
 ```text
 idea → vision (missing: users, goals…) → map (missing: database…)
-     → structure (not written) → roadmap → plans
+     → roadmap → plans
 ```
 
-The stage is `roadmap` once the structure write is recorded, and `plans`
+The stage is `roadmap` once the map is approved, and `plans`
 once a first roadmap is approved.
 
 It also reports drift: vision items no part serves, and a map approved
@@ -166,13 +162,9 @@ The Planner receives the stage in three ways:
 
 The conversation's header shows the same stage to the person.
 
-Drift arrives with map approval (PR 3). An unserved item is known only once
-the map says which items each part serves, so with vision items alone (PR 2)
-the stage still reports what is missing only. PR 1 ends at `structure`; later
-stages require the recorded structure write.
-
-From PR 3 the stage is `map` until a first map is approved, and `structure`
-after. Drift is reported from then on, in the stage line and beside the goal
+Before map approval, the stage reports missing vision fields or mandatory
+part kinds. Every nesting depth counts toward a required kind. Map approval
+opens Roadmap directly. Drift is reported from then on, in the stage line and beside the goal
 on the Project map page: each goal no part serves, and each part whose
 served item changed or was removed since that part was last written. Drift is
 per part, so editing one part never clears another's. A link to a removed
@@ -181,8 +173,8 @@ Renaming, reordering, moving or changing plan associations does not refresh
 a part's served-item review baseline. A person content edit reviews its
 responsibility, design or served-item links; an approved Planner change is
 an explicit review of that part.
-Paths are compared case-insensitively, as Windows does, and a part's initial
-files lie inside its own folders.
+Paths are compared case-insensitively, as Windows does. Each part has one
+folder; layer places follow the chosen stack and may lie outside that folder.
 
 ## 23.5 Proposals and approval
 
@@ -192,14 +184,13 @@ New MCP tools (§13.6):
 | Tool | Proposes | Its card |
 |---|---|---|
 | `vision_propose` | Add, edit or remove one vision item | The item, with the old text beside an edit |
-| `map_propose` | The first map whole; later, one change (add or change a part, its folders, files or contract) | The part tree and folders; each contract opens in the side panel |
+| `map_propose` | The first map whole; later, one change (add or change a part, its folder, layers or contract) | The part tree and folders; each contract opens in the side panel |
 | `roadmap_propose` | The first roadmap whole; later, one outcome added, changed or removed | The outcome list, each with the parts it references |
 
-A map proposal carries, for each part: its title, responsibility, the vision
-items it serves, its folders, its initial files with their content (manifests
-and skeletons only, no logic) and its contract head — header, responsibility
-and the standards rules that apply. Functions and tests are added when code
-is written.
+A map proposal carries each part's title, responsibility, served vision ids,
+one folder, layers with places or not-used reasons, and its contract head.
+Starter files are not part of the map. The scaffold creates manifests in the
+framework's layout; agents learn the recorded layout from Shadows.
 
 Rules:
 
@@ -242,8 +233,8 @@ Vision proposals: decided with Mohammed on 2026-10-12.
 Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 
 - **The map is the parts.** There is no second map document. A part gains
-  what the map needs: the vision items it serves, its folders, its initial
-  files and its contract head (header and the standards rule ids that apply).
+  what the map needs: the vision items it serves, its folder, its layers
+  and its contract head (header and the standards rule ids that apply).
   Approving the first map writes every part in one write; every later change
   to the parts, approved or by hand, is a stored map version.
 - **Who writes it.** The first map comes from the Planner only: before it is
@@ -256,16 +247,17 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
   reshapes it until it meets the standards or refuses it.
 - **Identity.** A part's id is issued when it is written. Two parts with the
   same title under the same parent are one identity and conflict.
-- **Folders.** A folder belongs to one part. A child part's folders may sit
+- **Folders.** A folder belongs to one part. A child part's folder sits
   inside its parent's; any other overlap is an ownership conflict and is
   refused.
 - **Rule refusals.** A map, part, path or folder that breaks a map rule is
   refused as `MAP_REFUSED: <rule>: <message>`: HTTP `422` with the code
   `MAP_REFUSED`; over MCP a tool result whose text begins `MAP_REFUSED:`. The
   rule is one of `duplicate_part`, `duplicate_sibling`, `missing_parent`,
-  `unknown_vision_item`, `unknown_rule`, `file_outside_part`,
-  `duplicate_file`, `file_is_folder`, `folder_claimed_twice`,
-  `reserved_file`, `invalid_path` and `invalid_part`. The message names the
+  `unknown_vision_item`, `unknown_rule`, `one_folder`,
+  `folder_outside_parent`, `folder_claimed_twice`, `missing_layer`,
+  `unknown_layer`, `layer_not_used_without_reason`, `layer_place_shared`,
+  `invalid_path` and `invalid_part`. The message names the
   parts and the paths involved and says in one sentence what to change.
 - **Waivers.** A waiver of `api` or `frontend` travels inside the first map's
   card, with the Planner's written reason, shown apart so it is not missed.
@@ -295,7 +287,7 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
   it finds an item no part serves, not a part that left out an item another
   part already serves; whether a part's text matches its `serves` is for the
   Planner and the person to judge.
-- **Mandatory parts** are recognised by `kind` on a top-level part. Several
+- **Mandatory parts** are recognised by `kind` on a part at any nesting depth. Several
   parts may share a kind; one is enough.
 
 Roadmap proposals and plans: decided with Mohammed on 2026-10-12, for PR 5.
@@ -333,7 +325,7 @@ Roadmap proposals and plans: decided with Mohammed on 2026-10-12, for PR 5.
 
 The gates are in the methods of the service that owns each write, so HTTP
 and MCP, the person and the Planner, meet the same ones. `design` owns the
-stage and the vision, map and structure gates. Plans are `Plans`' writes:
+stage and the vision and map gates. Plans are `Plans`' writes:
 every method that creates, edits or approves a plan calls `design`'s stage
 check inside its own write transaction, a cross-service call declared in both
 contracts (§14). No plan write path skips it — today's tools included.
@@ -342,8 +334,7 @@ contracts (§14). No plan write path skips it — today's tools included.
 |---|---|
 | Propose or approve a map | The vision is incomplete |
 | Approve a map | A mandatory part is missing and not waived |
-| Create structure | The map is not approved, or the directory is not empty |
-| Propose or approve a roadmap | The structure has not been written |
+| Propose or approve a roadmap | The map is not approved |
 | Start, edit or approve a plan; edit its bindings | No roadmap is approved |
 | Approve a plan | Its plan is linked to no part |
 
@@ -353,67 +344,21 @@ error, like `PLAN_BLOCKED`. The Planner reads the reason and returns to the
 missing step. Over HTTP it is `409` with the code `STAGE_BLOCKED`; over MCP
 it is a tool result whose text begins `STAGE_BLOCKED:` (§13.6). A hand edit
 after the first map meets the same gate: it may not leave a mandatory,
-unwaived kind without a top-level part.
+unwaived kind without a part at any depth.
 If a standards update adds a mandatory kind to an already approved map,
 that pre-existing gap is reported in `missing`; incremental part edits and
 approvals may repair it without first repairing every other gap. They may
-not introduce another missing kind. Creating structure rechecks all current
-mandatory kinds and refuses any unwaived gap.
+not introduce another missing kind. Layer places are checked by the single
+map policy; the layout follows the stack and can change after approval.
+The person and Planner update the map when that layout changes.
 
-**After approval.** Changing an approved vision deletes nothing. The stage
-line names the change ("G3 added since the map; no part serves it"), the
-Planner proposes a map change rather than a new map, and an unserved item is
-shown as such in the workspace. A map change after the structure exists is
-recorded; writing it to disk belongs to the executors (§17).
+## 23.7 Who writes the structure
 
-## 23.7 Writing the structure
-
-**Create structure** on the map page writes exactly what the approved map
-holds. It is a person's action in the web client; no MCP tool writes to
-disk.
-
-§24 owns who approved and makes the Planner unable to act as the person: it
-has no shell to send the web client's request, so Create structure is
-reached only from the web client. §24 is built before this write. What also
-bounds the write is what it accepts: an approved map only, an empty directory
-only, paths inside it only, the approved files only.
-
-1. **What is written:** each part's folders; each part's `contract.yaml`,
-   from its approved contract head and the template; the approved initial
-   files; and a root `SHADOWS.md` naming the standards versions, the map
-   version, and that Shadows is the source of truth.
-2. **Empty directory:** the project directory may hold only `.git`;
-   otherwise `STAGE_BLOCKED: directory not empty`.
-3. **Paths:** every path must resolve inside the project directory. An
-   absolute path or `..` refuses the whole write before anything is written.
-4. **Intent first:** before the first byte, the write is recorded as started
-   with every path and content hash, the map version and the standards
-   versions. Each file is written to a temporary name beside it and renamed
-   into place. Success is recorded last.
-5. **Failure and retry:** if the write fails, or the daemon stops before
-   success is recorded, the stage stays at structure and the person sees what
-   is on disk. Create structure then resumes the recorded write: the
-   directory may hold only `.git`, the recorded paths whose content matches
-   their hash, and leftover temporary names of recorded paths, which are
-   removed. It writes the missing files and records success. Any other file,
-   or a recorded path whose content differs, refuses with the list of them;
-   Shadows never deletes or overwrites such a file.
-
-After the write, the contracts in Shadows remain the source; the files are
-their output. Hand edits to those files are the executors' concern (§17).
-
-Decided with Mohammed on 2026-10-12, for PR 4:
-
-- **A part's `contract.yaml` is its approved head only:** the part's title,
-  kind, responsibility, the vision items it serves, and its approved header
-  and rules. There is no template beyond that. Filling in methods,
-  obligations and tests is the first executor's task (§17).
-- **The count is Core's (2026-10-29).** Before the person confirms, the stage
-  read says how many files Create structure will write, for the map revision
-  it was counted at; a client counts nothing itself.
-- **No Git.** Create structure writes files and nothing else; `git init`
-  is the person's or an executor's. A directory already holding `.git` is
-  accepted (rule 2).
+No Shadows command writes the structure. The approved map records the
+layout, and a plan's tasks or the Planner in Agent Mode create it with the
+framework's tools when the person asks. No `SHADOWS.md` or per-part contract
+is generated. Existing files are left alone. The owner is the
+[structure spec §5.4](../../backend/specs/2026-11-05-structure-and-depth-design.md#54-who-writes-the-structure).
 
 ## 23.8 Groundwork: what this section fixes first
 
@@ -434,30 +379,29 @@ Each PR is one slice a person can try in the browser. PRs 0 to 5 are merged
 | 3 | Map and contracts, with their gates (§23.5, §23.6) | A proposed map approved; a clear refusal when something is missing |
 | 3b | §24: principal and agent, the Planner's fixed tools, its approval tools | "Approved by the Planner at your request" beside "Approved by you" |
 | 3c | §24.3: the project switches that widen the Planner's reach (connectors, skills, `CLAUDE.md`), after their probe | A switch turns on Google Drive for one project's Planner and nothing else |
-| 4 | Writing the structure (§23.7) | The structure appears in the project directory |
-| 5 | Roadmap and plans behind their gates | A roadmap approved after the structure; no plan before it, and none approved without a part |
+| 4 | Original structure writer, removed by the structure-and-layers slice 3 | No current structure command (§23.7) |
+| 5 | Roadmap and plans behind their gates | A roadmap approved after the map; no plan before it, and none approved without a part |
 
 ## 23.10 Tests and acceptance
 
 Service tests, few and exact:
 
 1. Each gate refuses with its reason: incomplete vision, missing part,
-   non-empty directory, structure not written.
+   map not approved.
 2. Waiving `api` or `frontend` needs a reason; `backend` and `database`
    cannot be waived.
 3. Approving after the workspace changed is refused; a newer proposal
    supersedes the pending one.
-4. The structure write refuses a path outside the directory and writes only
-   the approved files. A write stopped after some files resumes and
-   completes; a foreign file or a changed recorded file refuses the resume.
-5. A roadmap proposal is refused before the structure exists; a plan write
-   through any existing path is refused before a roadmap is approved; a plan
-   linked to no part cannot be approved. A standards change reaches a running session before its next
+4. Map approval records layout and writes no files. Nested part kinds count;
+   an external layer place such as a Laravel connection config is accepted.
+5. A roadmap proposal is refused before map approval; every plan write is
+   refused before roadmap approval; a plan linked to no part cannot be
+   approved. Standards changes reach a running session before its next
    message, and a proposal made under older standards cannot be approved.
 6. A vision item added after the map's approval appears in the stage as
    unserved.
 
 Acceptance is the browser journey on a copy of the development database with
 the real adapter: a new project; a conversation about an idea; vision items
-approved; a map approved; the structure written into an empty directory; a
-plan tied to a part.
+approved; a map approved; Roadmap opens without a Structure step; a
+plan tied to a part. A framework scaffold runs without pre-created files.

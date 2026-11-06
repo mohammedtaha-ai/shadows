@@ -16,8 +16,6 @@ mod roadmap;
 mod roadmap_changes;
 #[path = "design_parts/roadmap_gate.rs"]
 mod roadmap_gate;
-#[path = "design_parts/structure.rs"]
-mod structure;
 
 async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
     let storage = Arc::new(Storage::open(path).await.unwrap());

@@ -9,7 +9,7 @@ fn kinded(kind: &str) -> DesignOp {
             serves: vec![],
             folder: kind.trim().into(),
             layers: catalog_layers(kind.trim(), kind.trim()),
-            files: vec![],
+
             contract: Default::default(),
             kind: Some(kind.into()),
             ..content(kind)
@@ -41,12 +41,11 @@ fn view(stage: shadows_core::Stage, missing: &[&str]) -> shadows_core::StageView
         stage,
         missing: missing.iter().map(|m| m.to_string()).collect(),
         map_revision: 0,
-        structure_file_count: None,
     }
 }
 
 #[tokio::test]
-async fn the_stage_walks_idea_vision_map_structure() {
+async fn the_stage_walks_idea_vision_map_roadmap() {
     use shadows_core::Stage;
     let tmp = tempfile::tempdir().unwrap();
     let core = core_at(&tmp.path().join("s.sqlite3")).await;
@@ -78,10 +77,7 @@ async fn the_stage_walks_idea_vision_map_structure() {
         vec![kinded("database"), kinded("api"), kinded("frontend")],
     )
     .await;
-    assert_eq!(
-        core.design().stage(&p).await.unwrap().stage,
-        Stage::Structure
-    );
+    assert_eq!(core.design().stage(&p).await.unwrap().stage, Stage::Roadmap);
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
@@ -129,7 +125,7 @@ async fn stage_counts_a_trimmed_kind_and_no_other_case() {
     .await;
     assert_eq!(
         core.design().stage(&p).await.unwrap().missing,
-        ["database", "api", "frontend"]
+        ["api", "frontend"]
     );
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())

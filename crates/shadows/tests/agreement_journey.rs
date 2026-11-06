@@ -40,7 +40,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
                         serves: vec![],
                         folder: title.into(),
                         layers: vec![],
-                        files: vec![],
+
                         contract: Default::default(),
                         title: title.into(),
                         responsibility: "Login".into(),
