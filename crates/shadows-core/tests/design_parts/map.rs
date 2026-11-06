@@ -140,11 +140,29 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         .content;
     inside.folder = "api/backend".into();
     inside.layers = catalog_layers("backend", "api/backend");
-    for (n, op) in [
-        vec![DesignOp::PartPut {
-            id: backend.clone(),
-            content: c,
-        }],
+    assert!(matches!(
+        core.plans()
+            .edit_design(
+                "drop".into(),
+                &p,
+                1,
+                vec![DesignOp::PartPut {
+                    id: backend.clone(),
+                    content: c,
+                }]
+            )
+            .await
+            .map_err(shadows_core::CoreError::from),
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::StageBlocked,
+            ..
+        })
+    ));
+    assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
+    edit(
+        &core,
+        &p,
+        1,
         vec![
             DesignOp::PartPut {
                 id: backend.clone(),
@@ -156,22 +174,9 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
                 before: None,
             },
         ],
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        assert!(matches!(
-            core.plans()
-                .edit_design(format!("drop-{n}"), &p, 1, op)
-                .await
-                .map_err(shadows_core::CoreError::from),
-            Err(CoreError::Refused {
-                code: shadows_core::ErrorCode::StageBlocked,
-                ..
-            })
-        ));
-    }
-    assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
+    )
+    .await;
+    assert_eq!(core.design().vision(&p).await.unwrap().revision, 2);
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

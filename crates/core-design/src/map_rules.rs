@@ -83,14 +83,9 @@ impl MapRules {
 pub(crate) const MODULE_MARKER: &str = "{module}";
 
 impl MapRules {
-    /// A layer's place: a path that may hold one `{module}` marker.
+    /// A layer's place follows the stack; markers are descriptive text.
     fn normalise_place(raw: &str) -> Result<String, String> {
         let path = MapRules::normalise_folder(raw)?;
-        if path.matches(MODULE_MARKER).count() > 1 {
-            return Err(format!(
-                "{raw} holds the {MODULE_MARKER} marker twice. Keep one marker"
-            ));
-        }
         Ok(path)
     }
 }
@@ -117,7 +112,7 @@ impl MapRules {
                     "invalid_path",
                     format!(
                         "part {:?} layer {}: {message}. Use a relative path \
-                         inside the part, with at most one {MODULE_MARKER}.",
+                         without parent traversal or reserved names.",
                         content.title, layer.layer
                     ),
                 )
@@ -133,84 +128,6 @@ impl MapRules {
 
 fn inside(inner: &str, outer: &str) -> bool {
     inner.starts_with(&format!("{outer}/"))
-}
-
-/// Whether two paths can be the same path, or one inside the other, for
-/// some module name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Overlap {
-    Equal,
-    AInsideB,
-    BInsideA,
-    None,
-}
-
-/// The path's segments, lowercased.
-fn segments(path: &str) -> Vec<String> {
-    path.replace('\\', "/")
-        .split('/')
-        .map(|s| s.to_lowercase())
-        .collect()
-}
-
-/// The text before and after the marker, when a segment holds one.
-fn marker_parts(segment: &str) -> Option<(&str, &str)> {
-    segment.split_once(MODULE_MARKER)
-}
-
-/// Whether a literal segment can be the module name a marker segment names.
-fn literal_matches_marker(literal: &str, before: &str, after: &str) -> bool {
-    literal.len() > before.len() + after.len()
-        && literal.starts_with(before)
-        && literal.ends_with(after)
-}
-
-/// Whether two marker segments can name the same module.
-fn markers_may_match(a_before: &str, a_after: &str, b_before: &str, b_after: &str) -> bool {
-    (a_before.starts_with(b_before) || b_before.starts_with(a_before))
-        && (a_after.ends_with(b_after) || b_after.ends_with(a_after))
-}
-
-/// Whether two segments can name the same path segment.
-fn segments_may_match(a: &str, b: &str) -> bool {
-    match (marker_parts(a), marker_parts(b)) {
-        (None, None) => a == b,
-        (Some((before, after)), None) => literal_matches_marker(b, before, after),
-        (None, Some((before, after))) => literal_matches_marker(a, before, after),
-        (Some((a_before, a_after)), Some((b_before, b_after))) => {
-            markers_may_match(a_before, a_after, b_before, b_after)
-        }
-    }
-}
-
-/// Whether one module name can make the two paths overlap: the same path,
-/// or one inside the other.
-fn may_overlap(a: &str, b: &str) -> Overlap {
-    let a = segments(a);
-    let b = segments(b);
-    if !a.iter().zip(&b).all(|(x, y)| segments_may_match(x, y)) {
-        return Overlap::None;
-    }
-    match a.len().cmp(&b.len()) {
-        std::cmp::Ordering::Equal => Overlap::Equal,
-        std::cmp::Ordering::Less => Overlap::BInsideA,
-        std::cmp::Ordering::Greater => Overlap::AInsideB,
-    }
-}
-
-/// Whether every module name keeps the place inside the folder. The folder's
-/// segments must be a literal prefix of the place, and the place must be
-/// deeper than the folder.
-fn always_inside(place: &str, folder: &str) -> bool {
-    let place = segments(place);
-    let folder = segments(folder);
-    if place.len() <= folder.len() {
-        return false;
-    }
-    folder
-        .iter()
-        .enumerate()
-        .all(|(index, segment)| !segment.contains(MODULE_MARKER) && place[index] == *segment)
 }
 
 fn descendant<'a>(parts: &[MapPart<'a>], mut child: &'a str, ancestor: &str) -> bool {
@@ -407,7 +324,7 @@ impl MapRules {
             let folder = MapRules::normalise_folder(&part.content.folder)
                 .map_err(|message| MapRefusal::path(&part.content.title, message))?
                 .to_lowercase();
-            // A pattern is a layer's place; a folder Create structure makes must be literal.
+            // Part ownership needs a concrete folder; layer places can describe patterns.
             if folder.contains(MODULE_MARKER) {
                 return Err(MapRefusal::new(
                     "invalid_path",
@@ -637,16 +554,15 @@ impl MapRules {
                     }
                     continue;
                 }
-                if !always_inside(&layer.place, &part.content.folder) {
-                    return Err(MapRefusal::new(
-                        "layer_outside_part",
+                MapRules::normalise_place(&layer.place).map_err(|message| {
+                    MapRefusal::new(
+                        "invalid_path",
                         format!(
-                            "part {:?} layer {} has the place {:?}, outside its folder {:?}. \
-                             Put the place inside the folder.",
-                            part.content.title, layer.layer, layer.place, part.content.folder
+                            "part {:?} layer {}: {message}",
+                            part.content.title, layer.layer
                         ),
-                    ));
-                }
+                    )
+                })?;
             }
             let places: Vec<(&str, &str)> = part
                 .content
@@ -657,34 +573,13 @@ impl MapRules {
                 .collect();
             for (index, (id, place)) in places.iter().enumerate() {
                 for (other_id, other_place) in &places[index + 1..] {
-                    if may_overlap(place, other_place) != Overlap::None {
+                    if place.eq_ignore_ascii_case(other_place) {
                         return Err(MapRefusal::new(
                             "layer_place_shared",
                             format!(
-                                "part {:?} layers {id} and {other_id} can name the same \
+                                "part {:?} layers {id} and {other_id} name the same \
                                  place. Give each layer its own place.",
                                 part.content.title
-                            ),
-                        ));
-                    }
-                }
-            }
-            for (id, place) in &places {
-                for child in parts.iter().filter(|c| c.parent == Some(part.key)) {
-                    if child.content.folder.is_empty() {
-                        continue;
-                    }
-                    if matches!(
-                        may_overlap(place, &child.content.folder),
-                        Overlap::Equal | Overlap::AInsideB
-                    ) {
-                        return Err(MapRefusal::new(
-                            "layer_inside_child",
-                            format!(
-                                "part {:?} layer {id} has the place {place:?}, which can \
-                                 reach its child {:?}'s folder {:?}. Keep the place out \
-                                 of the child's folder.",
-                                part.content.title, child.content.title, child.content.folder
                             ),
                         ));
                     }
@@ -707,11 +602,10 @@ impl MapRules {
             .filter(|kind| {
                 !waived.iter().any(|w| w == **kind)
                     && !parts.iter().any(|p| {
-                        p.parent.is_none()
-                            && p.content
-                                .kind
-                                .as_deref()
-                                .is_some_and(|k| k.trim() == **kind)
+                        p.content
+                            .kind
+                            .as_deref()
+                            .is_some_and(|k| k.trim() == **kind)
                     })
             })
             .map(|k| k.to_string())

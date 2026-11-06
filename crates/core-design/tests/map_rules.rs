@@ -37,10 +37,6 @@ fn checked(parts: &[(&str, Option<&str>, PartContent)]) -> Result<(), core_desig
     MapRules::check_shape(&views, &written, &VisionContent::default(), &standards())
 }
 
-fn refused_tree(parts: &[(&str, Option<&str>, PartContent)]) -> core_design::MapRefusal {
-    checked(parts).unwrap_err()
-}
-
 #[test]
 fn a_file_outside_its_part_names_the_part_and_its_folders() {
     let error = refused(&[PartContent {
@@ -393,28 +389,6 @@ fn windows_case_and_segment_boundaries_use_the_same_policy() {
     );
 }
 
-#[test]
-fn a_second_module_marker_is_refused() {
-    let layer = |place: &str| core_design::PartLayer {
-        layer: "domain".into(),
-        place: place.into(),
-        not_used: None,
-    };
-    let mut content = PartContent {
-        title: "Backend".into(),
-        folder: "crates".into(),
-        layers: vec![layer(r"crates\core-{module}\src\model.rs")],
-        ..Default::default()
-    };
-    MapRules::normalise(&mut content).unwrap();
-    assert_eq!(content.layers[0].place, "crates/core-{module}/src/model.rs");
-
-    content.layers = vec![layer("crates/{module}/{module}")];
-    let error = MapRules::normalise(&mut content).unwrap_err();
-    assert_eq!(error.rule, "invalid_path");
-    assert!(error.message.contains("marker twice"));
-}
-
 fn layer(id: &str, place: &str) -> core_design::PartLayer {
     core_design::PartLayer {
         layer: id.into(),
@@ -512,15 +486,6 @@ fn an_unknown_layer_is_refused() {
 }
 
 #[test]
-fn a_layer_outside_its_part_is_refused() {
-    let mut content = part_of("backend", "Backend", "backend", backend_layers("backend"));
-    content.layers[0].place = "other/app/Domain".into();
-    let error = refused(&[content]);
-    assert_eq!(error.rule, "layer_outside_part");
-    assert!(error.message.contains("domain"));
-}
-
-#[test]
 fn two_layers_sharing_a_place_are_refused() {
     let mut content = part_of("backend", "Backend", "backend", backend_layers("backend"));
     content.layers[1].place = content.layers[0].place.clone();
@@ -547,40 +512,6 @@ fn a_not_used_layer_needs_a_reason_and_no_place() {
     let error = refused(&[both]);
     assert_eq!(error.rule, "layer_not_used_without_reason");
     assert!(error.message.contains("place"));
-}
-
-#[test]
-fn a_layer_inside_a_child_part_is_refused() {
-    let parent = part_of(
-        "backend",
-        "Backend",
-        "backend",
-        vec![
-            layer("domain", "backend/billing"),
-            not_used("application", "one operation"),
-            not_used("interface", "no input"),
-            not_used("infrastructure", "no ports"),
-            not_used("composition", "one module"),
-        ],
-    );
-    let child = part_of(
-        "backend",
-        "Service",
-        "backend/billing",
-        backend_layers("backend/billing"),
-    );
-    let error = refused_tree(&[("parent", None, parent), ("child", Some("parent"), child)]);
-    assert_eq!(error.rule, "layer_inside_child");
-    assert!(error.message.contains("domain"));
-    assert!(error.message.contains("billing"));
-}
-
-#[test]
-fn a_layer_below_a_child_folder_is_refused() {
-    let parent = backend_with("backend", vec![layer("domain", "backend/billing/domain")]);
-    let child = part_of("custom", "Billing", "backend/billing", vec![]);
-    let error = refused_tree(&[("parent", None, parent), ("child", Some("parent"), child)]);
-    assert_eq!(error.rule, "layer_inside_child");
 }
 
 #[test]
@@ -633,60 +564,6 @@ fn module_patterns_are_one_place_per_module() {
 }
 
 #[test]
-fn a_pattern_conflicts_with_a_place_it_can_expand_to() {
-    let content = backend_with(
-        "backend",
-        vec![
-            layer("domain", "backend/modules/{module}/src"),
-            layer("application", "backend/modules/users/src"),
-        ],
-    );
-    let error = refused(&[content]);
-    assert_eq!(error.rule, "layer_place_shared");
-    assert!(error.message.contains("domain"));
-    assert!(error.message.contains("application"));
-}
-
-#[test]
-fn a_marker_inside_a_folder_name_conflicts_too() {
-    let content = backend_with(
-        "crates",
-        vec![
-            layer("domain", "crates/core-{module}"),
-            layer("application", "crates/core-users"),
-        ],
-    );
-    let error = refused(&[content]);
-    assert_eq!(error.rule, "layer_place_shared");
-    assert!(error.message.contains("domain"));
-    assert!(error.message.contains("application"));
-}
-
-#[test]
-fn a_pattern_that_can_reach_a_child_folder_is_refused() {
-    let parent = backend_with("backend", vec![layer("domain", "backend/{module}")]);
-    let child = part_of(
-        "backend",
-        "Service",
-        "backend/billing",
-        backend_layers("backend/billing"),
-    );
-    let error = refused_tree(&[("parent", None, parent), ("child", Some("parent"), child)]);
-    assert_eq!(error.rule, "layer_inside_child");
-    assert!(error.message.contains("domain"));
-}
-
-#[test]
-fn a_pattern_must_stay_inside_its_part_for_every_module() {
-    let outside = backend_with("backend", vec![layer("domain", "{module}/src")]);
-    let error = refused(&[outside]);
-    assert_eq!(error.rule, "layer_outside_part");
-
-    let inside = backend_with("backend", vec![layer("domain", "backend/{module}/src")]);
-    assert!(checked(&[("backend", None, inside)]).is_ok());
-}
-
-#[test]
 fn a_part_folder_cannot_hold_a_module_marker() {
     let content = backend_with("crates/core-{module}", vec![]);
     let error = refused(&[content]);
@@ -709,20 +586,6 @@ fn layer_places_use_windows_case_rules() {
 }
 
 #[test]
-fn moving_a_parent_rechecks_child_layer_places() {
-    let parent = part_of("backend", "Backend", "b", backend_layers("b"));
-    let child = part_of(
-        "backend",
-        "Service",
-        "b/service",
-        backend_layers("a/service"),
-    );
-    let error = refused_tree(&[("parent", None, parent), ("child", Some("parent"), child)]);
-    assert_eq!(error.rule, "layer_outside_part");
-    assert!(error.message.contains("domain"));
-}
-
-#[test]
 fn a_starter_file_cannot_replace_a_layer_directory() {
     let mut p = backend_with("backend", vec![layer("domain", "backend/domain")]);
     p.files.push(core_design::InitialFile {
@@ -738,4 +601,75 @@ fn an_included_optional_layer_needs_a_place() {
     p.layers.retain(|layer| layer.layer != "design_system");
     p.layers.push(layer("design_system", ""));
     assert_eq!(refused(&[p]).rule, "missing_layer");
+}
+
+#[test]
+fn a_laravel_map_with_a_nested_database_part_is_approved() {
+    let backend = part_of("backend", "Backend", "backend", backend_layers("backend"));
+    let database = part_of(
+        "database",
+        "Database",
+        "backend/database",
+        vec![
+            layer("schema", "backend/database/schema"),
+            layer("migrations", "backend/database/migrations"),
+            layer("connection", "backend/config/database.php"),
+        ],
+    );
+    checked(&[
+        ("backend", None, backend),
+        ("database", Some("backend"), database),
+    ])
+    .unwrap();
+}
+
+#[test]
+fn a_place_outside_its_part_is_accepted() {
+    let content = backend_with("backend", vec![layer("domain", "shared/Domain")]);
+    checked(&[("backend", None, content)]).unwrap();
+}
+
+#[test]
+fn a_marker_may_appear_more_than_once() {
+    let mut content = backend_with(
+        "backend",
+        vec![layer("domain", "backend/{module}/src/{module}")],
+    );
+    MapRules::normalise(&mut content).unwrap();
+    checked(&[("backend", None, content)]).unwrap();
+}
+
+#[test]
+fn a_used_layer_place_must_be_a_valid_relative_path() {
+    for path in [
+        "/outside",
+        "C:/outside",
+        "backend/../outside",
+        "backend//domain",
+    ] {
+        let content = backend_with("backend", vec![layer("domain", path)]);
+        assert_eq!(refused(&[content]).rule, "invalid_path", "{path}");
+    }
+}
+
+#[test]
+fn a_nested_part_satisfies_its_required_kind() {
+    let backend = backend_with("backend", vec![]);
+    let database = part_of("database", "Database", "backend/database", vec![]);
+    let parts = [
+        MapPart {
+            key: "b",
+            parent: None,
+            content: &backend,
+        },
+        MapPart {
+            key: "d",
+            parent: Some("b"),
+            content: &database,
+        },
+    ];
+    assert_eq!(
+        MapRules::missing_kinds(&parts, &["api".into(), "frontend".into()], &standards()),
+        Vec::<String>::new(),
+    );
 }

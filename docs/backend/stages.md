@@ -112,3 +112,14 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Input/output: Base v2 becomes v3; LayerSpec loses elements; S6/S9 change and S10 is added. Starter-file removal moves to B-73 with the writer that consumes it.
 - Failure cases: serialized element kinds remain; runtime rule wrongly routes internal dependencies through AppCore.
 - Done when: `cargo test -p core-standards`; generated OpenAPI and web schema; `cargo fmt --all --check`.
+
+### B-72 · Map rules check principles, not places
+- Status: done
+- Base: `288670b2`
+- Plan: `docs/backend/plans/2026-11-05-structure-and-depth.md#task-32-map-rules-on-principle-only`
+- Owner: `core-design`, `crates/core-design/contract.yaml`
+- Read: AppCore owner table; structure spec §5.3; core-design contract.
+- Touch: `crates/core-design/src/map_rules.rs`, `tests/map_rules.rs`, `contract.yaml`; `crates/shadows-core/tests/design_parts/map.rs`; this stages file.
+- Needs: B-71 base v3; accepted principles-not-layout request.
+- Input/output: folder ownership stays; layer places no longer require containment or disjoint pattern expansions. Missing, unknown, duplicate or malformed layers refuse.
+- Done when: `cargo test -p core-design`; `cargo test -p shadows-core --test design_parts`; `cargo test -p shadows --test design_routes`; fmt check.
