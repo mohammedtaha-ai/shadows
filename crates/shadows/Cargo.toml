@@ -55,6 +55,7 @@ shadows-agent = { path = "../shadows-agent" }
 serde_json = { workspace = true }
 agent-client-protocol = { workspace = true }
 dunce = { workspace = true }
+yaml-rust2 = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }
 tokio-stream = { workspace = true }
