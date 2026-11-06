@@ -95,7 +95,7 @@ its live acceptance is not recorded.
 Structure and planning depth: Slice 3 implementation and automated checks are complete
 locally (B-71 to B-75, F-92, through `3deb1333`). Manual acceptance belongs to Mohammed
 on the existing project; it is pending. Nothing is pushed or merged by this work.
-Slices 4 and 5 remain unassigned; elements and trace are dropped.
+Slices 4 and 5 are prepared for inline execution on this branch; elements and trace are dropped.
 The [design](specs/2026-11-05-structure-and-depth-design.md) and
 [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the
 readiness checklist. Existing projects are test data: no compatibility layer. Coverage and code
@@ -160,3 +160,125 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Touch: `crates/core-design/src/map_rules.rs`, `tests/map_rules.rs`, `contract.yaml`; this stages file.
 - Input/output: compare canonical case-folded places, including direct policy calls; missing-layer guidance requests the stack layout rather than part containment.
 - Done when: both new regressions observed RED to GREEN; core-design, design_parts, design_routes and contract_tests; affected clippy; fmt check.
+
+### B-76 · Read accepted layout through Design
+- Status: todo
+- Base: `ae70fa04`, `feature/structure-elements`; controller serializes commits.
+- Plan: `docs/backend/plans/2026-11-05-structure-and-depth.md#task-41-the-layout-read-core-design`
+- Owner: Design; `crates/core-design/contract.yaml`.
+- Read: AppCore owner table; structure spec §5.3/§5.5/§8; Design and Standards contracts; code-map rows for map_versions, parts and map_rules. No LSP is available; direct reads follow those modules.
+- Touch: `crates/core-design/src/map_rules.rs`, `crates/core-design/src/layout.rs`, `crates/core-design/src/store/layout.rs`, `crates/core-design/src/store/mod.rs`, `crates/core-design/src/lib.rs`, `crates/core-design/contract.yaml`, `crates/shadows-core/src/lib.rs`, `crates/shadows-core/tests/design_parts.rs`, `crates/shadows-core/tests/design_parts/layout.rs`, `docs/codebase/README.md`, this stages file, plan Task 4.1/progress.
+- Needs: Slice 3 implementation; no public HTTP shape change or shared request.
+- Input/output: `Design::layout`/`layout_in` return accepted map order, revision, effective standards versions, joined layer roles/may_use and applicable rules. Pure `ProjectLayout::owners` owns folder/place matching; store remains private. `i64` standards numbers; no private additions id exposed.
+- Failure cases: proposal leakage, mixed snapshots, removed project, sibling path prefix, repeated/embedded marker mismatch, duplicated/omitted ownership claims, grouping rule copied outside MapRules.
+- Done when: tests named in Task 4.1 (including snapshot, invalid paths and liveness) pass via `cargo test -p shadows-core --test design_parts` and `cargo test -p core-design`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; fmt. Parent runs required affected clippy/checks and owns commit/push. No live acceptance claimed.
+
+
+### B-77 · Read approved task context
+- Status: blocked
+- Base: previous task commit on `feature/structure-elements`.
+- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 4.2.
+- Owner: Plans; its current contract and AppCore owner row.
+- Read: owner spec §5.5/§6/§8; exact Task 4.2 interfaces, files and tests; owner contracts and code map.
+- Touch: the exact Files list in Task 4.2, this stages file and that plan task. Compiler-reported constructor fixtures are recorded before edits.
+- Needs: B-76.
+- Done when: cargo test -p shadows-core --test task_context; cargo test -p core-plans; affected clippy; fmt; architecture, codemap and contracts. No live acceptance claimed by unit tests.
+
+- Create: `crates/core-plans/src/task_context.rs`
+- Modify: `crates/core-plans/src/lib.rs`, `crates/core-plans/src/store/mod.rs`,
+  `crates/core-plans/src/store/design_parts.rs`, `crates/core-plans/contract.yaml`,
+  `crates/shadows-core/src/lib.rs`, `docs/codebase/README.md`.
+- Create: `crates/core-plans/src/store/task_context.rs`,
+  `crates/shadows-core/tests/task_context.rs` (standalone integration target).
+
+
+### B-78 · Expose task_context over MCP
+- Status: blocked
+- Base: previous task commit on `feature/structure-elements`.
+- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 4.3.
+- Owner: Plans; Grants owns tool policy; Harness owns instructions; its current contract and AppCore owner row.
+- Read: owner spec §5.5/§6/§8; exact Task 4.3 interfaces, files and tests; owner contracts and code map.
+- Touch: the exact Files list in Task 4.3, this stages file and that plan task. Compiler-reported constructor fixtures are recorded before edits.
+- Needs: B-77.
+- Done when: cargo test -p shadows --test planner_mcp --test mcp_tools --test mcp_server --test contract_tests --test codemap; affected clippy; fmt; architecture, codemap and contracts. No live acceptance claimed by unit tests.
+
+- Modify: `crates/shadows-mcp/src/plan_tools.rs`,
+  `crates/shadows-mcp/src/contract.yaml`, `crates/core-grants/src/tools.rs`,
+  `crates/core-grants/contract.yaml`
+- Modify: `crates/core-harness/src/prompt.txt` (one line: the building
+  agent reads `task_context` first)
+- Modify: `crates/core-harness/contract.yaml`.
+- Test: `crates/shadows/tests/planner_mcp.rs`,
+  `crates/shadows/tests/mcp_tools.rs`, `crates/shadows/tests/mcp_server.rs`.
+
+
+### B-79 · Persist phase values in task contracts
+- Status: blocked
+- Base: previous task commit on `feature/structure-elements`.
+- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.1.
+- Owner: Plans; its current contract and AppCore owner row.
+- Read: owner spec §5.5/§6/§8; exact Task 5.1 interfaces, files and tests; owner contracts and code map.
+- Touch: the exact Files list in Task 5.1, this stages file and that plan task. Compiler-reported constructor fixtures are recorded before edits.
+- Needs: B-78; accepted task-phases request.
+- Done when: cargo test -p core-plans; cargo test -p shadows --test openapi; affected clippy; fmt; architecture, codemap and contracts. No live acceptance claimed by unit tests.
+
+- Modify: `crates/core-plans/src/model.rs`, `crates/core-plans/src/lib.rs`,
+  `crates/core-plans/src/rules.rs`, `crates/core-plans/contract.yaml`,
+  `crates/shadows-core/src/lib.rs`, `api/openapi.json`,
+  `web/src/api/schema.d.ts`, `docs/codebase/README.md`.
+- Create: `crates/core-plans/src/phases.rs` for pure public phase values.
+- Test: `crates/core-plans/tests/workflow_rules.rs`.
+- Constructor fixture inventory must be completed by the controller before
+  B-79 dispatch: adding a Rust struct field breaks every `TaskContent` literal.
+  The exact compiler-identified fixture files are appended to B-79 Touch; no
+  blanket permission to edit arbitrary tests or unrelated product modules.
+
+
+### B-80 · Edit phases with one version-aware dependency graph
+- Status: blocked
+- Base: previous task commit on `feature/structure-elements`.
+- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.2.
+- Owner: Plans; its current contract and AppCore owner row.
+- Read: owner spec §5.5/§6/§8; exact Task 5.2 interfaces, files and tests; owner contracts and code map.
+- Touch: the exact Files list in Task 5.2, this stages file and that plan task. Compiler-reported constructor fixtures are recorded before edits.
+- Needs: B-79.
+- Done when: cargo test -p core-plans; cargo test -p shadows-core --test phase_dependencies --test cross_plan_resolution --test cross_plan_links; affected clippy; fmt; architecture, codemap and contracts. No live acceptance claimed by unit tests.
+
+- Modify: `crates/core-plans/src/dependency_graph.rs`, `src/ops.rs`,
+  `crates/core-plans/src/rules.rs`, `crates/core-plans/src/store/graph.rs`,
+  `crates/core-plans/src/store/edit.rs`, `crates/core-plans/src/store/read.rs`,
+  `crates/core-plans/src/model.rs`, `crates/core-plans/src/lib.rs`,
+  `crates/core-plans/src/store/mod.rs`, `crates/core-plans/contract.yaml`,
+  `crates/shadows-core/src/lib.rs`, `api/openapi.json`,
+  `web/src/api/schema.d.ts`, `docs/codebase/README.md`.
+- Create: `crates/core-plans/src/store/phase_projection.rs` and
+  `crates/shadows-core/tests/phase_dependencies.rs`.
+- Test: `crates/core-plans/tests/workflow_rules.rs`,
+  `crates/shadows-core/tests/cross_plan_resolution.rs`,
+  `crates/shadows-core/tests/cross_plan_links.rs`.
+
+
+### B-81 · Read selected phase context through MCP
+- Status: blocked
+- Base: previous task commit on `feature/structure-elements`.
+- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.3.
+- Owner: Plans; adapters translate; its current contract and AppCore owner row.
+- Read: owner spec §5.5/§6/§8; exact Task 5.3 interfaces, files and tests; owner contracts and code map.
+- Touch: the exact Files list in Task 5.3, this stages file and that plan task. Compiler-reported constructor fixtures are recorded before edits.
+- Needs: B-80.
+- Done when: cargo test -p shadows-core --test task_context; cargo test -p shadows --test planner_mcp --test mcp_tools --test openapi; affected clippy; fmt; architecture, codemap and contracts. No live acceptance claimed by unit tests.
+
+- Modify: `crates/shadows-mcp/src/plan_tools.rs` (the `plan_edit`
+  description lists `phases_set`), `crates/shadows-mcp/src/contract.yaml`,
+  `crates/core-harness/contract.yaml`, `crates/core-plans/contract.yaml`,
+  `crates/core-plans/src/store/task_context.rs`,
+  `crates/core-plans/src/lib.rs`, `crates/shadows-core/src/lib.rs`
+- Modify: `crates/core-harness/src/prompt.txt` (phases: when to use them,
+  and that the Planner never marks a phase complete)
+- Modify: `crates/core-plans/src/task_context.rs`: an optional
+  `phase: Option<&PhaseId>`
+- Test: `crates/shadows/tests/planner_mcp.rs`,
+  `crates/shadows/tests/mcp_tools.rs`, `crates/shadows-core/tests/task_context.rs`.
+- B-79/B-80 own HTTP schema regeneration as their public shapes change.
+  B-81 verifies those files remain current; MCP-only phase_id is not an HTTP
+  route and does not alone warrant changing OpenAPI.
