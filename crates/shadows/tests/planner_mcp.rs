@@ -36,6 +36,23 @@ const OURS: &str = "[Shadows] Shadows' instructions for you:";
 const STAGE_IDEA: &str = "[Shadows] Stage: idea.";
 
 #[tokio::test]
+async fn the_planner_follows_the_stacks_layout() {
+    let l = listening_app().await;
+    let first = report(&l.app).await;
+    let append = first["append"].as_str().unwrap();
+    assert!(
+        append.contains("follow the framework's own layout"),
+        "{append}"
+    );
+    assert!(append.contains("Shadows writes no folders"));
+    assert!(!append.contains("Create structure"));
+    assert!(!append.contains("SHADOWS.md"));
+    assert!(append.contains("S10 [all]"));
+    assert!(append.contains("declared dependencies"));
+    shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn the_map_tool_names_layers() {
     let l = listening_app().await;
     let client = listening::thread_client(&l, &l.app.thread).await;
@@ -760,7 +777,7 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
             .unwrap()
             .unwrap();
     assert_eq!((versions.prompt, versions.instructions), recorded);
-    assert_eq!(versions.standards, Some(2));
+    assert_eq!(versions.standards, Some(3));
     assert_eq!(versions.additions, None);
 
     l.app

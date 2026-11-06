@@ -60,8 +60,9 @@
 
 name: harness
 layer_catalog: 'Planner standards text lists every kind presence and its layers with required/optional roles and allowed dependencies. The prompt explains places, module patterns, not-used reasons and grouping parts. Tested by planner_mcp::the_standards_text_lists_backend_layers.'
-# Planner instructions reserve generated contracts and SHADOWS.md for Shadows;
-# Create structure remains a person's HTTP action, never a Planner tool.
+# Planner instructions map responsibilities into the chosen framework's layout.
+# Map approval opens Roadmap; framework scaffolding is a building task or an
+# explicitly requested action in Agent Mode, never a structure-writing command.
 # Every new, resumed or forked Planner session sends its Shadows HTTP MCP server
 # in the ACP server list; AYLUL sends only its enabled MCP items. HTTP headers and stdio
 # environment values are omitted from MCP setup Debug output.
@@ -876,6 +877,8 @@ not_the_caller's:
 
 
 tests:
+  - name: the_planner_follows_the_stacks_layout
+    checks: The session opening append follows the framework layout, carries S10 and declared dependencies, and contains no Structure command instructions.
   - name: a_forget_makes_a_heard_context_owed
     checks: crates/shadows/tests/context_record.rs; a heard digest recorded before a forget no longer counts.
   - name: a_context_prepared_after_the_forget_counts

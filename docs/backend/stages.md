@@ -137,3 +137,15 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Touch: `api/openapi.json`, `crates/core-db/contract.yaml`, `crates/core-design/contract.yaml`, `crates/core-design/src/lib.rs`, `crates/core-design/src/map_rules.rs`, `crates/core-design/src/model.rs`, `crates/core-design/src/stage.rs`, `crates/core-design/src/store/mod.rs`, `crates/core-design/src/store/roadmap_approval.rs`, `crates/core-design/src/store/roadmap_proposals.rs`, `crates/core-design/src/store/roadmap_shape.rs`, `crates/core-design/src/store/stage.rs`, `crates/core-design/src/store/structure.rs`, `crates/core-design/src/structure.rs`, `crates/core-design/src/structure_create.rs`, `crates/core-design/src/structure_write.rs`, `crates/core-design/tests/map_rules.rs`, `crates/core-design/tests/stage.rs`, `crates/core-design/tests/structure.rs`, `crates/shadows-core/src/lib.rs`, `crates/shadows-core/tests/agreement_bindings.rs`, `crates/shadows-core/tests/agreement_review.rs`, `crates/shadows-core/tests/design_migration.rs`, `crates/shadows-core/tests/design_outcomes.rs`, `crates/shadows-core/tests/design_parts.rs`, `crates/shadows-core/tests/design_parts/map.rs`, `crates/shadows-core/tests/design_parts/map_proposals.rs`, `crates/shadows-core/tests/design_parts/roadmap.rs`, `crates/shadows-core/tests/design_parts/stage.rs`, `crates/shadows-core/tests/design_parts/structure.rs`, `crates/shadows-core/tests/plan_migration.rs`, `crates/shadows-http/src/contract.yaml`, `crates/shadows-http/src/design.rs`, `crates/shadows-http/src/lib.rs`, `crates/shadows-mcp/src/contract.yaml`, `crates/shadows-mcp/src/workspace_tools.rs`, `crates/shadows/tests/agreement_journey.rs`, `crates/shadows/tests/design_routes.rs`, `crates/shadows/tests/openapi.rs`, `crates/shadows/tests/workspace_mcp.rs`, `docs/codebase/README.md`, `docs/core/specs/2026-10-08-guided-planning-design.md`, `web/src/api/schema.d.ts`, `crates/core-db/migrations/0048_part_files_removed.sql`, `crates/core-db/migrations/0049_structure_write_dropped.sql`
 
 - Additional fixture scope: `crates/shadows/tests/workspace_mcp/roadmap.rs`; remove writer calls and seed complete vision for the roadmap-stage fixture.
+
+### B-74 · The Planner follows the stack
+- Status: done
+- Base: `2e2b8e63`
+- Plan: `docs/backend/plans/2026-11-05-structure-and-depth.md#task-34-the-planner-follows-the-stack`
+- Owner: Harness, `crates/core-harness/contract.yaml`.
+- Read: AppCore owner table; structure spec §7; Harness contract and its standards renderer.
+- Touch: `crates/core-harness/src/prompt.txt`, `contract.yaml`; `crates/shadows/tests/planner_mcp.rs`, `planner_mcp/standards.rs`; this stages file.
+- Needs: B-73's final stage vocabulary and base v3.
+- Input/output: Planner instructions describe stack-native layouts, nested kinds, no generated files and Agent Mode when explicitly requested. Standards rendering already prints roles and S10 without element kinds.
+- Failure cases: opening prompt still imposes a layout or asks for Structure; recorded standards version diverges from v3.
+- Done when: `cargo test -p shadows --test planner_mcp`; `cargo test -p core-harness`; fmt check.
