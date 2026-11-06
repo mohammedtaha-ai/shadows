@@ -145,4 +145,63 @@ because each builds on the one before. Rust lines stay within 100 columns.
   crates/shadows-mcp/src/workspace_tools.rs; crates/shadows/tests/planner_mcp.rs
 - Done when: `cargo test -p shadows --test planner_mcp` and `cargo test -p core-harness` pass
 
+Tests that prove something (Mohammed, 2026-11-06): the test count now nearly equals the code,
+and nothing tells which tests protect real behaviour. Three tools answer it, cheapest first.
+They are tooling, so they need no spec. Each ships on `feature/structure-layers`.
+
+### B-68 · Contracts and tests name each other
+- Status: todo
+- Read: crates/shadows/tests/codemap/main.rs (the pattern to follow); docs/codebase/contracts/TEMPLATE.yaml;
+  three contracts with different shapes: crates/core-design/contract.yaml,
+  crates/core-standards/contract.yaml, crates/core-harness/contract.yaml
+- Touch: crates/shadows/tests/contract_tests/main.rs (new); crates/shadows/Cargo.toml (dev-dependency
+  `yaml-rust2`, already a workspace dependency); any `crates/**/contract.yaml` whose test name is stale
+- What it does: read every `crates/**/contract.yaml`. Collect the test names each one cites:
+  - `obligations[].tested_by`, which may be one name, a list, `none` or `unknown`;
+  - `tests[].name`.
+  Collect the Rust test functions in the workspace: a `fn` right after `#[test]` or
+  `#[tokio::test]`, in `crates/**/*.rs`.
+- Fails on: a cited name that matches no test function, meaning a stale contract. Name the
+  contract and the test.
+- Prints, and does not fail on:
+  - each obligation whose `tested_by` is `none`, `unknown` or empty, meaning a rule no test
+    protects;
+  - per crate, the test functions no contract cites.
+  These are the two lists to act on later. Print them with counts, and sort them for stable output.
+- Stale names found on the first run: fix the contract when the renamed test is obvious from
+  its file. Otherwise list them in the report, and do not guess.
+- Done when: `cargo test -p shadows --test contract_tests -- --nocapture` passes and prints both
+  lists. The report gives the counts.
+
+### B-69 · A coverage report in CI
+- Status: todo
+- Touch: .github/workflows/coverage.yml (new)
+- What it does: on `workflow_dispatch` and once a week (never on push, to save minutes), on
+  `ubuntu-latest`:
+  1. install `cargo-llvm-cov` with `taiki-e/install-action`;
+  2. run `cargo llvm-cov --workspace --features fake-acp/test-support --html`;
+  3. upload `target/llvm-cov/html` as an artifact;
+  4. write `cargo llvm-cov report --summary-only` to the job summary.
+  It runs in CI only, because it needs instrumented `RUSTFLAGS` and the local build cache must
+  not change.
+- Done when: the workflow file passes `actionlint` (or the YAML is valid), and the person runs it
+  once from the Actions tab after the push.
+
+### B-70 · Mutation testing in CI, one crate at a time
+- Status: todo
+- Touch: .github/workflows/mutants.yml (new)
+- What it does: on `workflow_dispatch` only, with input `package` (default `core-design`), on
+  `ubuntu-latest`:
+  1. install `cargo-mutants` with `taiki-e/install-action`;
+  2. run `cargo mutants --package <package> --test-package <package> --test-package shadows-core
+     --test-package shadows -- --features fake-acp/test-support`;
+  3. upload `mutants.out/` as an artifact;
+  4. write the counts (caught, missed, timeout, unviable) and the list of missed mutants to the
+     job summary.
+  The tests of `core-design` mostly live in `shadows-core` and `shadows`, so those packages run
+  too. Without them, nearly every mutant would show as "missed".
+  Set a job `timeout-minutes` of 300.
+- Done when: the workflow file is valid YAML, and the person runs it once for `core-design` after
+  the push. The missed list is the answer to "which code do our tests not really check".
+
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
