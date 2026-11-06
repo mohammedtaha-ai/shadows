@@ -76,5 +76,5 @@ If you are unsure, do not delete: list it in your report instead.
    `git commit -m "docs: sync after #NN, #MM"`, naming every PR you synced. End the message with
    `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
 3. Do NOT push. The branch is pushed with its work, when the person says.
-4. Report in Arabic, short: what you updated, what you deleted, what you
+4. Report in English, short (the controller relays it to the person in Arabic): what you updated, what you deleted, what you
    left and why, and the commit hash.
