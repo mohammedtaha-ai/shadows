@@ -188,6 +188,12 @@ async fn a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval() {
             .unwrap()
             .contains("Write only what the person's message asks for")
     );
+    assert!(
+        r["append"]
+            .as_str()
+            .unwrap()
+            .contains("Write everything you store in Shadows in English")
+    );
     assert_eq!(r["allowed"], json!(["mcp__shadows__*"]));
 
     l.app

@@ -72,6 +72,7 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # Permission answers are recorded before settling the adapter request; cancellation
 # and close serialize against that write. A failed write leaves the request waiting.
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
+# §13.8 prompt: the Planner talks in the person's language and stores everything in English.
 # The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1
 modules:

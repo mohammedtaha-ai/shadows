@@ -368,7 +368,12 @@ They tell the Planner:
 4. that an acceptance item is a sentence someone can check;
 5. that `REVISION_CONFLICT` means read the plan again, then rebuild the edit;
 6. §24 owns approval authority: the person's button or a Planner approval tool
-   at their request; the Planner never reaches the daemon's HTTP API.
+   at their request; the Planner never reaches the daemon's HTTP API;
+7. that it talks in the person's language but writes everything Shadows stores
+   (vision, parts, roadmap, plans, tasks, acceptance items, labels, version
+   reasons) in English, because agents read English most reliably; asked for
+   another language, it says why and offers to explain any item in the
+   person's language.
 
 **Project instructions** are edited in project settings. Each save is a new row
 of `planner_instructions_version` (§13.15) with the next `number`; nothing is
