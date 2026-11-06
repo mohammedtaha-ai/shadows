@@ -100,6 +100,13 @@ parts:
       The tree on the left; the editor on the right. Create part shows only once
       the map is approved (stage structure or roadmap, or an Approved first map
       proposal). Expand loads one child branch and never the whole tree.
+  MapCanvas:
+    signature: '({ parts, projectId, selected? }) -> JSX.Element'
+    note: >
+      Pure React Flow presentation of the caller's visible ownership scope, with
+      keyboard links and theme tokens. No actual dependency edges before elements.
+      PartsView loads root pages or the selected part's children through usePartPages.
+      Canvas/list toggles retain URL selection; browser Back restores the selection.
   PartEditor:
     signature: "({ projectId, saved?, destination, onCreated? }) -> JSX.Element"
     note: >

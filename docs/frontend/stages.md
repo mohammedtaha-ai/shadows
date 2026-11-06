@@ -55,7 +55,7 @@ Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
 
 Structure and depth, slice 2 ([plan](../backend/plans/2026-11-05-structure-and-depth.md#slice-2-standards-v2-and-layers-on-the-map)),
-on `feature/structure-layers`. Both tasks wait for the shared request from B-64
+on `feature/structure-layers`. The shared request from B-64 is accepted:
 (`docs/shared/requests/2026-11-05-part-folder-and-layers.md`) to be accepted.
 
 ### F-90 · The part form, the map card and the standards page carry layers
@@ -67,8 +67,8 @@ on `feature/structure-layers`. Both tasks wait for the shared request from B-64
 - Done when: `npx vitest run src/app/design src/app/conversation` passes in `web/`
 
 ### F-91 · The Project map is a canvas
-- Status: todo
+- Status: done
 - Plan: Task 2.7
-- Touch: web/src/app/design/map-canvas.tsx (new), map-part-details.tsx, workspace-page.tsx;
+- Touch: web/src/app/design/map-canvas.tsx (new), parts-view.tsx, map-part-details.tsx, workspace-page.tsx;
   their tests
 - Done when: the five tests the plan names pass with `npx vitest run src/app/design`

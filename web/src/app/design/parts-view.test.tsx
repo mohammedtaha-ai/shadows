@@ -157,6 +157,7 @@ it('parts_view_loads_only_open_branches', async () => {
     'GET /api/projects/p1/design/parts/n0': { revision: 1, part: items[0], ancestors: [], plans: [] },
   })
   await until(() => a.text().includes('قسم 49'))
+  act(() => a.button('Show list')!.click())
   expect(a.text()).not.toContain('قسم 50')
   act(() => a.button('Load more')?.click())
   await until(() => a.text().includes('قسم 50'))

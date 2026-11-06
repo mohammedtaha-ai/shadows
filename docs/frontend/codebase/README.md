@@ -279,6 +279,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/part-editor.tsx` | Editor for one part, keeping unsaved input | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/part-references.tsx` | Picks the existing parts an outcome refers to | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/parts-view.tsx` | Bounded navigator through the part containment tree | `web/src/app/design/contract.yaml` |
+| `web/src/app/design/map-canvas.tsx` | Project map ownership canvas | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/roadmap-view.tsx` | Navigator for outcomes, without derived completion | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/standards-view.tsx` | Standards page: read-only base, editable additions | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/use-design-editor.ts` | Save lifecycle shared by the design editors | `web/src/app/design/contract.yaml` |
