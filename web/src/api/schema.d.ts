@@ -2466,7 +2466,6 @@ export interface components {
         };
         /** @description One role inside a part kind, from the catalog. */
         LayerSpec: {
-            elements: string[];
             id: string;
             may_use: components["schemas"]["LayerRef"][];
             required: boolean;

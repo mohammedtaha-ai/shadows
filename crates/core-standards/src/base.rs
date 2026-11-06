@@ -60,7 +60,6 @@ fn layers(y: &Yaml) -> Result<Vec<LayerSpec>, String> {
                 id: text(&l["id"])?,
                 role: text(&l["role"])?,
                 required: l["required"].as_bool().ok_or("required")?,
-                elements: strings(&l["elements"])?,
                 may_use: list(&l["may_use"])?
                     .iter()
                     .map(|m| layer_ref(&text(m)?))

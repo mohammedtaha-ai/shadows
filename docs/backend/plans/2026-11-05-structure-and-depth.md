@@ -926,6 +926,11 @@ changes. The web side accepts it before 3.5 starts.
 
 ### Task 3.1: base v3, and parts without starter files
 
+**Execution ruling (2026-11-07):** base v3 is B-71. Starter-file removal and
+migration 0048 move to Task 3.3 (B-73), together with the structure writer
+that consumes them. This avoids adapting code and tests only to delete
+them two commits later. The completed slice's interfaces are unchanged.
+
 **Files:**
 - Modify: `crates/core-standards/src/standards.yaml`, `src/model.rs`,
   `src/base.rs`, `contract.yaml`

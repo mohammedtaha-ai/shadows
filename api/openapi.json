@@ -2789,12 +2789,6 @@
       "LayerSpec": {
         "description": "One role inside a part kind, from the catalog.",
         "properties": {
-          "elements": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "id": {
             "type": "string"
           },
@@ -2815,7 +2809,6 @@
           "id",
           "role",
           "required",
-          "elements",
           "may_use"
         ],
         "type": "object"

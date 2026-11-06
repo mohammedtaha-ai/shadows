@@ -92,10 +92,23 @@ its live acceptance is not recorded.
 
 ## Tasks
 
-Structure and planning depth, slices 3 to 9: no slice is an executable `B-` assignment yet.
+Structure and planning depth: Slice 3 is being implemented inline by the controller.
+Slices 4 and 5 remain unassigned; elements and trace are dropped.
 The [design](specs/2026-11-05-structure-and-depth-design.md) and
 [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the
 readiness checklist. Existing projects are test data: no compatibility layer. Coverage and code
 observation must not be recorded as completed execution.
 
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
+
+### B-71 · Base v3 holds principles, not a layout
+- Status: done
+- Base: `31b8ebdc`
+- Plan: `docs/backend/plans/2026-11-05-structure-and-depth.md#task-31-base-v3-and-parts-without-starter-files`
+- Owner: `core-standards`, `crates/core-standards/contract.yaml`
+- Read: AppCore's owner table; the structure spec §5.2; core-standards contract.
+- Touch: `crates/core-standards/src/standards.yaml`, `src/model.rs`, `src/base.rs`, `tests/base.rs`, `contract.yaml`; `api/openapi.json`; `web/src/api/schema.d.ts`; this stages file; the plan; shared request `2026-11-06-principles-not-layout.md`.
+- Needs: accepted shared request `2026-11-06-principles-not-layout.md`.
+- Input/output: Base v2 becomes v3; LayerSpec loses elements; S6/S9 change and S10 is added. Starter-file removal moves to B-73 with the writer that consumes it.
+- Failure cases: serialized element kinds remain; runtime rule wrongly routes internal dependencies through AppCore.
+- Done when: `cargo test -p core-standards`; generated OpenAPI and web schema; `cargo fmt --all --check`.
