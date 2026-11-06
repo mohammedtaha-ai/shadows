@@ -283,7 +283,8 @@ export function Composer({
             {hint !== null && hint.text === prompt && (
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-0 overflow-hidden px-2 py-1 text-sm break-words whitespace-pre-wrap"
+                dir="auto"
+                className="pointer-events-none absolute inset-0 overflow-hidden px-2 py-1 text-start text-sm break-words whitespace-pre-wrap"
               >
                 <span className="invisible">{prompt}</span>
                 <span className="text-faint-foreground">{hint.hint}</span>

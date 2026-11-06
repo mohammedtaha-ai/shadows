@@ -33,7 +33,7 @@ version: 1
 status: current
 reply_text: The group log reuses the conversation Markdown renderer and its per-block text direction.
 permission_answer: Conversations and groups share option submission, replay and stale-request reconciliation.
-composer_surface: Conversations and groups render the same frame, input and send control.
+composer_surface: Conversations and groups render the same frame, input and send control; the input takes its text's direction (dir=auto), like replies.
 turn_state: Groups read whether a member thread runs through the same running-turn rule as a conversation.
 source: web/src/app/conversation
 planning_context_record:
@@ -1450,6 +1450,10 @@ tests:
     checks: "422 on effort: error line shows; the menu holds high; one PUT only."
   - name: "a model the harness refuses goes back to the session’s, with its words"
     checks: "422 on model: error shows; fake-large is restored in the menu."
+
+  # composer-surface.test.tsx
+  - name: "the textarea takes its direction from its text and aligns to it"
+    checks: "dir=auto and text-start on the textarea, even when the caller passes dir."
 
   # composer-bar.test.tsx
   - name: "says it is connecting, then builds every menu from the session"
