@@ -60,12 +60,35 @@ pub struct PartContent {
     pub kind: Option<String>,
     #[serde(default)]
     pub serves: Vec<String>,
+    /// The one folder this part owns.
     #[serde(default)]
-    pub folders: Vec<String>,
+    pub folder: String,
+    /// The layers of this part, each with its place inside the folder.
+    #[serde(default)]
+    pub layers: Vec<PartLayer>,
     #[serde(default)]
     pub files: Vec<InitialFile>,
     #[serde(default)]
     pub contract: ContractHead,
+}
+
+/// One layer of a part: its catalog id, the place it owns and, when the
+/// layer is not used, the reason a person approved.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+pub struct PartLayer {
+    pub layer: String,
+    pub place: String,
+    #[serde(default)]
+    pub not_used: Option<String>,
 }
 
 #[derive(

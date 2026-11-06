@@ -88,7 +88,9 @@ hooks:
     signature: "(projectId: string, parent?: string) -> useDesignPages result"
 
 vision:
-  VisionEditor: "({ projectId }) -> JSX.Element"
+  VisionEditor:
+    signature: "({ projectId }) -> JSX.Element"
+    note: An item shows its id apart from its text, which takes its own direction (dir=auto); a conversation title is isolated (bdi).
   ItemOrigin: "({ projectId, item, titles }) -> JSX.Element"
   fieldLabel: "(field: VisionField) -> string"
   VISION_FIELDS: "['purpose','users','goals','boundaries','technical_direction']"
@@ -99,14 +101,51 @@ parts:
     note: >
       The tree on the left; the editor on the right. Create part shows only once
       the map is approved (stage structure or roadmap, or an Approved first map
-      proposal). Expand loads one child branch and never the whole tree.
+      proposal). Expand loads one child branch and never the whole tree. Both columns
+      and the editor's fieldset may shrink to zero, so long text or a long option in a
+      select wraps instead of widening the page.
+  MapCanvas:
+    signature: '({ parts, projectId, selected?, allowed? }) -> JSX.Element'
+    note: >
+      Pure React Flow presentation of the caller's visible ownership scope, set up as
+      PlanGraph is (workflows' THEME, controls, minimap). Cards sit two to a row, each
+      row below the tallest measured card above it, and the measured sizes go back on
+      the nodes so the minimap draws them; the view fits again once every card is
+      measured. One node per part shows its kind,
+      folder, served ids and layer ids. It says "Dependencies not recorded" and draws
+      no actual dependency edge before elements exist. `allowed` is the standards part
+      catalog when the caller shows the overlay: dashed edges for the cross-part
+      may_use between the shown parts' used layers, a legend that names them
+      permissions, and the same pairs as a text list. A parts list beside the canvas
+      serves keyboard use, and is the only view below the sm width.
+      PartsView's MapScope loads root pages or the selected part's children through
+      usePartPages, and reads the standards only while the overlay is shown.
+      Canvas/list toggles retain URL selection; browser Back restores the selection.
+    tested_by: [the_canvas_draws_one_node_per_part, multiple_frontends_keep_distinct_part_ids,
+      permissions_do_not_render_as_actual_dependencies, served_items_show_only_the_parts_own,
+      map_and_list_preserve_selection_and_browser_back]
+  grouping_reads:
+    note: >
+      Core sends no grouping fact, so the editor reads it the way Core's map rules
+      do: a part with a kind groups its children of the same kind; an untyped part
+      groups nothing. For a typed part the editor exposes child-list pagination,
+      loading and errors before deciding whether layer controls apply. Grouped
+      children link through MapPartDetails with router links. Incomplete or failed
+      reads never claim there is no group.
+    tested_by: [a_grouping_part_links_its_children_instead_of_layers, grouping_children_on_later_pages_are_reachable,
+      a_failed_child_read_does_not_claim_the_part_has_no_group, an_untyped_parent_does_not_group_untyped_children]
   PartEditor:
     signature: "({ projectId, saved?, destination, onCreated? }) -> JSX.Element"
     note: >
-      Its EDITOR config is internal: contentOp trims blank folder and rule lines,
-      and turns an empty kind into null.
+      Its EDITOR config is internal: contentOp trims the one folder, drops blank
+      rule lines, and turns an empty kind into null. A served item shows its id apart
+      from its text, which takes its own direction (dir=auto), as VisionEditor does.
   PartReferences: "({ projectId, selected, change }) -> JSX.Element"
-  MapPartDetails: "({ content, projectId }) -> JSX.Element"
+  MapPartDetails:
+    signature: "({ content, projectId, groups? }) -> JSX.Element"
+    note: >
+      A group is a saved child (router link to it on the map) or a proposed child (an
+      anchor on its card). With groups it shows the Groups line in place of layers.
   CreateStructure:
     signature: "({ projectId }) -> JSX.Element"
     note: >
@@ -233,7 +272,7 @@ obligations:
     note: "The drift list is also asserted by the test above."
 
   - rule: >
-      A part save sends folders split on lines with the starter files and served goals
+      A part save sends one folder and its layers with the starter files and served goals
       unchanged, and shows the daemon's refusal verbatim.
     tested_by: edits served goals and normalised folder input without dropping starter files
 
@@ -411,11 +450,18 @@ gaps:
       newer data for the person's own change. The tests only press Save again with
       the same content, which replays.
 
+  - at: PartEditor and MapProposalCard (grouping)
+    gap: >
+      Whether a part groups its children is Core's rule (MapRules), but no read sends
+      it, so the editor and the map card each derive it from kinds. A grouping fact on
+      the part read and the map card would remove both copies; that needs a shared
+      request.
+
   - at: OutcomeEditor
     gap: >
       The acceptance textarea is split on newlines and the outcome's contentOp passes
       the array unchanged. A blank line or a trailing newline therefore sends an empty
-      acceptance item. PartEditor's contentOp removes blank lines from folders and
+      acceptance item. PartEditor's contentOp trims its single folder and removes blank
       rules, so the two editors disagree on the same input.
 
 
@@ -470,7 +516,7 @@ tests:
       shows, and the pending proposal count and its conversation link show.
   - name: edits served goals and normalised folder input without dropping starter files
     checks: >
-      Typed folders 'src' and 'lib' reach PartPut as ['src','lib'], with serves ['G1']
+      The edited folder reaches PartPut as 'lib', with serves ['G1']
       and the starter file kept. A daemon refusal text shows.
   - name: part save replays the committed command after its follow-up read fails
     checks: >
@@ -569,3 +615,7 @@ feature_entry: "index.ts exposes MapPartDetails, VISION_FIELDS."
 pagination_owner: "api/design.ts owns useDesignPages and usePartPages; design views import part pagination directly from that owner."
 
 route_entries: "workspace-page.tsx remain separate public lazy route modules declared by index.ts."
+
+layer_editor: 'Standards v2 exposes presence and the layer catalog (id, role, required, may use). The form edits one folder. A required layer first asks Used or Not used: Used shows the place, Not used the reason, never both. An optional layer has no row until added, and offers Remove instead of Not used. Layers off the kind''s catalog stay visible with Remove. The form does not check the reason: Core refuses a blank one and the form shows that refusal. Same-kind child groups link to children. Tested by the_part_form_sends_one_folder_and_its_layers, a_not_used_layer_needs_a_reason_before_save, choosing_not_used_hides_the_place_and_asks_for_a_reason, an_optional_layer_has_no_row_until_added, a_grouping_part_links_its_children_instead_of_layers.'
+
+served_list: 'The part form lists only the vision items the part serves, each with Remove, and an Add button over the items it does not serve. Tested by served_items_show_only_the_parts_own.'

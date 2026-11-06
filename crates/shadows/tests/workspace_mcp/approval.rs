@@ -178,7 +178,8 @@ async fn the_planner_refuses_waiver_maps_but_the_person_approves() {
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":"owns this part",
-            "design":"","kind":kind,"serves":["G1"],"folders":[kind]}})
+            "design":"","kind":kind,"serves":["G1"],"folder":kind,
+            "layers":catalog_layers(kind)}})
         })
         .collect();
     let p = ok(
@@ -237,7 +238,8 @@ async fn the_planner_approves_a_map_without_waivers_and_a_plan() {
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":"owns this part",
-            "design":"","kind":kind,"serves":["G1"],"folders":[kind]}})
+            "design":"","kind":kind,"serves":["G1"],"folder":kind,
+            "layers":catalog_layers(kind)}})
         })
         .collect();
     let p = ok(&c, "map_propose", json!({"action":"first","parts":parts})).await;

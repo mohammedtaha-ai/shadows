@@ -43,7 +43,7 @@ it('lists stable items and pending conversation links', async () => {
     'GET /api/projects/p1/design/vision': initial(),
     'GET /api/projects/p1/vision-proposals': [proposal('a','t1'),proposal('b','t1'),proposal('c','t2')],
   })
-  await until(() => a.text().includes('G1 · Sell books'))
+  await until(() => a.text().includes('G1Sell books'))
   expect(a.text()).toContain('3 proposals await your approval')
   expect(a.text()).toContain('2 pending')
   expect(a.container.querySelector('a[href="/projects/p1/threads/t1"]')).not.toBeNull()

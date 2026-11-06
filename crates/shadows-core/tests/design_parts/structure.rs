@@ -25,7 +25,8 @@ pub(super) async fn setup() -> (
                 title: kind.into(),
                 responsibility: format!("Own {kind}"),
                 kind: Some(kind.into()),
-                folders: vec![kind.into()],
+                folder: kind.into(),
+                layers: catalog_layers(kind, kind),
                 serves: vec!["G1".into()],
                 files: vec![InitialFile {
                     path: format!("{kind}/src/initial.txt"),
@@ -82,6 +83,9 @@ async fn create_structure_writes_exactly_the_approved_files() {
             format!("initial {kind}\n")
         );
         assert!(!dir.join(format!("{kind}/contract.yaml")).exists());
+        for layer in catalog_layers(kind, kind) {
+            assert!(dir.join(layer.place).is_dir());
+        }
     }
     assert!(
         std::fs::read_to_string(dir.join("SHADOWS.md"))

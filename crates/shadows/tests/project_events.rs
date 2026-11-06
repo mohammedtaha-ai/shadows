@@ -168,7 +168,7 @@ async fn design_stream_replays_resumes_and_keeps_projects_separate() {
     let outcome = uuid::Uuid::new_v4().to_string();
     let mixed = json!({"command_id":"mixed","expected_revision":1,"ops":[
         {"kind":"PartCreate","id":part,"parent":null,"before":null,"content":
-            {"title":"قسم","responsibility":"","design":"","kind":null,"folders":["qism"]}},
+            {"title":"قسم","responsibility":"","design":"","kind":null,"folder":"qism"}},
         {"kind":"OutcomeCreate","id":outcome,"parent":null,"before":null,"content":
             {"title":"نتيجة","intended_result":"","acceptance":[]}},
         {"kind":"OutcomePartPut","outcome":outcome,"part":part}

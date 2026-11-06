@@ -80,7 +80,8 @@ fn first() -> MapPropose {
                 let mut content = content(kind);
                 content.kind = Some(kind.into());
                 content.serves = vec!["G1".into()];
-                content.folders = vec![kind.into()];
+                content.folder = kind.into();
+                content.layers = catalog_layers(kind, kind);
                 ProposedPart {
                     key: kind.into(),
                     parent_key: None,
@@ -104,7 +105,7 @@ async fn equivalent_map_retries_replay_the_original_card() {
         .unwrap();
     let mut retry = first();
     retry.parts[0].content.title = " backend ".into();
-    retry.parts[0].content.folders = vec!["./backend/".into()];
+    retry.parts[0].content.folder = "./backend/".into();
     let repeated = f
         .core
         .design()
@@ -259,6 +260,28 @@ async fn first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database() {
             .map_err(shadows_core::CoreError::from)
             .is_err()
     );
+    f.close().await;
+}
+
+#[tokio::test]
+async fn a_waiver_naming_an_optional_kind_is_refused() {
+    let f = Fixture::new().await;
+    let mut args = first();
+    args.waivers.push(ProposedWaiver {
+        part: "integration".into(),
+        reason: "no outside services".into(),
+    });
+    assert!(matches!(
+        f.core
+            .design()
+            .propose_map(&f.grant, args)
+            .await
+            .map_err(shadows_core::CoreError::from),
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::InvalidCommand,
+            ..
+        })
+    ));
     f.close().await;
 }
 

@@ -58,13 +58,17 @@ function PartTree({parts,projectId,first,parent=null,depth=0}: {parts:MapProposa
   first:boolean;parent?:string | null;depth?:number}) {
   if (depth>parts.length) return null
   return <ul className="space-y-3 border-l border-accent-line/25 pl-3">{parts.filter(p => !first || (p.parent_key ?? null)===parent).map(p =>
-    <li key={p.key} className="space-y-2">
+    <li key={p.key} id={`map-part-${p.key}`} className="space-y-2">
       <h4 dir="auto" className="font-medium text-foreground">{p.content.title}</h4>
       <p dir="auto" className="whitespace-pre-wrap">{p.content.responsibility}</p>
       <p dir="auto" className="whitespace-pre-wrap text-sm text-muted-foreground">
         {p.content.design}
       </p>
-      <MapPartDetails content={p.content} projectId={projectId} />
+      <MapPartDetails content={p.content} projectId={projectId} groups={first ? parts.filter(child =>
+        child.parent_key===p.key && p.content.kind != null
+        && child.content.kind?.trim()===p.content.kind.trim()).map(child => ({
+          title:child.content.title,anchor:`map-part-${child.key}`,
+        })) : []} />
       {first && parts.some(child => child.parent_key===p.key) && (
         <PartTree
           parts={parts}

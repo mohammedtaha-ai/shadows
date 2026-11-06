@@ -3,7 +3,7 @@ use super::map_versions::MapRow;
 use super::map_versions::MapVersionsRows;
 use crate::{MapAction, MapPropose, map_rules};
 use crate::{PartContent, ProjectId, StorageError, VisionContent};
-use core_standards::{EffectiveStandards, Standards};
+use core_standards::{EffectiveStandards, Presence, Standards};
 
 impl MapProposalShapeRows {
     pub(super) fn complete(vision: &VisionContent) -> Result<(), crate::DesignError> {
@@ -49,7 +49,7 @@ impl MapProposalShapeRows {
                     .base
                     .parts
                     .iter()
-                    .any(|p| p.name == waiver.part && p.waivable)
+                    .any(|p| p.name == waiver.part && p.presence == Presence::Waivable)
                 || waiver.reason.trim().is_empty()
             {
                 return Err(bad(

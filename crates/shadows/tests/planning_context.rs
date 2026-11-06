@@ -193,7 +193,7 @@ async fn a_bound_agreement_is_read_at_its_pinned_version() {
                 before: None,
                 content: PartContent {
                     title: "Consumer".into(),
-                    folders: vec!["consumer".into()],
+                    folder: "consumer".into(),
                     ..Default::default()
                 },
             }],

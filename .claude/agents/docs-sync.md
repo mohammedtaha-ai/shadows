@@ -1,6 +1,6 @@
 ---
 name: docs-sync
-description: Run after a PR is merged, on a new branch cut from the updated main (main is protected). Brings docs/ in line with what main now holds — stages, future lists, roadmap, the CLAUDE.md status line — and deletes documents the merge made obsolete. Commits locally on that branch; never pushes.
+description: Run after a PR is merged, on the next work branch, which is cut from the updated main right after the merge (main is protected). Brings docs/ in line with what main now holds — stages, future lists, roadmap, the CLAUDE.md status line — and deletes documents the merge made obsolete. Commits locally on that branch; never pushes.
 model: haiku
 tools: Bash, Read, Edit, Write, Glob, Grep
 ---
@@ -10,17 +10,27 @@ never code, tests, migrations, `api/` or `web/`.
 
 ## Before anything
 
-1. `main` is protected, so you run on a new branch cut from it. Check:
-   - `git branch --show-current` must not print `main`;
-   - `git status --short` must be empty;
+1. `main` is protected. After a PR merges, the controller updates `main` and cuts
+   the next work branch from it, for example `feature/structure-layers`. You run on
+   that branch, as it is checked out. Your commit is its first, and it ships with
+   that branch's PR. Never create, switch or rename a branch, and never commit to
+   `main`. Check:
+   - `git fetch origin`, then `git branch --show-current` must not print `main`;
    - `git merge-base --is-ancestor origin/main HEAD` must succeed, so the branch
-     holds the merge.
+     holds the merge;
+   - `git status --short --untracked-files=no` must be empty: no tracked file is
+     changed. An untracked file is the person's: leave it, never add or delete it.
 
    If any check fails, stop and report.
 2. Read `CLAUDE.md` (the "Documentation rules" block is binding) and
    `docs/core/specs/README.md`.
-3. Find what was just merged: `git log --oneline -5` and
-   `git show --stat HEAD`. The merge commit names the PR (`(#NN)`).
+3. Find what was merged since the last sync. Several PRs may have merged.
+   - The last sync is the newest commit on `origin/main` whose message starts
+     with `docs: sync after`.
+   - List the PR merges after it: `git log --merges --oneline <last sync>..origin/main`.
+     Each merge commit names its PR (`#NN`). Read each one with `git show --stat <merge>`.
+   - The controller's message may name the PRs. Check it against this list, and
+     report any difference.
 
 ## What to update
 
@@ -61,10 +71,10 @@ If you are unsure, do not delete: list it in your report instead.
 ## Finish
 
 1. `git diff --stat` and re-read your diff once.
-2. Commit on the current branch:
-   `git commit -am "docs: sync after #NN"` (use `git add -A docs CLAUDE.md`
-   first if you deleted files). End the message with
+2. Commit on the current branch. Stage only what you changed:
+   `git add -A docs CLAUDE.md AGENTS.md`, then
+   `git commit -m "docs: sync after #NN, #MM"`, naming every PR you synced. End the message with
    `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
-3. Do NOT push. The person pushes.
-4. Report in Arabic, short: what you updated, what you deleted, what you
+3. Do NOT push. The branch is pushed with its work, when the person says.
+4. Report in English, short (the controller relays it to the person in Arabic): what you updated, what you deleted, what you
    left and why, and the commit hash.

@@ -23,12 +23,14 @@ pub(crate) struct Snapshot {
     pub directory: String,
     pub revision: i64,
     pub parts: Vec<PartContent>,
+    pub parents: Vec<(String, Option<String>)>,
+    pub standards: core_standards::EffectiveStandards,
     pub intent: Intent,
     pub resumed: bool,
 }
 pub(crate) enum Read {
     Replay(StructureWritten),
-    Snapshot(Snapshot),
+    Snapshot(Box<Snapshot>),
 }
 
 impl DesignStore {
@@ -51,7 +53,7 @@ impl DesignStore {
         }
         let snapshot = Self::structure_snapshot_in(&mut tx, p, Some(confirmed)).await?;
         tx.commit().await?;
-        Ok(Read::Snapshot(snapshot))
+        Ok(Read::Snapshot(Box::new(snapshot)))
     }
 
     /// What a structure write would use for the map now. `confirmed` is the revision a
@@ -110,7 +112,7 @@ impl DesignStore {
         let intent = recorded.unwrap_or(Intent {
             map_number: revision,
             standards_version: effective.base.version,
-            standards_additions_version_id: effective.additions.map(|a| a.id),
+            standards_additions_version_id: effective.additions.as_ref().map(|a| a.id.clone()),
             files_json: "[]".into(),
             folders_json: "[]".into(),
             completed_at: None,
@@ -124,6 +126,10 @@ impl DesignStore {
         .await?;
         let rows: Vec<super::map_versions::MapRow> = serde_json::from_str(&json)?;
         let parts = super::map_versions::MapVersionsRows::contents(&rows)?;
+        let parents = rows
+            .iter()
+            .map(|row| (row.id.clone(), row.parent_id.clone()))
+            .collect();
         Ok(Snapshot {
             name,
             directory: directory.ok_or_else(|| {
@@ -131,6 +137,8 @@ impl DesignStore {
             })?,
             revision,
             parts,
+            parents,
+            standards: effective,
             intent,
             resumed,
         })

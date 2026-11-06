@@ -1,0 +1,58 @@
+name: Mutants
+
+# One crate at a time, on request. The tests of a crate often live in
+# `shadows-core` and `shadows`, so those packages run too; without them nearly
+# every mutant would show as missed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to mutate
+        required: true
+        default: core-design
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_DEV_DEBUG: 0
+
+jobs:
+  mutants:
+    name: Mutation testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+      - name: Run cargo-mutants
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          cargo mutants --package "$PACKAGE" --test-package "$PACKAGE" \
+            --test-package shadows-core --test-package shadows \
+            -- --features fake-acp/test-support
+      - name: Upload mutants.out
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-out
+          path: mutants.out/
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## Mutants'
+            if [ -f mutants.out/outcomes.json ]; then
+              jq -r '"caught: \(.caught)  missed: \(.missed)  timeout: \(.timeout)  unviable: \(.unviable)"' \
+                mutants.out/outcomes.json
+            fi
+            echo
+            echo '### Missed'
+            echo '```'
+            if [ -f mutants.out/missed.txt ]; then cat mutants.out/missed.txt; fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

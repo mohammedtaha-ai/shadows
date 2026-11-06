@@ -284,6 +284,22 @@ async fn the_discover_lifecycle_works_without_a_session() {
         .unwrap_or_else(|| panic!("{answer}"));
     assert_eq!(tools.len(), 19, "{answer}");
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
+    // The Planner learns from the schema, not from a refusal, that an edit names no field.
+    let propose = tools
+        .iter()
+        .find(|t| t["name"] == "vision_propose")
+        .unwrap_or_else(|| panic!("{answer}"));
+    let field = propose["inputSchema"]["properties"]["field"]["description"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{propose}"));
+    assert!(field.contains("add only"), "{propose}");
+    assert!(
+        propose["description"]
+            .as_str()
+            .unwrap()
+            .contains("never field"),
+        "{propose}"
+    );
 
     let get = request(
         3,

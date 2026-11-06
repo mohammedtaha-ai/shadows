@@ -10,6 +10,7 @@ import { planMapQuery } from '@/api/workflows'
 import { ErrorLine } from '../error-line'
 import { type PlanEdge, placeGraph } from './layout'
 import { LinkEdge } from './plan-edge'
+import { THEME } from './flow-theme'
 import { stateLabel } from './plan-state'
 
 const route = getRouteApi('/projects/$projectId/map')
@@ -48,7 +49,7 @@ function MapGraph({ map }: { map: PlanMap }) {
   }, [map])
   return <div data-plan-map className="min-h-0 flex-1">
     <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-      nodesDraggable={false} nodesConnectable={false} edgesFocusable={false} colorMode="dark"
+      nodesDraggable={false} nodesConnectable={false} edgesFocusable={false} colorMode="dark" style={THEME}
       fitView fitViewOptions={{ minZoom: 0.5, maxZoom: 1, padding: 0.2 }} minZoom={0.01}
       defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--muted-foreground)' } }}>
       <Controls showInteractive={false} />

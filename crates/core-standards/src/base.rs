@@ -1,6 +1,6 @@
 //! Parsing the bundled base standards.
 
-use super::{BaseStandards, ContractTemplate, MandatoryPart, StandardRule, Standards};
+use super::{BaseStandards, LayerRef, LayerSpec, PartKind, Presence, StandardRule, Standards};
 use std::sync::OnceLock;
 use yaml_rust2::{Yaml, YamlLoader};
 
@@ -20,10 +20,11 @@ fn parse(source: &str) -> Result<BaseStandards, String> {
         parts: list(&doc["parts"])?
             .iter()
             .map(|p| {
-                Ok(MandatoryPart {
+                Ok(PartKind {
                     name: text(&p["name"])?,
                     owns: text(&p["owns"])?,
-                    waivable: p["waivable"].as_bool().ok_or("waivable")?,
+                    presence: presence(&p["presence"])?,
+                    layers: layers(&p["layers"])?,
                 })
             })
             .collect::<Result<_, String>>()?,
@@ -37,11 +38,57 @@ fn parse(source: &str) -> Result<BaseStandards, String> {
                 })
             })
             .collect::<Result<_, String>>()?,
-        contract_template: ContractTemplate {
-            rules: strings(&doc["contract_template"]["rules"])?,
-            shape: strings(&doc["contract_template"]["shape"])?,
-        },
     })
+}
+
+fn presence(y: &Yaml) -> Result<Presence, String> {
+    match text(y)?.as_str() {
+        "required" => Ok(Presence::Required),
+        "waivable" => Ok(Presence::Waivable),
+        "optional" => Ok(Presence::Optional),
+        other => Err(format!(
+            "presence: expected required, waivable or optional, found {other}"
+        )),
+    }
+}
+
+fn layers(y: &Yaml) -> Result<Vec<LayerSpec>, String> {
+    list(y)?
+        .iter()
+        .map(|l| {
+            Ok(LayerSpec {
+                id: text(&l["id"])?,
+                role: text(&l["role"])?,
+                required: l["required"].as_bool().ok_or("required")?,
+                elements: strings(&l["elements"])?,
+                may_use: list(&l["may_use"])?
+                    .iter()
+                    .map(|m| layer_ref(&text(m)?))
+                    .collect::<Result<_, String>>()?,
+            })
+        })
+        .collect()
+}
+
+/// A name without a dot is a layer of the same part; `kind.layer` names
+/// another kind.
+fn layer_ref(source: &str) -> Result<LayerRef, String> {
+    match source.matches('.').count() {
+        0 => Ok(LayerRef {
+            part_kind: None,
+            layer: source.to_owned(),
+        }),
+        1 => {
+            let (kind, layer) = source.split_once('.').expect("one dot");
+            Ok(LayerRef {
+                part_kind: Some(kind.to_owned()),
+                layer: layer.to_owned(),
+            })
+        }
+        _ => Err(format!(
+            "may_use \"{source}\": use a layer of this part or \"kind.layer\""
+        )),
+    }
 }
 
 fn list(y: &Yaml) -> Result<&Vec<Yaml>, String> {

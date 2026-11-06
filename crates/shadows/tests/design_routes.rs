@@ -31,7 +31,8 @@ async fn create_structure_route_writes_and_refuses() {
                 title: kind.into(),
                 responsibility: kind.into(),
                 kind: Some(kind.into()),
-                folders: vec![kind.into()],
+                folder: kind.into(),
+                layers: layers(kind),
                 ..Default::default()
             },
         })
@@ -133,7 +134,7 @@ async fn map_proposal_routes_list_and_approve() {
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folders":[kind],"serves":["G1"]}})
+            "kind":kind,"folder":kind,"layers":layers(kind),"serves":["G1"]}})
         })
         .collect();
     let mut args = json!({"action":"first","parts":parts,
@@ -157,10 +158,15 @@ async fn map_proposal_routes_list_and_approve() {
     .await;
     assert_eq!(status, 409);
     assert_eq!(error["code"], "STAGE_BLOCKED");
-    args["parts"] =
-        json!(["backend","database","api"].into_iter().map(|kind|
-        json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folders":[kind],"serves":["G1"]}})).collect::<Vec<_>>());
+    args["parts"] = json!(
+        ["backend", "database", "api"]
+            .into_iter()
+            .map(
+                |kind| json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
+            "kind":kind,"folder":kind,"layers":layers(kind),"serves":["G1"]}})
+            )
+            .collect::<Vec<_>>()
+    );
     let good = app
         .core
         .design()
@@ -416,7 +422,7 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     });
     let body = json!({"command_id":"outcomes","expected_revision":0,"ops":[
         {"kind":"PartCreate","id":part,"parent":null,"before":null,
-         "content":{"title":"جزء","responsibility":"","design":"","kind":null,"folders":["part"]}},
+         "content":{"title":"جزء","responsibility":"","design":"","kind":null,"folder":"part"}},
         {"kind":"OutcomeCreate","id":root,"parent":null,"before":null,"content":content},
         {"kind":"OutcomeCreate","id":child,"parent":root,"before":null,"content":content},
         {"kind":"OutcomePartPut","outcome":child,"part":part}
@@ -484,14 +490,14 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     let a = uuid::Uuid::new_v4().to_string();
     let b = uuid::Uuid::new_v4().to_string();
     let content = json!({
-        "folders":["a"],
+        "folder":"a",
         "title":" قسم ",
         "responsibility":" مسؤولية ",
         "design":"تصميم\n",
         "kind":null
     });
     let mut child_content = content.clone();
-    child_content["folders"] = json!(["a/b"]);
+    child_content["folder"] = json!("a/b");
     let result = app::call(
         &app,
         "POST",
@@ -649,7 +655,7 @@ async fn mapped_app() -> (app::App, shadows_core::OperationId, shadows_core::Gra
         .into_iter()
         .map(|kind| {
             json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
-            "kind":kind,"folders":[kind],"serves":["G1"]}})
+            "kind":kind,"folder":kind,"layers":layers(kind),"serves":["G1"]}})
         })
         .collect();
     let args = json!({"action":"first","parts":parts,
@@ -669,9 +675,180 @@ async fn mapped_app() -> (app::App, shadows_core::OperationId, shadows_core::Gra
     (app, op, grant)
 }
 
-fn add_part(folders: Value) -> Value {
+fn add_part(folder: Value) -> Value {
     json!({"action":"add","parts":[{"key":"web","content":{"title":"web",
-        "responsibility":"web","design":"","folders":folders,"serves":["G1"]}}]})
+        "responsibility":"web","design":"","folder":folder,"serves":["G1"]}}]})
+}
+
+fn layers(kind: &str) -> Vec<shadows_core::PartLayer> {
+    shadows_core::Standards::base()
+        .parts
+        .iter()
+        .find(|part| part.name == kind)
+        .unwrap()
+        .layers
+        .iter()
+        .filter(|layer| layer.required)
+        .map(|layer| shadows_core::PartLayer {
+            layer: layer.id.clone(),
+            place: format!("{kind}/{}", layer.id),
+            not_used: None,
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn a_map_without_a_required_layer_is_refused_on_every_write_path() {
+    let (app, op, grant) = mapped_app().await;
+    let mut args = add_part(json!("web"));
+    args["parts"][0]["content"]["kind"] = json!("frontend");
+    let error = app
+        .core
+        .design()
+        .propose_map(&grant, serde_json::from_value(args.clone()).unwrap())
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("screens"), "{error}");
+
+    let mut web_layers = layers("frontend");
+    for layer in &mut web_layers {
+        layer.place = layer.place.replacen("frontend/", "web/", 1);
+    }
+    args["parts"][0]["content"]["layers"] = json!(web_layers);
+    let pending = app
+        .core
+        .design()
+        .propose_map(&grant, serde_json::from_value(args).unwrap())
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE design_map_proposal SET payload_json=\
+        json_set(payload_json,'$.parts[0].content.layers',json('[]')) WHERE id=?",
+    )
+    .bind(&pending.id)
+    .execute(app.storage.reader())
+    .await
+    .unwrap();
+    let before = design_changes(&app).await;
+    let route = format!(
+        "/api/projects/{}/map-proposals/{}/approve",
+        app.project, pending.id
+    );
+    let (status, error) = app::call(
+        &app,
+        "POST",
+        &route,
+        Some(json!({"command_id":"missing-layer"})),
+    )
+    .await;
+    assert_eq!(status, 422, "{error}");
+    assert!(error["message"].as_str().unwrap().contains("screens"));
+    assert_eq!(design_changes(&app).await, before);
+
+    let route = format!("/api/projects/{}/design/edits", app.project);
+    let (status, error) = app::call(
+        &app,
+        "POST",
+        &route,
+        Some(json!({
+            "command_id":"missing-layer-edit", "expected_revision":2, "ops":[{
+                "kind":"PartCreate", "id":uuid::Uuid::new_v4().to_string(),
+                "parent":null,"before":null,"content":{
+                    "title":"web","kind":"frontend","folder":"web",
+                    "responsibility":"web","design":""
+                }
+            }]
+        })),
+    )
+    .await;
+    assert_eq!(status, 422, "{error}");
+    assert!(
+        error["message"].as_str().unwrap().contains("screens"),
+        "{error}"
+    );
+    assert_eq!(design_changes(&app).await, before);
+    app.core.turns().stop(&op).await.unwrap();
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn layer_file_collisions_and_empty_optional_places_are_refused_on_every_write_path() {
+    for rule in ["file_is_folder", "missing_layer"] {
+        let (app, op, grant) = mapped_app().await;
+        let layers: Vec<_> = ["screens", "features", "data_access"]
+            .into_iter()
+            .map(|id| json!({"layer":id,"place":format!("web/{id}"),"not_used":null}))
+            .collect();
+        let valid = json!({"title":"web","responsibility":"Client","design":"",
+            "kind":"frontend","folder":"web","layers":layers,"serves":["G1"]});
+        let mut invalid = valid.clone();
+        if rule == "file_is_folder" {
+            invalid["files"] = json!([{"path":"web/screens","content":"file"}]);
+        } else {
+            invalid["layers"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"layer":"design_system","place":"","not_used":null}));
+        }
+        let propose = |content| json!({"action":"add","parts":[{"key":"web","content":content}]});
+        let error = app
+            .core
+            .design()
+            .propose_map(
+                &grant,
+                serde_json::from_value(propose(invalid.clone())).unwrap(),
+            )
+            .await
+            .unwrap_err();
+        assert!(format!("{error:?}").contains(rule), "{error}");
+        let pending = app
+            .core
+            .design()
+            .propose_map(&grant, serde_json::from_value(propose(valid)).unwrap())
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE design_map_proposal SET payload_json=\
+            json_set(payload_json,'$.parts[0].content',json(?)) WHERE id=?",
+        )
+        .bind(invalid.to_string())
+        .bind(&pending.id)
+        .execute(app.storage.reader())
+        .await
+        .unwrap();
+        let before = design_changes(&app).await;
+        let route = format!(
+            "/api/projects/{}/map-proposals/{}/approve",
+            app.project, pending.id
+        );
+        let (status, error) = app::call(
+            &app,
+            "POST",
+            &route,
+            Some(json!({"command_id":"invalid-layer"})),
+        )
+        .await;
+        assert_eq!(status, 422, "{error}");
+        assert!(error["message"].as_str().unwrap().contains(rule), "{error}");
+        let route = format!("/api/projects/{}/design/edits", app.project);
+        let (status, error) = app::call(
+            &app,
+            "POST",
+            &route,
+            Some(json!({
+                "command_id":"invalid-layer-edit","expected_revision":2,"ops":[{
+                    "kind":"PartCreate","id":uuid::Uuid::new_v4().to_string(),
+                    "parent":null,"before":null,"content":invalid,
+                }]
+            })),
+        )
+        .await;
+        assert_eq!(status, 422, "{error}");
+        assert!(error["message"].as_str().unwrap().contains(rule), "{error}");
+        assert_eq!(design_changes(&app).await, before);
+        app.core.turns().stop(&op).await.unwrap();
+        app::shut_down_app(app).await;
+    }
 }
 
 async fn design_changes(app: &app::App) -> usize {
@@ -695,13 +872,13 @@ async fn root_parts(app: &app::App) -> usize {
 #[tokio::test]
 async fn a_new_part_without_a_folder_is_refused_on_every_write_path() {
     let (app, op, grant) = mapped_app().await;
-    let refused = |message: &str| message.contains("exactly one folder");
+    let refused = |message: &str| message.contains("Give the part one folder");
 
     // Proposal: the Planner's add is refused before it is recorded.
     let proposal = app
         .core
         .design()
-        .propose_map(&grant, serde_json::from_value(add_part(json!([]))).unwrap())
+        .propose_map(&grant, serde_json::from_value(add_part(json!(""))).unwrap())
         .await
         .unwrap_err();
     assert!(refused(&proposal.to_string()), "{proposal}");
@@ -712,14 +889,14 @@ async fn a_new_part_without_a_folder_is_refused_on_every_write_path() {
         .design()
         .propose_map(
             &grant,
-            serde_json::from_value(add_part(json!(["web"]))).unwrap(),
+            serde_json::from_value(add_part(json!("web"))).unwrap(),
         )
         .await
         .unwrap();
     // Represents a proposal recorded before a part needed a folder.
     sqlx::query(
         "UPDATE design_map_proposal
-         SET payload_json=json_set(payload_json,'$.parts[0].content.folders',json('[]'))
+         SET payload_json=json_set(payload_json,'$.parts[0].content.folder',json_quote(''))
          WHERE id=?",
     )
     .bind(&pending.id)
@@ -763,7 +940,7 @@ async fn a_stale_map_approval_writes_nothing() {
         .design()
         .propose_map(
             &grant,
-            serde_json::from_value(add_part(json!(["web"]))).unwrap(),
+            serde_json::from_value(add_part(json!("web"))).unwrap(),
         )
         .await
         .unwrap();
@@ -772,7 +949,7 @@ async fn a_stale_map_approval_writes_nothing() {
     let body = json!({"command_id":"claim","expected_revision":2,"ops":[
         {"kind":"PartCreate","id":uuid::Uuid::new_v4().to_string(),"parent":null,
          "before":null,"content":{"title":"site","responsibility":"","design":"",
-         "kind":null,"folders":["web"]}}
+         "kind":null,"folder":"web"}}
     ]});
     assert_eq!(
         app::call(&app, "POST", &edits, Some(body)).await,
@@ -809,7 +986,7 @@ async fn a_stale_map_approval_writes_nothing() {
     let body = json!({"command_id":"after","expected_revision":3,"ops":[
         {"kind":"PartCreate","id":uuid::Uuid::new_v4().to_string(),"parent":null,
          "before":null,"content":{"title":"docs","responsibility":"","design":"",
-         "kind":null,"folders":["docs"]}}
+         "kind":null,"folder":"docs"}}
     ]});
     assert_eq!(
         app::call(&app, "POST", &edits, Some(body)).await,

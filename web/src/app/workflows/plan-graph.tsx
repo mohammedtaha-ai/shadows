@@ -7,10 +7,11 @@ import {
   Panel,
   ReactFlow,
 } from '@xyflow/react'
-import { type CSSProperties, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Plan, PlanTask } from '@/api/workflows'
 import { type PlanNode, layoutPlan } from './layout'
 import { type CanvasSize, MIN_ZOOM, WHOLE_PLAN, firstFit, useCamera, useCanvasSize } from './plan-camera'
+import { THEME } from './flow-theme'
 import { LinkEdge } from './plan-edge'
 import { StartNodeView, TaskNodeView } from './task-node'
 import { LinkedNodeView, MissingTaskNodeView } from './linked-node'
@@ -18,19 +19,6 @@ import { LinkedNodeView, MissingTaskNodeView } from './linked-node'
 const nodeTypes = { start: StartNodeView, task: TaskNodeView, linked: LinkedNodeView, missing: MissingTaskNodeView }
 const edgeTypes = { link: LinkEdge }
 
-/** React Flow's own colours, taken from Shadows' theme tokens. */
-const THEME = {
-  '--xy-background-color': 'var(--background)',
-  '--xy-edge-label-background-color': 'var(--background)',
-  '--xy-minimap-background-color': 'var(--sidebar)',
-  '--xy-minimap-node-background-color': 'var(--muted)',
-  '--xy-controls-button-background-color': 'var(--card)',
-  '--xy-controls-button-background-color-hover': 'var(--muted)',
-  '--xy-controls-button-color': 'var(--muted-foreground)',
-  '--xy-controls-button-color-hover': 'var(--foreground)',
-  '--xy-controls-button-border-color': 'var(--border)',
-  '--xy-attribution-background-color': 'transparent',
-} as CSSProperties
 
 const ARROW = { type: MarkerType.ArrowClosed, width: 14, height: 14, color: 'var(--faint-foreground)' }
 

@@ -34,8 +34,8 @@ use core_projects::ProjectId;
 pub use model::WorkspaceOp;
 pub use model::{
     ContractHead, DesignAnchor, DesignChange, DesignRevision, InitialFile, Outcome, OutcomeContent,
-    OutcomeId, OutcomePage, Part, PartContent, PartId, PartPage, PartWaiver, VisionContent,
-    VisionField, VisionItem, VisionView, WorkspaceView,
+    OutcomeId, OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver,
+    VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
 };
 
 #[derive(Clone)]

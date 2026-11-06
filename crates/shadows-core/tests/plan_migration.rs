@@ -35,14 +35,23 @@ async fn migration_0023_keeps_parts_and_starts_without_a_map() {
     .await
     .unwrap();
     pool.close().await;
+    // 0023 keeps the part as it was; 0047 then gives it its one folder.
+    let at_0023 = migrated_to(&db, 23).await;
+    let json: String = sqlx::query_scalar("SELECT content_json FROM design_part")
+        .fetch_one(&at_0023)
+        .await
+        .unwrap();
+    assert_eq!(json, old);
+    at_0023.close().await;
     let storage = Storage::open(&db).await.unwrap();
     let json: String = sqlx::query_scalar("SELECT content_json FROM design_part")
         .fetch_one(storage.reader())
         .await
         .unwrap();
-    assert_eq!(json, old);
     let part: shadows_core::PartContent = serde_json::from_str(&json).unwrap();
-    assert!(part.serves.is_empty() && part.folders.is_empty() && part.files.is_empty());
+    assert_eq!(part.title, "core");
+    assert_eq!(part.folder, "core");
+    assert!(part.serves.is_empty() && part.layers.is_empty() && part.files.is_empty());
     let map: i64 = sqlx::query_scalar("SELECT map_revision FROM design_workspace")
         .fetch_one(storage.reader())
         .await

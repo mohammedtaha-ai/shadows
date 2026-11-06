@@ -97,15 +97,18 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   let instructions = o.instructions ?? null
   let grants = o.grants ?? []
   let standards: EffectiveStandards = {
-    base: { version: 1,
+    base: { version: 2,
       parts: [
-        { name: 'backend', owns: 'All logic.', waivable: false },
-        { name: 'database', owns: 'Schema and storage.', waivable: false },
-        { name: 'api', owns: 'The path between frontend and backend.', waivable: true },
-        { name: 'frontend', owns: 'The interface only.', waivable: true },
+        { name: 'backend', owns: 'All logic.', presence: 'required', layers: [
+          { id: 'domain', role: 'Business rules', required: true, elements: ['entity'], may_use: [] },
+          { id: 'application', role: 'Use cases', required: true, elements: ['use_case'], may_use: [{ part_kind: null, layer: 'domain' }] },
+        ] },
+        { name: 'database', owns: 'Schema and storage.', presence: 'required', layers: [] },
+        { name: 'api', owns: 'Versioned API.', presence: 'waivable', layers: [] },
+        { name: 'frontend', owns: 'The interface only.', presence: 'waivable', layers: [] },
+        { name: 'integration', owns: 'Outside services.', presence: 'optional', layers: [] },
       ],
       rules: [{ id: 'S1', text: 'Each service owns its tables.', parts: ['backend', 'database'] }],
-      contract_template: { rules: ['Trace every claim.'], shape: ['header', 'obligations'] },
     }, additions: null,
   }
   const map = o.map ?? { revision: 1, count: null }

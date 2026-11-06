@@ -10,7 +10,7 @@ afterEach(() => { app?.unmount(); app = null })
 
 const part = { id: 'backend', parent: null, ordinal: 0, revision: 1,
   content: { title: 'Backend', responsibility: 'Logic', design: '', kind: 'backend',
-    folders: ['backend'], files: [{path:'backend/main.rs',content:'hello'}],
+    folder: 'backend', layers: [], files: [{path:'backend/main.rs',content:'hello'}],
     serves: [], contract: {header:'Head',rules:[]} } }
 function answers(stage = 'structure', missing: string[] = [], map = { revision: 1, count: 3 as number | null }) {
   return { ...baseAnswers({ map }),

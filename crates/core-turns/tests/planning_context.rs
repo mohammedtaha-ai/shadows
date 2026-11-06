@@ -154,7 +154,7 @@ async fn parts_past_one_page_are_announced_not_listed() {
                 before: None,
                 content: PartContent {
                     title: format!("Part {n}"),
-                    folders: vec![format!("part-{n}")],
+                    folder: format!("part-{n}"),
                     ..Default::default()
                 },
             })
@@ -258,7 +258,7 @@ async fn the_index_keeps_each_childs_parent() {
             before: None,
             content: PartContent {
                 title: "Other root".into(),
-                folders: vec!["other-root".into()],
+                folder: "other-root".into(),
                 ..Default::default()
             },
         },
@@ -268,7 +268,7 @@ async fn the_index_keeps_each_childs_parent() {
             before: None,
             content: PartContent {
                 title: "First child".into(),
-                folders: vec!["seeded/first-child".into()],
+                folder: "seeded/first-child".into(),
                 ..Default::default()
             },
         },
@@ -278,7 +278,7 @@ async fn the_index_keeps_each_childs_parent() {
             before: None,
             content: PartContent {
                 title: "Second child".into(),
-                folders: vec!["other-root/second-child".into()],
+                folder: "other-root/second-child".into(),
                 ..Default::default()
             },
         },
@@ -337,7 +337,7 @@ async fn a_detail_cut_keeps_child_identities_for_both_anchor_kinds() {
                 before: None,
                 content: PartContent {
                     title: "Part child identity".into(),
-                    folders: vec!["seeded/child-identity".into()],
+                    folder: "seeded/child-identity".into(),
                     responsibility: "Optional part description".repeat(100),
                     ..Default::default()
                 },
@@ -413,7 +413,7 @@ async fn sources_follow_surviving_content_and_keep_shared_sources() {
     let child = PartId::generate();
     let content = PartContent {
         title: "Omitted child".into(),
-        folders: vec!["seeded/omitted".into()],
+        folder: "seeded/omitted".into(),
         ..Default::default()
     };
     f.edit(vec![WorkspaceOp::PartCreate {

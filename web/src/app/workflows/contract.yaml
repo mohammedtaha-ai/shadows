@@ -143,6 +143,7 @@ components:
   LinkedNodeView: "(props: NodeProps<LinkedNode>) -> JSX.Element"
   MissingTaskNodeView: "(props: NodeProps<MissingNode>) -> JSX.Element"
   CHANGED_WHILE_LOOKING: "string constant, shown on a REVISION_CONFLICT"
+  THEME: "flow-theme.ts: React Flow colours from the theme tokens, worn by PlanGraph, PlanMapPage and design's MapCanvas"
 
 
 # ── enums and externally owned types ─────────────────────────────────────────
@@ -579,7 +580,7 @@ tests:
       change reason. Archive sends a UUID command id, and afterward 'Archived · read
       only' shows with no Approve button.
 
-feature_entry: "index.ts exposes PlanGraph and usePlan. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph."
+feature_entry: "index.ts exposes PlanGraph and usePlan. plan-state.ts is a second entry exposing stateLabel, so the shell's sidebar does not statically load the plan graph. flow-theme.ts is a third, exposing THEME to design's MapCanvas without loading the plan graph."
 
 feature_imports: "Cross-feature production imports use declared public entries."
 

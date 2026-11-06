@@ -91,13 +91,18 @@ shapes:
     revision: DesignRevision
   PartContent:
     serves: Vec<String>
-    folders: Vec<String>
+    folder: String  # serde default; an old JSON value with folders reads with folder empty
+    layers: Vec<PartLayer>  # serde default
     files: Vec<InitialFile>
     contract: ContractHead
     title: String
     responsibility: String
     design: String
     kind: Option<String>
+  PartLayer:
+    layer: String
+    place: String  # project-relative, inside the part's folder; empty when not used
+    not_used: Option<String>  # the reason the person approves with the map card
   Part:
     id: PartId
     parent: Option<PartId>
@@ -380,6 +385,12 @@ obligations:
   - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
     tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
   - rule: >
+      A first-map waiver names a kind whose standards presence is waivable, with
+      a reason. A required kind needs no waiver and a waiver naming it is
+      refused; an optional kind needs no waiver, and one naming it is refused
+      with the same message.
+    tested_by: [first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database, a_waiver_naming_an_optional_kind_is_refused]
+  - rule: >
       Stage is plans once the structure write is complete and roadmap_revision is above zero.
       Hand outcome edits and outcome plan links refuse STAGE_BLOCKED while it is zero.
     tested_by: [create_structure_writes_exactly_the_approved_files, hand_outcome_edits_wait_for_the_first_roadmap]
@@ -539,7 +550,7 @@ tests:
   - name: folders_nest_only_under_their_parent
     checks: Ancestor-owned folders allow child ownership; sibling overlap rolls back.
   - name: initial_files_cannot_escape_part_ownership
-    checks: A starter file outside its part's folders is refused.
+    checks: A starter file outside its part's folder is refused.
   - name: initial_files_cannot_also_be_directories
     checks: A file equal to a folder or containing a folder/file below it refuses the whole write.
   - name: a_hand_edit_cannot_drop_a_mandatory_part
@@ -701,7 +712,7 @@ planning_anchor:
 map_refusals:
   type: MapRefusal with stable rule and actionable message.
   error: DesignError::MapRefused preserves the rule through application translation.
-  rules: [duplicate_part, duplicate_sibling, missing_parent, one_folder, folder_outside_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part]
+  rules: [duplicate_part, duplicate_sibling, missing_parent, one_folder, folder_outside_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part, missing_layer, unknown_layer, layer_outside_part, layer_place_shared, layer_not_used_without_reason, layer_inside_child]
 
 vision_reservations:
   storage: design_vision_proposal.reserved_item_id records the id allocated during Add proposal.
@@ -718,5 +729,11 @@ map_coverage:
 map_refusal_repairs:
   equal_folder: Equal folder claims require one owner or distinct claims even for parent-child parts.
   nested_folders: Distinct nested claims may follow the same parent-child relationship as their parts.
-  one_folder: Every part in the candidate map has exactly one folder, over the whole candidate map; an older part without one is refused on its map's next write, with the part named.
+  one_folder: 'Every part in the candidate map has a non-empty folder ("part {title} has no folder. Give the part one folder."), over the whole candidate map; an older part without one is refused on its map''s next write, with the part named.'
+  layer_place: 'MapRules::normalise normalises the folder and each non-empty layer place; a place keeps one {module} marker literally and a second is refused as invalid_path (map_rules: a_second_module_marker_is_refused). check_places refuses a part folder holding {module} as invalid_path, since Create structure makes the folder literally (map_rules: a_part_folder_cannot_hold_a_module_marker).'
+  migration_0047: 'design_part and each design_map_version row (its inner content_json string, element order kept) move folders[0], or the title slug, to folder, drop folders and set layers to []; every Pending design_map_proposal becomes Superseded (design_migration: a_stored_part_with_folders_reads_back_with_its_first_folder, a_part_without_folders_gets_its_title_slug, a_map_version_keeps_its_row_order, the_daemon_starts_on_a_database_with_old_parts, a_part_round_trips_its_layers).'
   folder_outside_parent: Every child's folder sits inside its parent's folder, by segment and ignoring case, over the whole candidate map.
+  check_places: 'MapRules::check_places(parts, standards) is the shared folder and layer policy, also called by check_shape. Catalog-required layers need places or explicit reasons; same-kind parents group their children without requiring their own layers.'
+  layer_ownership: 'Every expansion must remain inside its part. Possible equality or nesting conflicts between layer places and entry into a child folder are refused, including embedded {module} markers. Tests: map_rules; design_routes::a_map_without_a_required_layer_is_refused_on_every_write_path.'
+  structure_layers: 'The structure snapshot supplies ordered part identities, parent links and effective standards to render. Render calls check_places before planning directories; literal used layer places and their parents become directories. Module patterns create nothing. Tests: structure_makes_each_layer_folder, a_module_pattern_place_makes_no_folder, render_checks_child_folders_against_their_parents.'
+  layer_files: 'Starter files cannot replace or contain literal layer directories; the whole candidate is checked at proposal, approval and person edit. Included optional layers need a place. Tests: a_starter_file_cannot_replace_a_layer_directory, an_included_optional_layer_needs_a_place, layer_file_collisions_and_empty_optional_places_are_refused_on_every_write_path.'

@@ -79,7 +79,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
 | `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, groups, new-project, workflows, navigation, desktop-ui` |
 | `groups` | `app/groups/**` | `app/groups/index.ts, app/groups/group-page.tsx` | `app/groups/contract.yaml` | `api, ui, shared, stream, agents, conversation` |
-| `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
+| `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx, app/workflows/flow-theme.ts` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
 | `test-support` | `test/**, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
@@ -279,6 +279,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/part-editor.tsx` | Editor for one part, keeping unsaved input | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/part-references.tsx` | Picks the existing parts an outcome refers to | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/parts-view.tsx` | Bounded navigator through the part containment tree | `web/src/app/design/contract.yaml` |
+| `web/src/app/design/map-canvas.tsx` | Project map ownership canvas | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/roadmap-view.tsx` | Navigator for outcomes, without derived completion | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/standards-view.tsx` | Standards page: read-only base, editable additions | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/use-design-editor.ts` | Save lifecycle shared by the design editors | `web/src/app/design/contract.yaml` |
@@ -366,6 +367,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/inspect-panel.tsx` | Panel showing one task beside the graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/layout.ts` | Places a plan's graph with dagre | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/linked-layout.ts` | Plan-qualified identities for linked tasks | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/flow-theme.ts` | Shadows' theme colours for every React Flow canvas | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/linked-node.tsx` | Graph node for a related plan's task | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-camera.ts` | Where the plan graph's view looks | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-edge.tsx` | Draws one link of the plan graph | `web/src/app/workflows/contract.yaml` |

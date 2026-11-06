@@ -30,10 +30,19 @@ export function StandardsView({ projectId }: { projectId: string }) {
     {saved.error !== null && <ErrorLine error={saved.error} />}
     {saved.data !== undefined && <>
       <section className="space-y-2">
-        <h3 className="text-sm font-medium">Mandatory parts</h3>
+        <h3 className="text-sm font-medium">Part kinds · base v{saved.data.base.version}</h3>
         {saved.data.base.parts.map(part => <div key={part.name} className="rounded-md border p-3 text-sm">
-          <p><bdi>{part.name}</bdi> · {part.waivable ? 'waivable with a reason' : 'never waived'}</p>
+          <p><bdi>{part.name}</bdi> · {part.presence === 'waivable' ? 'waivable with a reason' : part.presence}</p>
           <p dir="auto">{part.owns}</p>
+          {part.layers.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">No layers in the catalog.</p>
+            : <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs" aria-label={`${part.name} layers`}>
+            <thead><tr>{['Layer','Role','Required','May use'].map(label => <th key={label} className="p-2">{label}</th>)}</tr></thead>
+            <tbody>{part.layers.map(layer => <tr key={layer.id} className="border-t border-border">
+              <th scope="row" className="p-2">{layer.id}</th><td className="p-2" dir="auto">{layer.role}</td>
+              <td className="p-2">{layer.required ? 'Yes' : 'No'}</td>
+              <td className="p-2">{layer.may_use.map(ref => ref.part_kind ? `${ref.part_kind}.${ref.layer}` : ref.layer).join(', ') || 'Nothing'}</td>
+            </tr>)}</tbody>
+          </table></div>}
         </div>)}
       </section>
       <section className="space-y-2">
@@ -42,11 +51,6 @@ export function StandardsView({ projectId }: { projectId: string }) {
           <p><bdi>{rule.id}</bdi> · <bdi>{rule.parts.length > 0 ? rule.parts.join(', ') : 'all parts'}</bdi></p>
           <p dir="auto">{rule.text}</p>
         </div>)}
-      </section>
-      <section className="space-y-2 text-sm">
-        <h3 className="font-medium">Contract template</h3>
-        <ul className="list-disc space-y-1 ps-5">{saved.data.base.contract_template.rules.map((rule, index) => <li key={index} dir="auto">{rule}</li>)}</ul>
-        <p dir="auto">{saved.data.base.contract_template.shape.join(', ')}</p>
       </section>
       <Editor key={projectId} projectId={projectId} saved={saved.data} />
     </>}

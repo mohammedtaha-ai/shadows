@@ -59,6 +59,7 @@
 # owns whether it replaces the title.
 
 name: harness
+layer_catalog: 'Planner standards text lists every kind presence and its layers with required/optional roles and allowed dependencies. The prompt explains places, module patterns, not-used reasons and grouping parts. Tested by planner_mcp::the_standards_text_lists_backend_layers.'
 # Planner instructions reserve generated contracts and SHADOWS.md for Shadows;
 # Create structure remains a person's HTTP action, never a Planner tool.
 # Every new, resumed or forked Planner session sends its Shadows HTTP MCP server
@@ -71,6 +72,7 @@ name: harness
 # Permission answers are recorded before settling the adapter request; cancellation
 # and close serialize against that write. A failed write leaves the request waiting.
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
+# §13.8 prompt: the Planner talks in the person's language and stores everything in English.
 # The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1
 modules:
@@ -614,6 +616,9 @@ obligations:
       base or additions version change, between turns. A fork receives them
       even before it has an invocation of its own. Every person's prompt ends
       with the stage line, including Send now.
+      The Planner's standards text names each base kind with its presence
+      (`required`, `waivable with a reason` or `optional`) and the base rules.
+      It carries no contract template.
     tested_by:
       - a_session_opens_with_the_effective_standards
       - changed_standards_reach_the_next_turn_once
@@ -952,7 +957,7 @@ tests:
   - name: a_pending_turn_delivers_the_standards_version_it_recorded
     checks: An additions save between recording and sending waits for the following turn.
   - name: a_session_opens_with_the_effective_standards
-    checks: Session append contains base rules, mandatory parts and saved additions.
+    checks: Session append contains the base rules, each kind with its presence, and saved additions.
   - name: changed_standards_reach_the_next_turn_once
     checks: Changed additions arrive once before the following turn's stage.
   - name: additions_saved_after_session_open_reach_its_first_turn

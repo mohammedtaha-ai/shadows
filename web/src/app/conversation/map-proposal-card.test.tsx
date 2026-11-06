@@ -12,9 +12,37 @@ afterEach(() => {app?.unmount();app=null})
 const pending = (): MapProposal => ({id:'m1',thread_id:'t1',action:'first',part_id:null,old:null,
   status:'Pending',outdated:false,created_at:'2026-10-12',waivers:[{part:'frontend',reason:'Terminal tool'}],
   parts:[{key:'backend',parent_key:null,parent:null,content:{title:'Backend',responsibility:'Logic',design:'',
-    kind:'backend',serves:['G1'],folders:['backend'],files:[{path:'backend/main.rs',content:'fn main() {}'}],
+    kind:'backend',serves:['G1'],folder:'backend',layers:[],files:[{path:'backend/main.rs',content:'fn main() {}'}],
     contract:{header:'Backend contract',rules:['S1']}}}]})
 const entry = () => ({...agentEntry('e1','Project map proposal'),kind:'MapProposal' as const,card:{...pending()}})
+
+it('the_map_card_shows_each_parts_layers', async () => {
+  const proposed = pending()
+  proposed.parts[0].content.layers = [{layer:'domain',place:'backend/Domain',not_used:null}]
+  const a = app = await startApp('/projects/p1/threads/t1',{...answers({entries:[{
+    ...entry(),card:{...proposed},
+  }]}),'GET /api/projects/p1/map-proposals':[proposed]})
+  await until(() => a.text().includes('backend/Domain'))
+  expect(a.text()).toContain('domain')
+})
+
+it('the_map_card_links_a_grouping_parts_children', async () => {
+  const proposed = pending()
+  const content = proposed.parts[0].content
+  proposed.parts = [
+    {key:'clients',parent_key:null,parent:null,content:{...content,title:'Clients',kind:'frontend',folder:'clients'}},
+    {key:'web',parent_key:'clients',parent:null,content:{...content,title:'Web',kind:'frontend',folder:'clients/web'}},
+    {key:'tools',parent_key:null,parent:null,content:{...content,title:'Tools',kind:null,folder:'tools'}},
+    {key:'cli',parent_key:'tools',parent:null,content:{...content,title:'Cli',kind:null,folder:'tools/cli'}},
+  ]
+  const a = app = await startApp('/projects/p1/threads/t1',{...answers({entries:[{
+    ...entry(),card:{...proposed},
+  }]}),'GET /api/projects/p1/map-proposals':[proposed]})
+  await until(() => a.text().includes('Groups:'))
+  const lines = [...a.container.querySelectorAll('p')].filter(p => p.textContent?.startsWith('Groups:'))
+  expect(lines).toHaveLength(1)
+  expect(lines[0].querySelector('a[href="#map-part-web"]')?.textContent).toBe('Web')
+})
 
 it.each(['human','planner:claude-code'])('shows live %s map approval attribution',async agent => {
   const by = {principal:'user:local',agent,request:agent==='human' ? null :

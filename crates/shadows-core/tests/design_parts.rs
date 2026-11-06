@@ -1,7 +1,7 @@
 use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{
     AcceptanceItem, AppCore, CoreError, CoreParts, DesignAnchor, DesignOp, DraftStart, PartContent,
-    PartId, PlanEdit, PlanOp, ProjectId, StorageError, TaskContent,
+    PartId, PartLayer, PlanEdit, PlanOp, ProjectId, StorageError, TaskContent,
 };
 use std::sync::Arc;
 
@@ -54,7 +54,7 @@ fn content(title: &str) -> PartContent {
         responsibility: " مسؤولية ".into(),
         design: " تصميم\n".into(),
         kind: Some("طبقة".into()),
-        folders: vec![title.trim().to_string()],
+        folder: title.trim().to_string(),
         ..Default::default()
     }
 }
@@ -68,13 +68,37 @@ fn create(id: &PartId, parent: Option<&PartId>, title: &str) -> DesignOp {
     }
 }
 
+/// The layers a kind's catalog asks for, each with a place inside the folder.
+fn catalog_layers(kind: &str, folder: &str) -> Vec<PartLayer> {
+    let ids: &[&str] = match kind {
+        "backend" => &[
+            "domain",
+            "application",
+            "interface",
+            "infrastructure",
+            "composition",
+        ],
+        "database" => &["schema", "migrations", "connection"],
+        "api" => &["contract"],
+        "frontend" => &["screens", "features", "data_access"],
+        _ => &[],
+    };
+    ids.iter()
+        .map(|id| PartLayer {
+            layer: (*id).into(),
+            place: format!("{folder}/{id}"),
+            not_used: None,
+        })
+        .collect()
+}
+
 fn create_in(id: &PartId, parent: Option<&PartId>, title: &str, folder: &str) -> DesignOp {
     DesignOp::PartCreate {
         id: id.clone(),
         parent: parent.cloned(),
         before: None,
         content: PartContent {
-            folders: vec![folder.into()],
+            folder: folder.into(),
             ..content(title)
         },
     }
@@ -165,7 +189,7 @@ async fn part_moves_keep_identity_and_reject_cycles() {
     let in_b = |id: &PartId, title: &str, folder: &str| DesignOp::PartPut {
         id: id.clone(),
         content: PartContent {
-            folders: vec![folder.into()],
+            folder: folder.into(),
             ..content(title)
         },
     };
@@ -199,7 +223,7 @@ async fn part_moves_keep_identity_and_reject_cycles() {
         vec![DesignOp::PartPut {
             id: b.clone(),
             content: PartContent {
-                folders: vec!["ب".into()],
+                folder: "ب".into(),
                 ..content(" جديد ")
             },
         }],
@@ -456,7 +480,7 @@ async fn part_order_is_stable_across_restart() {
             DesignOp::PartPut {
                 id: a.clone(),
                 content: PartContent {
-                    folders: vec!["B/Renamed".into()],
+                    folder: "B/Renamed".into(),
                     ..content("Renamed")
                 },
             },

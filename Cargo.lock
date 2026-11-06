@@ -3783,6 +3783,7 @@ dependencies = [
  "tree-sitter-rust",
  "uuid",
  "windows-sys 0.61.2",
+ "yaml-rust2",
 ]
 
 [[package]]

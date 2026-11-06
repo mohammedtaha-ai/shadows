@@ -12,7 +12,7 @@ import { ErrorLine } from '../error-line'
 import { VISION_FIELDS, fieldLabel } from './vision-fields'
 export function ItemOrigin({projectId,item,titles}: {projectId:string;item:VisionItem;titles:Map<string,string>}) {
   const threadId = item.approved_from
-  return <small className="text-muted-foreground">{threadId === null || threadId === undefined ? 'added by hand' : <span>from <Link to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}>{titles.get(threadId) ?? 'a conversation'}</Link></span>}</small>
+  return <small className="text-muted-foreground">{threadId === null || threadId === undefined ? 'added by hand' : <span>from <Link to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}><bdi>{titles.get(threadId) ?? 'a conversation'}</bdi></Link></span>}</small>
 }
 export function VisionEditor({projectId}: {projectId:string}) {
   const vision = useQuery(visionQuery(projectId))
@@ -25,7 +25,7 @@ export function VisionEditor({projectId}: {projectId:string}) {
   return <section className="space-y-4">
     {pending.length > 0 && <aside role="status" className="rounded-md border p-3 text-sm">
       {pending.length === 1 ? '1 proposal awaits your approval' : `${pending.length} proposals await your approval`}
-      <ul>{[...counts].map(([threadId,count]) => <li key={threadId}><Link to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}>{titles.get(threadId) ?? 'a conversation'} · {count} pending</Link></li>)}</ul>
+      <ul>{[...counts].map(([threadId,count]) => <li key={threadId}><Link to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}><bdi>{titles.get(threadId) ?? 'a conversation'}</bdi> · {count} pending</Link></li>)}</ul>
     </aside>}
     {proposals.error !== null && <ErrorLine error={proposals.error} />}
     {vision.isPending && <p>Loading vision…</p>}
@@ -94,7 +94,7 @@ function Editor({projectId,saved,titles}: {projectId:string;saved:VisionView;tit
           <Button size="sm" onClick={() => submit({kind:'VisionItemPut',id:item.id,text:editing.text})} disabled={busy || conflict || refreshError !== null || editing.text.trim() === ''}>Save {item.id}</Button>
           <Button size="sm" variant="secondary" onClick={() => {setEditing(null);attempt.current=null;save.reset()}} disabled={busy}>Cancel</Button>
         </div> : <div>
-          <p dir="auto" className="whitespace-pre-wrap">{item.id} · {item.text}</p>
+          <p className="flex gap-2"><span className="shrink-0 font-medium">{item.id}</span><span dir="auto" className="min-w-0 flex-1 whitespace-pre-wrap">{item.text}</span></p>
           <div className="flex gap-2 mt-2"><Button size="sm" variant="secondary" onClick={() => {setEditing({id:item.id,text:item.text});attempt.current=null;save.reset()}} disabled={busy || editing !== null || conflict || refreshError !== null}>Edit {item.id}</Button>
             <Button size="sm" variant="secondary" onClick={() => submit({kind:'VisionItemRemove',id:item.id})} disabled={busy || editing !== null || conflict || refreshError !== null}>Remove {item.id}</Button></div>
         </div>}

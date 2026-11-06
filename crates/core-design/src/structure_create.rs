@@ -46,7 +46,7 @@ impl Design {
         );
         let mut snapshot = match self.store.structure_snapshot(&ctx, p, map_revision).await? {
             Read::Replay(result) => return Ok(result),
-            Read::Snapshot(snapshot) => snapshot,
+            Read::Snapshot(snapshot) => *snapshot,
         };
         let plan =
             structure::Structure::plan(&snapshot).map_err(crate::DesignError::StageBlocked)?;

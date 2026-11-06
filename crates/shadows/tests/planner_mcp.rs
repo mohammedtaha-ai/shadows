@@ -34,6 +34,35 @@ const PROMPT: &str = shadows_core::testing::PROMPT;
 const CHANGED: &str = "[Shadows] The project's Planner instructions changed.";
 const OURS: &str = "[Shadows] Shadows' instructions for you:";
 const STAGE_IDEA: &str = "[Shadows] Stage: idea.";
+
+#[tokio::test]
+async fn the_map_tool_names_layers() {
+    let l = listening_app().await;
+    let client = listening::thread_client(&l, &l.app.thread).await;
+    let tools = client.list_all_tools().await.unwrap();
+    let tool = tools
+        .iter()
+        .find(|tool| tool.name == "map_propose")
+        .unwrap();
+    let description = tool.description.as_deref().unwrap();
+    assert!(description.contains("layers"), "{description}");
+    assert!(description.contains("folder"));
+    assert!(!description.contains("folders"));
+    client.cancel().await.unwrap();
+    shut_down_app(l.app).await;
+}
+
+#[tokio::test]
+async fn the_standards_text_lists_backend_layers() {
+    let l = listening_app().await;
+    let first = report(&l.app).await;
+    let append = first["append"].as_str().unwrap();
+    assert!(append.contains("domain (required)"), "{append}");
+    assert!(append.contains("composition (required)"));
+    assert!(append.contains("May use:"));
+    assert!(!append.contains("Contract template"));
+    shut_down_app(l.app).await;
+}
 #[path = "planner_mcp/standards.rs"]
 mod standards;
 
@@ -158,6 +187,12 @@ async fn a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval() {
             .as_str()
             .unwrap()
             .contains("Write only what the person's message asks for")
+    );
+    assert!(
+        r["append"]
+            .as_str()
+            .unwrap()
+            .contains("Write everything you store in Shadows in English")
     );
     assert_eq!(r["allowed"], json!(["mcp__shadows__*"]));
 
@@ -725,7 +760,7 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
             .unwrap()
             .unwrap();
     assert_eq!((versions.prompt, versions.instructions), recorded);
-    assert_eq!(versions.standards, Some(1));
+    assert_eq!(versions.standards, Some(2));
     assert_eq!(versions.additions, None);
 
     l.app
