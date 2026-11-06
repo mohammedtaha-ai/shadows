@@ -11,6 +11,8 @@ mod map_proposals;
 mod map_rules;
 pub use map_proposals::{MapAction, MapProposal, MapPropose, ProposedPart, ProposedWaiver};
 pub use map_rules::MapRefusal;
+mod layout;
+pub use layout::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayout, RuleText};
 mod model;
 mod ops;
 mod outcomes;

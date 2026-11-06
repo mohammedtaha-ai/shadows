@@ -21,6 +21,23 @@ status: current
 source: crates/core-design/src
 
 shapes:
+  ProjectLayout:
+    map_revision: i64
+    standards_base: i64
+    standards_additions: Option<i64>
+    parts: Vec<LayoutPart>
+  LayoutPart:
+    note: Identity, parent, title, kind, folder, grouping, joined layers and applicable rules.
+  LayoutLayer:
+    note: Catalog id, role, may_use plus accepted place and not_used reason.
+  OwnedVia:
+    values: [Folder, Layer(String)]
+  PathOwner:
+    part: PartId
+    via: OwnedVia
+  RuleText:
+    id: String
+    text: String
   StageView:
     drift: Vec<String>
     stage: Stage
@@ -144,6 +161,15 @@ functions:
     approve_vision_proposal_for_test: Test-only approval using the supplied command and approver.
     propose_vision_for_test: Test-only proposal using the supplied command, writer and operation.
   service:
+    layout:
+      signature: "(&self, project: &ProjectId) -> Result<ProjectLayout, DesignError>"
+      rule: One read snapshot joins accepted parts, catalog layers and applicable effective rules; pending proposals are excluded.
+    layout_in:
+      signature: "(conn, project: &ProjectId) -> Result<ProjectLayout, DesignError>"
+      rule: The same layout in the caller snapshot; requires a live project and exposes public map/standards version numbers.
+    owners:
+      signature: "ProjectLayout::owners(&self, path: &str) -> Vec<PathOwner>"
+      rule: Deepest folder first, then all matching layer places in map order; segment case folding, nonempty module markers, no absolute or traversal paths.
     set_thread_anchor:
       signature: "(&self, command_id: String, thread: &ThreadId, anchor: Option<DesignAnchor>) -> Result<Option<DesignAnchor>, DesignError>"
       rule: Replay first, validate the live Planner and same-project anchor, then store or clear it atomically.
@@ -595,6 +621,8 @@ tests:
 # Map proposal standards pins are read through Harness::pinned_standards_in.
 
 modules:
+  layout.rs: Accepted layout values and pure path ownership
+  store/layout.rs: Snapshot reads of accepted layout
   anchors.rs: Planner anchor commands
   store/anchors.rs: Planner anchor persistence
   agreement.rs: Shared HTTP agreement value shapes

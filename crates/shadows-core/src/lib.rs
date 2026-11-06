@@ -124,3 +124,5 @@ pub use core_turns::TurnsError;
 pub use core_project_lifecycle::ProjectLifecycleError;
 
 pub use core_events::EventsError;
+
+pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayout, RuleText};

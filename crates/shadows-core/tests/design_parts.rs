@@ -630,3 +630,6 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
         .await
         .unwrap();
 }
+
+#[path = "design_parts/layout.rs"]
+mod layout;

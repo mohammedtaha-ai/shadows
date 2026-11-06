@@ -151,6 +151,7 @@ async fn equivalent_map_retries_replay_the_original_card() {
         .unwrap();
     assert_eq!(proposals.len(), 1);
     assert_eq!(proposals[0].status, shadows_core::ProposalStatus::Pending);
+    assert!(f.core.design().layout(&f.p).await.unwrap().parts.is_empty());
     f.close().await;
 }
 

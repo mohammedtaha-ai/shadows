@@ -328,7 +328,7 @@ impl MapRules {
 impl MapRules {
     /// A part that holds a child of its own kind groups them, and needs no
     /// layers of its own.
-    fn is_grouping(part: &MapPart<'_>, parts: &[MapPart<'_>]) -> bool {
+    pub(crate) fn is_grouping(part: &MapPart<'_>, parts: &[MapPart<'_>]) -> bool {
         let Some(kind) = part.content.kind.as_deref() else {
             return false;
         };

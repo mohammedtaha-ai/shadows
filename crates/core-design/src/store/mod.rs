@@ -4,6 +4,7 @@ mod agreement_write;
 mod agreements;
 mod anchors;
 mod hierarchy;
+mod layout;
 mod map_approval;
 mod map_proposal_read;
 mod map_proposal_shape;
