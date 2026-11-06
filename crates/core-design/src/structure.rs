@@ -15,6 +15,8 @@ pub struct RenderInput<'a> {
     pub project_name: &'a str,
     pub map_number: i64,
     pub parts: &'a [PartContent],
+    pub parents: &'a [(String, Option<String>)],
+    pub standards: &'a core_standards::EffectiveStandards,
     pub standards_base: i64,
     pub standards_additions: Option<&'a str>,
 }
@@ -31,26 +33,53 @@ impl Structure {
             project_name: &snapshot.name,
             map_number: snapshot.intent.map_number,
             parts: &snapshot.parts,
+            parents: &snapshot.parents,
+            standards: &snapshot.standards,
             standards_base: snapshot.intent.standards_version,
             standards_additions: snapshot.intent.standards_additions_version_id.as_deref(),
         })
     }
     pub fn render(input: &RenderInput<'_>) -> Result<Planned, String> {
         use super::map_rules::MapRules;
+        if input.parents.len() != input.parts.len() {
+            return Err("the structure snapshot is missing part identities".into());
+        }
+        let parts: Vec<_> = input
+            .parts
+            .iter()
+            .zip(input.parents)
+            .map(|(content, (id, parent))| super::map_rules::MapPart {
+                key: id,
+                parent: parent.as_deref(),
+                content,
+            })
+            .collect();
+        MapRules::check_places(&parts, input.standards).map_err(|e| e.message)?;
         let mut folders = std::collections::BTreeSet::new();
         let mut initial = Vec::new();
         for part in input.parts {
             if part.folder.is_empty() {
                 return Err(format!("part has no folder: {}", part.title));
             }
-            let folder = MapRules::normalise_folder(&part.folder)?;
-            let mut parent = String::new();
-            for segment in folder.split('/') {
-                if !parent.is_empty() {
-                    parent.push('/');
+            for place in std::iter::once(part.folder.as_str()).chain(
+                part.layers
+                    .iter()
+                    .filter(|layer| {
+                        layer.not_used.is_none()
+                            && !layer.place.is_empty()
+                            && !layer.place.contains("{module}")
+                    })
+                    .map(|layer| layer.place.as_str()),
+            ) {
+                let folder = MapRules::normalise_folder(place)?;
+                let mut parent = String::new();
+                for segment in folder.split('/') {
+                    if !parent.is_empty() {
+                        parent.push('/');
+                    }
+                    parent.push_str(segment);
+                    folders.insert(parent.clone());
                 }
-                parent.push_str(segment);
-                folders.insert(parent.clone());
             }
             for file in &part.files {
                 let path = MapRules::normalise_folder(&file.path)?;

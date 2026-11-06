@@ -129,7 +129,7 @@ because each builds on the one before. Rust lines stay within 100 columns.
 - Done when: `cargo test -p core-design --test map_rules` and `cargo test -p shadows --test design_routes` pass
 
 ### B-66 · Create structure makes each layer's folder
-- Status: todo
+- Status: done
 - Plan: Task 2.4
 - Read: crates/core-design/src/structure.rs, map_rules.rs, store/structure.rs, store/map_versions.rs
 - Touch: crates/core-design/src/structure.rs, store/structure.rs, contract.yaml, tests/structure.rs;

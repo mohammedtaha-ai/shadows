@@ -83,6 +83,9 @@ async fn create_structure_writes_exactly_the_approved_files() {
             format!("initial {kind}\n")
         );
         assert!(!dir.join(format!("{kind}/contract.yaml")).exists());
+        for layer in catalog_layers(kind, kind) {
+            assert!(dir.join(layer.place).is_dir());
+        }
     }
     assert!(
         std::fs::read_to_string(dir.join("SHADOWS.md"))
