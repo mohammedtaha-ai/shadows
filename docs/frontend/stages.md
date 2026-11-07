@@ -85,9 +85,10 @@ mockup's `Built` label cannot be used as evidence of completion.
 - Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; browser checks reported separately.
 
 ### F-94 · Expand phases in the plan graph
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.5.
 - Read: structure spec §6.2; workflows contract; frontend code map.
 - Touch: exact Task 5.5 Files, workflows contract and frontend code map, this stages file.
 - Needs: F-93.
+- Verified: 137 focused workflows/codemap/architecture tests passed, including 100 tasks/400 phases, fixed-node fit readiness, mixed interleaving and viewport preservation. Typecheck, lint and build passed. Actual daemon/browser checks on an isolated SQLite backup passed at 1024px and 375px, light/dark, exact foreign navigation/Back, keyboard and empty-task state; no page errors or React Flow warnings. Loading/read errors have component coverage. Daily-project/provider acceptance is not recorded; details are in Task 5.5.
 - Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; 100-task/400-phase layout and browser acceptance.

@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
 import { cn } from 'cn'
 import { Archive, ChevronDown, Layers, Lock } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { Viewport } from '@xyflow/react'
 import { type PhaseEndpoint, type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
 import { planVersionsQuery, workflowsKey } from '@/api/workflows'
 import { Planned } from '@/components/ui/planned'
@@ -29,14 +30,20 @@ const route = getRouteApi('/projects/$projectId/workflows/$workflowId')
  * closes the task the last one had open. */
 export function PlanPage() {
   const { projectId, workflowId } = route.useParams()
-  return <PlanView key={workflowId} projectId={projectId} workflowId={workflowId} />
+  const [viewports, setViewports] = useState(() => new Map<string, Viewport>())
+  return <PlanView key={workflowId} projectId={projectId} workflowId={workflowId}
+    savedViewport={viewports.get(workflowId)}
+    onViewportChange={viewport => { setViewports(previous => new Map(previous).set(workflowId, viewport)) }} />
 }
 
-function PlanView({ projectId, workflowId }: { projectId: string; workflowId: string }) {
+function PlanView({ projectId, workflowId, savedViewport, onViewportChange }: {
+  projectId: string; workflowId: string; savedViewport?: Viewport; onViewportChange: (viewport: Viewport) => void
+}) {
   const plan = usePlan(workflowId)
   const search = route.useSearch()
   const navigate = route.useNavigate()
   const selected = search.selected ?? search.task
+  const showPhases = search.phases === true
   const opened = search.task !== undefined || search.invalidTask === true
   const taskButtons = useRef(new Map<number, HTMLButtonElement>())
   const wasOpen = useRef(opened)
@@ -51,7 +58,7 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
   const openForeign = (endpoint: PhaseEndpoint) => { void navigate({
     to: '/projects/$projectId/workflows/$workflowId',
     params: { projectId, workflowId: endpoint.workflow_id },
-    search: { task: endpoint.task, selected: endpoint.task },
+    search: { task: endpoint.task, selected: endpoint.task, phases: showPhases || undefined },
   }) }
 
   if (plan.data === undefined) {
@@ -66,7 +73,10 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <Header plan={p} projectId={projectId} />
+      <Header plan={p} projectId={projectId} showPhases={showPhases}
+        onTogglePhases={opened ? undefined : () => { void navigate({ replace: true,
+          search: previous => ({ ...previous, phases: showPhases ? undefined : true }),
+        }) }} />
       {p.plan_state === 'Archived' ? (
         <p
           className="flex items-center gap-2 border-b border-accent-line/15 bg-accent-line/10 px-6 py-2 text-xs text-secondary-foreground"
@@ -99,11 +109,13 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
           aria-pressed={selected === t.number} onClick={() => open(t.number)}>T{t.number}</Button>)}
       </nav>
       <div className="relative min-h-0 flex-1">
-        <div data-main-plan inert={opened} aria-hidden={opened || undefined}
+        <div id="main-plan-graph" data-main-plan inert={opened} aria-hidden={opened || undefined}
           className={cn('absolute inset-0', opened && 'invisible pointer-events-none')}>
-          {/* One canvas throughout: when Inspect opens or closes, the graph
-              refits to the width left (see `plan-camera.ts`). */}
-          <PlanGraph plan={p} focusTask={selected} onSelectTask={(t) => open(t.number)} />
+          {/* Keep the same canvas behind TaskView so closing it restores the
+              person's graph state. Real resizes use the shared camera policy. */}
+          <PlanGraph plan={p} focusTask={selected} showPhases={showPhases}
+            initialViewport={savedViewport} onViewportChange={onViewportChange}
+            onSelectTask={(t) => open(t.number)} onOpenTask={openForeign} />
         </div>
         {opened && <div className="absolute inset-0">
           {task ? <TaskView plan={p} task={task} onBack={back} onOpenTask={openForeign} />
@@ -117,7 +129,9 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
   )
 }
 
-function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
+function Header({ plan, projectId, showPhases, onTogglePhases }: {
+  plan: Plan; projectId: string; showPhases: boolean; onTogglePhases?: () => void
+}) {
   const queryClient = useQueryClient()
   const { data: planVersions } = useQuery(planVersionsQuery(plan.plan_id))
   const isArchived = plan.plan_state === 'Archived' || planVersions?.state === 'Archived'
@@ -207,6 +221,10 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
           </div>
         </Planned>
         <div className="flex items-center gap-2">
+          {onTogglePhases && <Button variant="outline" size="sm" onClick={onTogglePhases}
+            aria-pressed={showPhases} aria-controls="main-plan-graph">
+            {showPhases ? 'Hide phases' : 'Show phases'}
+          </Button>}
           <nav aria-label="Versions" className="flex items-center gap-1 text-xs">
             <DropdownMenu>
               <DropdownMenuTrigger

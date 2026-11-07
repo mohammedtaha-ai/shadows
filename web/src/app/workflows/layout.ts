@@ -162,6 +162,9 @@ export function placeGraph(nodes: Node[], edges: PlanEdge[]): void {
     const width = node.width ?? 0
     const height = node.height ?? 0
     const { x, y } = graph.node(node.id)
+    // Fixed layout dimensions are authoritative, including after a controlled
+    // nodes replacement; React Flow's fit queue requires measured dimensions.
+    node.measured = { width, height }
     node.position = { x: x - width / 2, y: y - height / 2 }
     node.handles = handles(width, height)
     nodeMap.set(node.id, { x, y, width, height })
@@ -262,7 +265,7 @@ function stagger(nodes: Node[], centre: (id: string) => { x: number; y: number }
   }
 }
 
-function handles(width: number, height: number): NodeHandle[] {
+export function handles(width: number, height: number): NodeHandle[] {
   return [
     { type: 'target', position: Position.Left, x: 0, y: height / 2, width: 1, height: 1 },
     { type: 'source', position: Position.Right, x: width - 1, y: height / 2, width: 1, height: 1 },

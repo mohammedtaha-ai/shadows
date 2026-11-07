@@ -45,7 +45,8 @@ meaning each:
   was built.
 - Slice 3 is implemented locally as B-71 to B-75 and F-92, through
   `3deb1333`. Its automated checks passed; Mohammed will perform manual
-  acceptance on an existing project. Slices 4 and 5 are prepared below for inline execution on the same branch.
+  acceptance on an existing project. Slices 4 and 5 are implemented below on
+  `feature/structure-elements`, with a commit and push per task. No merge is recorded.
 
 ## Dispatch and progress
 
@@ -58,7 +59,7 @@ UI and API dependencies.
 | 2 | Slice 1; accepted API request (B-64) before F-90 | Implemented in PR #60 (`b64242a7`), with B-68 to B-70 tooling; live acceptance not recorded | Layers on the map card, migration on the daily database, canvas in the app |
 | 3 | Slice 2; accepted API request `2026-11-06-principles-not-layout` | Implemented locally through `3deb1333`; manual acceptance pending with Mohammed | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
 | 4 | Slice 3 | B-76–B-78 implemented and automated checks passed; live acceptance pending | A fresh external agent reads a task's parts, layers and rules |
-| 5 | Slice 4; accepted API request for task phases | B-79–B-81, F-93–F-94 prepared; API request accepted; implementation pending | Mixed dependency cycles refused; both graph modes work |
+| 5 | Slice 4; accepted API request for task phases | B-79–B-81, F-93–F-94 implemented; focused checks and isolated daemon/browser acceptance passed; daily-project/provider acceptance not recorded | Mixed dependency cycles refused; both graph modes work |
 
 **Dropped on 2026-11-06:** the former slices 3 (elements), 4 (planning
 detail), 6 (outcome coverage on elements), 8 (trace) and 9 (code
@@ -1356,8 +1357,8 @@ shows phases (spec §6.2).
 
 **Build order:** 5.1 → 5.2 → 5.3 on the backend; 5.4 → 5.5 on the web once
 the shared request is accepted and B-80’s generated response is committed.
-B-79–B-81 are blocked only until controller records API acceptance; F-93
-remains blocked until B-80 is built, F-94 until F-93. Use the existing owner
+The API request is accepted and B-79–B-81 and F-93–F-94 are implemented.
+The dependency order above remains the delivery order. Use the existing owner
 spec; execution status remains deferred to §17.
 
 **Shared request first:** `TaskContent` gains `phases`, and `plan_edit`
@@ -1617,12 +1618,14 @@ architecture, codemap, contracts and affected clippy passed.
 
 **Files:**
 - Modify: `web/src/app/workflows/plan-graph.tsx`, `layout.ts`,
-  `plan-page.tsx` (the header button), `task-node.tsx`, `plan-camera.ts`,
-  `plan-edge.tsx`, `linked-layout.ts`, `contract.yaml`,
-  `web/src/test/fake-daemon.ts`, `docs/frontend/codebase/README.md`
+  `plan-page.tsx` (header button and per-workflow viewport state), `plan-camera.ts`,
+  `contract.yaml`, `web/src/router.tsx` (phases search state),
+  `docs/frontend/codebase/README.md`, both stages files and this plan.
 - Extend: `web/src/app/workflows/phase-node.tsx`,
   `web/src/app/workflows/phase-layout.ts`, `phase-layout.test.ts` from F-93.
-- Test: `plan-graph.test.tsx`, `layout.test.ts`
+- Test: `plan-graph.test.tsx`, `plan-page.test.tsx`, `task-view.test.tsx`.
+- Existing edge kinds and fake-daemon overrides from F-93 suffice; no extra
+  transport, fixture service or linked-task layout is needed.
 
 **Interfaces:**
 - **The button:** Show phases / Hide phases, in the plan header beside
@@ -1648,21 +1651,34 @@ architecture, codemap, contracts and affected clippy passed.
   requires 1024px and 375px, light/dark, keyboard/Back, and real empty/error
   states. Automated fixture evidence never substitutes for live acceptance.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `show_phases_draws_a_frame_per_task_with_its_phases`
-  - `an_edge_points_from_prerequisite_to_waiting_phase`
-  - `hide_phases_returns_to_task_cards`
-  - `expansion_preserves_whole_task_constraints_and_tasks_without_phases`
-  - `foreign_phase_nodes_show_the_pinned_version`
-  - `expansion_keeps_selection_and_viewport`
-  - `keyboard_list_and_graph_open_the_same_task`
-  - in `layout.test.ts`: `a_plan_of_100_tasks_and_400_phases_lays_out`
-- [ ] **Step 2: Run them and see them fail.**
-- [ ] **Step 3: Build the frames, the phase nodes and the toggle.**
-- [ ] **Step 4: Run** `npm run typecheck`, `npm run lint` and
+- [x] **Step 1: Write the failing tests.** Actual focused cases:
+  - `expands phase frames while preserving task completion constraints and plain tasks`
+  - `keeps valid interleaved phase dependencies at phase endpoints`
+  - `keeps pinned foreign metadata and missing references visible in expanded plans`
+  - `lays out 100 tasks and 400 phases with every child inside a non-overlapping frame`
+  - `expands and hides phases on one canvas without changing selection or viewport`
+  - `keeps fixed-size nodes initialized so the fit control works after expansion`
+  - `lets fit-view reach the full width of a large expanded plan`
+  - `opens the same task from an expanded frame and the keyboard task list`
+- [x] **Step 2: Run them and see them fail.** Browser checks also exposed
+  foreign Back losing phase mode and fixed nodes losing fit readiness; both
+  have regressions and were corrected before completion.
+- [x] **Step 3: Build the frames, the phase nodes and the toggle.**
+- [x] **Step 4: Run** `npm run typecheck`, `npm run lint`, `npm run build` and
   `npx vitest run src/app/workflows src/codemap.test.ts src/architecture`.
-- [ ] **Step 5: Update the contract and commit:**
+- [x] **Step 5: Update the contract and commit:**
   `feat(web): Show phases on the plan graph`.
+
+**Verified on 2026-11-07:** 137 focused workflows/codemap/architecture tests
+passed. Typecheck, lint and production build passed. The build retains the
+existing large syntax-language chunk advisory. Chromium exercised the actual
+daemon and web app against an isolated SQLite backup with approved plan fixtures:
+1024×900 and 375×812, light/dark, show/hide, fit, exact foreign version navigation,
+browser Back with selection/viewport restoration, keyboard Enter and a task with
+no phases. No page errors or React Flow warnings; no horizontal page overflow.
+Screenshots were inspected. Loading/read-error states are covered by component
+tests. This is fixture-backed application acceptance, not a real-provider turn
+or acceptance on the daily Laravel project. Those remain unrecorded.
 
 **Slice 5 acceptance:**
 1. Open a plan, toggle Show phases, follow a foreign phase, and come back

@@ -94,8 +94,11 @@ its live acceptance is not recorded.
 
 Structure and planning depth: Slice 3 implementation and automated checks are complete
 locally (B-71 to B-75, F-92, through `3deb1333`). Manual acceptance belongs to Mohammed
-on the existing project; it is pending. Nothing is pushed or merged by this work.
-Slices 4 and 5 are prepared for inline execution on this branch; elements and trace are dropped.
+on the existing project; it is pending. Slices 4 and 5 are implemented as
+B-76 to B-81 and F-93/F-94 on `feature/structure-elements`, committed and pushed
+per task. Focused backend/web checks and isolated daemon/browser phase checks
+passed; real-provider and daily-project acceptance are not recorded. No merge
+is recorded. Elements and trace are dropped.
 The [design](specs/2026-11-05-structure-and-depth-design.md) and
 [delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the
 readiness checklist. Existing projects are test data: no compatibility layer. Coverage and code

@@ -10,7 +10,7 @@ import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 're
 import { taskNodeId } from './layout'
 
 /** How far the person may zoom out, by wheel or button. */
-export const MIN_ZOOM = 0.01
+export const MIN_ZOOM = 0.001
 const PAGE_PADDING = 0.15
 
 /** The Controls' fit button: the whole plan, however small that makes it. */
@@ -60,17 +60,19 @@ export function useCamera({
   focusTask,
   lastClicked,
   nodes,
+  restored = false,
 }: {
   size: CanvasSize | null
   compact: boolean
   focusTask: number | undefined
   lastClicked: number | null
   nodes: Node[]
+  restored?: boolean
 }): void {
   const { fitView, getZoom, setViewport } = useReactFlow()
   const ready = useNodesInitialized()
 
-  const opened = useRef(false)
+  const opened = useRef(restored)
   useEffect(() => {
     if (opened.current || !ready || size === null || size.width === 0 || size.height === 0) return
     if (compact || focusTask !== undefined) {
@@ -90,8 +92,11 @@ export function useCamera({
     return () => cancelAnimationFrame(frame)
   }, [ready, size, compact, focusTask, nodes, setViewport])
 
+  const focused = useRef<number | undefined>(restored ? focusTask : undefined)
   useEffect(() => {
-    if (focusTask === undefined || !ready) return
+    if (focusTask === undefined) { focused.current = undefined; return }
+    if (!ready || focused.current === focusTask) return
+    focused.current = focusTask
     void fitView({ ...firstFit(compact, focusTask), padding: 0.4, duration: 200 })
   }, [focusTask, ready, compact, fitView])
 

@@ -52,7 +52,7 @@ it('opens a foreign phase at its pinned workflow and browser Back returns to the
     },{
       id:'db',number:2,title:'Database phase',goal:'Prepare',acceptance:[1],waits_for:[],
     }]}],links:[]})
-  app=await startApp(`${page}?task=1`,routes)
+  app=await startApp(`${page}?task=1&phases=true`,routes)
   const a=app
   await until(()=>a.button('Open T3 · P2 · Database v1')!==undefined)
   await act(async()=>a.button('Open T3 · P2 · Database v1')?.click())
@@ -61,6 +61,8 @@ it('opens a foreign phase at its pinned workflow and browser Back returns to the
   expect(a.calls).not.toContain('GET /api/workflows/latest-draft')
   await act(async()=>window.history.back())
   await until(()=>a.path().endsWith('/w1') && a.text().includes('Build phase'))
+  await act(async()=>a.button('Back to plan')?.click())
+  await until(()=>a.button('Hide phases')!==undefined)
 })
 it('shows loading while the task plan is pending and then opens its task',async()=>{
   let resolve:((response:Response)=>void)|undefined
@@ -94,4 +96,26 @@ it('Escape restores keyboard focus and a refreshed task keeps its open route',as
   await act(async()=>a.button('Back to plan')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})))
   await until(()=>a.button('Back to plan')===undefined)
   expect(document.activeElement).toBe(a.container.querySelector('nav[aria-label="Tasks"] button[aria-pressed="true"]'))
+})
+it('opens the same task from an expanded frame and the keyboard task list',async()=>{
+  const plan=planFixture({tasks:[{...planTask(1,'Deliver'),phases:[{
+    id:'build',number:1,title:'Build phase',goal:'Ship',acceptance:[1],waits_for:[],
+  }]}],links:[]})
+  app=await startApp(page,answers({plan}))
+  const a=app
+  await until(()=>a.button('Show phases')!==undefined)
+  const canvas=a.container.querySelector('[data-main-plan] .react-flow')
+  await act(async()=>a.button('Show phases')?.click())
+  await until(()=>a.container.querySelector('[data-task-frame="t1"]')!==null)
+  expect(a.button('Hide phases')).toBeDefined()
+  await act(async()=>a.container.querySelector<HTMLElement>('[data-task-frame="t1"]')?.click())
+  await until(()=>a.button('Back to plan')!==undefined)
+  expect(window.location.search).toContain('task=1')
+  await act(async()=>a.button('Back to plan')?.click())
+  await until(()=>a.button('Hide phases')!==undefined)
+  const button=a.container.querySelector<HTMLButtonElement>('nav[aria-label="Tasks"] button')
+  await act(async()=>button?.click())
+  await until(()=>a.button('Back to plan')!==undefined)
+  expect(window.location.search).toContain('task=1')
+  expect(a.container.querySelector('[data-main-plan] .react-flow')).toBe(canvas)
 })
