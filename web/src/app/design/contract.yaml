@@ -424,7 +424,7 @@ open_questions:
       name, or does it store them? Answering needs the design service's validation.
   - >
       Which query keys do the design events (ProjectDesignChanged, ProjectStandardsSaved,
-      VisionProposed, MapProposed, RoadmapApproved, ProjectStructureWritten) invalidate?
+      VisionProposed, MapProposed, RoadmapProposed, RoadmapApproved) invalidate?
       The tests depend on that refetch. It runs in web/src/stream/use-project-events.ts,
       which was only grepped for event names here, not traced.
   - >

@@ -1,9 +1,10 @@
 # Project structure and layers
 
 Status: revised and approved 2026-11-06. Slices 1 and 2 are built
-(PRs #59 and #60). Slice 3 is implemented locally on 2026-11-07
-(B-71 to B-75, F-92); Mohammed owns its pending manual acceptance on an
-existing project. Slices 4 and 5 are designed here and not built.
+(PRs #59 and #60). Slices 3 to 5 are built on `feature/structure-elements`
+(B-71 to B-81, F-92 to F-94). Mohammed owns their pending manual
+acceptance on an existing project; real-provider acceptance is not
+recorded.
 
 **Mohammed's decisions.**
 - **2026-11-05**
@@ -176,13 +177,12 @@ The roles and `may_use` lists are as in base v2:
 - composition builds every module once;
 - the frontend's `data_access` is the only code that calls the api.
 
-**The rules.** S1 to S5, S7 and S8 keep their text. S6 and S9 change, and
-S10 is new:
+**The rules.** S1 to S5, S7 and S8 read as in base v2. S6, S9 and S10
+read:
 
 - **S6. The database code is its own part or layer.** Business logic
   reaches the database only through the layer that owns it. A change of
-  database stays in that owner. (It used to require a separate root
-  folder.)
+  database stays in that owner. It needs no folder of its own.
 - **S9. One folder per part; layers follow the stack.** Each part owns one
   folder. Each layer records where it lives, in the layout the framework
   and the person chose.
@@ -218,15 +218,15 @@ and needs no migration, because no stored row holds `elements`.
 | `layer_place_shared` | Two layers of one part have the same place (case-insensitive), so their code would mix |
 | `invalid_path` | A place is absolute, holds `..` or `\`, or is empty while used |
 
-**Where a place lies is the Planner's and the person's choice.** These
-slice 2 refusals are removed:
-- `layer_outside_part`. A Laravel database part at `backend/database` has
-  its connection in `backend/config/database.php`, which is outside the
-  part's folder and still right.
-- `layer_inside_child`.
-- The pattern overlap and containment checks, and the one-marker limit.
-  `{module}` is text that the Planner and the agent read. It is not a path
-  Shadows creates.
+**Where a place lies is the Planner's and the person's choice.** Shadows
+does not refuse a place for where it lies:
+- A place may lie outside its part's folder. A Laravel database part at
+  `backend/database` has its connection in `backend/config/database.php`,
+  which is outside the part's folder and still right.
+- A place may lie inside a child part's folder.
+- Places are not checked for pattern overlap or containment, and a place
+  may hold `{module}` more than once. `{module}` is text that the Planner
+  and the agent read. It is not a path Shadows creates.
 
 ### 5.4 Who writes the structure
 
