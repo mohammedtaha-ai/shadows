@@ -69,6 +69,7 @@ pub fn edit_ctx(
 /// approve.
 pub fn task(n: u32, title: &str) -> TaskContent {
     TaskContent {
+        phases: Vec::new(),
         number: n,
         title: title.into(),
         goal: format!("goal {n}"),

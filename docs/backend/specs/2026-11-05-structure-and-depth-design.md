@@ -1,817 +1,424 @@
-# Project structure, layers and planning depth
+# Project structure and layers
 
-Status: draft for Mohammed's review, revised 2026-11-05. Nothing here is built.
-The review amendments below are engineering proposals made under Mohammed's
-request to improve this design. They do not record his approval of new APIs.
+Status: revised and approved 2026-11-06. Slices 1 and 2 are built
+(PRs #59 and #60). Slices 3 to 5 are built on `feature/structure-elements`
+(B-71 to B-81, F-92 to F-94). Mohammed owns their pending manual
+acceptance on an existing project; real-provider acceptance is not
+recorded.
 
-**Mohammed's decisions, 2026-11-05.**
-- **No backward compatibility.** Every project made so far is test data.
-  Old maps, plans and structure writes need no protection. The daemon must
-  still start on an existing database; its migration may convert old rows
-  crudely.
-- **Shadows never writes `contract.yaml` after this change.** This holds for
-  every project and standards version. Files already on disk are left
-  alone.
-- **Repository implementations live in backend infrastructure.**
-- **The task view and Show phases (§6.2)** are approved as drawn.
-- **The stack profile (§5.3, D1 to D4)** was left to the controller's best
-  choice. It is recorded in §5.3 and closes the former OPEN 2.
+**Mohammed's decisions.**
+- **2026-11-05**
+  - **No backward compatibility.** Every project made so far is test data.
+    The daemon must still start on an existing database, and its migration
+    may convert old rows crudely.
+  - **Shadows never writes `contract.yaml`.** Files already on disk are left
+    alone.
+  - **The task view and Show phases (§6.2)** are approved as drawn.
+- **2026-11-06: the standards hold principles, not a layout.**
+  - Each part kind has a presence rule (required, waivable with a reason,
+    or optional) and a list of layers. Each layer has a role, and the
+    layers it may use. That is the whole catalog.
+  - Every project follows one runtime rule: each runnable part has one
+    owner object (its AppCore). It builds every service once and is the one
+    way in from outside. One rule lives in one place, with no duplicate way
+    in.
+  - Where the folders go is decided by the Planner and the person, for the
+    stack they chose. Laravel, FastAPI and Node each have their own layout,
+    and their own tools create it. Shadows does not dictate it.
+  - Shadows' job is to hold the Planner to the principles and to warn when
+    a map breaks them.
+  - Elements, planning detail per element and the trace view are dropped.
+    They planned "every file", which this decision rejects.
+  - **No command writes the structure.** The approved map records the
+    layout. An executor writes it as a task, or the Planner writes it in
+    Agent Mode, and the layout may still change after that. Create
+    structure, its planning step and `SHADOWS.md` are removed (§5.4).
+
+**Controller's calls (2026-11-06), approved by Mohammed.** Each one is marked
+"(call)" where it is used: C1 in §5.3, C3 in §5.2, C4 in §7.
 
 **Words used with one meaning each:**
 
 | Word | Meaning |
 |---|---|
-| **Planning step** | Shadows' guided steps: Idea, Vision, Map, Structure, Roadmap, Plans. |
+| **Planning step** | Shadows' guided steps: Idea, Vision, Map, Roadmap, Plans. |
 | **Project stage** | A roadmap outcome of the person's project, such as "Stage 1: working support loop". |
-| **Delivery slice** | A numbered piece of this work in the plan, slice 1 to slice 9. |
-Mockup: https://claude.ai/artifact/No9kfXkwK12wctXundandy (four screens).
-Its source files are in
-[2026-11-05-structure-and-depth-mockup/](2026-11-05-structure-and-depth-mockup/README.md).
+| **Delivery slice** | A numbered piece of this work in the plan. |
+
 Plan: [../plans/2026-11-05-structure-and-depth.md](../plans/2026-11-05-structure-and-depth.md).
+The mockup in [2026-11-05-structure-and-depth-mockup/](2026-11-05-structure-and-depth-mockup/README.md)
+predates the 2026-11-06 decision. Its element, depth and trace screens are
+not part of this design. Its task view and Show phases screen still are.
 
 ## 1. Why
 
-Two test projects showed that Shadows does not hold the structure of the
-projects it plans.
+**2026-11-05: no structure at all.** Two test projects showed that Shadows
+did not hold the structure of the projects it planned.
+- **testing55.** The standards said "one core; every operation is a method
+  of one service". The Planner read that literally, and every folder landed
+  in the project root as one block.
+- **testing56.** One folder per part came from the model, not from
+  Shadows.
+- **No inside.** In both projects the backend had no layers and no modules.
+  The database part was a `contract.yaml` and nothing else.
+- **`contract.yaml` duplicated Shadows.**
+- **Bug.** Map approval accepted a part with no folder, and Create
+  structure then refused it.
 
-- **testing55 (Haiku 5.5).** The standards say the backend is "one core;
-  every operation is a method of one service". The Planner read that
-  literally. Every folder (`app`, `config`, `routes`, `migrations`, `lib`,
-  `dashboard`, `telegram`) landed in the project root, as one application.
-- **testing56 (Sonnet 5.5).** The same standards (base v1, no additions)
-  gave one folder per part. That came from the model, not from Shadows. The
-  only folder rule Shadows holds is that two parts' folders do not overlap
-  (`MapRules`, `map_rules.rs`).
-- **No section has an inside.** In both projects the backend is one block:
-  no layers, no modules, and Telegram, Firebase and Mercure all sit inside
-  it. The database part is a `contract.yaml` and nothing else. It has no
-  migrations folder, no schema, and no connection code beneath the others.
-- **A plan does not say how deep its part was designed.** "T1: Database
-  tables for the support loop" lists five acceptance items. The tables,
-  columns and relations were never discussed or drawn. What Shadows calls a
-  plan is closer to a map of work than a plan of code.
-- **`contract.yaml` files duplicate Shadows.** Shadows writes one per part.
-  Each file is a copy of the map, and Shadows is the source anyway.
-- **Bug.** Map approval accepted a part with no folder (Frontend). Create
-  structure then refused it ("part has no folder: Frontend"). These are two
-  paths with two answers for one rule.
+Slices 1 and 2 fixed these. Each part now has one folder, each part kind
+has layers, and the map is checked on every write path.
+
+**2026-11-06: now too strict.** testing1 (a Laravel support system) showed
+the other side.
+- The standards and the Planner prompt drove one layout for every stack:
+  `backend/src/modules/{module}/domain`, a `database/` part in the project
+  root, and an `integration/` part in the root.
+- Laravel already has its own layout. `composer create-project` makes
+  `app/`, `config/`, `database/migrations/` and `routes/`, and
+  `php artisan migrate` reads migrations from inside the application. An
+  outside review of the map said the same thing: put migrations and adapters
+  inside the backend, and keep the module boundaries.
+- Create structure made layer folders before the framework ran. A scaffold
+  such as `composer create-project` needs an empty or missing folder. And a
+  layout written once by a command is stale as soon as the project grows.
+- What the review praised is the principle, not the folders: domain
+  modules, one API contract, and a composition root with no business logic.
 
 ## 2. Goals
 
-1. **The standards name each section's layers as roles, with the direction
-   of dependency.** They do not name folder layouts. A model cannot read
-   them as "one block".
-2. **Every part and every layer owns one folder, inside its parent's
-   folder.** Shadows refuses a map that breaks this, at proposal time.
-3. **The database part owns persistence foundations.** It holds the schema,
-   migrations and connection. Repository implementations live in the
-   backend's infrastructure layer (Mohammed's decision, 2026-11-05). A
-   change of database is intended to stay in these owners. A change in
-   transaction or consistency semantics still needs an impact review of
-   the use-case contract.
-4. **The person sees the project as a drawing at every depth:**
-   project → part → layer → element. Clicking zooms in. A breadcrumb or
-   Escape zooms out.
-5. **Shadows reports planning coverage for a selected outcome,** with
-   missing decisions and evidence visible. Layer detail is a separate view.
-6. **A task names the elements it builds, and it has phases.** A phase can
-   wait for a phase of another task.
-7. **Shadows stops generating per-part `contract.yaml`,** for every project.
-   An agent retrieves the same obligations through scoped MCP reads. Files
-   already on disk are not deleted.
+1. **The standards name each part's layers as roles, with the direction of
+   dependency,** and one runtime rule: one owner object per runnable part,
+   which builds the services and is the one way in from outside.
+2. **Every part has one folder, and every required layer is accounted
+   for:** the map says where it lives in this stack, or why it is not used.
+3. **The layout follows the stack.** The Planner proposes it with the
+   person, starting from the framework's own layout. Shadows checks the
+   principles, never a folder pattern.
+4. **The building agent asks Shadows where to work** (`task_context`),
+   instead of reading per-part files.
+5. **A task has phases,** and a phase can wait for a phase of another task.
 
 ## 3. Non-goals
 
-- Shadows does not dictate folder names per framework. The standards give
-  roles; the map stage maps roles to folders with the person.
-- No code generation. Elements are names, files and signatures, never
-  bodies.
-- No new stage in the stage line. Depth work happens after the map, through
-  cards, like every other write.
-- Not every architectural pattern becomes a rule. The base standards hold
-  the few that, broken, cost the most (section 5).
-- **No compatibility layer for existing projects.**
-  - There is no v1/v2 adoption flow. Base v2 replaces v1 for every project.
-  - Legacy folder lists are not kept losslessly.
-  - No renderer version is pinned for old structure writes.
+- No folder layout per framework in Shadows.
+- No element model: no tables, use cases, endpoints or symbols recorded in
+  Shadows.
+- No code generation, no scaffolding, and no command that writes folders.
+  The framework's own tools and the agents create the project.
+- No compatibility layer for existing projects.
 
 ## 4. Anti-goals
 
-These would count as failure even if everything technically works:
+These would count as failure even if everything works:
 
-- **A plan longer than the code it describes.** Elements stop at the file
-  and its symbols.
+- **A plan longer than the code it describes.**
 - **Clean Architecture forced word for word on a stack that does not fit
-  it.** For example, a separate entity class beside every Laravel Eloquent
-  model. The standards fix roles and dependency direction, and nothing more.
-- **A depth number the model can raise by saying so.**
+  it,** such as a separate entity class beside every Laravel Eloquent model.
+- **Shadows refusing a sound map because of where a folder sits.**
+- **Shadows writing folders on disk.** A framework's scaffold refuses to
+  run in them, and they go stale as the layout changes.
 
 ## 5. The model
 
-Parts already nest freely. Layers and elements add detail to those same
-identities. A roadmap outcome selects the delivery scope across parts.
-
 ```text
 Project
- └─ Part          a section, which may contain child parts
-     └─ Layer     a role inside a part, from the standards' catalog
-         └─ Element  a named thing in a layer: table, entity, use case,
-                     endpoint, screen, adapter ... with its file and symbols
-Outcome          acceptance items, related parts, coverage and linked plans
+ └─ Part          a section with one folder; it may contain child parts
+     └─ Layer     a role from the standards' catalog, with where it lives
 Plan version
- └─ Task          names the elements it builds or changes
+ └─ Task          its paths, acceptance and the parts and layers it touches
      └─ Phase     an ordered step of the task; may wait for a phase elsewhere
 ```
 
 ### 5.1 Parts
 
-- **They stay as they are:** title, responsibility, design, kind and serves.
-- **Every part has exactly one root folder.**
-  - A child part's folder lies inside its parent's folder.
-  - One `MapRules` policy checks proposal, approval and person edits. It
-    covers reparenting and the descendants a changed ancestor affects.
-    Structure rendering calls the same policy before its disk checks. There
-    is no second reading of folder ownership.
-  - The rule checks the whole candidate map. An old test map that breaks it
-    is refused on its next write, with a message naming the part.
-  - A grouping part can contain physical child parts without duplicating
-    their required layers. A part with a child of its own kind is a grouping
-    part, for example a `frontend` holding `web` and `mobile`. It needs no
-    layers, and nothing new is stored (D3).
-  - **Migration.** Slice 2 turns `folders` into `folder`:
-    - it keeps the first stored folder;
-    - an empty list becomes the part's slug;
-    - layers start empty.
-    This is crude on purpose, because the data is test data. The daemon
-    still starts.
-  - **Paths.** Paths are project-relative canonical paths throughout the API,
-    and layer paths include the part prefix. Ownership compares normalized
-    path segments using the existing Windows case rules, never raw prefixes.
-- **New kind: `integration`.** It is for adapters to outside services such
-  as Telegram, Firebase and Mercure. It is optional; a project may also
-  keep them as a layer of the backend (5.2).
-- **The contract head (header and rule ids) stays in Shadows.** It is shown
-  on the part page and given over MCP, but no longer written to disk.
+- **They stay as they are:** title, responsibility, design, kind, serves,
+  one folder and layers.
+- **One folder per part.** A child part's folder lies inside its parent's
+  folder, and two parts never claim the same folder. One `MapRules` policy
+  checks proposal, approval and person edits (slice 1).
+- **Nesting is how a stack's layout is expressed.** In Laravel, the
+  database part can be a child of the backend, with the folder
+  `backend/database`. In a project where the database code stands apart, it
+  can be a root part. Both are valid maps.
+- **A grouping part** has a child of its own kind, such as a `frontend`
+  holding `staff-app` and `supervisor-dashboard`. It needs no layers, and
+  nothing new is stored.
+- **Integration is optional.** Adapters to outside services can live as a
+  layer place inside the backend (for Laravel,
+  `backend/app/Infrastructure/Telegram`), or as their own part when they run
+  separately.
 
-### 5.2 Layers: the standards catalog (base v2)
+### 5.2 The standards catalog (base v3)
 
-The standards file gains a `layers` list per kind. Each layer has:
+Each part kind has:
+- `name`, and `owns`: one sentence;
+- `presence`: `required`, `waivable` (with a reason the person approves) or
+  `optional`;
+- `layers`, each with `id`, `role` (one sentence), `required`, and
+  `may_use` (the layers it may depend on).
 
-- `id`
-- `role`: one sentence
-- `required`: true or false
-- `elements`: the element kinds it holds
-- `may_use`: the layers it may depend on
+**The layer catalog's `elements` field is removed** (call C3). It named
+element kinds for the element model, which is dropped, and nothing else
+reads it.
 
-Dependencies point inward. The catalog is data, so a project's standards
-additions can add a layer or make one required.
+The kinds and layers are those of base v2, minus `elements`:
 
-**Backend**
+| Kind | Presence | Layers (required unless marked) |
+|---|---|---|
+| backend | required | domain, application, interface, infrastructure, composition |
+| database | required | schema, migrations, connection |
+| api | waivable | contract |
+| frontend | waivable | screens, features, data_access, design_system (optional) |
+| integration | optional | adapters |
 
-| Layer | Role | Required | Elements | May use |
-|---|---|---|---|---|
-| `domain` | Business rules and the state they guard | yes | entity, value, rule, domain_event | (nothing) |
-| `application` | Use cases: one operation each, and the ports it needs | yes | use_case, port | domain |
-| `interface` | Receives HTTP/queue/console input and calls one use case | yes | endpoint, job, command | application, api.contract |
-| `infrastructure` | Implements the application's ports: repositories over the database, and technical adapters such as mail, files and clock | yes | repository, adapter | domain, application, database.schema, database.connection |
-| `composition` | Builds every module once and wires ports to implementations | yes | module | all backend layers, integration.adapters |
+The roles and `may_use` lists are as in base v2:
+- the domain depends on nothing;
+- infrastructure implements the application's ports;
+- composition builds every module once;
+- the frontend's `data_access` is the only code that calls the api.
 
-**Database:** persistence foundations, owned by modules through repositories.
+**The rules.** S1 to S5, S7 and S8 read as in base v2. S6, S9 and S10
+read:
 
-| Layer | Role | Required | Elements | May use |
-|---|---|---|---|---|
-| `schema` | Tables, columns, keys and relations | yes | table | (nothing) |
-| `migrations` | Append-only changes that produce the schema | yes | migration | schema |
-| `connection` | How the application connects: driver, pool, transactions | yes | connection | (nothing) |
+- **S6. The database code is its own part or layer.** Business logic
+  reaches the database only through the layer that owns it. A change of
+  database stays in that owner. It needs no folder of its own.
+- **S9. One folder per part; layers follow the stack.** Each part owns one
+  folder. Each layer records where it lives, in the layout the framework
+  and the person chose.
+- **S10. One owner at runtime.** Each runnable part has one owner object
+  (its AppCore). It builds every service once and is the one way in from
+  outside: an adapter such as an HTTP route or a CLI reaches a service only
+  through it. Services reach each other through the dependencies they
+  declare, never through the owner, so it does not become a go-between for
+  every internal call. A rule lives in one service, and there is no second
+  way in.
 
-The layers are roles from the Clean Architecture explanation Mohammed
-brought, not a fixed folder layout. A stack maps them at the map stage
-(5.3).
-
-**Api**
-
-| Layer | Role | Required | Elements | May use |
-|---|---|---|---|---|
-| `contract` | The versioned contract the clients build against | yes | operation, schema_type | (nothing) |
-
-**Frontend:** one part per client.
-
-| Layer | Role | Required | Elements | May use |
-|---|---|---|---|---|
-| `screens` | What the person sees: routes and pages | yes | screen | features, design_system |
-| `features` | A feature's interactions and its state | yes | feature, store | data_access, design_system |
-| `data_access` | The only code that calls the api | yes | client_call | api.contract |
-| `design_system` | Shared components and tokens | no | component | (nothing) |
-
-**Integration**
-
-| Layer | Role | Required | Elements | May use |
-|---|---|---|---|---|
-| `adapters` | Talks to one outside service and implements a backend port | yes | adapter | backend.application (ports only) |
-
-**Modules.** The backend also holds modules (bounded contexts), such as
-`tickets`, `queue` and `agents`.
-
-- A module runs across the domain and application layers.
-- Each table in `database.schema` names the one module that owns it.
-- The base rule (S1, kept) says a module reads only its own tables and asks
-  the owning module for anything else.
-- The `composition` layer is the project's AppCore. It is the one place
-  that builds every module. It is a layer, not the whole backend: this is
-  the "one core" sentence said the way it was meant.
-
-**Rules kept from base v1:** S1 to S6. Their texts change only where they
-named folders or contract files. S3 reads: "Every part has a contract head
-in Shadows". Base v2 replaces v1 for every project.
-
-**New rules:**
-
-- **S7. Dependency direction.** A layer depends only on the layers its
-  `may_use` lists. S7 is checked between layers, not parts.
-- **S8. Ports.** The domain and application layers never name a database,
-  framework or outside service. They declare a port, and an outer layer
-  implements it.
-- **S9. One folder.** Each part owns one folder. Each layer owns one place
-  inside its part: a folder, or one path per module.
-
-The catalog is one profile for every stack. A stack maps it through each
-layer's place (§5.3, D1). Both a layered Laravel project and a
-service-per-crate Rust project fit, and so does a mobile client, which uses
-the same frontend layers as the web (D4). A required role's inapplicability
-needs an explicit person-reviewed reason in the map (D2). An optional unused
-role remains visible as unused. Project additions cannot silently weaken a
-mandatory base rule.
-
-`may_use` is permission, not a list of actual dependencies. Same-layer links
-are allowed when their link kind and module ownership permit them, including
-schema foreign keys. `backend.interface` may implement `api.contract` and
-call `backend.application`. Cross-part references identify a concrete part
-and layer, because a project can have several frontends or integrations.
-Composition may wire the approved integration adapters as well as backend
-layers. These permissions do not authorize another module's table access.
-The S7 check validates declared design links. Source imports and runtime
-behavior need their own checks under §17.
+The base standards are compiled in. Base v3 replaces v2 for every project,
+and needs no migration, because no stored row holds `elements`.
 
 ### 5.3 Layers in a project
 
 **At the map stage**, the map card proposes each part with its layers:
-
-- every required layer of its kind, plus the optional ones the person
+- every required layer of its kind, and any optional layer the person
   wants;
-- each with its **place**: a project-relative path inside the part's
-  folder, chosen for the stack (D1).
-  - **One folder per layer** for a layered stack. Example for Laravel:
-    `domain` → `backend/app/Domain`, `interface` → `backend/app/Http`,
-    `composition` → `backend/app/Providers`.
-  - **One place per module** for a stack that gives each module its own
-    folder. The place holds one `{module}` marker. Example for
-    service-per-crate Rust: `domain` → `crates/core-{module}/src/model.rs`,
-    `infrastructure` → `crates/core-{module}/src/store`. A pattern may name a
-    file or a folder. Shadows creates nothing for it until modules exist as
-    elements. An element is still recorded once, in its own layer, so no
-    stack is forced to duplicate entity classes.
-- A required layer the project does not use is marked **not used**, with a
-  written reason and an empty place. The person approves the reason with
-  the map card (D2).
+- each with its **place**: where the layer lives in this stack, as a
+  project-relative path. The `{module}` marker may stand for a module name
+  anywhere in the path, for example `backend/app/Modules/{module}/Domain`.
+- or, for a required layer the project does not use, **not used** with a
+  reason the person approves.
 
-**Shadows refuses the map** when:
+**Shadows refuses the map only on principle** (call C1):
 
-- a required layer is missing and not marked not used;
-- a layer is not in its kind's catalog;
-- a place lies outside its part, or inside a child part's folder;
-- two layers share a place;
-- or a not-used layer has no reason.
-
-The values sent and stored are project-relative, for example
-`backend/app/Domain`. A form may display them relative to `backend`.
-
-**Create structure writes:**
-
-- one folder per part, and from slice 2 one per layer;
-- the starter files from the card;
-- and one root `SHADOWS.md`. That file says Shadows is the source and how
-  to reach it over MCP. Nothing per part, and never a `contract.yaml`.
-
-**An unfinished write from before the update** is a stored structure intent
-whose planned files include generated contracts. It is not resumed. Shadows
-cancels it with the message "A structure write from an earlier version did
-not finish. Press Create structure again." Files already on disk are never
-removed.
-
-Root instructions name only tools available in the shipped slice, with a
-readable way to report unavailable MCP rather than guess ownership. The
-reserved-file rule and the Planner's map instructions say the same thing.
-
-### 5.4 Elements
-
-An element is the smallest thing Shadows plans. It has:
-
-- a stable project-scoped id and immutable approved revisions;
-- `kind`, from its layer's catalog line;
-- `name`;
-- `summary`: one sentence;
-- `module`: backend and database elements only;
-- `fields`, depending on the kind:
-  - a table has columns (name, type, null, default), keys, and relations
-    to other tables;
-  - a use case has input, output and the ports it calls;
-  - an endpoint has its method, path and the one use case it calls;
-  - a screen has its route and the features it shows;
-- `location`: a source location inside its owning layer, or a logical
-  location with an explicit implementing element. A table is logical and
-  points to its migration elements. It does not claim a migration file
-  under the schema folder. Contract operations can name an artifact and
-  JSON pointer. Source symbols use qualified names and language.
-- `symbols`: names and signatures when meaningful for the element kind;
-- `links`, to other elements:
-  - `uses`;
-  - `implements` (a repository implements a port);
-  - `reads` and `writes` (a repository reads and writes a table);
-  - `calls` (a client call calls an api operation).
-  Shadows refuses a link whose direction breaks S7.
-
-**Elements are written through cards,** like the map:
-
-- The Planner proposes with `element_propose`.
-- The person approves with the button, or asks the Planner to approve with
-  `element_approve`.
-- A card may carry many elements. For example, the support-loop tables come
-  in one card with their relations.
-
-Approval validates the complete candidate batch, including references within
-that card, in one transaction. Mutual foreign keys may be legitimate. Their
-existence does not imply a scheduling cycle. Proposals pin the effective
-standards, map and affected element revisions and become stale on a relevant
-change. They carry CommandId, versioned normalized fingerprint and authority
-under §24. A lost response replays the same result. A new proposal cannot
-overwrite a concurrent approval.
-
-Renames retain identity. Removal retains a tombstone and historical content
-for frozen plans. `module` references an explicit module identity in the
-project, with one declared owning module per table. A small backend can use
-one default module. Missing ownership is a planning blocker. A table relation
-records a data constraint, while repository reads/writes enforce S1 ownership.
-
-An API element references the existing §18 agreement and operation at an
-exact version. It does not introduce a second authoritative API definition.
-
-### 5.5 Depth
-
-Shadows computes planning detail from approved element revisions. These
-states describe the recorded elements, not completeness of the whole layer.
-
-| State | Holds when |
+| Refusal | When |
 |---|---|
-| 0 Not recorded | No approved element is recorded for the selected scope. |
-| 1 Designed | Required kind-specific fields, ownership and links resolve at approved revisions. |
-| 2 Implementation specified | The element has its required source/artifact location or implementing elements, interface, relevant failure behavior and checkable obligations. Symbols are required only for source kinds. |
+| `missing_layer` | A required layer has neither a place nor a not-used reason |
+| `unknown_layer` | A layer is not in its kind's catalog |
+| `layer_not_used_without_reason` | `not_used` is blank, or set while a place is given |
+| `layer_place_shared` | Two layers of one part have the same place (case-insensitive), so their code would mix |
+| `invalid_path` | A place is absolute, holds `..` or `\`, or is empty while used |
 
-**What is computed from the states:**
+**Where a place lies is the Planner's and the person's choice.** Shadows
+does not refuse a place for where it lies:
+- A place may lie outside its part's folder. A Laravel database part at
+  `backend/database` has its connection in `backend/config/database.php`,
+  which is outside the part's folder and still right.
+- A place may lie inside a child part's folder.
+- Places are not checked for pattern overlap or containment, and a place
+  may hold `{module}` more than once. `{module}` is text that the Planner
+  and the agent read. It is not a path Shadows creates.
 
-- **A layer's detail** shows element counts by state and unresolved items.
-  Empty optional layers are unused. A single designed table cannot make a
-  whole required layer complete. Never derive 100% from an unknown inventory.
-- **A part's summary** is shown on its map node and its page, in plain
-  words, for example: "8 elements described, 5 specified for
-  implementation, 3 need decisions; the full list of elements is not
-  confirmed". This answers "how much of this part is planned" without a
-  made-up percentage.
-- **The next action**, supplied by the later Plans coverage read, is selected
-  from blockers of the chosen outcome, with
-  a reason and stable target ids. It might be an API contract, a policy
-  decision or a missing test. Dependencies do not impose database-first work.
+### 5.4 Who writes the structure
 
-Code observation is independent and says `found`, `missing`, `ambiguous`,
-`stale` or `unsupported`, with source revision/digest and index coverage.
-Finding a symbol cannot establish `Built` or `Verified`. The current index's
-name-matched references are candidates, not a proven call graph. Execution,
-verification and review remain §17's separate records.
+**No command writes it** (Mohammed, 2026-11-06). The approved map is the
+record of the layout. The folders are written by whoever builds:
+- an executor, as a task of a plan, for example "T1: run
+  `composer create-project` in `backend/` and set up the layers";
+- or the Planner, in Agent Mode, when the person asks.
 
-### 5.5.1 Outcome coverage: is a project stage fully planned?
+The layout may change after that. The person and the Planner change the
+map, and the next task follows it. Agents learn the layout from
+`task_context` (§5.5), not from a file on disk.
 
-Delivered in its own slice (6), after task bindings exist. The planning
-step, the project stage and the delivery slice are different identities
-(see "Words" at the top). The UI always labels which it shows.
+**Removed:**
+- the Create structure button, its route and `Design::create_structure`;
+- the Structure planning step. Roadmap opens once the map is approved;
+- `SHADOWS.md` and every structure intent. The `design_structure_write`
+  table is dropped. Nothing on disk is deleted;
+- the map card's **starter files**. The scaffold writes `composer.json`,
+  `package.json` and `pubspec.yaml` itself, with the right content for the
+  framework version. The part content's `files` field is removed.
 
-For a selected outcome revision, record a coverage row per stable acceptance
-item. A row links the required element revisions, task acceptance items at
-exact plan versions, relevant agreement versions and any unresolved question.
-It records explicit exclusions/deferred work with a reason and who accepted
-them. Deferred required acceptance still blocks this outcome until its scope
-is explicitly revised. Removing and re-adding a criterion never reuses its id.
+### 5.5 Plans, tasks and phases
 
-Coverage edits are revision-checked commands with the same project authority
-and replay rules as workspace edits. A Draft can propose bindings to its own
-task acceptance items. Approval validates the candidate plan and coverage
-together, then pins the resulting frozen version atomically. It does not
-require that this candidate was already frozen. A stale criterion or plan
-revision refuses the whole command. Existing approved coverage stays readable.
+**`task_context`: the building agent's question.** It takes a task of an
+approved plan version, and answers from records Shadows already holds:
+- the task's title, purpose, acceptance and paths;
+- the parts that own its paths: the deepest part whose folder holds a
+  path, and every part with a layer whose place names it. A Laravel
+  database part owns `backend/config/database.php` through its connection
+  layer, though the file is in the backend's folder. Each part comes with
+  its folder, its layers with places and not-used reasons, and how it owns
+  each path;
+- the layers' `may_use` and the rules (S1 to S10) that apply to those
+  parts;
+- the plan and standards versions it read.
 
-Approval validates the candidate's assigned coverage and design dependency
-closure. It does not require every other plan for the outcome to be frozen.
-Bindings to other Drafts remain provisional and cannot certify their portion
-of coverage. An outcome can therefore have an approved backend plan while
-its frontend plan still needs design. It remains Needs planning until all
-required portions have reviewed coverage and approved plan bindings. Each
-new task identifies its assigned criterion contribution, or the explicit
-non-element task reason under §5.6. Execution readiness separately waits for
-required upstream results. Two valid plans can be approved in sequence
-without granting either premature execution readiness.
-
-| Report | Required facts |
-|---|---|
-| Needs planning | A criterion has no coverage, a required decision is open, or an element/dependency is unresolved. |
-| Planning covered | Every required criterion has reviewed coverage, implementation-specified elements and approved plan bindings for all required contributions. This proves coverage of the declared scope only. |
-| Ready to run | §17 readiness succeeds for the selected frozen task and current execution binding. Until execution exists, show availability as unsupported. |
-| Needs verification | Work is reported or observed, but required checks, review or integrated acceptance evidence are missing. |
-| Verified for revision | All required criteria have valid checks and required review on the integrated result for the named outcome and plan versions. |
-
-The first coverage release implements the first two reports and explains
-that execution evidence is unavailable. It never makes up task completion.
-Later §17 delivery supplies verification facts, including a browser journey
-when required by the outcome. Coverage is a reviewed assertion about scope.
-Shadows detects missing rows and stale references but cannot prove a human
-or model remembered every real-world requirement.
-
-```mermaid
-flowchart TD
-    A[Selected outcome and acceptance revision] --> B{Candidate task contribution designed?}
-    B -->|No| C[Needs planning with named missing items]
-    C --> D[Resolve a decision or design the missing dependency]
-    D --> A
-    B -->|Yes| E[Review and approve a bounded plan version]
-    E --> F{Execution readiness under section 17}
-    F -->|Blocked| G[Resolve the named blocker or create a revised plan]
-    F -->|Ready| H[Run one task against a captured source revision]
-    H --> I[Check the result and review the implementation]
-    I --> J{All required outcome evidence valid?}
-    J -->|No| K[Needs verification or replanning]
-    J -->|Yes| L[Verified for the named integrated revision]
-```
-
-Execution and evidence nodes in this diagram are later §17 delivery.
-
-A relevant criterion, element, contract or source change shows `Needs review`
-with the affected rows. Historical verification stays true of its old result.
-Unrelated future work does not reopen a completed outcome. Reusing evidence
-for a changed scope requires an attributable review of that change.
-
-Example for a support loop, an approved schema and backend tasks still leave
-"the customer receives exactly one reply" uncovered until its messaging,
-retry behavior and end-to-end check are assigned. Stage 2's analytics need
-not be designed before Stage 1 can run.
-
-### 5.6 Plans, tasks and phases
-
-**A task gains element bindings:** stable ids, approved revisions and each
-binding's access (`read`, `create`, `change` or `remove`).
-
-- Element locations suggest `reads` and `writes`. Tests, manifests,
-  migrations and generated files often require additional paths, so the
-  task author reviews and freezes the full scope. Reading a port never
-  grants permission to write it. Frozen paths do not follow a later move.
-- **Approval gate.**
-  - **From slice 5:** a plan version cannot be approved while a task:
-    - names an element that is not "implementation specified" for its
-      declared change (blocker `element_not_specified`);
-    - or references stale revisions.
-  - **From slice 6:** coverage assigned to this candidate must also be
-    resolved.
-  - The blocker names the item and a next action.
-  - Approval stays distinct from readiness to execute (§17).
-  - Only the selected outcome's dependency closure is required, not every
-    element in the project.
-- **Tasks without elements.**
-  - Plans made before this change are test data. They stay readable and
-    are never certified as covered.
-  - A new element-based task cannot bypass the checks by supplying
-    `elements: []`.
-  - Documentation, investigation and verification tasks may use a reviewed
-    non-element task kind, with explicit paths, acceptance and a reason.
+It grants no execution authority. Execution, attempts and evidence stay with
+§17. For a task with no path in any part's folder, it says so, and never
+guesses an owner.
 
 **A task gains `phases`:** an ordered list. Each phase has:
+- a stable id, a display `number`, a `title`, a `goal` and acceptance item
+  references;
+- and `waits_for`, a list of `{task, phase}`. The target may be in this
+  plan, or in another plan of this project at an exact approved version.
 
-- a stable id, display `number`, `title`, `goal` and acceptance item refs;
-- the subset of the task's elements it touches;
-- and `waits_for`, a list of `{task, phase}`. The task may be in this plan
-  or, with its plan and exact version, in another plan of this project. Draft browsing may
-  offer the latest approved target, but approval freezes the target version
-  and phase identity. Existing §16.7 task links keep their current semantics.
+A task's phases are written as one ordered list. Adding, removing and
+reordering are one edit, and each phase keeps its id at its new position.
 
 **Phase rules:**
-
-- A task's acceptance items still decide when the task is done.
-- Phases give the order inside the task.
-- Ordered phases imply completion-to-start edges. `waits_for` also means
-  prerequisite completion before this phase starts. Existing task-level
-  `needs` and `completes_after` remain constraints. One event graph checks
-  all of them, using the current start/complete model in `core-plans`.
+- A task's acceptance items still decide when the task is done. Phases give
+  the order inside it.
+- Ordered phases imply completion-to-start edges, and `waits_for` means the
+  same. The existing task-level `needs` and `completes_after` remain. One
+  event graph checks all of them, using the start/complete model in
+  `core-plans`.
 - Phase links never form a cycle across the combined graph. A refusal names
-  the complete offending path. Missing targets remain visible blockers.
-- Phase numbers are display labels, not reusable identities. A phase rename
-  or reorder cannot silently redirect a wait. A successor plan version
-  requires explicit adoption of any changed phase target.
-- Phase status and evidence belong to execution records, when §17 supplies
-  them. A planning checkbox or an agent's statement cannot satisfy a wait.
-
-### 5.7 Conflict checks and change impact
-
-Before approval check unknown/stale references, required agreement adoption,
-ownership violations and the combined dependency graph in one snapshot.
-Before execution §17 rechecks readiness against the captured repository.
-Compare full normalized read/write scopes as well as element ids. Different
-symbols can share a file, and disjoint files can share a generated schema,
-lockfile, migration order or build directory. Such shared resources require
-an explicit ordering edge or a blocking diagnostic.
-
-The first executor remains serial. These planning checks detect known
-conflicts and report incomplete information. They cannot promise that no
-semantic conflict exists. Independent review and checks on the integrated
-result remain necessary. Safe parallel work waits for Shadows' own roadmap
-(its Stage 8), which is not a project stage of the person's project.
+  the whole path. A missing target is a visible blocker.
+- Phase numbers are labels, not identities. A rename or reorder never
+  redirects a wait.
+- Phase status belongs to execution records (§17). A planning checkbox or
+  an agent's statement cannot satisfy a wait.
+- `task_context` takes an optional phase id once phases exist.
 
 ## 6. What the person sees
 
-The mockup shows each view with data from the testing56 support system.
-Its labels and arrows must be updated to this revision before implementation.
-The task graph and Show phases behavior below retain Mohammed's decision.
+### 6.1 The map (built in slice 2)
 
-### 6.1 Navigation and the next decision
+- The Project map has a canvas and a list. Each node shows its kind, folder
+  and layers with their places.
+- Edges say "Dependencies not recorded". An optional Allowed dependencies
+  overlay is dashed and labelled as permission.
+- The part form asks, for each layer, **Used** (with its place) or **Not
+  used** (with a reason). A grouping part shows "Groups: …" with links.
 
-Keep one project workspace with the existing theme tokens and components.
-Use these destinations consistently across full-page and conversation views.
+**Changes in slice 3:**
+- the form's place input says the path follows the stack's own layout;
+- the Standards page drops the element kinds and shows S10;
+- the Create structure panel and the Structure step go. The stage line
+  reads Idea, Vision, Map, Roadmap, Plans.
 
-| Destination | First question answered | Main action |
-|---|---|---|
-| Vision | What are we building and what is excluded? | Review an item |
-| Roadmap | Which outcome are we delivering, and what is missing? | Resolve the next coverage blocker |
-| Project map | Who owns this part of the system? | Open a part or find an element |
-| Plans | What approved work can happen next? | Inspect a task and its prerequisites |
-| Contracts | Which participants agreed to which interface? | Inspect impact or explicitly adopt a version |
-| Standards | Which rules and layer catalog apply here? | Review the rules and layers |
+### 6.2 Plan view and task view (approved 2026-11-05)
 
-Roadmap is the progress view. Project map is the ownership view. Both link
-to the same records. A return visit restores the last selected outcome and
-view, and an empty project starts at Vision. Show the active planning anchor
-separately from the item being browsed. Browsing does not retarget a session.
-
-The outcome page shows, in order, its intended result and scope revision,
-acceptance coverage rows, actionable blockers, and related plans/parts.
-Each blocker has a reason, affected ids and an action such as Design missing
-element, Agree contract, Add task, Review change or Inspect evidence. A
-"Continue planning" action opens an anchored draft with the selected blocker.
-It does not automatically submit a message or approve a proposal.
-
-### 6.2 Drawings and detail
-
-1. **Project map is a canvas.**
-   - Parts are nodes; edges aggregate declared element dependencies between
-     concrete parts. Before elements exist, say "Dependencies not recorded".
-     An optional Allowed dependencies overlay is dashed and clearly labelled.
-   - Each node shows its kind, folder and the part summary from §5.5.
-   - A persistence-oriented layout may place database at the bottom. Edge
-     meaning and arrowheads remain explicit and independent of position.
-   - "Served vision items" shows only the items the part serves, with an
-     Add button.
-2. **Part view:** a navigable layer list with counts is always available.
-   Backend can also use rings, domain in the centre.
-   - Each ring shows its folder, depth state and element count.
-   - Rings are conceptual. Interface and infrastructure are peers with
-     distinct permitted targets; nesting them never grants a dependency.
-   - A module filter follows its elements across layers without copies.
-3. **Layer view: the elements as a diagram that fits their kind.**
-   - schema: an entity-relationship diagram;
-   - use cases: a list with their ports;
-   - api: operations grouped by path;
-   - screens: a route tree.
-4. **Element panel,** opened by clicking an element:
-   - its approved revision, fields and applicable locations;
-   - its links;
-   - the tasks that build it;
-   - and its **trace**: declared relationships, with direction and link kind.
-     Example: `tickets` table ← `TicketRepository` (backend
-     infrastructure) ← `TicketStore` port ←
-     `TakeTicket` ← `POST /tickets/{id}/take` ← agent app queue screen.
-     Calls and storage links point toward their dependency. Implements
-     points from implementation to interface. A trace labels incomplete
-     paths and distinguishes declared links from source observations.
-5. **Plan view and task view.**
-   - The plan stays the graph it is today, and each task card also shows
-     its element chips.
-   - Clicking a task opens the **task view**: the same kind of graph, one
-     level down. Its nodes are phases, drawn as task cards are. The task
-     itself is the start node, and the edges carry labels. The view keeps
-     the legend, zoom controls and minimap.
-   - A phase of another task that this one waits for, or that waits for
-     it, appears as a dashed node with its task number. Clicking it opens
-     that task's view.
-   - **Show phases** is a button in the plan header, beside Versions. It
-     opens every task at once, in the same graph:
-     - each task becomes a frame titled with its number and title;
-     - its phases sit inside the frame as cards, each with a badge such as
-       `T3 · P2`, so every phase shows the task it belongs to;
-     - the graph grows to fit;
-     - edges run phase to phase, for example `T1 · P3` → `T3 · P3`, so the
-       person sees exactly which part of a task waits.
-     - **Hide phases** returns the graph to task cards.
-     - The minimap and zoom stay.
-     (Mohammed, 2026-11-05.)
-   - Existing task-level edges stay represented when phases are expanded,
-     even if no phase wait exists. Tasks with no phases remain visible.
-     Arrows consistently point from prerequisite to dependent. Display
-     labels retain `needs` versus `completes after` semantics.
-   - Keep the selection, filters and viewport on expand/collapse. Show
-     version badges on foreign phases and distinguish external nodes from
-     phases editable in this Draft. A list/table offers the same operations.
-6. **Zoom.** A breadcrumb (Project › Backend › Application › TakeTicket)
-   and Escape step out one level. The minimap stays.
+- The plan stays the graph it is today.
+- Clicking a task opens the **task view**: the same kind of graph, one
+  level down. Its nodes are phases, drawn as task cards are. The task is
+  the start node, and the edges carry labels. The view keeps the legend,
+  zoom controls and minimap.
+- A phase of another task that this one waits for, or that waits for it,
+  appears as a dashed node with its task number. Clicking it opens that
+  task's view.
+- **Show phases** is a button in the plan header, beside Versions. It opens
+  every task at once, in the same graph:
+  - each task becomes a frame titled with its number and title;
+  - its phases sit inside the frame as cards, each with a badge such as
+    `T3 · P2`;
+  - edges run phase to phase, for example `T1 · P3` → `T3 · P3`;
+  - **Hide phases** returns the graph to task cards;
+  - the minimap and zoom stay.
+- Task-level edges stay drawn when phases are expanded. Tasks with no
+  phases stay visible. Arrows point from prerequisite to dependent.
+- Selection, filters and viewport survive expand and collapse. Foreign
+  phases show their plan version. A list offers the same operations.
 
 ### 6.3 Interaction acceptance
 
-URLs identify selected part, layer, element, plan version and task where
-applicable. Browser Back restores the prior selection. Escape closes a
-dialog or detail panel before navigating up. Use keyboard-reachable items,
-text labels beside color states, the existing light/dark tokens and a list
-fallback for large diagrams or narrow screens. At 1024px, panels cannot
-cover the only way to navigate. At 375px, detail becomes a full-width view.
+- URLs identify the selected part, plan version and task.
+- Browser Back restores the prior selection. Escape closes a panel before
+  navigating up.
+- Items are keyboard-reachable, colour states have text labels, and the
+  views use the existing light/dark tokens.
+- Large graphs and narrow screens have a list fallback.
+- Loading, empty and failed reads have distinct messages.
 
-Loading, partial pagination, unsupported indexing, empty and failed reads
-have distinct messages. A failed query never displays zero blockers. Stale
-editing preserves the draft and offers reload/review. Replayed mutations
-keep their command identity. Project events refresh the shared API queries,
-including another tab's changes. Expanding all phases must be checked on a
-representative large plan and preserve access to selected nodes.
+## 7. The Planner's instructions
 
-## 7. The Planner's tools
+The prompt's map section says (call C4):
+- The standards give roles, dependency direction and the one-owner rule.
+  They are not a folder layout.
+- Agree the layout with the person for the stack you chose. Start from the
+  framework's own layout and its scaffold command, and map each layer to
+  where it lives there.
+- Nest a part inside another when the framework keeps it there, such as a
+  Laravel database part at `backend/database`.
+- Do not record layer folders the framework does not use. Mark a required
+  layer not used, with a reason, when the stack has no place for it.
+- Shadows writes no folders. The layout is built by a plan's tasks, usually
+  starting with the framework's scaffold in each part's folder, or by you in
+  Agent Mode when the person asks.
+- When the layout changes during the work, propose the map change, so the
+  record stays true.
 
-**New for the Planner (thread grant):**
+The standards text the Planner reads drops the element kinds and adds S10.
 
-- `element_propose` and `element_approve`;
-- `layer_get`, which returns a layer's elements and its depth;
-- `depth_get`, which returns project-wide element planning detail per layer;
-- the outcome coverage read, introduced in slice 6, which accepts an
-  outcome identity/revision and returns its coverage blockers and next action.
-
-**Unchanged in shape, with new fields:**
-
-- `map_propose` carries layers.
-- `draft_start` and `plan_edit` carry task elements and phases.
-
-**The prompt's stage text:** after the map, identify the selected outcome's
-acceptance and unresolved coverage. Design only what the next bounded task
-needs. Discuss before proposing writes, preserving the existing instruction
-that the Planner writes only when the person asks. Other outcomes can remain
-coarse until their decisions are needed.
-
-**The agent that builds a task asks Shadows for its recorded obligations.**
-`task_context` (thread and project grants) takes a task and answers:
-
-- each element the task builds, with its layer, folder and kind-appropriate
-  implementation location;
-- the elements one link away, such as the port it implements or the table
-  it writes, with their files;
-- and, for observed symbols, what the code index knows: where each one
-  is and who uses it.
-
-The first input pins project, workflow version and task. Slice 7 extends it
-with an optional phase identity once phases exist. A bounded
-response includes purpose, acceptance, owned changes, full read/write scope,
-forbidden changes, standards and agreement versions, relevant invariants,
-decisions and open blockers. Every section names its source revision.
-Neighbours are selected by the required dependency closure, with pagination
-and explicit missing/cut markers. Required information over budget blocks
-readiness or asks the author to split the task. It is never silently dropped.
-
-Use the existing planner-context selection and provenance machinery where
-applicable. Design revisions must invalidate affected anchored context in
-normal turns and after compaction. A logical layer/element selection is
-included through its owning part or outcome until a separate anchor type is
-explicitly designed. New records must reach the prompt, not merely new tools.
-
-This read is a planning aid. §17.5 owns the immutable execution packet,
-attempt identity, repository snapshot and enforceable authority. Until that
-path exists, `task_context` does not label a task executable. Its response
-labels observed code separately from approved intent. Existing source-owned
-contracts are still relevant reads where the repository requires them.
-
-For unavailable MCP, show a connection/read diagnostic and retain the last
-packet for inspection with its timestamp. An executor must reconcile stale
-or unavailable required context before writing. It cannot invent a contract
-or assume that no result means no dependency.
-
-**When blocked**, the agent returns the task/version, obstacle, relevant
-source/evidence and proposed next step. A local implementation failure stays
-with that task. A missing decision or invalid plan goes to the Planner/person
-under §17. A finished attempt reports changed paths and checks for independent
-verification. It does not edit its own completion state. Retrying or resuming
-starts by reading durable task/attempt identity and unresolved decisions.
-
-Example: "T3 · P3: create `TakeTicket` in
-`backend/app/Application/Tickets/TakeTicket.php`. It calls port
-`TicketStore`, declared in `.../TicketStore.php`."
-
-**What lies inside a layer is not the standards' business.** The standards
-name the layers and their dependency direction. How a layer is built
-inside, meaning which elements, files and functions, is agreed between the
-Planner and the person, and recorded as elements.
-
-**External agents (project grant)** get the reads: `layer_get`,
-`depth_get` and `task_context`. Proposals need a conversation to hold their cards, so external
-proposals wait for a decision on where their cards appear (section 10).
+**External agents (project grant)** get `task_context`.
 
 ## 8. Owners in Shadows' code
 
 | Concern | Owner |
 |---|---|
-| Layer catalog and rules S7 to S9 | `core-standards` |
-| Layers, elements and links as part of the design | `core-design` |
+| Layer catalog and rules | `core-standards` |
+| Parts and their layers | `core-design` |
 | Folder and layer rules | `MapRules` |
-| Element planning detail and outcome acceptance identities | `core-design` |
-| Outcome coverage links to plan versions and composed readiness read | `core-plans`, reading `Design` through its API |
-| Code observation | `core-code`, composed with task context by `core-plans` |
-| Task elements and phases | `core-plans` |
-| The approval gate | `core-plans`. It reads depth from `core-design`. |
-| Writing the structure, with no per-part `contract.yaml` | `core-design` (`structure_create`) |
+| `task_context`, phases and the combined graph | `core-plans`, reading `Design` through its API |
 
-No new service is needed. If the element store grows past what the design
-service should own, a separate service is a decision for the controller,
-not something to improvise. Execution attempts, verification and reviewer
-authority remain the future §17 delivery. No design store queries plan tables.
-`AppCore` supplies dependencies. New cross-owner atomic reads use the owners'
-transaction-local APIs, preserving one database snapshot.
+No new service is needed.
 
 ## 9. Delivery in slices
 
-Each slice is usable on its own, in this order.
+1. **One folder per part, and no contract files.** Built (PR #59).
+2. **Standards v2 and layers on the map.** Built (PR #60).
+3. **Principles, not layout.** Base v3 (no `elements`, S6, S9, S10), the
+   loosened place rules, the removal of Create structure, the Structure
+   step and starter files, and the Planner's map instructions. The web
+   changes follow.
+4. **`task_context`.** The building agent's read, over MCP for both grants.
+5. **Phases** inside tasks, with links across tasks and plans, the task
+   view and Show phases.
 
-1. **One folder per part, and no contract files.**
-   - Close the missing-folder bug through the shared map policy, on every
-     write path, including ancestor moves.
-   - Stop writing `contract.yaml`, and cancel an unfinished old write with a
-     clear message.
-2. **Standards v2 and layers on the map.**
-   - The catalog, and rules S7 to S9; v2 replaces v1 for every project.
-   - Map cards with layers and their folders.
-   - The `folders` → `folder` migration.
-   - The Project map canvas, and the trimmed "served" list.
-3. **Elements, starting with the schema.**
-   - `element_propose` and `element_approve`, the ER diagram, and the
-     element panel.
-   - Then use cases, endpoints and screens.
-4. **Planning detail.** States 0 to 2, layer counts and the part summary.
-5. **Task bindings and the element approval gate.**
-   - Task context, and anchored context refresh.
-   - Exact versions, complete scopes and actionable blockers.
-6. **Outcome coverage.** Stable criteria, coverage bindings, the gate's
-   coverage check, and the Roadmap view.
-   - This answers "is Stage 1 fully planned?".
-   - It comes right after slice 5, because it needs task bindings and the
-     phases do not need it.
-7. **Phases** inside tasks, with links across tasks and plans, and Show
-   phases.
-8. **The trace view.**
-9. **Code observation.**
-   - Existing supported languages first. PHP and Dart support is a
-     separately owned index prerequisite when required.
-   - Completing a stage from execution evidence stays §17's later delivery.
+**Dropped (2026-11-06):** elements, planning detail per element, the part
+summary built on elements, the element approval gate, and the trace view.
+
+**Deferred, not planned:**
+- **Outcome coverage** ("is Stage 1 fully planned?"), built on tasks and
+  their acceptance rather than elements. It waits for slice 5.
+- **Code observation:** checking that the code respects the layers'
+  `may_use` and the one-owner rule. It waits for the code index's
+  languages.
 
 ## 10. Open questions
 
 1. **Where an external agent's proposal cards appear.** A thread is needed
-   today. Closes when the external-agent design is taken up with the global
-   connection (deferred).
-2. **Closed 2026-11-05: stack profile mapping.** It is decided in §5.3 as
-   D1 to D4: layer places with a `{module}` marker, not-used layers with a
-   reason, derived grouping parts, and one frontend catalog.
-3. **OPEN — execution integration.** Before outcome verification or phase
-   completion can be implemented, §17 must supply attempt/result identity,
-   check and review records and their owner APIs. The current branch only
-   designs and displays planning coverage and explicit unavailable evidence.
+   today. This closes when the external-agent design is taken up with the
+   global connection (deferred).
+2. **OPEN: execution integration.** Before phase completion can be shown,
+   §17 must supply attempt and result identity and their owner APIs. Until
+   then, phases show no completion.
 
-## 11. Review basis and acceptance examples
+## 11. Acceptance examples
 
-Static review against `6c00980e` found these relevant facts.
-
-- `MapRules::check_shape` permits zero folders. `Structure::render` refuses
-  them. `Design::edit_workspace_in` tracks create/put in `written`, but a
-  move also changes folder containment. Testing `written` alone misses it.
-- `Structure::plan` is shared by rendering and the stage's file count.
-  Its existing persisted intents and hashes make renderer compatibility a
-  recovery requirement when generated contracts are removed.
-- `TaskContent` currently has paths and acceptance, without elements or
-  phases. `DependencyGraph::link` models start and completion separately.
-- `WorkspacePage` already owns Vision, Project map, Standards, Roadmap and
-  Plans, with Contracts linked separately. `RoadmapView` explicitly avoids
-  deriving completion from plan approval.
-- §17 already owns execution readiness, immutable packets and evidence.
-  §18 owns stable design identities and versioned API agreements. This
-  draft extends them, rather than declaring these future features built.
-
-Acceptance must demonstrate the daemon starting on an old database, a new v2
-project, an unfinished old structure write being cancelled, a stale proposal, an unknown coverage denominator, an unplanned
-required outcome, a satisfied current outcome with unrelated future work,
-a shared-file conflict and a mixed task/phase cycle. Also demonstrate a
-table implemented by a migration, a source symbol that exists but fails its
-check, and a restored agent that can explain its task without the old chat.
-The plan assigns these examples to slices and separates static, automated
-and visible application evidence.
+- **The daemon on the daily database** after the slice 2 migration (done).
+- **A Laravel project:**
+  - the database part is a child of the backend;
+  - the connection layer's place is `backend/config/database.php`;
+  - the map is approved, and Roadmap opens with no Structure step;
+  - a plan's first task, or the Planner in Agent Mode, runs
+    `composer create-project` in `backend/`.
+- **A FastAPI project** whose domain and infrastructure places follow its
+  own package layout, approved without a folder refusal.
+- **Refusals:** a map with a required layer neither placed nor marked not
+  used is refused. So is a map with two layers at one place.
+- **A fresh agent** reads `task_context` for a task and names the part, its
+  layers and the rules, without the old chat.
+- **A mixed task and phase cycle** is refused, naming the whole path.

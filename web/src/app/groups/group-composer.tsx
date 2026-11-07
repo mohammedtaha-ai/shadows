@@ -57,7 +57,7 @@ export function GroupComposer({ groupId, members }: { groupId: string; members: 
     <form onSubmit={event => { event.preventDefault(); submit() }}>
       <ComposerFrame>
         <ComposerInput input={{
-          ref: input, 'aria-label': 'Group message', placeholder: 'Write to the group…', dir: 'auto',
+          ref: input, 'aria-label': 'Group message', placeholder: 'Write to the group…',
           value: text, readOnly: send.isPending,
           onChange: event => { setText(event.target.value); setCaret(event.target.selectionStart); setDismissed(false) },
           onSelect: event => setCaret(event.currentTarget.selectionStart),

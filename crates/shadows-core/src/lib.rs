@@ -23,14 +23,13 @@ pub use core_agents::{Agent, AgentInput, AgentWorkspace, Agents, AgentsError};
 pub use core_db::Actor;
 pub use core_db::StorageError;
 pub use core_design::MapRefusal;
-pub use core_design::StructureWritten;
 pub use core_design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
     AgreementVersion, AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange,
-    DesignRevision, InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent,
-    OutcomeId, OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver,
-    ProposedPart, ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem,
-    VisionView, WorkspaceView,
+    DesignRevision, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent, OutcomeId,
+    OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver, ProposedPart,
+    ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
+    WorkspaceView,
 };
 pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use core_design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
@@ -125,3 +124,11 @@ pub use core_turns::TurnsError;
 pub use core_project_lifecycle::ProjectLifecycleError;
 
 pub use core_events::EventsError;
+
+pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayout, RuleText};
+
+pub use core_plans::{ContextPlan, ContextStandards, TaskContext, TaskPart, TaskPath};
+
+pub use core_plans::PhaseDependency;
+pub use core_plans::{LinkedPhase, PhaseEndpoint};
+pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};

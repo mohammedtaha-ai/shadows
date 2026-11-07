@@ -25,7 +25,6 @@ pub struct LayerSpec {
     pub id: String,
     pub role: String,
     pub required: bool,
-    pub elements: Vec<String>,
     pub may_use: Vec<LayerRef>,
 }
 

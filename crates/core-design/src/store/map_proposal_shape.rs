@@ -74,8 +74,8 @@ impl MapProposalShapeRows {
                 MapAction::Add if part.parent_key.is_some() => {
                     return Err(bad("an add names an existing parent, not parent_key"));
                 }
-                MapAction::Change if part.parent.is_some() || part.parent_key.is_some() => {
-                    return Err(bad("a change edits content; use the page to move a part"));
+                MapAction::Change if part.parent_key.is_some() => {
+                    return Err(bad("a change names parent, not parent_key"));
                 }
                 _ => {}
             }
@@ -104,11 +104,13 @@ impl MapProposalShapeRows {
             match args.action {
                 MapAction::Change => {
                     let id = args.part_id.as_ref().expect("validated change");
+                    Self::require_parent(&rows, id.as_str(), p.parent.as_ref())?;
                     let row = rows
                         .iter_mut()
                         .find(|r| r.id == id.as_str())
                         .ok_or(StorageError::NotFound("part"))?;
                     row.content_json = serde_json::to_string(&p.content)?;
+                    row.parent_id = p.parent.as_ref().map(ToString::to_string);
                 }
                 MapAction::First | MapAction::Add => rows.push(MapRow {
                     id: if args.action == MapAction::First {
@@ -133,6 +135,44 @@ impl MapProposalShapeRows {
 }
 
 impl MapProposalShapeRows {
+    /// A moved part's parent must be a part of this project that is neither
+    /// the part itself nor inside it.
+    fn require_parent(
+        rows: &[MapRow],
+        id: &str,
+        parent: Option<&crate::PartId>,
+    ) -> Result<(), StorageError> {
+        let mut next = parent.map(|p| p.as_str());
+        let mut steps = 0;
+        while let Some(current) = next {
+            if current == id {
+                return Err(StorageError::Constraint(
+                    "a part cannot move under itself or its own descendant".into(),
+                ));
+            }
+            let row = rows
+                .iter()
+                .find(|r| r.id == current)
+                .ok_or(StorageError::Constraint(
+                    "the parent is not a part of this project".into(),
+                ))?;
+            next = row.parent_id.as_deref();
+            steps += 1;
+            if steps > rows.len() {
+                return Err(StorageError::Constraint("part containment cycle".into()));
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn old_parent(args: &MapPropose, rows: &[MapRow]) -> Option<crate::PartId> {
+        let id = args.part_id.as_ref()?;
+        rows.iter()
+            .find(|r| r.id == id.as_str())
+            .and_then(|r| r.parent_id.clone())
+            .map(crate::PartId::from_stored)
+    }
+
     pub(super) fn written(args: &MapPropose) -> Vec<&str> {
         match args.action {
             MapAction::First => args.parts.iter().map(|p| p.key.as_str()).collect(),

@@ -1,6 +1,6 @@
 # Owns the Design workspace screens: the vision editor, the parts tree and part
 # editor, the roadmap (outcomes) tree and editor, the standards additions, the
-# structure confirmation, and the Workspace route that switches between them.
+# Workspace route that switches between them.
 #
 # Owns the editor lifecycle the screens rely on. useDesignEditor is the
 # save/reload lifecycle for a part or an outcome: one command id per unchanged
@@ -30,7 +30,7 @@ planning_draft_link: Selected part and outcome details link to a new Planner dra
 #
 # Declared here. View and Content types (PartView, PartContent, OutcomeView,
 # OutcomeContent, VisionView, VisionItem, VisionContent, Part, Outcome,
-# EffectiveStandards, StandardsAdditions, StructureWritten, DesignEdit) come from
+# EffectiveStandards, StandardsAdditions, DesignEdit) come from
 # '@/api/design'. Not restated.
 
 DesignEditorConfig:
@@ -100,8 +100,8 @@ parts:
     signature: "({ projectId, selected? }) -> JSX.Element"
     note: >
       The tree on the left; the editor on the right. Create part shows only once
-      the map is approved (stage structure or roadmap, or an Approved first map
-      proposal). Expand loads one child branch and never the whole tree. Both columns
+      Core reports an approved map revision, or an Approved first map proposal
+      is loaded. Expand loads one child branch and never the whole tree. Both columns
       and the editor's fieldset may shrink to zero, so long text or a long option in a
       select wraps instead of widening the page.
   MapCanvas:
@@ -113,7 +113,7 @@ parts:
       the nodes so the minimap draws them; the view fits again once every card is
       measured. One node per part shows its kind,
       folder, served ids and layer ids. It says "Dependencies not recorded" and draws
-      no actual dependency edge before elements exist. `allowed` is the standards part
+      no actual dependency edges. `allowed` is the standards part
       catalog when the caller shows the overlay: dashed edges for the cross-part
       may_use between the shown parts' used layers, a legend that names them
       permissions, and the same pairs as a text list. A parts list beside the canvas
@@ -146,14 +146,6 @@ parts:
     note: >
       A group is a saved child (router link to it on the map) or a proposed child (an
       anchor on its card). With groups it shows the Groups line in place of layers.
-  CreateStructure:
-    signature: "({ projectId }) -> JSX.Element"
-    note: >
-      The confirm shows the stage's structure_file_count (no count when null) and sends
-      the stage's map_revision. A REVISION_CONFLICT answer writes nothing: the screen says
-      "The map changed; check the new count.", reads the stage again and keeps the dialog
-      for a new confirm, which uses a fresh command id because the revision is part of
-      the command. An uncertain response retries the same command id.
 
 roadmap:
   RoadmapView:
@@ -267,14 +259,14 @@ obligations:
     tested_by: hides creation before the first map and shows drift with actionable proposals
 
   - rule: >
-      Drift items are listed. Mandatory parts missing from a structure-stage map are named.
+      Drift items are listed. Mandatory parts missing from a previously approved map are named.
     tested_by: shows mandatory kinds added after map approval
     note: "The drift list is also asserted by the test above."
 
   - rule: >
-      A part save sends one folder and its layers with the starter files and served goals
-      unchanged, and shows the daemon's refusal verbatim.
-    tested_by: edits served goals and normalised folder input without dropping starter files
+      A part save sends one folder and its layers with the served goals
+      unchanged, and never includes starter files, and shows the daemon's refusal verbatim.
+    tested_by: edits served goals and normalised folder input
 
   - rule: >
       The roadmap keeps archived and unassigned plans reachable from the plan list and
@@ -315,32 +307,6 @@ obligations:
     tested_by: proposal events refetch pending cards while preserving an item draft
 
   - rule: >
-      Create structure is enabled only at the structure stage with no missing mandatory
-      part, and its reason is shown when disabled.
-    tested_by: disables Create structure with the missing mandatory kind
-    note: "Enabled case: enables Create structure for a complete approved map."
-
-  - rule: >
-      Confirming shows the project directory and the stage's file count before anything
-      is written. The write sends one command id and the stage's map_revision, and
-      success shows the path count and the written paths, and survives the stage moving
-      to roadmap.
-    tested_by: >-
-      confirms the directory and count, writes, then preserves success after roadmap
-      refresh
-    note: >
-      The count is Core's; the screen counts nothing.
-
-  - rule: >
-      A daemon refusal of the write appears verbatim under the control, and Create
-      structure stays available to retry.
-    tested_by: shows the daemon refusal verbatim below the control
-
-  - rule: >
-      At the roadmap stage the page says Structure written and shows no Create control.
-    tested_by: shows Structure written with no create button at roadmap
-
-  - rule: >
       Changing an outcome's referenced parts sends only the difference, as
       OutcomePartPut and OutcomePartRemove.
     tested_by: none
@@ -361,19 +327,6 @@ obligations:
     tested_by: none
 
   - rule: >
-      The confirm shows structure_file_count as the stage sends it, and shows no count
-      when it is null.
-    tested_by: >-
-      shows the count from the stage without reading the part tree; shows no count when
-      the stage sends none, and still confirms
-
-  - rule: >
-      A write refused as REVISION_CONFLICT writes nothing, says "The map changed; check
-      the new count.", reads the stage again, and the next confirm sends the new
-      revision under a fresh command id.
-    tested_by: re-reads the stage when the map moved and confirms again with the new revision
-
-  - rule: >
       The Workspace route shows Vision when the view is missing, and the section nav
       links each view.
     tested_by: none
@@ -384,7 +337,7 @@ obligations:
     tested_by: none
 
   - rule: >
-      The map detail panel shows a starter file's full text and the contract with
+      The map detail panel shows the contract with
       header and rule ids, and closes with its button.
     tested_by: none
 
@@ -432,9 +385,7 @@ not_the_caller's:
   - >
       Load a whole parts tree for a picker or a summary. Open one branch with
       usePartPages, which pages at fifty items.
-  - >
-      Compute a structure's file count in the client, or walk the part tree for it.
-      The stage's structure_file_count is the only count the confirmation shows.
+
 
 
 # ── gaps ─────────────────────────────────────────────────────────────────────
@@ -473,7 +424,7 @@ open_questions:
       name, or does it store them? Answering needs the design service's validation.
   - >
       Which query keys do the design events (ProjectDesignChanged, ProjectStandardsSaved,
-      VisionProposed, MapProposed, RoadmapApproved, ProjectStructureWritten) invalidate?
+      VisionProposed, MapProposed, RoadmapProposed, RoadmapApproved) invalidate?
       The tests depend on that refetch. It runs in web/src/stream/use-project-events.ts,
       which was only grepped for event names here, not traced.
   - >
@@ -486,38 +437,26 @@ open_questions:
 # ── tests ────────────────────────────────────────────────────────────────────
 
 tests:
-  # create-structure.test.tsx
-  - name: enables Create structure for a complete approved map
-    checks: >
-      At the structure stage with no missing parts the control is enabled, and no
-      POST is sent before a click.
-  - name: disables Create structure with the missing mandatory kind
-    checks: >
-      With billing missing, the control is disabled and 'missing part: billing' shows.
-  - name: confirms the directory and count, writes, then preserves success after roadmap refresh
-    checks: >
-      The dialog names the project directory and '3 files' before any POST. Confirm sends
-      a POST with a command_id, then 'Structure written · 3 files' and the written paths
-      show. The stage query is then 'roadmap' and the control is gone.
-  - name: shows the daemon refusal verbatim below the control
-    checks: >
-      A 409 STAGE_BLOCKED message appears as text, and the Create structure control is
-      still present.
-  - name: shows Structure written with no create button at roadmap
-    checks: >
-      At roadmap the 'Structure written' status shows and no Create structure control.
+  - name: the_part_form_has_no_starter_files
+    checks: A new PartCreate request omits files entirely.
+  - name: the_map_page_has_no_create_structure_button
+    checks: An approved map shows neither a writer nor a Structure-written status.
+  - name: the_place_hint_names_the_stack_layout
+    checks: Layer controls explain that their places follow the chosen stack.
+  - name: the_standards_page_shows_s10_and_no_element_kinds
+    checks: Standards v3 displays S10 and declared dependencies without element kinds.
   # parts-view.test.tsx
   - name: shows mandatory kinds added after map approval
     checks: >
-      The 'Missing mandatory parts: billing' status shows at the structure stage.
+      The 'Missing mandatory parts: billing' status shows on a previously approved map.
   - name: hides creation before the first map and shows drift with actionable proposals
     checks: >
       Before a first map, the Planner text shows and Create part does not. Drift text
       shows, and the pending proposal count and its conversation link show.
-  - name: edits served goals and normalised folder input without dropping starter files
+  - name: edits served goals and normalised folder input
     checks: >
       The edited folder reaches PartPut as 'lib', with serves ['G1']
-      and the starter file kept. A daemon refusal text shows.
+      and its contract kept. A daemon refusal text shows.
   - name: part save replays the committed command after its follow-up read fails
     checks: >
       The first save commits and its read fails. Typed text stays. The second press
@@ -616,6 +555,8 @@ pagination_owner: "api/design.ts owns useDesignPages and usePartPages; design vi
 
 route_entries: "workspace-page.tsx remain separate public lazy route modules declared by index.ts."
 
-layer_editor: 'Standards v2 exposes presence and the layer catalog (id, role, required, may use). The form edits one folder. A required layer first asks Used or Not used: Used shows the place, Not used the reason, never both. An optional layer has no row until added, and offers Remove instead of Not used. Layers off the kind''s catalog stay visible with Remove. The form does not check the reason: Core refuses a blank one and the form shows that refusal. Same-kind child groups link to children. Tested by the_part_form_sends_one_folder_and_its_layers, a_not_used_layer_needs_a_reason_before_save, choosing_not_used_hides_the_place_and_asks_for_a_reason, an_optional_layer_has_no_row_until_added, a_grouping_part_links_its_children_instead_of_layers.'
+layer_editor: 'Standards v3 exposes presence and the layer catalog (id, role, required, may use). The form edits one folder. A required layer first asks Used or Not used: Used shows the place, Not used the reason, never both. An optional layer has no row until added, and offers Remove instead of Not used. Layers off the kind''s catalog stay visible with Remove. The form does not check the reason: Core refuses a blank one and the form shows that refusal. Same-kind child groups link to children. Tested by the_part_form_sends_one_folder_and_its_layers, a_not_used_layer_needs_a_reason_before_save, choosing_not_used_hides_the_place_and_asks_for_a_reason, an_optional_layer_has_no_row_until_added, a_grouping_part_links_its_children_instead_of_layers.'
 
 served_list: 'The part form lists only the vision items the part serves, each with Remove, and an Add button over the items it does not serve. Tested by served_items_show_only_the_parts_own.'
+
+principles_not_layout: 'No structure writer, Structure step, file count or starter-file inspection. Layer places follow the stack; map revision comes from Core. The stage chip already renders Core state and has no static step list.'

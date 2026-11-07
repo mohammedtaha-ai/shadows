@@ -51,7 +51,7 @@ async fn migration_0023_keeps_parts_and_starts_without_a_map() {
     let part: shadows_core::PartContent = serde_json::from_str(&json).unwrap();
     assert_eq!(part.title, "core");
     assert_eq!(part.folder, "core");
-    assert!(part.serves.is_empty() && part.layers.is_empty() && part.files.is_empty());
+    assert!(part.serves.is_empty() && part.layers.is_empty());
     let map: i64 = sqlx::query_scalar("SELECT map_revision FROM design_workspace")
         .fetch_one(storage.reader())
         .await

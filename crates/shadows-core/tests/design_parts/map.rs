@@ -140,11 +140,29 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
         .content;
     inside.folder = "api/backend".into();
     inside.layers = catalog_layers("backend", "api/backend");
-    for (n, op) in [
-        vec![DesignOp::PartPut {
-            id: backend.clone(),
-            content: c,
-        }],
+    assert!(matches!(
+        core.plans()
+            .edit_design(
+                "drop".into(),
+                &p,
+                1,
+                vec![DesignOp::PartPut {
+                    id: backend.clone(),
+                    content: c,
+                }]
+            )
+            .await
+            .map_err(shadows_core::CoreError::from),
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::StageBlocked,
+            ..
+        })
+    ));
+    assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
+    edit(
+        &core,
+        &p,
+        1,
         vec![
             DesignOp::PartPut {
                 id: backend.clone(),
@@ -156,22 +174,9 @@ async fn a_hand_edit_cannot_drop_a_mandatory_part() {
                 before: None,
             },
         ],
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        assert!(matches!(
-            core.plans()
-                .edit_design(format!("drop-{n}"), &p, 1, op)
-                .await
-                .map_err(shadows_core::CoreError::from),
-            Err(CoreError::Refused {
-                code: shadows_core::ErrorCode::StageBlocked,
-                ..
-            })
-        ));
-    }
-    assert_eq!(core.design().vision(&p).await.unwrap().revision, 1);
+    )
+    .await;
+    assert_eq!(core.design().vision(&p).await.unwrap().revision, 2);
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
@@ -264,95 +269,6 @@ async fn removed_links_and_metadata_edits_preserve_drift() {
             .iter()
             .any(|d| d.contains("was removed"))
     );
-
-    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
-        .await
-        .unwrap();
-    _storage.close().await.unwrap();
-}
-
-#[tokio::test]
-async fn initial_files_cannot_escape_part_ownership() {
-    let (_tmp, _storage, core, p) = setup().await;
-    let mut c = content("core");
-    c.folder = "src".into();
-    c.files = vec![shadows_core::InitialFile {
-        path: "other/x.rs".into(),
-        content: String::new(),
-    }];
-    assert!(
-        core.plans()
-            .edit_design(
-                "file".into(),
-                &p,
-                0,
-                vec![DesignOp::PartCreate {
-                    id: PartId::generate(),
-                    parent: None,
-                    before: None,
-                    content: c
-                }]
-            )
-            .await
-            .map_err(shadows_core::CoreError::from)
-            .is_err()
-    );
-
-    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
-        .await
-        .unwrap();
-    _storage.close().await.unwrap();
-}
-
-#[tokio::test]
-async fn initial_files_cannot_also_be_directories() {
-    let (_tmp, _storage, core, p) = setup().await;
-    for (n, (folder, files)) in [
-        ("SRC/config", vec!["src/CONFIG"]),
-        ("src/config/nested", vec!["src/config"]),
-        ("src", vec!["src/config", "SRC/CONFIG/settings.toml"]),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let mut c = content("core");
-        c.folder = "src".into();
-        c.files = files
-            .into_iter()
-            .map(|path| shadows_core::InitialFile {
-                path: path.into(),
-                content: String::new(),
-            })
-            .collect();
-        let parent = PartId::generate();
-        let mut ops = vec![DesignOp::PartCreate {
-            id: parent.clone(),
-            parent: None,
-            before: None,
-            content: c,
-        }];
-        if folder != "src" {
-            ops.push(mapped(&PartId::generate(), Some(&parent), "child", folder));
-        }
-        let result = core
-            .plans()
-            .edit_design(format!("collision-{n}"), &p, 0, ops)
-            .await
-            .map_err(shadows_core::CoreError::from);
-        assert!(
-            result.is_err(),
-            "file/directory collision was accepted: {folder}"
-        );
-        assert_eq!(core.design().vision(&p).await.unwrap().revision, 0);
-        assert!(
-            core.design()
-                .parts(&p, None, None)
-                .await
-                .unwrap()
-                .items
-                .is_empty()
-        );
-    }
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

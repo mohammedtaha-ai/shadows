@@ -37,6 +37,38 @@ source: crates/core-plans/src
 
 
 shapes:
+  Phase:
+    id: PhaseId
+    number: u32
+    title: String
+    goal: String
+    acceptance: Vec<u32>
+    waits_for: Vec<PhaseRef>
+  PhaseInput:
+    note: Optional retained identity, title, goal, acceptance and waits; number is server-derived.
+  PhaseEndpoint:
+    note: Exact plan/workflow/version, task, phase identity/number/title and plan title.
+  LinkedPhase:
+    source: PhaseEndpoint
+    reference: PhaseRef
+    target: Option<PhaseEndpoint>
+    broken: Option<String>
+  PhaseRef:
+    Local: "{ task: u32, phase: PhaseId }"
+    Plan: "{ plan_id: PlanId, version: i64, task: u32, phase: PhaseId }"
+  TaskContext:
+    note: Approved task, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
+  TaskPart:
+    part: LayoutPart
+    paths: Vec<TaskPath>
+  TaskPath:
+    path: String
+    via: OwnedVia
+  ContextPlan:
+    note: Stable plan id, exact workflow id, version and title.
+  ContextStandards:
+    base: i64
+    additions: Option<i64>
   UiSignal:
     source: signal.rs
     note: Live plan-show value consumed by Turns and Events; exact serialized fields and order are preserved.
@@ -199,6 +231,7 @@ shapes:
     reads: Vec<String>
     writes: Vec<String>
     acceptance: Vec<AcceptanceItem>
+    phases: Vec<Phase> # serde default, omitted when empty
   AcceptanceItem:
     number: u32
     text: String
@@ -253,6 +286,7 @@ shapes:
     revision: i64
     frozen_at: String
   PlanOp:
+    PhasesSet: "{ task: u32, phases: Vec<PhaseInput> }"
     BindingPut: "{ binding: AgreementBinding }"
     BindingRemove: "{ task: u32, agreement_id: AgreementId, role: AgreementRole }"
     # Tagged `op`, snake_case. `link_put` replaces the link with the same
@@ -322,6 +356,9 @@ functions:
       signature: "(&self, grant: &Grant, archived: bool, project: Option<&str>) -> Result<Vec<PlanListing>, PlansError>"
     # Active plans, or archived ones too when requested.
     get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>, project: Option<&str>) -> Result<Plan, PlansError>"
+    task_context:
+      signature: "(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
+      rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot; grants nothing and writes nothing.
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -907,6 +944,11 @@ tests:
 # WrittenBy Planner provenance reads Harness::invocation_model_in in the caller snapshot.
 
 modules:
+  store/phase_refs.rs: Exact phase target resolution
+  store/phase_projection.rs: Pinned foreign-phase previews
+  phases.rs: Ordered phase contracts
+  task_context.rs: Approved task context boundary
+  store/task_context.rs: Snapshot task context assembly
   store/event_projection.rs: identifier-only plan event projection
   agreement_review.rs: Values returned by a shared agreement impact review
   agreements.rs: Agreement review composed above Design
@@ -958,3 +1000,31 @@ dependencies:
   grants: crates/core-grants/contract.yaml
   design: crates/core-design/contract.yaml
   code: crates/core-code/contract.yaml
+
+# task_context is a read: same-project named Frozen version only. Scope::named
+# shares missing-workflow guidance; Grants::check_writer rechecks live authority
+# in the snapshot. Design::layout_in is the sole map reader. Plans-owned part
+# associations retain tied parts even without task paths. Distinct claims and
+# stable reads-then-writes path order are preserved; no command/event is written.
+
+# TaskContent.phases defaults to empty; empty serialization is omitted so
+# existing command fingerprints stay stable. TaskRows stores nonempty phases
+# in contract_json and rehydrates them on every read/version copy. Pure phase
+# rules check contiguous numbers, identities, titles/goals, acceptance and
+# local references. TaskAdd refuses supplied phases; TaskUpdate preserves them
+# when omitted and directs changed lists to phases_set.
+
+# PhasesSet is one task object: retained IDs must exist once, new IDs are
+# allocated by Ops after the writer/replay/revision checks in edit_plan's
+# serialized transaction. Removing a referenced phase is a named refusal.
+# DependencyGraph uses workflow-qualified task/phase start/complete events.
+# Legacy task parents follow latest; phase pins resolve an exact Frozen
+# same-project version through PhaseRows. Candidate graph validation and
+# approval run inside their writer transaction, including mixed cycles.
+# Plan.linked_phases is derived preview data, excluded from PlanContent;
+# missing targets retain their raw reference and named broken reason.
+
+# Optional TaskContext.phase selects only a phase belonging to the named task.
+# The full task acceptance remains present. phase_dependencies include raw
+# pins, exact target metadata and phase content, or a named broken reason;
+# the same PhaseRows resolver runs in the existing read snapshot.

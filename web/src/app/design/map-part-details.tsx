@@ -1,4 +1,4 @@
-// Read-only layer places, served items, starter files and contract inspection.
+// Read-only layer places, served items and contract inspection.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -32,8 +32,6 @@ export function MapPartDetails({content,projectId,groups=[]}: {
             ? `Not used: ${layer.not_used}` : layer.place || 'Place not recorded'}
         </li>)}
       </ul>}
-    {(content.files ?? []).map(file => <Button key={file.path} size="sm" variant="secondary"
-      onClick={() => setPanel({title:file.path,text:file.content})}>{file.path}</Button>)}
     {content.contract && <Button size="sm" variant="secondary" onClick={() => setPanel({
       title:`${content.title} contract`,text:`${content.contract?.header ?? ''}\n${content.contract?.rules.join('\n') ?? ''}`,
     })}>View contract</Button>}

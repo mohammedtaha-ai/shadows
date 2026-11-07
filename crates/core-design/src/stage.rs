@@ -1,5 +1,4 @@
 //! Project stage computed from persisted workspace inputs.
-//! Structure writing, waivers and drift arrive in subsequent PRs.
 
 use super::VisionContent;
 use serde::{Deserialize, Serialize};
@@ -11,7 +10,6 @@ pub enum Stage {
     Idea,
     Vision,
     Map,
-    Structure,
     Roadmap,
     Plans,
 }
@@ -23,13 +21,8 @@ pub struct StageView {
     pub stage: Stage,
     /// Missing vision field names at vision; mandatory part names at map.
     pub missing: Vec<String>,
-    /// The map revision `structure_file_count` was taken at; the revision a person
-    /// confirms when creating the structure.
+    /// The approved map revision behind this view.
     pub map_revision: i64,
-    /// Files `create_structure` would write for the map now; none when it would
-    /// refuse.
-    #[schema(required)]
-    pub structure_file_count: Option<u32>,
 }
 
 impl StageRules {
@@ -52,7 +45,6 @@ impl StageRules {
                 stage: Stage::Idea,
                 missing: vec![],
                 map_revision: 0,
-                structure_file_count: None,
             };
         }
         if !empty.is_empty() {
@@ -61,7 +53,6 @@ impl StageRules {
                 stage: Stage::Vision,
                 missing: empty,
                 map_revision: 0,
-                structure_file_count: None,
             };
         }
         let missing: Vec<_> = required
@@ -72,13 +63,12 @@ impl StageRules {
         StageView {
             drift: vec![],
             stage: if missing.is_empty() {
-                Stage::Structure
+                Stage::Roadmap
             } else {
                 Stage::Map
             },
             missing,
             map_revision: 0,
-            structure_file_count: None,
         }
     }
 }
@@ -87,7 +77,7 @@ impl StageRules {
     pub fn line(view: &StageView) -> String {
         let missing = view.missing.join(", ");
         let mut line = match view.stage {
-            Stage::Roadmap => "[Shadows] Stage: roadmap. The structure is written; \
+            Stage::Roadmap => "[Shadows] Stage: roadmap. The map is approved; \
             propose the roadmap with roadmap_propose."
                 .into(),
             Stage::Plans => "[Shadows] Stage: plans. The roadmap is approved; plan work for \
@@ -98,14 +88,12 @@ impl StageRules {
                 .into(),
             Stage::Vision => format!("[Shadows] Stage: vision. Missing vision fields: {missing}."),
             Stage::Map => format!("[Shadows] Stage: map. Missing mandatory parts: {missing}."),
-            Stage::Structure if !view.missing.is_empty() => format!(
-                "[Shadows] Stage: structure. Missing mandatory parts: {missing}; \
-             update the approved map before creating structure."
-            ),
-            Stage::Structure => "[Shadows] Stage: structure. The vision and map are complete; \
-             the structure is not written yet."
-                .into(),
         };
+        if matches!(view.stage, Stage::Roadmap | Stage::Plans) && !view.missing.is_empty() {
+            line.push_str(&format!(
+                " Missing mandatory parts: {missing}; propose them as map changes."
+            ));
+        }
         if !view.drift.is_empty() {
             line.push_str(&format!(" Drift: {}.", view.drift.join("; ")));
         }
@@ -116,21 +104,13 @@ impl StageRules {
 pub struct StageRules;
 
 impl StageRules {
-    pub(super) fn with_workspace(
-        mut view: StageView,
-        map: i64,
-        written: bool,
-        roadmap: i64,
-    ) -> StageView {
-        if matches!(view.stage, Stage::Map | Stage::Structure) {
+    /// An approved map opens Roadmap even when a later standards addition makes
+    /// a kind mandatory: that gap stays in `missing` and the line names it.
+    pub(super) fn with_workspace(mut view: StageView, map: i64, roadmap: i64) -> StageView {
+        if matches!(view.stage, Stage::Map | Stage::Roadmap) {
             view.stage = if map == 0 {
                 Stage::Map
-            } else {
-                Stage::Structure
-            };
-        }
-        if written {
-            view.stage = if roadmap > 0 {
+            } else if roadmap > 0 {
                 Stage::Plans
             } else {
                 Stage::Roadmap

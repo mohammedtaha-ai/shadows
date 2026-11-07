@@ -16,8 +16,6 @@ mod roadmap;
 mod roadmap_changes;
 #[path = "design_parts/roadmap_gate.rs"]
 mod roadmap_gate;
-#[path = "design_parts/structure.rs"]
-mod structure;
 
 async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
     let storage = Arc::new(Storage::open(path).await.unwrap());
@@ -327,6 +325,7 @@ async fn part_order_is_stable_across_restart() {
                 command_id: Some("plan-edit".into()),
                 ops: vec![PlanOp::TaskAdd {
                     task: TaskContent {
+                        phases: Vec::new(),
                         number: 1,
                         title: "Task".into(),
                         goal: "Goal".into(),
@@ -632,3 +631,6 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
         .await
         .unwrap();
 }
+
+#[path = "design_parts/layout.rs"]
+mod layout;

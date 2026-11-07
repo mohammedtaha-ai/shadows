@@ -1,36 +1,31 @@
 # Compiled-in base standards. A reviewed change increments version.
-version: 2
+version: 3
 parts:
   - name: backend
-    owns: "All logic: one core; every operation is a method of one service."
+    owns: "The business logic, in modules, reached through one owner object."
     presence: required
     layers:
       - id: domain
         role: "Business rules and the state they guard"
         required: true
-        elements: [entity, value, rule, domain_event]
         may_use: []
       - id: application
         role: "Use cases: one operation each, and the ports it needs"
         required: true
-        elements: [use_case, port]
         may_use: [domain]
       - id: interface
         role: "Receives HTTP/queue/console input and calls one use case"
         required: true
-        elements: [endpoint, job, command]
         may_use: [application, api.contract]
       - id: infrastructure
         role: >-
           Implements the application's ports: repositories over the database,
           and technical adapters such as mail, files and clock
         required: true
-        elements: [repository, adapter]
         may_use: [domain, application, database.schema, database.connection]
       - id: composition
         role: "Builds every module once and wires ports to implementations"
         required: true
-        elements: [module]
         may_use:
           [domain, application, interface, infrastructure, integration.adapters]
   - name: database
@@ -42,17 +37,14 @@ parts:
       - id: schema
         role: "Tables, columns, keys and relations"
         required: true
-        elements: [table]
         may_use: []
       - id: migrations
         role: "Append-only changes that produce the schema"
         required: true
-        elements: [migration]
         may_use: [schema]
       - id: connection
         role: "How the application connects: driver, pool, transactions"
         required: true
-        elements: [connection]
         may_use: []
   - name: api
     owns: >-
@@ -62,7 +54,6 @@ parts:
       - id: contract
         role: "The versioned contract the clients build against"
         required: true
-        elements: [operation, schema_type]
         may_use: []
   - name: frontend
     owns: "The interface only, with no business rules."
@@ -71,22 +62,18 @@ parts:
       - id: screens
         role: "What the person sees: routes and pages"
         required: true
-        elements: [screen]
         may_use: [features, design_system]
       - id: features
         role: "A feature's interactions and its state"
         required: true
-        elements: [feature, store]
         may_use: [data_access, design_system]
       - id: data_access
         role: "The only code that calls the api"
         required: true
-        elements: [client_call]
         may_use: [api.contract]
       - id: design_system
         role: "Shared components and tokens"
         required: false
-        elements: [component]
         may_use: []
   - name: integration
     owns: "The adapters to outside services, each one talking to one of them."
@@ -95,7 +82,6 @@ parts:
       - id: adapters
         role: "Talks to one outside service and implements a backend port"
         required: true
-        elements: [adapter]
         may_use: [backend.application]
 rules:
   - id: S1
@@ -117,7 +103,10 @@ rules:
       never insertion order.
     parts: [backend, database]
   - id: S6
-    text: "The backend and the database are separate parts, each with its own folder."
+    text: >-
+      The database code is its own part or layer. Business logic reaches the
+      database only through the layer that owns it. A change of database stays
+      in that owner.
     parts: [backend, database]
   - id: S7
     text: "A layer depends only on the layers its may_use lists."
@@ -129,6 +118,15 @@ rules:
     parts: []
   - id: S9
     text: >-
-      Each part owns one folder. Each layer owns one place inside its part:
-      a folder, or one path per module.
+      Each part owns one folder. Each layer records where it lives, in the
+      layout the framework and the person chose.
+    parts: []
+  - id: S10
+    text: >-
+      Each runnable part has one owner object (its AppCore). It builds every
+      service once and is the one way in from outside: an adapter such as an
+      HTTP route or a CLI reaches a service only through it. Services reach
+      each other through their declared dependencies, never through the owner,
+      so it does not become a go-between for every internal call. A rule lives
+      in one service, and there is no second way in.
     parts: []

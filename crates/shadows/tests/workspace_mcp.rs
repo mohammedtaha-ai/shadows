@@ -113,7 +113,6 @@ async fn a_planner_reads_the_workspace_a_person_wrote() {
         serves: vec![],
         folder: "backend".into(),
         layers: vec![],
-        files: vec![],
         contract: Default::default(),
         title: "Backend".into(),
         responsibility: "Webhook and review flow".into(),

@@ -41,6 +41,7 @@ async fn start(core: &AppCore, grant: &Grant, parts: Vec<PartId>) -> DraftStart 
 fn add_task() -> PlanOp {
     PlanOp::TaskAdd {
         task: TaskContent {
+            phases: Vec::new(),
             number: 1,
             title: "Task".into(),
             goal: "Goal".into(),

@@ -11,6 +11,8 @@ import { planFixture, planTask } from '@/test/contract-fixtures'
 import { FakeResizeObserver, resize } from '@/test/fake-resize-observer'
 import { layoutPlan } from './layout'
 import { PlanGraph } from './plan-graph'
+import { layoutExpandedPlan } from './phase-layout'
+import { WHOLE_PLAN } from './plan-camera'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -19,6 +21,9 @@ const observed = vi.hoisted(() => ({
   controls: null as { fitViewOptions?: FitViewOptions } | null,
   fits: [] as (FitViewOptions | undefined)[],
   viewports: [] as Viewport[],
+  ready: true,
+  actualReady: false,
+  pan: undefined as ((viewport: Viewport) => Promise<boolean>) | undefined,
 }))
 
 vi.mock('@xyflow/react', async (importOriginal) => {
@@ -34,9 +39,13 @@ vi.mock('@xyflow/react', async (importOriginal) => {
       observed.controls = props
       return createElement(actual.Controls, props)
     },
-    useNodesInitialized: () => true,
+    useNodesInitialized: () => {
+      observed.actualReady = actual.useNodesInitialized()
+      return observed.ready
+    },
     useReactFlow: () => {
       const api = actual.useReactFlow()
+      observed.pan = api.setViewport
       return useMemo(
         () => ({
           ...api,
@@ -56,10 +65,12 @@ vi.mock('@xyflow/react', async (importOriginal) => {
 })
 
 let cleanup: (() => void) | undefined
+let rerender: ((element: React.ReactElement) => Promise<void>) | undefined
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', FakeResizeObserver)
   observed.fits = []
   observed.viewports = []
+  observed.ready = true
 })
 afterEach(() => {
   cleanup?.()
@@ -70,6 +81,7 @@ async function mount(element: React.ReactElement): Promise<HTMLElement> {
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
+  rerender = async element => { await act(async () => root.render(element)) }
   cleanup = () => {
     act(() => root.unmount())
     container.remove()
@@ -106,6 +118,17 @@ it('a card fits with its own options', async () => {
   expect(card).toBeLessThan(0.75)
   expect(observed.flow?.minZoom).toBeLessThanOrEqual(0.2)
   expect(container.querySelector('.react-flow__minimap')).toBeNull()
+})
+
+it('keeps fixed-size nodes initialized so the fit control works after expansion', async () => {
+  const plan = planFixture({ tasks: [{ ...planTask(1, 'Task'), phases: [
+    { id: 'p1', number: 1, title: 'Phase', goal: 'One step', acceptance: [1], waits_for: [] },
+  ] }] })
+  await mount(<PlanGraph plan={plan} />)
+  await rerender?.(<PlanGraph plan={plan} showPhases />)
+  expect(observed.actualReady).toBe(true)
+  await rerender?.(<PlanGraph plan={plan} />)
+  expect(observed.actualReady).toBe(true)
 })
 
 it('the fit control can show a linear sixty-task plan end to end', async () => {
@@ -149,4 +172,37 @@ it('keeps the current view when the canvas changes size without a selected task'
   await act(() => new Promise(requestAnimationFrame))
   expect(observed.fits).toEqual([])
   expect(container.querySelector('.react-flow')).toBe(flow)
+})
+
+it('expands and hides phases on one canvas without changing selection or viewport', async () => {
+  const plan=planFixture({tasks:[{...planTask(1,'Build'),phases:[{
+    id:'phase-one',number:1,title:'Prepare',goal:'Prepare',acceptance:[1],waits_for:[],
+  }]}],links:[]})
+  const container=await mount(<PlanGraph plan={plan} focusTask={1} />)
+  const flow=container.querySelector('.react-flow')
+  await act(async()=>observed.pan?.({x:137,y:-25,zoom:0.73}))
+  const viewport=container.querySelector<HTMLElement>('.react-flow__viewport')?.style.transform
+  const fits=observed.fits.length
+  observed.ready=false
+  await rerender?.(<PlanGraph plan={plan} focusTask={1} showPhases />)
+  observed.ready=true
+  await rerender?.(<PlanGraph plan={plan} focusTask={1} showPhases />)
+  expect(container.querySelector('[data-task-frame="t1"]')).not.toBeNull()
+  expect(container.querySelector('.react-flow')).toBe(flow)
+  expect(observed.fits).toHaveLength(fits)
+  expect(container.querySelector<HTMLElement>('.react-flow__viewport')?.style.transform).toBe(viewport)
+  await rerender?.(<PlanGraph plan={plan} focusTask={1} />)
+  expect(container.querySelector('[data-task-frame]')).toBeNull()
+  expect(container.querySelector('.react-flow')).toBe(flow)
+})
+
+it('lets fit-view reach the full width of a large expanded plan',()=>{
+  const plan=chain(100)
+  plan.tasks=plan.tasks.map(task=>({...task,phases:Array.from({length:4},(_,n)=>({
+    id:`${task.number}-${n}`,number:n+1,title:`Phase ${n+1}`,goal:'Deliver',acceptance:[1],waits_for:[],
+  }))}))
+  const bounds=getNodesBounds(layoutExpandedPlan(plan).nodes.filter(n=>!n.parentId))
+  const view=getViewportForBounds(bounds,1024,700,WHOLE_PLAN.minZoom??0.01,1,0.15)
+  expect(bounds.width*view.zoom).toBeLessThanOrEqual(1024)
+  expect(bounds.height*view.zoom).toBeLessThanOrEqual(700)
 })

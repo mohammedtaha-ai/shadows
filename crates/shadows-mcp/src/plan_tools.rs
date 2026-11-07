@@ -42,6 +42,17 @@ struct TaskArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskContextArgs {
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    workflow_id: Option<WorkflowId>,
+    task_number: u32,
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    phase_id: Option<shadows_core::PhaseId>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct DraftStartArgs {
     /// The first version's title. Needed only when starting a new plan.
     #[serde(default)]
@@ -163,6 +174,29 @@ impl Shadows {
     }
 
     #[tool(
+        description = "First read before building a task: its approved content, parts, layers \
+                       and rules. This grants no permission to execute. Name workflow_id."
+    )]
+    async fn task_context(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskContextArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .plans()
+                .task_context(
+                    &grant,
+                    args.workflow_id.as_ref(),
+                    args.task_number,
+                    args.phase_id.as_ref(),
+                )
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Get a draft_ref for draft_start. Call it once for each new plan you \
                        intend; a ref not used within an hour expires."
     )]
@@ -208,7 +242,9 @@ impl Shadows {
     #[tool(
         description = "Edit a draft plan version at expected_revision with a list of \
                        operations: plan_put, task_add, task_update, task_remove, link_put, \
-                       link_remove. Put changes made together in one call."
+                       link_remove, phases_set. phases_set replaces the ordered phase list: \
+                       retain existing ids, omit ids for new phases. Numbers are server-derived. \
+                       Put changes made together in one call."
     )]
     async fn plan_edit(
         &self,

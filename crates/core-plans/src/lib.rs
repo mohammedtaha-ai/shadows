@@ -24,8 +24,14 @@ pub use design_ops::DesignOp;
 mod dependency_graph;
 mod map;
 mod model;
+mod phases;
+pub use phases::{LinkedPhase, Phase, PhaseEndpoint, PhaseId, PhaseInput, PhaseRef};
 mod ops;
 mod rules;
+mod task_context;
+pub use task_context::{
+    ContextPlan, ContextStandards, PhaseDependency, TaskContext, TaskPart, TaskPath,
+};
 mod scope;
 mod signal;
 pub use signal::UiSignal;

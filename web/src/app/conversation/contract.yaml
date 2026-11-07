@@ -33,7 +33,7 @@ version: 1
 status: current
 reply_text: The group log reuses the conversation Markdown renderer and its per-block text direction.
 permission_answer: Conversations and groups share option submission, replay and stale-request reconciliation.
-composer_surface: Conversations and groups render the same frame, input and send control.
+composer_surface: Conversations and groups render the same frame, input and send control; the input takes its text's direction (dir=auto), like replies.
 turn_state: Groups read whether a member thread runs through the same running-turn rule as a conversation.
 source: web/src/app/conversation
 planning_context_record:
@@ -366,7 +366,7 @@ components:
     # Approval shown only when live status is Pending, not outdated, and readable.
   MapProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
-    # Waivers are shown as consent; the button label names them when present.
+    # Waivers are shown as consent; the button label names them when present. A change card whose new parent differs from old_parent shows one move line (top level, or the parent part title through the part query, falling back to the id).
   RoadmapProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
   ProposalApproval:
@@ -1451,6 +1451,10 @@ tests:
   - name: "a model the harness refuses goes back to the session’s, with its words"
     checks: "422 on model: error shows; fake-large is restored in the menu."
 
+  # composer-surface.test.tsx
+  - name: "the textarea takes its direction from its text and aligns to it"
+    checks: "dir=auto and text-start on the textarea, even when the caller passes dir."
+
   # composer-bar.test.tsx
   - name: "says it is connecting, then builds every menu from the session"
     checks: "Connecting text until the session answers; Accept edits and high menu items exist."
@@ -1690,3 +1694,5 @@ background_tasks:
   owner: "background-tasks.tsx renders the session's streamed task list beside the conversation; running tasks precede finished tasks."
   behavior: "The header shows the running count while the list is not empty; stoppable running tasks call the API individually, showing Stopping… until it answers and its error after a failure. The stream supplies state after a stop and elapsed time updates while open."
   tested_by: ["shows streamed tasks and stops only the selected task", "the count is hidden while the session has no tasks", "finished tasks are listed under the running ones with their state", "a stop in flight is pending and a refused stop shows its error"]
+
+map_layout_only: "Map proposal fixtures carry parts and layers without starter files; MapPartDetails owns the shared contract inspection."

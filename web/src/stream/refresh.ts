@@ -18,7 +18,7 @@ export type RefreshTarget =
 type RefreshEvent = DurableEvent & { projectId?: string }
 
 const PLAN_EVENTS = new Set(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])
-const DESIGN_EVENTS = new Set(['ProjectDesignChanged', 'ProjectStandardsSaved', 'VisionProposed', 'MapProposed', 'RoadmapProposed', 'RoadmapApproved', 'ProjectStructureWritten'])
+const DESIGN_EVENTS = new Set(['ProjectDesignChanged', 'ProjectStandardsSaved', 'VisionProposed', 'MapProposed', 'RoadmapProposed', 'RoadmapApproved'])
 const REACH_EVENTS = new Set(['PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked', 'ProjectRemoved'])
 
 /** Identifiers come from the delivery scope or event payload, never cache state. */

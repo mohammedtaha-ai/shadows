@@ -264,10 +264,6 @@ pattern to follow, not merely an example.
 | `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
 | `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
 | `crates/core-design/src/` | a project's design workspace | `crates/core-design/src/lib.rs` |
-| `crates/core-design/src/structure.rs` | rendering an approved map as files | `crates/core-design/src/structure.rs` |
-| `crates/core-design/src/structure_create.rs` | coordinating a person's structure write | `crates/core-design/src/structure_create.rs` |
-| `crates/core-design/src/structure_write.rs` | publishing recorded files safely | `crates/core-design/src/structure_write.rs` |
-| `crates/core-design/src/store/structure.rs` | structure write records | `crates/core-design/src/store/structure.rs` |
 | `crates/core-design/src/vision_items.rs` | applying vision item changes | `crates/core-design/src/vision_items.rs` |
 | `crates/core-design/src/store/vision_versions.rs` | stored vision versions | `crates/core-design/src/store/vision_versions.rs` |
 | `crates/core-design/src/proposals.rs` | vision proposal entry points | `crates/core-design/src/proposals.rs` |
@@ -526,3 +522,10 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-turns/src/planning/budget.rs` | Planning context budgets | `crates/core-turns/contract.yaml` |
 | `crates/shadows-http/src/planning_context.rs` | Planning context HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/core-turns/src/planning/` | Planning context assembly | `crates/core-turns/contract.yaml` |
+| `crates/core-design/src/layout.rs` | project layout ownership | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/layout.rs` | snapshot layout projection | `crates/core-design/contract.yaml` |
+| `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/phase_projection.rs` | pinned foreign-phase previews | `crates/core-plans/contract.yaml` |

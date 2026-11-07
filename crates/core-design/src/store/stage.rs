@@ -1,7 +1,7 @@
 //! Reading every stage input in one consistent project snapshot.
 
 use super::DesignStore;
-use crate::{DesignError, PartContent, StageView, VisionContent, stage, structure};
+use crate::{PartContent, StageView, VisionContent, stage};
 use core_db::StorageError;
 use core_projects::ProjectId;
 use core_standards::{EffectiveStandards, Standards};
@@ -31,7 +31,7 @@ impl crate::Design {
             .transpose()?
             .unwrap_or_default();
         let parts: Vec<String> = sqlx::query_scalar(
-            "SELECT content_json FROM design_part WHERE project_id=? AND parent_id IS NULL
+            "SELECT content_json FROM design_part WHERE project_id=?
              ORDER BY ordinal,id",
         )
         .bind(project.as_str())
@@ -71,49 +71,14 @@ impl crate::Design {
             let parts = parts.into_iter().zip(&revisions).collect::<Vec<_>>();
             stage.drift = crate::map_rules::MapRules::drift(&parts, &vision);
         }
-        let written: Option<String> = sqlx::query_scalar(
-            "SELECT completed_at FROM design_structure_write WHERE project_id=?",
-        )
-        .bind(project.as_str())
-        .fetch_optional(&mut *tx)
-        .await?
-        .flatten();
-        let roadmap: Option<i64> = if written.is_some() {
+        let roadmap: Option<i64> =
             sqlx::query_scalar("SELECT roadmap_revision FROM design_workspace WHERE project_id=?")
                 .bind(project.as_str())
                 .fetch_optional(&mut *tx)
-                .await?
-        } else {
-            None
-        };
-        let mut stage = stage::StageRules::with_workspace(
-            stage,
-            map.unwrap_or(0),
-            written.is_some(),
-            roadmap.unwrap_or(0),
-        );
+                .await?;
+        let mut stage =
+            stage::StageRules::with_workspace(stage, map.unwrap_or(0), roadmap.unwrap_or(0));
         stage.map_revision = map.unwrap_or(0);
-        // The count follows create_structure's own preconditions, not the stage name,
-        // so the two cannot disagree; skip the plan where it is sure to refuse.
-        if stage.map_revision > 0 && written.is_none() {
-            stage.structure_file_count = Self::structure_file_count_in(tx, project).await?;
-        }
         Ok(stage)
-    }
-
-    /// The files `create_structure` would write now, planned the way it plans them;
-    /// none when it would refuse.
-    async fn structure_file_count_in(
-        tx: &mut sqlx::SqliteConnection,
-        project: &ProjectId,
-    ) -> Result<Option<u32>, StorageError> {
-        let snapshot = match DesignStore::structure_snapshot_in(tx, project, None).await {
-            Ok(snapshot) => snapshot,
-            Err(DesignError::Storage(error)) => return Err(error),
-            Err(_) => return Ok(None),
-        };
-        Ok(structure::Structure::plan(&snapshot)
-            .ok()
-            .and_then(|plan| u32::try_from(plan.file_count()).ok()))
     }
 }

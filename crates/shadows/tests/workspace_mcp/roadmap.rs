@@ -5,7 +5,7 @@ use super::*;
 use shadows_core::testing::EventCursor;
 use shadows_core::{OperationId, ProjectId, Stage, ThreadId};
 
-/// A project at the roadmap stage, its directory written, with a running
+/// A project at the roadmap stage, with a running
 /// Planner turn in a conversation of its own.
 async fn structured(
     l: &listening::Listening,
@@ -24,7 +24,7 @@ async fn structured(
         .unwrap()
         .id;
     core.design().seed_map_for_tests(&p).await.unwrap();
-    let ops = ["backend", "database", "api", "frontend"]
+    let mut ops: Vec<_> = ["backend", "database", "api", "frontend"]
         .into_iter()
         .map(|kind| DesignOp::PartCreate {
             id: PartId::generate(),
@@ -40,6 +40,18 @@ async fn structured(
             },
         })
         .collect();
+    for field in [
+        shadows_core::VisionField::Purpose,
+        shadows_core::VisionField::Users,
+        shadows_core::VisionField::Goals,
+        shadows_core::VisionField::Boundaries,
+        shadows_core::VisionField::TechnicalDirection,
+    ] {
+        ops.push(DesignOp::VisionItemAdd {
+            field,
+            text: "Approved project intent".into(),
+        });
+    }
     core.plans()
         .edit_design("parts".into(), &p, 0, ops)
         .await
@@ -79,15 +91,21 @@ async fn planner_client(l: &listening::Listening, thread: &ThreadId) -> listenin
 }
 
 #[tokio::test]
-async fn the_planner_proposes_and_approves_a_roadmap_after_the_structure() {
+async fn the_planner_proposes_and_approves_a_roadmap_after_map_approval() {
     let l = listening::listening_unseeded().await;
     let dir = tempfile::tempdir().unwrap();
     let (p, thread, _) = structured(&l, dir.path()).await;
     let c = planner_client(&l, &thread).await;
     let parts = part_ids(&l, &p).await;
+    let revision = l.app.core.design().stage(&p).await.unwrap().map_revision;
+    sqlx::query("UPDATE design_workspace SET map_revision=0 WHERE project_id=?")
+        .bind(p.as_str())
+        .execute(l.app.storage.reader())
+        .await
+        .unwrap();
     let (error, text) = listening::call(&c, "roadmap_propose", first(&parts, "Login")).await;
     assert!(error && text.starts_with("STAGE_BLOCKED:"), "{text}");
-    assert!(text.contains("press Create structure first"), "{text}");
+    assert!(text.contains("approve the map first"), "{text}");
     let (error, text) = listening::call(
         &c,
         "draft_start",
@@ -96,11 +114,10 @@ async fn the_planner_proposes_and_approves_a_roadmap_after_the_structure() {
     .await;
     assert!(error && text.starts_with("STAGE_BLOCKED:"), "{text}");
     assert!(text.contains("no roadmap approved"), "{text}");
-    let revision = l.app.core.design().stage(&p).await.unwrap().map_revision;
-    l.app
-        .core
-        .design()
-        .create_structure("write".into(), &p, revision)
+    sqlx::query("UPDATE design_workspace SET map_revision=? WHERE project_id=?")
+        .bind(revision)
+        .bind(p.as_str())
+        .execute(l.app.storage.reader())
         .await
         .unwrap();
     let card = ok(&c, "roadmap_propose", first(&parts, "Login")).await;
@@ -141,13 +158,6 @@ async fn roadmap_proposal_routes_list_and_approve() {
     let l = listening::listening_unseeded().await;
     let dir = tempfile::tempdir().unwrap();
     let (p, thread, op) = structured(&l, dir.path()).await;
-    let revision = l.app.core.design().stage(&p).await.unwrap().map_revision;
-    l.app
-        .core
-        .design()
-        .create_structure("write".into(), &p, revision)
-        .await
-        .unwrap();
     let c = planner_client(&l, &thread).await;
     let parts = part_ids(&l, &p).await;
     let card = ok(&c, "roadmap_propose", first(&parts, "Login")).await;

@@ -73,14 +73,14 @@ it('independent tabs refresh every design slice, deduplicate and resume after di
     act(() => sources.forEach(source => source.durable(10, 'MapProposed', null,
       { project_id: 'p1', proposal_id: 'map' })))
     await until(() => reads.every((count, tab) => count > beforeMap[tab]))
-    const beforeStructure = [...reads]
-    act(() => sources.forEach(source => source.durable(11, 'ProjectStructureWritten', null,
-      {project_id:'p1',map_version:2,paths:['SHADOWS.md']})))
-    await until(() => reads.every((count, tab) => count > beforeStructure[tab]))
-    const afterWrite = [...reads]
+    const beforeRoadmap = [...reads]
+    act(() => sources.forEach(source => source.durable(11, 'RoadmapProposed', null,
+      { project_id: 'p1', proposal_id: 'roadmap' })))
+    await until(() => reads.every((count, tab) => count > beforeRoadmap[tab]))
+    const afterRoadmap = [...reads]
     act(() => sources.forEach(source => source.durable(7, 'ProjectDesignChanged')))
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
-    expect(reads).toEqual(afterWrite)
+    expect(reads).toEqual(afterRoadmap)
     clients.forEach(client => expect(client.getQueryState(designKeys.vision('other'))?.isInvalidated).toBe(false))
     act(() => sources[0].fail())
     expect(sources[0].closed).toBe(true)

@@ -31,7 +31,6 @@ design_part :: design
 design_part_plan :: plans
 design_part_waiver :: design
 design_roadmap_proposal :: design
-design_structure_write :: design
 design_vision_proposal :: design
 design_vision_version :: design
 design_workspace :: design

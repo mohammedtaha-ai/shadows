@@ -242,3 +242,5 @@ modules:
   error.rs: Database failure vocabulary
   id.rs: Exported newtype_id macro with service-owned id declarations
   write_observer.rs: Feature-gated committed-write observation
+
+structure_removal_migrations: 0048 removes starter files from Design parts and map versions; 0049 drops structure-write bookkeeping without touching disk.

@@ -61,3 +61,21 @@ impl PlansStore {
             .await
     }
 }
+
+impl Plans {
+    pub(super) async fn plan_parts_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        plan: &PlanId,
+    ) -> Result<Vec<PartId>, StorageError> {
+        let ids: Vec<String> = sqlx::query_scalar(
+            "SELECT part_id FROM design_part_plan WHERE project_id=? AND plan_id=?
+             ORDER BY part_id",
+        )
+        .bind(project.as_str())
+        .bind(plan.as_str())
+        .fetch_all(conn)
+        .await?;
+        Ok(ids.into_iter().map(PartId::from_recorded).collect())
+    }
+}

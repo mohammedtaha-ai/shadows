@@ -44,6 +44,10 @@ pub enum PlanOp {
     TaskUpdate {
         task: TaskContent,
     },
+    PhasesSet {
+        task: u32,
+        phases: Vec<crate::PhaseInput>,
+    },
     TaskRemove {
         number: u32,
     },
@@ -110,6 +114,7 @@ impl PlanOp {
             } => Object::Binding(*task, agreement_id.clone(), *role),
             PlanOp::TaskAdd { task } | PlanOp::TaskUpdate { task } => Object::Task(task.number),
             PlanOp::TaskRemove { number } => Object::Task(*number),
+            PlanOp::PhasesSet { task, .. } => Object::Task(*task),
             PlanOp::LinkPut { link } => Object::of_link(link),
             PlanOp::LinkRemove { task, after, kind } => Object::Link(*task, after.clone(), *kind),
         }
@@ -123,6 +128,7 @@ impl PlanOp {
             PlanOp::BindingRemove { task, .. } => vec![*task],
             PlanOp::TaskAdd { task } | PlanOp::TaskUpdate { task } => vec![task.number],
             PlanOp::TaskRemove { number } => vec![*number],
+            PlanOp::PhasesSet { task, .. } => vec![*task],
             PlanOp::LinkPut { link } => std::iter::once(link.task)
                 .chain(link.after.local())
                 .collect(),
@@ -216,8 +222,25 @@ fn apply_one(content: &mut PlanContent, op: &PlanOp, removed: &mut BTreeSet<u32>
             format!("added T{}", task.number)
         }
         PlanOp::TaskUpdate { task } => {
-            content.tasks.insert(task.number, task.clone());
+            let mut updated = task.clone();
+            updated.phases = content.tasks[&task.number].phases.clone();
+            content.tasks.insert(task.number, updated);
             format!("updated T{}", task.number)
+        }
+        PlanOp::PhasesSet { task, phases } => {
+            content.tasks.get_mut(task).expect("validated task").phases = phases
+                .iter()
+                .enumerate()
+                .map(|(index, input)| crate::Phase {
+                    id: input.id.clone().unwrap_or_else(crate::PhaseId::generate),
+                    number: (index + 1) as u32,
+                    title: input.title.trim().into(),
+                    goal: input.goal.trim().into(),
+                    acceptance: input.acceptance.clone(),
+                    waits_for: input.waits_for.clone(),
+                })
+                .collect();
+            format!("set phases of T{task}")
         }
         PlanOp::TaskRemove { number } => {
             content.tasks.remove(number);
@@ -278,6 +301,33 @@ fn refusal(current: &PlanContent, op: &PlanOp) -> Option<String> {
     }
     let exists = |n: &u32| current.tasks.contains_key(n);
     match op {
+        PlanOp::PhasesSet { task, phases } => {
+            let Some(old) = current.tasks.get(task) else {
+                return Some(format!("T{task} does not exist in this plan"));
+            };
+            if phases.len() > u32::MAX as usize {
+                return Some("too many phases in one task".into());
+            }
+            let mut seen = HashSet::new();
+            for id in phases.iter().filter_map(|p| p.id.as_ref()) {
+                if !old.phases.iter().any(|p| p.id == *id) || !seen.insert(id) {
+                    return Some(format!("T{task}: unknown or repeated phase id {id}"));
+                }
+            }
+            None
+        }
+        PlanOp::TaskAdd { task } if !task.phases.is_empty() => {
+            Some("use phases_set to create phases with server identities".into())
+        }
+        PlanOp::TaskUpdate { task }
+            if !task.phases.is_empty()
+                && current
+                    .tasks
+                    .get(&task.number)
+                    .is_some_and(|old| old.phases != task.phases) =>
+        {
+            Some("use phases_set to change phases".into())
+        }
         PlanOp::TaskAdd { task } if exists(&task.number) => Some(format!(
             "T{} already exists; use task_update to change it",
             task.number

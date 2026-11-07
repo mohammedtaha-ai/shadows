@@ -79,9 +79,9 @@ layout:
   placeGraph:
     signature: "(nodes: Node[], edges: PlanEdge[]) -> void"
     note: >
-      Mutates nodes and edges in place: writes position, handles, and the offset
-      and stepPosition fields of each edge. Called by layoutPlan and by the plan
-      map. Nothing else positions a node.
+      Mutates nodes and edges in place: writes position, fixed measured dimensions,
+      handles, and edge offset/stepPosition fields. Used by flat plan, task and map
+      layouts. Expanded phases use the private compound pass in phase-layout.
   taskNodeId: "(number: number) -> string"
   linkId: "(link: Pick<PlanLink,'kind'|'after'|'task'>) -> string"
   waitsFor: "(count: number, after: number | string) -> string"
@@ -90,6 +90,16 @@ layout:
     START_WIDTH: 256
     LINE_HEIGHT: 16
     MAX_WRITES: 3
+
+phase_layout:
+  layoutTask: "(plan: Plan, task: number) -> { nodes: PhaseGraphNode[]; edges: PlanEdge[] }"
+  layoutExpandedPlan: "(plan: Plan) -> { nodes: PhaseGraphNode[]; edges: PlanEdge[] }"
+  phaseNodeId: "(endpoint: PhaseEndpoint) -> string; workflow/version/task/stable phase id"
+  boundaryNodeId: "(task: number, event: start | complete) -> string"
+  note: >
+    Compound task frames contain ordered phase children and separate start/complete
+    endpoints. Whole-task labels and endpoint meanings survive expansion. Both
+    surfaces share exact server preview projection; no foreign version resolution.
 
 linked:
   parentName: "(after: TaskParent, views?: LinkedTask[]) -> string"
@@ -101,17 +111,19 @@ linked:
       'missing' node. An outgoing view whose local task is absent yields nothing.
 
 camera:
-  MIN_ZOOM: 0.01
+  MIN_ZOOM: 0.001
   firstFit: "(compact: boolean, focusTask: number | undefined) -> FitViewOptions"
   useCanvasSize:
     signature: "(ref: RefObject<HTMLElement | null>) -> CanvasSize | null"
     note: "ResizeObserver; null until the first observation, then only real size changes."
   useCamera:
     signature: >-
-      "({ size, compact, focusTask, lastClicked, nodes }) -> void"
+      "({ size, compact, focusTask, lastClicked, nodes, restored? }) -> void"
     note: >
       Must render inside ReactFlow. Opens a wide page at its start column once, then
-      refits a focused or clicked task whenever the canvas size changes.
+      refits a focused or clicked task whenever the canvas size changes. A restored
+      viewport skips opening fits; changing node initialization on toggle never
+      repeats a focus fit.
 
 frames:
   usePlanFrames:
@@ -132,7 +144,8 @@ plan_data:
 components:
   PlanPage: "() -> JSX.Element"
   PlanGraph: >
-    "({ plan, compact?, focusTask?, onSelectTask? }) -> JSX.Element"
+    "({ plan, compact?, focusTask?, onSelectTask?, onOpenTask?, showPhases?, initialViewport?, onViewportChange? }) -> JSX.Element"
+  TaskView: "({ plan, task, onBack, onOpenTask }) -> JSX.Element"
   PlanMapPage: "() -> JSX.Element"
   ApproveBar: "({ plan }) -> JSX.Element"
   InspectPanel: "({ plan, task, onClose }) -> JSX.Element"
@@ -391,8 +404,8 @@ agreements:
 
 not_the_caller's:
   - >
-      Position nodes or call dagre yourself. placeGraph is the single layout, and a
-      second pass over the same nodes overwrites the first.
+      Position nodes or call dagre in a view. Use layoutPlan, layoutTask or
+      layoutExpandedPlan; each selects one layout pass for its surface.
   - >
       Read `plan.links` to draw cross-plan dependencies. Use linked_tasks through
       linkedLayout; plan.links holds them as objects that layoutPlan does not draw.
@@ -585,3 +598,17 @@ feature_entry: "index.ts exposes PlanGraph and usePlan. plan-state.ts is a secon
 feature_imports: "Cross-feature production imports use declared public entries."
 
 route_entries: "plan-page.tsx, plan-map.tsx remain separate public lazy route modules declared by index.ts."
+
+# TaskView opens from positive task search state; selected retains the graph
+# selection. The main canvas stays mounted/inert behind the task view, so
+# closing it retains viewport and keyboard focus returns to the task button.
+# phase-layout projects server phase order, local waits and linked_phases;
+# foreign cards are dashed and open the exact endpoint.workflow_id.
+# TaskView reuses InspectPanel for scope, bindings and full acceptance.
+# Empty/unavailable states are explicit; phase completion is never invented.
+# PlanLegend and the camera policy are shared by both canvas surfaces.
+# phases=true and selected/task URL state survive foreign navigation and browser
+# Back. PlanPage retains per-workflow viewport state for that route's lifetime.
+# Toggle reuses the same ReactFlow instance; fixed measured dimensions keep fit
+# controls functional after node replacement. Frames retain invisible handles
+# during the edge-set swap, but expanded links use the boundary child ids.

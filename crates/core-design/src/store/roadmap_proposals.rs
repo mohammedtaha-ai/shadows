@@ -48,7 +48,7 @@ impl DesignStore {
                     }
                     core_operations::Operations::require_running_in(conn, thread, turn.as_str())
                         .await?;
-                    shape::RoadmapShapeRows::require_structure(conn, &p).await?;
+                    shape::RoadmapShapeRows::require_map(conn, &p).await?;
                     let revision: i64 = sqlx::query_scalar(
                         "SELECT roadmap_revision FROM design_workspace WHERE project_id=?",
                     )

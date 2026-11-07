@@ -85,8 +85,7 @@ export function MapCanvas({parts,projectId,selected,allowed}: {
         {allowed && <Panel position="top-right"><Legend /></Panel>}
       </ReactFlow>
     </div>
-    <p className="text-xs text-muted-foreground">Dependencies not recorded. Recorded elements will show the
-      dependencies between parts. Open a part to browse its children.</p>
+    <p className="text-xs text-muted-foreground">Dependencies not recorded. Open a part to browse its children.</p>
     {allowed && <section aria-label="Allowed dependencies" className="space-y-1 text-xs">
       <Legend />
       {permissions.length === 0 ? <p>No allowed dependencies between the shown parts.</p>

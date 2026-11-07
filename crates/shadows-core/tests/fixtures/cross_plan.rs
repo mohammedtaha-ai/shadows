@@ -21,6 +21,7 @@ pub fn command(id: &str) -> CommandContext {
 pub fn task(number: u32) -> PlanOp {
     PlanOp::TaskAdd {
         task: TaskContent {
+            phases: Vec::new(),
             number,
             title: format!("Task {number}"),
             goal: "A usable result".into(),

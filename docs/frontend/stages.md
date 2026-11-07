@@ -31,6 +31,10 @@ B-59; their entries are in this file at `1b413fc4`. The plan was
 Structure and depth, slice 1 (PR #59, `26bf739e`) is backend-only. Its only web change is a test
 fixture in `web/src/app/design/create-structure.test.tsx`, with no `F-` task.
 
+Structure and depth, slice 2 (PR #60, `b64242a7`): F-90 and F-91 shipped with B-63 to B-70. Their
+entries, and the web fix `fb46cac4` outside their `Touch:` lists, are in this file at `b64242a7`.
+The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`.
+
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -45,7 +49,14 @@ settings dialog, PR #40) at `1a2b601`.
 
 ## Tasks
 
-Structure and planning depth: slice 1 is on `main` and needs no web task. The
+Slice 3 is implemented locally as F-92 with B-71 to B-75. The 425 focused web
+tests, typecheck, lint and build passed. Mohammed will perform manual
+acceptance on the existing project; it is pending. The branch is not merged.
+
+Two composer fixes on this branch have no `F-` task: `1b85b6e6` (the textarea grows to
+192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
+
+Structure and planning depth: slices 1 and 2 are on `main`; slice 1 needs no web task. The
 [workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
 and [slice prerequisites](../backend/plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
 are the review targets. No new `F-` task is executable until its shared
@@ -54,21 +65,42 @@ expand the API hooks, routing, event refresh, contracts and code-map paths.
 Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
 
-Structure and depth, slice 2 ([plan](../backend/plans/2026-11-05-structure-and-depth.md#slice-2-standards-v2-and-layers-on-the-map)),
-on `feature/structure-layers`. The shared request from B-64
-(`docs/shared/requests/2026-11-05-part-folder-and-layers.md`) is accepted.
-
-### F-90 · The part form, the map card and the standards page carry layers
+### F-92 · The map follows the stack, with no Structure step
 - Status: done
-- Plan: Task 2.6
-- Touch: web/src/app/design/part-editor.tsx, map-part-details.tsx, standards-view.tsx;
-  web/src/app/conversation/map-proposal-card.tsx; web/src/test/fake-daemon.ts,
-  web/src/test/contract-fixtures.ts; web/src/api/design.ts and affected contracts; the tests the plan lists
-- Done when: `npx vitest run src/app/design src/app/conversation` passes in `web/`
+- Base: `2003992a`
+- Plan: `docs/backend/plans/2026-11-05-structure-and-depth.md#task-35-web-f--the-form-the-standards-page-and-the-stage-line`
+- Owner: web Design views and the design API client; conversation owns its map-card fixture.
+- Read: frontend code map; design/API/conversation contracts; structure spec §6.1; accepted principles-not-layout request.
+- Touch: `web/src/app/design/part-editor.tsx`, `map-part-details.tsx`, `parts-view.tsx`, `map-canvas.tsx`, `create-structure.tsx`, `create-structure.test.tsx`, `parts-view.test.tsx`, `standards-view.test.tsx`, `contract.yaml`; `web/src/api/design.ts`, `contract.yaml`; `web/src/test/fake-daemon.ts`; `web/src/app/conversation/map-proposal-card.test.tsx`, `contract.yaml`; `docs/frontend/codebase/README.md`; this stages file.
+- Needs: B-71 through B-74 and regenerated API for accepted `2026-11-06-principles-not-layout.md`.
+- Input/output: no structure controls, writer call, counts, starter-file field or inspection; layer hint follows the stack; S10 renders from Core. StageChip already renders Core's selected stage without a static step list, so no additional stage machine is introduced.
+- Failure cases: old writer survives at Roadmap; new part request still sends files; map approval controls disappear when nested kinds are missing; stale fake schema.
+- Done when: typecheck, lint, production build; focused Design/conversation/API tests plus frontend codemap and architecture. Slice live acceptance is tracked separately.
 
-### F-91 · The Project map is a canvas
+
+### F-93 · Task phases view
 - Status: done
-- Plan: Task 2.7
-- Touch: web/src/app/design/map-canvas.tsx (new), parts-view.tsx, map-part-details.tsx, workspace-page.tsx;
-  their tests
-- Done when: the five tests the plan names pass with `npx vitest run src/app/design`
+- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.4.
+- Read: structure spec §6.2; workflows, routes and API contracts; frontend code map.
+- Touch: exact Task 5.4 Files, workflows contract and frontend code map, this stages file; route search validation in `web/src/router.tsx`.
+- Needs: B-80 and accepted request `2026-11-07-task-phases`.
+- Verified: workflows/codemap/architecture 127 passed; 7 focused task-view cases include the added loading/error checks. Typecheck, lint and build passed. Exact foreign navigation, Back/Escape focus, empty/missing states and stream refresh are covered. Browser acceptance is recorded after both UI tasks.
+- Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; browser checks reported separately.
+
+### F-94 · Expand phases in the plan graph
+- Status: done
+- Plan: docs/backend/plans/2026-11-05-structure-and-depth.md, Task 5.5.
+- Read: structure spec §6.2; workflows contract; frontend code map.
+- Touch: exact Task 5.5 Files, workflows contract and frontend code map, this stages file.
+- Needs: F-93.
+- Verified: 137 focused workflows/codemap/architecture tests passed, including 100 tasks/400 phases, fixed-node fit readiness, mixed interleaving and viewport preservation. Typecheck, lint and build passed. Actual daemon/browser checks on an isolated SQLite backup passed at 1024px and 375px, light/dark, exact foreign navigation/Back, keyboard and empty-task state; no page errors or React Flow warnings. Loading/read errors have component coverage. Daily-project/provider acceptance is not recorded; details are in Task 5.5.
+- Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; 100-task/400-phase layout and browser acceptance.
+
+### F-95 · The map change card shows a move
+- Status: done
+- Plan: this entry and shared request `docs/shared/requests/2026-11-07-map-change-moves.md`.
+- Read: guided-planning spec §23 map proposals (amended 2026-11-07); `web/src/app/conversation/contract.yaml`; `roadmap-proposal-card.tsx` `MoveLine` as the pattern.
+- Touch: `web/src/app/conversation/map-proposal-card.tsx`, `map-proposal-card.test.tsx`, `contract.yaml`; `web/src/test/fake-daemon.ts` only if its map proposal fixture needs `old_parent`; this stages file.
+- Needs: B-82 (regenerated `web/src/api/schema.d.ts` with `MapProposal.old_parent`).
+- Input/output: a change card whose `parts[0].parent` differs from `old_parent` shows "Moves to the top level" or "Moves under: <part title>" (title read through the existing part query, falling back to the id); an unchanged parent shows no move line.
+- Done when: focused vitest for the card, conversation codemap and architecture tests; typecheck, lint, build.

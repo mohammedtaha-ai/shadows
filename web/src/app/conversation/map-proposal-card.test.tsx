@@ -12,7 +12,7 @@ afterEach(() => {app?.unmount();app=null})
 const pending = (): MapProposal => ({id:'m1',thread_id:'t1',action:'first',part_id:null,old:null,
   status:'Pending',outdated:false,created_at:'2026-10-12',waivers:[{part:'frontend',reason:'Terminal tool'}],
   parts:[{key:'backend',parent_key:null,parent:null,content:{title:'Backend',responsibility:'Logic',design:'',
-    kind:'backend',serves:['G1'],folder:'backend',layers:[],files:[{path:'backend/main.rs',content:'fn main() {}'}],
+    kind:'backend',serves:['G1'],folder:'backend',layers:[],
     contract:{header:'Backend contract',rules:['S1']}}}]})
 const entry = () => ({...agentEntry('e1','Project map proposal'),kind:'MapProposal' as const,card:{...pending()}})
 
@@ -94,4 +94,24 @@ it('keeps an unchanged command on refusal and opens a contract beside the card',
   act(() => a.button('View contract')?.click())
   await until(() => a.container.querySelector('[role="dialog"]') !== null)
   expect(a.container.querySelector('[role="dialog"]')?.textContent).toContain('Backend contract')
+})
+
+it('shows a move when a change card has a new parent, and none when unchanged',async () => {
+  const change = {...pending(),action:'change' as const,part_id:'backend',old:pending().parts[0].content,old_parent:null,
+    parts:[{...pending().parts[0],parent:'core'}]}
+  const part = {part:{content:{title:'Core'}},ancestors:[],plans:[],revision:1}
+  const a = app = await startApp('/projects/p1/threads/t1',{...answers({entries:[{...entry(),card:{...change}}]}),
+    'GET /api/projects/p1/map-proposals':[change],'GET /api/projects/p1/design/parts/core':part})
+  await until(() => a.text().includes('Moves under: Core'))
+  app.unmount()
+  const top = {...change,old_parent:'core',parts:[{...change.parts[0],parent:null}]}
+  const b = app = await startApp('/projects/p1/threads/t1',{...answers({entries:[{...entry(),card:{...top}}]}),
+    'GET /api/projects/p1/map-proposals':[top]})
+  await until(() => b.text().includes('Moves to the top level'))
+  app.unmount()
+  const same = {...change,old_parent:'core'}
+  const c = app = await startApp('/projects/p1/threads/t1',{...answers({entries:[{...entry(),card:{...same}}]}),
+    'GET /api/projects/p1/map-proposals':[same],'GET /api/projects/p1/design/parts/core':part})
+  await until(() => c.text().includes('Change part'))
+  expect(c.text()).not.toContain('Moves')
 })

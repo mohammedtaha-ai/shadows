@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
 import { cn } from 'cn'
 import { Archive, ChevronDown, Layers, Lock } from 'lucide-react'
-import { useState } from 'react'
-import { type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
+import { useEffect, useRef, useState } from 'react'
+import type { Viewport } from '@xyflow/react'
+import { type PhaseEndpoint, type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
 import { planVersionsQuery, workflowsKey } from '@/api/workflows'
 import { Planned } from '@/components/ui/planned'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ErrorLine } from '../error-line'
 import { ApproveBar } from './approve-bar'
-import { InspectPanel } from './inspect-panel'
+import { TaskView } from './task-view'
 import { PlanGraph } from './plan-graph'
 import { stateLabel } from './plan-state'
 import { usePlan } from './use-plan'
@@ -29,12 +30,36 @@ const route = getRouteApi('/projects/$projectId/workflows/$workflowId')
  * closes the task the last one had open. */
 export function PlanPage() {
   const { projectId, workflowId } = route.useParams()
-  return <PlanView key={workflowId} projectId={projectId} workflowId={workflowId} />
+  const [viewports, setViewports] = useState(() => new Map<string, Viewport>())
+  return <PlanView key={workflowId} projectId={projectId} workflowId={workflowId}
+    savedViewport={viewports.get(workflowId)}
+    onViewportChange={viewport => { setViewports(previous => new Map(previous).set(workflowId, viewport)) }} />
 }
 
-function PlanView({ projectId, workflowId }: { projectId: string; workflowId: string }) {
+function PlanView({ projectId, workflowId, savedViewport, onViewportChange }: {
+  projectId: string; workflowId: string; savedViewport?: Viewport; onViewportChange: (viewport: Viewport) => void
+}) {
   const plan = usePlan(workflowId)
-  const [inspected, setInspected] = useState<number | null>(null)
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
+  const selected = search.selected ?? search.task
+  const showPhases = search.phases === true
+  const opened = search.task !== undefined || search.invalidTask === true
+  const taskButtons = useRef(new Map<number, HTMLButtonElement>())
+  const wasOpen = useRef(opened)
+  useEffect(() => {
+    if (wasOpen.current && !opened && selected !== undefined) taskButtons.current.get(selected)?.focus()
+    wasOpen.current = opened
+  }, [opened, selected])
+  const back = () => { void navigate({ search: previous => ({ ...previous,
+    task: undefined, invalidTask: undefined, selected }) }) }
+  const open = (task: number) => { void navigate({ search: previous => ({ ...previous,
+    task, selected: task, invalidTask: undefined }) }) }
+  const openForeign = (endpoint: PhaseEndpoint) => { void navigate({
+    to: '/projects/$projectId/workflows/$workflowId',
+    params: { projectId, workflowId: endpoint.workflow_id },
+    search: { task: endpoint.task, selected: endpoint.task, phases: showPhases || undefined },
+  }) }
 
   if (plan.data === undefined) {
     return (
@@ -44,11 +69,14 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
     )
   }
   const p = plan.data
-  const task = p.tasks.find((t) => t.number === inspected)
+  const task = p.tasks.find((t) => t.number === search.task)
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <Header plan={p} projectId={projectId} />
+      <Header plan={p} projectId={projectId} showPhases={showPhases}
+        onTogglePhases={opened ? undefined : () => { void navigate({ replace: true,
+          search: previous => ({ ...previous, phases: showPhases ? undefined : true }),
+        }) }} />
       {p.plan_state === 'Archived' ? (
         <p
           className="flex items-center gap-2 border-b border-accent-line/15 bg-accent-line/10 px-6 py-2 text-xs text-secondary-foreground"
@@ -75,21 +103,35 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
           <ErrorLine error={plan.error} />
         </div>
       )}
-      <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1">
-          {/* One canvas throughout: when Inspect opens or closes, the graph
-              refits to the width left (see `plan-camera.ts`). */}
-          <PlanGraph plan={p} onSelectTask={(t) => setInspected(t.number)} />
+      <nav aria-label="Tasks" className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-4 py-1.5">
+        {p.tasks.map(t => <Button key={t.id} size="sm" variant="ghost" title={t.title}
+          ref={button => { if (button) taskButtons.current.set(t.number, button); else taskButtons.current.delete(t.number) }}
+          aria-pressed={selected === t.number} onClick={() => open(t.number)}>T{t.number}</Button>)}
+      </nav>
+      <div className="relative min-h-0 flex-1">
+        <div id="main-plan-graph" data-main-plan inert={opened} aria-hidden={opened || undefined}
+          className={cn('absolute inset-0', opened && 'invisible pointer-events-none')}>
+          {/* Keep the same canvas behind TaskView so closing it restores the
+              person's graph state. Real resizes use the shared camera policy. */}
+          <PlanGraph plan={p} focusTask={selected} showPhases={showPhases}
+            initialViewport={savedViewport} onViewportChange={onViewportChange}
+            onSelectTask={(t) => open(t.number)} onOpenTask={openForeign} />
         </div>
-        {task !== undefined && (
-          <InspectPanel plan={p} task={task} onClose={() => setInspected(null)} />
-        )}
+        {opened && <div className="absolute inset-0">
+          {task ? <TaskView plan={p} task={task} onBack={back} onOpenTask={openForeign} />
+            : <section role="alert" className="space-y-3 p-6">
+              <p>Task {search.task === undefined ? '' : `T${search.task} `}is unavailable</p>
+              <Button onClick={back}>Back to plan</Button>
+            </section>}
+        </div>}
       </div>
     </div>
   )
 }
 
-function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
+function Header({ plan, projectId, showPhases, onTogglePhases }: {
+  plan: Plan; projectId: string; showPhases: boolean; onTogglePhases?: () => void
+}) {
   const queryClient = useQueryClient()
   const { data: planVersions } = useQuery(planVersionsQuery(plan.plan_id))
   const isArchived = plan.plan_state === 'Archived' || planVersions?.state === 'Archived'
@@ -179,6 +221,10 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
           </div>
         </Planned>
         <div className="flex items-center gap-2">
+          {onTogglePhases && <Button variant="outline" size="sm" onClick={onTogglePhases}
+            aria-pressed={showPhases} aria-controls="main-plan-graph">
+            {showPhases ? 'Hide phases' : 'Show phases'}
+          </Button>}
           <nav aria-label="Versions" className="flex items-center gap-1 text-xs">
             <DropdownMenu>
               <DropdownMenuTrigger

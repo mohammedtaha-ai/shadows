@@ -34,7 +34,7 @@ async fn a_session_opens_with_the_effective_standards() {
     save_additions(&l.app, "s1", "billing").await;
     let first = report(&l.app).await;
     let append = first["append"].as_str().expect("append");
-    assert!(append.contains("## Shadows standards (base v2; project additions v1)"));
+    assert!(append.contains("## Shadows standards (base v3; project additions v1)"));
     assert!(append.contains("- backend (required):"));
     assert!(append.contains("- billing (project):"));
     assert!(append.contains("S1 ["));

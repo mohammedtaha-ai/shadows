@@ -286,6 +286,11 @@ describe('the plan page', () => {
     const frame = () => act(() => new Promise(requestAnimationFrame))
     await act(async () => node(2)?.click())
     await until(() => a.container.querySelector('aside[aria-label="T2"]') !== null)
+    // Opening the task focuses it once. The following fits belong only to
+    // actual canvas resizes, rather than node initialization on replacement.
+    expect(fits).toHaveLength(1)
+    expect(fits[0]?.nodes).toEqual([{ id: 't2' }])
+    fits.length = 0
     await act(async () => resize(canvas, 780, 700))
     await frame()
     // Centred on the task the person opened, at the zoom they had.

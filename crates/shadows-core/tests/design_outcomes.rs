@@ -66,7 +66,6 @@ fn part(id: &PartId, title: &str) -> DesignOp {
             serves: vec![],
             folder: title.into(),
             layers: vec![],
-            files: vec![],
             contract: Default::default(),
             title: title.into(),
             responsibility: "جزء".into(),
@@ -201,7 +200,6 @@ async fn outcome_spans_parts_without_copying_them() {
                 serves: vec![],
                 folder: "الخدمات".into(),
                 layers: vec![],
-                files: vec![],
                 contract: Default::default(),
                 title: "الخدمات".into(),
                 responsibility: "جزء".into(),
@@ -402,6 +400,7 @@ async fn plan_lifecycle_never_completes_outcomes() {
     let p = project(&core, tmp.path(), "one").await;
     let (v, thread) = draft(&storage, &core, &p, "login").await;
     let task = TaskContent {
+        phases: Vec::new(),
         number: 1,
         title: "Task".into(),
         goal: "Goal".into(),

@@ -4,6 +4,7 @@ mod agreement_write;
 mod agreements;
 mod anchors;
 mod hierarchy;
+mod layout;
 mod map_approval;
 mod map_proposal_read;
 mod map_proposal_shape;
@@ -24,7 +25,6 @@ mod roadmap_proposals;
 mod roadmap_seed;
 mod roadmap_shape;
 mod stage;
-pub(super) mod structure;
 mod vision;
 mod vision_versions;
 

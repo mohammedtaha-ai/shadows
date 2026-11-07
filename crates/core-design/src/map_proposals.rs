@@ -52,6 +52,9 @@ pub struct MapProposal {
     pub parts: Vec<ProposedPart>,
     pub part_id: Option<PartId>,
     pub old: Option<PartContent>,
+    /// The changed part's parent when the card was proposed.
+    #[serde(default)]
+    pub old_parent: Option<PartId>,
     pub waivers: Vec<ProposedWaiver>,
     pub status: ProposalStatus,
     pub outdated: bool,

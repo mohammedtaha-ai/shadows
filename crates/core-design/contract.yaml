@@ -10,16 +10,8 @@
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns project design edits (§18.2, §18.10–18.11), first called by person HTTP.
 # Reads lazily return an empty revision-zero vision for a live project.
-# Map paths reject Windows device names and a starter file named SHADOWS.md.
-# Rendering rechecks old snapshots and writes SHADOWS.md plus starter files, no contract files.
-# Structure writes pin map and standards, persist hashes before writing, refuse
-# Temporary names avoid all planned files, folders and other temporary names;
-# recorded file hashes are checked before temporary cleanup classification.
-# foreign/changed files before cleanup, publish without clobbering, and move to
-# roadmap only on committed completion. No MCP method invokes this operation.
-# Held by reserved_initial_files_are_refused, windows_device_names_are_refused,
-# structure_writes_no_contract_files and a_reserved_path_refuses. A resumed intent that
-# differs from the plan is cancelled (an_unfinished_old_write_is_cancelled_with_a_clear_message).
+# Map paths reject Windows device names. Map approval opens Roadmap.
+# Design records layout but writes no folders or files.
 # Replay precedes project/revision validation and returns an immutable result.
 name: design
 # Approval stores derive principal/agent/request in one transaction (§24.1).
@@ -29,21 +21,31 @@ status: current
 source: crates/core-design/src
 
 shapes:
-  StructureWritten:
-    map_version: i64
-    paths: Vec<String>
-    completed_at: String
-    resumed: bool
+  ProjectLayout:
+    map_revision: i64
+    standards_base: i64
+    standards_additions: Option<i64>
+    parts: Vec<LayoutPart>
+  LayoutPart:
+    note: Identity, parent, title, kind, folder, grouping, joined layers and applicable rules.
+  LayoutLayer:
+    note: Catalog id, role, may_use plus accepted place and not_used reason.
+  OwnedVia:
+    values: [Folder, Layer(String)]
+  PathOwner:
+    part: PartId
+    via: OwnedVia
+  RuleText:
+    id: String
+    text: String
   StageView:
     drift: Vec<String>
     stage: Stage
     missing: Vec<String>
     map_revision: i64
-    structure_file_count: Option<u32>
   Design:
     store: Arc<DesignStore>
     operations: Operations
-    structure_lock: Arc<Mutex<()>>
   AgreementContent:
     capability: String
     purpose: String
@@ -93,7 +95,6 @@ shapes:
     serves: Vec<String>
     folder: String  # serde default; an old JSON value with folders reads with folder empty
     layers: Vec<PartLayer>  # serde default
-    files: Vec<InitialFile>
     contract: ContractHead
     title: String
     responsibility: String
@@ -101,7 +102,7 @@ shapes:
     kind: Option<String>
   PartLayer:
     layer: String
-    place: String  # project-relative, inside the part's folder; empty when not used
+    place: String  # project-relative stack path; empty when not used
     not_used: Option<String>  # the reason the person approves with the map card
   Part:
     id: PartId
@@ -132,7 +133,7 @@ enums:
   DesignError:
     source: core_design::DesignError
     values: [MapRefused, StageBlocked, ReasonMissing, InvalidCommand, GrantScope, Grants, Storage]
-  Stage: [Idea, Vision, Map, Structure, Roadmap, Plans]
+  Stage: [Idea, Vision, Map, Roadmap, Plans]
   RoadmapAction: [First, Add, Change, Remove]
   WorkspaceOp:
     OutcomeCreate: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId>, content: OutcomeContent }"
@@ -160,19 +161,21 @@ functions:
     approve_vision_proposal_for_test: Test-only approval using the supplied command and approver.
     propose_vision_for_test: Test-only proposal using the supplied command, writer and operation.
   service:
+    layout:
+      signature: "(&self, project: &ProjectId) -> Result<ProjectLayout, DesignError>"
+      rule: One read snapshot joins accepted parts, catalog layers and applicable effective rules; pending proposals are excluded.
+    layout_in:
+      signature: "(conn, project: &ProjectId) -> Result<ProjectLayout, DesignError>"
+      rule: The same layout in the caller snapshot; requires a live project and exposes public map/standards version numbers.
+    owners:
+      signature: "ProjectLayout::owners(&self, path: &str) -> Vec<PathOwner>"
+      rule: Deepest folder first, then all matching layer places in map order; segment case folding, nonempty module markers, no absolute or traversal paths.
     set_thread_anchor:
       signature: "(&self, command_id: String, thread: &ThreadId, anchor: Option<DesignAnchor>) -> Result<Option<DesignAnchor>, DesignError>"
       rule: Replay first, validate the live Planner and same-project anchor, then store or clear it atomically.
     thread_anchor:
       signature: "(&self, thread: &ThreadId) -> Result<Option<DesignAnchor>, DesignError>"
       rule: A removed design item remains a readable reference so Turns can announce its removal.
-    create_structure:
-      signature: "(&self, command_id: String, project: &ProjectId, map_revision: i64) -> Result<StructureWritten, DesignError>"
-      # Person HTTP only; daemon mutex, intent before disk, immutable command replay.
-      # map_revision is the revision the person confirmed and is part of the command
-      # fingerprint; a moved map is RevisionConflict before anything is written.
-    create_structure_stopping_after:
-      signature: "test-support only: (&self, command: String, project: &ProjectId, map_revision: i64, n: usize) -> Result<StructureWritten, DesignError>"
     planner_approver:
       signature: "private: derives Planner writer, running operation and harness from grant/thread"
     approve_vision_proposal_as_planner:
@@ -195,7 +198,7 @@ functions:
       # Seeds the map if absent, one part with folder "seeded" and roadmap_revision 1; answers the part. Idempotent.
     propose_roadmap:
       signature: "(&self, grant: &Grant, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
-      # Planner/thread grant plus running turn; structure write and roadmap revision checked in the store.
+      # Planner/thread grant plus running turn; map approval and roadmap revision checked in the store.
     roadmap_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, DesignError>"
     approve_roadmap_proposal_in:
@@ -217,8 +220,7 @@ functions:
       # Turns reads the stage fact in its snapshot for both normal and steered prompts.
     stage:
       signature: "(&self, project: &ProjectId) -> Result<StageView, DesignError>"
-      # map_revision is the map revision read; structure_file_count is planned from the
-      # same snapshot create_structure uses, none unless create_structure would proceed.
+      # map_revision names the approved map read in the same snapshot.
     agreements_for:
       signature: "(&self, grant: &Grant) -> Result<Vec<AgreementVersion>, DesignError>"
     agreement_for:
@@ -337,17 +339,12 @@ shared_in_transaction:
   approve_vision_proposal_in: Private owner transaction entry; its command rules are listed under functions.
   check_hand_edit: Private owner transaction entry; its command rules are listed under functions.
   edit_design_agreement: Private owner transaction entry; its command rules are listed under functions.
-  finish_structure: Private owner transaction entry; its command rules are listed under functions.
   propose_map_in: Private owner transaction entry; its command rules are listed under functions.
   propose_roadmap_in: Private owner transaction entry; its command rules are listed under functions.
   propose_vision_in: Private owner transaction entry; its command rules are listed under functions.
   stage_line_in: Private owner transaction entry; its command rules are listed under functions.
   stage_view_in: Private owner transaction entry; its command rules are listed under functions.
   start_design_agreement: Private owner transaction entry; its command rules are listed under functions.
-  start_structure: Private owner transaction entry; its command rules are listed under functions.
-  cancel_structure: Private owner transaction entry; clears an unfinished intent that no longer matches the plan.
-  structure_snapshot: Private owner transaction entry; its command rules are listed under functions.
-  structure_snapshot_in: The stage's count and create_structure read the map through it in their own transaction.
   agreement_in: Owner entry in the caller transaction; agreements rules.
   agreed_before_in: Owner entry in the caller transaction; agreements rules.
   mark_agreed_in: Owner entry in the caller transaction; agreements rules.
@@ -376,12 +373,18 @@ called_by_other_services:
   thread_anchor: "Turns::planning_context reads the thread's anchor, then vision, parts, outcomes and agreements (pinned versions through agreement) through their public reads."
 
 obligations:
-  - rule: Map paths refuse Windows device names and initial files at Shadows-owned output paths.
-    tested_by: [windows_device_names_are_refused, reserved_initial_files_are_refused]
+  - rule: Map paths refuse Windows device names.
+    tested_by: [windows_device_names_are_refused]
   - rule: Map proposal fingerprints use normalized titles and paths; equivalent retries replay one card.
     tested_by: equivalent_map_retries_replay_the_original_card
   - rule: An approved map reports newly required mandatory kinds in its stage line and map page.
     tested_by: [approved_map_reports_new_missing_mandatory_kinds, an_added_part_is_mandatory_for_the_stage]
+  - rule: >
+      A map change replaces a part's content and parent; MapProposal.old_parent is the parent at
+      propose time. Approval moves the part (PartMove) only when the parent differs. A parent that
+      is the part or its descendant, or not a part of the project, is refused at propose time;
+      parent_key stays refused on a change.
+    tested_by: [a_map_change_moves_a_part_under_another, a_map_change_with_its_current_parent_does_not_move, a_map_change_with_no_parent_moves_to_the_top, a_map_change_into_its_own_descendant_is_refused, a_map_change_still_refuses_parent_key]
   - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
     tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
   - rule: >
@@ -391,15 +394,15 @@ obligations:
       with the same message.
     tested_by: [first_map_needs_mandatory_kinds_and_waivers_cannot_hide_database, a_waiver_naming_an_optional_kind_is_refused]
   - rule: >
-      Stage is plans once the structure write is complete and roadmap_revision is above zero.
+      Stage is plans once the map is approved and roadmap_revision is above zero.
       Hand outcome edits and outcome plan links refuse STAGE_BLOCKED while it is zero.
-    tested_by: [create_structure_writes_exactly_the_approved_files, hand_outcome_edits_wait_for_the_first_roadmap]
+    tested_by: [the_button_approves_a_first_roadmap_and_opens_the_plans_stage, hand_outcome_edits_wait_for_the_first_roadmap]
   - rule: >
-      A roadmap is proposed and approved only after the structure write. The first
+      A roadmap is proposed and approved only after map approval. The first
       is proposed whole; later proposals add, change or remove one outcome, every
       outcome referencing at least one part of the project. Malformed proposals
       refuse whole and write no card.
-    tested_by: [a_roadmap_waits_for_the_structure, a_malformed_roadmap_is_refused_whole, add_change_and_remove_work_after_the_first_roadmap]
+    tested_by: [a_roadmap_waits_for_map_approval, a_malformed_roadmap_is_refused_whole, add_change_and_remove_work_after_the_first_roadmap]
   - rule: >
       Approval writes the outcomes, their part references and roadmap_revision in
       one transaction with §24 provenance; replay writes nothing. A change replaces
@@ -416,8 +419,8 @@ obligations:
     tested_by: [a_newer_first_or_a_replaces_supersedes_the_pending_card, a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not, a_hand_edit_of_the_outcome_outdates_its_pending_change, tying_a_plan_to_a_part_leaves_a_pending_card_valid]
   - rule: Part writes before the first approved map refuse atomically; every later part write stores a map version.
     tested_by: a_hand_part_create_before_the_first_map_is_stage_blocked
-  - rule: Folder ownership follows containment; case-insensitive file paths never also name directories.
-    tested_by: [folders_nest_only_under_their_parent, initial_files_cannot_escape_part_ownership, initial_files_cannot_also_be_directories]
+  - rule: Folder ownership follows containment; every part has one folder.
+    tested_by: [folders_nest_only_under_their_parent]
   - rule: Missing mandatory kinds cannot be introduced by hand edits; metadata changes preserve review baselines.
     tested_by: [a_hand_edit_cannot_drop_a_mandatory_part, removed_links_and_metadata_edits_preserve_drift]
   - rule: A fresh proposal rechecks its exact running turn in its write transaction; terminal turns produce no card or supersession.
@@ -435,17 +438,10 @@ obligations:
   - rule: Unknown item ids and whitespace-only text refuse without a write.
     tested_by: item_ops_refuse_an_unknown_id_and_empty_text
   - rule: >
-      Stage is computed from one persisted snapshot: idea, vision, map, structure.
-      Only top-level parts whose trimmed kind exactly equals a required name count.
+      Stage is computed from one persisted snapshot: idea, vision, map, roadmap, plans.
+      Parts at every depth whose trimmed kind exactly equals a required name count.
       Added parts come from Standards; unknown/removed projects refuse the stage read.
-    tested_by: [the_stage_walks_idea_vision_map_structure, stage_counts_a_trimmed_kind_and_no_other_case, an_added_part_is_mandatory_for_the_stage]
-  - rule: >
-      The stage's structure_file_count is the number of files create_structure writes:
-      both plan from one snapshot method. create_structure names the confirmed
-      map_revision, which is part of its fingerprint; a moved map refuses with
-      RevisionConflict before any intent or file is written, and one CommandId with
-      another revision is CommandConflict.
-    tested_by: [the_stage_counts_the_files_create_structure_writes, a_map_that_moved_since_the_stage_read_writes_nothing, the_revision_is_part_of_the_commands_identity]
+    tested_by: [the_stage_walks_idea_vision_map_roadmap, stage_counts_a_trimmed_kind_and_no_other_case, an_added_part_is_mandatory_for_the_stage]
   - rule: >
       Outcome containment is independent of parts; cycles/foreign associations
       refuse the entire batch, titles are trimmed, other design text is exact.
@@ -477,26 +473,12 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
-  - name: a_recorded_file_with_a_temp_suffix_is_never_cleaned_up
-    checks: Changed approved temp-suffixed filenames refuse without deletion; restoration resumes.
-  - name: create_structure_writes_exactly_the_approved_files
-    checks: Approved bytes, contracts, SHADOWS.md, roadmap and one durable event.
-  - name: the_stage_counts_the_files_create_structure_writes
-    checks: The stage's file count equals the paths written; none once written.
-  - name: a_map_that_moved_since_the_stage_read_writes_nothing
-    checks: RevisionConflict with the current revision; no file, no intent, stage unchanged.
-  - name: the_revision_is_part_of_the_commands_identity
-    checks: Same command and revision replays the first result; another revision is CommandConflict.
-  - name: a_stopped_write_resumes
-    checks: Incomplete intent preserves structure stage; matching files remain and temp is removed.
-  - name: a_foreign_or_changed_file_refuses_the_resume
-    checks: Foreign or changed bytes refuse before cleanup; existing temporary file remains.
-  - name: a_reserved_path_from_an_older_map_refuses
-    checks: Older snapshot listing SHADOWS.md as a starter file refuses with no disk write.
-  - name: an_unfinished_old_write_is_cancelled_with_a_clear_message
-    checks: A resumed intent whose files differ is cleared and refused with StageBlocked; the next press writes anew.
-  - name: concurrent_calls_write_once
-    checks: Daemon mutex serializes clicks; exactly one writes.
+  - name: roadmap_opens_once_the_map_is_approved
+    checks: A nested database with an external connection place is approved; Roadmap opens with no filesystem writes.
+  - name: parts_with_starter_files_read_back_after_the_migration
+    checks: Migration 0048 removes files from parts and ordered map snapshots; parts remain readable.
+  - name: a_project_past_the_old_structure_step_opens_roadmap
+    checks: Migration 0049 drops old structure bookkeeping and preserves Roadmap readiness.
   - name: a_revoked_grant_cannot_approve
     checks: A revoked Planner grant cannot commit approval or record a command.
   - name: an_ended_turn_cannot_approve
@@ -508,7 +490,7 @@ tests:
   - name: equivalent_map_retries_replay_the_original_card
     checks: Equivalent title/path spellings retain one pending proposal identity.
   - name: approved_map_reports_new_missing_mandatory_kinds
-    checks: Structure stage does not claim map completeness when mandatory kinds are missing.
+    checks: An approved map stays at Roadmap, and its stage line names missing mandatory kinds.
   - name: first_map_approval_records_waiver_and_replays_once
     checks: Proposal writes no parts; approval records the person, waiver and exactly one version on replay.
   - name: proposals_pin_the_turns_standards_not_newer_additions
@@ -519,8 +501,8 @@ tests:
     checks: A live independent card cannot bypass a newly incomplete vision.
   - name: a_second_add_with_the_same_identity_is_refused_at_approval
     checks: Concurrent pending additions revalidate identity against the committed map.
-  - name: a_roadmap_waits_for_the_structure
-    checks: STAGE_BLOCKED before the structure write; no card is stored.
+  - name: a_roadmap_waits_for_map_approval
+    checks: STAGE_BLOCKED before map approval; no card is stored.
   - name: the_button_approves_a_first_roadmap_and_opens_the_plans_stage
     checks: Card writes no outcome; approval writes the tree and parts once, replays, stage is plans.
   - name: the_planner_approves_at_the_persons_request
@@ -539,8 +521,8 @@ tests:
     checks: A change with no parent moves a child to the top; naming a parent moves it back.
   - name: tying_a_plan_to_a_part_leaves_a_pending_card_valid
     checks: A person's plan link to a referenced part keeps the card valid; a content edit outdates it.
-  - name: the_planner_proposes_and_approves_a_roadmap_after_the_structure
-    checks: Over MCP, STAGE_BLOCKED before the structure, roadmap_approve as planner, then a tied plan approves.
+  - name: the_planner_proposes_and_approves_a_roadmap_after_map_approval
+    checks: Over MCP, STAGE_BLOCKED before map approval, roadmap_approve as planner, then a tied plan approves.
   - name: roadmap_proposal_routes_list_and_approve
     checks: HTTP list and replayable approval; no Planner approval without a running turn; events reach the tail.
   - name: hand_outcome_edits_wait_for_the_first_roadmap
@@ -549,22 +531,18 @@ tests:
     checks: Refusal without writes; test-only seed enables edits and immutable map snapshots.
   - name: folders_nest_only_under_their_parent
     checks: Ancestor-owned folders allow child ownership; sibling overlap rolls back.
-  - name: initial_files_cannot_escape_part_ownership
-    checks: A starter file outside its part's folder is refused.
-  - name: initial_files_cannot_also_be_directories
-    checks: A file equal to a folder or containing a folder/file below it refuses the whole write.
   - name: a_hand_edit_cannot_drop_a_mandatory_part
-    checks: Kind edits and moves cannot remove mandatory top-level ownership.
+    checks: Removing a required kind refuses; moving it into another part preserves its presence.
   - name: removed_links_and_metadata_edits_preserve_drift
     checks: Rename does not acknowledge changed goals; removed links do not block unrelated edits.
   - name: a_new_proposal_cannot_commit_under_a_finished_turn
     checks: Captured operation stopped before persistence refuses with no version, card or event.
-  - name: the_stage_walks_idea_vision_map_structure
+  - name: the_stage_walks_idea_vision_map_roadmap
     checks: Empty/incomplete vision, missing map parts, complete map.
   - name: stage_counts_a_trimmed_kind_and_no_other_case
-    checks: Trimming, case sensitivity, exclusion of child parts.
+    checks: Trimmed kinds count at any depth; kind matching remains case sensitive.
   - name: an_added_part_is_mandatory_for_the_stage
-    checks: Effective additions extend stage requirements.
+    checks: Effective additions extend stage requirements; an approved map stays at Roadmap with the gap in missing.
   - name: a_planner_reads_the_workspace_a_person_wrote
     checks: A Planner grant reads the vision and a part over MCP; workspace_get is read only.
   - name: agreement_review_detects_stale_part_and_agrees_without_implicit_adoption
@@ -649,6 +627,8 @@ tests:
 # Map proposal standards pins are read through Harness::pinned_standards_in.
 
 modules:
+  layout.rs: Accepted layout values and pure path ownership
+  store/layout.rs: Snapshot reads of accepted layout
   anchors.rs: Planner anchor commands
   store/anchors.rs: Planner anchor persistence
   agreement.rs: Shared HTTP agreement value shapes
@@ -694,12 +674,8 @@ modules:
     a conversation
   store/roadmap_shape.rs: Checking a proposed roadmap against its action
   store/stage.rs: Reading every stage input in one consistent project snapshot
-  store/structure.rs: Intent, snapshot
   store/vision.rs: Atomic workspace edits with immutable command results
   store/vision_versions.rs: Persisted vision versions
-  structure.rs: Rendering an approved map snapshot into files
-  structure_create.rs: Coordinating a person's structure write
-  structure_write.rs: Checking
   vision_items.rs: Pure vision item edits with server-assigned identities (PU, U, G, B, TD)
   workspace.rs: A grant's read of its project's workspace, so a Planner plans from it
 
@@ -712,7 +688,7 @@ planning_anchor:
 map_refusals:
   type: MapRefusal with stable rule and actionable message.
   error: DesignError::MapRefused preserves the rule through application translation.
-  rules: [duplicate_part, duplicate_sibling, missing_parent, one_folder, folder_outside_parent, unknown_vision_item, unknown_rule, file_outside_part, duplicate_file, file_is_folder, folder_claimed_twice, reserved_file, invalid_path, invalid_part, missing_layer, unknown_layer, layer_outside_part, layer_place_shared, layer_not_used_without_reason, layer_inside_child]
+  rules: [duplicate_part, duplicate_sibling, missing_parent, one_folder, folder_outside_parent, unknown_vision_item, unknown_rule, folder_claimed_twice, invalid_path, invalid_part, missing_layer, unknown_layer, layer_place_shared, layer_not_used_without_reason]
 
 vision_reservations:
   storage: design_vision_proposal.reserved_item_id records the id allocated during Add proposal.
@@ -730,10 +706,11 @@ map_refusal_repairs:
   equal_folder: Equal folder claims require one owner or distinct claims even for parent-child parts.
   nested_folders: Distinct nested claims may follow the same parent-child relationship as their parts.
   one_folder: 'Every part in the candidate map has a non-empty folder ("part {title} has no folder. Give the part one folder."), over the whole candidate map; an older part without one is refused on its map''s next write, with the part named.'
-  layer_place: 'MapRules::normalise normalises the folder and each non-empty layer place; a place keeps one {module} marker literally and a second is refused as invalid_path (map_rules: a_second_module_marker_is_refused). check_places refuses a part folder holding {module} as invalid_path, since Create structure makes the folder literally (map_rules: a_part_folder_cannot_hold_a_module_marker).'
+  layer_place: 'MapRules::normalise normalises the folder and each non-empty layer place. Markers are descriptive text with no count limit; a part folder remains literal. Tests: a_marker_may_appear_more_than_once, a_part_folder_cannot_hold_a_module_marker, a_used_layer_place_must_be_a_valid_relative_path.'
   migration_0047: 'design_part and each design_map_version row (its inner content_json string, element order kept) move folders[0], or the title slug, to folder, drop folders and set layers to []; every Pending design_map_proposal becomes Superseded (design_migration: a_stored_part_with_folders_reads_back_with_its_first_folder, a_part_without_folders_gets_its_title_slug, a_map_version_keeps_its_row_order, the_daemon_starts_on_a_database_with_old_parts, a_part_round_trips_its_layers).'
   folder_outside_parent: Every child's folder sits inside its parent's folder, by segment and ignoring case, over the whole candidate map.
   check_places: 'MapRules::check_places(parts, standards) is the shared folder and layer policy, also called by check_shape. Catalog-required layers need places or explicit reasons; same-kind parents group their children without requiring their own layers.'
-  layer_ownership: 'Every expansion must remain inside its part. Possible equality or nesting conflicts between layer places and entry into a child folder are refused, including embedded {module} markers. Tests: map_rules; design_routes::a_map_without_a_required_layer_is_refused_on_every_write_path.'
-  structure_layers: 'The structure snapshot supplies ordered part identities, parent links and effective standards to render. Render calls check_places before planning directories; literal used layer places and their parents become directories. Module patterns create nothing. Tests: structure_makes_each_layer_folder, a_module_pattern_place_makes_no_folder, render_checks_child_folders_against_their_parents.'
-  layer_files: 'Starter files cannot replace or contain literal layer directories; the whole candidate is checked at proposal, approval and person edit. Included optional layers need a place. Tests: a_starter_file_cannot_replace_a_layer_directory, an_included_optional_layer_needs_a_place, layer_file_collisions_and_empty_optional_places_are_refused_on_every_write_path.'
+  required_kind: 'A part satisfies its kind at any nesting depth; a nested database is not missing from the map. Test: a_nested_part_satisfies_its_required_kind.'
+  canonical_places: 'The policy compares normalized, case-folded layer places even when called directly; equivalent aliases refuse with layer_place_shared. Missing-layer guidance requests a stack-specific place or a not-used reason. Tests: equivalent_normalized_layer_places_are_refused, a_missing_layer_requests_a_stack_specific_place.'
+  layer_ownership: 'Layer places follow the stack and may lie outside their part, inside a child, or overlap by containment or possible pattern expansion. Equal normalized places within a part still refuse, ignoring case. Tests: a_laravel_map_with_a_nested_database_part_is_approved, a_place_outside_its_part_is_accepted, layer_places_use_windows_case_rules, two_layers_sharing_a_place_are_refused; design_routes::a_map_without_a_required_layer_is_refused_on_every_write_path.'
+  optional_place: Included optional layers need a place or a not-used reason; tested by an_included_optional_layer_needs_a_place.

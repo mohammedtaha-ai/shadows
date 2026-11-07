@@ -64,6 +64,7 @@ impl DesignStore {
                         .into());
                     }
                     shape::MapProposalShapeRows::complete(&vision)?;
+                    let old_parent = proposal.old_parent;
                     let mut args = MapPropose {
                         action: proposal.action,
                         parts: proposal.parts,
@@ -160,6 +161,21 @@ impl DesignStore {
                             &Default::default(),
                         )
                         .await?;
+                        if args.action == MapAction::Change && part.parent != old_parent {
+                            let op = crate::WorkspaceOp::PartMove {
+                                id: args.part_id.clone().expect("validated"),
+                                parent: part.parent.clone(),
+                                before: None,
+                            };
+                            super::part_edit::PartEditRows::apply(
+                                conn,
+                                &p,
+                                op,
+                                &mut changed,
+                                &Default::default(),
+                            )
+                            .await?;
+                        }
                         done.insert(part.key.clone());
                     }
                     if let Some(part) = &args.part_id {

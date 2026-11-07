@@ -82,9 +82,6 @@ export interface Overrides {
   /** `POST /api/projects/p1/mcp-grants`; by default issues grant `g9` with
    * its token and command. */
   issue?: Answer
-  /** The design map the stage and the structure create answer from. A test moves
-   * the map by changing `revision`; `count` null is a stage that cannot create. */
-  map?: { revision: number; count: number | null }
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
@@ -97,23 +94,23 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   let instructions = o.instructions ?? null
   let grants = o.grants ?? []
   let standards: EffectiveStandards = {
-    base: { version: 2,
+    base: { version: 3,
       parts: [
         { name: 'backend', owns: 'All logic.', presence: 'required', layers: [
-          { id: 'domain', role: 'Business rules', required: true, elements: ['entity'], may_use: [] },
-          { id: 'application', role: 'Use cases', required: true, elements: ['use_case'], may_use: [{ part_kind: null, layer: 'domain' }] },
+          { id: 'domain', role: 'Business rules', required: true, may_use: [] },
+          { id: 'application', role: 'Use cases', required: true, may_use: [{ part_kind: null, layer: 'domain' }] },
         ] },
         { name: 'database', owns: 'Schema and storage.', presence: 'required', layers: [] },
         { name: 'api', owns: 'Versioned API.', presence: 'waivable', layers: [] },
         { name: 'frontend', owns: 'The interface only.', presence: 'waivable', layers: [] },
         { name: 'integration', owns: 'Outside services.', presence: 'optional', layers: [] },
       ],
-      rules: [{ id: 'S1', text: 'Each service owns its tables.', parts: ['backend', 'database'] }],
+      rules: [
+        { id: 'S1', text: 'Each service owns its tables.', parts: ['backend', 'database'] },
+        { id: 'S10', text: 'Each runnable part has one owner object. Services use declared dependencies.', parts: [] },
+      ],
     }, additions: null,
   }
-  const map = o.map ?? { revision: 1, count: null }
-  // Command id to the revision it first carried, as Core fingerprints it.
-  const structureCommands = new Map<string, number>()
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
     'GET /api/aylul/agent-template': { instructions: 'Synthetic bundled agent instructions.' },
@@ -155,21 +152,8 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/projects/p1/agreements': [],
     'GET /api/projects/p1/standards': () => Response.json(standards),
     'GET /api/projects/p1/stage': () => Response.json({
-      stage: 'idea', missing: [], structure_file_count: map.count, map_revision: map.revision,
+      stage: 'idea', missing: [], drift: [], map_revision: 1,
     }),
-    'POST /api/projects/p1/structure': async (request: Request) => {
-      const { command_id, map_revision } = await request.json() as { command_id: string; map_revision: number }
-      const first = structureCommands.get(command_id)
-      if (first !== undefined && first !== map_revision) {
-        return Response.json({ code: 'COMMAND_CONFLICT', message: 'command id reused with a different request' }, { status: 409 })
-      }
-      if (map_revision !== map.revision) {
-        return Response.json({ code: 'REVISION_CONFLICT', message: 'the map changed', current_revision: map.revision }, { status: 409 })
-      }
-      structureCommands.set(command_id, map_revision)
-      return Response.json({ map_version: map.revision, paths: ['SHADOWS.md'],
-        completed_at: '2026-10-12T00:00:00Z', resumed: false })
-    },
     'PUT /api/projects/p1/standards/additions': async (request: Request) => {
       const { content } = await request.json() as { content: StandardsAdditions }
       const additions = { number: (standards.additions?.number ?? 0) + 1, content, created_at: '2026-10-10T00:00:00Z' }

@@ -20,8 +20,11 @@ export function ComposerInput({ input, overlay, action }: {
   return (
     <div data-composer-input className="surface-glow flex items-end gap-2.5 rounded-2xl p-3 transition-all duration-150 focus-within:border-accent-line/80 focus-within:ring-2 focus-within:ring-accent-line/30">
       <div className="relative min-w-0 flex-1">
-        <textarea {...input} rows={2}
-          className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground" />
+        {/* field-sizing-content grows the box with its text; rows is ignored under it, so
+            min-h-12 keeps the empty box at its two-line height. rows stays for engines without it.
+            dir=auto lets the text take its own direction, Arabic right to left, as messages do. */}
+        <textarea {...input} rows={2} dir="auto"
+          className="field-sizing-content max-h-48 min-h-12 w-full resize-none overflow-y-auto bg-transparent px-2 py-1 text-start text-sm text-foreground outline-none placeholder:text-faint-foreground" />
         {overlay}
       </div>
       {action}

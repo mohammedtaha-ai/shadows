@@ -8,9 +8,9 @@ fn base_only() -> EffectiveStandards {
 }
 
 #[test]
-fn the_base_standards_parse_with_five_kinds_and_rules_s1_to_s9() {
+fn the_base_standards_parse_with_five_kinds_and_rules_s1_to_s10() {
     let b = Standards::base();
-    assert_eq!(b.version, 2);
+    assert_eq!(b.version, 3);
     let kinds: Vec<_> = b
         .parts
         .iter()
@@ -29,7 +29,7 @@ fn the_base_standards_parse_with_five_kinds_and_rules_s1_to_s9() {
     let rules: Vec<_> = b.rules.iter().map(|r| r.id.as_str()).collect();
     assert_eq!(
         rules,
-        ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]
+        ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"]
     );
     for rule in &b.rules {
         assert!(rule.id.starts_with('S'));
@@ -44,9 +44,9 @@ fn the_base_standards_parse_with_five_kinds_and_rules_s1_to_s9() {
 }
 
 #[test]
-fn v2_names_required_backend_layers() {
+fn v3_names_required_backend_layers() {
     let standards = base_only();
-    assert_eq!(standards.base.version, 2);
+    assert_eq!(standards.base.version, 3);
     let backend = standards
         .base
         .parts
@@ -122,4 +122,20 @@ fn integration_is_optional_and_not_mandatory() {
         standards.mandatory_parts(),
         ["backend", "database", "api", "frontend"]
     );
+}
+
+#[test]
+fn base_v3_has_no_element_kinds_and_states_s10() {
+    let base = Standards::base();
+    assert_eq!(base.version, 3);
+    let json = serde_json::to_value(base).unwrap();
+    for kind in json["parts"].as_array().unwrap() {
+        for layer in kind["layers"].as_array().unwrap() {
+            assert!(layer.get("elements").is_none());
+        }
+    }
+    let rule = |id| base.rules.iter().find(|rule| rule.id == id).unwrap();
+    assert!(rule("S10").text.contains("one owner object"));
+    assert!(rule("S10").text.contains("declared dependencies"));
+    assert!(!rule("S6").text.contains("own folder"));
 }

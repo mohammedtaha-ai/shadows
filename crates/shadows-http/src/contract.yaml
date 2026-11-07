@@ -88,3 +88,5 @@ planning_context:
   absent_record: 404 CONTEXT_NOT_CARRIED, with no assertion about the reason.
 
 map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; shared adapter fixtures cover it.'
+
+layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.

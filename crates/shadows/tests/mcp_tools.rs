@@ -608,3 +608,110 @@ async fn a_planner_edits_only_the_plan_latest_version() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn both_grants_read_approved_task_context_without_execution_authority() {
+    let l = listening_app().await;
+    let workflow = approved_v1(&l.app).await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let (_, external) = project_client(&l).await;
+    for client in [&planner, &external] {
+        let tools = client.list_all_tools().await.unwrap();
+        let tool = tools.iter().find(|t| t.name == "task_context").unwrap();
+        assert!(
+            tool.description
+                .as_deref()
+                .unwrap()
+                .contains("no permission to execute")
+        );
+        let context = ok(
+            client,
+            "task_context",
+            json!({
+                "workflow_id": workflow, "task_number": 1,
+            }),
+        )
+        .await;
+        assert_eq!(context["plan"]["workflow_id"], json!(workflow));
+        assert_eq!(context["task"]["number"], 1);
+        assert!(context["standards"]["base"].as_i64().unwrap() >= 3);
+        assert!(context.get("execute").is_none());
+        assert!(
+            refused(
+                client,
+                "task_context",
+                json!({
+                    "workflow_id": workflow, "task_number": 99,
+                })
+            )
+            .await
+            .contains("T99")
+        );
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn the_planner_edits_phases_and_reads_selected_phase_context() {
+    let l = listening_app().await;
+    let workflow = draft(&l.app).await.workflow_id;
+    let planner = thread_client(&l, &l.app.thread).await;
+    ok(
+        &planner,
+        "plan_edit",
+        json!({"workflow_id":workflow,"expected_revision":0,
+        "ops":[add(1)]}),
+    )
+    .await;
+    ok(
+        &planner,
+        "plan_edit",
+        json!({"workflow_id":workflow,"expected_revision":1,
+        "ops":[{"op":"phases_set","task":1,"phases":[{
+            "title":"Build","goal":"Deliver","acceptance":[1],"waits_for":[]
+        }]}]}),
+    )
+    .await;
+    let read = ok(&planner, "workflow_get", json!({"workflow_id":workflow})).await;
+    let id = read["tasks"][0]["phases"][0]["id"].clone();
+    plan::tie_to_part(&l.app, &workflow).await;
+    l.app
+        .core
+        .plans()
+        .approve("phase-approve".into(), &workflow, 2)
+        .await
+        .unwrap();
+    let context = ok(
+        &planner,
+        "task_context",
+        json!({
+            "workflow_id":workflow,"task_number":1,"phase_id":id,
+        }),
+    )
+    .await;
+    assert_eq!(context["phase"]["id"], id);
+    assert_eq!(
+        context["task"]["acceptance"],
+        read["tasks"][0]["acceptance"]
+    );
+    assert!(
+        refused(
+            &planner,
+            "task_context",
+            json!({
+                "workflow_id":workflow,"task_number":1,"phase_id":"missing",
+            })
+        )
+        .await
+        .contains("phase")
+    );
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}

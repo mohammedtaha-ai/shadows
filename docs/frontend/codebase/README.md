@@ -273,7 +273,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/index.ts` | Declare lazy route surfaces | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/copy-button.tsx` | Button that copies a text to the clipboard | `web/src/app/error-line.tsx` |
 | `web/src/app/daemon-status.tsx` | Shows whether the daemon answers, with the reason | `web/src/app/error-line.tsx` |
-| `web/src/app/design/create-structure.tsx` | Confirms the project's structure write | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/map-part-details.tsx` | Read-only details of one map part | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/outcome-editor.tsx` | Editor for one outcome, keeping unsaved input | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/part-editor.tsx` | Editor for one part, keeping unsaved input | `web/src/app/design/contract.yaml` |
@@ -377,6 +376,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/plan-page.tsx` | Workflows page for one plan version | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-state.ts` | How a plan version's state reads to a person | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-node.tsx` | Draws one node of the plan graph | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/task-view.tsx` | Show a task's phase graph | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/phase-node.tsx` | Draw task phase nodes | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/phase-layout.ts` | Project exact phase dependencies | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/use-plan.ts` | One plan version, kept current for a component | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/version-line.tsx` | Line naming a version's writer, with its reason | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/index.ts` | Expose app/workflows public capabilities | `web/src/app/workflows/contract.yaml` |
