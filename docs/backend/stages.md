@@ -96,7 +96,17 @@ Elements and trace are dropped.
 
 ## Tasks
 
-No task is open on this file. The [design](specs/2026-11-05-structure-and-depth-design.md)
+### B-83 · Order project conversations by the latest assistant reply
+
+- Status: done (automated checks; Mohammed owns manual browser acceptance)
+- Plan: Direct user request, 2026-11-07; owner spec §13.11 in `docs/core/specs/2026-09-25-planner-workflow-design.md`.
+- Read: `crates/core-threads/contract.yaml`.
+- Touch: `crates/core-threads/src/store/thread.rs`, `crates/core-threads/tests/entries.rs`, `crates/core-threads/contract.yaml`, this stages file.
+- Needs: `docs/shared/requests/2026-11-07-conversation-reply-order.md` (accepted).
+- Done when: core-threads tests, affected clippy, fmt, architecture, codemap and contract checks pass. Manual browser acceptance belongs to Mohammed.
+- Verified: 9 core-threads tests, 49 architecture tests, codemap, contract tests and 8 OpenAPI tests; affected clippy with and without test-support; fmt and changed Rust line lengths.
+
+The [design](specs/2026-11-05-structure-and-depth-design.md)
 owns later structure work (outcome coverage, code observation). Existing projects are test data: no compatibility layer.
 Coverage and code observation must not be recorded as completed execution.
 

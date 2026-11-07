@@ -187,8 +187,9 @@ functions:
     list_for_profile: Read live agent conversations newest first by created_at then id.
     list:
       signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, ThreadsError>"
-      # Oldest first by the `PlanningThreadCreated` event's seq; an unknown
-      # project has none.
+      # Latest AgentMessage append event sequence first. Unanswered threads
+      # follow, newest PlanningThreadCreated sequence first, then id.
+      # An unknown project has none.
       # Then `Code::touch` of the project: the web client opening a project
       # lists its threads (§15.6). It never fails the listing.
     create:
@@ -435,9 +436,10 @@ obligations:
       without it.
 
   - rule: >
-      Threads are listed in creation order, by the durable sequence of their
-      `PlanningThreadCreated` event, never by `created_at` text.
-    tested_by: threads_are_listed_in_creation_order_whatever_their_timestamp_text
+      Project threads are listed by descending latest AgentMessage append sequence,
+      then descending PlanningThreadCreated sequence and id. Unanswered threads
+      follow replied threads. User messages and tool entries do not promote threads.
+    tested_by: project_threads_follow_latest_agent_reply
 
   - rule: >
       A thread's operations are listed newest first, each as it stands, and
@@ -575,8 +577,8 @@ tests:
     checks: An append refused by a trigger leaves the next append at ordinal 1.
   - name: entries_are_read_in_ordinal_order
     checks: Entries read back in ordinal order.
-  - name: threads_are_listed_in_creation_order_whatever_their_timestamp_text
-    checks: Two threads whose created_at text sorts backwards list in creation order.
+  - name: project_threads_follow_latest_agent_reply
+    checks: Latest assistant replies promote a thread; user and tool entries do not. Unanswered threads follow in descending creation sequence regardless of timestamp text.
   - name: a_threads_operations_are_listed_newest_first_with_their_status
     checks: >
       Over HTTP, the thread's two operations list Running then Completed;

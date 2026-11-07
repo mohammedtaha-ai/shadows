@@ -2,6 +2,7 @@
 import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { answers } from '@/test/fake-daemon'
+import { threadFixture } from '@/test/contract-fixtures'
 import { startApp, until, type TestApp } from '@/test/test-app'
 let app: TestApp | null = null
 const sidebar = () => document.querySelector('#app-sidebar')
@@ -9,7 +10,31 @@ const button = (s: string) => document.querySelector<HTMLButtonElement>(`button[
 const click = (s: string) => act(() => button(s)?.click())
 const input = () => document.querySelector<HTMLInputElement>('input[aria-label="Filter sidebar"]')
 const media = (narrow: boolean) => vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: narrow, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-afterEach(() => { app?.unmount(); app = null; vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear() })
+afterEach(() => { app?.unmount(); app = null; vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear() })
+it('refreshes conversation order when an assistant reply arrives', async () => {
+  const older = { ...threadFixture, title: 'Older conversation' }
+  const newer = { ...threadFixture, id: 't2', title: 'Newer conversation', created_at: '2026-11-03T00:00:00Z' }
+  let threads = [newer, older]
+  const links = () => [...sidebar()!.querySelectorAll('a[href*="/threads/"]')]
+    .map(link => link.textContent?.trim())
+  app = await startApp('/projects/p1/threads/t1', {
+    ...answers(),
+    'GET /api/projects/p1/threads': () => Response.json(threads),
+  })
+  await until(() => links().length === 2)
+  await until(() => app!.sources.some(source => source.param('thread_id') === 't1'))
+  const source = app.sources.find(source => source.param('thread_id') === 't1')!
+  act(() => source.caughtUp(0))
+  await until(() => !app!.queryClient.isFetching())
+  expect(links()).toEqual(['Newer conversation', 'Older conversation'])
+  threads = [older, newer]
+  vi.useFakeTimers()
+  await act(async () => {
+    source.durable(1, 'ThreadEntryAppended', null, { ordinal: 2, kind: 'AgentMessage' })
+    await vi.advanceTimersByTimeAsync(100)
+  })
+  expect(links()).toEqual(['Older conversation', 'Newer conversation'])
+})
 it('the sidebar shows the description under the agent name', async () => {
   app = await startApp('/aylul', { ...answers(),
     'GET /api/aylul/providers': [{ slug: 'fixture', models: [] }],

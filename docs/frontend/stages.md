@@ -63,4 +63,12 @@ routing, event refresh, contracts and code-map paths first.
 Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
 
-No `F-` task is open on this file.
+### F-96 · Refresh conversation order after an assistant reply
+
+- Status: done (automated checks; Mohammed owns manual browser acceptance)
+- Plan: Direct user request, 2026-11-07; owner spec §13.11 in `docs/core/specs/2026-09-25-planner-workflow-design.md`.
+- Read: `web/src/stream/contract.yaml`, `web/src/app/sidebar/contract.yaml`.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/stream/contract.yaml`, `web/src/app/sidebar/sidebar.test.tsx`, `web/src/app/sidebar/contract.yaml`, `web/src/api/threads.ts`, `web/src/api/contract.yaml`, this stages file.
+- Needs: B-83; `docs/shared/requests/2026-11-07-conversation-reply-order.md` (accepted).
+- Done when: affected sidebar/stream tests, typecheck, lint, build, codemap and architecture checks pass. Manual browser acceptance belongs to Mohammed.
+- Verified: 164 tests in sidebar, stream, codemap and architecture; typecheck, lint and production build. Vite retains its existing chunk-size warning.

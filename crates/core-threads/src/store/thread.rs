@@ -116,8 +116,8 @@ impl super::ThreadsStore {
         &self,
         project_id: &ProjectId,
     ) -> Result<Vec<PlanningThread>, StorageError> {
-        // Oldest first, by the `PlanningThreadCreated` event's sequence, for
-        // the reason `list_projects` gives.
+        // Journal sequence records reply arrival even when timestamp text has
+        // varying precision. Other entries must not promote a conversation.
         let rows: Vec<ThreadRow> = sqlx::query_as(
             "SELECT t.id, t.project_id, t.title, t.status, t.created_at, t.harness_kind,
                     t.forked_from_thread, t.removed_at, t.profile
@@ -125,7 +125,11 @@ impl super::ThreadsStore {
                LEFT JOIN durable_event e
                  ON e.thread_id = t.id AND e.kind = 'PlanningThreadCreated'
               WHERE t.project_id = ? AND t.removed_at IS NULL AND t.hidden = 0
-              ORDER BY e.seq, t.id",
+              ORDER BY (
+                  SELECT MAX(reply.seq) FROM durable_event reply
+                   WHERE reply.thread_id = t.id AND reply.kind = 'ThreadEntryAppended'
+                     AND json_extract(reply.payload_json, '$.kind') = 'AgentMessage'
+              ) DESC, e.seq DESC, t.id",
         )
         .bind(project_id.as_str())
         .fetch_all(self.storage.reader())

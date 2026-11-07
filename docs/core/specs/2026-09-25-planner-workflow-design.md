@@ -528,6 +528,13 @@ polling. Grant lists refetch after the person's own actions and every
   the URL is in opens when the URL comes to it, and the open set is
   remembered in the browser across reloads. A `+` on the row is the only way
   to add a conversation.
+- **Conversation order:** within a project, the conversation with the latest
+  received assistant reply comes first, using the durable sequence of its latest
+  `AgentMessage` append. User messages, tool entries and title changes do not
+  promote a conversation. Conversations without replies follow those with replies,
+  newest creation sequence first, then id. The client displays Core's order,
+  refreshes it on a received assistant entry and polls every ten seconds for
+  background replies. Agent-profile conversation ordering is unchanged.
 - **A new conversation is a draft until its first message.** The `+` opens
   `/projects/{id}/new`: the empty conversation with its composer, and nothing
   on the daemon. The draft offers what is known before a session exists: the
