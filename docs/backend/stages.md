@@ -80,27 +80,24 @@ Not built: `Plans::owner_thread` (spec §6, slice 4), which waits for messaging 
 Structure and depth, slice 1 (one folder per part, no contract files): the design and its plan
 were merged in PR #58 (`96f9ff3d`). Slice 1 shipped in PR #59 (`26bf739e`), with B-60 to B-62;
 their entries, and the commits outside their `Touch:` lists (`d148c111`, `ec20c911`, `6874e9b2`,
-`80c1b934`), are in this file at `26bf739e`. The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`;
-its live acceptance is not recorded.
+`80c1b934`), are in this file at `26bf739e`. The plan is at `a4f89386`; its live acceptance is not recorded.
 
 Structure and depth, slice 2 (standards v2 and layers on the map): B-63 to B-70 shipped in PR #60
 (`b64242a7`), with F-90 and F-91. Their entries, and the commits outside their `Touch:` lists
 (`ed4005a7`, `d0fdc70a`, `0774ac2a`), are in this file at `b64242a7`. B-68 to B-70 are test tooling:
 a contract-to-test name check (`cargo test -p shadows --test contract_tests`), a weekly coverage
-report and an on-demand mutation run. The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`;
-its live acceptance is not recorded.
+report and an on-demand mutation run. The plan is at `a4f89386`; its live acceptance is not recorded.
 
 Structure and depth, slices 3 to 5 (principles, task context, task phases, and a map change that moves
 a part): B-71 to B-82 shipped in PR #61 (`a4f89386`), with F-92 to F-95; their entries are in this file
-at `a4f89386`. The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`. Mohammed's manual
-acceptance on the existing project is pending; real-provider and daily-project acceptance are not recorded.
+at `a4f89386`, and so is the plan, deleted after the merge. Mohammed tried slices 3 to 5 in the browser
+on 2026-11-07; real-provider acceptance is not recorded.
 Elements and trace are dropped.
 
 ## Tasks
 
-No task is open on this file. The [design](specs/2026-11-05-structure-and-depth-design.md) and
-[delivery plan](plans/2026-11-05-structure-and-depth.md#dispatch-and-progress) define the
-readiness checklist for later work. Existing projects are test data: no compatibility layer.
+No task is open on this file. The [design](specs/2026-11-05-structure-and-depth-design.md)
+owns later structure work (outcome coverage, code observation). Existing projects are test data: no compatibility layer.
 Coverage and code observation must not be recorded as completed execution.
 
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.

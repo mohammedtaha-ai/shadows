@@ -45,7 +45,7 @@ recorded.
 | **Project stage** | A roadmap outcome of the person's project, such as "Stage 1: working support loop". |
 | **Delivery slice** | A numbered piece of this work in the plan. |
 
-Plan: [../plans/2026-11-05-structure-and-depth.md](../plans/2026-11-05-structure-and-depth.md).
+Plan: delivered in PRs #59 to #61 and deleted after the merge; it is at `a4f89386`.
 The mockup in [2026-11-05-structure-and-depth-mockup/](2026-11-05-structure-and-depth-mockup/README.md)
 predates the 2026-11-06 decision. Its element, depth and trace screens are
 not part of this design. Its task view and Show phases screen still are.

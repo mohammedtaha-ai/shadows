@@ -33,11 +33,10 @@ fixture in `web/src/app/design/create-structure.test.tsx`, with no `F-` task.
 
 Structure and depth, slice 2 (PR #60, `b64242a7`): F-90 and F-91 shipped with B-63 to B-70. Their
 entries, and the web fix `fb46cac4` outside their `Touch:` lists, are in this file at `b64242a7`.
-The plan is `docs/backend/plans/2026-11-05-structure-and-depth.md`.
+The plan is at `a4f89386`, deleted after the merge.
 
 Structure and depth, slices 3 to 5 (PR #61, `a4f89386`): F-92 to F-95 shipped with B-71 to B-82.
-Their entries are in this file at `a4f89386`. Mohammed's manual acceptance on the existing project
-is pending.
+Their entries are in this file at `a4f89386`. Mohammed tried them in the browser on 2026-11-07.
 
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
@@ -58,8 +57,7 @@ Two composer fixes in PR #61 have no `F-` task: `1b85b6e6` (the textarea grows t
 
 Structure and planning depth: slices 1 to 5 are on `main`; slice 1 needs no web task. The
 [workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
-and [slice prerequisites](../backend/plans/2026-11-05-structure-and-depth.md#dispatch-and-progress)
-are the review targets. Before a new `F-` task is dispatched, its shared
+is the review target. Before a new `F-` task is dispatched, its shared
 request must be accepted and its backend response must exist. Expand the API hooks,
 routing, event refresh, contracts and code-map paths first.
 Use Roadmap for outcome coverage and Project map for ownership. The old
