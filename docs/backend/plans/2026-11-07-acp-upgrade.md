@@ -72,6 +72,9 @@ the fake agent's native stdio feature. Existing tests are the behavior baseline.
 - [ ] Preserve the ordered untyped notification fallback for Claude extensions, and
   the raw request paths for steering and task stop. Check error mapping against the
   existing peer error vs. transport closure test. Keep the public Connection methods.
+- [ ] Update `crates/shadows-agent/contract.yaml` (and `crates/fake-acp`'s contract
+  if it has one) in the same commit wherever a stated type, method or behaviour changes.
+  If nothing stated changes, say so in the commit message.
 - [ ] Run "cargo test -p shadows-agent", "cargo test -p fake-acp --features
   fake-acp/test-support", and the Core and harness targets below against the existing
   adapter pin. Fix compile or behavior regressions in their owner. Commit the SDK migration.
@@ -92,6 +95,16 @@ the failing case before widening this list.
   when no allowed mode was remembered. The direct probe confirmed the existing
   fork-then-resume request sequence is accepted. Keep it and verify a prompt can
   continue in the fork and in a resumed session through Shadows.
+- [ ] Verify a remembered mode survives resume and fork. The new adapter reports
+  "acceptEdits" after both, where 0.81.1 reported "default". Shadows applies the
+  thread's selected mode only when it differs from the adapter's reported mode
+  (`Sessions::set_mode` in `crates/core-harness/src/settings.rs`). Prove that a thread
+  whose remembered mode is Manual ("default") is set back to Manual before its first
+  prompt after a resume, and that a fork's first prompt runs in the source thread's
+  remembered mode, so an upgrade never widens permissions silently. Add a fake-backed
+  test where the fake reports "acceptEdits" on resume and fork, and check it once live
+  through Shadows. If Shadows keeps the adapter's mode, stop: the fix is in Core Harness,
+  and its owner files are recorded before widening this task.
 - [ ] Run the focused gates below. Run the two ignored tests once against the
   upgraded checkout, with both provider keys available, and record each result.
 - [ ] Build and start the daemon with the installed adapter path. Capture
