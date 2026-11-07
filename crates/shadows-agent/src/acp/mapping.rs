@@ -3,12 +3,10 @@ use crate::events::{
     CallKind, HarnessEvent, SlashCommand, TodoItem, TodoStatus, ToolDiff, ToolFacts, ToolLocation,
     ToolMeta,
 };
-use agent_client_protocol::schema::{
-    MaybeUndefined,
-    v1::{
-        AvailableCommandInput, ContentBlock, PlanEntryStatus, SessionUpdate, ToolCallContent,
-        ToolCallLocation, ToolCallStatus, ToolKind,
-    },
+use agent_client_protocol::schema::MaybeUndefined;
+use agent_client_protocol::v1::schema::{
+    AvailableCommandInput, ContentBlock, PlanEntryStatus, SessionUpdate, ToolCallContent,
+    ToolCallLocation, ToolCallStatus, ToolKind,
 };
 use serde_json::Value;
 

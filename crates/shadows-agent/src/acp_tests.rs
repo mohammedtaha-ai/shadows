@@ -61,7 +61,7 @@ fn unknown_session_update_probe() {
         "sessionId": "probe", "update": {"sessionUpdate": "async_task_spawned"}
     });
     let result =
-        serde_json::from_value::<agent_client_protocol::schema::v1::SessionNotification>(value);
+        serde_json::from_value::<agent_client_protocol::v1::schema::SessionNotification>(value);
     assert!(
         result.is_err(),
         "unknown session update must fail typed decoding"
@@ -70,11 +70,9 @@ fn unknown_session_update_probe() {
 
 #[tokio::test]
 async fn stopping_a_task_asks_the_adapter() {
-    use agent_client_protocol::schema::{
-        ProtocolVersion,
-        v1::{InitializeRequest, InitializeResponse},
-    };
-    use agent_client_protocol::{Agent, ByteStreams, Client, Responder, UntypedMessage};
+    use agent_client_protocol::schema::ProtocolVersion;
+    use agent_client_protocol::v1::schema::{InitializeRequest, InitializeResponse};
+    use agent_client_protocol::{Agent, ByteStreams, Client, UntypedMessage, v1::Responder};
     use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
     let (client, server) = tokio::io::duplex(4096);
@@ -82,7 +80,7 @@ async fn stopping_a_task_asks_the_adapter() {
     let (sr, sw) = tokio::io::split(server);
     tokio::spawn(async move {
         Agent
-            .builder()
+            .v1()
             .on_receive_request(
                 async |_: InitializeRequest, responder: Responder<InitializeResponse>, _| {
                     responder.respond(InitializeResponse::new(ProtocolVersion::V1))
@@ -116,7 +114,7 @@ async fn stopping_a_task_asks_the_adapter() {
     let (tx, rx) = tokio::sync::oneshot::channel();
     tokio::spawn(async move {
         Client
-            .builder()
+            .v1()
             .connect_with(
                 ByteStreams::new(cw.compat_write(), cr.compat()),
                 |cx| async {
@@ -368,7 +366,7 @@ fn mcp_spec_debug_never_prints_values() {
 }
 
 fn frames(updates: Vec<serde_json::Value>) -> Vec<HarnessEvent> {
-    use agent_client_protocol::schema::v1::SessionUpdate;
+    use agent_client_protocol::v1::schema::SessionUpdate;
     let events = std::sync::Mutex::new(Vec::new());
     let send = |event| events.lock().unwrap().push(event);
     for update in updates {

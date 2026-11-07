@@ -1,13 +1,16 @@
 //! Fake session lifecycle requests.
 use crate::prompts::update;
 use crate::session::{self, Shared, efforts, make_session, options, setup_of};
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     AgentCapabilities, AvailableCommandsUpdate, CancelNotification, ForkSessionRequest,
     ForkSessionResponse, InitializeRequest, InitializeResponse, NewSessionRequest,
     NewSessionResponse, ResumeSessionRequest, ResumeSessionResponse, SessionUpdate,
     SetSessionConfigOptionRequest, SetSessionConfigOptionResponse,
 };
-use agent_client_protocol::{Client, ConnectionTo, Responder};
+use agent_client_protocol::{
+    Client,
+    v1::{ConnectionTo, Responder},
+};
 use serde_json::{Value, json};
 
 pub(crate) struct SessionHandlers;

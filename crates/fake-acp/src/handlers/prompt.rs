@@ -2,8 +2,11 @@
 use crate::prompts::{self, Turn, update};
 use crate::session::Shared;
 use crate::steer;
-use agent_client_protocol::schema::v1::{ContentBlock, PromptRequest, PromptResponse};
-use agent_client_protocol::{Client, ConnectionTo, Responder};
+use agent_client_protocol::v1::schema::{ContentBlock, PromptRequest, PromptResponse};
+use agent_client_protocol::{
+    Client,
+    v1::{ConnectionTo, Responder},
+};
 use serde_json::{Value, json};
 
 pub(crate) struct PromptHandlers;

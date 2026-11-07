@@ -9,11 +9,14 @@ mod steer;
 
 use std::sync::Arc;
 
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     CancelNotification, ForkSessionRequest, InitializeRequest, NewSessionRequest, PromptRequest,
     PromptResponse, ResumeSessionRequest, SetSessionConfigOptionRequest,
 };
-use agent_client_protocol::{Agent, Client, ConnectionTo, Responder, Stdio};
+use agent_client_protocol::{
+    Agent, Client, Stdio,
+    v1::{ConnectionTo, Responder},
+};
 use serde_json::Value;
 
 use handlers::{PromptHandlers, SessionHandlers};
@@ -27,7 +30,7 @@ async fn main() -> agent_client_protocol::Result<()> {
     }
     let state: Shared = Arc::default();
     Agent
-        .builder()
+        .v1()
         .name("fake-acp")
         .on_receive_request(
             {

@@ -59,8 +59,9 @@ detection. Repeat startup with the rebuilt binary after migration.
 ## Task 1 · Migrate the Rust SDK
 
 **Files:** Cargo.toml, Cargo.lock, the compiler-reported files under
-crates/shadows-agent/src and crates/fake-acp/src, and crates/fake-acp/Cargo.toml for
-the fake agent's native stdio feature. Existing tests are the behavior baseline.
+crates/shadows-agent/src and crates/fake-acp/src, crates/fake-acp/Cargo.toml for
+the fake agent's native stdio feature, both crate contracts and the backend code map.
+Existing tests are the behavior baseline.
 
 - [ ] Pin agent-client-protocol to "=5.0.0". Run
   "cargo check -p shadows-agent -p fake-acp --features fake-acp/test-support" and
@@ -72,17 +73,18 @@ the fake agent's native stdio feature. Existing tests are the behavior baseline.
 - [ ] Preserve the ordered untyped notification fallback for Claude extensions, and
   the raw request paths for steering and task stop. Check error mapping against the
   existing peer error vs. transport closure test. Keep the public Connection methods.
-- [ ] Update `crates/shadows-agent/contract.yaml` (and `crates/fake-acp`'s contract
-  if it has one) in the same commit wherever a stated type, method or behaviour changes.
-  If nothing stated changes, say so in the commit message.
+- [ ] Add `crates/shadows-agent/contract.yaml` and `crates/fake-acp/contract.yaml`,
+  grounded in their source and tests. Link both from `docs/codebase/README.md`.
 - [ ] Run "cargo test -p shadows-agent", "cargo test -p fake-acp --features
   fake-acp/test-support", and the Core and harness targets below against the existing
   adapter pin. Fix compile or behavior regressions in their owner. Commit the SDK migration.
 
 ## Task 2 · Pin the adapter and verify the integration
 
-**Files:** harness/claude/package.json and package-lock.json, the live fixture at
-crates/shadows-core/tests/aylul_extensions/live.rs, and docs/backend/stages.md.
+**Files:** harness/claude/package.json and package-lock.json, the live fixture under
+crates/shadows-core/tests/aylul_extensions/, crates/shadows/tests/remembered_mode.rs,
+crates/fake-acp/src/handlers/session.rs, the fake and Core Harness contracts, and
+docs/backend/stages.md.
 If a measured regression requires a product fix, record the exact owner files and
 the failing case before widening this list.
 
@@ -95,16 +97,13 @@ the failing case before widening this list.
   when no allowed mode was remembered. The direct probe confirmed the existing
   fork-then-resume request sequence is accepted. Keep it and verify a prompt can
   continue in the fork and in a resumed session through Shadows.
-- [ ] Verify a remembered mode survives resume and fork. The new adapter reports
-  "acceptEdits" after both, where 0.81.1 reported "default". Shadows applies the
-  thread's selected mode only when it differs from the adapter's reported mode
-  (`Sessions::set_mode` in `crates/core-harness/src/settings.rs`). Prove that a thread
-  whose remembered mode is Manual ("default") is set back to Manual before its first
-  prompt after a resume, and that a fork's first prompt runs in the source thread's
-  remembered mode, so an upgrade never widens permissions silently. Add a fake-backed
-  test where the fake reports "acceptEdits" on resume and fork, and check it once live
-  through Shadows. If Shadows keeps the adapter's mode, stop: the fix is in Core Harness,
-  and its owner files are recorded before widening this task.
+- [ ] Verify the allowed remembered mode "auto" survives resume and fork. In a
+  project that allows "auto", make the fake report "acceptEdits" at each opening
+  and check its actual mode when the first prompt arrives. Use the existing new-session
+  test for the inverse case, where the fake offers "auto" and Shadows applies its
+  "acceptEdits" default. Check the sequence once live through Shadows. Manual
+  ("default") is an adapter mode outside Shadows' allowed modes. If a regression
+  requires a fix, record the Core Harness owner paths and failing case first.
 - [ ] Run the focused gates below. Run the two ignored tests once against the
   upgraded checkout, with both provider keys available, and record each result.
 - [ ] Build and start the daemon with the installed adapter path. Capture
@@ -120,7 +119,7 @@ Run from the workspace root after the adapter install unless noted above.
 ~~~powershell
 cargo test -p shadows-core --test acp_connection --test sessions --test thread_session --test aylul_session --test harness_schema --test planner_isolation --test aylul_usage --test aylul_extensions --test aylul_profiles
 cargo test -p core-harness -p core-turns
-cargo test -p shadows --test harness_config --test planner_mcp --test mcp_tools --test architecture --test codemap
+cargo test -p shadows --test harness_config --test planner_mcp --test mcp_tools --test remembered_mode --test architecture --test codemap --test contract_tests
 cargo fmt --all --check
 cargo clippy -p shadows-agent -p fake-acp --all-targets --features fake-acp/test-support -- -D warnings
 cargo clippy -p shadows-agent -p fake-acp -- -D warnings

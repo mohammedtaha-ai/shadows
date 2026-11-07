@@ -16,12 +16,12 @@
 
 use std::time::Duration;
 
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     ContentBlock, ContentChunk, PermissionOption, PermissionOptionKind, RequestPermissionRequest,
     SessionInfoUpdate, SessionNotification, SessionUpdate, StopReason, TextContent, ToolCall,
     ToolCallUpdate, UsageUpdate,
 };
-use agent_client_protocol::{Client, ConnectionTo};
+use agent_client_protocol::{Client, v1::ConnectionTo};
 use serde_json::{Value, json};
 
 use crate::mcp::call_mcp;
@@ -368,7 +368,7 @@ pub(crate) async fn answer(
                 );
                 let answer = cx.send_request(req).block_task().await?;
                 let chosen = match answer.outcome {
-                    agent_client_protocol::schema::v1::RequestPermissionOutcome::Selected(x) => {
+                    agent_client_protocol::v1::schema::RequestPermissionOutcome::Selected(x) => {
                         x.option_id.to_string()
                     }
                     _ => "cancelled".into(),

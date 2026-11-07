@@ -25,5 +25,5 @@ path = "src/main.rs"
 required-features = ["test-support"]
 
 [features]
-test-support = ["shadows-core/test-support", "rmcp/client",
+test-support = ["shadows-core/test-support", "agent-client-protocol/stdio", "rmcp/client",
                 "rmcp/transport-streamable-http-client-reqwest"]

@@ -8,7 +8,7 @@ mod permissions;
 mod prompt;
 mod session;
 
-use agent_client_protocol::{Agent, ConnectionTo};
+use agent_client_protocol::{Agent, v1::ConnectionTo};
 pub use permissions::{
     PermissionError, PermissionPolicy, PreparedPermissionAnswer, WaitingPermission,
 };

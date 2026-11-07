@@ -5,8 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::Connection;
 use crate::events::{HarnessEvent, PermissionOption};
-use agent_client_protocol::Responder;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::Responder;
+use agent_client_protocol::v1::schema::{
     RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse,
     SelectedPermissionOutcome,
 };
