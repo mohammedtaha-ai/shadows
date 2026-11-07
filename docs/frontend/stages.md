@@ -72,3 +72,11 @@ mockup's `Built` label cannot be used as evidence of completion.
 - Needs: B-83; `docs/shared/requests/2026-11-07-conversation-reply-order.md` (accepted).
 - Done when: affected sidebar/stream tests, typecheck, lint, build, codemap and architecture checks pass. Manual browser acceptance belongs to Mohammed.
 - Verified: 164 tests in sidebar, stream, codemap and architecture; typecheck, lint and production build. Vite retains its existing chunk-size warning.
+
+### F-98 · The task page
+
+- Status: blocked (B-93)
+- Plan: [F-98](../backend/plans/2026-11-08-executors.md#f-98-the-task-page); design [executors](../backend/specs/2026-11-08-executors-design.md) §4 (mockup A, tabs).
+- Touch: the plan's F-98 file list.
+- Needs: B-93's routes and generated types.
+- Done when: the plan's F-98 tests, typecheck, lint, build, codemap and architecture pass.

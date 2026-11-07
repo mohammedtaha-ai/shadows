@@ -129,3 +129,52 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   - A run: the daemon starts, the log line `harness.versions` shows `adapter_version="0.101.0"`, and a Planner turn streams in the browser. Mohammed tries it before the branch's PR.
 - Verified on 2026-11-07: the SDK, fake, Core, Harness, Turns and CLI focused tests passed, including the mode, MCP, architecture, code map and contract checks. Formatting, both affected clippy modes and `cargo build -p shadows` passed.
 - Live on 2026-11-07: adapter 0.101.0 and configured Claude Code 2.1.317. MiniMax extension isolation and three Core prompts passed (new acceptEdits, resume auto, fork auto). OpenRouter listed 362 models and MiniMax 9. A temporary daemon logged both version values. The local npm install omitted optional binaries after the bundled Windows executable download stalled; the lockfile still records the optional package.
+
+## Executors, slices 0 and 1
+
+Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. Plan: [slices 0 and 1](plans/2026-11-08-executors.md). Branch
+`feature/executors`. B-85 to B-88 are reserved by the Codex plan on `codex/codex-app-server`.
+
+### B-89 · Probe the executor write boundary
+- Status: ready (dispatch only when Mohammed says so)
+- Plan: [B-89](plans/2026-11-08-executors.md#b-89-probe-the-write-boundary-slice-0).
+- Owner: Harness (sessions and permissions); a throwaway probe, no product source.
+- Touch: `docs/evidence/2026-11-08-executor-write-boundary-probe.md`, the design §7, this file.
+- Needs: nothing.
+- Done when: the four cases are measured on the Claude adapter 0.101.0 and §7's OPEN is replaced by the rule, or the gap is reported and B-90 stays blocked.
+
+### B-90 · The executor session
+- Status: blocked (B-89)
+- Plan: [B-90](plans/2026-11-08-executors.md#b-90-the-executor-session).
+- Owner: Threads (`ThreadKind`), Harness (executor setup, scoped policy), Grants (task scope), Agent (`PermissionPolicy::Scoped`), MCP (tools an executor grant sees).
+- Touch: the plan's B-90 file list. Expand callers with the LSP before dispatch.
+- Needs: B-89.
+- Done when: the plan's B-90 tests pass and the Planner's isolation, session and MCP tests still pass.
+
+### B-91 · Runs: attempts, Start, Stop and recovery
+- Status: blocked (B-90)
+- Plan: [B-91](plans/2026-11-08-executors.md#b-91-runs-attempts-and-startstop).
+- Owner: Runs (`core-runs`, new, approved with the design); AppCore wiring.
+- Touch: the plan's B-91 file list; the next unused migration number at dispatch.
+- Needs: B-90.
+- Done when: the plan's B-91 tests pass, with migration, architecture, codemap and contract checks.
+
+### B-92 · Git and `task_commit`
+- Status: blocked (B-91)
+- Plan: [B-92](plans/2026-11-08-executors.md#b-92-git-and-task_commit).
+- Owner: Runs (git through `shadows-process`); MCP (the tool).
+- Needs: B-89's attribution rule, B-91.
+- Done when: the plan's B-92 tests pass.
+
+### B-93 · Task attempts over HTTP
+- Status: blocked (B-92)
+- Plan: [B-93](plans/2026-11-08-executors.md#b-93-runs-over-http).
+- Owner: `shadows-http` (translation only).
+- Needs: B-92.
+- Done when: the route tests pass and `api/openapi.json` is regenerated, not hand-edited.
+
+### B-94 · Run executors slice 1 in the browser
+- Status: blocked (B-93, F-98)
+- Plan: [B-94](plans/2026-11-08-executors.md#b-94-run-it).
+- Needs: B-93, F-98. Mohammed runs it.
+- Done when: T1 of the Laravel plan commits inside `backend/**` from its page; refusal, Stop and restart are observed in the browser and logs; evidence recorded.
