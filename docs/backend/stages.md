@@ -294,3 +294,16 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - B-79/B-80 own HTTP schema regeneration as their public shapes change.
   B-81 verifies those files remain current; MCP-only phase_id is not an HTTP
   route and does not alone warrant changing OpenAPI.
+
+### B-82 · A map change can move a part
+- Status: ready
+- Base: `feature/structure-elements` at its current head.
+- Plan: this entry and shared request `docs/shared/requests/2026-11-07-map-change-moves.md`; no plan task.
+- Owner: Design (`crates/core-design`); adapters translate only.
+- Read: guided-planning spec §23 map proposals ("Who writes it", amended 2026-11-07); the shared request; `crates/core-design/contract.yaml`; the roadmap change path as the pattern to mirror (`store/roadmap_proposals.rs` `old_parent`, `store/roadmap_approval.rs` the move after the put).
+- Touch: `crates/core-design/src/map_proposals.rs` (`MapProposal.old_parent`), `src/store/map_proposal_shape.rs` (a change may name `parent`; `result` sets the row's `parent_id` from it; `parent_key` on a change stays refused), `src/store/map_proposals.rs` (record `old_parent`), `src/store/map_proposal_read.rs` if it loads the stored proposal, `src/store/map_approval.rs` (after `PartPut`, apply `WorkspaceOp::PartMove` when the parent differs from `old_parent`), `crates/core-design/contract.yaml`; `crates/core-harness/src/prompt.txt` (the "After the first map" line: a change replaces content and parent; give the current parent to keep it in place, another part to move it under that one, or none to move it to the top); `crates/shadows-mcp/src/workspace_tools.rs` (the `map_propose` description says the same) and its contract line; `api/openapi.json`, `web/src/api/schema.d.ts` (regenerated); tests `crates/shadows-core/tests/design_parts/map_proposals.rs`, `crates/shadows/tests/planner_mcp.rs` only if a description assertion needs it; this stages file.
+- Needs: nothing.
+- Input/output: a change with the current parent edits content only; a change naming another part moves the part there on approval (folder rules checked on the proposed rows at propose time, containment checked on approval); a change with no parent moves it to the top level; the proposal's `old_parent` is the parent at propose time.
+- Failure cases: a parent that is the part itself or a descendant (refused, named); a parent from another project or unknown (refused); a moved part whose folder breaks the child-inside-parent rule (refused at propose time); a stale card after a hand move on the page (outdated, as today for content).
+- Tests: `a_map_change_moves_a_part_under_another`, `a_map_change_with_its_current_parent_does_not_move`, `a_map_change_with_no_parent_moves_to_the_top`, `a_map_change_into_its_own_descendant_is_refused`, `a_map_change_still_refuses_parent_key`.
+- Done when: `cargo test -p shadows-core --test design_parts`; `cargo test -p core-design`; `cargo test -p shadows --test planner_mcp --test mcp_tools --test openapi --test contract_tests --test codemap --test architecture`; fmt; clippy for the changed crates with and without `--features fake-acp/test-support`; `npm run gen:api` gives no drift after regeneration. No full gate locally.

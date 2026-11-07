@@ -95,3 +95,12 @@ mockup's `Built` label cannot be used as evidence of completion.
 - Needs: F-93.
 - Verified: 137 focused workflows/codemap/architecture tests passed, including 100 tasks/400 phases, fixed-node fit readiness, mixed interleaving and viewport preservation. Typecheck, lint and build passed. Actual daemon/browser checks on an isolated SQLite backup passed at 1024px and 375px, light/dark, exact foreign navigation/Back, keyboard and empty-task state; no page errors or React Flow warnings. Loading/read errors have component coverage. Daily-project/provider acceptance is not recorded; details are in Task 5.5.
 - Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; 100-task/400-phase layout and browser acceptance.
+
+### F-95 · The map change card shows a move
+- Status: ready
+- Plan: this entry and shared request `docs/shared/requests/2026-11-07-map-change-moves.md`.
+- Read: guided-planning spec §23 map proposals (amended 2026-11-07); `web/src/app/conversation/contract.yaml`; `roadmap-proposal-card.tsx` `MoveLine` as the pattern.
+- Touch: `web/src/app/conversation/map-proposal-card.tsx`, `map-proposal-card.test.tsx`, `contract.yaml`; `web/src/test/fake-daemon.ts` only if its map proposal fixture needs `old_parent`; this stages file.
+- Needs: B-82 (regenerated `web/src/api/schema.d.ts` with `MapProposal.old_parent`).
+- Input/output: a change card whose `parts[0].parent` differs from `old_parent` shows "Moves to the top level" or "Moves under: <part title>" (title read through the existing part query, falling back to the id); an unchanged parent shows no move line.
+- Done when: focused vitest for the card, conversation codemap and architecture tests; typecheck, lint, build.

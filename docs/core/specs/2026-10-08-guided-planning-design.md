@@ -184,7 +184,7 @@ New MCP tools (§13.6):
 | Tool | Proposes | Its card |
 |---|---|---|
 | `vision_propose` | Add, edit or remove one vision item | The item, with the old text beside an edit |
-| `map_propose` | The first map whole; later, one change (add or change a part, its folder, layers or contract) | The part tree and folders; each contract opens in the side panel |
+| `map_propose` | The first map whole; later, one change (add a part, or change a part's content or parent) | The part tree and folders; each contract opens in the side panel; a change shows its move |
 | `roadmap_propose` | The first roadmap whole; later, one outcome added, changed or removed | The outcome list, each with the parts it references |
 
 A map proposal carries each part's title, responsibility, served vision ids,
@@ -240,6 +240,13 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 - **Who writes it.** The first map comes from the Planner only: before it is
   approved, a hand create, edit or move of a part is refused. After it, the
   person edits parts by hand on the Project map page, through the same gates.
+  A later map change replaces one part's content and parent, as a roadmap
+  change does for an outcome: the current parent keeps it in place, another
+  part moves it under that one, and none moves it to the top. The card shows
+  the move, and approval applies it through the same containment and folder
+  rules as a move on the page. The layout may change during work, so the
+  Planner proposes moves as well as edits (decided with Mohammed on
+  2026-11-07).
   **Legacy adoption: there is none** (decided with Mohammed on 2026-10-12).
   Pre-PR3 parts and plans are test data; first-map approval still refuses
   replacing their identities, and nothing adopts them. A person's existing
