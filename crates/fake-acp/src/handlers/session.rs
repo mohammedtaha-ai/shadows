@@ -76,7 +76,11 @@ impl SessionHandlers {
             "resume"
         };
         st.resumes += 1;
-        let s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
+        let reports_accept_edits = r.cwd.join(".fake-acp-resume-accept-edits").is_file();
+        let mut s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
+        if reports_accept_edits {
+            s.mode = "acceptEdits".into();
+        }
         let opts = options(&s);
         st.sessions.insert(id.clone(), s);
         drop(st);

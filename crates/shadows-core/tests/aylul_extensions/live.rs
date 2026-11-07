@@ -6,41 +6,53 @@ use shadows_agent::{
     events::HarnessEvent,
     profile::ClaudeProfile,
 };
-use std::time::Duration;
+use shadows_core::{SendTurn, ThreadEntry, ThreadEntryKind, ThreadId};
+use std::{path::Path, sync::Arc, time::Duration};
 
-async fn commands(home: &std::path::Path) -> Vec<String> {
-    let key = std::env::var("API_KEY_MINIMAX").expect("authorized MiniMax key required");
+const ADAPTER_VERSION: &str = "0.101.0";
+const CLAUDE_VERSION: &str = "2.1.317";
+const MINIMAX_URL: &str = "https://api.minimax.io/anthropic";
+const MODEL: &str = "MiniMax-M3";
+
+fn complete_onboarding(home: &Path) {
+    std::fs::create_dir_all(home).unwrap();
     std::fs::write(
         home.join(".claude.json"),
         r#"{"hasCompletedOnboarding":true}"#,
     )
     .unwrap();
-    let adapter = ClaudeAdapter::new(
+}
+
+fn live_adapter() -> ClaudeAdapter {
+    ClaudeAdapter::new(
         r"C:\Program Files\nodejs\node.exe".into(),
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../harness/claude/node_modules/@agentclientprotocol")
             .join("claude-agent-acp/dist/index.js"),
         r"C:\Users\Mohammed\.local\bin\claude.exe".into(),
-        "0.81.1".into(),
-        "2.1.303".into(),
-    );
+        ADAPTER_VERSION.into(),
+        CLAUDE_VERSION.into(),
+    )
+}
+
+async fn commands(home: &Path) -> Vec<String> {
+    let key = std::env::var("API_KEY_MINIMAX").expect("authorized MiniMax key required");
+    complete_onboarding(home);
+    let adapter = live_adapter();
     // The local fixture's fake model ids are replaced only in the live harness fixture.
     // Keep the product-generated extension settings and warm plugin cache intact.
     let settings_path = home.join("settings.json");
     let mut settings: Value =
         serde_json::from_slice(&std::fs::read(&settings_path).unwrap()).unwrap();
-    settings["model"] = "MiniMax-M3".into();
-    settings["availableModels"] = json!(["MiniMax-M3"]);
+    settings["model"] = MODEL.into();
+    settings["availableModels"] = json!([MODEL]);
     std::fs::write(&settings_path, serde_json::to_vec(&settings).unwrap()).unwrap();
-    let model = "MiniMax-M3";
+    let model = MODEL;
     let profile = ClaudeProfile::new(
         "extension-live".into(),
         home.into(),
         vec![
-            (
-                "ANTHROPIC_BASE_URL".into(),
-                "https://api.minimax.io/anthropic".into(),
-            ),
+            ("ANTHROPIC_BASE_URL".into(), MINIMAX_URL.into()),
             ("ANTHROPIC_MODEL".into(), model.into()),
             ("ANTHROPIC_DEFAULT_HAIKU_MODEL".into(), model.into()),
             ("ANTHROPIC_DEFAULT_SONNET_MODEL".into(), model.into()),
@@ -101,6 +113,83 @@ async fn commands(home: &std::path::Path) -> Vec<String> {
     names
 }
 
+async fn mode_turn(w: &World, thread: &ThreadId, opening: &str, mode: &str) -> ThreadEntry {
+    let opened = w.sessions.open(thread).await.unwrap();
+    assert_eq!(opened.how, opening);
+    let choices = w.core.harness().open_session(thread).await.unwrap();
+    assert_eq!(choices.current.mode, mode);
+    let operation = w
+        .core
+        .turns()
+        .send(
+            thread.clone(),
+            SendTurn {
+                command_id: uuid::Uuid::new_v4().to_string(),
+                prompt: "Reply with the single word OK. Do not use tools.".into(),
+                model: choices.current.model,
+                effort: choices.current.effort,
+                mode: choices.current.mode,
+                attachments: Vec::new(),
+                focus: None,
+                plan: None,
+                client_tab: None,
+            },
+        )
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(90), async {
+        loop {
+            let op = shadows_core::Turns::get_operation_for_test(&w.storage, &operation)
+                .await
+                .unwrap();
+            if op.finished_at.is_some() {
+                assert_eq!(op.status_kind, "Completed", "{opening} turn");
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    })
+    .await
+    .expect("live mode turn did not finish");
+    let reply = w
+        .core
+        .threads()
+        .entries(thread)
+        .await
+        .unwrap()
+        .pop()
+        .unwrap();
+    assert_eq!(reply.kind, ThreadEntryKind::AgentMessage);
+    assert!(!reply.body.trim().is_empty());
+    reply
+}
+
+async fn live_modes() {
+    let key = std::env::var("API_KEY_MINIMAX").expect("authorized MiniMax key required");
+    let w = world_with_provider(Arc::new(live_adapter()), MINIMAX_URL, &[MODEL], &key).await;
+    complete_onboarding(&w._tmp.path().join("home/profiles/aylul"));
+    mode_turn(&w, &w.thread, "new", "acceptEdits").await;
+    w.core
+        .harness()
+        .change_mode("auto".into(), &w.thread, "auto")
+        .await
+        .unwrap();
+    w.sessions.terminate(&w.thread).await.unwrap();
+    let reply = mode_turn(&w, &w.thread, "resume", "auto").await;
+    let fork = w
+        .core
+        .harness()
+        .fork_thread("fork".into(), &w.thread, &reply.id)
+        .await
+        .unwrap();
+    mode_turn(&w, &fork.id, "fork", "auto").await;
+    w.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    println!("Live modes before first prompt: new=acceptEdits, resume=auto, fork=auto");
+}
+
 #[tokio::test]
 #[ignore = "one authorized live MiniMax acceptance after local checks"]
 async fn live_agent_extension_isolation() {
@@ -150,11 +239,12 @@ async fn live_agent_extension_isolation() {
     let disabled = commands(&root.join("aylul")).await;
     assert!(!disabled.iter().any(|c| c.starts_with("live-")));
     println!(
-        "ACP 0.81.1 / Claude 2.1.303: A skill=true plugin=true; B neither; A disabled neither"
+        "ACP {ADAPTER_VERSION} / Claude {CLAUDE_VERSION}: A skill/plugin; B neither; A disabled"
     );
 
     w.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
         .unwrap();
+    live_modes().await;
 }

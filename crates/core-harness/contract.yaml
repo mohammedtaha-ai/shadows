@@ -910,9 +910,9 @@ tests:
   - name: running_turn_keeps_its_mode_and_next_turn_uses_the_pick
     checks: Busy picks leave ACP unchanged and the next invocation records Auto.
   - name: fork_copies_the_mode_and_removal_deletes_only_its_row
-    checks: Fork copies the saved choice; source removal preserves the fork's choice.
+    checks: The first fork prompt runs in the saved Auto mode even if the adapter reports Accept edits on opening; source removal preserves the fork's choice.
   - name: a_turn_start_remembers_its_explicit_mode_in_its_transaction
-    checks: A turn carrying Auto survives adapter replacement at Auto.
+    checks: The first prompt after resume runs in the saved Auto mode even if the replacement adapter reports Accept edits on opening.
   - name: opening_uses_agent_and_provider
     checks: >
       tests/aylul_session/opening.rs: a send on an agent's thread spawns with

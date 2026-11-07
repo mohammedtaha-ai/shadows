@@ -1,5 +1,6 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::json;
+use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::ExtensionKind;
 use shadows_core::testing::{self, Harness, LiveHandles, SessionsConfig, Storage, acp};
 use shadows_core::{
@@ -16,6 +17,21 @@ pub(super) struct World {
 }
 
 pub(super) async fn world() -> World {
+    world_with_provider(
+        acp::fake_adapter(),
+        "https://example.com/anthropic",
+        &["fake-large", "fake-small"],
+        "synthetic-stored-one",
+    )
+    .await
+}
+
+pub(super) async fn world_with_provider(
+    adapter: Arc<ClaudeAdapter>,
+    base_url: &str,
+    models: &[&str],
+    key: &str,
+) -> World {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("home");
     std::fs::create_dir_all(&root).unwrap();
@@ -28,7 +44,7 @@ pub(super) async fn world() -> World {
             .0,
     );
     let sessions = shadows_core::AppCore::harness_for_tests(
-        acp::fake_adapter(),
+        adapter,
         storage.clone(),
         SessionsConfig {
             secrets: Some(secrets.clone()),
@@ -61,11 +77,11 @@ pub(super) async fn world() -> World {
                 preset: None,
                 label: None,
                 name: Some("Test".into()),
-                base_url: Some("https://example.com/anthropic".into()),
-                models: vec!["fake-large".into(), "fake-small".into()]
-                    .into_iter()
+                base_url: Some(base_url.into()),
+                models: models
+                    .iter()
                     .map(|id| shadows_core::ProviderModelInput {
-                        id,
+                        id: (*id).into(),
                         context_window: Some(1_000_000),
                     })
                     .collect(),
@@ -74,11 +90,17 @@ pub(super) async fn world() -> World {
         .await
         .unwrap();
     core.providers()
-        .set_key("key".into(), "test-2", "synthetic-stored-one")
+        .set_key("key".into(), "test-2", key)
         .await
         .unwrap();
     core.agents()
-        .create_agent("agent".into(), agent("AYLUL"))
+        .create_agent(
+            "agent".into(),
+            AgentInput {
+                default_model: models[0].into(),
+                ..agent("AYLUL")
+            },
+        )
         .await
         .unwrap();
     let project = core.agents().assistant_project().await.unwrap();

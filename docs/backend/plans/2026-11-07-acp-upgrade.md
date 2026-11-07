@@ -63,19 +63,19 @@ crates/shadows-agent/src and crates/fake-acp/src, crates/fake-acp/Cargo.toml for
 the fake agent's native stdio feature, both crate contracts and the backend code map.
 Existing tests are the behavior baseline.
 
-- [ ] Pin agent-client-protocol to "=5.0.0". Run
+- [x] Pin agent-client-protocol to "=5.0.0". Run
   "cargo check -p shadows-agent -p fake-acp --features fake-acp/test-support" and
   compare the errors to the stage's recorded compilation failure.
-- [ ] Apply the [SDK v5 migration](https://github.com/agentclientprotocol/rust-sdk/blob/v5.0.0/md/migration-v5.md).
+- [x] Apply the [SDK v5 migration](https://github.com/agentclientprotocol/rust-sdk/blob/v5.0.0/md/migration-v5.md).
   Move message imports to v1::schema and use Client.v1() and Agent.v1(), with the
   v1 connection, responder and request types. Enable stdio only for fake-acp under
   test-support. Keep the product transport on the managed process and ByteStreams.
-- [ ] Preserve the ordered untyped notification fallback for Claude extensions, and
+- [x] Preserve the ordered untyped notification fallback for Claude extensions, and
   the raw request paths for steering and task stop. Check error mapping against the
   existing peer error vs. transport closure test. Keep the public Connection methods.
-- [ ] Add `crates/shadows-agent/contract.yaml` and `crates/fake-acp/contract.yaml`,
+- [x] Add `crates/shadows-agent/contract.yaml` and `crates/fake-acp/contract.yaml`,
   grounded in their source and tests. Link both from `docs/codebase/README.md`.
-- [ ] Run "cargo test -p shadows-agent", "cargo test -p fake-acp --features
+- [x] Run "cargo test -p shadows-agent", "cargo test -p fake-acp --features
   fake-acp/test-support", and the Core and harness targets below against the existing
   adapter pin. Fix compile or behavior regressions in their owner. Commit the SDK migration.
 
@@ -88,29 +88,48 @@ docs/backend/stages.md.
 If a measured regression requires a product fix, record the exact owner files and
 the failing case before widening this list.
 
-- [ ] In harness/claude run "npm install --save-exact
+- [x] In harness/claude run "npm install --save-exact
   @agentclientprotocol/claude-agent-acp@0.101.0". Confirm the installed package
   version. Update the live fixture's adapter and Claude Code versions to those
   actually used. Leave the independent harness_config fixture alone.
-- [ ] Verify the first prompt runs in Shadows' selected mode. The adapter's own
+- [x] Verify the first prompt runs in Shadows' selected mode. The adapter's own
   default changed to Auto; the existing opening path must still apply "acceptEdits"
   when no allowed mode was remembered. The direct probe confirmed the existing
   fork-then-resume request sequence is accepted. Keep it and verify a prompt can
   continue in the fork and in a resumed session through Shadows.
-- [ ] Verify the allowed remembered mode "auto" survives resume and fork. In a
+- [x] Verify the allowed remembered mode "auto" survives resume and fork. In a
   project that allows "auto", make the fake report "acceptEdits" at each opening
   and check its actual mode when the first prompt arrives. Use the existing new-session
   test for the inverse case, where the fake offers "auto" and Shadows applies its
   "acceptEdits" default. Check the sequence once live through Shadows. Manual
   ("default") is an adapter mode outside Shadows' allowed modes. If a regression
   requires a fix, record the Core Harness owner paths and failing case first.
-- [ ] Run the focused gates below. Run the two ignored tests once against the
+- [x] Run the focused gates below. Run the two ignored tests once against the
   upgraded checkout, with both provider keys available, and record each result.
-- [ ] Build and start the daemon with the installed adapter path. Capture
+- [x] Build and start the daemon with the installed adapter path. Capture
   harness.versions with adapter_version="0.101.0" and the actual Claude version.
   Set RUST_LOG=info for this run so an inherited filter cannot hide the event.
-  Commit the adapter pin and validation notes. Hand the running configuration to
-  Mohammed for a Planner turn in the browser before the PR.
+  Commit the adapter pin and validation notes.
+- [ ] Mohammed starts Shadows with the upgraded binary and verifies a Planner
+  turn streams on an existing project in the browser before the PR.
+
+### Implementation evidence
+
+The SDK migration reproduced the 12 compile errors before the v1 changes.
+The focused suites passed, including nine remembered-mode tests. The fake
+reported acceptEdits before resume and fork, and its first prompt reported the
+restored Auto mode. Core Harness product behavior needed no change.
+
+On 2026-11-07, both ignored tests passed once on the upgraded checkout. The
+extension test preserved skill and plugin isolation and completed three MiniMax
+turns through Core, with new=acceptEdits, resume=auto and fork=auto.
+The direct provider probe listed 362 OpenRouter and 9 MiniMax models.
+The rebuilt daemon started on a temporary database and logged
+adapter_version="0.101.0" and claude_version=2.1.317.
+
+Local npm used --omit=optional after the bundled Windows executable download
+stalled. The generated lockfile retains the optional binary package, and Shadows
+ran the configured Claude Code executable.
 
 ## Focused commands
 
