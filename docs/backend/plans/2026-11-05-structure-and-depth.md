@@ -43,10 +43,9 @@ meaning each:
 **How this plan grows.**
 - Slices 1 and 2 are built. Their sections below stay as the record of what
   was built.
-- Slice 3 is implemented locally as B-71 to B-75 and F-92, through
-  `3deb1333`. Its automated checks passed; Mohammed will perform manual
-  acceptance on an existing project. Slices 4 and 5 are implemented below on
-  `feature/structure-elements`, with a commit and push per task. No merge is recorded.
+- Slices 3 to 5 are merged in PR #61 (`a4f89386`). Their tasks are in
+  `docs/backend/stages.md` at `a4f89386`. Mohammed's manual acceptance on an
+  existing project is pending.
 
 ## Dispatch and progress
 
@@ -57,9 +56,9 @@ UI and API dependencies.
 |---|---|---|---|
 | 1 | Caller inventory of the four write paths | Implemented in PR #59 (`26bf739e`); live acceptance not recorded | Proposal, approval, person edit and structure agree; no contract written; old unfinished write cancelled |
 | 2 | Slice 1; accepted API request (B-64) before F-90 | Implemented in PR #60 (`b64242a7`), with B-68 to B-70 tooling; live acceptance not recorded | Layers on the map card, migration on the daily database, canvas in the app |
-| 3 | Slice 2; accepted API request `2026-11-06-principles-not-layout` | Implemented locally through `3deb1333`; manual acceptance pending with Mohammed | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
-| 4 | Slice 3 | B-76–B-78 implemented and automated checks passed; live acceptance pending | A fresh external agent reads a task's parts, layers and rules |
-| 5 | Slice 4; accepted API request for task phases | B-79–B-81, F-93–F-94 implemented; focused checks and isolated daemon/browser acceptance passed; daily-project/provider acceptance not recorded | Mixed dependency cycles refused; both graph modes work |
+| 3 | Slice 2; accepted API request `2026-11-06-principles-not-layout` | Implemented in PR #61 (`a4f89386`); manual acceptance pending with Mohammed | A Laravel map with a nested database part is approved; Roadmap opens with no Structure step |
+| 4 | Slice 3 | Implemented in PR #61 (`a4f89386`); live acceptance not recorded | A fresh external agent reads a task's parts, layers and rules |
+| 5 | Slice 4; accepted API request for task phases | Implemented in PR #61 (`a4f89386`); isolated daemon/browser acceptance passed; daily-project/provider acceptance not recorded | Mixed dependency cycles refused; both graph modes work |
 
 **Dropped on 2026-11-06:** the former slices 3 (elements), 4 (planning
 detail), 6 (outcome coverage on elements), 8 (trace) and 9 (code

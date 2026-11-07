@@ -1,8 +1,8 @@
 # Project structure and layers
 
-Status: revised and approved 2026-11-06. Slices 1 and 2 are built
-(PRs #59 and #60). Slices 3 to 5 are built on `feature/structure-elements`
-(B-71 to B-81, F-92 to F-94). Mohammed owns their pending manual
+Status: revised and approved 2026-11-06. Slices 1 to 5 are built and on `main`
+(PRs #59, #60 and #61; PR #61 is `a4f89386`). Their tasks are in
+`docs/backend/stages.md` at `a4f89386`. Mohammed owns their pending manual
 acceptance on an existing project; real-provider acceptance is not
 recorded.
 
