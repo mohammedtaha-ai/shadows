@@ -116,6 +116,62 @@ probe or prove behavior when a limit is exhausted.
 This baseline supports continuing the direct app-server integration design. It
 does not make the disabled Codex entry runnable in Shadows.
 
+## Revalidation on 0.167.0
+
+Mohammed updated the installed CLI and requested the same live checks again.
+Measured on 2026-11-07, 23:05:37 to 23:06:19 Asia/Aden (20:05:37 to
+20:06:19 UTC), on this branch at `f4cb8ad46b1e7b8dd38cdc1a2ca5237d22b687ad`.
+The native executable reported `codex-cli 0.167.0`; both initialization responses
+also identified version 0.167.0.
+
+The new throwaway client, schemas, and result used a separate temporary directory:
+`C:/Users/Mohammed/AppData/Local/Temp/shadows-codex-probe-0.167.0-20261107/`.
+The client source was deleted after recording the result. Its working directory
+was that directory's empty `workspace/`, not the Shadows checkout. The transport,
+existing sign-in, model, effort, sandbox, approval policy, and three-turn protocol
+scenario matched the baseline above. No Shadows build or product changes ran.
+
+Fresh schemas were generated with 0.167.0. The top-level property names and
+required-field lists matched 0.166.0 for the seven request shapes used here:
+`InitializeParams`, `ThreadStartParams`, `TurnStartParams`, `TurnInterruptParams`,
+`ThreadResumeParams`, `GetAccountParams`, and `ModelListParams`. This is not a
+comparison of every nested definition or every app-server method.
+
+| Check | Observed result on 0.167.0 |
+|---|---|
+| Initial handshake | Success, 372 ms |
+| Streaming response | Completed without a turn error, 13 text delta notifications, 9,660 ms |
+| Cancellation after streaming began | Terminal status `interrupted` without a turn error; 434 ms from interrupt request to observed terminal event |
+| First process shutdown | Exit code 0 after stdin closed; no forced termination |
+| Fresh process handshake | Success, 359 ms |
+| Resume identity | Same thread ID, two prior turns returned |
+| Resume context | Completed without a turn error, 13 text deltas, exact prior random marker returned without resending it, 11,019 ms |
+| Second process shutdown | Exit code 0 after stdin closed; no forced termination |
+
+Thread ID: `01a1b79d-f39f-7622-abcd-0e686a2ad1ee`. The first and third turns both
+returned `SHADOWS-475cd1618ed4a2ae`; the third prompt did not contain that value.
+All four assertions passed: streaming, cancellation, resume identity, and resume
+context. Neither process received an unexpected server request. After completion,
+neither owned process was still running. Individual timings from two single runs
+are observations, not a controlled version performance comparison.
+
+`model/list` returned nine catalog entries, including the tested model and `low`
+effort. Account-limit retrieval succeeded with the same primary/secondary window
+fields. Usage notifications were present; the latest snapshot reported:
+
+| Field | Reported value on 0.167.0 |
+|---|---:|
+| `last.inputTokens` | 29,113 |
+| `last.cachedInputTokens` | 24,960 |
+| `last.outputTokens` | 17 |
+| `last.totalTokens` | 29,130 |
+| `total.totalTokens` | 54,203 |
+| `modelContextWindow` | 665,000 |
+
+The usage interpretation and unproven integration cases above still apply.
+This verifies the direct app-server baseline on 0.167.0; it does not verify MCP
+tool behavior, permission enforcement, or the Shadows frontend integration.
+
 ## Reference
 
 The official [Codex App Server documentation](https://learn.chatgpt.com/docs/app-server)
