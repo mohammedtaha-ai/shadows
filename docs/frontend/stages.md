@@ -78,5 +78,5 @@ mockup's `Built` label cannot be used as evidence of completion.
 - Status: blocked (B-93)
 - Plan: [F-98](../backend/plans/2026-11-08-executors.md#f-98-the-task-page); design [executors](../backend/specs/2026-11-08-executors-design.md) §4 (mockup A, tabs).
 - Touch: the plan's F-98 file list.
-- Needs: B-93's routes and generated types.
+- Needs: B-93's routes and generated types; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).
 - Done when: the plan's F-98 tests, typecheck, lint, build, codemap and architecture pass.

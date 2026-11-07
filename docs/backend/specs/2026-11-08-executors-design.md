@@ -150,13 +150,19 @@ working-tree changes stay in the folder and are named in the Report.
 2. **At commit.** The commit tool compares the attempt's changed paths with `writes` and refuses
    on any path outside. The attempt fails with those paths named.
 
-> **OPEN — shell writes.** Claude Code's shell tool can write any file, and layer 1 cannot see
-> what a shell command writes. Layer 2 catches it at commit, but in a shared folder another
-> running task's files are also "changed". The attempt's changes must be told apart from its
-> neighbours' (for example by recording which paths each tool call touched, or by restricting
-> the shell to an allowlist of commands). **Trigger:** a probe on Claude Code through Shadows,
-> before the first build task, measuring what the permission path sees for shell writes and
-> choosing the attribution. It is recorded in `docs/evidence/` and closes this block.
+**Ownership (amended 2026-11-08 after review).** Being inside `writes` does not prove a change
+is the attempt's: in a shared folder the person, a child process or another task may have
+written it, and `git commit --only` takes a file's whole current content. A changed file is the
+attempt's only when its current content equals what was recorded after the attempt's own last
+permitted write to it. A changed path in `writes` that cannot be proven refuses the commit;
+nothing is committed on a guess. Paths are checked canonical, with links and junctions resolved.
+
+> **OPEN — shell writes and ownership.** Claude Code's shell tool can write any file, and
+> layer 1 cannot see what a shell command or its child processes write. **Trigger:** a probe on
+> Claude Code through Shadows (B-89), before the first build task, measuring what the
+> permission path sees for editor tools, shell commands, child-process writes, a hand edit
+> during a run, and a path through a symlink or junction; and choosing the shell treatment and
+> the ownership record from it. It is recorded in `docs/evidence/` and closes this block.
 
 ## 8. What the executor and critic receive (D11, D12)
 
@@ -215,16 +221,17 @@ an item's mark is its latest review's mark. Marks do not carry over to a new pla
 
 Each slice runs end to end in the browser before the next.
 
-0. **Probe:** the shell-write OPEN (§7) on Claude Code through Shadows.
+0. **Probe:** the shell-write and ownership OPEN (§7) on Claude Code through Shadows.
 1. **One task, by hand:** Runs, the task page (Details, Run), Start/Stop, the executor session
-   with its scoped grant, the write refusal, `task_commit`, the Diff tab. No critic: the attempt
-   ends at its commit and Mohammed reads it.
+   with its scoped grant, the write refusal, `task_commit` with its ownership check, the Diff
+   tab. No critic: the attempt ends at its commit and Mohammed reads it. The `writes` overlap
+   check and the commit queue ship here, so two tasks started together are already safe.
 2. **The critic:** dispatch after the commit, `task_review`, acceptance marks, the Report tab,
    real plan progress (the two shared requests).
 3. **The ladder:** the owner thread, the Planner's failure message and its three tools,
    attempts 2 and 3 in the same session, the stop for Mohammed.
-4. **Together:** the ready rule with the `writes` intersection, concurrent tasks, the commit queue,
-   pending-on-another-task marks.
+4. **Together:** pending-on-another-task marks, and the acceptance run of several tasks at once
+   (the overlap check and commit queue already shipped in slice 1).
 
 ## 11. Acceptance
 
@@ -251,8 +258,11 @@ this spec; each is marked as the controller's, not his.
    project folder is not a git repository, or when it already has uncommitted changes inside the
    task's `writes`. Changes elsewhere in the folder are other tasks' business and do not block.
    Commits go to whatever branch the folder has checked out; Shadows never switches it.
-3. **Restart.** A running attempt found on startup becomes `Interrupted`: its process is gone,
-   its uncommitted changes stay in the folder and are listed. It does not count toward the cap
+3. **Restart.** A running attempt found on startup is matched against git first: a commit whose
+   `Shadows-Attempt` trailer names it makes it `Committed` (git is written before SQLite).
+   Otherwise it becomes `Interrupted`: its process is gone, its uncommitted changes stay in the
+   folder and are listed. An attempt whose session fails to open, or whose turn ends without a
+   commit, is `Failed` with that reason. Each attempt is bound to its turn's operation. It does not count toward the cap
    and does not climb the ladder. The Report tab shows it; Start begins a new attempt in a new
    session. Runs reconciles this on startup through Operations.
 4. **The ladder lives in Runs, not in prompts.** After a critic FAIL, Runs posts the failure into

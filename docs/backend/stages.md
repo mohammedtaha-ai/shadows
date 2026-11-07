@@ -141,12 +141,12 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Owner: Harness (sessions and permissions); a throwaway probe, no product source.
 - Touch: `docs/evidence/2026-11-08-executor-write-boundary-probe.md`, the design §7, this file.
 - Needs: nothing.
-- Done when: the four cases are measured on the Claude adapter 0.101.0 and §7's OPEN is replaced by the rule, or the gap is reported and B-90 stays blocked.
+- Done when: the seven cases (editor, shell, refusal, mode, hand edit, child process, link/junction) are measured on the Claude adapter 0.101.0 and §7's OPEN is replaced by the rule, or the gap is reported and B-90 stays blocked.
 
 ### B-90 · The executor session
 - Status: blocked (B-89)
 - Plan: [B-90](plans/2026-11-08-executors.md#b-90-the-executor-session).
-- Owner: Threads (`ThreadKind`), Harness (executor setup, scoped policy), Grants (task scope), Agent (`PermissionPolicy::Scoped`), MCP (tools an executor grant sees).
+- Owner: Threads (`ThreadKind`), Harness (executor setup, scoped policy), Grants (`GrantKind::Executor`, opaque task scope, its tool list), Plans (`task_context` checks the scope), Agent (`PermissionPolicy::Scoped`), MCP (`server.rs` router for the executor kind).
 - Touch: the plan's B-90 file list. Expand callers with the LSP before dispatch.
 - Needs: B-89.
 - Done when: the plan's B-90 tests pass and the Planner's isolation, session and MCP tests still pass.
@@ -170,7 +170,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Status: blocked (B-92)
 - Plan: [B-93](plans/2026-11-08-executors.md#b-93-runs-over-http).
 - Owner: `shadows-http` (translation only).
-- Needs: B-92.
+- Needs: B-92; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).
 - Done when: the route tests pass and `api/openapi.json` is regenerated, not hand-edited.
 
 ### B-94 · Run executors slice 1 in the browser

@@ -48,9 +48,9 @@ browser.
    thread holds no session, and nothing restarts on its own (§12.3). Pinned in B-91.
 3. **Executor threads in the conversation list**: the sidebar and `Threads::list` show planning
    threads only; executor threads are reached from their task. Pinned in B-90.
-4. **The person staged a file of their own** before the commit: `task_commit` commits only the
-   attempt's paths (`git commit --only -- <paths>`), and the person's staged file stays staged and
-   uncommitted. Pinned in B-92.
+4. **The person staged or edited a file of their own** before the commit: a staged file outside
+   the attempt's paths stays staged and uncommitted; a hand edit to a file the attempt wrote
+   refuses the commit (`UnprovenChange`) instead of committing it. Pinned in B-92.
 5. **The plan changed between page load and Start**: a superseded or archived version, or a `needs`
    task not marked done, refuses Start with the reason named. Pinned in B-91.
 
@@ -83,15 +83,23 @@ Closes the design's §7 OPEN. A throwaway probe; no product source changes.
   absent from disk afterwards, and what the model reports.
 - [ ] **Step 4:** Repeat (a) in mode `acceptEdits`. Record whether a permission request still
   arrives (expected: no; then executors must open in `default`).
-- [ ] **Step 5:** Write the evidence and amend §7 with the rule chosen from it. The rule names:
+- [ ] **Step 5: Ownership cases.** Record what the permission requests and `git status` show when:
+  (e) the person edits `src/a.txt` by hand while the session runs, after the agent edited it;
+  (f) the agent runs a command whose child process writes a file (`git checkout -- x`, a script
+  that writes, a package manager); (g) the agent edits through `src/link/`, where `link` is a
+  symlink, and on Windows a junction, pointing outside `src/`. For (g), record whether the request
+  names the link path or the target, and whether `std::fs::canonicalize` resolves it.
+- [ ] **Step 6:** Write the evidence and amend §7 with the rule chosen from it. The rule names:
   the session mode; which tools raise requests carrying a path; how a shell command is treated
-  (allowlist of command prefixes, or refused); and how an attempt's changed paths are attributed
-  in a shared folder (the paths its permitted requests named, plus `git status` paths inside its
-  `writes` that no other running attempt claims).
-- [ ] **Step 6:** Delete the throwaway source. Commit the evidence, §7 and stages:
+  (allowlist of command prefixes, or refused); how a path is checked (canonical, links resolved,
+  inside the project root and `writes`); and **how ownership is proven**: a changed file is the
+  attempt's only when its current content equals the content recorded after the attempt's own last
+  permitted write to it. A changed path in `writes` that the attempt cannot prove is refused at
+  commit, never committed on a guess.
+- [ ] **Step 7:** Delete the throwaway source. Commit the evidence, §7 and stages:
   `docs: measure the executor write boundary`.
 
-**Verification:** each of the four cases has a recorded observation; §7 has no OPEN block left,
+**Verification:** each of the seven cases has a recorded observation; §7 has no OPEN block left,
 or B-90 stays blocked with the measured gap stated.
 
 ---
@@ -108,22 +116,35 @@ or B-90 stays blocked with the measured gap stated.
   storage-contract schema and checksum tests;
   `crates/core-harness/src/setup.rs` (setup by kind), `src/sessions.rs`, `contract.yaml`;
   `crates/shadows-agent/src/acp/permissions.rs` (scoped policy), `crates/shadows-agent/contract.yaml`;
-  `crates/core-grants/src/model.rs` and store (task scope on a thread grant), `contract.yaml`;
-  `crates/shadows-mcp/src/plan_tools.rs` (which tools an executor grant sees), `contract.yaml`
+  `crates/core-grants/src/model.rs`, `src/tools.rs`, store (the executor kind and its scope),
+  `contract.yaml`; `crates/shadows-mcp/src/server.rs` (a third router for the executor kind),
+  `contract.yaml`; `crates/core-plans/src/task_context.rs` and its store query (the task check),
+  `crates/core-plans/contract.yaml`
 
 **Interfaces:**
-- Consumes: B-89's §7 rule (mode, tool list, shell treatment). Nothing from Runs.
+- Consumes: B-89's §7 rule (mode, tool list, shell treatment, path check). Nothing from Runs.
 - Produces:
   - `pub enum ThreadKind { Planning, Executor }` (`as_str`: `planning`, `executor`) on `PlanningThread.kind`.
   - `Threads::create_executor_in(conn, project: &ProjectId, title: String, harness: &str) -> ThreadId`.
-  - `pub struct TaskScope { workflow_id: WorkflowId, version: i64, task: u32, writes: Vec<String> }`;
-    `Grants::issue_thread_grant_in` gains `scope: Option<TaskScope>`; `Grant.scope: Option<TaskScope>`.
-  - `PermissionPolicy::Scoped { root: PathBuf, writes: Vec<String> }`: allow a request whose paths
-    all fall inside `writes` under `root`; refuse anything else, including a request with no path,
-    except what §7 allows.
+  - `GrantKind::Executor` (`as_str`: `executor`), beside `Thread` and `Project`.
+    `Grants::tools_for(GrantKind::Executor)` returns exactly `task_context`, `where_is`,
+    `who_uses`, `outline`, and `task_commit` (added by B-92); `server.rs` builds its router from
+    that list, as it does for the other two kinds. Every other tool is absent for it.
+  - `pub struct TaskScope { workflow: String, version: i64, task: u32 }` in `core-grants`, opaque
+    there: the workflow is a string, so `core-grants` imports nothing from `core-plans` (which
+    already depends on it). `Grants::issue_executor_grant_in(conn, project: &ProjectId,
+    thread: &ThreadId, scope: TaskScope) -> (Grant, Token)`; `Grant.scope: Option<TaskScope>`.
+  - `Plans::task_context` interprets the scope: for an executor grant, `workflow`, `version` and
+    `task` must equal the scope's, else `PlansError::OutsideGrant`. Project and thread grants keep
+    today's project-level check.
+  - `pub struct ExecutorScope { root: PathBuf, writes: Vec<String>, grant: TaskScope }`, passed by
+    the caller to `Harness::open_executor(thread: &ThreadId, scope: ExecutorScope, model: String)`.
+  - `PermissionPolicy::Scoped { root: PathBuf, writes: Vec<String> }`: canonicalize each requested
+    path (links and junctions resolved); allow only when every canonical path is inside `root` and
+    matches `writes`; refuse anything else, including a request with no path, except what §7 allows.
+    It records, per allowed path, the file's content hash once the tool call completes (the
+    ownership record B-92 checks).
   - `EXECUTOR_TOOLS` in `setup.rs`, from §7.
-  - An executor grant sees exactly: `task_context` (its own task only), `where_is`, `who_uses`,
-    `outline`, and `task_commit` (added by B-92). Every planning write tool is refused for it.
 
 - [ ] **Step 1: Write the failing tests** in `crates/shadows-core/tests/executor_session.rs`
   (fake-acp):
@@ -131,8 +152,12 @@ or B-90 stays blocked with the measured gap stated.
     with `executor.txt`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, policy `Scoped`.
   - `an_edit_inside_writes_is_allowed_and_outside_is_refused`: fake requests `backend/a.php` → allow;
     `web/a.ts` → refuse, and the refusal is a thread entry.
-  - `an_executor_grant_reads_only_its_own_task`: `task_context` for its task → Ok; another task → refused.
-  - `an_executor_grant_cannot_write_the_plan`: a plan-writing tool → refused.
+  - `a_path_through_a_link_outside_writes_is_refused`: `backend/link/x.php`, where `link` points to
+    `web/` → refused.
+  - `an_executor_grant_reads_only_its_own_task`: `task_context` for its task → Ok; another task, or
+    the same task in another version → `OutsideGrant`.
+  - `an_executor_grant_lists_only_its_tools`: `tools/list` returns the five names, no more.
+  - `an_executor_grant_cannot_write_the_plan`: a plan-writing tool → unknown tool.
   - `executor_threads_are_not_listed_as_conversations`: `Threads::list` returns the planning thread only.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test executor_session`. Expected: FAIL.
 - [ ] **Step 3:** Write `executor.txt` from the design §8 (stay in `writes`; build nothing you do
@@ -166,8 +191,24 @@ or B-90 stays blocked with the measured gap stated.
   - `pub struct AttemptId(String)`; `pub enum AttemptState { Running, Committed, Stopped, Interrupted, Failed }`
     (`as_str`: `running`, `committed`, `stopped`, `interrupted`, `failed`).
   - `pub struct Attempt { id, project_id, workflow_id, version: i64, task: u32, number: u32,
-    thread_id: ThreadId, model: String, state: AttemptState, commit: Option<String>,
-    reason: Option<String>, started_at: String, ended_at: Option<String> }`.
+    thread_id: ThreadId, operation_id: OperationId, model: String, state: AttemptState,
+    commit: Option<String>, reason: Option<String>, started_at: String, ended_at: Option<String> }`.
+    `operation_id` is the operation of the attempt's turn; Runs reads its end from Operations.
+  - **Transitions** (the only ones; each sets `ended_at` when it leaves `Running`):
+
+    | From | Event | To | `reason` |
+    |---|---|---|---|
+    | — | Start accepted | `Running` | — |
+    | `Running` | session fails to open | `Failed` | `session did not open: {error}`; grant revoked |
+    | `Running` | `task_commit` succeeds | `Committed` | — |
+    | `Running` | turn ends, no commit | `Failed` | `ended without a commit` |
+    | `Running` | turn fails | `Failed` | the turn's failure |
+    | `Running` | Stop confirmed | `Stopped` | — |
+    | `Running` | found at startup, commit with its trailer in git | `Committed` | — |
+    | `Running` | found at startup, no such commit | `Interrupted` | — |
+    | `Committed` | turn ends or is stopped | `Committed` | unchanged |
+
+    One commit per attempt; a second `task_commit` is `AlreadyCommitted`.
   - `pub struct TaskRun { task: u32, done: bool, done_at: Option<String>, latest: Option<Attempt> }`.
   - `Runs::start(&self, command: CommandId, workflow: &WorkflowId, version: i64, task: u32, model: String) -> Result<Attempt, RunsError>`
   - `Runs::stop(&self, attempt: &AttemptId) -> Result<Attempt, RunsError>` (waits for the turn's
@@ -175,10 +216,19 @@ or B-90 stays blocked with the measured gap stated.
   - `Runs::task(&self, workflow: &WorkflowId, version: i64, task: u32) -> Result<TaskRun, RunsError>`
   - `Runs::attempts(&self, workflow: &WorkflowId, version: i64, task: u32) -> Result<Vec<Attempt>, RunsError>` (newest first)
   - `Runs::mark_done(&self, command: CommandId, workflow: &WorkflowId, version: i64, task: u32, done: bool) -> Result<TaskRun, RunsError>`
-  - `Runs::recover(&self) -> Result<u32, RunsError>` (count of attempts set `Interrupted`)
+  - `Runs::recover(&self) -> Result<RecoverReport, RunsError>` with
+    `RecoverReport { committed: u32, interrupted: u32 }`. In B-91 every `Running` row found at
+    startup becomes `Interrupted`; B-92 adds the git lookup that turns a row whose commit exists
+    into `Committed` first.
+  - **Overlap, decided in the Start transaction:** Start reads the project's `Running` attempts and
+    refuses `Overlap { task: u32 }` when a running task's `writes` may intersect this task's. Two
+    patterns may intersect unless their literal prefixes (each pattern cut before its first glob
+    character, then at its last `/`) are disjoint: neither is a path prefix of the other. Unproven
+    means intersecting. The check and the insert are one write transaction, so two concurrent Starts
+    cannot both pass.
   - `RunsError`: `NotFrozen`, `Superseded`, `Archived`, `Waiting { tasks: Vec<u32> }`, `TaskBusy`,
-    `CommandConflict`, `NotFound`, `Storage`. B-92 adds `NotGit`, `DirtyScope`, `OutsideScope`,
-    `NothingToCommit`.
+    `Overlap { task: u32 }`, `CommandConflict`, `NotFound`, `Storage`. B-92 adds `NotGit`,
+    `DirtyScope`, `OutsideScope`, `UnprovenChange`, `AlreadyCommitted`, `NothingToCommit`.
 
 - [ ] **Step 1: Write the failing tests** in `crates/core-runs/tests/attempts.rs`:
   - `start_opens_one_attempt_on_an_executor_thread`: start T1 → `state == Running`, `number == 1`,
@@ -189,8 +239,17 @@ or B-90 stays blocked with the measured gap stated.
     after `mark_done(T1, true)` → Ok.
   - `start_refuses_a_draft_a_superseded_or_an_archived_version`: each → its error.
   - `stop_ends_the_attempt_and_closes_its_session`: `state == Stopped`, `ended_at` set, no live session.
-  - `recover_interrupts_running_attempts_without_restarting_them`: a `Running` row at startup →
-    `Interrupted`, grant revoked, no turn started; `recover()` returns 1.
+  - `a_session_that_fails_to_open_fails_the_attempt`: fake-acp refuses `session/new` → `Failed`,
+    reason starts `session did not open`, grant revoked, a new Start is allowed.
+  - `a_turn_that_ends_without_a_commit_fails_the_attempt`: fake ends the turn → `Failed`,
+    reason `ended without a commit`.
+  - `recover_interrupts_running_attempts_without_restarting_them`: a `Running` row at startup, no
+    commit in git → `Interrupted`, grant revoked, no turn started; `interrupted == 1`.
+  - `overlapping_tasks_cannot_start_together`: T3 writes `backend/app/**`, T4 writes
+    `backend/app/Models/**`; T3 running → T4 `Err(Overlap { task: 3 })`.
+  - `disjoint_tasks_start_together`: T3 `backend/app/**`, T5 `web/**` → both `Running`.
+  - `two_concurrent_starts_of_overlapping_tasks_admit_one`: start T3 and T4 at once (`tokio::join!`)
+    → exactly one `Running`, the other `Overlap`.
 - [ ] **Step 2:** Run `cargo test -p core-runs --test attempts`. Expected: fails to compile (no crate).
 - [ ] **Step 3:** Migration: tables `run_attempts` (columns of `Attempt`, plus `command_id`,
   `fingerprint`; unique `(workflow_id, version, task, number)`) and `run_task_marks`
@@ -216,14 +275,23 @@ or B-90 stays blocked with the measured gap stated.
   `crates/shadows-mcp/src/plan_tools.rs` (the tool), `contract.yaml`
 
 **Interfaces:**
-- Consumes: B-89's attribution rule; B-91's `Attempt`; B-90's `TaskScope` on the caller's grant.
+- Consumes: B-89's ownership rule; B-91's `Attempt` and transitions; B-90's `TaskScope` on the
+  caller's grant and the ownership record kept by `PermissionPolicy::Scoped`.
 - Produces:
   - `Runs::commit(&self, grant: &Grant, message: String) -> Result<Attempt, RunsError>`: one commit
-    at a time per project folder (a per-project `tokio::sync::Mutex`); stages and commits only the
-    attempt's attributed paths with `git commit --only -- <paths>`; message
-    `T{n}: {title}\n\n{message}\n\nShadows-Attempt: {attempt id}`; sets `commit` and `Committed`.
-  - Errors: `OutsideScope { paths: Vec<String> }` (any attributed path outside `writes`; nothing
-    committed; attempt `Failed` with the paths as reason), `NothingToCommit`.
+    at a time per project folder (a per-project `tokio::sync::Mutex`). Before committing it checks
+    every changed path inside `writes`: the path is the attempt's only when its current content hash
+    equals the hash recorded after the attempt's own last permitted write. It then commits exactly
+    those paths with `git commit --only -- <paths>`, message
+    `T{n}: {title}\n\n{message}\n\nShadows-Attempt: {attempt id}`. **Git first, then SQLite**: the
+    SHA and `Committed` are written after git returns; a crash between the two is repaired by
+    `recover`.
+  - Errors: `OutsideScope { paths }` (an attributed path outside `writes`), `UnprovenChange { paths }`
+    (a changed path in `writes` whose content is not what the attempt last wrote: the person or
+    another process changed it). Both commit nothing and fail the attempt with the paths as reason.
+    `AlreadyCommitted`, `NothingToCommit`.
+  - `recover` gains its git step: `git log --all --format=%H%x00%(trailers:key=Shadows-Attempt,valueonly)`
+    finds the attempt's commit; a `Running` row with one becomes `Committed` with that SHA.
   - `Runs::diff(&self, attempt: &AttemptId) -> Result<Vec<FileDiff>, RunsError>` where
     `FileDiff { path: String, added: u32, removed: u32, patch: String }` from `git show --numstat`
     and `git show` of the attempt's commit; bounded at 2,000 lines per file, then truncated with a marker.
@@ -236,6 +304,12 @@ or B-90 stays blocked with the measured gap stated.
     `web/b.ts` is modified → the commit holds `backend/a.php` only; `web/b.ts` stays modified.
   - `a_persons_staged_file_stays_staged`: `notes.md` staged before → not in the commit, still staged.
   - `a_path_outside_writes_refuses_the_commit`: attributed `web/x.ts` → `Err(OutsideScope { paths: ["web/x.ts"] })`, HEAD unchanged.
+  - `a_hand_edit_after_the_agents_write_refuses_the_commit`: the agent writes `backend/a.php`, the
+    test then appends a line to it → `Err(UnprovenChange { paths: ["backend/a.php"] })`, HEAD unchanged.
+  - `a_file_written_by_a_child_process_is_unproven`: `backend/gen.php` appears with no permitted
+    write recorded → `Err(UnprovenChange)`.
+  - `a_crash_between_git_and_sqlite_recovers_as_committed`: a test hook fails the SQLite write after
+    git commits; `recover()` → the attempt is `Committed` with the commit's SHA, `committed == 1`.
   - `two_commits_at_once_are_serialized`: two attempts commit concurrently → two commits, each with its own paths.
   - `start_refuses_a_folder_that_is_not_git` and `start_refuses_uncommitted_changes_in_writes`.
   - `diff_returns_each_files_counts_and_patch`.
@@ -256,12 +330,17 @@ or B-90 stays blocked with the measured gap stated.
   state needs a project event (B-91's attempt changes go through the existing project stream)
 
 **Interfaces:**
-- Consumes: B-91 and B-92.
+- Consumes: B-91 and B-92; the accepted shared request
+  `docs/shared/requests/2026-11-08-task-run-page.md`, which fixes the read's shape.
 - Produces (all under `/api/projects/{project}/workflows/{workflow}/versions/{version}/tasks/{task}`):
-  - `GET` → `TaskRun` plus the suggested starting model (the plan thread's remembered model, §12.6).
+  - `GET` → `TaskRun` with the request's added fields: `needs` (each `{ task, title, done }`),
+    `start` (`{ allowed, code, reason }`, Core's answer to "may Start run now", using the same
+    checks as `Runs::start` without writing) and `suggested_model` (the plan thread's remembered
+    model, §12.6). `Runs::can_start(&self, workflow, version, task) -> StartAnswer` serves it.
   - `GET /attempts` → `Attempt[]`.
   - `POST /attempts` `{ command_id, model }` → `Attempt` (201); errors map `Waiting`, `TaskBusy`,
-    `NotGit`, `DirtyScope`, `NotFrozen`, `Superseded`, `Archived` to 409 with Core's reason.
+    `Overlap`, `NotGit`, `DirtyScope`, `NotFrozen`, `Superseded`, `Archived` to 409 with Core's
+    `code` and reason, the same codes `start.code` uses.
   - `POST /attempts/{attempt}/stop` → `Attempt`.
   - `GET /attempts/{attempt}/diff` → `FileDiff[]`.
   - `PUT /done` `{ command_id, done }` → `TaskRun`.
@@ -285,7 +364,9 @@ or B-90 stays blocked with the measured gap stated.
   link), `web/src/test/fake-daemon.ts`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`
 
 **Interfaces:**
-- Consumes: B-93's routes and generated types.
+- Consumes: B-93's routes and generated types; the accepted shared request
+  `docs/shared/requests/2026-11-08-task-run-page.md`. The page computes no readiness: Start's
+  enabled state and reason are `start.allowed` and `start.reason`; the `needs` row is `needs`.
 - Produces: route `/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task`.
   - Header: plan title link, `T{n} · {title}`, the latest attempt's state label, each `needs` task
     with ✓ when marked done, Start (disabled with Core's reason) or Stop while running, and
