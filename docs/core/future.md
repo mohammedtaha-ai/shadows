@@ -64,6 +64,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Task | What it removes | Status | Why |
 |---|---|---|---|
 | Product workspaces (A-22) | `runtime/` and `code-intelligence/` as their own workspaces, each with its own lockfile, `target/` and CI job | planned | Deferred 2026-10-28: nothing new lives there yet, and a second build cache costs more than it protects. Starts at the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own. [Plan](../backend/plans/2026-10-21-architecture.md#a-22--split-the-repository-by-product) |
+| Real-provider journey suite | Most Core tests run against `fake-acp`, so they prove Shadows agrees with itself, not that it works with real Claude. A small required suite runs the real daemon, adapter and Claude through one journey (Idea → Vision → Map → Roadmap → Plans, a part move, phases, `task_context`), asserts on stored state rather than reply text, and reports what passed and the tokens spent. One local command, run before each PR and each adapter upgrade; about 10–15 minutes per run, about a day to set up. `fake-acp` stays for internal rules, storage and refusals | idea | Asked by Mohammed on 2026-11-07: an adapter upgrade and the map-move refusal were both invisible to the fake-backed tests |
 | Remove mx | Its disabled hook scripts, `mx*` skills, permission lines, the `mxai-knowledge` MCP server and the mx block in the global `CLAUDE.md` | idea | [vision §1](./vision.md#1-the-problem) (memory tools did not help) |
 
 ## Adding to this list
