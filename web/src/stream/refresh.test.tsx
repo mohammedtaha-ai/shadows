@@ -10,8 +10,21 @@ import { usePlanEvents } from './use-plan-events'
 import { useProjectEvents } from './use-project-events'
 import { useThreadStream } from './use-thread-stream'
 import { waitingPermissionsQuery } from '@/api/permissions'
+import { threadKeys } from '@/api/threads'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+it.each(['AgentMessage', 'UserMessage', 'ToolCall'])('only assistant entries refresh conversation order: %s', kind => {
+  const client = new QueryClient()
+  const key = threadKeys.list('p1')
+  client.getQueryCache().build(client, { queryKey: key })
+  dispatchRefresh(client, classifyRefresh({
+    kind: 'ThreadEntryAppended', seq: 1, threadId: 't1', operationId: null,
+    payload: { ordinal: 1, kind },
+  }))
+  expect(client.getQueryState(key)?.isInvalidated).toBe(kind === 'AgentMessage')
+  client.clear()
+})
 
 it('a MessageAdded refreshes its group, its log and the list', async () => {
   const client = new QueryClient()

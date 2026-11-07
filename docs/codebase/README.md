@@ -312,7 +312,7 @@ pattern to follow, not merely an example.
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |
-| `crates/shadows-agent/src/lib.rs` | the ACP client for a harness adapter | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/lib.rs` | the ACP client for a harness adapter | `crates/shadows-agent/contract.yaml` |
 | `crates/shadows-agent/src/acp/` | private ACP protocol implementation | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/connection.rs` | ACP transport initialization | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/session.rs` | ACP session configuration | `crates/shadows-agent/src/acp.rs` |
@@ -343,7 +343,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-process/src/launch.rs` | child launch configuration | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/persistent.rs` | independent process lifetime | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
-| `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
+| `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/contract.yaml` |
 | `crates/fake-acp/src/handlers.rs` | fake protocol handler registration | `crates/fake-acp/src/main.rs` |
 | `crates/fake-acp/src/handlers/` | fake protocol request handling | `crates/fake-acp/src/main.rs` |
 | `crates/fake-acp/src/handlers/session.rs` | fake session lifecycle requests | `crates/fake-acp/src/session.rs` |

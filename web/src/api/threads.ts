@@ -12,8 +12,8 @@ export const threadKeys = {
   operations: (threadId: string) => ['threads', threadId, 'operations'] as const,
 }
 
-/** A project's planning threads, oldest first. A thread's own stream
- * refreshes the list on its `ThreadRetitled`, but the harness titles a thread
+/** A project's planning threads, latest assistant reply first. A thread's own stream
+ * refreshes the list on assistant replies and `ThreadRetitled`, but the harness titles a thread
  * after its turn has ended, often once the person has left it, so the list is
  * also polled every 10 s while shown. */
 export function threadsQuery(projectId: string) {

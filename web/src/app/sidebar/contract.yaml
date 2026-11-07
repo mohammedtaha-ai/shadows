@@ -66,6 +66,8 @@ components:
     tested_by: ["the filter narrows projects by name and by directory, and says when nothing matches", "Escape closes the search and clears the filter"]
   ThreadList:
     signature: "({ projectId: string, selected?: string, profile?: string }) => JSX.Element"
+    note: "Project conversations retain Core's latest-assistant-reply order; user sends do not promote rows."
+    tested_by: ["refreshes conversation order when an assistant reply arrives"]
     # Conversation links of one project, or of one agent when `profile` is given (they all
     # live in the hidden assistant project), with a per-row menu whose Delete opens the dialog.
   LeafMark:

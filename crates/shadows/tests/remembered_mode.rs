@@ -1,5 +1,7 @@
 //! Conversation permission choices survive session and daemon lifetimes.
 use serde_json::{Value, json};
+use shadows_agent::events::HarnessEvent;
+use shadows_core::ThreadId;
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
@@ -19,6 +21,26 @@ async fn open(app: &App, thread: &str) -> Value {
     let (status, choices) = post(app, &format!("/api/threads/{thread}/session"), json!({})).await;
     assert_eq!(status, 200, "{choices}");
     choices
+}
+
+async fn prompt_reports_mode(app: &App, thread: &ThreadId, how: &str, mode: &str) {
+    let opened = app.sessions.open(thread).await.unwrap();
+    let mut events = app.sessions.take_events(thread).await.unwrap();
+    opened
+        .connection()
+        .prompt(&opened.session_id, "report", &[])
+        .await
+        .unwrap();
+    let mut reply = String::new();
+    while let Ok(event) = events.try_recv() {
+        if let HarnessEvent::Chunk { text, .. } = event {
+            reply.push_str(&text);
+        }
+    }
+    app.sessions.give_back_events(thread, &opened, events).await;
+    let report: Value = serde_json::from_str(&reply).unwrap();
+    assert_eq!(report["how"], how);
+    assert_eq!(report["mode"], mode);
 }
 
 #[tokio::test]
@@ -215,7 +237,9 @@ async fn running_turn_keeps_its_mode_and_next_turn_uses_the_pick() {
 
 #[tokio::test]
 async fn fork_copies_the_mode_and_removal_deletes_only_its_row() {
-    let app = test_app().await;
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join(".fake-acp-resume-accept-edits"), "").unwrap();
+    let app = app::test_app_at(dir.path()).await;
     app::start_and_finish(&app, "hello", default_settings()).await;
     assert_eq!(pick(&app, "auto", "auto").await.0, 200);
     let entries: Vec<Value> = get_json(&app, &format!("/api/threads/{}/entries", app.thread)).await;
@@ -226,6 +250,8 @@ async fn fork_copies_the_mode_and_removal_deletes_only_its_row() {
     )
     .await;
     assert_eq!(status, 201, "{fork}");
+    let fork_id = ThreadId::from_literal(fork["id"].as_str().unwrap());
+    prompt_reports_mode(&app, &fork_id, "fork", "auto").await;
     assert_eq!(
         open(&app, fork["id"].as_str().unwrap()).await["current"]["mode"],
         "auto"
@@ -250,7 +276,9 @@ async fn fork_copies_the_mode_and_removal_deletes_only_its_row() {
 
 #[tokio::test]
 async fn a_turn_start_remembers_its_explicit_mode_in_its_transaction() {
-    let app = test_app().await;
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join(".fake-acp-resume-accept-edits"), "").unwrap();
+    let app = app::test_app_at(dir.path()).await;
     let mut settings = default_settings();
     settings["mode"] = json!("auto");
     assert_eq!(
@@ -260,6 +288,7 @@ async fn a_turn_start_remembers_its_explicit_mode_in_its_transaction() {
         "Completed"
     );
     app.sessions.terminate(&app.thread).await.unwrap();
+    prompt_reports_mode(&app, &app.thread, "resume", "auto").await;
     assert_eq!(
         open(&app, app.thread.as_str()).await["current"]["mode"],
         "auto"

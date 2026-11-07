@@ -299,11 +299,10 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
     storage.close().await.unwrap();
 }
 
-/// A project's threads are listed in the
-/// order they were created, not by `created_at` text (see the project
-/// listing's test for why the text cannot give that order).
+/// Receiving an assistant reply moves a conversation ahead of older replies.
+/// User messages and tool activity leave the response order unchanged.
 #[tokio::test]
-async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
+async fn project_threads_follow_latest_agent_reply() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo" });
@@ -342,13 +341,47 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
             .unwrap();
         created.push(thread.id);
     }
-    let listed: Vec<_> = Threads::list_threads_for_project_for_test(&storage, &project.id)
+    let unanswered = Threads::list_threads_for_project_for_test(&storage, &project.id)
         .await
-        .unwrap()
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
-    assert_eq!(listed, created);
+        .unwrap();
+    assert_eq!(unanswered[0].id, created[1]);
+    assert_eq!(unanswered[1].id, created[0]);
+    for (index, kind, expected) in [
+        (0, ThreadEntryKind::AgentMessage, [0, 1]),
+        (1, ThreadEntryKind::AgentMessage, [1, 0]),
+        (0, ThreadEntryKind::UserMessage, [1, 0]),
+        (0, ThreadEntryKind::ToolCall, [1, 0]),
+        (0, ThreadEntryKind::AgentMessage, [0, 1]),
+    ] {
+        Threads::append_thread_entry_for_test(
+            &storage,
+            &created[index],
+            NewThreadEntry {
+                kind,
+                author: if kind == ThreadEntryKind::UserMessage {
+                    Actor::user("local")
+                } else {
+                    Actor::system()
+                },
+                body: "Message",
+                refs: &[],
+                card: None,
+                operation_id: None,
+            },
+        )
+        .await
+        .unwrap();
+        let listed: Vec<_> = Threads::list_threads_for_project_for_test(&storage, &project.id)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
+        assert_eq!(
+            listed,
+            [created[expected[0]].clone(), created[expected[1]].clone()]
+        );
+    }
 
     storage.close().await.unwrap();
 }

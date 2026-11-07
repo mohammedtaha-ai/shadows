@@ -3,15 +3,13 @@ use super::mapping::Mapping;
 use super::permissions::Permissions;
 use super::{AcpError, Connection, PermissionPolicy, PromptCapabilities};
 use crate::events::HarnessEvent;
-use agent_client_protocol::schema::{
-    ProtocolVersion,
-    v1::{
-        ClientCapabilities, InitializeRequest, PermissionOptionKind, RequestPermissionOutcome,
-        RequestPermissionRequest, RequestPermissionResponse, SelectedPermissionOutcome,
-        SessionNotification, SessionUpdate,
-    },
+use agent_client_protocol::schema::ProtocolVersion;
+use agent_client_protocol::v1::schema::{
+    ClientCapabilities, InitializeRequest, PermissionOptionKind, RequestPermissionOutcome,
+    RequestPermissionRequest, RequestPermissionResponse, SelectedPermissionOutcome,
+    SessionNotification, SessionUpdate,
 };
-use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo, UntypedMessage};
+use agent_client_protocol::{Agent, ByteStreams, Client, UntypedMessage, v1::ConnectionTo};
 use serde_json::Value;
 use shadows_process::{ChildErr, ProcessHandle};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -41,7 +39,7 @@ impl Connection {
         let dispatch_costs = costs.clone();
         tokio::spawn(async move {
             let _ = Client
-                .builder()
+                .v1()
                 .on_receive_notification(
                     async move |raw: UntypedMessage, _cx| {
                         dispatch_notification(&notify, &dispatch_costs, raw);

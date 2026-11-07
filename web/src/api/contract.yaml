@@ -21,6 +21,7 @@
 # exposes its operations, query identities and generated schema aliases together.
 
 name: web-api
+project_thread_order: "threadsQuery preserves Core's latest-assistant-reply order; unanswered conversations follow by newest creation sequence."
 part_layers: 'PartLayer is a generated-schema alias; PartContent carries folder and layers through the existing design operations.'
 version: 1
 status: current

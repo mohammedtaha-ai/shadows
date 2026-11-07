@@ -24,6 +24,7 @@ status: current
 source: web/src/stream
 
 refresh_pinning:
+  conversation_order: "ThreadEntryAppended with kind AgentMessage invalidates thread lists; user messages and tool entries do not. Other background threads use the existing list polling."
   groups: "MessageAdded invalidates the affected group detail and log, plus the group list."
   group_members: "The group page holds the normal refresh for each member thread while open."
   project: "pins project refresh for %s covers all five plan event kinds: design, agreement versions, project maps/lists, plan versions, sibling versions and project neighbours."

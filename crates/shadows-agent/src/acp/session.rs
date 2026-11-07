@@ -1,6 +1,6 @@
 //! Session opening configuration and option requests.
 use super::{AcpError, Connection};
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     EnvVariable, ForkSessionRequest, HttpHeader, McpServer, McpServerHttp, McpServerStdio, Meta,
     NewSessionRequest, ResumeSessionRequest, SessionConfigOptionValue,
     SetSessionConfigOptionRequest,

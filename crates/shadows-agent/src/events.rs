@@ -127,8 +127,8 @@ pub struct PermissionOption {
     pub kind: String,
 }
 
-impl From<agent_client_protocol::schema::v1::PermissionOption> for PermissionOption {
-    fn from(option: agent_client_protocol::schema::v1::PermissionOption) -> Self {
+impl From<agent_client_protocol::v1::schema::PermissionOption> for PermissionOption {
+    fn from(option: agent_client_protocol::v1::schema::PermissionOption) -> Self {
         Self {
             option_id: option.option_id.to_string(),
             name: option.name,

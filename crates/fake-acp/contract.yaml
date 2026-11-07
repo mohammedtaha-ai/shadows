@@ -1,0 +1,30 @@
+name: fake-acp
+version: 1
+status: current
+source: crates/fake-acp/src
+purpose: Supply a deterministic ACP v1 peer for Shadows integration tests.
+
+modules:
+  main.rs: Registers protocol handlers on the test-only stdio connection.
+  handlers/session.rs: Fake session creation, resume, fork and configuration.
+  handlers/prompt.rs: Scripted prompt dispatch and settlement.
+  session.rs: In-process session state and offered options.
+  prompts.rs: Scripted prompt results and session update sequences.
+  steer.rs: Test steering injection.
+  mcp.rs: Calls to the configured test MCP server.
+
+obligations:
+  - rule: Building the binary requires test-support, which enables the SDK's stdio transport.
+    tested_by: none
+  - rule: New sessions have process-unique ids; resume accepts a recorded fake id in another process.
+    tested_by: [a_closed_adapter_resumes_the_session_the_first_turn_started]
+  - rule: A project marker can make the fake report acceptEdits on resume, including after fork.
+    tested_by: [fork_copies_the_mode_and_removal_deletes_only_its_row, a_turn_start_remembers_its_explicit_mode_in_its_transaction]
+  - rule: The report prompt exposes the fake's actual session state, including how it opened and its mode.
+    tested_by: [opening_twice_reuses_one_adapter_and_starts_in_accept_edits]
+  - rule: The report fixture exposes MCP configuration without printing header values.
+    tested_by: [report_mcp_records_hashes_and_finds_shadows]
+
+boundaries:
+  - This binary is test apparatus; provider calls and adapter behavior need separate live evidence.
+  - Core applies the product mode policy; the fake advertises scripted options and accepts fixture settings.

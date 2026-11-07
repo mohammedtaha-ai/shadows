@@ -50,6 +50,8 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
     if (operation) targets.push({ kind: 'operations', threadId: event.threadId })
   }
   if (event.kind === 'ThreadRetitled') targets.push({ kind: 'thread-lists' })
+  if (event.kind === 'ThreadEntryAppended' && typeof payload === 'object' && payload !== null &&
+      'kind' in payload && payload.kind === 'AgentMessage') targets.push({ kind: 'thread-lists' })
   return targets
 }
 

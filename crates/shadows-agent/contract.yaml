@@ -1,0 +1,43 @@
+name: shadows-agent
+version: 1
+status: current
+source: crates/shadows-agent/src
+purpose: Translate one managed adapter's ACP v1 connection into harness operations and events.
+
+modules:
+  acp.rs: Public connection and session types.
+  acp/connection.rs: Transport initialization and ordered inbound dispatch.
+  acp/session.rs: Session opening and configuration requests.
+  acp/prompt.rs: Prompt, steering and cancellation requests.
+  acp/permissions.rs: Settlement of held ACP permission requests.
+  acp/mapping.rs: Translation of session updates to HarnessEvent.
+  choices.rs: Parsing adapter-provided session configuration.
+  claude.rs: Launch specification for the configured Claude adapter.
+  policy.rs: Supported harnesses and their allowed modes.
+  profile.rs: Explicit provider environment for a Claude invocation.
+  usage.rs: Connection-local attribution of cumulative session cost to prompts.
+
+functions:
+  Connection::open: Initializes ACP v1 over the managed process pipes.
+  Connection::start_session: Sends new, resume, or fork followed by resume.
+  Connection::prompt_blocks: Sends ordered content and reports completion with optional usage.
+  Connection::steer_blocks: Sends the adapter steering extension without starting an idle prompt.
+  Connection::stop_task: Requests the adapter to stop one background task.
+  Connection::cancel: Refuses held permissions and sends a session cancel notification.
+
+obligations:
+  - rule: Typed session updates are mapped in dispatch order; unknown kinds can use the raw task fallback.
+    tested_by: [async_task_updates_become_task_events]
+  - rule: The background task stop is scoped to a session and task id.
+    tested_by: [stopping_a_task_asks_the_adapter]
+  - rule: A peer RPC failure is distinct from a closed incoming transport.
+    tested_by: [a_server_error_mentioning_connection_closed_is_still_an_rpc_error]
+  - rule: Planner session setup distinguishes an absent tool restriction from an explicit empty list.
+    tested_by: [absent_and_empty_tool_policies_are_distinct]
+  - rule: The launch specification uses the configured Node, adapter and Claude executable.
+    tested_by: [configured_adapter_preserves_launch_identity]
+
+boundaries:
+  - Process creation and containment belong to shadows-process.
+  - Applying Core's remembered mode and selecting the project session belong to core-harness.
+  - The SDK owns ACP message definitions. Claude adapter code is installed from npm.

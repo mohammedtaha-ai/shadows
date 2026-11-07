@@ -1,13 +1,16 @@
 //! Fake session lifecycle requests.
 use crate::prompts::update;
 use crate::session::{self, Shared, efforts, make_session, options, setup_of};
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     AgentCapabilities, AvailableCommandsUpdate, CancelNotification, ForkSessionRequest,
     ForkSessionResponse, InitializeRequest, InitializeResponse, NewSessionRequest,
     NewSessionResponse, ResumeSessionRequest, ResumeSessionResponse, SessionUpdate,
     SetSessionConfigOptionRequest, SetSessionConfigOptionResponse,
 };
-use agent_client_protocol::{Client, ConnectionTo, Responder};
+use agent_client_protocol::{
+    Client,
+    v1::{ConnectionTo, Responder},
+};
 use serde_json::{Value, json};
 
 pub(crate) struct SessionHandlers;
@@ -73,7 +76,11 @@ impl SessionHandlers {
             "resume"
         };
         st.resumes += 1;
-        let s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
+        let reports_accept_edits = r.cwd.join(".fake-acp-resume-accept-edits").is_file();
+        let mut s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
+        if reports_accept_edits {
+            s.mode = "acceptEdits".into();
+        }
         let opts = options(&s);
         st.sessions.insert(id.clone(), s);
         drop(st);

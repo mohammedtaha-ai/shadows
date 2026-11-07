@@ -1,7 +1,7 @@
 //! Prompt requests and cancellation.
 use super::{AcpError, Connection};
 use crate::events::TurnUsage;
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     CancelNotification, ContentBlock, PromptRequest, StopReason, TextContent,
 };
 use base64::Engine;
@@ -131,7 +131,7 @@ impl Connection {
                 PromptBlock::Text(text) => ContentBlock::Text(TextContent::new(text)),
                 PromptBlock::Image(image) => {
                     let data = base64::engine::general_purpose::STANDARD.encode(&image.bytes);
-                    ContentBlock::Image(agent_client_protocol::schema::v1::ImageContent::new(
+                    ContentBlock::Image(agent_client_protocol::v1::schema::ImageContent::new(
                         data,
                         &image.media_type,
                     ))

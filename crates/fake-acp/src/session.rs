@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex, atomic::AtomicBool},
 };
 
-use agent_client_protocol::schema::v1::{
+use agent_client_protocol::v1::schema::{
     AvailableCommand, AvailableCommandInput, McpServer, Meta, SessionConfigOption,
     UnstructuredCommandInput,
 };
@@ -204,7 +204,7 @@ pub(crate) fn make_session(cwd: PathBuf, how: &'static str, setup: Setup) -> Ses
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_client_protocol::schema::v1::{
+    use agent_client_protocol::v1::schema::{
         EnvVariable, HttpHeader, McpServerHttp, McpServerStdio,
     };
 
