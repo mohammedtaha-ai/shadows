@@ -296,7 +296,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   route and does not alone warrant changing OpenAPI.
 
 ### B-82 · A map change can move a part
-- Status: ready
+- Status: done
 - Base: `feature/structure-elements` at its current head.
 - Plan: this entry and shared request `docs/shared/requests/2026-11-07-map-change-moves.md`; no plan task.
 - Owner: Design (`crates/core-design`); adapters translate only.

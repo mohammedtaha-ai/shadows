@@ -2526,6 +2526,7 @@ export interface components {
             created_at: string;
             id: string;
             old?: null | components["schemas"]["PartContent"];
+            old_parent?: null | components["schemas"]["PartId"];
             outdated: boolean;
             part_id?: null | components["schemas"]["PartId"];
             parts: components["schemas"]["ProposedPart"][];

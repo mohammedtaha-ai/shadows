@@ -3120,6 +3120,17 @@
               }
             ]
           },
+          "old_parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId",
+                "description": "The changed part's parent when the card was proposed."
+              }
+            ]
+          },
           "outdated": {
             "type": "boolean"
           },

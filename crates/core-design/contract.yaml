@@ -379,6 +379,12 @@ obligations:
     tested_by: equivalent_map_retries_replay_the_original_card
   - rule: An approved map reports newly required mandatory kinds in its stage line and map page.
     tested_by: [approved_map_reports_new_missing_mandatory_kinds, an_added_part_is_mandatory_for_the_stage]
+  - rule: >
+      A map change replaces a part's content and parent; MapProposal.old_parent is the parent at
+      propose time. Approval moves the part (PartMove) only when the parent differs. A parent that
+      is the part or its descendant, or not a part of the project, is refused at propose time;
+      parent_key stays refused on a change.
+    tested_by: [a_map_change_moves_a_part_under_another, a_map_change_with_its_current_parent_does_not_move, a_map_change_with_no_parent_moves_to_the_top, a_map_change_into_its_own_descendant_is_refused, a_map_change_still_refuses_parent_key]
   - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
     tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
   - rule: >

@@ -63,7 +63,10 @@ impl Shadows {
     #[tool(
         description = "Propose a project map. first proposes all parts with slug keys
         and parent_key;
-        add/change proposes one part, change names part_id. Include served vision ids, the folder,
+        add/change proposes one part, change names part_id.
+        A change replaces content and parent: give the current parent to keep the part in place,
+        another part's id to move it under that part, or none to move it to the top level.
+        Include served vision ids, the folder,
         layers with their stack-specific places and contract rules.
         First-map api/frontend waivers need written reasons.
         One call draws one card. Approval is separate; this tool writes no approved parts."

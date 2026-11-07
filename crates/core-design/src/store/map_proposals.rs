@@ -73,6 +73,7 @@ impl DesignStore {
                     shape::MapProposalShapeRows::validate_args(&mut args, &standards)?;
                     let rows = maps::MapVersionsRows::rows(conn, &p).await?;
                     let old = shape::MapProposalShapeRows::old_content(&args, &rows)?;
+                    let old_parent = shape::MapProposalShapeRows::old_parent(&args, &rows);
                     let proposed_rows = shape::MapProposalShapeRows::result(&args, &rows)?;
                     shape::MapProposalShapeRows::check(&args, &proposed_rows, &vision, &standards)?;
                     let contents = maps::MapVersionsRows::contents(&proposed_rows)?;
@@ -130,6 +131,7 @@ impl DesignStore {
                         parts: args.parts,
                         part_id: args.part_id,
                         old,
+                        old_parent,
                         waivers: args.waivers,
                         status: ProposalStatus::Pending,
                         outdated: false,

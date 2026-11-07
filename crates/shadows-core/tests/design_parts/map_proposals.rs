@@ -580,3 +580,164 @@ async fn proposals_pin_the_turns_standards_not_newer_additions() {
     );
     f.close().await;
 }
+
+/// Approves a first map where `database` sits inside `backend`; answers
+/// `(backend, database, api)`.
+async fn nested(
+    f: &Fixture,
+) -> (
+    shadows_core::PartId,
+    shadows_core::PartId,
+    shadows_core::PartId,
+) {
+    let mut args = first();
+    let database = args.parts.iter_mut().find(|p| p.key == "database").unwrap();
+    database.parent_key = Some("backend".into());
+    database.content.folder = "backend/database".into();
+    database.content.layers = catalog_layers("database", "backend/database");
+    database
+        .content
+        .layers
+        .iter_mut()
+        .find(|l| l.layer == "connection")
+        .unwrap()
+        .place = "backend/config/database.php".into();
+    let proposal = f.core.design().propose_map(&f.grant, args).await.unwrap();
+    f.core
+        .design()
+        .approve_map_proposal("nested".into(), &f.p, &proposal.id)
+        .await
+        .unwrap();
+    let top = f.core.design().parts(&f.p, None, None).await.unwrap().items;
+    let kind = |k: &str| {
+        top.iter()
+            .find(|p| p.content.kind.as_deref() == Some(k))
+            .unwrap()
+            .id
+            .clone()
+    };
+    let (backend, api) = (kind("backend"), kind("api"));
+    let database = f
+        .core
+        .design()
+        .parts(&f.p, Some(&backend), None)
+        .await
+        .unwrap()
+        .items[0]
+        .id
+        .clone();
+    (backend, database, api)
+}
+
+fn change_of(
+    key: &str,
+    id: &shadows_core::PartId,
+    parent: Option<&shadows_core::PartId>,
+    folder: &str,
+) -> MapPropose {
+    let mut args = first();
+    let mut part = args.parts.into_iter().find(|p| p.key == key).unwrap();
+    part.content.folder = folder.into();
+    part.content.layers = catalog_layers(key, folder);
+    if key == "database" && folder.starts_with("backend/") {
+        part.content
+            .layers
+            .iter_mut()
+            .find(|l| l.layer == "connection")
+            .unwrap()
+            .place = "backend/config/database.php".into();
+    }
+    part.parent = parent.cloned();
+    args.parts = vec![part];
+    args.action = MapAction::Change;
+    args.part_id = Some(id.clone());
+    args.waivers.clear();
+    args
+}
+
+async fn children(f: &Fixture, parent: Option<&shadows_core::PartId>) -> Vec<shadows_core::PartId> {
+    let page = f.core.design().parts(&f.p, parent, None).await.unwrap();
+    page.items.into_iter().map(|p| p.id).collect()
+}
+
+#[tokio::test]
+async fn a_map_change_moves_a_part_under_another() {
+    let f = Fixture::new().await;
+    let (backend, _, api) = nested(&f).await;
+    let args = change_of("api", &api, Some(&backend), "backend/api");
+    let card = f.core.design().propose_map(&f.grant, args).await.unwrap();
+    assert_eq!(card.old_parent, None);
+    f.core
+        .design()
+        .approve_map_proposal("move".into(), &f.p, &card.id)
+        .await
+        .unwrap();
+    assert!(children(&f, Some(&backend)).await.contains(&api));
+    assert!(!children(&f, None).await.contains(&api));
+    f.close().await;
+}
+
+#[tokio::test]
+async fn a_map_change_with_its_current_parent_does_not_move() {
+    let f = Fixture::new().await;
+    let (backend, database, _) = nested(&f).await;
+    let mut args = change_of("database", &database, Some(&backend), "backend/database");
+    args.parts[0].content.title = "Renamed database".into();
+    let card = f.core.design().propose_map(&f.grant, args).await.unwrap();
+    assert_eq!(card.old_parent, Some(backend.clone()));
+    f.core
+        .design()
+        .approve_map_proposal("keep".into(), &f.p, &card.id)
+        .await
+        .unwrap();
+    assert_eq!(children(&f, Some(&backend)).await, vec![database]);
+    f.close().await;
+}
+
+#[tokio::test]
+async fn a_map_change_with_no_parent_moves_to_the_top() {
+    let f = Fixture::new().await;
+    let (backend, database, _) = nested(&f).await;
+    let args = change_of("database", &database, None, "database");
+    let card = f.core.design().propose_map(&f.grant, args).await.unwrap();
+    assert_eq!(card.old_parent, Some(backend.clone()));
+    f.core
+        .design()
+        .approve_map_proposal("top".into(), &f.p, &card.id)
+        .await
+        .unwrap();
+    assert!(children(&f, Some(&backend)).await.is_empty());
+    assert!(children(&f, None).await.contains(&database));
+    f.close().await;
+}
+
+#[tokio::test]
+async fn a_map_change_into_its_own_descendant_is_refused() {
+    let f = Fixture::new().await;
+    let (backend, database, _) = nested(&f).await;
+    let args = change_of("backend", &backend, Some(&database), "backend");
+    assert!(f.core.design().propose_map(&f.grant, args).await.is_err());
+    let own = change_of("backend", &backend, Some(&backend), "backend");
+    assert!(f.core.design().propose_map(&f.grant, own).await.is_err());
+    f.close().await;
+}
+
+#[tokio::test]
+async fn a_map_change_still_refuses_parent_key() {
+    let f = Fixture::new().await;
+    let (_, database, _) = nested(&f).await;
+    let mut args = change_of("database", &database, None, "database");
+    args.parts[0].parent_key = Some("backend".into());
+    assert!(matches!(
+        f.core
+            .design()
+            .propose_map(&f.grant, args)
+            .await
+            .map_err(shadows_core::CoreError::from),
+        Err(CoreError::Refused {
+            code: shadows_core::ErrorCode::InvalidCommand,
+            ..
+        })
+    ));
+    f.close().await;
+}
