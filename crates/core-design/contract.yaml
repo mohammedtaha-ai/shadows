@@ -333,6 +333,7 @@ agreements:
     tested_by: part_order_is_stable_across_restart
 
 shared_in_transaction:
+  layout_in: Reads the accepted project layout in the caller snapshot.
   approve_map_proposal_in: Private owner transaction entry; its command rules are listed under functions.
   approve_roadmap_in: Private owner transaction entry; its command rules are listed under functions.
   approve_roadmap_proposal_in: Private owner transaction entry; its command rules are listed under functions.

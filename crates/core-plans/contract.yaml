@@ -487,6 +487,7 @@ enums:
 
 
 shared_in_transaction:
+  task_context: Reads approved task context in one owner snapshot after live grant checks.
   links_of: Private store entry used within the owner transaction.
   notify_plan: Private store entry used within the owner transaction.
   preview: Private store entry used within the owner transaction.
@@ -696,7 +697,7 @@ agreements:
       the given parts through design::link_plan_parts_in. Design owns the
       roadmap and the links.
     holds: true
-    tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap, the_planner_proposes_and_approves_a_roadmap_after_the_structure]
+    tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap]
   - between: [check_design_plan_in, edit_design]
     rule: >
       Plans validates project-qualified plan identities in the workspace transaction.
