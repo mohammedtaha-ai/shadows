@@ -284,7 +284,8 @@ Each slice runs end to end before the next.
 
 1. **Groups for AYLUL agents.** Needs no executor; uses `Messages`, delivery,
    mentions, bounds and AYLUL's alert. Proves the system on what exists.
-2. **Executor reports to the person** (§17.5's first serial release): needs
+2. **Executor reports to the Planner**, not the person (amended 2026-11-08 by the
+   [executors design](2026-11-08-executors-design.md) §5, §8; §17.5's first release): needs
    Core stage 4's executor.
 3. **The manager**: replies, holds, guidance, escalation to the Planner.
 4. **The Planner's decisions** and the rules that are always Mohammed's.

@@ -200,7 +200,8 @@ No new service.
    `shadows serve` confirm the evidence's read. The action's route ships here; its button ships
    with the inspection view.
 3. **The inspection view**, in the conversation (frontend).
-4. **The owner thread:** `Plans::owner_thread`. It ships when messaging slice 3 (the manager)
+4. **The owner thread:** `Plans::owner_thread`. Brought forward on 2026-11-08: it ships with the
+   [executors design](2026-11-08-executors-design.md)'s slice 3 (the ladder). It was to ship when messaging slice 3 (the manager)
    needs it.
 
 ## 7. Evidence
