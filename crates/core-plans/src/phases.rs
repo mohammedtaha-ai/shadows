@@ -151,7 +151,8 @@ impl PhaseRules {
                                 || phase.as_str().is_empty()
                             {
                                 problems.push(Problem::new(format!(
-                                    "{name}: a phase pin needs a plan, positive version/task and phase"
+                                    "{name}: a phase pin needs a plan, positive version/task \
+                                     and phase"
                                 )));
                             }
                         }

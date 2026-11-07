@@ -484,7 +484,7 @@ tests:
   - name: equivalent_map_retries_replay_the_original_card
     checks: Equivalent title/path spellings retain one pending proposal identity.
   - name: approved_map_reports_new_missing_mandatory_kinds
-    checks: Map stage names missing mandatory kinds in its stage line.
+    checks: An approved map stays at Roadmap, and its stage line names missing mandatory kinds.
   - name: first_map_approval_records_waiver_and_replays_once
     checks: Proposal writes no parts; approval records the person, waiver and exactly one version on replay.
   - name: proposals_pin_the_turns_standards_not_newer_additions
@@ -536,7 +536,7 @@ tests:
   - name: stage_counts_a_trimmed_kind_and_no_other_case
     checks: Trimmed kinds count at any depth; kind matching remains case sensitive.
   - name: an_added_part_is_mandatory_for_the_stage
-    checks: Effective additions extend stage requirements.
+    checks: Effective additions extend stage requirements; an approved map stays at Roadmap with the gap in missing.
   - name: a_planner_reads_the_workspace_a_person_wrote
     checks: A Planner grant reads the vision and a part over MCP; workspace_get is read only.
   - name: agreement_review_detects_stale_part_and_agrees_without_implicit_adoption

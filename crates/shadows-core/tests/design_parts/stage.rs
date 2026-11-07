@@ -9,7 +9,6 @@ fn kinded(kind: &str) -> DesignOp {
             serves: vec![],
             folder: kind.trim().into(),
             layers: catalog_layers(kind.trim(), kind.trim()),
-
             contract: Default::default(),
             kind: Some(kind.into()),
             ..content(kind)
@@ -151,7 +150,10 @@ async fn an_added_part_is_mandatory_for_the_stage() {
         .save_standards_additions("b".into(), &p, content)
         .await
         .unwrap();
-    assert_eq!(core.design().stage(&p).await.unwrap().missing, ["billing"]);
+    let view = core.design().stage(&p).await.unwrap();
+    assert_eq!(view.missing, ["billing"]);
+    assert!(view.map_revision > 0);
+    assert_eq!(view.stage, shadows_core::Stage::Roadmap);
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

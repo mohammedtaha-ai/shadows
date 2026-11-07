@@ -66,7 +66,6 @@ fn part(id: &PartId, title: &str) -> DesignOp {
             serves: vec![],
             folder: title.into(),
             layers: vec![],
-
             contract: Default::default(),
             title: title.into(),
             responsibility: "جزء".into(),
@@ -201,7 +200,6 @@ async fn outcome_spans_parts_without_copying_them() {
                 serves: vec![],
                 folder: "الخدمات".into(),
                 layers: vec![],
-
                 contract: Default::default(),
                 title: "الخدمات".into(),
                 responsibility: "جزء".into(),

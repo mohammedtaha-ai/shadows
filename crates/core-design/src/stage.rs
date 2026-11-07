@@ -89,6 +89,11 @@ impl StageRules {
             Stage::Vision => format!("[Shadows] Stage: vision. Missing vision fields: {missing}."),
             Stage::Map => format!("[Shadows] Stage: map. Missing mandatory parts: {missing}."),
         };
+        if matches!(view.stage, Stage::Roadmap | Stage::Plans) && !view.missing.is_empty() {
+            line.push_str(&format!(
+                " Missing mandatory parts: {missing}; propose them as map changes."
+            ));
+        }
         if !view.drift.is_empty() {
             line.push_str(&format!(" Drift: {}.", view.drift.join("; ")));
         }
@@ -99,9 +104,11 @@ impl StageRules {
 pub struct StageRules;
 
 impl StageRules {
+    /// An approved map opens Roadmap even when a later standards addition makes
+    /// a kind mandatory: that gap stays in `missing` and the line names it.
     pub(super) fn with_workspace(mut view: StageView, map: i64, roadmap: i64) -> StageView {
         if matches!(view.stage, Stage::Map | Stage::Roadmap) {
-            view.stage = if map == 0 || !view.missing.is_empty() {
+            view.stage = if map == 0 {
                 Stage::Map
             } else if roadmap > 0 {
                 Stage::Plans

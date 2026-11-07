@@ -178,6 +178,8 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 
 - Verified: design_parts 41 passed; core-design suite, architecture, codemap, contract_tests, affected all-target clippy and fmt passed.
+- Outside `Touch:`: `crates/shadows-core/tests/design_parts/map_proposals.rs` (the proposal-exclusion assertion the plan places in `equivalent_map_retries_replay_the_original_card`).
+
 ### B-77 · Read approved task context
 - Status: done
 - Base: previous task commit on `feature/structure-elements`.

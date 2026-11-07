@@ -278,7 +278,6 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
                     title.into()
                 },
                 layers: vec![],
-
                 contract: Default::default(),
                 title: title.into(),
                 responsibility: "مسؤولية".into(),
@@ -752,6 +751,8 @@ async fn parts_with_starter_files_read_back_after_the_migration() {
     let content: serde_json::Value =
         serde_json::from_str(rows[0]["content_json"].as_str().unwrap()).unwrap();
     assert!(content.get("files").is_none());
+    assert_eq!(content["title"], "Backend");
+    assert_eq!(rows[0]["id"], "backend");
     let parts = shadows_core::AppCore::design_for_tests(storage.clone())
         .parts(&ProjectId::from_literal("P"), None, None)
         .await

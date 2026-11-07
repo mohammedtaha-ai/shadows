@@ -82,7 +82,6 @@ export interface Overrides {
   /** `POST /api/projects/p1/mcp-grants`; by default issues grant `g9` with
    * its token and command. */
   issue?: Answer
-
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
