@@ -110,7 +110,7 @@ the failing case before widening this list.
   harness.versions with adapter_version="0.101.0" and the actual Claude version.
   Set RUST_LOG=info for this run so an inherited filter cannot hide the event.
   Commit the adapter pin and validation notes.
-- [ ] Mohammed starts Shadows with the upgraded binary and verifies a Planner
+- [x] Mohammed starts Shadows with the upgraded binary and verifies a Planner
   turn streams on an existing project in the browser before the PR.
 
 ### Implementation evidence
@@ -126,6 +126,8 @@ turns through Core, with new=acceptEdits, resume=auto and fork=auto.
 The direct provider probe listed 362 OpenRouter and 9 MiniMax models.
 The rebuilt daemon started on a temporary database and logged
 adapter_version="0.101.0" and claude_version=2.1.317.
+
+Mohammed confirmed the manual browser test passed on 2026-11-07 before the PR.
 
 Local npm used --omit=optional after the bundled Windows executable download
 stalled. The generated lockfile retains the optional binary package, and Shadows

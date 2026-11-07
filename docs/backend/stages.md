@@ -113,7 +113,7 @@ Coverage and code observation must not be recorded as completed execution.
 B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file at `f1459dcc`.
 
 ### B-84 · Upgrade ACP: the Rust crate to 5.0.0 and the adapter to 0.101.0
-- Status: implemented (focused checks and live runs passed; Mohammed's browser acceptance pending)
+- Status: done (focused checks and live runs passed; Mohammed confirmed browser acceptance on 2026-11-07)
 - Plan: [ACP upgrade](plans/2026-11-07-acp-upgrade.md).
 - Base: `codex/acp-upgrade`, cut from `main` after #61. The original brief used B-83, which already tracks conversation ordering.
 - Owner: Agent (`crates/shadows-agent`, the ACP `Connection`); the adapter install belongs to the daemon (`harness/claude`). No other service changes behaviour.
