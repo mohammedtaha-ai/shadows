@@ -51,16 +51,17 @@ Keep task dependencies in stages. Do not dispatch a blocked task as though its e
 
 ## B-85: Prove tools and permissions first
 
-**Execution status, 2026-11-08:** started, incomplete. The current Linux CLI
-is `0.167.0-alpha.4`; its generated schemas, native session acknowledgment
-and local HTTP/MCP checks are recorded in the existing evidence file. The
-current environment refuses `chatgpt.com` at its CONNECT proxy (HTTP 403),
-so no real-provider round trip or permission proof has passed. Keep B-86
-blocked. Configure a permitted environment before resuming the provider
-checks; revalidate the installed version rather than assuming stable-version
-parity. Prepare the disposable project's approved roadmap through supported
-public Planner/person operations before attempting `draft_start`; the
-fresh-project stage refusal must not be bypassed with direct database writes.
+**Execution status, 2026-11-08:** incomplete. The cloud run could not reach the
+provider. On Windows, stable `0.167.0` created a real draft with a Planner
+thread grant, returned the random marker, refused approval and filesystem
+writes, and confirmed Stop and fresh-process continuation in separate probes.
+The [evidence record](../../evidence/2026-11-07-codex-app-server-probe.md#windows-execution-on-2026-11-08)
+separates project-grant tests from thread-grant tests. A controlled test proved
+that Codex can launch a newly inherited MCP server between `config/read` and
+`thread/start`. The server received a synthetic bearer before an inventory
+check could refuse it. Keep B-86 blocked until the authenticated launch can
+exclude inherited servers before startup. An isolated `CODEX_HOME` loaded no
+inherited MCPs, but the existing sign-in was unavailable there.
 
 **Files:** Modify this plan, the owner spec §12.14, `docs/backend/stages.md`, and
 `docs/evidence/2026-11-07-codex-app-server-probe.md`. Throwaway probe sources live in a

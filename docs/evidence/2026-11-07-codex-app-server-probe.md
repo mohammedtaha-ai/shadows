@@ -237,9 +237,83 @@ have not passed. B-86, B-87, F-97 and B-88 remain blocked. A successful
 build, session acknowledgment and local tool listing do not close the
 permission OPEN block in §12.14.
 
+## Windows execution on 2026-11-08
+
+The local follow-up used the installed native Codex CLI `0.167.0` with fresh
+generated schemas, the existing ChatGPT sign-in and `gpt-6.1-sol` at `low`.
+The probe ran in the linked worktree at `5386795e`. It reused the already-built
+`E:/Globalprojects/shadows/target/debug/shadows.exe` (SHA-256
+`890d3caea35fc5862aaea6c6e5249b3ed4db80ff2f425eb215fa36b92be6d9bc`).
+That executable was not rebuilt from the worktree. The main daemon and its
+database were separate from the disposable loopback daemons and databases.
+
+The person HTTP routes recorded vision items and approved the proposed map
+and roadmap. A test ACP peer issued the proposal calls inside genuine Planner
+turns through the existing MCP server. The same public workflow read route
+verified the draft afterwards. Project grants came from the public issue
+route. For the thread-grant run a temporary test peer used the grant issued
+by Harness to a running Planner turn. It passed the bearer only in the
+native child's environment. No Claude provider turn was started.
+
+| Check | Observed result |
+|---|---|
+| Genuine Planner thread grant | Only the intended server had usable inventory. Its 20 tools matched `Grants::tools_for(Thread)`. The model called `workspace_get` and `draft_start`, and returned the exact random vision marker in its final message. The API showed one saved draft. |
+| Approval refusal | With that same thread grant, the model tried `plan_approve` against the saved draft. Codex returned `MCP tool call requires approval, but approval policy is never`. The API still showed a draft. A separate project-grant probe also returned `tool not found` for the approval tool. |
+| Filesystem refusal | The default Windows sandbox failed to start a command with `CryptUnprotectData failed: 2148073483`. With process-local `windows.sandbox="mxc"`, a read control ran, and the live model's PowerShell command printed its start marker before `Set-Content` failed with access denied and exit code 1. The target file was absent. |
+| Required MCP outage | A required Shadows URL returning 404 caused `thread/start` to fail with RPC code `-32603`. |
+| Pending tool Stop | A loopback relay held a model-originated `workspace_get` request. `turn/interrupt` produced one matching terminal `interrupted` event in 140 ms, before release, and the request disconnected. |
+| Fresh grant continuation | A new process resumed the same native thread after revoking its project grant. A fresh project grant let the model call `workflow_get` and return the exact draft title. A write with the old bearer returned HTTP 401, and the API still showed one workflow. |
+| Secret absence | The thread-grant probe compared the live bearer to five files, including its rollout and temporary database artifacts. The Stop and resume probe compared both bearers to six files, including its rollouts. No raw bearer was found in those files or sanitized results. |
+
+The native thread for the genuine Planner proof was
+`01a1b868-82d0-7fa2-8f71-6117b964e114`, inside Shadows operation
+`be06e5ef-7b4f-4cc6-a338-aee250bbdca1`. The separate Stop and resume thread
+was `01a1b862-ff68-7de2-aa9d-385030204233`. Project grants from the probes
+were revoked through the public API.
+
+With stable configuration, the launch used `app-server --listen stdio://`,
+process-local `features.apps=false`, `features.plugins=false`,
+`features.hooks=false`, `features.multi_agent=false`, and
+`web_search="disabled"`. The session reported `readOnly` with
+`approvalPolicy: never`. The selected HTTP server used `required=true`,
+`bearer_token_env_var` and a tool list from the thread grant. Explicit
+`approval_mode="approve"` let the tested tools run while unapproved tools
+remained subject to the server's `default_tools_approval_mode="prompt"`.
+The shell environment policy excluded the bearer variable. The four
+approval tools were not pre-approved. This is a tested configuration for
+these runs, not the shipping launch policy.
+
+### Startup isolation blocker
+
+An inline `mcp_servers` table merged with inherited configuration. The
+known servers could be disabled by name through session config overrides,
+but that did not freeze the input to `thread/start`. In a separate
+`CODEX_HOME` with no real credentials, the probe read one fixture server,
+disabled it in the session overrides, and then added a second server to the
+temporary config before opening the thread. Codex launched the second
+server and exposed its tool. The server's `env_vars` forwarded the
+synthetic bearer despite the shell environment exclusion. Its sentinel
+recorded only that the variable was present. This happened before any
+model turn. Rejecting the inventory after opening would not prevent it.
+
+Using a fresh `CODEX_HOME` reported zero inherited servers and no active
+account with either `cli_auth_credentials_store="auto"` or `"keyring"`.
+The regular home still reported an active ChatGPT account. No credentials
+were copied or global settings changed. The installed CLI accepted
+`--ignore-user-config` for `exec`; it rejected that flag for `app-server`.
+
+**B-85 remains incomplete.** The next proof must establish a supported
+launch that excludes inherited servers before starting them and has an
+active sign-in. Repeat the late-server case, then confirm the allowed tool,
+refusal and cancellation checks with that launch. B-86 remains blocked
+until §12.14's permission OPEN block closes.
+
 ## Reference
 
 The official [Codex App Server documentation](https://learn.chatgpt.com/docs/app-server)
 describes stdio JSONL, initialization, thread/turn lifecycle, interruption,
 resumption, usage, and approvals. Payloads for this probe came from the installed
 0.166.0 schemas rather than assuming the online schema version matched the CLI.
+The official [MCP configuration reference](https://learn.chatgpt.com/docs/extend/mcp)
+and [authentication reference](https://learn.chatgpt.com/docs/auth) describe
+the settings and credential stores checked in the Windows probes.

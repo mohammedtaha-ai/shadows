@@ -132,13 +132,14 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 ### B-85 · Prove Codex MCP tools and effective permissions
 
-- Status: blocked (cloud provider egress; partial execution recorded on 2026-11-08)
+- Status: blocked (authenticated MCP isolation at session startup)
 - Plan: [Codex app-server](plans/2026-11-07-codex-app-server.md#b-85-prove-tools-and-permissions-first).
 - Owner: Harness, through its existing Grants and planning owners; this task is a throwaway probe, not product implementation.
 - Read: harness controls spec §12.14; `crates/core-harness/contract.yaml`; `crates/core-grants/contract.yaml`; the existing Codex evidence at `41dd19ef`.
 - Touch: `docs/evidence/2026-11-07-codex-app-server-probe.md`, `docs/core/specs/2026-09-24-harness-controls-design.md`, `docs/backend/plans/2026-11-07-codex-app-server.md`, this stages file. Temporary probe source is deleted after evidence is saved.
 - Needs: none. Only this task is initially executable.
-- Attempted: current daemon build/start, native 0.167.0-alpha.4 handshake/account/catalog/read-only session, and public HTTP/MCP project-grant issue/replay/list/cleanup. Provider requests were blocked by the environment's network policy (chatgpt.com CONNECT 403); no provider turn or permission proof passed. A fresh project also correctly refused draft creation before roadmap approval. See the dated execution attempt in the evidence record. Resume B-85 with an appropriately configured environment and supported public project preparation; B-86 stays blocked.
+- Verified on Windows with stable 0.167.0: real Planner thread-grant marker and draft, denied approval, read-only MXC write refusal, required-server failure, pending-tool Stop, same-thread continuation with a fresh project grant, and revoked-project-grant write refusal. See the dated Windows evidence for launch details and test boundaries.
+- Blocker: after preflight, Codex reloaded changed MCP configuration, started a new server, and forwarded a synthetic bearer before inventory inspection. An isolated `CODEX_HOME` loaded no inherited MCPs and had no signed-in account. Prove authenticated isolation before closing B-85 or starting B-86.
 - Done when: real 0.167.0 uses the intended Shadows MCP tools, creates/reads a marked draft, rejects forbidden authority and an old grant, cancels a pending tool call and resumes with fresh authority. Evidence records the exact effective tool/mode policy and secret-absence check. If policy cannot be enforced, leave B-86 blocked and report the measured gap.
 
 ### B-86 · Connect Codex through the existing session owner

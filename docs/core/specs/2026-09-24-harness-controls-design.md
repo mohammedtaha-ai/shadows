@@ -730,6 +730,12 @@ provider secrets to the Codex child.
 > B-85 must record the exact supported configuration for the current Planner
 > tool policy, its effective tool inventory and actual refusals. It must also
 > establish the least-privileged mapping of the project's supported modes.
+> The Windows probe proved `read-only`/`never` with explicit MXC for file
+> enforcement. It also proved that reading the effective configuration and
+> then disabling the names found there leaves a startup race: a server added
+> before `thread/start` received a synthetic bearer. Isolation must hold before
+> any inherited server can start. An inventory check after opening is too late
+> to enforce that boundary.
 > **Trigger:** B-85's successful evidence, followed by amending this section with
 > the measured mode IDs, default and configuration before B-86 is dispatched.
 > If that cannot be enforced through the supported interface, report the exact
