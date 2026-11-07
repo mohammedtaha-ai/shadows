@@ -129,3 +129,42 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
   - A run: the daemon starts, the log line `harness.versions` shows `adapter_version="0.101.0"`, and a Planner turn streams in the browser. Mohammed tries it before the branch's PR.
 - Verified on 2026-11-07: the SDK, fake, Core, Harness, Turns and CLI focused tests passed, including the mode, MCP, architecture, code map and contract checks. Formatting, both affected clippy modes and `cargo build -p shadows` passed.
 - Live on 2026-11-07: adapter 0.101.0 and configured Claude Code 2.1.317. MiniMax extension isolation and three Core prompts passed (new acceptEdits, resume auto, fork auto). OpenRouter listed 362 models and MiniMax 9. A temporary daemon logged both version values. The local npm install omitted optional binaries after the bundled Windows executable download stalled; the lockfile still records the optional package.
+
+### B-85 · Prove Codex MCP tools and effective permissions
+
+- Status: todo
+- Plan: [Codex app-server](plans/2026-11-07-codex-app-server.md#b-85-prove-tools-and-permissions-first).
+- Owner: Harness, through its existing Grants and planning owners; this task is a throwaway probe, not product implementation.
+- Read: harness controls spec §12.14; `crates/core-harness/contract.yaml`; `crates/core-grants/contract.yaml`; the existing Codex evidence at `41dd19ef`.
+- Touch: `docs/evidence/2026-11-07-codex-app-server-probe.md`, `docs/core/specs/2026-09-24-harness-controls-design.md`, `docs/backend/plans/2026-11-07-codex-app-server.md`, this stages file. Temporary probe source is deleted after evidence is saved.
+- Needs: none. Only this task is initially executable.
+- Done when: real 0.167.0 uses the intended Shadows MCP tools, creates/reads a marked draft, rejects forbidden authority and an old grant, cancels a pending tool call and resumes with fresh authority. Evidence records the exact effective tool/mode policy and secret-absence check. If policy cannot be enforced, leave B-86 blocked and report the measured gap.
+
+### B-86 · Connect Codex through the existing session owner
+
+- Status: blocked (B-85 must close the permission OPEN block before dispatch)
+- Plan: [First real Planner path](plans/2026-11-07-codex-app-server.md#b-86-first-real-planner-path).
+- Owner: Agent owns wire translation; Harness owns sessions/grants; AppCore wires the programs.
+- Read: §12.14, B-85 evidence, Agent/Harness/Turns contracts and the plan's shared interfaces.
+- Touch: the exact create/modify lists under B-86 in the plan, including constructor callers, tests, contracts and code map. Recheck caller scope before dispatch.
+- Needs: B-85; `docs/shared/requests/2026-11-07-codex-planner.md` (accepted).
+- Done when: the managed second transport and AppCore path pass the plan's transport/lifecycle/MCP fixtures and first real tool path; failures revoke grants; Stop confirms its terminal result; Claude regressions pass. Public Codex availability remains disabled until B-87.
+
+### B-87 · Complete Codex choices, usage and conversation actions
+
+- Status: blocked (B-86)
+- Plan: [Controls](plans/2026-11-07-codex-app-server.md#b-87-complete-controls-and-enable-the-harness).
+- Owner: Agent translates reports; Harness owns choices; Projects owns allowed modes; DB owns the migration catalog.
+- Read: §12.14 and the Agent, Harness, Projects and DB contracts.
+- Touch: the exact B-87 file list in the plan. Confirm the next unused migration number before dispatch.
+- Needs: B-86; the accepted Codex Planner request.
+- Done when: configured Codex is available, per-model effort/mode rules hold, existing authority is not widened by migration, fork/Send now work, and last-request usage is neither cumulative nor counted twice on resume. Run the plan's focused checks.
+
+### B-88 · Accept Codex in the real Planner
+
+- Status: blocked (B-87 and F-97)
+- Plan: [Acceptance](plans/2026-11-07-codex-app-server.md#b-88-acceptance-and-delivery).
+- Read: §12.14, the Codex plan and the evidence record.
+- Touch: Codex evidence, owner spec §12.14, the Codex plan, this stages file and `docs/frontend/stages.md`.
+- Needs: B-87 and F-97.
+- Done when: real daemon/browser/log acceptance covers tools, refusal, Stop, restart/continuation, model/effort controls, fork and Send now; Claude still runs. Full workspace gate stays with CI. A review or PR is not started by this planning task.
