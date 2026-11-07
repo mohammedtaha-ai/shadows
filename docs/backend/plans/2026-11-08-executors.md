@@ -94,9 +94,18 @@ Closes the design's §7 OPEN. A throwaway probe; no product source changes.
   apply to the pre-image it recorded, can be taken **from the agent's own call**. The ownership
   hash comes from that, never from reading the file afterwards, which could pick up a hand edit
   made before the read.
+  (h) Prompt it to scaffold with `composer create-project laravel/laravel backend` (the
+  Foundation plan's T1). Record whether one permission request arrives for the shell command,
+  what it names, how long the command runs, and how many files it writes (tracked and ignored).
+  Time a before/after hash snapshot of `backend/**` excluding ignored files, to size the
+  recorded-command rule (§7).
+  (i) Prompt it to run `docker compose up -d` in a folder with a one-service compose file
+  (T2, T4, T5 need it). Record the request, whether the containers outlive the session, and what
+  cancelling the turn leaves running.
 - [ ] **Step 6:** Write the evidence and amend §7 with the rule chosen from it. The rule names:
   the session mode; which tools raise requests carrying a path; how a shell command is treated
-  (allowlist of command prefixes, or refused); how a path is checked (canonical, links resolved,
+  (the allowlist of command prefixes; which of them run as recorded commands with a before/after
+  snapshot, §7; what Stop does to containers an attempt started); how a path is checked (canonical, links resolved,
   inside the project root and `writes`); and **how ownership is proven**: a changed file is the
   attempt's only when its current content equals the content the attempt's own last permitted
   write produced, as derived from that tool call (above). If no tool call yields its written
@@ -105,7 +114,7 @@ Closes the design's §7 OPEN. A throwaway probe; no product source changes.
 - [ ] **Step 7:** Delete the throwaway source. Commit the evidence, §7 and stages:
   `docs: measure the executor write boundary`.
 
-**Verification:** each of the seven cases has a recorded observation; §7 has no OPEN block left,
+**Verification:** each of the nine cases (a to i) has a recorded observation; §7 has no OPEN block left,
 or B-90 stays blocked with the measured gap stated.
 
 ---
@@ -157,7 +166,10 @@ or B-90 stays blocked with the measured gap stated.
     matches `writes`; refuse anything else, including a request with no path, except what §7 allows.
     It records, per allowed path, the hash of the content the agent's own completed tool call
     wrote, derived from the call as B-89's rule says, never from re-reading the file (the
-    ownership record B-92 checks). After the attempt's `task_commit` succeeds it refuses every
+    ownership record B-92 checks). A shell command on §7's allowlist runs as a recorded command:
+    the policy snapshots `writes` (ignored files excluded) before allowing it and after its call
+    completes, holding other writes of the attempt meanwhile, and records each created or
+    changed path with its after-hash. After the attempt's `task_commit` succeeds it refuses every
     further write in that session.
   - `EXECUTOR_TOOLS` in `setup.rs`, from §7.
 
@@ -308,8 +320,10 @@ or B-90 stays blocked with the measured gap stated.
   - `Runs::commit(&self, grant: &Grant, message: String) -> Result<Attempt, RunsError>`: one commit
     at a time per project folder (a per-project `tokio::sync::Mutex`). **It commits the bytes it
     checked, not the file as git later reads it:**
-    1. For each changed path inside `writes`, read the file's bytes once; the path is the
-       attempt's only when the hash of those bytes equals the ownership record.
+    1. For each changed path inside `writes` (`git status --porcelain`, so ignored files are
+       never considered), read the file's bytes once; the path is the attempt's only when the
+       hash of those bytes equals the ownership record, whether that record came from an editor
+       tool call or from a recorded command's after-snapshot (§7).
     2. Write exactly those bytes as blobs (`git hash-object -w --stdin`).
     3. Build the tree in a temporary index (`GIT_INDEX_FILE`): `git read-tree HEAD`, then
        `git update-index --add --cacheinfo <mode>,<blob>,<path>` per path (`--remove` for a
@@ -345,6 +359,11 @@ or B-90 stays blocked with the measured gap stated.
     test then appends a line to it → `Err(UnprovenChange { paths: ["backend/a.php"] })`, HEAD unchanged.
   - `a_file_written_by_a_child_process_is_unproven`: `backend/gen.php` appears with no permitted
     write recorded → `Err(UnprovenChange)`.
+  - `files_a_recorded_command_wrote_are_the_attempts`: a recorded command creates
+    `backend/composer.json` and `backend/app/Models/User.php` → both are committed.
+  - `ignored_files_neither_refuse_nor_enter_the_commit`: `backend/.gitignore` lists `vendor/`;
+    `backend/vendor/x.php` and `backend/storage/logs/laravel.log` appear unrecorded → the commit
+    succeeds and holds neither.
   - `a_change_between_the_check_and_the_commit_is_not_committed`: a test hook rewrites
     `backend/a.php` after step 1 → the commit's blob for it equals the checked bytes
     (`git cat-file -p HEAD:backend/a.php`), and the later bytes remain an uncommitted change.
@@ -436,8 +455,12 @@ or B-90 stays blocked with the measured gap stated.
 
 ### B-94: Run it
 
-- [ ] **Step 1:** Start `shadows serve` with the branch build on the Laravel test project (a git
-  folder). Open the plan's T1 page.
+- [ ] **Step 0: Prepare the folder.** The Laravel test project's folder
+  (`F:\shadows_projects_testing\testing` on 2026-11-08) is not a git repository and already holds
+  a hand-scaffolded `backend/` with a `.env`: Start would refuse it `NotGit`, then `DirtyScope`.
+  Move `backend/` aside (keep its `.env` out of the repository), `git init`, and commit an
+  initial `.gitignore` so the folder is clean and T1 scaffolds `backend/` itself.
+- [ ] **Step 1:** Start `shadows serve` with the branch build on that folder. Open the plan's T1 page.
 - [ ] **Step 2:** Mohammed chooses a model and presses Start. Observe: the Run tab streams; the
   executor reads `task_context` first; an attempted write outside `backend/**` is refused and
   shown; the commit holds `backend/` paths only; the Diff tab shows it.

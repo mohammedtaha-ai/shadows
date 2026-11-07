@@ -160,12 +160,28 @@ commit records the bytes that were checked, built without git reading the workin
 change made between the check and the commit stays uncommitted. An attempt holds its `writes`
 against other Starts until its session can no longer write, not merely until it commits. Paths are checked canonical, with links and junctions resolved.
 
+Files git ignores (`.gitignore`, `.git/info/exclude`) are outside both layers: they are
+neither checked for ownership nor committed. A test run's caches and a package manager's
+`vendor/` never refuse a commit.
+
+**Two ways a file becomes the attempt's.** Editor tools prove it from the tool call, as above.
+Generators cannot: the Foundation plan's T1 scaffolds Laravel with `composer create-project`,
+which writes hundreds of files through child processes no tool call describes. A shell command
+the executor's allowlist admits therefore runs as a **recorded command**: Shadows snapshots the
+content hashes of the files inside `writes` before and after it, while no other write of the
+attempt runs, and every path the command created or changed is recorded as the attempt's with
+its after-hash. A path changed outside `writes` during the command fails the attempt with the
+path named. A hand edit made while the command runs is indistinguishable from the command's
+and is taken as the attempt's; this is accepted, and named in the Report.
+
 > **OPEN — shell writes and ownership.** Claude Code's shell tool can write any file, and
 > layer 1 cannot see what a shell command or its child processes write. **Trigger:** a probe on
 > Claude Code through Shadows (B-89), before the first build task, measuring what the
-> permission path sees for editor tools, shell commands, child-process writes, a hand edit
-> during a run, and a path through a symlink or junction; and choosing the shell treatment and
-> the ownership record from it. It is recorded in `docs/evidence/` and closes this block.
+> permission path sees for editor tools, shell commands, child-process writes, a scaffold
+> (`composer create-project`), a container start (`docker compose up`), a hand edit during a
+> run, and a path through a symlink or junction; and choosing from it the shell allowlist, how a
+> recorded command is run and snapshotted, what Stop does to containers an attempt started, and
+> the editor-tool ownership record. It is recorded in `docs/evidence/` and closes this block.
 
 ## 8. What the executor and critic receive (D11, D12)
 
