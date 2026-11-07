@@ -51,6 +51,17 @@ Keep task dependencies in stages. Do not dispatch a blocked task as though its e
 
 ## B-85: Prove tools and permissions first
 
+**Execution status, 2026-11-08:** started, incomplete. The current Linux CLI
+is `0.167.0-alpha.4`; its generated schemas, native session acknowledgment
+and local HTTP/MCP checks are recorded in the existing evidence file. The
+current environment refuses `chatgpt.com` at its CONNECT proxy (HTTP 403),
+so no real-provider round trip or permission proof has passed. Keep B-86
+blocked. Configure a permitted environment before resuming the provider
+checks; revalidate the installed version rather than assuming stable-version
+parity. Prepare the disposable project's approved roadmap through supported
+public Planner/person operations before attempting `draft_start`; the
+fresh-project stage refusal must not be bypassed with direct database writes.
+
 **Files:** Modify this plan, the owner spec §12.14, `docs/backend/stages.md`, and
 `docs/evidence/2026-11-07-codex-app-server-probe.md`. Throwaway probe sources live in a
 temporary directory and are deleted after evidence is recorded. No product source changes.

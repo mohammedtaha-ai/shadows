@@ -172,6 +172,71 @@ The usage interpretation and unproven integration cases above still apply.
 This verifies the direct app-server baseline on 0.167.0; it does not verify MCP
 tool behavior, permission enforcement, or the Shadows frontend integration.
 
+## Cloud execution attempt on 2026-11-08
+
+B-85 was started by the parent implementer on `codex/codex-app-server`,
+from `1e74a4c5`, in the managed Linux environment. No product source changed.
+The existing workspace cache was reused. `cargo build -p shadows` passed;
+the resulting daemon started at `127.0.0.1:4319` against a new disposable
+database outside the repository. The person's daily database was not used.
+
+The installed executable is `/opt/codex/bin/codex`, version
+`0.167.0-alpha.4`. This differs from the stable Windows baseline above.
+Schemas were generated from that executable before testing. Native stdio
+initialization and `account/read` succeeded; only account presence and type
+(`chatgpt`) were retained, with no account identity or credential values.
+`model/list` returned nine entries; no inference entitlement is inferred.
+`thread/start` acknowledged `approvalPolicy: never` and sandbox
+`readOnly` with `networkAccess: false`. That acknowledgment does not prove
+filesystem or tool permission enforcement.
+
+The inherited configuration included a computer-use plugin. Process-local
+overrides set `features.apps`, `features.plugins`, `features.hooks` and
+`features.multi_agent` to false and disabled web search. `config/read`
+reported those four features false. The person's global configuration was
+not changed. Effective runtime tool isolation has not yet been proven.
+
+Two bounded provider attempts produced zero text deltas and no matching
+completed response before their deadlines. The client requested interruption
+and closed the processes; both exited with code 0. Error notifications
+reported reconnecting and waiting for network. This is not proof of terminal
+cancellation or cancellation during a tool call.
+
+The current environment allows package-manager destinations only;
+`chatgpt.com` is outside its enforced allowlist. An unauthenticated HTTPS
+connection to `https://chatgpt.com` was independently refused at the CONNECT
+proxy with HTTP 403. The settings UI also states that this thread cannot
+broaden the parent environment's network policy; broader access requires
+configuration under Settings → Codex Cloud and a new thread using it.
+No network restriction was bypassed and no credentials were copied.
+
+Independent local checks used only the public Shadows HTTP/MCP surfaces:
+
+- Created two disposable projects under the temporary probe directory.
+- Issued genuine project grants and verified equal-command issue replays
+  return neither the token nor a connection command.
+- Listed exactly the 16 project-grant tools, excluding `plan_approve`.
+- `draft_prepare` succeeded, but `draft_start` was refused with
+  `STAGE_BLOCKED: no roadmap approved: propose the roadmap first`.
+  The probe must prepare an approved roadmap through supported public
+  Planner/person operations before retrying; it must not seed the database
+  directly or loosen the stage gate.
+- Revoked both issued grants in cleanup. Public API readback confirmed all
+  grant records revoked and zero workflows in both projects.
+
+The local runs were `5b7a1a0c-839f-46e8-b67d-1a05f3654947` and
+`9902496f-3faf-465e-9119-68ce29e54e97`. Command IDs and sanitized results
+were retained in the execution workspace. Raw bearer values were kept
+in the probe's memory only and were not printed or committed.
+
+**B-85 remains incomplete.** The random-marker provider/MCP round trip,
+native required-server failure, full effective tool inventory, denied file
+writes, revoked-bearer write refusal, person-only approval refusal, pending
+tool cancellation, fresh-process/grant continuation and secret-absence checks
+have not passed. B-86, B-87, F-97 and B-88 remain blocked. A successful
+build, session acknowledgment and local tool listing do not close the
+permission OPEN block in §12.14.
+
 ## Reference
 
 The official [Codex App Server documentation](https://learn.chatgpt.com/docs/app-server)
