@@ -89,12 +89,18 @@ Closes the design's §7 OPEN. A throwaway probe; no product source changes.
   that writes, a package manager); (g) the agent edits through `src/link/`, where `link` is a
   symlink, and on Windows a junction, pointing outside `src/`. For (g), record whether the request
   names the link path or the target, and whether `std::fs::canonicalize` resolves it.
+  For (a) and a `Write` of a new file, record what the tool call itself carries once it completes
+  (`content`, `rawInput`, `rawOutput`, a diff): whether the written bytes, or an edit Shadows can
+  apply to the pre-image it recorded, can be taken **from the agent's own call**. The ownership
+  hash comes from that, never from reading the file afterwards, which could pick up a hand edit
+  made before the read.
 - [ ] **Step 6:** Write the evidence and amend §7 with the rule chosen from it. The rule names:
   the session mode; which tools raise requests carrying a path; how a shell command is treated
   (allowlist of command prefixes, or refused); how a path is checked (canonical, links resolved,
   inside the project root and `writes`); and **how ownership is proven**: a changed file is the
-  attempt's only when its current content equals the content recorded after the attempt's own last
-  permitted write to it. A changed path in `writes` that the attempt cannot prove is refused at
+  attempt's only when its current content equals the content the attempt's own last permitted
+  write produced, as derived from that tool call (above). If no tool call yields its written
+  content, the rule says so and B-90 stays blocked. A changed path in `writes` that the attempt cannot prove is refused at
   commit, never committed on a guess.
 - [ ] **Step 7:** Delete the throwaway source. Commit the evidence, §7 and stages:
   `docs: measure the executor write boundary`.
@@ -111,9 +117,13 @@ or B-90 stays blocked with the measured gap stated.
   `crates/shadows-core/tests/executor_session.rs`
 - Modify: `crates/core-threads/src/model.rs` (`ThreadKind`), `src/store/` (kind column read and
   written; `list` and `list_for_profile` return `planning` threads only), `contract.yaml`;
-  `crates/core-db/migrations/00NN_thread_kind.sql` (next unused number:
-  `threads.kind TEXT NOT NULL DEFAULT 'planning'`), `crates/core-db/contract.yaml`, the
-  storage-contract schema and checksum tests;
+  `crates/core-db/migrations/00NN_executor_sessions.sql` (next unused number):
+  `threads.kind TEXT NOT NULL DEFAULT 'planning'`, and `mcp_grant` rebuilt (SQLite cannot alter a
+  CHECK) with `kind IN ('thread','project','executor')` and nullable `scope_workflow TEXT`,
+  `scope_version INTEGER`, `scope_task INTEGER`, every existing row and index kept;
+  `crates/core-db/contract.yaml`, the storage-contract schema and checksum tests;
+  `crates/core-grants/src/store/mod.rs` (startup revocation and per-grant revoke cover
+  `executor` as they cover `thread`);
   `crates/core-harness/src/setup.rs` (setup by kind), `src/sessions.rs`, `contract.yaml`;
   `crates/shadows-agent/src/acp/permissions.rs` (scoped policy), `crates/shadows-agent/contract.yaml`;
   `crates/core-grants/src/model.rs`, `src/tools.rs`, store (the executor kind and its scope),
@@ -128,8 +138,11 @@ or B-90 stays blocked with the measured gap stated.
   - `Threads::create_executor_in(conn, project: &ProjectId, title: String, harness: &str) -> ThreadId`.
   - `GrantKind::Executor` (`as_str`: `executor`), beside `Thread` and `Project`.
     `Grants::tools_for(GrantKind::Executor)` returns exactly `task_context`, `where_is`,
-    `who_uses`, `outline`, and `task_commit` (added by B-92); `server.rs` builds its router from
-    that list, as it does for the other two kinds. Every other tool is absent for it.
+    `who_uses` and `outline`; B-92 adds `task_commit` when it implements it. `server.rs` builds
+    its router from that list, as it does for the other two kinds. Every other tool is absent.
+  - Startup revocation (`revoke_thread_grants`, called in `AppCore::start`) revokes live
+    `executor` grants with the `thread` ones: every executor's adapter died with the old daemon.
+    Closing an executor session revokes its grant, as closing a Planner session does.
   - `pub struct TaskScope { workflow: String, version: i64, task: u32 }` in `core-grants`, opaque
     there: the workflow is a string, so `core-grants` imports nothing from `core-plans` (which
     already depends on it). `Grants::issue_executor_grant_in(conn, project: &ProjectId,
@@ -142,8 +155,10 @@ or B-90 stays blocked with the measured gap stated.
   - `PermissionPolicy::Scoped { root: PathBuf, writes: Vec<String> }`: canonicalize each requested
     path (links and junctions resolved); allow only when every canonical path is inside `root` and
     matches `writes`; refuse anything else, including a request with no path, except what §7 allows.
-    It records, per allowed path, the file's content hash once the tool call completes (the
-    ownership record B-92 checks).
+    It records, per allowed path, the hash of the content the agent's own completed tool call
+    wrote, derived from the call as B-89's rule says, never from re-reading the file (the
+    ownership record B-92 checks). After the attempt's `task_commit` succeeds it refuses every
+    further write in that session.
   - `EXECUTOR_TOOLS` in `setup.rs`, from §7.
 
 - [ ] **Step 1: Write the failing tests** in `crates/shadows-core/tests/executor_session.rs`
@@ -156,7 +171,12 @@ or B-90 stays blocked with the measured gap stated.
     `web/` → refused.
   - `an_executor_grant_reads_only_its_own_task`: `task_context` for its task → Ok; another task, or
     the same task in another version → `OutsideGrant`.
-  - `an_executor_grant_lists_only_its_tools`: `tools/list` returns the five names, no more.
+  - `an_executor_grant_lists_only_its_tools`: `tools/list` returns exactly `task_context`,
+    `where_is`, `who_uses`, `outline`.
+  - `an_executor_grant_from_before_a_restart_is_refused`: issue an executor grant, restart the
+    core over the same database → a call with its token is refused as revoked.
+  - `existing_grants_survive_the_migration`: a database with `thread` and `project` grants before
+    the migration → the same rows, kinds and tokens after it.
   - `an_executor_grant_cannot_write_the_plan`: a plan-writing tool → unknown tool.
   - `executor_threads_are_not_listed_as_conversations`: `Threads::list` returns the planning thread only.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test executor_session`. Expected: FAIL.
@@ -220,8 +240,13 @@ or B-90 stays blocked with the measured gap stated.
     `RecoverReport { committed: u32, interrupted: u32 }`. In B-91 every `Running` row found at
     startup becomes `Interrupted`; B-92 adds the git lookup that turns a row whose commit exists
     into `Committed` first.
-  - **Overlap, decided in the Start transaction:** Start reads the project's `Running` attempts and
-    refuses `Overlap { task: u32 }` when a running task's `writes` may intersect this task's. Two
+  - **Overlap, decided in the Start transaction:** Start reads the project's attempts that **hold
+    their scope**, and refuses `Overlap { task: u32 }` when one's `writes` may intersect this
+    task's. An attempt holds its scope while its session can still write: from Start until its
+    turn's operation has ended and its session is closed, whatever its state (a `Committed`
+    attempt whose turn still runs holds it). Runs stores `released_at`, set when the turn ends,
+    Stop is confirmed, the session fails to open, or recovery finds it; the check reads
+    `released_at IS NULL`. Two
     patterns may intersect unless their literal prefixes (each pattern cut before its first glob
     character, then at its last `/`) are disjoint: neither is a path prefix of the other. Unproven
     means intersecting. The check and the insert are one write transaction, so two concurrent Starts
@@ -248,11 +273,13 @@ or B-90 stays blocked with the measured gap stated.
   - `overlapping_tasks_cannot_start_together`: T3 writes `backend/app/**`, T4 writes
     `backend/app/Models/**`; T3 running → T4 `Err(Overlap { task: 3 })`.
   - `disjoint_tasks_start_together`: T3 `backend/app/**`, T5 `web/**` → both `Running`.
+  - `a_committed_attempt_holds_its_scope_until_its_turn_ends`: T3 commits while its turn is still
+    running → T4 (overlapping) `Err(Overlap { task: 3 })`; after T3's turn ends → T4 starts.
   - `two_concurrent_starts_of_overlapping_tasks_admit_one`: start T3 and T4 at once (`tokio::join!`)
     → exactly one `Running`, the other `Overlap`.
 - [ ] **Step 2:** Run `cargo test -p core-runs --test attempts`. Expected: fails to compile (no crate).
-- [ ] **Step 3:** Migration: tables `run_attempts` (columns of `Attempt`, plus `command_id`,
-  `fingerprint`; unique `(workflow_id, version, task, number)`) and `run_task_marks`
+- [ ] **Step 3:** Migration: tables `run_attempts` (columns of `Attempt`, plus `released_at`,
+  `command_id`, `fingerprint`; unique `(workflow_id, version, task, number)`) and `run_task_marks`
   (`workflow_id, version, task, done, done_at, command_id`). Ordering by `number`, never `rowid`.
 - [ ] **Step 4:** Implement the crate in its fixed shape (`model.rs` pure; SQL only in `store/`).
   The ready rule (`ready.rs`) reads the version's links and each `needs` target's mark.
@@ -279,12 +306,22 @@ or B-90 stays blocked with the measured gap stated.
   caller's grant and the ownership record kept by `PermissionPolicy::Scoped`.
 - Produces:
   - `Runs::commit(&self, grant: &Grant, message: String) -> Result<Attempt, RunsError>`: one commit
-    at a time per project folder (a per-project `tokio::sync::Mutex`). Before committing it checks
-    every changed path inside `writes`: the path is the attempt's only when its current content hash
-    equals the hash recorded after the attempt's own last permitted write. It then commits exactly
-    those paths with `git commit --only -- <paths>`, message
-    `T{n}: {title}\n\n{message}\n\nShadows-Attempt: {attempt id}`. **Git first, then SQLite**: the
-    SHA and `Committed` are written after git returns; a crash between the two is repaired by
+    at a time per project folder (a per-project `tokio::sync::Mutex`). **It commits the bytes it
+    checked, not the file as git later reads it:**
+    1. For each changed path inside `writes`, read the file's bytes once; the path is the
+       attempt's only when the hash of those bytes equals the ownership record.
+    2. Write exactly those bytes as blobs (`git hash-object -w --stdin`).
+    3. Build the tree in a temporary index (`GIT_INDEX_FILE`): `git read-tree HEAD`, then
+       `git update-index --add --cacheinfo <mode>,<blob>,<path>` per path (`--remove` for a
+       deleted path); `git write-tree`.
+    4. `git commit-tree <tree> -p <HEAD>` with the message
+       `T{n}: {title}\n\n{message}\n\nShadows-Attempt: {attempt id}`.
+    5. `git update-ref HEAD <new> <old>`: refused if HEAD moved, and the attempt reports it.
+    6. Update only those paths in the folder's real index to the committed blobs, so the person's
+       other staged entries are untouched and the committed paths show clean.
+
+    The working tree is never read by git during the commit. **Git first, then SQLite**: the SHA
+    and `Committed` are written after `update-ref`; a crash between the two is repaired by
     `recover`.
   - Errors: `OutsideScope { paths }` (an attributed path outside `writes`), `UnprovenChange { paths }`
     (a changed path in `writes` whose content is not what the attempt last wrote: the person or
@@ -308,11 +345,18 @@ or B-90 stays blocked with the measured gap stated.
     test then appends a line to it → `Err(UnprovenChange { paths: ["backend/a.php"] })`, HEAD unchanged.
   - `a_file_written_by_a_child_process_is_unproven`: `backend/gen.php` appears with no permitted
     write recorded → `Err(UnprovenChange)`.
+  - `a_change_between_the_check_and_the_commit_is_not_committed`: a test hook rewrites
+    `backend/a.php` after step 1 → the commit's blob for it equals the checked bytes
+    (`git cat-file -p HEAD:backend/a.php`), and the later bytes remain an uncommitted change.
+  - `head_moving_during_the_commit_is_refused`: a test hook commits elsewhere before step 5 →
+    `update-ref` refuses; nothing is lost; the attempt reports it.
   - `a_crash_between_git_and_sqlite_recovers_as_committed`: a test hook fails the SQLite write after
     git commits; `recover()` → the attempt is `Committed` with the commit's SHA, `committed == 1`.
   - `two_commits_at_once_are_serialized`: two attempts commit concurrently → two commits, each with its own paths.
   - `start_refuses_a_folder_that_is_not_git` and `start_refuses_uncommitted_changes_in_writes`.
   - `diff_returns_each_files_counts_and_patch`.
+  - In `crates/shadows-core/tests/executor_session.rs`, `an_executor_grant_lists_only_its_tools`
+    now expects the five names, `task_commit` included.
 - [ ] **Step 2:** Run `cargo test -p core-runs --test commit`. Expected: FAIL.
 - [ ] **Step 3:** Implement `git.rs` (each git call through `shadows-process`, with the project
   folder as `cwd`; no shell) and `commit.rs`; add the MCP tool.

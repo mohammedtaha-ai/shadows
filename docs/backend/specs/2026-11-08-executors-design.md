@@ -154,8 +154,11 @@ working-tree changes stay in the folder and are named in the Report.
 is the attempt's: in a shared folder the person, a child process or another task may have
 written it, and `git commit --only` takes a file's whole current content. A changed file is the
 attempt's only when its current content equals what was recorded after the attempt's own last
-permitted write to it. A changed path in `writes` that cannot be proven refuses the commit;
-nothing is committed on a guess. Paths are checked canonical, with links and junctions resolved.
+permitted write to it, derived from that tool call, never from re-reading the file. A changed
+path in `writes` that cannot be proven refuses the commit; nothing is committed on a guess. The
+commit records the bytes that were checked, built without git reading the working tree, so a
+change made between the check and the commit stays uncommitted. An attempt holds its `writes`
+against other Starts until its session can no longer write, not merely until it commits. Paths are checked canonical, with links and junctions resolved.
 
 > **OPEN — shell writes and ownership.** Claude Code's shell tool can write any file, and
 > layer 1 cannot see what a shell command or its child processes write. **Trigger:** a probe on
