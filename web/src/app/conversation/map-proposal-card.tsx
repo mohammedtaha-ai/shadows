@@ -3,7 +3,8 @@ import { useProposalApproval } from './use-proposal-approval'
 import { ProposalApproval } from './proposal-approval'
 import type { ThreadEntry } from '@/api/threads'
 import {approveMapProposal,type MapProposal} from '@/api/design'
-import { mapProposalsQuery } from '@/api/design'
+import { mapProposalsQuery, partQuery } from '@/api/design'
+import { useQuery } from '@tanstack/react-query'
 import {MapPartDetails} from '@/app/design'
 
 function snapshot(entry:ThreadEntry): MapProposal | null {
@@ -36,6 +37,8 @@ export function MapProposalCard({entry,projectId}: {entry:ThreadEntry;projectId:
         <p key={key}><strong>{key}</strong>: <del dir="auto">{JSON.stringify(proposed.old?.[key as keyof typeof proposed.old])}</del>
           {' → '}{JSON.stringify(proposed.parts[0]?.content[key as keyof typeof proposed.old])}</p>)}
     </section>}
+    {proposed.action==='change' && (proposed.old_parent ?? null)!==(proposed.parts[0]?.parent ?? null)
+      && <MoveLine projectId={projectId} parent={proposed.parts[0]?.parent ?? null} />}
     <PartTree parts={proposed.parts} projectId={projectId} first={proposed.action==='first'} />
     {proposed.waivers.length>0 && <section
       aria-label="Map waivers"
@@ -79,4 +82,13 @@ function PartTree({parts,projectId,first,parent=null,depth=0}: {parts:MapProposa
         />
       )}
     </li>)}</ul>
+}
+
+function MoveLine({projectId,parent}: {projectId:string;parent:string | null}) {
+  const target = useQuery({...partQuery(projectId,parent ?? ''),enabled:parent!==null})
+  return (
+    <p role="note" dir="auto" className="text-sm font-medium">
+      {parent===null ? 'Moves to the top level' : `Moves under: ${target.data?.part.content.title ?? parent}`}
+    </p>
+  )
 }

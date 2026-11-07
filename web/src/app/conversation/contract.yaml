@@ -366,7 +366,7 @@ components:
     # Approval shown only when live status is Pending, not outdated, and readable.
   MapProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
-    # Waivers are shown as consent; the button label names them when present.
+    # Waivers are shown as consent; the button label names them when present. A change card whose new parent differs from old_parent shows one move line (top level, or the parent part title through the part query, falling back to the id).
   RoadmapProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
   ProposalApproval:

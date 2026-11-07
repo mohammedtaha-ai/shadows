@@ -97,7 +97,7 @@ mockup's `Built` label cannot be used as evidence of completion.
 - Done when: focused workflows/codemap/architecture tests, typecheck, lint, build; 100-task/400-phase layout and browser acceptance.
 
 ### F-95 · The map change card shows a move
-- Status: ready
+- Status: done
 - Plan: this entry and shared request `docs/shared/requests/2026-11-07-map-change-moves.md`.
 - Read: guided-planning spec §23 map proposals (amended 2026-11-07); `web/src/app/conversation/contract.yaml`; `roadmap-proposal-card.tsx` `MoveLine` as the pattern.
 - Touch: `web/src/app/conversation/map-proposal-card.tsx`, `map-proposal-card.test.tsx`, `contract.yaml`; `web/src/test/fake-daemon.ts` only if its map proposal fixture needs `old_parent`; this stages file.
