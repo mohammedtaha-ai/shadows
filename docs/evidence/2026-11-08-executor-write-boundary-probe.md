@@ -8,8 +8,9 @@
 - Client: a throwaway ACP client outside the repository that recorded every
   `session/request_permission`, `tool_call` and `tool_call_update`. Nothing in the repository was
   changed to run it, and it is not kept. Each case ran in a fresh disposable git folder.
-- Outcome: Mohammed ruled that executors run in `auto`, their commands are not policed, and the
-  boundary is held at the commit (design §7).
+- Outcome: Mohammed ruled that the executor is built as the Planner is, with only its task's
+  tools and permission rules; shell commands are not policed; the commit takes only paths in
+  `writes` (design §7).
 
 ## Observations
 
@@ -30,13 +31,15 @@
 | j | `settings.permissions` passed in `_meta.claudeCode.options` | Accepted. `deny: Write(web/**)` refused the Write **and** `echo y > web/y.txt` inside Claude Code, before any request reached the client. `allow: Edit(src/**)` let the edit run with **no** request reaching the client. |
 | k | `env` names in a shell command | Only the launch set plus Claude Code's own (`CLAUDE_CODE_*`, `CLAUDE_PID`, ...) and Git Bash's. A canary variable set in the client's own environment did not arrive: the cleared launch holds. With a provider profile, its `ANTHROPIC_AUTH_TOKEN` would arrive the same way. |
 
+| final | The chosen setup: allow `Read`, `Grep`, `Glob`, `TodoWrite`, `Bash`, `Edit/Write/MultiEdit(backend/**)`; every other request refused by the client | Edit and Write in `backend/` ran with no request. A Write to `web/x.txt` reached the client, was refused, and no file was written. `git status` and `echo y > web/y.txt` ran with no request; the second wrote `web/y.txt`, which the commit leaves out. |
+
 ## What the rule takes from it
 
 - The mode must be set explicitly; the adapter's initial mode is not a default to rely on.
-- Being refused at the permission path would work (case refuse), but a generator (case h) and
-  child processes (case f) are seen only as a command, so an exact per-file boundary while
-  working would need snapshots around every command. Mohammed chose the commit as the one
-  boundary instead.
+- Claude Code's own rules carry the task's permissions (cases j and final), so the executor is
+  built like the Planner: allowed tools run unasked, anything else is refused. A generator (case
+  h) and child processes (case f) are seen only as a command; per-file control of the shell
+  would need snapshots around every command, and Mohammed chose not to police commands.
 - At the commit, git's status is the whole truth: generator files appear, ignored files do not,
   a rename shows its origin. A junction inside `writes` would smuggle another folder's files
   into the commit, so a link in a committed path refuses it.

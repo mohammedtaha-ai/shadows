@@ -60,8 +60,10 @@ browser.
 
 Run by the controller on Claude Code 2.1.319 through the pinned adapter 0.101.0:
 [`docs/evidence/2026-11-08-executor-write-boundary-probe.md`](../../evidence/2026-11-08-executor-write-boundary-probe.md).
-Mohammed's ruling on reading it: the executor runs in `auto`, its commands are not policed, and
-the boundary is enforced at the commit only (design §7). B-90 and B-92 below are written to that.
+Mohammed's ruling on reading it: the executor is built as the Planner is, with only the tools
+and permissions its task gives it; shell commands are not policed; the commit takes only paths
+in `writes` (design §7). A last run of that exact setup confirmed it: edits in `backend/` ran
+unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are written to that.
 
 ---
 
@@ -80,13 +82,14 @@ the boundary is enforced at the commit only (design §7). B-90 and B-92 below ar
   `crates/core-grants/src/store/mod.rs` (startup revocation and per-grant revoke cover
   `executor` as they cover `thread`);
   `crates/core-harness/src/setup.rs` (setup by kind), `src/sessions.rs`, `contract.yaml`;
+  `crates/shadows-agent/src/acp/session.rs` (`SessionSetup.permissions`), `crates/shadows-agent/contract.yaml`;
   `crates/core-grants/src/model.rs`, `src/tools.rs`, store (the executor kind and its scope),
   `contract.yaml`; `crates/shadows-mcp/src/server.rs` (a third router for the executor kind),
   `contract.yaml`; `crates/core-plans/src/task_context.rs` and its store query (the task check),
   `crates/core-plans/contract.yaml`
 
 **Interfaces:**
-- Consumes: design §7 (mode `auto`, the tool list). Nothing from Runs.
+- Consumes: design §7 (the tool list, the task's permission rules, mode `default`). Nothing from Runs.
 - Produces:
   - `pub enum ThreadKind { Planning, Executor }` (`as_str`: `planning`, `executor`) on `PlanningThread.kind`.
   - `Threads::create_executor_in(conn, project: &ProjectId, title: String, harness: &str) -> ThreadId`.
@@ -104,17 +107,24 @@ the boundary is enforced at the commit only (design §7). B-90 and B-92 below ar
   - `Plans::task_context` interprets the scope: for an executor grant, `workflow`, `version` and
     `task` must equal the scope's, else `PlansError::OutsideGrant`. Project and thread grants keep
     today's project-level check.
-  - `Harness::open_executor(thread: &ThreadId, root: &Path, grant: TaskScope, model: String)`: the
-    session opens in mode `auto` with `EXECUTOR_TOOLS` (`Read, Grep, Glob, Edit, Write, MultiEdit,
-    Bash, TodoWrite`), its grant's MCP server, `executor.txt` appended, `setting_sources: []` and
-    `strictMcpConfig: true`. The mode is set explicitly: the adapter's own initial mode is not
-    relied on. No permission policy of Shadows' own applies to it.
+  - `Harness::open_executor(thread: &ThreadId, root: &Path, writes: &[String], grant: TaskScope,
+    model: String)`: the session opens with `EXECUTOR_TOOLS` (`Read, Grep, Glob, Edit, Write,
+    MultiEdit, Bash, TodoWrite`), its grant's MCP server pre-approved as the Planner's is,
+    `executor.txt` appended, `setting_sources: []`, `strictMcpConfig: true`, and the task's rules
+    in `_meta.claudeCode.options.settings.permissions.allow`: `Read`, `Grep`, `Glob`, `TodoWrite`,
+    `Bash`, and `Edit(p)`, `Write(p)`, `MultiEdit(p)` for each pattern `p` of `writes`. Its policy
+    is `PermissionPolicy::Refuse`, as the Planner's. The mode is set to `default` explicitly.
+  - `SessionSetup` gains `permissions: Vec<String>` (the allow rules), sent as above; `None` of
+    it changes for the Planner.
 
 - [ ] **Step 1: Write the failing tests** in `crates/shadows-core/tests/executor_session.rs`
   (fake-acp):
-  - `an_executor_session_opens_with_its_instructions_tools_and_mode`: the setup's append starts
-    with `executor.txt`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, and the session's mode
-    is set to `auto`.
+  - `an_executor_session_opens_with_its_instructions_tools_and_rules`: the setup's append starts
+    with `executor.txt`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, the allow rules hold
+    `Edit(backend/**)`, `Write(backend/**)`, `MultiEdit(backend/**)` and `Bash` for a task whose
+    `writes` is `backend/**`, the policy is `Refuse`, and the mode is set to `default`.
+  - `a_request_outside_the_rules_is_refused`: fake-acp asks to write `web/a.ts` → refused, and
+    the refusal is a thread entry.
   - `an_executor_grant_reads_only_its_own_task`: `task_context` for its task → Ok; another task, or
     the same task in another version → `OutsideGrant`.
   - `an_executor_grant_lists_only_its_tools`: `tools/list` returns exactly `task_context`,

@@ -144,12 +144,18 @@ working-tree changes stay in the folder and are named in the Report.
 ## 7. The write boundary
 
 **Amended 2026-11-08 by Mohammed, after the probe**
-([evidence](../../evidence/2026-11-08-executor-write-boundary-probe.md)). The boundary is held
-at the commit, not while the executor works:
+([evidence](../../evidence/2026-11-08-executor-write-boundary-probe.md)). The executor is
+built as the Planner is: it has only the tools and permissions its task gives it.
 
-- The executor session runs in mode **`auto`**. Shadows sets the mode explicitly and does not
-  police its tools or its shell commands: a scaffold (`composer create-project`), a test run or a
-  container start runs as the agent decides.
+- **Its permissions are its task.** The session gets a fixed tool list and Claude Code
+  permission rules built from the task, passed in the session's options: `Read`, `Grep`, `Glob`
+  and `TodoWrite` anywhere; `Edit`, `Write` and `MultiEdit` on each `writes` pattern; `Bash`
+  for everything (tests, git, generators, containers). What these rules allow runs with no
+  question. Any other request reaches Shadows and is refused, as a Planner session's are
+  (`PermissionPolicy::Refuse`), and the refusal is a thread entry. The session runs in mode
+  `default`, set explicitly: in `auto` and `acceptEdits` no request reaches Shadows at all.
+- Shell commands are not policed. A command may still write outside `writes`; the commit
+  handles that.
 - **At commit,** `task_commit` reads the folder's git status. Every changed path matching
   `writes` is committed; a changed path outside `writes` is left in the folder, uncommitted, and
   named in the attempt's Report. Files git ignores (`vendor/`, `.env`, caches) never appear.
@@ -220,7 +226,7 @@ Each slice runs end to end in the browser before the next.
 
 0. **Probe:** done 2026-11-08; §7 holds its outcome.
 1. **One task, by hand:** Runs, the task page (Details, Run), Start/Stop, the executor session
-   with its scoped grant in mode `auto`, `task_commit` with its `writes` check, the Diff
+   with its scoped grant and its task's permission rules, `task_commit` with its `writes` check, the Diff
    tab. No critic: the attempt ends at its commit and Mohammed reads it. The `writes` overlap
    check and the commit queue ship here, so two tasks started together are already safe.
 2. **The critic:** dispatch after the commit, `task_review`, acceptance marks, the Report tab,
