@@ -166,6 +166,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Owner: Runs (git through `shadows-process`); MCP (the tool).
 - Needs: B-91 (done, 8442d973).
 - Carry from B-91: the Planner's planning-context block is still added to an executor's prompts; leave it out for executor threads, with a test.
+- Carry from the B-90/B-91 review (4a5542ba): no test sends an executor turn in a mode other than `default`; add one. `ready.rs` ignores `needs` links to another plan's tasks; make them count, with a test.
 - Done when: the plan's B-92 tests pass.
 
 ### B-93 · Task attempts over HTTP
@@ -173,6 +174,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Plan: [B-93](plans/2026-11-08-executors.md#b-93-runs-over-http).
 - Owner: `shadows-http` (translation only).
 - Needs: B-92; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).
+- Carry from the B-90/B-91 review (4a5542ba): Stop while Start is still opening the session lets Start send the turn on an attempt already Stopped; Start must check the attempt is still Running before it sends.
 - Done when: the route tests pass and `api/openapi.json` is regenerated, not hand-edited.
 
 ### B-94 · Run executors slice 1 in the browser
