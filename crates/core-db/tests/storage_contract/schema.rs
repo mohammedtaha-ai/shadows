@@ -87,6 +87,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project_link",
             "project_mode",
             "queued_message",
+            "run_attempts",
+            "run_task_marks",
             "runtime_instance",
             "secret_env",
             "secret_env_import",

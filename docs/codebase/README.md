@@ -182,6 +182,17 @@ pattern to follow, not merely an example.
 | `crates/core-db/src/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/core/specs/2026-09-21-persistence-api-and-migrations-design.md` |
 | `crates/core-db/src/lib.rs` | shared SQLite lifetime | `crates/core-db/contract.yaml` |
 | `crates/core-db/src/error.rs` | database failure vocabulary | `crates/core-db/contract.yaml` |
+| `crates/core-runs/src/` | the attempts at plan tasks | `crates/core-runs/src/lib.rs` |
+| `crates/core-runs/src/lib.rs` | the Runs service | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/model.rs` | attempt values | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/error.rs` | run refusals | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/scope.rs` | matching paths against a task's writes | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/ready.rs` | the rule for needs links | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/start.rs` | starting an attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/watch.rs` | following a turn to its end | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/recover.rs` | settling attempts at startup | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
 | `crates/core-runtime/src/lib.rs` | runtime registration boundary | `crates/core-runtime/contract.yaml` |
 | `crates/core-runtime/src/store/` | runtime row persistence | `crates/core-runtime/contract.yaml` |

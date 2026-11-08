@@ -152,7 +152,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Done when: the plan's B-90 tests pass and the Planner's isolation, session and MCP tests still pass.
 
 ### B-91 · Runs: attempts, Start, Stop and recovery
-- Status: ready (dispatch only when Mohammed says so)
+- Status: done (migration 0051_runs)
 - Plan: [B-91](plans/2026-11-08-executors.md#b-91-runs-attempts-and-startstop).
 - Owner: Runs (`core-runs`, new, approved with the design); AppCore wiring.
 - Touch: the plan's B-91 file list; the next unused migration number at dispatch.
@@ -161,7 +161,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Done when: the plan's B-91 tests pass, with migration, architecture, codemap and contract checks.
 
 ### B-92 · Git and `task_commit`
-- Status: blocked (B-91)
+- Status: ready (dispatch only when Mohammed says so)
 - Plan: [B-92](plans/2026-11-08-executors.md#b-92-git-and-task_commit).
 - Owner: Runs (git through `shadows-process`); MCP (the tool).
 - Needs: B-91.

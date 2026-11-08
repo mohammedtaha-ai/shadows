@@ -24,7 +24,7 @@ pub const EXECUTOR_TOOLS: [&str; 8] = [
 
 /// The mode in which a request outside the rules reaches Shadows: `auto` and
 /// `acceptEdits` ask nothing, so nothing could be refused.
-const MODE: &str = "default";
+const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
 
 /// What an executor session is opened for: its folder, the paths it may
 /// write and the task its grant reads.
@@ -58,6 +58,18 @@ impl ExecutorSession {
 }
 
 impl Harness {
+    /// Whether `thread` is an executor session now.
+    pub fn is_executor(&self, thread: &ThreadId) -> bool {
+        self.sessions.setups.is_executor(thread)
+    }
+
+    /// The attempt cannot write any more: closes the session, which revokes its grant, and
+    /// forgets that the thread is an executor.
+    pub async fn release_executor(&self, thread: &ThreadId) -> std::io::Result<()> {
+        self.sessions.setups.clear_executor(thread);
+        self.sessions.terminate(thread).await
+    }
+
     /// Opens the executor session of `thread` in `root`: only its task's tools
     /// and rules, on `model`, in mode `default`.
     pub async fn open_executor(

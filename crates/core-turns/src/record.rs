@@ -70,7 +70,9 @@ impl Turns {
             .projects
             .allowed_modes(&context.project_id, &context.harness)
             .await?;
-        if !allowed.contains(&settings.mode) {
+        let executor = settings.mode == shadows_agent::policy::EXECUTOR_MODE
+            && self.sessions.is_executor(thread_id);
+        if !executor && !allowed.contains(&settings.mode) {
             return Err(TurnsError::ModeNotAllowed(settings.mode.clone()));
         }
 

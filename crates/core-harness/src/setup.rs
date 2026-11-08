@@ -105,6 +105,23 @@ impl Setups {
         }
     }
 
+    /// `thread` stops being an executor session: its next opening is an ordinary one.
+    pub(crate) fn clear_executor(&self, thread: &ThreadId) {
+        self.executors
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .remove(thread);
+    }
+
+    /// Whether `thread` is an executor session. Its prompts carry no Planner
+    /// instructions or standards, so nothing changes for it between turns.
+    pub(crate) fn is_executor(&self, thread: &ThreadId) -> bool {
+        self.executors
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .contains_key(thread)
+    }
+
     /// The next opening of `thread` is an executor session.
     pub(crate) fn expect_executor(&self, thread: &ThreadId, session: ExecutorSession) {
         self.executors
@@ -312,7 +329,7 @@ impl Setups {
             thread,
         )
         .await?;
-        if context.harness == policy::AYLUL {
+        if context.harness == policy::AYLUL || self.is_executor(thread) {
             return Ok(None);
         }
         let invocation = invocation.ok_or(StorageError::NotFound("invocation"))?;

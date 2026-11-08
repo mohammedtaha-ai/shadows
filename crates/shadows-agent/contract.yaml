@@ -13,7 +13,7 @@ modules:
   acp/mapping.rs: Translation of session updates to HarnessEvent.
   choices.rs: Parsing adapter-provided session configuration.
   claude.rs: Launch specification for the configured Claude adapter.
-  policy.rs: Supported harnesses and their allowed modes.
+  policy.rs: Supported harnesses, their allowed modes, and the executor's own mode.
   profile.rs: Explicit provider environment for a Claude invocation.
   usage.rs: Connection-local attribution of cumulative session cost to prompts.
 

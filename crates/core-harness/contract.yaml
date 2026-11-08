@@ -74,6 +74,10 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # executor.txt appended, settingSources [] and strictMcpConfig true, the task's rules (Read, Grep, Glob,
 # TodoWrite, Bash and Edit/Write/MultiEdit per `writes` pattern) in settings.permissions.allow,
 # Refuse, the session working in `root`, and mode `default` set after opening (executor_session).
+# `release_executor` closes that session (revoking its grant) and forgets the thread is an executor;
+# `is_executor` answers whether it is one now. An executor's turns compare nothing against Planner
+# instructions or standards, and Turns lets only an executor's thread use mode `default`
+# (runs_attempts).
 # Permission answers are recorded before settling the adapter request; cancellation
 # and close serialize against that write. A failed write leaves the request waiting.
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
