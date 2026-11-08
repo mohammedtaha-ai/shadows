@@ -213,11 +213,7 @@ impl super::ThreadsStore {
             forked_from_thread: r.6.map(ThreadId::from_stored),
             removed_at: r.7,
             profile: r.8,
-            kind: if r.9 == "executor" {
-                ThreadKind::Executor
-            } else {
-                ThreadKind::Planning
-            },
+            kind: ThreadKind::from_stored(&r.9),
         }
     }
 }

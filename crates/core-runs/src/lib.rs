@@ -27,7 +27,6 @@ pub use scope::Scope;
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;
 use core_plans::{Plans, PlansError, WorkflowId};
-use core_projects::Projects;
 use core_turns::Turns;
 use store::RunsStore;
 
@@ -37,7 +36,6 @@ const FIRST_PROMPT: &str = "Do task T{n}. Read it with task_context first.";
 struct Inner {
     store: RunsStore,
     plans: Plans,
-    projects: Projects,
     harness: Arc<Harness>,
     turns: Turns,
     /// Replaces the first prompt, so a test can script the fake adapter.
@@ -51,18 +49,11 @@ pub struct Runs {
 }
 
 impl Runs {
-    pub fn new(
-        storage: Arc<Storage>,
-        plans: Plans,
-        harness: Arc<Harness>,
-        turns: Turns,
-        projects: Projects,
-    ) -> Self {
+    pub fn new(storage: Arc<Storage>, plans: Plans, harness: Arc<Harness>, turns: Turns) -> Self {
         Self {
             inner: Arc::new(Inner {
                 store: RunsStore::with_storage(storage),
                 plans,
-                projects,
                 harness,
                 turns,
                 prompt: Mutex::new(None),
@@ -109,15 +100,16 @@ impl Runs {
         if !plan.tasks.iter().any(|t| t.content.number == task) {
             return Err(RunsError::NotFound);
         }
-        let fingerprint = CommandContext::fingerprint(
+        let command = CommandContext::user(
+            command,
             "run.mark_done",
-            &serde_json::json!({
+            serde_json::json!({
                 "workflow": workflow, "version": version, "task": task, "done": done,
             }),
         );
         self.inner
             .store
-            .put_mark(command, fingerprint, (workflow, version, task), done)
+            .put_mark(command, (workflow, version, task), done)
             .await?;
         self.task(workflow, version, task).await
     }

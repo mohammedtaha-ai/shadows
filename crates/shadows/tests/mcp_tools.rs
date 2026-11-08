@@ -715,3 +715,57 @@ async fn the_planner_edits_phases_and_reads_selected_phase_context() {
         .await
         .unwrap();
 }
+
+/// An executor's grant, as Harness issues it when its session opens: through
+/// the real `/mcp`, it lists only the executor's tools, reads only its task,
+/// and has no plan-writing tool to call.
+#[tokio::test]
+async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
+    let l = listening_app().await;
+    let workflow = approved_v1(&l.app).await;
+    let (project, thread) = (l.app.project.clone(), l.app.thread.clone());
+    let scope = shadows_core::testing::TaskScope {
+        workflow: workflow.as_str().to_string(),
+        version: 1,
+        task: 1,
+    };
+    let (_, token) = l
+        .app
+        .storage
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                shadows_core::Grants::issue_executor_grant_in(conn, &project, &thread, scope).await
+            })
+        })
+        .await
+        .unwrap();
+    let executor = listening::mcp_client(&l.base, token.as_str()).await;
+    let mut names: Vec<String> = executor
+        .list_all_tools()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|tool| tool.name.to_string())
+        .collect();
+    names.sort();
+    assert_eq!(names, ["outline", "task_context", "where_is", "who_uses"]);
+    let own = json!({ "workflow_id": workflow, "task_number": 1 });
+    assert_eq!(
+        ok(&executor, "task_context", own).await["task"]["number"],
+        1
+    );
+    let other = json!({ "workflow_id": workflow, "task_number": 2 });
+    refused(&executor, "task_context", other).await;
+    let edit = json!({ "workflow_id": workflow, "expected_revision": 1, "ops": [add(3)] });
+    let params = rmcp::model::CallToolRequestParams::new("plan_edit")
+        .with_arguments(edit.as_object().unwrap().clone());
+    let unknown = executor.call_tool(params).await;
+    let answer = format!("{unknown:?}");
+    assert!(unknown.is_err(), "plan_edit reached an executor: {answer}");
+    assert!(answer.contains("tool not found"), "{answer}");
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}

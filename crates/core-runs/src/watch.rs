@@ -17,9 +17,19 @@ impl Runs {
     }
 
     async fn observe(&self, attempt: AttemptId, thread: ThreadId, operation: OperationId) {
+        let mut warned = false;
         let ended = loop {
-            let Ok(operations) = self.inner.turns.operations(&thread).await else {
-                return;
+            // A failed read proves nothing about the turn: the scope stays held
+            // and the turn is looked at again.
+            let operations = match self.inner.turns.operations(&thread).await {
+                Ok(operations) => operations,
+                Err(error) => {
+                    if !std::mem::replace(&mut warned, true) {
+                        tracing::warn!(%attempt, %error, "runs.watch_read_failed");
+                    }
+                    tokio::time::sleep(POLL).await;
+                    continue;
+                }
             };
             match operations
                 .into_iter()

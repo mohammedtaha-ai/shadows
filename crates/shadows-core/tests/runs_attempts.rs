@@ -1,11 +1,13 @@
 //! Attempts at the tasks of an approved plan: starting one, stopping it,
 //! what its session may still write, and what a restart finds. The executor
 //! runs on `fake_acp`; `wait-for-release` holds its turn until a `release`
-//! file appears in the project folder.
+//! file appears in the project folder. `live` runs the real adapter.
 
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;
+#[path = "runs_attempts/live.rs"]
+mod live;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -14,8 +16,9 @@ use std::time::Duration;
 use core_runs::{Attempt, AttemptState, RunsError};
 use cross_plan::{SOURCE, command};
 use serde_json::Value;
+use shadows_agent::claude::ClaudeAdapter;
+use shadows_core::testing::acp;
 use shadows_core::testing::{CommandContext, Harness, LiveHandles, ProjectDirectory, Storage};
-use shadows_core::testing::{Runtime, acp, turn};
 use shadows_core::{AcceptanceItem, AppCore, CoreParts, Link, LinkKind, PlanOp, TaskContent};
 use shadows_core::{TaskParent, ThreadEntryKind, ThreadId, WorkflowId, Writer};
 
@@ -23,7 +26,6 @@ struct Fixture {
     core: Arc<AppCore>,
     storage: Arc<Storage>,
     sessions: Arc<Harness>,
-    runtime: Arc<Runtime>,
     workflow: WorkflowId,
     root: PathBuf,
     project: shadows_core::ProjectId,
@@ -72,7 +74,7 @@ async fn fixture() -> Fixture {
     fixture_with(true, None).await
 }
 
-async fn fixture_with(approve: bool, adapter: Option<PathBuf>) -> Fixture {
+async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let root = tmp.path().join("project");
@@ -150,9 +152,7 @@ async fn fixture_with(approve: bool, adapter: Option<PathBuf>) -> Fixture {
     let (runtime, _report) = AppCore::runtime_for_tests(storage.clone()).await.unwrap();
     let runtime = Arc::new(runtime);
     let sessions = match adapter {
-        Some(node) => {
-            AppCore::harness_for_tests(acp::adapter_at(node), storage.clone(), acp::test_config())
-        }
+        Some(adapter) => AppCore::harness_for_tests(adapter, storage.clone(), acp::test_config()),
         None => acp::fake_sessions(storage.clone()),
     };
     let core = AppCore::assemble(CoreParts {
@@ -170,7 +170,6 @@ async fn fixture_with(approve: bool, adapter: Option<PathBuf>) -> Fixture {
         core,
         storage,
         sessions,
-        runtime,
         workflow,
         root,
         project: project.id,
@@ -259,6 +258,12 @@ async fn the_same_command_returns_the_same_attempt() {
         matches!(other, Err(RunsError::CommandConflict)),
         "{other:?}"
     );
+    // A replay answers the first attempt even once the plan could not start it.
+    sqlx::query("UPDATE plan SET state = 'Archived', archived_at = '2026-10-05T00:00:00Z'")
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(f.start("s1", 3).await.unwrap().id, first.id);
     f.finish().await;
 }
 
@@ -289,6 +294,26 @@ async fn start_waits_for_needs_links() {
         .unwrap();
     assert!(marked.done && marked.done_at.is_some());
     assert_eq!(f.start("s2", 6).await.unwrap().state, AttemptState::Running);
+    // A mark command is replayed, never applied twice, and its id is its own.
+    let runs = f.core.runs();
+    let other = runs.mark_done("m1".into(), &f.workflow, 1, 1, false).await;
+    assert!(
+        matches!(other, Err(RunsError::CommandConflict)),
+        "{other:?}"
+    );
+    runs.mark_done("m2".into(), &f.workflow, 1, 1, false)
+        .await
+        .unwrap();
+    let replayed = runs.mark_done("m1".into(), &f.workflow, 1, 1, true).await;
+    assert!(
+        !replayed.unwrap().done,
+        "a replay applied an old mark again"
+    );
+    let elsewhere = runs.mark_done("m1".into(), &f.workflow, 1, 3, true).await;
+    assert!(
+        matches!(elsewhere, Err(RunsError::CommandConflict)),
+        "{elsewhere:?}"
+    );
     f.finish().await;
 }
 
@@ -345,7 +370,8 @@ async fn stop_ends_the_attempt_and_closes_its_session() {
 
 #[tokio::test]
 async fn a_session_that_fails_to_open_fails_the_attempt() {
-    let f = fixture_with(true, Some(PathBuf::from("no-such-adapter"))).await;
+    let missing = acp::adapter_at(PathBuf::from("no-such-adapter"));
+    let f = fixture_with(true, Some(missing)).await;
     let attempt = f.start("s1", 3).await.unwrap();
     assert_eq!(attempt.state, AttemptState::Failed);
     assert!(
@@ -498,7 +524,7 @@ async fn reply_of(f: &Fixture, thread: &ThreadId) -> Value {
 }
 
 #[tokio::test]
-async fn a_released_attempt_leaves_its_thread_an_ordinary_one() {
+async fn a_released_executor_thread_does_not_open_again() {
     let f = fixture().await;
     f.core.runs().set_first_prompt_for_tests("report");
     let attempt = f.start("s1", 3).await.unwrap();
@@ -510,39 +536,22 @@ async fn a_released_attempt_leaves_its_thread_an_ordinary_one() {
             .unwrap()
             .contains(&Value::from("Edit"))
     );
-    // Once released, opening the thread again builds no executor setup.
+    // Once released, the thread opens neither as an executor nor as a
+    // Planner, whose grant could write the plan.
     for _ in 0..100 {
         if f.sessions.live_count().await == 0 {
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    let handles = Arc::new(LiveHandles::default());
-    let bus = tokio::sync::broadcast::channel(16).0;
-    turn::start_direct(
-        &f.runtime,
-        &handles,
-        &f.sessions,
-        &bus,
-        &attempt.thread_id,
-        "report",
-    )
-    .await
-    .unwrap();
-    let mut planner = Value::Null;
-    for _ in 0..200 {
-        let reply = reply_of(&f, &attempt.thread_id).await;
-        if reply["options"]["tools"] != executor["options"]["tools"] {
-            planner = reply;
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    let tools = planner["options"]["tools"]
-        .as_array()
-        .expect("a second report");
-    assert!(tools.contains(&Value::from("WebSearch")), "{tools:?}");
-    assert!(!tools.contains(&Value::from("Edit")), "{tools:?}");
+    let reopened = f.sessions.open(&attempt.thread_id).await;
+    assert!(reopened.is_err(), "an executor thread reopened on its own");
+    assert_eq!(f.sessions.live_count().await, 0);
+    let live: i64 = sqlx::query_scalar("SELECT count(*) FROM mcp_grant WHERE revoked_at IS NULL")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(live, 0);
     f.finish().await;
 }
 

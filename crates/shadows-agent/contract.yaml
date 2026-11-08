@@ -19,7 +19,7 @@ modules:
 
 functions:
   Connection::open: Initializes ACP v1 over the managed process pipes.
-  Connection::start_session: Sends new, resume, or fork followed by resume, in the setup's cwd when it names one; the setup's permission rules travel in settings.permissions.allow.
+  Connection::start_session: Sends new, resume, or fork followed by resume, in the cwd it is given; the setup's permission rules travel in settings.permissions.allow.
   Connection::prompt_blocks: Sends ordered content and reports completion with optional usage.
   Connection::steer_blocks: Sends the adapter steering extension without starting an idle prompt.
   Connection::stop_task: Requests the adapter to stop one background task.

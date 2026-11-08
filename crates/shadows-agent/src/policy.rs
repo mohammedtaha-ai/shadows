@@ -19,7 +19,8 @@ pub const AYLUL: &str = "aylul";
 
 /// The mode an executor session runs in: it asks for every request its task's
 /// rules do not allow, so Shadows can refuse it. It is no project's choice, so
-/// it is not among `allowed_modes`; Turns lets only an executor's thread use it.
+/// it is not among `allowed_modes`; an executor thread runs in it and in no
+/// other mode, and no planning thread runs in it.
 pub const EXECUTOR_MODE: &str = "default";
 
 /// Every harness Shadows knows, in the order a client lists them.

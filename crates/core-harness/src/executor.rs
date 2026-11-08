@@ -1,7 +1,5 @@
 //! One job: opening the session of an executor, built as the Planner's is —
 //! a fixed tool list and the permission rules of its one task.
-use std::path::{Path, PathBuf};
-
 use super::Harness;
 use super::sessions::{OpenError, OpenSession};
 use core_grants::TaskScope;
@@ -26,11 +24,11 @@ pub const EXECUTOR_TOOLS: [&str; 8] = [
 /// `acceptEdits` ask nothing, so nothing could be refused.
 const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
 
-/// What an executor session is opened for: its folder, the paths it may
-/// write and the task its grant reads.
+/// What an executor session is opened for: the paths it may write and the
+/// task its grant reads. It works in its project's folder, as every session
+/// of the project does.
 #[derive(Clone)]
 pub(crate) struct ExecutorSession {
-    pub(crate) root: PathBuf,
     pub(crate) writes: Vec<String>,
     pub(crate) scope: TaskScope,
 }
@@ -58,24 +56,18 @@ impl ExecutorSession {
 }
 
 impl Harness {
-    /// Whether `thread` is an executor session now.
-    pub fn is_executor(&self, thread: &ThreadId) -> bool {
-        self.sessions.setups.is_executor(thread)
-    }
-
-    /// The attempt cannot write any more: closes the session, which revokes its grant, and
-    /// forgets that the thread is an executor.
+    /// The attempt cannot write any more: forgets the thread's executor setup,
+    /// so it cannot open again, and closes the session, which revokes its grant.
     pub async fn release_executor(&self, thread: &ThreadId) -> std::io::Result<()> {
         self.sessions.setups.clear_executor(thread);
         self.sessions.terminate(thread).await
     }
 
-    /// Opens the executor session of `thread` in `root`: only its task's tools
-    /// and rules, on `model`, in mode `default`.
+    /// Opens the executor session of `thread` in its project's folder: only
+    /// its task's tools and rules, on `model`, in mode `default`.
     pub async fn open_executor(
         &self,
         thread: &ThreadId,
-        root: &Path,
         writes: &[String],
         grant: TaskScope,
         model: String,
@@ -83,7 +75,6 @@ impl Harness {
         self.sessions.setups.expect_executor(
             thread,
             ExecutorSession {
-                root: root.to_path_buf(),
                 writes: writes.to_vec(),
                 scope: grant,
             },

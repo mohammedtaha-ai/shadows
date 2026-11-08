@@ -127,6 +127,8 @@ shapes:
     project_id: ProjectId
     # A fork's source session until the fork records one of its own.
     fork_session_id: Option<String>
+    # The thread's kind: Harness and Turns read what an executor thread may do from it.
+    kind: ThreadKind
   ThreadEntry:
     attachments: Vec<AttachmentRef>
     id: ThreadEntryId

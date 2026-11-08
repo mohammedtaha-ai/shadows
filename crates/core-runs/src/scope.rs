@@ -46,10 +46,14 @@ impl Scope {
     }
 
     /// The pattern cut before its first glob character, then at its last `/`.
-    /// A pattern with no glob character names one path and is kept whole.
+    /// A pattern with no glob character names one path and is kept whole. A
+    /// `..` segment may lead anywhere, so its pattern has no prefix at all.
     fn prefix(pattern: &str) -> String {
         let pattern = Self::normal(pattern);
         let pattern = pattern.trim_start_matches("./");
+        if pattern.split('/').any(|segment| segment == "..") {
+            return String::new();
+        }
         match pattern.find(['*', '?', '[', '{']) {
             None => pattern.trim_end_matches('/').to_string(),
             Some(at) => match pattern[..at].rfind('/') {
@@ -132,5 +136,29 @@ mod tests {
     #[test]
     fn a_pattern_without_a_folder_may_overlap_anything() {
         assert!(Scope::may_overlap(&all(&["*.md"]), &all(&["web/**"])));
+        assert!(Scope::may_overlap(&all(&["**"]), &all(&["web/a.ts"])));
+        assert!(Scope::may_overlap(&all(&["back*/x"]), &all(&["backend/y"])));
+    }
+
+    #[test]
+    fn a_folder_overlaps_its_subfolder_not_its_sibling() {
+        let (backend, app, web) = (
+            all(&["backend/**"]),
+            all(&["backend/app/**"]),
+            all(&["web/**"]),
+        );
+        assert!(Scope::may_overlap(&backend, &app));
+        assert!(Scope::may_overlap(&app, &backend));
+        assert!(!Scope::may_overlap(&backend, &web));
+        // A shared spelling is not a shared folder.
+        assert!(!Scope::may_overlap(&backend, &all(&["backend2/**"])));
+    }
+
+    #[test]
+    fn a_pattern_that_climbs_out_may_overlap_anything() {
+        assert!(Scope::may_overlap(
+            &all(&["backend/../web/**"]),
+            &all(&["web/**"])
+        ));
     }
 }

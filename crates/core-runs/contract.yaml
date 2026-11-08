@@ -1,5 +1,6 @@
-# Plans, Threads, Harness, Turns and Projects are used through their services; Runs reads
-# nothing of theirs by SQL. Database infrastructure: core-db; globset is infrastructure
+# Plans, Threads, Harness and Turns are used through their services; Runs reads nothing of
+# theirs by SQL. Database infrastructure: core-db, whose command record keeps the done-mark
+# commands, as every service's mutating commands are kept; globset is infrastructure
 # for pattern matching, the overlap rule itself is written here.
 # Owns the attempts at the tasks of an approved plan version: Start, Stop, the scope an
 # attempt holds while its session can still write, the person's done marks that `needs`
@@ -32,8 +33,7 @@ modules:
 
 dependencies:
   plans: Plans reads the frozen version, its tasks and links.
-  projects: Projects gives the folder a session works in.
-  harness: Harness opens and releases the executor session.
+  harness: Harness opens the executor session in its project's folder, and releases it.
   turns: Turns sends the first turn and stops it.
   threads: Threads creates the executor thread inside the Start write.
   grants: Grants revokes an interrupted attempt's grant at startup.
@@ -48,12 +48,12 @@ shapes:
   RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, CommandConflict, NotFound, BadScope, Unavailable, Storage]
 
 functions:
-  new: "(storage, plans, harness, turns, projects) -> Runs; AppCore constructs the service"
-  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt, a session or turn that cannot start answers Failed"
+  new: "(storage, plans, harness, turns) -> Runs; AppCore constructs the service"
+  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused"
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
   task: "(workflow, version, task) -> TaskRun"
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
-  mark_done: "(command, workflow, version, task, done) -> TaskRun"
+  mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict"
   recover: "() -> RecoverReport; every Running attempt becomes Interrupted, none restarted"
 
 transitions:
@@ -63,6 +63,8 @@ transitions:
   - "turn fails: Failed with the turn's failure"
   - "Stop confirmed: Stopped"
   - "found Running at startup: Interrupted"
+# A turn whose end cannot be read keeps its scope held and is read again: an unread end
+# proves nothing about whether the session can still write.
 
 agreements:
   - rule: One matcher decides overlap at Start and (later) the commit.
@@ -71,16 +73,20 @@ agreements:
 obligations:
   - rule: Start opens one Running attempt on an executor thread with the model given.
     tested_by: [start_opens_one_attempt_on_an_executor_thread]
-  - rule: The same command id answers the same attempt; the same id with other input is a conflict.
+  - rule: The same command id answers the same attempt, even once the plan could not start it; the same id with other input is a conflict.
     tested_by: [the_same_command_returns_the_same_attempt]
+  - rule: A mark command is replayed, never applied again after a later mark, and its id names one mark.
+    tested_by: [start_waits_for_needs_links]
   - rule: A task with an attempt that can still write cannot start again.
     tested_by: [a_second_start_while_running_is_busy]
   - rule: A task waits for the tasks its needs links name until they are marked done.
     tested_by: [start_waits_for_needs_links]
   - rule: A draft, a superseded version and an archived plan cannot start.
     tested_by: [start_refuses_a_draft, start_refuses_a_superseded_version, start_refuses_an_archived_plan]
-  - rule: Stop ends the attempt and closes its session.
-    tested_by: [stop_ends_the_attempt_and_closes_its_session]
+  - rule: Stop ends the attempt, closes its session, revokes its grant and frees its scope.
+    tested_by: [stop_ends_the_attempt_and_closes_its_session, live_stop_ends_a_running_attempt_and_frees_its_scope]
+  - rule: On the real adapter, an executor runs in mode default; a Write inside its writes runs unasked, one outside is refused and never reaches the folder or git.
+    tested_by: [live_an_executor_writes_inside_its_task_in_mode_default_and_is_refused_outside]
   - rule: A session that cannot open fails the attempt and frees its scope.
     tested_by: [a_session_that_fails_to_open_fails_the_attempt]
   - rule: A turn that ends without a commit fails the attempt.
@@ -91,10 +97,13 @@ obligations:
     tested_by: [overlapping_tasks_cannot_start_together, disjoint_tasks_start_together, two_concurrent_starts_of_overlapping_tasks_admit_one]
   - rule: A committed attempt holds its scope until its turn has ended.
     tested_by: [a_committed_attempt_holds_its_scope_until_its_turn_ends]
-  - rule: A released attempt leaves its thread an ordinary one, and an executor's first turn hears no Planner instructions.
-    tested_by: [a_released_attempt_leaves_its_thread_an_ordinary_one, an_executors_first_turn_hears_no_planner_instructions]
+  - rule: A released executor thread opens again neither as an executor nor as a Planner, and an executor's first turn hears no Planner instructions.
+    tested_by: [a_released_executor_thread_does_not_open_again, an_executors_first_turn_hears_no_planner_instructions, live_an_executors_first_turn_hears_no_planner_instructions]
   - rule: The matcher admits by pattern, with `*` stopping at `/`, an empty set admitting nothing, bad patterns refused and Windows separators normalised.
-    tested_by: [a_star_does_not_cross_a_separator, no_patterns_admit_nothing, an_invalid_pattern_is_an_error, windows_separators_are_normalised, a_folder_and_its_subfolder_may_overlap, disjoint_folders_do_not_overlap]
+    tested_by: [a_star_does_not_cross_a_separator, no_patterns_admit_nothing, an_invalid_pattern_is_an_error, windows_separators_are_normalised]
+  - rule: Two patterns may overlap unless their literal prefixes are disjoint folders; a pattern led by a glob or climbing out with `..` may overlap anything.
+    tested_by: [a_folder_and_its_subfolder_may_overlap, a_folder_overlaps_its_subfolder_not_its_sibling, disjoint_folders_do_not_overlap, a_pattern_without_a_folder_may_overlap_anything, a_pattern_that_climbs_out_may_overlap_anything]
 
 tests:
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter
+  shadows-core/tests/runs_attempts/live.rs: attempts on the real adapter against MiniMax in a real git repository; ignored in CI, run with API_KEY_MINIMAX and `-- --ignored --test-threads=1`

@@ -16,7 +16,7 @@ use core_grants::GrantId;
 use core_instructions::{Instructions, InstructionsVersion};
 use core_projects::ProjectId;
 use core_standards::{EffectiveStandards, Standards};
-use core_threads::ThreadId;
+use core_threads::{ThreadId, ThreadKind};
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 
@@ -113,15 +113,6 @@ impl Setups {
             .remove(thread);
     }
 
-    /// Whether `thread` is an executor session. Its prompts carry no Planner
-    /// instructions or standards, so nothing changes for it between turns.
-    pub(crate) fn is_executor(&self, thread: &ThreadId) -> bool {
-        self.executors
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .contains_key(thread)
-    }
-
     /// The next opening of `thread` is an executor session.
     pub(crate) fn expect_executor(&self, thread: &ThreadId, session: ExecutorSession) {
         self.executors
@@ -132,11 +123,13 @@ impl Setups {
 
     /// Issues the thread's grant (revoking any previous one) and builds the
     /// setup. With no MCP URL (tests that need no MCP) it issues none. On an
-    /// error nothing it issued is left live.
+    /// error nothing it issued is left live. An executor thread opens only for
+    /// its attempt: opened any other way it would get a Planner's setup.
     pub(crate) async fn for_opening(
         &self,
         thread: &ThreadId,
         project: &ProjectId,
+        kind: ThreadKind,
     ) -> Result<SessionSetup, String> {
         self.forget(thread).await;
         let executor = self
@@ -145,8 +138,14 @@ impl Setups {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .get(thread)
             .cloned();
-        if let Some(executor) = executor {
-            return self.for_executor(thread, project, executor).await;
+        match (kind, executor) {
+            (ThreadKind::Executor, Some(executor)) => {
+                return self.for_executor(thread, project, executor).await;
+            }
+            (ThreadKind::Executor, None) => {
+                return Err("an executor thread opens only for its attempt".into());
+            }
+            (ThreadKind::Planning, _) => {}
         }
         let current = self
             .instructions
@@ -219,7 +218,6 @@ impl Setups {
             tools: Some(PLANNER_TOOLS.iter().map(|t| t.to_string()).collect()),
             setting_sources: None,
             permissions: vec![],
-            cwd: None,
         })
     }
 
@@ -274,7 +272,6 @@ impl Setups {
             tools: Some(EXECUTOR_TOOLS.iter().map(|t| t.to_string()).collect()),
             setting_sources: None,
             permissions: executor.permissions(),
-            cwd: Some(executor.root),
         })
     }
 
@@ -329,7 +326,9 @@ impl Setups {
             thread,
         )
         .await?;
-        if context.harness == policy::AYLUL || self.is_executor(thread) {
+        // An executor's prompts carry no Planner instructions or standards, so
+        // nothing changes for it between turns.
+        if context.harness == policy::AYLUL || context.kind == ThreadKind::Executor {
             return Ok(None);
         }
         let invocation = invocation.ok_or(StorageError::NotFound("invocation"))?;

@@ -47,6 +47,15 @@ impl ThreadKind {
             Self::Executor => "executor",
         }
     }
+
+    /// The inverse of [`Self::as_str`]; the column holds no other value.
+    pub(crate) fn from_stored(text: &str) -> Self {
+        if text == Self::Executor.as_str() {
+            Self::Executor
+        } else {
+            Self::Planning
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
@@ -91,6 +100,9 @@ pub struct TurnContext {
     /// For a fork that has not yet recorded a session of its own: the source's
     /// session its first opening forks.
     pub fork_session_id: Option<String>,
+    /// What the thread is for: an executor thread opens only for its attempt
+    /// and runs in the executor's mode only.
+    pub kind: ThreadKind,
 }
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]

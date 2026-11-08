@@ -328,6 +328,10 @@ functions:
       # check, lease Busy, or the transaction); HarnessStartFailed (open, lease
       # Closed, or the session gone while reading its offer);
       # SettingNotOffered; ModeNotAllowed; CommandConflict; TaskNotInPlan.
+      # ModeNotAllowed reads the thread's kind: a planning thread may use the
+      # modes its project allows; an executor thread `policy::EXECUTOR_MODE`
+      # and nothing else, since in any other mode its edits would not reach
+      # Shadows to be refused.
       # Once the checks up to the busy check pass, before the session is
       # opened: `Code::touch` of the thread's project (§15.6), which never
       # fails or delays the turn.

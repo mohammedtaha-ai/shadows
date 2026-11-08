@@ -460,7 +460,6 @@ impl AppCore {
             plans.clone(),
             harness.clone(),
             turns.clone(),
-            projects.clone(),
         );
         let events = Arc::new(Events::new(
             storage.clone(),

@@ -139,7 +139,7 @@ pub use core_db::JournalEntry as DurableEvent;
 pub use core_db::{Anchor, Causation, CommandContext, JournalEntry, Storage};
 pub use core_events::EventCursor;
 pub use core_grants::Writer;
-pub use core_grants::{IssuedGrant, Token};
+pub use core_grants::{IssuedGrant, TaskScope, Token};
 pub use core_harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use core_operations::ReconcileReport;
 pub use core_projects::ProjectDirectory;

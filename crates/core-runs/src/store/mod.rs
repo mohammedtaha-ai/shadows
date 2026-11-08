@@ -69,10 +69,9 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if let Some((attempt, fingerprint)) = Self::by_command(conn, &new).await? {
-                        if fingerprint != new.fingerprint {
-                            return Err(RunsError::CommandConflict);
-                        }
+                    if let Some(attempt) =
+                        Self::by_command(conn, &new.command_id, &new.fingerprint).await?
+                    {
                         return Ok(Begun {
                             attempt,
                             replayed: true,
@@ -126,20 +125,37 @@ impl RunsStore {
             .await
     }
 
+    /// The attempt `command` already started, read before any check that the
+    /// plan's later state could change.
+    pub(crate) async fn replay(
+        &self,
+        command: &str,
+        fingerprint: &str,
+    ) -> Result<Option<Attempt>, RunsError> {
+        let mut conn = self
+            .storage
+            .reader()
+            .acquire()
+            .await
+            .map_err(StorageError::from)?;
+        Self::by_command(&mut conn, command, fingerprint).await
+    }
+
+    /// The attempt `command` started; the same id with other input is a
+    /// conflict.
     async fn by_command(
         conn: &mut SqliteConnection,
-        new: &NewAttempt,
-    ) -> Result<Option<(Attempt, String)>, RunsError> {
+        command: &str,
+        fingerprint: &str,
+    ) -> Result<Option<Attempt>, RunsError> {
         let row: Option<(String, String)> =
             sqlx::query_as("SELECT id, fingerprint FROM run_attempts WHERE command_id = ?")
-                .bind(&new.command_id)
+                .bind(command)
                 .fetch_optional(&mut *conn)
                 .await?;
         match row {
-            Some((id, fingerprint)) => {
-                let attempt = Self::load(conn, &AttemptId::from_recorded(id)).await?;
-                Ok(Some((attempt, fingerprint)))
-            }
+            Some((_, seen)) if seen != fingerprint => Err(RunsError::CommandConflict),
+            Some((id, _)) => Ok(Some(Self::load(conn, &AttemptId::from_recorded(id)).await?)),
             None => Ok(None),
         }
     }

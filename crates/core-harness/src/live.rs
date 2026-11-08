@@ -210,7 +210,9 @@ impl Sessions {
                 let setup = if context.harness == policy::AYLUL {
                     setup
                 } else {
-                    self.setups.for_opening(thread, &context.project_id).await?
+                    self.setups
+                        .for_opening(thread, &context.project_id, context.kind)
+                        .await?
                 };
                 // Grant issuance must finish before a timeout can revoke its held grant.
                 tokio::time::timeout_at(deadline, async {

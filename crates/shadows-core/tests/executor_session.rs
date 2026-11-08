@@ -80,8 +80,8 @@ async fn fixture_with_session() -> Fixture {
     )
     .await
     .unwrap();
-    let root = tmp.path().join("work");
-    std::fs::create_dir(&root).unwrap();
+    // An executor works in its project's folder, never one of its own.
+    let root = std::path::PathBuf::from(dir.as_str());
     Fixture {
         sessions: acp::fake_sessions(storage.clone()),
         runtime: Arc::new(runtime),
@@ -110,7 +110,7 @@ impl Fixture {
     async fn open(&self, thread: &ThreadId, writes: &[&str]) {
         let writes: Vec<String> = writes.iter().map(|w| w.to_string()).collect();
         self.sessions
-            .open_executor(thread, &self.root, &writes, scope(), "fake-small".into())
+            .open_executor(thread, &writes, scope(), "fake-small".into())
             .await
             .unwrap();
     }

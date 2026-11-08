@@ -1,5 +1,5 @@
 //! Thread records accessed inside another owner's transaction or read snapshot.
-use crate::{PlanningThread, ThreadEntryId, ThreadId, Threads, TurnContext};
+use crate::{PlanningThread, ThreadEntryId, ThreadId, ThreadKind, Threads, TurnContext};
 use core_db::StorageError;
 use core_projects::{ProjectId, Projects};
 use sqlx::SqliteConnection;
@@ -62,9 +62,10 @@ impl Threads {
             String,
             Option<String>,
             Option<String>,
+            String,
         );
-        let (session, harness, project, fork_session, profile): Row = sqlx::query_as(
-            "SELECT harness_session_id,harness_kind,project_id,fork_session_id,profile
+        let (session, harness, project, fork_session, profile, kind): Row = sqlx::query_as(
+            "SELECT harness_session_id,harness_kind,project_id,fork_session_id,profile,kind
              FROM planning_thread WHERE id=? AND removed_at IS NULL",
         )
         .bind(thread.as_str())
@@ -80,6 +81,7 @@ impl Threads {
             harness,
             project_id,
             fork_session_id: fork_session,
+            kind: ThreadKind::from_stored(&kind),
         })
     }
 

@@ -1,7 +1,5 @@
 //! One job: starting an attempt — checks, the record, the session and its
 //! first turn.
-use std::path::Path;
-
 use crate::model::AttemptState;
 use crate::scope::Scope;
 use crate::store::NewAttempt;
@@ -16,8 +14,9 @@ const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
 
 impl Runs {
     /// Starts an attempt at `task` of a frozen version, or answers the one a
-    /// replay of `command` started. An attempt whose session or turn could not
-    /// start is answered `Failed`, with its reason.
+    /// replay of `command` started, whatever the plan has become since. An
+    /// attempt whose session or turn could not start is recorded, so it is
+    /// answered `Failed` with its reason, not refused.
     pub async fn start(
         &self,
         command: String,
@@ -26,6 +25,15 @@ impl Runs {
         task: u32,
         model: String,
     ) -> Result<Attempt, RunsError> {
+        let fingerprint = CommandContext::fingerprint(
+            "run.start",
+            &serde_json::json!({
+                "workflow": workflow, "version": version, "task": task, "model": model,
+            }),
+        );
+        if let Some(first) = self.inner.store.replay(&command, &fingerprint).await? {
+            return Ok(first);
+        }
         let plan = self.plan(workflow, version).await?;
         if plan.plan_state == PlanState::Archived {
             return Err(RunsError::Archived);
@@ -48,12 +56,6 @@ impl Runs {
         if !waiting.is_empty() {
             return Err(RunsError::Waiting { tasks: waiting });
         }
-        let fingerprint = CommandContext::fingerprint(
-            "run.start",
-            &serde_json::json!({
-                "workflow": workflow, "version": version, "task": task, "model": model,
-            }),
-        );
         let begun = self
             .inner
             .store
@@ -72,15 +74,6 @@ impl Runs {
             return Ok(begun.attempt);
         }
         let attempt = begun.attempt;
-        let root = match self.inner.projects.get(&plan.project_id).await {
-            Ok(project) => project.directory,
-            Err(error) => return self.abandon(attempt, error.to_string()).await,
-        };
-        let Some(root) = root else {
-            return self
-                .abandon(attempt, "the project has no directory".into())
-                .await;
-        };
         let scope = TaskScope {
             workflow: workflow.as_str().to_string(),
             version,
@@ -89,13 +82,7 @@ impl Runs {
         if let Err(error) = self
             .inner
             .harness
-            .open_executor(
-                &attempt.thread_id,
-                Path::new(&root),
-                &content.writes,
-                scope,
-                model.clone(),
-            )
+            .open_executor(&attempt.thread_id, &content.writes, scope, model.clone())
             .await
         {
             return self
