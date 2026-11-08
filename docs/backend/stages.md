@@ -132,19 +132,19 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 ### B-85 · Prove Codex MCP tools and effective permissions
 
-- Status: blocked (authenticated MCP isolation at session startup)
+- Status: done (signed-in Windows permission proof, 2026-11-08)
 - Plan: [Codex app-server](plans/2026-11-07-codex-app-server.md#b-85-prove-tools-and-permissions-first).
 - Owner: Harness, through its existing Grants and planning owners; this task is a throwaway probe, not product implementation.
 - Read: harness controls spec §12.14; `crates/core-harness/contract.yaml`; `crates/core-grants/contract.yaml`; the existing Codex evidence at `41dd19ef`.
 - Touch: `docs/evidence/2026-11-07-codex-app-server-probe.md`, `docs/core/specs/2026-09-24-harness-controls-design.md`, `docs/backend/plans/2026-11-07-codex-app-server.md`, this stages file. Temporary probe source is deleted after evidence is saved.
 - Needs: none. Only this task is initially executable.
 - Verified on Windows with stable 0.167.0: real Planner thread-grant marker and draft, denied approval, read-only MXC write refusal, required-server failure, pending-tool Stop, same-thread continuation with a fresh project grant, and revoked-project-grant write refusal. See the dated Windows evidence for launch details and test boundaries.
-- Blocker: after preflight, Codex reloaded changed MCP configuration, started a new server, and forwarded a synthetic bearer before inventory inspection. An isolated `CODEX_HOME` loaded no inherited MCPs and had no signed-in account. Prove authenticated isolation before closing B-85 or starting B-86.
+- Isolated launch: the same ChatGPT account signed into the dedicated Shadows `CODEX_HOME`. The regular home was excluded. Forcing the test project untrusted excluded both its original MCP fixture and one inserted after preflight. The exact policy and readback are in §12.14 and the evidence.
 - Done when: real 0.167.0 uses the intended Shadows MCP tools, creates/reads a marked draft, rejects forbidden authority and an old grant, cancels a pending tool call and resumes with fresh authority. Evidence records the exact effective tool/mode policy and secret-absence check. If policy cannot be enforced, leave B-86 blocked and report the measured gap.
 
 ### B-86 · Connect Codex through the existing session owner
 
-- Status: blocked (B-85 must close the permission OPEN block before dispatch)
+- Status: todo (B-85 passed)
 - Plan: [First real Planner path](plans/2026-11-07-codex-app-server.md#b-86-first-real-planner-path).
 - Owner: Agent owns wire translation; Harness owns sessions/grants; AppCore wires the programs.
 - Read: §12.14, B-85 evidence, Agent/Harness/Turns contracts and the plan's shared interfaces.

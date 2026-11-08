@@ -687,8 +687,11 @@ explicitly disabled through the agreed API, never accepted and silently ignored.
 ### Configuration and session lifecycle
 
 Use the installed native Codex executable through an explicit absolute optional
-`--codex` configuration path. Absent configuration leaves Claude usable and
-Codex unavailable with an actionable reason. A configured missing executable,
+`--codex` configuration path, paired with the absolute `--codex-home` for the
+dedicated Shadows Codex profile. A person signs in once there with their
+existing ChatGPT account through the standard Codex login flow. Absent
+configuration leaves Claude usable and Codex unavailable with an actionable
+reason. A configured missing executable,
 missing login, rejected model, or failed handshake is a visible failure, never
 a fallback to Claude or a fresh conversation.
 
@@ -725,21 +728,33 @@ Issue the grant through Harness/Grants before constructing the authenticated
 child; revoke it on setup failure, close and replacement. Never expose unrelated
 provider secrets to the Codex child.
 
-> **OPEN — effective Codex permission policy.** The baseline did not test MCP
-> isolation, tool approvals, inherited plugins/hooks or file-write enforcement.
-> B-85 must record the exact supported configuration for the current Planner
-> tool policy, its effective tool inventory and actual refusals. It must also
-> establish the least-privileged mapping of the project's supported modes.
-> The Windows probe proved `read-only`/`never` with explicit MXC for file
-> enforcement. It also proved that reading the effective configuration and
-> then disabling the names found there leaves a startup race: a server added
-> before `thread/start` received a synthetic bearer. Isolation must hold before
-> any inherited server can start. An inventory check after opening is too late
-> to enforce that boundary.
-> **Trigger:** B-85's successful evidence, followed by amending this section with
-> the measured mode IDs, default and configuration before B-86 is dispatched.
-> If that cannot be enforced through the supported interface, report the exact
-> blocking behavior; do not widen permissions or use a prompt as the boundary.
+The first Codex mode is `read-only`, also the default. App-server opens and
+resumes with `sandbox: "read-only"` and `approvalPolicy: "never"`. Windows
+uses explicit `windows.sandbox="mxc"`, measured with a real command that
+started and was refused a write. Workspace write modes require their own
+policy and enforcement proof before they can be offered.
+
+Use the dedicated `CODEX_HOME` in the child environment. Keep user MCP
+settings in the regular Codex home and the dedicated profile reserved for
+Shadows. Refuse a dedicated home with unexpected MCP configuration before
+opening a thread. Force the canonical project root untrusted with a
+process-level `projects.<root>.trust_level="untrusted"` override, even if
+an existing config trusts it. Disable `features.apps`, `features.plugins`,
+`features.hooks`, `features.multi_agent`, and `web_search` for the child.
+The Windows probe verified that even a project MCP server added after
+preflight did not start. The earlier probe with an editable shared home
+could start a new server in that interval. Checking inventory after open
+remains a verification step and cannot replace isolation before open.
+
+Configure the one Shadows HTTP MCP server as required. Set its
+`enabled_tools` from the thread grant's tool policy, with
+`default_tools_approval_mode="prompt"` and explicit
+`approval_mode="approve"` for the supported non-approval tools. The
+initial Codex path leaves `vision_approve`, `map_approve`, `roadmap_approve`
+and `plan_approve` unapproved. The person's approval actions continue
+through Shadows. Exclude the bearer variable from the shell environment.
+The authenticated Windows evidence, including the tool inventory and
+refusals, is recorded in the linked [probe](../../evidence/2026-11-07-codex-app-server-probe.md#signed-in-shadows-home-on-2026-11-08).
 
 Permission requests that still reach the Planner are refused and shown as
 refusals. Interactive approval support for AYLUL is not extended in this work.

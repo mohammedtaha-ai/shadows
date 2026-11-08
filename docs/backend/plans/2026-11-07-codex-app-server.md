@@ -51,17 +51,13 @@ Keep task dependencies in stages. Do not dispatch a blocked task as though its e
 
 ## B-85: Prove tools and permissions first
 
-**Execution status, 2026-11-08:** incomplete. The cloud run could not reach the
-provider. On Windows, stable `0.167.0` created a real draft with a Planner
-thread grant, returned the random marker, refused approval and filesystem
-writes, and confirmed Stop and fresh-process continuation in separate probes.
-The [evidence record](../../evidence/2026-11-07-codex-app-server-probe.md#windows-execution-on-2026-11-08)
-separates project-grant tests from thread-grant tests. A controlled test proved
-that Codex can launch a newly inherited MCP server between `config/read` and
-`thread/start`. The server received a synthetic bearer before an inventory
-check could refuse it. Keep B-86 blocked until the authenticated launch can
-exclude inherited servers before startup. An isolated `CODEX_HOME` loaded no
-inherited MCPs, but the existing sign-in was unavailable there.
+**Execution status, 2026-11-08:** verified on Windows with native `0.167.0`.
+The [signed-in isolation probe](../../evidence/2026-11-07-codex-app-server-probe.md#signed-in-shadows-home-on-2026-11-08)
+used Mohammed's ChatGPT account in a dedicated Shadows Codex home. It excluded
+the regular profile and untrusted project layers, including a project MCP
+server added after preflight. The same launch passed the Planner draft,
+approval, filesystem, Stop, resume and bearer checks. B-86 can start with
+the policy fixed in §12.14.
 
 **Files:** Modify this plan, the owner spec §12.14, `docs/backend/stages.md`, and
 `docs/evidence/2026-11-07-codex-app-server-probe.md`. Throwaway probe sources live in a
@@ -72,22 +68,22 @@ disposable Shadows project through the existing HTTP/MCP surface. Produces a mea
 Codex launch configuration, a complete tool/mode mapping, and sanitized acceptance evidence.
 Use AppCore's existing owners/routes; do not access a store or the SQLite file directly.
 
-- [ ] Prepare a disposable project and a genuine scoped grant through the existing public
+- [x] Prepare a disposable project and a genuine scoped grant through the existing public
   Shadows surface. Use child-environment injection; do not print/read the token into model context.
   Keep the command IDs and issue/revoke results so uncertain writes are not blindly replayed.
-- [ ] Connect 0.167.0 with the Shadows HTTP MCP server marked required and its bearer supplied
+- [x] Connect 0.167.0 with the Shadows HTTP MCP server marked required and its bearer supplied
   by `bearer_token_env_var`. Inspect effective tools, including inherited MCPs/plugins/hooks.
   Prove the configuration excludes everything outside the current Planner policy without
   changing the person's global config. A required server outage must fail setup.
-- [ ] Run a bounded real-provider round trip: read project facts, create one planning draft,
+- [x] Run a bounded real-provider round trip: read project facts, create one planning draft,
   then read it back through Shadows. Use a runtime-random marker so the response proves the
   tool result was consumed. Verify the saved draft through the public API.
-- [ ] Exercise forbidden authority separately: file writes outside the selected policy,
+- [x] Exercise forbidden authority separately: file writes outside the selected policy,
   a planning write with a revoked grant, and person-only approval. Assert no forbidden state
   change; a refusal must be visible. Do not accept "the model declined" as enforcement proof.
-- [ ] Cancel while a controllable MCP call is pending; resume with a fresh process and fresh
+- [x] Cancel while a controllable MCP call is pending; resume with a fresh process and fresh
   grant. Confirm terminal cancellation, old-grant refusal and successful authorized continuation.
-- [ ] Record exact mode IDs, default, config keys and effective behavior in §12.14, plus the
+- [x] Record exact mode IDs, default, config keys and effective behavior in §12.14, plus the
   evidence commit. Retain `read-only`/`never` for the initial proof. If an equivalent supported
   policy cannot be enforced, report the measured gap and leave B-86 blocked.
 
@@ -123,10 +119,11 @@ The StartConfig-literal callers above were found through the Rust LSP. Before di
 expand any additional constructor/test callers introduced since this plan; do not guess paths.
 
 **Interfaces:**
-- Add `Config::codex_path: Option<PathBuf>` and matching optional absolute `--codex` input;
-  pass the path through `StartConfig`. AppCore builds `codex::CodexProgram` once and puts
+- Add `Config::codex_path: Option<PathBuf>` and matching optional absolute `--codex` input.
+  Pair it with an explicit absolute `--codex-home` for the dedicated signed-in home.
+  Pass both paths through `StartConfig`. AppCore builds `codex::CodexProgram` once and puts
   `Option<Arc<CodexProgram>>` in `SessionsConfig::codex`.
-- `CodexProgram::new(executable: PathBuf) -> Self` holds the validated native path.
+- `CodexProgram::new(executable: PathBuf, home: PathBuf) -> Self` holds the validated paths.
   `CodexProgram::process_spec(&self, cwd: &Path, setup: &SessionSetup)` returns
   `Result<ProcessSpec, ConnectionError>` with B-85's verified launch/configuration and
   in-memory grant environment. It does not spawn or own the child.

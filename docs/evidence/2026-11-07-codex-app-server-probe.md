@@ -302,11 +302,45 @@ The regular home still reported an active ChatGPT account. No credentials
 were copied or global settings changed. The installed CLI accepted
 `--ignore-user-config` for `exec`; it rejected that flag for `app-server`.
 
-**B-85 remains incomplete.** The next proof must establish a supported
-launch that excludes inherited servers before starting them and has an
-active sign-in. Repeat the late-server case, then confirm the allowed tool,
-refusal and cancellation checks with that launch. B-86 remains blocked
-until §12.14's permission OPEN block closes.
+At the end of this run B-85 was incomplete. The next proof had to establish
+a signed-in launch that excludes inherited servers before starting them,
+then repeat the late-server, tool, refusal and cancellation checks.
+
+## Signed-in Shadows home on 2026-11-08
+
+Mohammed signed in with his existing ChatGPT account using the normal
+`codex login` flow in `%LOCALAPPDATA%/Shadows/codex-home`. Both
+`codex login status` and native `account/read` confirmed ChatGPT. No
+credentials were transferred between homes. The dedicated home was kept
+separate from the regular profile's config, MCPs and plugins.
+
+On the same Windows `0.167.0` executable, the probe forced the disposable
+Git project untrusted with a process-local project trust override. Its
+`.codex/config.toml` contained a controlled stdio server that would create
+a sentinel file if started. A second server was inserted into that file
+between `config/read` and `thread/start`. Preflight had zero inherited
+MCP servers, and the session had only the required Shadows HTTP server
+with the 20 thread-grant tools. The sentinel was absent. The earlier
+shared-home race is still reproducible on that configuration path and
+is the reason Shadows uses a dedicated home.
+
+In native thread `01a1b873-df72-7e02-853c-64b01527590e`, the model used a
+genuine Planner thread grant to read the random marker and create a
+draft. Its final text matched the marker and the API showed the draft.
+Codex refused `plan_approve` under `approvalPolicy: never`. In the
+separate project-grant thread `01a1b874-fb0a-7da2-9e0d-ce434b0a9035`,
+an actual PowerShell write exited with access denied under MXC and
+created no file. Stop produced one matching terminal interruption in
+141 ms while the relay was still holding `workspace_get`. The fresh
+process resumed the same thread with a new grant, used `workflow_get`
+and returned the exact title. The old bearer got HTTP 401 on a draft
+write and the workflow count stayed at one. The required-server outage
+failed setup with RPC `-32603`. The local bearer scans compared the
+values against the probe rollouts and artifacts and found no matches.
+
+B-85's first Windows policy is verified. These runs used the existing
+Shadows executable and a temporary ACP test peer for the Planner grant.
+The product connection and its browser acceptance are B-86 and B-88.
 
 ## Reference
 
