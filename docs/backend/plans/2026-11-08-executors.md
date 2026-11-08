@@ -102,10 +102,17 @@ Closes the design's §7 OPEN. A throwaway probe; no product source changes.
   (i) Prompt it to run `docker compose up -d` in a folder with a one-service compose file
   (T2, T4, T5 need it). Record the request, whether the containers outlive the session, and what
   cancelling the turn leaves running.
+  (j) Open a session passing Claude Code's own permission rules through the adapter's options
+  (`permissions.allow: ["Edit(<root>/src/**)"]`, mode `default`), then prompt an edit outside
+  `src/`. Record whether the adapter accepts the option, and whether Claude Code refuses the
+  edit before any `session/request_permission` reaches Shadows.
+  (k) Prompt it to run `env` (Windows: `set`) in the shell. Record which variables reach a shell
+  command, by name only, never their values, and which of them carry a secret.
 - [ ] **Step 6:** Write the evidence and amend §7 with the rule chosen from it. The rule names:
   the session mode; which tools raise requests carrying a path; how a shell command is treated
   (the allowlist of command prefixes; which of them run as recorded commands with a before/after
-  snapshot, §7; what Stop does to containers an attempt started); how a path is checked (canonical, links resolved,
+  snapshot, §7; what Stop does to containers an attempt started); whether Claude Code's own
+  rules join layer 1; which environment variables are withheld from the session; how a path is checked (canonical, links resolved,
   inside the project root and `writes`); and **how ownership is proven**: a changed file is the
   attempt's only when its current content equals the content the attempt's own last permitted
   write produced, as derived from that tool call (above). If no tool call yields its written
@@ -114,7 +121,7 @@ Closes the design's §7 OPEN. A throwaway probe; no product source changes.
 - [ ] **Step 7:** Delete the throwaway source. Commit the evidence, §7 and stages:
   `docs: measure the executor write boundary`.
 
-**Verification:** each of the nine cases (a to i) has a recorded observation; §7 has no OPEN block left,
+**Verification:** each of the eleven cases (a to k) has a recorded observation; §7 has no OPEN block left,
 or B-90 stays blocked with the measured gap stated.
 
 ---
@@ -159,17 +166,26 @@ or B-90 stays blocked with the measured gap stated.
   - `Plans::task_context` interprets the scope: for an executor grant, `workflow`, `version` and
     `task` must equal the scope's, else `PlansError::OutsideGrant`. Project and thread grants keep
     today's project-level check.
-  - `pub struct ExecutorScope { root: PathBuf, writes: Vec<String>, grant: TaskScope }`, passed by
+  - `pub struct ExecutorScope { root: PathBuf, guard: Arc<dyn WriteGuard>, grant: TaskScope }`, passed by
     the caller to `Harness::open_executor(thread: &ThreadId, scope: ExecutorScope, model: String)`.
-  - `PermissionPolicy::Scoped { root: PathBuf, writes: Vec<String> }`: canonicalize each requested
+  - `PermissionPolicy::Scoped { root: PathBuf, guard: Arc<dyn WriteGuard> }`: canonicalize each requested
     path (links and junctions resolved); allow only when every canonical path is inside `root` and
-    matches `writes`; refuse anything else, including a request with no path, except what §7 allows.
+    the guard admits it; refuse anything else, including a request with no path, except what §7 allows.
     It records, per allowed path, the hash of the content the agent's own completed tool call
     wrote, derived from the call as B-89's rule says, never from re-reading the file (the
     ownership record B-92 checks). A shell command on §7's allowlist runs as a recorded command:
-    the policy snapshots `writes` (ignored files excluded) before allowing it and after its call
-    completes, holding other writes of the attempt meanwhile, and records each created or
-    changed path with its after-hash. After the attempt's `task_commit` succeeds it refuses every
+    before allowing it and after its call completes, holding other writes of the attempt
+    meanwhile, the policy calls its `WriteGuard`; it never runs git or matches a pattern itself.
+  - `pub trait WriteGuard: Send + Sync` in `shadows-agent` (the policy's only view of scope and
+    git, since `shadows-agent` cannot depend on `core-runs`): `fn admits(&self, relative: &str)
+    -> bool`; `fn before_command(&self) -> Result<CommandMark, String>`; `fn after_command(&self,
+    mark: CommandMark) -> Result<Vec<OwnedPath>, String>` (an `Err` fails the attempt with its
+    text). Runs implements it in B-91 and B-92 with the one matcher and git: `git status
+    --porcelain=v1 -z -uall` of the whole folder (rename origins kept), hashes of the files inside
+    `writes` (ignored files excluded) and of every changed file outside them, each difference
+    judged by §7's table against the scopes other attempts hold at that moment. B-90's tests use
+    a fixed `WriteGuard`.
+    After the attempt's `task_commit` succeeds it refuses every
     further write in that session.
   - `EXECUTOR_TOOLS` in `setup.rs`, from §7.
 
@@ -177,6 +193,9 @@ or B-90 stays blocked with the measured gap stated.
   (fake-acp):
   - `an_executor_session_opens_with_its_instructions_tools_and_policy`: the setup's append starts
     with `executor.txt`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, policy `Scoped`.
+  - `a_recorded_command_goes_through_the_guard`: a fixed `WriteGuard` whose `after_command`
+    returns `Err("README.md changed outside every scope")` → the refusal is a thread entry with
+    that text, and no ownership is recorded.
   - `an_edit_inside_writes_is_allowed_and_outside_is_refused`: fake requests `backend/a.php` → allow;
     `web/a.ts` → refuse, and the refusal is a thread entry.
   - `a_path_through_a_link_outside_writes_is_refused`: `backend/link/x.php`, where `link` points to
@@ -263,6 +282,12 @@ or B-90 stays blocked with the measured gap stated.
     character, then at its last `/`) are disjoint: neither is a path prefix of the other. Unproven
     means intersecting. The check and the insert are one write transaction, so two concurrent Starts
     cannot both pass.
+    **One matcher:** `core-runs/src/scope.rs` owns pattern matching for every check (permission,
+    recorded command, commit, overlap), built on `globset` with `literal_separator(true)`; its
+    commit names `globset` as an infrastructure library. Its tests carry over the earlier
+    project's (`shadow-verify/src/scope.rs`): `*` does not cross `/`, an empty `writes` admits
+    nothing, an invalid pattern is an error, Windows separators are normalised, a rename origin
+    outside `writes` is a violation. B-90's policy reaches it through the `WriteGuard` Runs implements.
   - `RunsError`: `NotFrozen`, `Superseded`, `Archived`, `Waiting { tasks: Vec<u32> }`, `TaskBusy`,
     `Overlap { task: u32 }`, `CommandConflict`, `NotFound`, `Storage`. B-92 adds `NotGit`,
     `DirtyScope`, `OutsideScope`, `UnprovenChange`, `AlreadyCommitted`, `NothingToCommit`.
@@ -361,6 +386,13 @@ or B-90 stays blocked with the measured gap stated.
     write recorded → `Err(UnprovenChange)`.
   - `files_a_recorded_command_wrote_are_the_attempts`: a recorded command creates
     `backend/composer.json` and `backend/app/Models/User.php` → both are committed.
+  - `a_recorded_rename_from_outside_writes_fails_the_attempt`: a recorded command moves
+    `web/a.ts` to `backend/a.ts` → the attempt fails naming `web/a.ts`.
+  - `another_tasks_writes_during_a_recorded_command_are_not_blamed`: while this attempt's recorded
+    command runs, `web/b.ts` changes and `web/**` is another held scope → nothing fails, and
+    `web/b.ts` is not recorded as this attempt's.
+  - `a_change_outside_every_held_scope_fails_the_attempt`: `README.md` changes during a recorded
+    command → the attempt fails naming it.
   - `ignored_files_neither_refuse_nor_enter_the_commit`: `backend/.gitignore` lists `vendor/`;
     `backend/vendor/x.php` and `backend/storage/logs/laravel.log` appear unrecorded → the commit
     succeeds and holds neither.
