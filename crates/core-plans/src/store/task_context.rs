@@ -21,8 +21,23 @@ impl PlansStore {
                 "that plan is not in this grant's project".into(),
             ));
         }
-        Grants::check_writer(&mut tx, &Scope::writer_of(grant)?, &grant.project_id).await?;
+        // An executor grant reads exactly its own task: it writes no plan, so
+        // there is no writer to check.
+        if let Some(scope) = &grant.scope {
+            if scope.workflow != workflow.as_str() || scope.task != number {
+                return Err(PlansError::OutsideGrant);
+            }
+        } else {
+            Grants::check_writer(&mut tx, &Scope::writer_of(grant)?, &grant.project_id).await?;
+        }
         let plan = ReadRows::load_plan(&mut tx, workflow, Some(&grant.project_id)).await?;
+        if grant
+            .scope
+            .as_ref()
+            .is_some_and(|s| s.version != plan.version)
+        {
+            return Err(PlansError::OutsideGrant);
+        }
         if plan.state != WorkflowState::Frozen {
             return Err(PlansError::InvalidCommand(
                 "task_context needs an approved plan version".into(),

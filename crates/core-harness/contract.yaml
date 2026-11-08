@@ -70,6 +70,10 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
 # Harness opens AYLUL with PermissionPolicy::Ask and Planner with Refuse.
+# `open_executor(thread, root, writes, grant, model)` opens an executor the same way: EXECUTOR_TOOLS,
+# executor.txt appended, settingSources [] and strictMcpConfig true, the task's rules (Read, Grep, Glob,
+# TodoWrite, Bash and Edit/Write/MultiEdit per `writes` pattern) in settings.permissions.allow,
+# Refuse, the session working in `root`, and mode `default` set after opening (executor_session).
 # Permission answers are recorded before settling the adapter request; cancellation
 # and close serialize against that write. A failed write leaves the request waiting.
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
@@ -100,7 +104,8 @@ modules:
   profile_home.rs: serialized home settings writes
   sessions.rs: private adapter lifecycle
   settings.rs: session option changes
-  setup.rs: Planner opening context
+  executor.rs: executor session opening
+  setup.rs: Planner and executor opening context
   standards.rs: standards prompt rendering
   titles.rs: ordered harness title writes
   store/mod.rs: private harness persistence

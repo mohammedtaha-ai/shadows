@@ -31,6 +31,7 @@ struct Routers {
     every: ToolRouter<Shadows>,
     thread: ToolRouter<Shadows>,
     project: ToolRouter<Shadows>,
+    executor: ToolRouter<Shadows>,
 }
 
 impl Tools {
@@ -49,14 +50,16 @@ impl Tools {
             }
             router
         };
-        let (thread, project) = (
+        let (thread, project, executor) = (
             only(shadows_core::Grants::tools_for(GrantKind::Thread)),
             only(shadows_core::Grants::tools_for(GrantKind::Project)),
+            only(shadows_core::Grants::tools_for(GrantKind::Executor)),
         );
         Self(Arc::new(Routers {
             every,
             thread,
             project,
+            executor,
         }))
     }
 
@@ -64,6 +67,7 @@ impl Tools {
         match kind {
             GrantKind::Thread => &self.0.thread,
             GrantKind::Project => &self.0.project,
+            GrantKind::Executor => &self.0.executor,
         }
     }
 }

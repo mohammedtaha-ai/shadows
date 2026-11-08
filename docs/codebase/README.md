@@ -223,6 +223,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/model.rs` | the harness shapes callers meet | `crates/core-harness/src/model.rs` |
 | `crates/core-harness/src/store/` | harness persistence | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/core-harness/src/assistant.rs` |
+| `crates/core-harness/src/executor.rs` | opening an executor session from its task | `crates/core-harness/src/executor.rs` |
 | `crates/core-harness/src/sessions.rs` | the live adapter connection each open thread holds | `crates/core-harness/src/sessions.rs` |
 | `crates/core-harness/src/settings.rs` | setting an open session's options | `crates/core-harness/src/settings.rs` |
 | `crates/core-harness/src/mode.rs` | durable conversation mode commands | `crates/core-harness/contract.yaml` |
@@ -492,6 +493,7 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-harness/src/error.rs` | harness failure vocabulary | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/prompt.txt` | Planner opening instructions | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/executor.txt` | executor opening instructions | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/schema_descriptions/` | harness wire description metadata | `crates/core-harness/contract.yaml` |
 
 | `crates/core-design/src/openapi-3.1-schema.json` | bundled OpenAPI document schema | `crates/core-design/contract.yaml` |

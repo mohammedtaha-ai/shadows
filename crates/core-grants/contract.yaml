@@ -67,10 +67,19 @@ shapes:
     created_at: String
     # `None` while live.
     revoked_at: Option<String>
+    # The task an executor grant reads; not on the wire.
+    scope: Option<TaskScope>
+  TaskScope:
+    # Opaque here: Plans interprets it, so this crate imports nothing from Plans.
+    workflow: String
+    version: i64
+    task: u32
   GrantKind:
-    # `thread` and `project` on the wire and in `mcp_grant.kind`.
+    # `thread` and `project` on the wire; `executor` in `mcp_grant.kind` only,
+    # so the OpenAPI schema names the two a client sees.
     Thread: unit
     Project: unit
+    Executor: unit
   Token:
     # `shd_` and two simple v4 UUIDs: 68 characters, 244 random bits.
     # Private field; Debug never prints it.
@@ -155,9 +164,13 @@ functions:
       # thread's session. A removed thread cannot receive a new grant.
     revoke_grant:
       signature: "(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>"
+    issue_executor_grant_in:
+      signature: "(conn, project: &ProjectId, thread: &ThreadId, scope: TaskScope) -> Result<(Grant, Token), StorageError>"
+      # No command: Harness' `Setups::for_executor` issues it for an executor
+      # session; the grant reads that one task and nothing else.
     revoke_thread_grant:
       signature: "(&self, id: &GrantId) -> Result<(), StorageError>"
-      # No command: Harness' `Setups::forget`.
+      # No command: Harness' `Setups::forget`. Revokes a thread or executor grant.
     revoke_all_thread_grants:
       signature: "(&self) -> Result<u64, StorageError>"
     grant_for_token:
@@ -468,3 +481,5 @@ tests:
       the first.
 
 # Both tools_for allowlists include task_context, a read with no execution authority.
+# The executor allowlist is task_context, where_is, who_uses and outline; startup and
+# thread removal revoke executor grants with the thread ones (executor_session tests).

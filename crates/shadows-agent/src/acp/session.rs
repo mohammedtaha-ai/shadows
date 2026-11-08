@@ -32,6 +32,12 @@ pub struct SessionSetup {
     /// Which settings files Claude Code loads (`settingSources`). None leaves
     /// the Planner rule (`[]` with `tools`); AYLUL sends `["user"]`.
     pub setting_sources: Option<Vec<String>>,
+    /// Claude Code permission rules allowed up front
+    /// (`_meta.claudeCode.options.settings.permissions.allow`). Empty sends none.
+    pub permissions: Vec<String>,
+    /// The directory the session works in, when it is not the one the adapter
+    /// was started in: an executor works in its own folder.
+    pub cwd: Option<std::path::PathBuf>,
 }
 
 /// One MCP server configuration. Values are never included in Debug output.
@@ -116,6 +122,12 @@ impl SessionSetup {
         if let Some(sources) = &self.setting_sources {
             options.insert("settingSources".into(), serde_json::json!(sources));
         }
+        if !self.permissions.is_empty() {
+            options.insert(
+                "settings".into(),
+                serde_json::json!({ "permissions": { "allow": self.permissions } }),
+            );
+        }
         if !options.is_empty() {
             meta.insert(
                 "claudeCode".into(),
@@ -158,6 +170,7 @@ impl Connection {
         how: SessionStart,
         setup: &SessionSetup,
     ) -> Result<Opened, AcpError> {
+        let cwd = setup.cwd.as_deref().unwrap_or(cwd);
         let fresh = matches!(&how, SessionStart::New);
         let (servers, meta) = (setup.mcp_servers(), setup.meta());
         let resume = |id: String| {

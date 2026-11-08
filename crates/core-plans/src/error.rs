@@ -20,6 +20,8 @@ pub enum PlansError {
     InvalidCommand(String),
     #[error("{0}")]
     GrantScope(String),
+    #[error("that task is outside this executor grant")]
+    OutsideGrant,
     #[error("the grant is unknown or revoked")]
     GrantInvalid,
     #[error(transparent)]

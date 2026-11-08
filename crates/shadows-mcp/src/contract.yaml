@@ -17,7 +17,7 @@ modules:
   turn_tools.rs: Turns service MCP translation
   agreement_tools.rs: grant scoped agreement translation
   workspace_tools.rs: workspace read translation
-  server.rs: composition of tool routers under Core grant policy
+  server.rs: composition of tool routers under Core grant policy (thread, project and executor)
   refusal.rs: stable MCP error envelope
 agreements:
   http_pairs: crates/shadows-http/src/contract.yaml

@@ -99,8 +99,9 @@ impl super::ThreadsStore {
     ) -> Result<Vec<PlanningThread>, StorageError> {
         let rows: Vec<super::thread::ThreadRow> = sqlx::query_as(
             "SELECT id,project_id,title,status,created_at,harness_kind,
-                    forked_from_thread,removed_at,profile
+                    forked_from_thread,removed_at,profile,kind
              FROM planning_thread WHERE profile=? AND removed_at IS NULL
+               AND kind='planning'
                AND (? OR hidden = 0)
              ORDER BY created_at DESC,id DESC",
         )

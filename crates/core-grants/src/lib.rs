@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 #[cfg(feature = "test-support")]
 pub use model::IssuedGrant;
-pub use model::{Grant, GrantId, GrantKind, Token};
+pub use model::{Grant, GrantId, GrantKind, TaskScope, Token};
 
 use core_db::{CommandContext, Storage};
 use core_projects::ProjectId;
@@ -92,7 +92,7 @@ impl Grants {
     pub async fn authorize(&self, token: &str) -> Result<Option<Grant>, GrantsError> {
         Ok(self.store.grant_for_token(token).await?)
     }
-    /// Revokes every live thread grant during startup; project grants survive.
+    /// Revokes every live thread and executor grant during startup; project grants survive.
     pub async fn revoke_thread_grants(&self) -> Result<u64, GrantsError> {
         Ok(self.store.revoke_all_thread_grants().await?)
     }
@@ -105,6 +105,15 @@ impl Grants {
         thread: &core_threads::ThreadId,
     ) -> Result<(Grant, model::Token), core_db::StorageError> {
         store::GrantsStore::issue_thread_grant_in(conn, project, thread).await
+    }
+    /// The grant of one executor session, bound to one task.
+    pub async fn issue_executor_grant_in(
+        conn: &mut sqlx::SqliteConnection,
+        project: &ProjectId,
+        thread: &core_threads::ThreadId,
+        scope: TaskScope,
+    ) -> Result<(Grant, model::Token), core_db::StorageError> {
+        store::GrantsStore::issue_executor_grant_in(conn, project, thread, scope).await
     }
     pub async fn revoke_thread_grant(&self, id: &GrantId) -> Result<(), core_db::StorageError> {
         self.store.revoke_thread_grant(id).await

@@ -33,8 +33,28 @@ impl CreatedTitle {
     }
 }
 
+/// What a thread is for. Only planning threads are conversations a person lists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThreadKind {
+    Planning,
+    Executor,
+}
+
+impl ThreadKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Planning => "planning",
+            Self::Executor => "executor",
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct PlanningThread {
+    /// Not on the wire: a client lists planning threads only.
+    #[serde(skip)]
+    #[schema(ignore)]
+    pub kind: ThreadKind,
     #[schema(value_type = Option<String>, required)]
     pub profile: Option<String>,
     pub id: ThreadId,

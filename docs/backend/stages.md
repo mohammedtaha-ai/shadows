@@ -144,7 +144,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Outcome: Mohammed's ruling on the evidence: the executor is built as the Planner is, with only its task's tools and permission rules; shell commands are not policed; the commit takes only paths in `writes` (design §7).
 
 ### B-90 · The executor session
-- Status: ready (dispatch only when Mohammed says so)
+- Status: done (migration 0050_executor_sessions)
 - Plan: [B-90](plans/2026-11-08-executors.md#b-90-the-executor-session).
 - Owner: Threads (`ThreadKind`), Harness (executor setup: tools, the task's permission rules, `Refuse`), Agent (`SessionSetup.permissions`), Grants (`GrantKind::Executor`, opaque task scope, its tool list), Plans (`task_context` checks the scope), MCP (`server.rs` router for the executor kind).
 - Touch: the plan's B-90 file list. Expand callers with the LSP before dispatch.

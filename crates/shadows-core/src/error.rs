@@ -555,6 +555,10 @@ impl From<core_plans::PlansError> for CoreError {
                 code: ErrorCode::GrantScope,
                 message,
             },
+            PlansError::OutsideGrant => Self::Refused {
+                code: ErrorCode::GrantScope,
+                message,
+            },
             PlansError::GrantInvalid => Self::Refused {
                 code: ErrorCode::GrantInvalid,
                 message,

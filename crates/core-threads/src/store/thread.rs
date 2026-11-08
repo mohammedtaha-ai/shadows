@@ -5,7 +5,7 @@ use sqlx::SqliteConnection;
 
 #[cfg(feature = "test-support")]
 use crate::TurnContext;
-use crate::model::{CreatedTitle, PlanningThread, ThreadId};
+use crate::model::{CreatedTitle, PlanningThread, ThreadId, ThreadKind};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::ProjectId;
 
@@ -120,11 +120,12 @@ impl super::ThreadsStore {
         // varying precision. Other entries must not promote a conversation.
         let rows: Vec<ThreadRow> = sqlx::query_as(
             "SELECT t.id, t.project_id, t.title, t.status, t.created_at, t.harness_kind,
-                    t.forked_from_thread, t.removed_at, t.profile
+                    t.forked_from_thread, t.removed_at, t.profile, t.kind
                FROM planning_thread t
                LEFT JOIN durable_event e
                  ON e.thread_id = t.id AND e.kind = 'PlanningThreadCreated'
               WHERE t.project_id = ? AND t.removed_at IS NULL AND t.hidden = 0
+                AND t.kind = 'planning'
               ORDER BY (
                   SELECT MAX(reply.seq) FROM durable_event reply
                    WHERE reply.thread_id = t.id AND reply.kind = 'ThreadEntryAppended'
@@ -197,6 +198,7 @@ pub(super) type ThreadRow = (
     Option<String>,
     Option<String>,
     Option<String>,
+    String,
 );
 
 impl super::ThreadsStore {
@@ -211,6 +213,11 @@ impl super::ThreadsStore {
             forked_from_thread: r.6.map(ThreadId::from_stored),
             removed_at: r.7,
             profile: r.8,
+            kind: if r.9 == "executor" {
+                ThreadKind::Executor
+            } else {
+                ThreadKind::Planning
+            },
         }
     }
 }
@@ -222,7 +229,7 @@ impl super::ThreadsStore {
     ) -> Result<PlanningThread, StorageError> {
         let row: ThreadRow = sqlx::query_as(
             "SELECT id, project_id, title, status, created_at, harness_kind, \
-         forked_from_thread, removed_at, profile
+         forked_from_thread, removed_at, profile, kind
            FROM planning_thread WHERE id = ?",
         )
         .bind(id.as_str())
@@ -271,6 +278,31 @@ impl crate::Threads {
             .execute(&mut *conn)
             .await?;
         Ok(super::ThreadsStore::load_thread(conn, &id).await?)
+    }
+
+    /// Creates the thread an executor session runs in; no conversation lists it.
+    pub async fn create_executor_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        title: String,
+        harness: &str,
+    ) -> Result<ThreadId, StorageError> {
+        let now = Storage::now();
+        let id = insert_thread(
+            conn,
+            project,
+            &title,
+            CreatedTitle::Client,
+            harness,
+            Actor::system(),
+            &now,
+        )
+        .await?;
+        sqlx::query("UPDATE planning_thread SET kind = 'executor' WHERE id = ?")
+            .bind(id.as_str())
+            .execute(&mut *conn)
+            .await?;
+        Ok(id)
     }
 
     pub async fn profile_in(

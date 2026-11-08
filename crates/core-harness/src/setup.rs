@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 
 use super::Harness;
 use crate::error::HarnessError;
+use crate::executor::{EXECUTOR_TOOLS, ExecutorSession};
 use core_db::{Storage, StorageError};
 use core_grants::GrantId;
 use core_instructions::{Instructions, InstructionsVersion};
@@ -83,6 +84,8 @@ pub(crate) struct Setups {
     grants: core_grants::Grants,
     mcp_url: Option<String>,
     held: Mutex<HashMap<ThreadId, Held>>,
+    /// Threads that are executor sessions: what their next opening is built from.
+    executors: Mutex<HashMap<ThreadId, ExecutorSession>>,
 }
 
 impl Setups {
@@ -98,7 +101,16 @@ impl Setups {
             grants,
             mcp_url,
             held: Mutex::new(HashMap::new()),
+            executors: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// The next opening of `thread` is an executor session.
+    pub(crate) fn expect_executor(&self, thread: &ThreadId, session: ExecutorSession) {
+        self.executors
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(thread.clone(), session);
     }
 
     /// Issues the thread's grant (revoking any previous one) and builds the
@@ -110,6 +122,15 @@ impl Setups {
         project: &ProjectId,
     ) -> Result<SessionSetup, String> {
         self.forget(thread).await;
+        let executor = self
+            .executors
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(thread)
+            .cloned();
+        if let Some(executor) = executor {
+            return self.for_executor(thread, project, executor).await;
+        }
         let current = self
             .instructions
             .current(project)
@@ -180,6 +201,63 @@ impl Setups {
             allowed_tools: vec![ALLOWED.to_string()],
             tools: Some(PLANNER_TOOLS.iter().map(|t| t.to_string()).collect()),
             setting_sources: None,
+            permissions: vec![],
+            cwd: None,
+        })
+    }
+
+    /// The executor's setup: its task's grant, tools and rules. On an error
+    /// nothing it issued is left live.
+    async fn for_executor(
+        &self,
+        thread: &ThreadId,
+        project: &ProjectId,
+        executor: ExecutorSession,
+    ) -> Result<SessionSetup, String> {
+        let (grant, mcp) = match &self.mcp_url {
+            Some(url) => {
+                let (thread, project) = (thread.clone(), project.clone());
+                let scope = executor.scope.clone();
+                let (grant, token) = self
+                    .storage
+                    .write_txn(move |conn| {
+                        Box::pin(async move {
+                            core_threads::Threads::require_live_in(conn, &thread).await?;
+                            core_grants::Grants::issue_executor_grant_in(
+                                conn, &project, &thread, scope,
+                            )
+                            .await
+                        })
+                    })
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let spec = McpServerSpec::Http {
+                    name: "shadows".into(),
+                    url: url.clone(),
+                    headers: vec![("Authorization".into(), format!("Bearer {}", token.as_str()))],
+                };
+                (Some(grant.id), vec![spec])
+            }
+            None => (None, vec![]),
+        };
+        self.lock().insert(
+            thread.clone(),
+            Held {
+                grant,
+                instructions: None,
+                standards: None,
+                withheld: None,
+                pending: None,
+            },
+        );
+        Ok(SessionSetup {
+            mcp,
+            append: Some(ExecutorSession::instructions().to_string()),
+            allowed_tools: vec![ALLOWED.to_string()],
+            tools: Some(EXECUTOR_TOOLS.iter().map(|t| t.to_string()).collect()),
+            setting_sources: None,
+            permissions: executor.permissions(),
+            cwd: Some(executor.root),
         })
     }
 

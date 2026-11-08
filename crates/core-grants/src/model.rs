@@ -14,22 +14,48 @@ newtype_id! {
 
 /// Whose grant it is: the Planner of one thread, or an external agent bound
 /// to one project. On the wire and in storage, `thread` and `project`.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum GrantKind {
     Thread,
     Project,
+    /// Internal to one executor session and never listed, so the document a
+    /// client reads names only the two kinds it can see.
+    Executor,
 }
+
+impl utoipa::PartialSchema for GrantKind {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        utoipa::openapi::schema::ObjectBuilder::new()
+            .schema_type(utoipa::openapi::schema::Type::String)
+            .enum_values(Some(["thread", "project"]))
+            .description(Some(concat!(
+                "Whose grant it is: the Planner of one thread, or an external agent bound\n",
+                "to one project. On the wire and in storage, `thread` and `project`.",
+            )))
+            .into()
+    }
+}
+
+impl utoipa::ToSchema for GrantKind {}
 
 impl GrantKind {
     pub fn as_str(self) -> &'static str {
         match self {
             GrantKind::Thread => "thread",
             GrantKind::Project => "project",
+            GrantKind::Executor => "executor",
         }
     }
+}
+
+/// The one task an executor grant may read. The workflow is an opaque string:
+/// Plans interprets it, so this crate imports nothing from Plans.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskScope {
+    pub workflow: String,
+    pub version: i64,
+    pub task: u32,
 }
 
 /// A grant as stored: never its token.
@@ -43,6 +69,10 @@ pub struct Grant {
     pub created_at: String,
     /// When it stopped being honoured; `null` while it is live.
     pub revoked_at: Option<String>,
+    /// The task an executor grant is bound to; internal, never on the wire.
+    #[serde(skip)]
+    #[schema(ignore)]
+    pub scope: Option<TaskScope>,
 }
 
 /// A bearer token in clear. It exists only between issue and the one answer
