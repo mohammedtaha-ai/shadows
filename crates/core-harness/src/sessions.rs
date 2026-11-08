@@ -22,7 +22,8 @@ use super::offers::Offers;
 use super::setup::Setups;
 use core_threads::ThreadId;
 use shadows_agent::{
-    acp::Connection, choices::Offered, claude::ClaudeAdapter, events::HarnessEvent,
+    choices::Offered, claude::ClaudeAdapter, codex::CodexProgram, connection::ManagedConnection,
+    events::HarnessEvent,
 };
 
 #[derive(Debug, Clone)]
@@ -36,6 +37,7 @@ pub struct SessionsConfig {
     pub mcp_url: Option<String>,
     /// AYLUL's profile; `None` when the daemon has no `aylul` section.
     pub aylul: Option<AylulConfig>,
+    pub codex: Option<Arc<CodexProgram>>,
 }
 
 impl Default for SessionsConfig {
@@ -47,6 +49,7 @@ impl Default for SessionsConfig {
             setup_wait: Duration::from_secs(20),
             mcp_url: None,
             aylul: None,
+            codex: None,
         }
     }
 }
@@ -95,12 +98,12 @@ pub struct OpenSession {
     pub session_id: String,
     pub aylul_usage: Option<super::AylulUsageSnapshot>,
     pub how: &'static str,
-    pub(super) connection: Connection,
+    pub(super) connection: ManagedConnection,
     pub(super) generation: u64,
 }
 
 impl OpenSession {
-    pub fn connection(&self) -> &Connection {
+    pub fn connection(&self) -> &ManagedConnection {
         &self.connection
     }
 }

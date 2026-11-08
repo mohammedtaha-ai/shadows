@@ -24,6 +24,8 @@ pub(crate) async fn world(configured: bool, key: bool) -> World {
             node_path: tmp.path().join("absent-node"),
             adapter_path: tmp.path().join("absent-adapter.js"),
             harness_path: tmp.path().join("absent-agent"),
+            codex_path: None,
+            codex_home: None,
             aylul: configured.then(|| AylulConfig {
                 home_root: tmp.path().to_owned(),
                 project_slug: "aylul".into(),

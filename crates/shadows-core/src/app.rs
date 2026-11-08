@@ -226,6 +226,8 @@ pub struct StartConfig {
     pub node_path: PathBuf,
     pub adapter_path: PathBuf,
     pub harness_path: PathBuf,
+    pub codex_path: Option<PathBuf>,
+    pub codex_home: Option<PathBuf>,
     /// AYLUL's profile; `None` leaves AYLUL absent.
     pub aylul: Option<core_harness::AylulConfig>,
 }
@@ -275,6 +277,14 @@ impl AppCore {
     /// `mcp_url`. The caller binds first: `mcp_url` names the bound address,
     /// and a daemon that cannot bind must not run recovery.
     pub async fn start(config: &StartConfig, mcp_url: String) -> anyhow::Result<Arc<AppCore>> {
+        let codex = match (&config.codex_path, &config.codex_home) {
+            (Some(path), Some(home)) => Some(Arc::new(shadows_agent::codex::CodexProgram::new(
+                path.clone(),
+                home.clone(),
+            ))),
+            (None, None) => None,
+            _ => anyhow::bail!("Codex executable and dedicated home are configured together"),
+        };
         let key = match &config.secret_key {
             KeySource::Given(key) => key.clone(),
             KeySource::Os if config.aylul.is_some() => SecretKey::load_or_create()
@@ -339,6 +349,7 @@ impl AppCore {
                 secrets: Some(secrets.clone()),
                 mcp_url: Some(mcp_url.clone()),
                 aylul: config.aylul.clone(),
+                codex,
                 ..SessionsConfig::default()
             },
             owners.clone(),
@@ -745,6 +756,8 @@ mod startup_tests {
             node_path: root.join("absent-node"),
             adapter_path: root.join("absent-adapter"),
             harness_path: root.join("absent-harness"),
+            codex_path: None,
+            codex_home: None,
             aylul: aylul.then(|| core_harness::AylulConfig {
                 home_root: root.to_owned(),
                 project_slug: "aylul".into(),

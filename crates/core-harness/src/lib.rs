@@ -167,7 +167,12 @@ impl Harness {
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, HarnessError> {
         let mut list = Vec::new();
         for kind in policy::KNOWN {
-            let available = self.sessions.harness_available(kind).await?;
+            let available = kind != policy::CODEX && self.sessions.harness_available(kind).await?;
+            let modes = if kind == policy::CODEX {
+                &[]
+            } else {
+                policy::modes(kind)
+            };
             let remembered = self
                 .store
                 .remembered_settings(kind)
@@ -180,7 +185,7 @@ impl Harness {
                 reason: (!available).then(|| "Coming later".to_string()),
                 remembered,
                 limits: self.store.latest_limits(kind).await?,
-                modes: policy::modes(kind)
+                modes: modes
                     .iter()
                     .map(|m| HarnessMode {
                         id: m.id.to_string(),
@@ -188,7 +193,10 @@ impl Harness {
                         description: m.description.to_string(),
                     })
                     .collect(),
-                initial_mode: policy::default_mode(kind).map(str::to_string),
+                initial_mode: (kind != policy::CODEX)
+                    .then(|| policy::default_mode(kind))
+                    .flatten()
+                    .map(str::to_string),
                 unattended_mode: policy::unattended_mode(kind).map(str::to_string),
             });
         }

@@ -65,7 +65,7 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
         .await
         .unwrap();
     assert!(opened.session_id.starts_with("fake-"));
-    assert!(opened.options.to_string().contains("fake-large"));
+    assert!(opened.options.offers_model("fake-large"));
     assert_eq!(
         c.prompt(&opened.session_id, "hi", &[]).await.unwrap().end,
         TurnEnd::Ended
@@ -156,7 +156,7 @@ async fn setting_the_model_answers_the_new_effort_list() {
         .unwrap()
         .session_id;
     let all = c.set_option(&s, "model", "fake-small").await.unwrap();
-    assert!(!all.to_string().contains("\"max\""));
+    assert!(!all.offers_effort("max"));
 }
 
 #[tokio::test]

@@ -2,7 +2,7 @@
 use super::sessions::{OpenError, Sessions};
 use crate::HarnessError;
 use core_threads::TurnContext;
-use shadows_agent::{acp::SessionSetup, policy, profile::ClaudeProfile};
+use shadows_agent::{connection::SessionSetup, policy, profile::ClaudeProfile};
 use shadows_process::ProcessSpec;
 use std::path::PathBuf;
 
@@ -27,7 +27,7 @@ impl Sessions {
 pub(super) struct Opening {
     pub(super) cwd: PathBuf,
     pub(super) setup: SessionSetup,
-    pub(super) spec: ProcessSpec,
+    pub(super) acp_spec: Option<ProcessSpec>,
     pub(super) aylul_usage: Option<super::AylulUsageSnapshot>,
     pub(super) aylul_models: Option<(Vec<String>, String)>,
     pub(super) window: Option<u32>,
@@ -35,6 +35,9 @@ pub(super) struct Opening {
 
 impl Sessions {
     pub(crate) async fn harness_available(&self, kind: &str) -> Result<bool, HarnessError> {
+        if kind == policy::CODEX {
+            return Ok(self.config.codex.is_some());
+        }
         let configured =
             self.config.aylul.is_some() && !self.owners.agents.agents().await?.is_empty();
         Ok(policy::is_available_with(kind, configured))
@@ -64,7 +67,8 @@ impl Sessions {
             let cwd = workspace(context).map_err(OpenError::Workspace)?;
             let setup = SessionSetup::default();
             return Ok(Opening {
-                spec: self.adapter.process_spec(&cwd),
+                acp_spec: (context.harness != policy::CODEX)
+                    .then(|| self.adapter.process_spec(&cwd)),
                 cwd,
                 setup,
                 aylul_usage: None,
@@ -152,7 +156,7 @@ impl Sessions {
         Ok(Opening {
             cwd: home,
             setup,
-            spec,
+            acp_spec: Some(spec),
             aylul_usage,
             aylul_models: Some((models, agent.default_model)),
             window: Some(window),

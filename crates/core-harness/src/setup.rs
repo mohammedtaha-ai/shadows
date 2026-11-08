@@ -16,7 +16,7 @@ use core_instructions::{Instructions, InstructionsVersion};
 use core_projects::ProjectId;
 use core_standards::{EffectiveStandards, Standards};
 use core_threads::ThreadId;
-use shadows_agent::acp::{McpServerSpec, SessionSetup};
+use shadows_agent::connection::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 
 /// Shadows' instructions to the Planner, compiled in.

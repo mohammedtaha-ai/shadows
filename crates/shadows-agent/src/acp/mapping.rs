@@ -97,9 +97,12 @@ impl Mapping {
                     rate_limit: meta.get("_claude/rateLimit").cloned(),
                 })
             }
-            SessionUpdate::ConfigOptionUpdate(o) => Some(HarnessEvent::Options(
-                serde_json::to_value(o.config_options).unwrap_or(Value::Null),
-            )),
+            SessionUpdate::ConfigOptionUpdate(o) => {
+                let options = serde_json::to_value(o.config_options).unwrap_or(Value::Null);
+                crate::choices::Offered::parse(&options)
+                    .ok()
+                    .map(HarnessEvent::Options)
+            }
             // A title, or only `_meta` (a goal, a file-change report): the rest is
             // not Shadows'. A `null` title clears the harness's own; Shadows keeps
             // its thread's.

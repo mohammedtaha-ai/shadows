@@ -1,0 +1,22 @@
+[package]
+name = "fake-codex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rmcp = { workspace = true, optional = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, optional = true }
+
+[[bin]]
+name = "fake-codex"
+path = "src/main.rs"
+required-features = ["test-support"]
+
+[features]
+test-support = ["dep:rmcp", "dep:tokio", "rmcp/client", "rmcp/transport-streamable-http-client-reqwest"]

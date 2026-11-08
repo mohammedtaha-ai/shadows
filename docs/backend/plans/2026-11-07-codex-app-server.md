@@ -94,6 +94,12 @@ this throwaway proof. Commit only the planning/evidence documents.
 
 ## B-86: First real Planner path
 
+**Verification ruling, 2026-11-08:** Mohammed chose the smallest product path
+with real daemon and provider checks and asked to retain the fixtures already
+written. Validate the actual signed-in Codex executable against the running
+Shadows daemon, with project-grant and Planner-turn state read back through
+the existing public routes.
+
 **Files to create:**
 `crates/shadows-agent/src/connection.rs`, `crates/shadows-agent/src/codex.rs`,
 `crates/shadows-agent/src/codex/connection.rs`, `crates/shadows-agent/src/codex/session.rs`,
@@ -104,7 +110,8 @@ this throwaway proof. Commit only the planning/evidence documents.
 
 **Files to modify:**
 `crates/shadows-agent/src/lib.rs`, `src/acp.rs`, `src/acp/connection.rs`, `src/acp/session.rs`,
-`src/acp/prompt.rs`, `src/events.rs`, `src/choices.rs`, `contract.yaml` (all under shadows-agent);
+`src/acp/prompt.rs`, `src/acp/mapping.rs`, `src/events.rs`, `src/choices.rs`, `src/policy.rs`,
+`contract.yaml` (all under shadows-agent);
 `crates/core-harness/src/lib.rs`, `src/access.rs`, `src/assistant.rs`, `src/live.rs`,
 `src/sessions.rs`, `src/setup.rs`, `src/settings.rs`, `src/offers.rs`, `src/error.rs`, `contract.yaml`
 (all under core-harness);
@@ -113,6 +120,7 @@ this throwaway proof. Commit only the planning/evidence documents.
 `crates/shadows/src/config.rs`, `src/config_tests.rs`, `src/cli/args.rs`, `src/cli/mod.rs`,
 `crates/shadows-core/src/app.rs`, `src/testing/mod.rs`,
 `crates/shadows-core/tests/design_migration.rs`, `crates/shadows-http/src/aylul_env_tests.rs`,
+`crates/shadows-core/tests/acp_connection.rs`, `tests/aylul_session/permissions.rs` (ACP regression callers),
 `crates/shadows/tests/tool_rules_routes.rs`, `crates/shadows/tests/harness_config.rs`,
 `crates/shadows-core/Cargo.toml`, `Cargo.lock`, `docs/codebase/README.md`, this plan/stages/spec.
 The StartConfig-literal callers above were found through the Rust LSP. Before dispatch,
@@ -138,33 +146,34 @@ expand any additional constructor/test callers introduced since this plan; do no
   events to the existing `PromptResult`. The configured program supplies a `ProcessSpec`
   using B-85's verified policy. ProcessHandle is still owned by Sessions.
 
-- [ ] Add failing fixture tests `codex_streams_before_completing`,
+- [x] Fixture tests `codex_streams_before_completing`,
   `codex_interrupt_waits_for_the_matching_terminal_event`,
   `codex_eof_fails_pending_work`, `codex_unknown_notifications_are_ignored`,
   `codex_server_requests_do_not_deadlock`, and
-  `codex_cannot_finish_a_replacement_generation` in the new tests. Their assertions cover
-  partial/multiple JSONL frames, ordered final deltas, RPC error vs EOF, and exactly one ending.
-- [ ] Implement the version-matched JSONL transport with existing Tokio/serde dependencies
-  and the smallest typed request/result subset needed. `fake-codex` is a gated test binary,
-  never a shipping dependency. Keep its stderr/fixture controls nonsecret.
-- [ ] Wire the second connection through Harness and AppCore with no new composition root.
+  `codex_cannot_finish_a_replacement_generation` cover partial/multiple JSONL frames,
+  ordered deltas, RPC error vs EOF, and exactly one ending. `fake-codex` is a gated test
+  binary, never a shipping dependency; its fixtures carry no secret.
+- [x] Implement the version-matched JSONL transport with existing Tokio/serde dependencies
+  and the smallest typed request/result subset needed.
+- [x] Wire the second connection through Harness and AppCore with no new composition root.
   Prepare/revoke the authenticated setup across every spawn/handshake/session failure. Keep
   the existing idle/cancel/setup durations and generation/lease rules.
-- [ ] Add Core tests `codex_uses_shadows_mcp`, `codex_resume_rotates_the_grant`,
+- [x] Core tests `codex_uses_shadows_mcp`, `codex_resume_rotates_the_grant`,
   `codex_failed_setup_revokes_the_grant`, `codex_refuses_forbidden_authority`, and
-  `codex_stop_during_a_tool_call`. Test through AppCore and real MCP routing with the fake
-  protocol peer; assert persisted entries and unchanged forbidden state, not just payloads.
-- [ ] Keep public availability disabled until B-87 completes. Run the first real Core-to-Codex
+  `codex_stop_during_a_tool_call` run through AppCore and real MCP routing with the fake
+  peer and assert persisted entries and unchanged forbidden state.
+- [x] Keep public availability disabled until B-87 completes. Run the first real Core-to-Codex
   tool path with the explicit test configuration and repeat B-85's allowed/refused operations.
   Update affected contracts and code-map rows with their actual implemented behavior.
 
-**Verification:** Run `cargo build -p fake-codex --features test-support` in the existing
-cache, then
+**Verification:** `cargo build -p fake-codex --features test-support`, then
 `cargo test -p shadows-agent --test codex`,
-`cargo test -p shadows-core --test codex_session --test sessions --test acp_connection`,
-`cargo test -p shadows --test harness_config --test planner_mcp`, and
-`cargo clippy -p shadows-agent -p core-harness -p core-turns --all-targets -- -D warnings`.
-Fixtures must still exercise Claude's existing launch/session path. Commit explicit paths.
+`cargo test -p shadows-core --test codex_session --test sessions --test acp_connection --test aylul_session`,
+`cargo test -p shadows --test harness_config --test planner_mcp`, and clippy for the
+changed crates. Then build the daemon in the existing cache, run the real signed-in
+provider through the configured daemon, and observe streamed text, authorized MCP
+tools, one terminal outcome, refusals and same-thread continuation. Record the
+verified state and commit explicit paths.
 
 ## B-87: Complete controls and enable the harness
 

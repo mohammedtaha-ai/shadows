@@ -656,7 +656,9 @@ Phase B
 and a separate harness choice for each conversation. This section owns that
 extension; the earlier ACP-specific sections continue to describe Claude.
 The [implementation plan](../../backend/plans/2026-11-07-codex-app-server.md)
-names the work and its acceptance gates. Codex is not runnable in Shadows yet.
+names the work and its acceptance gates. Since B-86 a daemon started with
+`--codex` and `--codex-home` runs Codex Planner turns through this policy;
+the harness list still reports Codex unavailable until B-87 completes its controls.
 
 ### Scope and ownership
 

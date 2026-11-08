@@ -144,17 +144,19 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 ### B-86 · Connect Codex through the existing session owner
 
-- Status: todo (B-85 passed)
+- Status: done (fixtures, Claude regressions and a real signed-in daemon run, 2026-11-08)
 - Plan: [First real Planner path](plans/2026-11-07-codex-app-server.md#b-86-first-real-planner-path).
 - Owner: Agent owns wire translation; Harness owns sessions/grants; AppCore wires the programs.
 - Read: §12.14, B-85 evidence, Agent/Harness/Turns contracts and the plan's shared interfaces.
 - Touch: the exact create/modify lists under B-86 in the plan, including constructor callers, tests, contracts and code map. Recheck caller scope before dispatch.
 - Needs: B-85; `docs/shared/requests/2026-11-07-codex-planner.md` (accepted).
 - Done when: the managed second transport and AppCore path pass the plan's transport/lifecycle/MCP fixtures and first real tool path; failures revoke grants; Stop confirms its terminal result; Claude regressions pass. Public Codex availability remains disabled until B-87.
+- Verified on 2026-11-08: `shadows-agent --test codex` 6, `shadows-core --test codex_session` 5, `sessions` 12, `acp_connection` 21, `aylul_session` 55, `contracts` 6, `design_migration` 9, `shadows --test harness_config` 5 (two new Codex launch/config tests), `planner_mcp` 24, `architecture` 49 and `codemap` passed; fmt and clippy for the changed crates with and without test support.
+- Live on 2026-11-08: a worktree daemon with `--codex` (native 0.167.0) and the dedicated signed-in home opened a Planner thread (20-tool inventory verified, 8 catalog models, `read-only`). A real `gpt-6.1-sol`/`low` turn called `workspace_get` and `vision_propose`; the API showed the pending proposal. `vision_approve` was refused as a visible refusal and the vision stayed at revision 0. The model declined both shell-write requests under the Planner instructions, so filesystem enforcement still rests on B-85's MXC measurement and the opening's `readOnly` check. Stop during a streamed turn recorded one `Cancelled`. After a daemon restart the same thread resumed and recalled the earlier tool answer. No bearer text appeared in either daemon log or the new rollout. `GET /api/harnesses` still listed Codex as unavailable.
 
 ### B-87 · Complete Codex choices, usage and conversation actions
 
-- Status: blocked (B-86)
+- Status: todo (B-86 passed)
 - Plan: [Controls](plans/2026-11-07-codex-app-server.md#b-87-complete-controls-and-enable-the-harness).
 - Owner: Agent translates reports; Harness owns choices; Projects owns allowed modes; DB owns the migration catalog.
 - Read: §12.14 and the Agent, Harness, Projects and DB contracts.
