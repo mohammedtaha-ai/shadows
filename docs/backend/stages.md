@@ -164,7 +164,8 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Status: ready (dispatch only when Mohammed says so)
 - Plan: [B-92](plans/2026-11-08-executors.md#b-92-git-and-task_commit).
 - Owner: Runs (git through `shadows-process`); MCP (the tool).
-- Needs: B-91.
+- Needs: B-91 (done, 8442d973).
+- Carry from B-91: the Planner's planning-context block is still added to an executor's prompts; leave it out for executor threads, with a test.
 - Done when: the plan's B-92 tests pass.
 
 ### B-93 · Task attempts over HTTP
