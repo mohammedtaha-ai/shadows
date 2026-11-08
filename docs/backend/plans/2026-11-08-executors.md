@@ -48,81 +48,20 @@ browser.
    thread holds no session, and nothing restarts on its own (§12.3). Pinned in B-91.
 3. **Executor threads in the conversation list**: the sidebar and `Threads::list` show planning
    threads only; executor threads are reached from their task. Pinned in B-90.
-4. **The person staged or edited a file of their own** before the commit: a staged file outside
-   the attempt's paths stays staged and uncommitted; a hand edit to a file the attempt wrote
-   refuses the commit (`UnprovenChange`) instead of committing it. Pinned in B-92.
+4. **The person staged a file of their own** before the commit: it stays staged and uncommitted;
+   a changed file outside `writes` is left in the folder, named in the result, never committed.
+   Pinned in B-92.
 5. **The plan changed between page load and Start**: a superseded or archived version, or a `needs`
    task not marked done, refuses Start with the reason named. Pinned in B-91.
 
 ---
 
-### B-89: Probe the write boundary (slice 0)
+### B-89: Probe the write boundary (slice 0) — done 2026-11-08
 
-Closes the design's §7 OPEN. A throwaway probe; no product source changes.
-
-**Files:**
-- Create: `docs/evidence/2026-11-08-executor-write-boundary-probe.md`
-- Modify: `docs/backend/specs/2026-11-08-executors-design.md` §7 (replace the OPEN with the
-  measured rule), `docs/backend/stages.md`
-- Throwaway: a `#[ignore]` test in `crates/shadows-core/tests/` or a scratch client outside the
-  repository; deleted after the evidence is written. The evidence names the commit.
-
-**Interfaces:**
-- Consumes: the existing ACP `Connection` (`crates/shadows-agent/src/acp/`), the adapter 0.101.0,
-  a disposable git folder.
-- Produces: the measured facts B-90 and B-92 build on, written into §7.
-
-- [ ] **Step 1:** Open a Claude session through Shadows' ACP connection in a disposable git folder
-  with tools `Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite`, mode `default`, and a
-  permission handler that records every `session/request_permission` (tool kind, title, raw input,
-  `locations`) and answers allow.
-- [ ] **Step 2:** Prompt it to (a) edit a file inside `src/`, (b) create a file outside `src/`,
-  (c) run `echo x > outside.txt` in the shell, (d) run `git status`. Record, for each, whether a
-  permission request arrived and which path it named.
-- [ ] **Step 3:** Repeat with the handler refusing (b) and (c). Record whether the refused write is
-  absent from disk afterwards, and what the model reports.
-- [ ] **Step 4:** Repeat (a) in mode `acceptEdits`. Record whether a permission request still
-  arrives (expected: no; then executors must open in `default`).
-- [ ] **Step 5: Ownership cases.** Record what the permission requests and `git status` show when:
-  (e) the person edits `src/a.txt` by hand while the session runs, after the agent edited it;
-  (f) the agent runs a command whose child process writes a file (`git checkout -- x`, a script
-  that writes, a package manager); (g) the agent edits through `src/link/`, where `link` is a
-  symlink, and on Windows a junction, pointing outside `src/`. For (g), record whether the request
-  names the link path or the target, and whether `std::fs::canonicalize` resolves it.
-  For (a) and a `Write` of a new file, record what the tool call itself carries once it completes
-  (`content`, `rawInput`, `rawOutput`, a diff): whether the written bytes, or an edit Shadows can
-  apply to the pre-image it recorded, can be taken **from the agent's own call**. The ownership
-  hash comes from that, never from reading the file afterwards, which could pick up a hand edit
-  made before the read.
-  (h) Prompt it to scaffold with `composer create-project laravel/laravel backend` (the
-  Foundation plan's T1). Record whether one permission request arrives for the shell command,
-  what it names, how long the command runs, and how many files it writes (tracked and ignored).
-  Time a before/after hash snapshot of `backend/**` excluding ignored files, to size the
-  recorded-command rule (§7).
-  (i) Prompt it to run `docker compose up -d` in a folder with a one-service compose file
-  (T2, T4, T5 need it). Record the request, whether the containers outlive the session, and what
-  cancelling the turn leaves running.
-  (j) Open a session passing Claude Code's own permission rules through the adapter's options
-  (`permissions.allow: ["Edit(<root>/src/**)"]`, mode `default`), then prompt an edit outside
-  `src/`. Record whether the adapter accepts the option, and whether Claude Code refuses the
-  edit before any `session/request_permission` reaches Shadows.
-  (k) Prompt it to run `env` (Windows: `set`) in the shell. Record which variables reach a shell
-  command, by name only, never their values, and which of them carry a secret.
-- [ ] **Step 6:** Write the evidence and amend §7 with the rule chosen from it. The rule names:
-  the session mode; which tools raise requests carrying a path; how a shell command is treated
-  (the allowlist of command prefixes; which of them run as recorded commands with a before/after
-  snapshot, §7; what Stop does to containers an attempt started); whether Claude Code's own
-  rules join layer 1; which environment variables are withheld from the session; how a path is checked (canonical, links resolved,
-  inside the project root and `writes`); and **how ownership is proven**: a changed file is the
-  attempt's only when its current content equals the content the attempt's own last permitted
-  write produced, as derived from that tool call (above). If no tool call yields its written
-  content, the rule says so and B-90 stays blocked. A changed path in `writes` that the attempt cannot prove is refused at
-  commit, never committed on a guess.
-- [ ] **Step 7:** Delete the throwaway source. Commit the evidence, §7 and stages:
-  `docs: measure the executor write boundary`.
-
-**Verification:** each of the eleven cases (a to k) has a recorded observation; §7 has no OPEN block left,
-or B-90 stays blocked with the measured gap stated.
+Run by the controller on Claude Code 2.1.319 through the pinned adapter 0.101.0:
+[`docs/evidence/2026-11-08-executor-write-boundary-probe.md`](../../evidence/2026-11-08-executor-write-boundary-probe.md).
+Mohammed's ruling on reading it: the executor runs in `auto`, its commands are not policed, and
+the boundary is enforced at the commit only (design §7). B-90 and B-92 below are written to that.
 
 ---
 
@@ -141,14 +80,13 @@ or B-90 stays blocked with the measured gap stated.
   `crates/core-grants/src/store/mod.rs` (startup revocation and per-grant revoke cover
   `executor` as they cover `thread`);
   `crates/core-harness/src/setup.rs` (setup by kind), `src/sessions.rs`, `contract.yaml`;
-  `crates/shadows-agent/src/acp/permissions.rs` (scoped policy), `crates/shadows-agent/contract.yaml`;
   `crates/core-grants/src/model.rs`, `src/tools.rs`, store (the executor kind and its scope),
   `contract.yaml`; `crates/shadows-mcp/src/server.rs` (a third router for the executor kind),
   `contract.yaml`; `crates/core-plans/src/task_context.rs` and its store query (the task check),
   `crates/core-plans/contract.yaml`
 
 **Interfaces:**
-- Consumes: B-89's §7 rule (mode, tool list, shell treatment, path check). Nothing from Runs.
+- Consumes: design §7 (mode `auto`, the tool list). Nothing from Runs.
 - Produces:
   - `pub enum ThreadKind { Planning, Executor }` (`as_str`: `planning`, `executor`) on `PlanningThread.kind`.
   - `Threads::create_executor_in(conn, project: &ProjectId, title: String, harness: &str) -> ThreadId`.
@@ -166,40 +104,17 @@ or B-90 stays blocked with the measured gap stated.
   - `Plans::task_context` interprets the scope: for an executor grant, `workflow`, `version` and
     `task` must equal the scope's, else `PlansError::OutsideGrant`. Project and thread grants keep
     today's project-level check.
-  - `pub struct ExecutorScope { root: PathBuf, guard: Arc<dyn WriteGuard>, grant: TaskScope }`, passed by
-    the caller to `Harness::open_executor(thread: &ThreadId, scope: ExecutorScope, model: String)`.
-  - `PermissionPolicy::Scoped { root: PathBuf, guard: Arc<dyn WriteGuard> }`: canonicalize each requested
-    path (links and junctions resolved); allow only when every canonical path is inside `root` and
-    the guard admits it; refuse anything else, including a request with no path, except what §7 allows.
-    It records, per allowed path, the hash of the content the agent's own completed tool call
-    wrote, derived from the call as B-89's rule says, never from re-reading the file (the
-    ownership record B-92 checks). A shell command on §7's allowlist runs as a recorded command:
-    before allowing it and after its call completes, holding other writes of the attempt
-    meanwhile, the policy calls its `WriteGuard`; it never runs git or matches a pattern itself.
-  - `pub trait WriteGuard: Send + Sync` in `shadows-agent` (the policy's only view of scope and
-    git, since `shadows-agent` cannot depend on `core-runs`): `fn admits(&self, relative: &str)
-    -> bool`; `fn before_command(&self) -> Result<CommandMark, String>`; `fn after_command(&self,
-    mark: CommandMark) -> Result<Vec<OwnedPath>, String>` (an `Err` fails the attempt with its
-    text). Runs implements it in B-91 and B-92 with the one matcher and git: `git status
-    --porcelain=v1 -z -uall` of the whole folder (rename origins kept), hashes of the files inside
-    `writes` (ignored files excluded) and of every changed file outside them, each difference
-    judged by §7's table against the scopes other attempts hold at that moment. B-90's tests use
-    a fixed `WriteGuard`.
-    After the attempt's `task_commit` succeeds it refuses every
-    further write in that session.
-  - `EXECUTOR_TOOLS` in `setup.rs`, from §7.
+  - `Harness::open_executor(thread: &ThreadId, root: &Path, grant: TaskScope, model: String)`: the
+    session opens in mode `auto` with `EXECUTOR_TOOLS` (`Read, Grep, Glob, Edit, Write, MultiEdit,
+    Bash, TodoWrite`), its grant's MCP server, `executor.txt` appended, `setting_sources: []` and
+    `strictMcpConfig: true`. The mode is set explicitly: the adapter's own initial mode is not
+    relied on. No permission policy of Shadows' own applies to it.
 
 - [ ] **Step 1: Write the failing tests** in `crates/shadows-core/tests/executor_session.rs`
   (fake-acp):
-  - `an_executor_session_opens_with_its_instructions_tools_and_policy`: the setup's append starts
-    with `executor.txt`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, policy `Scoped`.
-  - `a_recorded_command_goes_through_the_guard`: a fixed `WriteGuard` whose `after_command`
-    returns `Err("README.md changed outside every scope")` → the refusal is a thread entry with
-    that text, and no ownership is recorded.
-  - `an_edit_inside_writes_is_allowed_and_outside_is_refused`: fake requests `backend/a.php` → allow;
-    `web/a.ts` → refuse, and the refusal is a thread entry.
-  - `a_path_through_a_link_outside_writes_is_refused`: `backend/link/x.php`, where `link` points to
-    `web/` → refused.
+  - `an_executor_session_opens_with_its_instructions_tools_and_mode`: the setup's append starts
+    with `executor.txt`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, and the session's mode
+    is set to `auto`.
   - `an_executor_grant_reads_only_its_own_task`: `task_context` for its task → Ok; another task, or
     the same task in another version → `OutsideGrant`.
   - `an_executor_grant_lists_only_its_tools`: `tools/list` returns exactly `task_context`,
@@ -215,7 +130,7 @@ or B-90 stays blocked with the measured gap stated.
   not own; no mocks for another task's code; a test failing on another task's missing code is
   expected and is named in your report; if the plan is wrong, stop and say why; read your task
   with `task_context` first; ask `where_is` before searching; commit with `task_commit`).
-- [ ] **Step 4:** Implement the kind, the setup branch, the scoped policy and the grant scope.
+- [ ] **Step 4:** Implement the kind, the setup branch and the grant scope.
 - [ ] **Step 5:** Run the new test and `cargo test -p shadows-core --test planner_isolation --test sessions --test thread_session`
   and `cargo test -p shadows --test planner_mcp --test mcp_tools`. Expected: PASS; Planner behaviour unchanged.
 - [ ] **Step 6: Commit** `feat(harness): executor sessions scoped to one task`.
@@ -282,15 +197,14 @@ or B-90 stays blocked with the measured gap stated.
     character, then at its last `/`) are disjoint: neither is a path prefix of the other. Unproven
     means intersecting. The check and the insert are one write transaction, so two concurrent Starts
     cannot both pass.
-    **One matcher:** `core-runs/src/scope.rs` owns pattern matching for every check (permission,
-    recorded command, commit, overlap), built on `globset` with `literal_separator(true)`; its
-    commit names `globset` as an infrastructure library. Its tests carry over the earlier
-    project's (`shadow-verify/src/scope.rs`): `*` does not cross `/`, an empty `writes` admits
-    nothing, an invalid pattern is an error, Windows separators are normalised, a rename origin
-    outside `writes` is a violation. B-90's policy reaches it through the `WriteGuard` Runs implements.
+    **One matcher:** `core-runs/src/scope.rs` owns pattern matching for the overlap check and the
+    commit, built on `globset` with `literal_separator(true)`; its commit names `globset` as an
+    infrastructure library. Its tests carry over the earlier project's
+    (`shadow-verify/src/scope.rs`): `*` does not cross `/`, an empty `writes` admits nothing, an
+    invalid pattern is an error, Windows separators are normalised.
   - `RunsError`: `NotFrozen`, `Superseded`, `Archived`, `Waiting { tasks: Vec<u32> }`, `TaskBusy`,
     `Overlap { task: u32 }`, `CommandConflict`, `NotFound`, `Storage`. B-92 adds `NotGit`,
-    `DirtyScope`, `OutsideScope`, `UnprovenChange`, `AlreadyCommitted`, `NothingToCommit`.
+    `DirtyScope`, `LinkInScope`, `AlreadyCommitted`, `NothingToCommit`.
 
 - [ ] **Step 1: Write the failing tests** in `crates/core-runs/tests/attempts.rs`:
   - `start_opens_one_attempt_on_an_executor_thread`: start T1 → `state == Running`, `number == 1`,
@@ -339,33 +253,35 @@ or B-90 stays blocked with the measured gap stated.
   `crates/shadows-mcp/src/plan_tools.rs` (the tool), `contract.yaml`
 
 **Interfaces:**
-- Consumes: B-89's ownership rule; B-91's `Attempt` and transitions; B-90's `TaskScope` on the
-  caller's grant and the ownership record kept by `PermissionPolicy::Scoped`.
+- Consumes: design §7; B-91's `Attempt`, transitions and matcher; B-90's `TaskScope` on the
+  caller's grant.
 - Produces:
-  - `Runs::commit(&self, grant: &Grant, message: String) -> Result<Attempt, RunsError>`: one commit
-    at a time per project folder (a per-project `tokio::sync::Mutex`). **It commits the bytes it
-    checked, not the file as git later reads it:**
-    1. For each changed path inside `writes` (`git status --porcelain`, so ignored files are
-       never considered), read the file's bytes once; the path is the attempt's only when the
-       hash of those bytes equals the ownership record, whether that record came from an editor
-       tool call or from a recorded command's after-snapshot (§7).
-    2. Write exactly those bytes as blobs (`git hash-object -w --stdin`).
-    3. Build the tree in a temporary index (`GIT_INDEX_FILE`): `git read-tree HEAD`, then
-       `git update-index --add --cacheinfo <mode>,<blob>,<path>` per path (`--remove` for a
-       deleted path); `git write-tree`.
-    4. `git commit-tree <tree> -p <HEAD>` with the message
-       `T{n}: {title}\n\n{message}\n\nShadows-Attempt: {attempt id}`.
-    5. `git update-ref HEAD <new> <old>`: refused if HEAD moved, and the attempt reports it.
-    6. Update only those paths in the folder's real index to the committed blobs, so the person's
-       other staged entries are untouched and the committed paths show clean.
+  - `Runs::commit(&self, grant: &Grant, message: String) -> Result<CommitResult, RunsError>` with
+    `CommitResult { attempt: Attempt, files: Vec<String>, left: Vec<String> }`: one commit at a
+    time per project folder (a per-project `tokio::sync::Mutex`).
+    1. `git status --porcelain=v1 -z -uall` lists the changed paths; ignored files never appear.
+       A rename's origin is listed with its destination.
+    2. A changed path matching `writes` is committed. A changed path outside `writes` is left in
+       the folder, uncommitted, and returned in `left`; the Report names it.
+    3. A path in `writes` whose parent folders include a link or junction refuses the commit
+       (`LinkInScope { paths }`): git would read another folder's files through it.
+    4. Each committed file is written as a blob (`git hash-object -w`), the tree is built in a
+       temporary index (`GIT_INDEX_FILE`: `git read-tree HEAD`, `git update-index --add
+       --cacheinfo` per path, `--remove` for a deleted one, `git write-tree`), and
+       `git commit-tree <tree> -p <HEAD>` writes the commit with the message
+       `T{n}: {title}
 
-    The working tree is never read by git during the commit. **Git first, then SQLite**: the SHA
-    and `Committed` are written after `update-ref`; a crash between the two is repaired by
-    `recover`.
-  - Errors: `OutsideScope { paths }` (an attributed path outside `writes`), `UnprovenChange { paths }`
-    (a changed path in `writes` whose content is not what the attempt last wrote: the person or
-    another process changed it). Both commit nothing and fail the attempt with the paths as reason.
-    `AlreadyCommitted`, `NothingToCommit`.
+{message}
+
+Shadows-Attempt: {attempt id}`.
+    5. `git update-ref HEAD <new> <old>`: refused if HEAD moved, and the attempt reports it.
+    6. Only those paths are updated in the folder's real index, so the person's other staged
+       entries are untouched and the committed paths show clean.
+
+    **Git first, then SQLite**: the SHA and `Committed` are written after `update-ref`; a crash
+    between the two is repaired by `recover`.
+  - Errors: `LinkInScope { paths }` commits nothing and fails the attempt with the paths as
+    reason. `AlreadyCommitted`, `NothingToCommit`.
   - `recover` gains its git step: `git log --all --format=%H%x00%(trailers:key=Shadows-Attempt,valueonly)`
     finds the attempt's commit; a `Running` row with one becomes `Committed` with that SHA.
   - `Runs::diff(&self, attempt: &AttemptId) -> Result<Vec<FileDiff>, RunsError>` where
@@ -373,32 +289,20 @@ or B-90 stays blocked with the measured gap stated.
     and `git show` of the attempt's commit; bounded at 2,000 lines per file, then truncated with a marker.
   - Start preconditions (§12.2) added to B-91's `start`: `NotGit`; `DirtyScope` when `git status
     --porcelain` lists paths inside `writes`.
-  - MCP tool `task_commit { message: string }` → `{ commit, files }`.
+  - MCP tool `task_commit { message: string }` → `{ commit, files, left }`.
 
 - [ ] **Step 1: Write the failing tests** in `crates/core-runs/tests/commit.rs` (a temp git repo):
-  - `commit_takes_only_the_attempts_paths`: attempt edits `backend/a.php`; another file
-    `web/b.ts` is modified → the commit holds `backend/a.php` only; `web/b.ts` stays modified.
+  - `commit_takes_only_the_paths_in_writes`: `backend/a.php` and `web/b.ts` are modified → the
+    commit holds `backend/a.php` only; `web/b.ts` stays modified and is in `left`.
   - `a_persons_staged_file_stays_staged`: `notes.md` staged before → not in the commit, still staged.
-  - `a_path_outside_writes_refuses_the_commit`: attributed `web/x.ts` → `Err(OutsideScope { paths: ["web/x.ts"] })`, HEAD unchanged.
-  - `a_hand_edit_after_the_agents_write_refuses_the_commit`: the agent writes `backend/a.php`, the
-    test then appends a line to it → `Err(UnprovenChange { paths: ["backend/a.php"] })`, HEAD unchanged.
-  - `a_file_written_by_a_child_process_is_unproven`: `backend/gen.php` appears with no permitted
-    write recorded → `Err(UnprovenChange)`.
-  - `files_a_recorded_command_wrote_are_the_attempts`: a recorded command creates
-    `backend/composer.json` and `backend/app/Models/User.php` → both are committed.
-  - `a_recorded_rename_from_outside_writes_fails_the_attempt`: a recorded command moves
-    `web/a.ts` to `backend/a.ts` → the attempt fails naming `web/a.ts`.
-  - `another_tasks_writes_during_a_recorded_command_are_not_blamed`: while this attempt's recorded
-    command runs, `web/b.ts` changes and `web/**` is another held scope → nothing fails, and
-    `web/b.ts` is not recorded as this attempt's.
-  - `a_change_outside_every_held_scope_fails_the_attempt`: `README.md` changes during a recorded
-    command → the attempt fails naming it.
-  - `ignored_files_neither_refuse_nor_enter_the_commit`: `backend/.gitignore` lists `vendor/`;
-    `backend/vendor/x.php` and `backend/storage/logs/laravel.log` appear unrecorded → the commit
-    succeeds and holds neither.
-  - `a_change_between_the_check_and_the_commit_is_not_committed`: a test hook rewrites
-    `backend/a.php` after step 1 → the commit's blob for it equals the checked bytes
-    (`git cat-file -p HEAD:backend/a.php`), and the later bytes remain an uncommitted change.
+  - `files_a_generator_wrote_are_committed`: `backend/composer.json` and
+    `backend/app/Models/User.php` appear with no tool call behind them → both are committed.
+  - `ignored_files_never_enter_the_commit`: `backend/.gitignore` lists `vendor/` and `.env`;
+    `backend/vendor/x.php` and `backend/.env` appear → the commit holds neither.
+  - `a_rename_from_outside_writes_leaves_its_origin`: `web/a.ts` renamed to `backend/a.ts` →
+    `backend/a.ts` is committed, `web/a.ts` (deleted) is in `left`.
+  - `a_junction_inside_writes_refuses_the_commit`: `backend/link` is a junction (a symlink off
+    Windows) to `web/` → `Err(LinkInScope { paths: ["backend/link/..."] })`, HEAD unchanged.
   - `head_moving_during_the_commit_is_refused`: a test hook commits elsewhere before step 5 →
     `update-ref` refuses; nothing is lost; the attempt reports it.
   - `a_crash_between_git_and_sqlite_recovers_as_committed`: a test hook fails the SQLite write after
@@ -494,8 +398,8 @@ or B-90 stays blocked with the measured gap stated.
   initial `.gitignore` so the folder is clean and T1 scaffolds `backend/` itself.
 - [ ] **Step 1:** Start `shadows serve` with the branch build on that folder. Open the plan's T1 page.
 - [ ] **Step 2:** Mohammed chooses a model and presses Start. Observe: the Run tab streams; the
-  executor reads `task_context` first; an attempted write outside `backend/**` is refused and
-  shown; the commit holds `backend/` paths only; the Diff tab shows it.
+  executor reads `task_context` first; the commit holds `backend/` paths only, and anything it
+  changed elsewhere is left uncommitted and named in the Report; the Diff tab shows the commit.
 - [ ] **Step 3:** Stop a second attempt mid-run; restart the daemon during a third and confirm
   `Interrupted`. Read the server log for each.
 - [ ] **Step 4:** Mark T1 done; T3's Start becomes enabled.

@@ -68,7 +68,7 @@ Mohammed's, 2026-11-08, in conversation unless marked as the controller's call.
 
 **Anti-goals: a failure even if it works**
 
-- An executor that writes outside its `writes`, or a commit that carries another task's files.
+- A commit that carries a path outside its task's `writes`, or another task's files.
 - An executor that builds another task's part or writes mocks to make its tests pass.
 - A critic PASS on changes it did not see, or a pass inferred from the executor saying "done".
 - A retry loop with no end, or the Planner approving its own plan change.
@@ -137,72 +137,29 @@ working-tree changes stay in the folder and are named in the Report.
 - **Commits are serialized** by Shadows: one commit at a time per project folder. An executor
   commits through a Shadows tool, not `git commit`. The tool stages only the attempt's changed
   paths inside `writes` and commits them on the folder's current branch, with the task and
-  attempt in the message. Changed paths outside `writes` refuse the commit (§7).
+  attempt in the message. Changed paths outside `writes` stay uncommitted and are named (§7).
 - A test failing because of another running or unstarted task's code is reported as pending
   on that task (D4). The critic does not count it as a failure of this task.
 
 ## 7. The write boundary
 
-§17.6: the boundary is enforced, not requested. Two layers:
+**Amended 2026-11-08 by Mohammed, after the probe**
+([evidence](../../evidence/2026-11-08-executor-write-boundary-probe.md)). The boundary is held
+at the commit, not while the executor works:
 
-1. **Before writing.** File-edit tool calls outside `writes` are refused through the harness
-   permission path (the Planner's sessions already refuse tools this way).
-2. **At commit.** The commit tool compares the attempt's changed paths with `writes` and refuses
-   on any path outside. The attempt fails with those paths named.
-
-**Ownership (amended 2026-11-08 after review).** Being inside `writes` does not prove a change
-is the attempt's: in a shared folder the person, a child process or another task may have
-written it, and `git commit --only` takes a file's whole current content. A changed file is the
-attempt's only when its current content equals what was recorded after the attempt's own last
-permitted write to it, derived from that tool call, never from re-reading the file. A changed
-path in `writes` that cannot be proven refuses the commit; nothing is committed on a guess. The
-commit records the bytes that were checked, built without git reading the working tree, so a
-change made between the check and the commit stays uncommitted. An attempt holds its `writes`
-against other Starts until its session can no longer write, not merely until it commits. Paths are checked canonical, with links and junctions resolved.
-
-Files git ignores (`.gitignore`, `.git/info/exclude`) are outside both layers: they are
-neither checked for ownership nor committed. A test run's caches and a package manager's
-`vendor/` never refuse a commit.
-
-**Two ways a file becomes the attempt's.** Editor tools prove it from the tool call, as above.
-Generators cannot: the Foundation plan's T1 scaffolds Laravel with `composer create-project`,
-which writes hundreds of files through child processes no tool call describes. A shell command
-the executor's allowlist admits therefore runs as a **recorded command**. Before and after it,
-while no other write of the attempt runs, Shadows takes the whole folder's git status (rename
-origins included) and the content hashes of the files inside `writes` and of every changed
-file outside them. Each difference is then judged by where it lies:
-
-| Where the difference is | Judgement |
-|---|---|
-| inside this task's `writes` | recorded as the attempt's, with its after-hash (a deletion as a deletion) |
-| inside the `writes` of another attempt that holds its scope | that attempt's business; ignored here |
-| outside every held scope | the attempt fails, with the path named |
-
-A rename from outside `writes` into it is therefore caught by its origin. Two tasks running
-together in one folder do not fail each other, because their scopes are disjoint (§6). A hand
-edit made while the command runs is indistinguishable from the command's: inside `writes` it is
-taken as the attempt's, outside every scope it fails the attempt. Both are accepted and named
-in the Report.
-
-**Matching.** Every scope check (the permission path, the recorded command, the commit and the
-overlap check) uses one matcher in Runs, built on `globset` with `literal_separator(true)`: `*`
-never crosses `/`, an empty `writes` admits nothing, and an invalid pattern is an error, never a
-pass.
-
-**Environment.** Shell commands an executor runs see no secret of Shadows' or the person's
-environment beyond what the agent's own sign-in needs, and that exception is named. This is
-defence in depth, not a credential boundary: the agent reads its own profile directory.
-
-> **OPEN — shell writes and ownership.** Claude Code's shell tool can write any file, and
-> layer 1 cannot see what a shell command or its child processes write. **Trigger:** a probe on
-> Claude Code through Shadows (B-89), before the first build task, measuring what the
-> permission path sees for editor tools, shell commands, child-process writes, a scaffold
-> (`composer create-project`), a container start (`docker compose up`), a hand edit during a
-> run, a path through a symlink or junction, Claude Code's own permission rules passed through
-> the adapter, and the environment a shell command sees; and choosing from it the shell
-> allowlist, how a recorded command is run and snapshotted, what Stop does to containers an
-> attempt started, whether Claude Code's rules join layer 1 as a second refusal, which
-> variables are withheld, and the editor-tool ownership record. It is recorded in `docs/evidence/` and closes this block.
+- The executor session runs in mode **`auto`**. Shadows sets the mode explicitly and does not
+  police its tools or its shell commands: a scaffold (`composer create-project`), a test run or a
+  container start runs as the agent decides.
+- **At commit,** `task_commit` reads the folder's git status. Every changed path matching
+  `writes` is committed; a changed path outside `writes` is left in the folder, uncommitted, and
+  named in the attempt's Report. Files git ignores (`vendor/`, `.env`, caches) never appear.
+  A path inside `writes` reached through a link or junction refuses the commit, because git would
+  read another folder's files through it.
+- Containers and other processes a task starts keep running after its turn and after Stop;
+  stopping them is the project's business, not the attempt's.
+- **Accepted:** a hand edit or another process's change inside a running task's `writes` is
+  committed with the task's work. The Diff tab and the critic show it. Two tasks never share
+  `writes` (§6), so no task commits another's files.
 
 ## 8. What the executor and critic receive (D11, D12)
 
@@ -246,7 +203,7 @@ with this spec; CLAUDE.md requires a new owner to be a controller decision.
 |---|---|
 | `core-runs` (new) | attempts, the ready rule, concurrency, commit queue, ladder, critic dispatch, task status |
 | `core-plans` | the suggested model on `TaskContent`; acceptance marks per attempt are read from Runs, the plan stays immutable |
-| `core-harness` | executor and critic sessions: their instructions, their scoped grant, the write refusal |
+| `core-harness` | executor and critic sessions: their instructions, their scoped grant, their mode |
 | `core-grants` | a task-scoped grant |
 | `core-threads` / `core-turns` | the Planner's failure message in the plan's owner thread |
 | `shadows-mcp` | the task tools of §8 |
@@ -261,9 +218,9 @@ an item's mark is its latest review's mark. Marks do not carry over to a new pla
 
 Each slice runs end to end in the browser before the next.
 
-0. **Probe:** the shell-write and ownership OPEN (§7) on Claude Code through Shadows.
+0. **Probe:** done 2026-11-08; §7 holds its outcome.
 1. **One task, by hand:** Runs, the task page (Details, Run), Start/Stop, the executor session
-   with its scoped grant, the write refusal, `task_commit` with its ownership check, the Diff
+   with its scoped grant in mode `auto`, `task_commit` with its `writes` check, the Diff
    tab. No critic: the attempt ends at its commit and Mohammed reads it. The `writes` overlap
    check and the commit queue ship here, so two tasks started together are already safe.
 2. **The critic:** dispatch after the commit, `task_review`, acceptance marks, the Report tab,
@@ -282,7 +239,7 @@ Each slice runs end to end in the browser before the next.
 
 - Mohammed starts T1 of the Laravel plan in the browser; it commits only under `backend/`; the
   Diff tab shows it; the critic marks its three acceptance items.
-- An edit outside `writes` is refused; a shell write outside `writes` refuses the commit.
+- A change outside `writes` is left uncommitted and named in the Report.
 - A forced critic failure reaches the Planner, which retries in the same session; a second
   failure leads to an investigation and a directed third attempt; a third failure stops and
   shows Mohammed the reason.

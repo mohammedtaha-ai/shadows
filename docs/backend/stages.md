@@ -136,19 +136,19 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 `feature/executors`. B-85 to B-88 are reserved by the Codex plan on `codex/codex-app-server`.
 
 ### B-89 · Probe the executor write boundary
-- Status: ready (dispatch only when Mohammed says so)
-- Plan: [B-89](plans/2026-11-08-executors.md#b-89-probe-the-write-boundary-slice-0).
+- Status: done 2026-11-08, run by the controller ([evidence](../evidence/2026-11-08-executor-write-boundary-probe.md))
+- Plan: [B-89](plans/2026-11-08-executors.md#b-89-probe-the-write-boundary-slice-0--done-2026-11-08).
 - Owner: Harness (sessions and permissions); a throwaway probe, no product source.
 - Touch: `docs/evidence/2026-11-08-executor-write-boundary-probe.md`, the design §7, this file.
 - Needs: nothing.
-- Done when: the seven cases (editor, shell, refusal, mode, hand edit, child process, link/junction) are measured on the Claude adapter 0.101.0 and §7's OPEN is replaced by the rule, or the gap is reported and B-90 stays blocked.
+- Outcome: Mohammed's ruling on the evidence: executors run in `auto`, commands are not policed, the boundary is enforced at the commit (design §7).
 
 ### B-90 · The executor session
-- Status: blocked (B-89)
+- Status: ready (dispatch only when Mohammed says so)
 - Plan: [B-90](plans/2026-11-08-executors.md#b-90-the-executor-session).
-- Owner: Threads (`ThreadKind`), Harness (executor setup, scoped policy), Grants (`GrantKind::Executor`, opaque task scope, its tool list), Plans (`task_context` checks the scope), Agent (`PermissionPolicy::Scoped`), MCP (`server.rs` router for the executor kind).
+- Owner: Threads (`ThreadKind`), Harness (executor setup in mode `auto`), Grants (`GrantKind::Executor`, opaque task scope, its tool list), Plans (`task_context` checks the scope), MCP (`server.rs` router for the executor kind).
 - Touch: the plan's B-90 file list. Expand callers with the LSP before dispatch.
-- Needs: B-89.
+- Needs: nothing.
 - Done when: the plan's B-90 tests pass and the Planner's isolation, session and MCP tests still pass.
 
 ### B-91 · Runs: attempts, Start, Stop and recovery
@@ -163,7 +163,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Status: blocked (B-91)
 - Plan: [B-92](plans/2026-11-08-executors.md#b-92-git-and-task_commit).
 - Owner: Runs (git through `shadows-process`); MCP (the tool).
-- Needs: B-89's attribution rule, B-91.
+- Needs: B-91.
 - Done when: the plan's B-92 tests pass.
 
 ### B-93 · Task attempts over HTTP
