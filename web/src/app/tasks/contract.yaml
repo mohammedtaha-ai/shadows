@@ -8,6 +8,7 @@ obligations:
   - The model starts on `suggested_model` and stays what the person chose through a refused send, which shows Core's reason and refetches.
   - Start and mark done keep their command id after a lost answer and make a new one after any answer.
   - A read Core refuses (a task it cannot find answers 404) shows Core's code and message at once in place of "Reading the task…"; the read is not retried (a_task_core_cannot_find_shows_its_message_and_reads_once).
+  - The Report tab shows each attempt's `report` from Core as plain preserved text, never as markup, and nothing when it is null (the_report_shows_the_executors_report_as_plain_text, the_report_shows_nothing_extra_without_a_report).
   - A running attempt and the attempt list are read again until the attempt ends; the Run tab reads its executor thread until the turn's operation has ended, since a committed attempt's turn goes on to report.
 traps:
   - The Run tab shows entries as messages and one-line rows; the conversation's tool and diff cards are not public to this folder.

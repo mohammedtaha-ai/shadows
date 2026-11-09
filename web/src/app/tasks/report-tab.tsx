@@ -1,7 +1,7 @@
 import type { Attempt } from '@/api/runs'
 import { attemptLabel } from './use-task-run'
 
-/** Each attempt, newest first: its state, model, times, commit and reason. */
+/** Each attempt, newest first: its state, model, times, commit, the executor's report and reason. */
 export function ReportTab({ attempts }: { attempts: readonly Attempt[] }) {
   if (attempts.length === 0) return <p className="px-6 py-4 text-sm text-faint-foreground">No attempts yet.</p>
   return (
@@ -17,6 +17,9 @@ export function ReportTab({ attempts }: { attempts: readonly Attempt[] }) {
             {a.started_at}{a.ended_at !== null && ` → ${a.ended_at}`}
           </div>
           {a.commit !== null && <div className="font-mono">{a.commit}</div>}
+          {a.report !== null && (
+            <p dir="auto" aria-label="Executor report" className="mt-1 whitespace-pre-wrap break-words">{a.report}</p>
+          )}
           {a.reason !== null && <p dir="auto" className="text-destructive-foreground">{a.reason}</p>}
         </li>
       ))}

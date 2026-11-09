@@ -20,7 +20,7 @@ function attempt(extra: Partial<Attempt> = {}): Attempt {
   return {
     id: 'a1', project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, number: 1, thread_id: 't1',
     operation_id: null, model: 'fake-large', state: 'running', started_at: '2026-11-08T10:00:00Z',
-    ended_at: null, commit: null, reason: null, ...extra,
+    ended_at: null, commit: null, reason: null, report: null, ...extra,
   }
 }
 
@@ -158,6 +158,33 @@ describe('the task page', () => {
     await until(() => a.text().includes('Attempt 1'))
     current = [attempt({ state: 'committed', commit: 'abc123', ended_at: '2026-11-08T10:05:00Z' })]
     await until(() => a.text().includes('abc123'))
+  })
+
+  it('the_report_shows_the_executors_report_as_plain_text', async () => {
+    const report = 'Added the login form.\n  The T2 test waits for T2.\n<b>not markup</b>'
+    const committed = attempt({ state: 'committed', commit: 'abc123', ended_at: '2026-11-08T10:05:00Z', report })
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: taskRun({ latest: committed }),
+      attempts: [committed],
+    })))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('abc123'))
+    const shown = document.querySelector<HTMLElement>('[aria-label="Executor report"]')
+    expect(shown?.textContent).toBe(report)
+    expect(shown?.querySelector('b')).toBeNull()
+  })
+
+  it('the_report_shows_nothing_extra_without_a_report', async () => {
+    const committed = attempt({ state: 'committed', commit: 'abc123', ended_at: '2026-11-08T10:05:00Z' })
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: taskRun({ latest: committed }),
+      attempts: [committed],
+    })))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('abc123'))
+    expect(document.querySelector('[aria-label="Executor report"]')).toBeNull()
   })
 
   it('a_task_core_cannot_find_shows_its_message_and_reads_once', async () => {
