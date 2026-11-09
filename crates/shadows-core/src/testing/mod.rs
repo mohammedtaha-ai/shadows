@@ -145,7 +145,6 @@ pub use core_grants::{IssuedGrant, TaskScope, Token};
 pub use core_harness::{Harness, LeaseError, OpenSession, SessionsConfig};
 pub use core_operations::ReconcileReport;
 pub use core_projects::ProjectDirectory;
-pub use core_runs::Hooks as RunHooks;
 pub use core_runtime::Runtime;
 pub use core_threads::{NewThreadEntry, TurnContext};
 pub use core_turns::Bus;

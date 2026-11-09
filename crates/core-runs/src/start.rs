@@ -37,6 +37,8 @@ impl Runs {
         }
         let plan = self.plan(workflow, version).await?;
         let content = self.checks(&plan, task).await?;
+        // A reported commit already reachable from here is not this attempt's work.
+        let start_head = Git::at(&self.folder(&plan.project_id).await?).head().await;
         let begun = self
             .inner
             .store
@@ -49,6 +51,7 @@ impl Runs {
                 task,
                 model: model.clone(),
                 writes: content.writes.clone(),
+                start_head,
             })
             .await?;
         if begun.replayed {

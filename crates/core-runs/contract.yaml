@@ -3,16 +3,17 @@
 # done-mark commands, as every service's mutating commands are kept; globset is infrastructure
 # for pattern matching, the overlap rule itself is written here. Git runs through
 # shadows-process, one child per call in the project folder, never through a shell.
-# Owns the attempts at the tasks of an approved plan version: Start, Stop, the commit, the
-# scope an attempt holds while its session can still write, the person's done marks that
+# Owns the attempts at the tasks of an approved plan version: Start, Stop, the reported commit,
+# the scope an attempt holds while its session can still write, the person's done marks that
 # `needs` links wait for, and what a restart does with attempts it finds running.
 #
 # An attempt holds its scope, the `writes` of its task, from Start until its turn has ended
 # and its session is closed (`released_at`), whatever its state. Start refuses a task whose
 # `writes` may meet a held scope; the check and the insert are one write.
 #
-# Git first, then SQLite: a commit carries `Shadows-Attempt: <id>` as a trailer and is
-# written before the attempt records it, so a crash between the two is repaired by recover.
+# The executor commits its own files with git and reports that commit with its account of
+# what it did (Mohammed, 2026-11-09). Runs checks the reported commit and records it; Runs
+# writes no commit. A Running attempt with no accepted report at startup is Interrupted.
 
 name: runs
 version: 1
@@ -25,12 +26,12 @@ modules:
   lib.rs: the Runs service, its queries and done marks
   model.rs: attempt types
   error.rs: run refusals
-  scope.rs: the pattern matcher shared by the overlap check and the commit
+  scope.rs: the pattern matcher shared by the overlap check and the report check
   ready.rs: whether a task may start now
   git.rs: git calls in a project folder
   start.rs: starting an attempt
   stop.rs: stopping an attempt
-  commit.rs: committing an attempt's work
+  report.rs: accepting an attempt's reported commit
   diff.rs: reading an attempt's commit
   watch.rs: following a turn to its end and freeing the scope
   recover.rs: settling attempts at startup
@@ -49,62 +50,61 @@ dependencies:
 shapes:
   Runs:
     store: private RunsStore over the shared storage handle
-    commits: one async lock per project, so one commit at a time per folder
   AttemptState: [running, committed, stopped, interrupted, failed]
   Attempt:
     operation_id: the operation of its turn; absent until the turn starts
-    commit: absent until a commit exists
+    commit: absent until a reported commit is accepted
+    report: the executor's account of what it did, ran and found; stored with the accepted commit
+  # start_head, the commit HEAD named at Start (none on a branch with no commit), is stored, not served.
   Need: "{ task: TaskParent, title, done }: a task this one needs, in link order"
   TaskRun: "{ task, done, done_at, latest, needs, start: StartAnswer, suggested_model }"
   StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
-  CommitResult: "{ attempt, files, left }: what was committed and the changed paths outside writes left in the folder"
   FileDiff: "{ path, added, removed, patch }: the patch cut at 2,000 lines with a marker"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, LinkInScope, AlreadyCommitted, NothingToCommit, HeadMoved, CommandConflict, NotFound, BadScope, Unavailable, Storage]
+  RecoverReport: "{ interrupted }"
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, CommandConflict, NotFound, BadScope, Unavailable, Storage]
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
 
 functions:
   new: "(storage, plans, harness, turns, projects) -> Runs; AppCore constructs the service"
-  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then the version, the task, its needs links, then the folder: NotGit, or DirtyScope when git lists a changed path inside writes; an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
+  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then the version, the task, its needs links, then the folder: NotGit, or DirtyScope when git lists a changed path inside writes; the attempt records the commit HEAD names then (start_head); an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
   can_start: "(workflow, version, task) -> StartAnswer; Start's checks in Start's order (the version, the task, its needs, the folder, then the busy and overlap check read without writing); a refusal is an answer with RunsError::code and its text, a failure to read is an error"
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
-  commit: "(grant, message) -> CommitResult; the executor grant's attempt must be Running (Committed is AlreadyCommitted); git status lists the changed paths git does not ignore, a rename as both ends; those matching writes are committed through a temporary index on HEAD, HEAD moves only if it did not move meanwhile (HeadMoved), and the real index is brought to the commit for those paths only; nothing inside writes is NothingToCommit; a path inside writes through a link or junction is LinkInScope and fails the attempt"
+  report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
   task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from can_start, suggested_model one the executor's harness (claude-code) offers: the model the plan's Planner conversation last asked for when that turn ran on claude-code, else the model last used on claude-code (Harness::remembered_model), else none; none for an external writer"
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
-  set_hooks_for_tests: "test-support only: (Hooks) sets what later commits make happen"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict"
-  recover: "() -> RecoverReport; a Running attempt whose commit git holds becomes Committed with it, every other Interrupted; none restarted"
+  recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; none restarted, git not read"
 
 transitions:
   - "Start accepted: Running"
   - "session fails to open: Failed with reason `session did not open: ...`"
-  - "task_commit succeeds: Committed"
-  - "task_commit finds a link inside writes: Failed with the paths"
-  - "turn ends with no commit: Failed with reason `ended without a commit`"
+  - "task_report accepted: Committed with the sha and the report"
+  - "task_report refused: stays Running"
+  - "turn ends with no accepted report: Failed with reason `ended without a commit`"
   - "turn fails: Failed with the turn's failure"
   - "Stop confirmed: Stopped"
-  - "found Running at startup, its commit in git: Committed"
-  - "found Running at startup, no commit: Interrupted"
+  - "found Running at startup: Interrupted"
 # A turn whose end cannot be read keeps its scope held and is read again: an unread end
 # proves nothing about whether the session can still write.
 
 agreements:
-  - between: [check_free, checks, commit]
-    rule: One matcher decides overlap at Start, the dirty check at Start and the commit.
+  - between: [check_free, checks, report]
+    rule: One matcher decides overlap at Start, the dirty check at Start and the report check.
     holds: true
     why: >
       `check_free` asks `Scope::may_overlap` of the held attempts' writes, `checks`
-      filters git's changed paths through `Scope::admits`, and `commit` builds its
-      paths through the same `Scope`; scope.rs is the one place a pattern is read.
-    tested_by: [overlapping_tasks_cannot_start_together, start_refuses_uncommitted_changes_in_writes, commit_takes_only_the_paths_in_writes]
+      filters git's changed paths through `Scope::admits`, and `report` checks the
+      commit's paths through the same `Scope`; scope.rs is the one place a pattern is read.
+    tested_by: [overlapping_tasks_cannot_start_together, start_refuses_uncommitted_changes_in_writes, a_commit_with_paths_outside_writes_is_refused_until_fixed]
 
 obligations:
-  - rule: Start opens one Running attempt on an executor thread with the model given.
+  - rule: Start opens one Running attempt on an executor thread with the model given, recording the HEAD it saw.
     tested_by: [start_opens_one_attempt_on_an_executor_thread]
-  - rule: The first prompt names only the task number; the executor reads its task with task_context naming no plan version, which Plans answers from its grant. The live run uses the production prompt.
-    tested_by: [live_a_task_started_over_http_commits_only_its_writes, an_executor_grant_reads_only_its_own_task]
+  - rule: The first prompt names only the task number and says how the work ends (commit your own files, then task_report); the executor reads its task with task_context naming no plan version, which Plans answers from its grant. The live run uses the production prompt.
+    tested_by: [live_an_executor_commits_its_own_work_and_reports_it, an_executor_grant_reads_only_its_own_task]
   - rule: The same command id answers the same attempt, even once the plan could not start it; the same id with other input is a conflict.
     tested_by: [the_same_command_returns_the_same_attempt]
   - rule: A mark command is replayed, never applied again after a later mark, and its id names one mark.
@@ -131,28 +131,26 @@ obligations:
     tested_by: [live_an_executor_turn_in_another_mode_is_refused]
   - rule: A session that cannot open fails the attempt and frees its scope.
     tested_by: [a_session_that_fails_to_open_fails_the_attempt]
-  - rule: A turn that ends without a commit fails the attempt.
+  - rule: A turn that ends without an accepted report fails the attempt.
     tested_by: [a_turn_that_ends_without_a_commit_fails_the_attempt]
-  - rule: Recovery interrupts running attempts and restarts none; one whose commit git holds is Committed.
-    tested_by: [recover_interrupts_running_attempts_without_restarting_them, a_crash_between_git_and_sqlite_recovers_as_committed]
+  - rule: Recovery interrupts running attempts and restarts none.
+    tested_by: [recover_interrupts_running_attempts_without_restarting_them]
   - rule: Tasks whose writes may meet cannot run together; disjoint ones can; two concurrent Starts admit one.
     tested_by: [overlapping_tasks_cannot_start_together, disjoint_tasks_start_together, two_concurrent_starts_of_overlapping_tasks_admit_one]
   - rule: A committed attempt holds its scope until its turn has ended.
     tested_by: [a_committed_attempt_holds_its_scope_until_its_turn_ends]
   - rule: A released executor thread opens again neither as an executor nor as a Planner, and an executor's first turn hears no Planner instructions, planning context or stage line.
     tested_by: [a_released_executor_thread_does_not_open_again, an_executors_first_turn_hears_no_planner_instructions, live_an_executors_first_turn_hears_no_planner_instructions]
-  - rule: A commit holds only the changed paths inside writes; a path outside is left changed and named; a second commit is AlreadyCommitted.
-    tested_by: [commit_takes_only_the_paths_in_writes, a_rename_from_outside_writes_leaves_its_origin]
-  - rule: The person's staged entries outside the commit stay staged.
-    tested_by: [a_persons_staged_file_stays_staged]
-  - rule: Files no tool call wrote are committed when inside writes; ignored files never are.
-    tested_by: [files_a_generator_wrote_are_committed, ignored_files_never_enter_the_commit]
-  - rule: A path inside writes reached through a link or junction refuses the commit and fails the attempt; HEAD does not move.
-    tested_by: [a_junction_inside_writes_refuses_the_commit]
-  - rule: A HEAD that moved while the commit was written refuses it and loses nothing.
-    tested_by: [head_moving_during_the_commit_is_refused]
-  - rule: Commits in one folder run one at a time, each with its own paths.
-    tested_by: [two_commits_at_once_are_serialized]
+  - rule: A reported commit inside writes is accepted with its sha and report; the person's file outside it stays untracked; a second report is AlreadyCommitted.
+    tested_by: [a_reported_commit_inside_writes_is_accepted_with_its_report, live_an_executor_commits_its_own_work_and_reports_it]
+  - rule: A commit changing a path outside writes is refused with the paths; the attempt stays Running, and the fixed commit is accepted.
+    tested_by: [a_commit_with_paths_outside_writes_is_refused_until_fixed]
+  - rule: A commit adding or changing a binary file is refused with the paths.
+    tested_by: [a_commit_with_a_binary_file_is_refused]
+  - rule: A name that is not a SHA, a SHA naming no commit, and a commit not reachable from HEAD are refused.
+    tested_by: [an_unknown_or_unreachable_commit_is_refused]
+  - rule: A commit already reachable from the HEAD Start saw is refused.
+    tested_by: [a_commit_from_before_the_attempt_is_refused]
   - rule: An attempt's diff lists each file of its commit with its counts and patch.
     tested_by: [diff_returns_each_files_counts_and_patch]
   - rule: The matcher admits by pattern, with `*` stopping at `/`, an empty set admitting nothing, bad patterns refused and Windows separators normalised.
@@ -162,7 +160,7 @@ obligations:
 
 tests:
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter, in a real git repository
-  shadows-core/tests/runs_attempts/commit.rs: commits in a real git repository; the test plays the executor, no agent runs
+  shadows-core/tests/runs_attempts/report.rs: reported commits in a real git repository; the test plays the executor, no agent runs
   shadows/tests/runs_routes.rs: the HTTP routes over Runs, in a real git repository, with no adapter to open
-  shadows/tests/runs_routes/live.rs: a task started over HTTP on the real adapter commits through task_commit on the real /mcp; ignored in CI
+  shadows/tests/runs_routes/live.rs: a task started over HTTP on the real adapter commits its own file and reports it through task_report on the real /mcp; ignored in CI
   shadows-core/tests/runs_attempts/live.rs: attempts on the real adapter against MiniMax in a real git repository; ignored in CI, run with API_KEY_MINIMAX and `-- --ignored --test-threads=1`

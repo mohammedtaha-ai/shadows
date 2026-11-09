@@ -325,7 +325,7 @@ async fn an_executor_grant_lists_only_its_tools() {
             "where_is",
             "who_uses",
             "outline",
-            "task_commit"
+            "task_report"
         ]
     );
 }

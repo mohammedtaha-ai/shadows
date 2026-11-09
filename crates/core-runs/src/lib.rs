@@ -1,46 +1,48 @@
 //! One job: executor attempts at the tasks of an approved plan — their start,
-//! stop, commit, release of scope and recovery. The `Runs` service.
+//! stop, reported commit, release of scope and recovery. The `Runs` service.
 //!
 //! An attempt is one executor session on one task. It holds its scope, the
 //! `writes` it may change, from Start until its turn has ended and its session
 //! is closed; Start refuses a task whose `writes` may meet a held scope.
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
-//! `ready` the rule for links, `git` the git calls, `start`, `stop`, `commit`,
+//! `ready` the rule for links, `git` the git calls, `start`, `stop`, `report`,
 //! `watch` and `recover` the transitions, `diff` the reading of a commit.
 
-mod commit;
 mod diff;
 mod error;
 mod git;
 mod model;
 mod ready;
 mod recover;
+mod report;
 mod scope;
 mod start;
 mod stop;
 mod store;
 mod watch;
 
-use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptId, AttemptState, CommitResult, FileDiff, Need, RecoverReport, StartAnswer,
-    TaskRun,
+    Attempt, AttemptId, AttemptState, FileDiff, Need, RecoverReport, StartAnswer, TaskRun,
 };
 
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;
 use core_plans::{Plans, PlansError, WorkflowId};
-use core_projects::Projects;
+use core_projects::{ProjectId, Projects};
 use core_turns::Turns;
 use store::RunsStore;
 
 /// What every executor is first asked to do. It names only the task number:
-/// `task_context` reads the plan version from the executor's own grant.
-const FIRST_PROMPT: &str =
-    "Do task T{n}. Read it first: call task_context with task_number {n} and no workflow_id.";
+/// `task_context` reads the plan version from the executor's own grant. It
+/// says how the work ends, because the executor makes its own commit.
+const FIRST_PROMPT: &str = "Do task T{n}. Read it first: call task_context with task_number {n} \
+    and no workflow_id. When the work is done, stage only your own files inside the task's \
+    writes (never a binary or an installer) and run git commit yourself, then call task_report \
+    with the commit's sha and an honest report of what you did, ran and found.";
 
 /// The harness an executor thread runs on, so the only one whose models an
 /// executor can be offered.
@@ -52,26 +54,8 @@ struct Inner {
     harness: Arc<Harness>,
     turns: Turns,
     projects: Projects,
-    /// One commit at a time per project folder, by project id.
-    commits: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// Replaces the first prompt, so a test can script the fake adapter.
     prompt: Mutex<Option<String>>,
-    #[cfg(feature = "test-support")]
-    hooks: Mutex<Hooks>,
-}
-
-/// A test's step, given the project folder.
-#[cfg(feature = "test-support")]
-pub type FolderHook = Arc<dyn Fn(&std::path::Path) + Send + Sync>;
-
-/// What a test makes happen inside a commit.
-#[cfg(feature = "test-support")]
-#[derive(Clone, Default)]
-pub struct Hooks {
-    /// Runs in the project folder just before HEAD is moved.
-    pub before_update_ref: Option<FolderHook>,
-    /// The SQLite write after git committed fails.
-    pub fail_record: bool,
 }
 
 /// Attempts at tasks. Cheap to clone: the clones share one state.
@@ -95,10 +79,7 @@ impl Runs {
                 harness,
                 turns,
                 projects,
-                commits: Mutex::new(HashMap::new()),
                 prompt: Mutex::new(None),
-                #[cfg(feature = "test-support")]
-                hooks: Mutex::new(Hooks::default()),
             }),
         }
     }
@@ -235,6 +216,20 @@ impl Runs {
         Ok(plan)
     }
 
+    /// The folder `project` works in.
+    pub(crate) async fn folder(&self, project: &ProjectId) -> Result<PathBuf, RunsError> {
+        let project = self
+            .inner
+            .projects
+            .get(project)
+            .await
+            .map_err(|error| RunsError::Unavailable(error.to_string()))?;
+        project
+            .directory
+            .map(PathBuf::from)
+            .ok_or(RunsError::NotGit)
+    }
+
     /// Scripts the first prompt of later attempts.
     #[cfg(feature = "test-support")]
     pub fn set_first_prompt_for_tests(&self, prompt: &str) {
@@ -243,25 +238,6 @@ impl Runs {
             .prompt
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(prompt.to_string());
-    }
-
-    /// Sets what later commits make happen.
-    #[cfg(feature = "test-support")]
-    pub fn set_hooks_for_tests(&self, hooks: Hooks) {
-        *self
-            .inner
-            .hooks
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = hooks;
-    }
-
-    #[cfg(feature = "test-support")]
-    fn hooks(&self) -> Hooks {
-        self.inner
-            .hooks
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone()
     }
 
     fn first_prompt(&self, task: u32) -> String {

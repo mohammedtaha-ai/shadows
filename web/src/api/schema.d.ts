@@ -2023,7 +2023,7 @@ export interface components {
          *     until the turn starts.
          */
         Attempt: {
-            /** @description The commit's SHA once the attempt committed. */
+            /** @description The SHA of the commit the executor made and reported, once accepted. */
             commit: string | null;
             ended_at: string | null;
             id: components["schemas"]["AttemptId"];
@@ -2037,6 +2037,11 @@ export interface components {
             project_id: components["schemas"]["ProjectId"];
             /** @description Why the attempt failed, when it did. */
             reason: string | null;
+            /**
+             * @description The executor's own account of what it did, ran and found, stored
+             *     with its accepted commit.
+             */
+            report: string | null;
             started_at: string;
             state: components["schemas"]["AttemptState"];
             /** Format: int32 */

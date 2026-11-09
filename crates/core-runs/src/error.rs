@@ -20,14 +20,35 @@ pub enum RunsError {
     NotGit,
     #[error("uncommitted changes inside the task's writes: {}", paths.join(", "))]
     DirtyScope { paths: Vec<String> },
-    #[error("a path inside writes is reached through a link: {}", paths.join(", "))]
-    LinkInScope { paths: Vec<String> },
-    #[error("this attempt already committed")]
+    #[error("this attempt already reported its commit")]
     AlreadyCommitted,
-    #[error("nothing changed inside the task's writes")]
-    NothingToCommit { left: Vec<String> },
-    #[error("the branch moved while the commit was written; nothing was committed, try again")]
-    HeadMoved,
+    #[error(
+        "`{commit}` is not a commit in this repository; commit your files, then report \
+         the commit's full sha"
+    )]
+    UnknownCommit { commit: String },
+    #[error(
+        "commit {commit} is not on the branch checked out (not reachable from HEAD); commit \
+         on the current branch, without switching it, and report again"
+    )]
+    NotOnBranch { commit: String },
+    #[error(
+        "commit {commit} was already on the branch when this attempt started; commit your \
+         own work and report that commit"
+    )]
+    NotNew { commit: String },
+    #[error(
+        "the commit changes paths outside the task's writes: {}; take them out of the \
+         commit and report again",
+        paths.join(", ")
+    )]
+    OutsideWrites { paths: Vec<String> },
+    #[error(
+        "the commit adds or changes binary files: {}; take them out of the commit and \
+         report again",
+        paths.join(", ")
+    )]
+    BinaryFiles { paths: Vec<String> },
     #[error("the command id was used for another request")]
     CommandConflict,
     #[error("not found")]
@@ -52,10 +73,12 @@ impl RunsError {
             Self::Overlap { .. } => "overlap",
             Self::NotGit => "not_git",
             Self::DirtyScope { .. } => "dirty_scope",
-            Self::LinkInScope { .. } => "link_in_scope",
             Self::AlreadyCommitted => "already_committed",
-            Self::NothingToCommit { .. } => "nothing_to_commit",
-            Self::HeadMoved => "head_moved",
+            Self::UnknownCommit { .. } => "unknown_commit",
+            Self::NotOnBranch { .. } => "not_on_branch",
+            Self::NotNew { .. } => "not_new",
+            Self::OutsideWrites { .. } => "outside_writes",
+            Self::BinaryFiles { .. } => "binary_files",
             Self::CommandConflict => "command_conflict",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",

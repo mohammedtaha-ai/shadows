@@ -230,3 +230,13 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Plan: [B-94](plans/2026-11-08-executors.md#b-94-run-it).
 - Needs: B-93, F-98. Mohammed runs it.
 - Done when: T1 of the Laravel plan commits inside `backend/**` from its page; refusal, Stop and restart are observed in the browser and logs; evidence recorded.
+
+### B-95 · The executor commits its own work and reports it
+- Status: done on `fix/first-run` (migration 0053_attempt_report; live over HTTP passed)
+- Why: the first browser run (2026-11-09) committed 2354 files of a Python runtime through
+  `task_commit`, and the agent's own `git commit --amend` then orphaned the recorded commit.
+  Mohammed's ruling: the agent commits its own files and reports; Shadows checks and records.
+- Owner: Runs (`Runs::report` replaces `Runs::commit`; recovery reads no git); Grants (the
+  executor tool list); Harness (`executor.txt`); MCP (`task_report` replaces `task_commit`).
+- Design: [§7](specs/2026-11-08-executors-design.md#7-the-write-boundary), amended 2026-11-09.
+- Left: the web shows `report` on the Report tab (a frontend task; `schema.d.ts` is regenerated).

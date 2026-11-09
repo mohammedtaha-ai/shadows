@@ -752,8 +752,8 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         names,
         [
             "outline",
-            "task_commit",
             "task_context",
+            "task_report",
             "where_is",
             "who_uses"
         ]
@@ -765,8 +765,9 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
     );
     let other = json!({ "workflow_id": workflow, "task_number": 2 });
     refused(&executor, "task_context", other).await;
-    // The grant holds no attempt, so there is nothing of its own to commit.
-    refused(&executor, "task_commit", json!({ "message": "x" })).await;
+    // The grant holds no attempt, so there is nothing of its own to report.
+    let report = json!({ "commit": "abc1234", "report": "x" });
+    refused(&executor, "task_report", report).await;
     let edit = json!({ "workflow_id": workflow, "expected_revision": 1, "ops": [add(3)] });
     let params = rmcp::model::CallToolRequestParams::new("plan_edit")
         .with_arguments(edit.as_object().unwrap().clone());

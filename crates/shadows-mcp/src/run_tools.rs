@@ -13,32 +13,33 @@ use serde_json::json;
 use shadows_core::Grant;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct TaskCommitArgs {
-    /// What the commit does and why, in a few lines. Shadows adds the task's
-    /// number and title above it.
-    message: String,
+struct TaskReportArgs {
+    /// The full sha of the commit you made with `git commit` for this task.
+    commit: String,
+    /// What you did, what you ran or tested, and what passed or failed.
+    report: String,
 }
 
 #[tool_router(router = run_tool_router, vis = "pub(super)")]
 impl Shadows {
     #[tool(
-        description = "Commit your task's work once its checks pass. Shadows commits only the \
-                       changed files inside your task's writes; any other changed file stays \
-                       uncommitted and is listed in `left`. One commit per attempt."
+        description = "Report your task's work after you committed it yourself with git. \
+                       Shadows accepts the commit only if it is on the checked-out branch, \
+                       made after your task started, changes only paths inside your task's \
+                       writes and adds no binary file; a refusal says what to fix, then \
+                       report again. One accepted report per attempt."
     )]
-    async fn task_commit(
+    async fn task_report(
         &self,
         Extension(grant): Extension<Grant>,
-        Parameters(args): Parameters<TaskCommitArgs>,
+        Parameters(args): Parameters<TaskReportArgs>,
     ) -> CallToolResult {
         answer(
             self.core
                 .runs()
-                .commit(&grant, args.message)
+                .report(&grant, &args.commit, args.report)
                 .await
-                .map(|done| {
-                    json!({ "commit": done.attempt.commit, "files": done.files, "left": done.left })
-                })
+                .map(|a| json!({ "attempt": a.id, "state": a.state, "commit": a.commit }))
                 .map_err(Refusal::from),
         )
     }

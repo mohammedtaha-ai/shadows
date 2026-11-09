@@ -2,7 +2,8 @@
 
 - Date: 2026-11-08
 - Status: **approved** by Mohammed on 2026-11-08, in conversation, after a brainstorm with the
-  controller; `core-runs` (§9) and the controller's calls (§12) approved with it.
+  controller; `core-runs` (§9) and the controller's calls (§12) approved with it. Amended
+  2026-11-09 by Mohammed: the executor makes its own commit and reports it (§7).
 - Builds on, and does not replace:
   - Core vision §2 (bounded executors who ask Shadows), §3 (a failing test that belongs to
     another task), §5 (the escalation ladder), §6 (executors and critics) — `docs/core/vision.md`;
@@ -134,10 +135,10 @@ working-tree changes stay in the folder and are named in the Report.
   conservatively: when Shadows cannot prove two patterns disjoint, they intersect.
 - Ready tasks may run together. Mohammed starts each one; nothing starts on its own in the
   first release, except the retries in §5.
-- **Commits are serialized** by Shadows: one commit at a time per project folder. An executor
-  commits through a Shadows tool, not `git commit`. The tool stages only the attempt's changed
-  paths inside `writes` and commits them on the folder's current branch, with the task and
-  attempt in the message. Changed paths outside `writes` stay uncommitted and are named (§7).
+- **Each executor commits its own files** with `git commit`, on the folder's current branch, and
+  reports that commit to Shadows, which checks it and records it (§7, amended 2026-11-09).
+  Disjoint `writes` keep two executors' commits apart; Shadows writes no commit and keeps no
+  commit queue.
 - A test failing because of another running or unstarted task's code is reported as pending
   on that task (D4). The critic does not count it as a failure of this task.
 
@@ -154,18 +155,38 @@ built as the Planner is: it has only the tools and permissions its task gives it
   question. Any other request reaches Shadows and is refused, as a Planner session's are
   (`PermissionPolicy::Refuse`), and the refusal is a thread entry. The session runs in mode
   `default`, set explicitly: in `auto` and `acceptEdits` no request reaches Shadows at all.
-- Shell commands are not policed. A command may still write outside `writes`; the commit
-  handles that.
-- **At commit,** `task_commit` reads the folder's git status. Every changed path matching
-  `writes` is committed; a changed path outside `writes` is left in the folder, uncommitted, and
-  named in the attempt's Report. Files git ignores (`vendor/`, `.env`, caches) never appear.
-  A path inside `writes` reached through a link or junction refuses the commit, because git would
-  read another folder's files through it.
+- Shell commands are not policed. A command may still write outside `writes`; the check on the
+  reported commit handles that.
 - Containers and other processes a task starts keep running after its turn and after Stop;
   stopping them is the project's business, not the attempt's.
-- **Accepted:** a hand edit or another process's change inside a running task's `writes` is
-  committed with the task's work. The Diff tab and the critic show it. Two tasks never share
-  `writes` (§6), so no task commits another's files.
+
+**The commit: amended 2026-11-09 by Mohammed, after the first browser run.** Evidence: the
+executor ran `python` (a Windows store stub), which installed a Python runtime into
+`backend/Python/`; `task_commit` then committed 2354 files, everything changed inside `writes`.
+The agent removed the runtime and ran `git commit --amend` from its shell, which dropped the
+`Shadows-Attempt` trailer and left Shadows pointing at an orphaned commit. The rule now: the
+agent knows what it did, so **the agent makes its own commit and then reports to Shadows
+exactly what it did; Shadows checks and records.** This replaces `task_commit`, its temporary
+index, its commit queue and its trailer.
+
+- **The executor commits.** It removes its strays first, stages only its own files inside
+  `writes`, by name, never a binary or an installer, and runs `git commit` with its own message
+  on the branch that is checked out. Every other change in the folder, the person's included,
+  stays where it is.
+- **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
+  account of what it did, what it ran or tested, and what passed or failed. The executor's
+  instructions and its first prompt say this plainly.
+- **Runs checks the reported commit** and refuses, with a reason the agent can act on, when the
+  name is not a SHA of a commit in the repository; the commit is not reachable from HEAD; it
+  was already reachable from the HEAD recorded when the attempt started; any path it changes
+  against its first parent lies outside `writes` (all listed); or it adds or modifies a file
+  git counts as binary (all listed). A refusal leaves the attempt `Running`, so the agent fixes
+  its commit and reports again.
+- **On acceptance** the attempt becomes `Committed` with the SHA and the report text, which
+  the Report tab shows. One accepted report per attempt; another is `AlreadyCommitted`.
+- **Accepted:** a hand edit inside a running task's `writes` enters the commit only if the
+  executor stages it. Two tasks never share `writes` (§6), so no task's commit passes the check
+  with another's files.
 
 ## 8. What the executor and critic receive (D11, D12)
 
@@ -173,13 +194,13 @@ built as the Planner is: it has only the tools and permissions its task gives it
 
 - Instructions: Shadows' built-in executor instructions (stay in `writes`; build nothing you do
   not own; no mocks for another task's code; a test pending on another task is expected; stop
-  and report if the plan is wrong; commit through the tool).
+  and report if the plan is wrong; commit your own files with git, then report the commit).
 - The task: goal, reads, writes, acceptance, phases, and for each link the other task's number,
   title, state and label.
 - The project structure: the approved map's parts and their folders.
 - Tools over Shadows MCP, with a grant scoped to this task: `where_is`, `who_uses`, `outline`
-  (the code index); `task_commit`; `task_report` (done, or a problem with evidence and the
-  tasks it affects).
+  (the code index); `task_report` (the commit the executor made and its account of the work,
+  §7). Reporting a problem with evidence and the tasks it affects joins it with the ladder.
 - Model: the one chosen on the task page.
 
 **Critic session**
@@ -201,13 +222,13 @@ the code and the diff to investigate.
 ## 9. Ownership
 
 A new service, **Runs** (`core-runs`), owns attempts: their records, the ready rule, the
-concurrency check, the commit queue, the attempt ladder and the critic dispatch. It is listed
+concurrency check, the check of a reported commit, the attempt ladder and the critic dispatch. It is listed
 in `AppCore` with its contract. This is the controller's proposal and needs Mohammed's approval
 with this spec; CLAUDE.md requires a new owner to be a controller decision.
 
 | Owner | Gains |
 |---|---|
-| `core-runs` (new) | attempts, the ready rule, concurrency, commit queue, ladder, critic dispatch, task status |
+| `core-runs` (new) | attempts, the ready rule, concurrency, reported commits, ladder, critic dispatch, task status |
 | `core-plans` | the suggested model on `TaskContent`; acceptance marks per attempt are read from Runs, the plan stays immutable |
 | `core-harness` | executor and critic sessions: their instructions, their scoped grant, their mode |
 | `core-grants` | a task-scoped grant |
@@ -226,9 +247,10 @@ Each slice runs end to end in the browser before the next.
 
 0. **Probe:** done 2026-11-08; §7 holds its outcome.
 1. **One task, by hand:** Runs, the task page (Details, Run), Start/Stop, the executor session
-   with its scoped grant and its task's permission rules, `task_commit` with its `writes` check, the Diff
-   tab. No critic: the attempt ends at its commit and Mohammed reads it. The `writes` overlap
-   check and the commit queue ship here, so two tasks started together are already safe.
+   with its scoped grant and its task's permission rules, `task_report` with its check of the
+   executor's own commit (§7, amended 2026-11-09), the Diff tab. No critic: the attempt ends at
+   its commit and Mohammed reads it. The `writes` overlap check ships here, so two tasks started
+   together are already safe.
 2. **The critic:** dispatch after the commit, `task_review`, acceptance marks, the Report tab,
    real plan progress (the two shared requests). Its plan decides whether a task carries
    `checks` (commands) that Runs runs at Start, before the first write, and again after the
@@ -239,7 +261,7 @@ Each slice runs end to end in the browser before the next.
 3. **The ladder:** the owner thread, the Planner's failure message and its three tools,
    attempts 2 and 3 in the same session, the stop for Mohammed.
 4. **Together:** pending-on-another-task marks, and the acceptance run of several tasks at once
-   (the overlap check and commit queue already shipped in slice 1).
+   (the overlap check already shipped in slice 1).
 
 ## 11. Acceptance
 
@@ -266,11 +288,10 @@ this spec; each is marked as the controller's, not his.
    project folder is not a git repository, or when it already has uncommitted changes inside the
    task's `writes`. Changes elsewhere in the folder are other tasks' business and do not block.
    Commits go to whatever branch the folder has checked out; Shadows never switches it.
-3. **Restart.** A running attempt found on startup is matched against git first: a commit whose
-   `Shadows-Attempt` trailer names it makes it `Committed` (git is written before SQLite).
-   Otherwise it becomes `Interrupted`: its process is gone, its uncommitted changes stay in the
-   folder and are listed. An attempt whose session fails to open, or whose turn ends without a
-   commit, is `Failed` with that reason. Each attempt is bound to its turn's operation. It does not count toward the cap
+3. **Restart.** A running attempt found on startup becomes `Interrupted`: with no accepted
+   report Shadows recorded no commit, and git is not searched (amended 2026-11-09, §7). Its
+   process is gone; its uncommitted changes stay in the folder. An attempt whose session fails
+   to open, or whose turn ends without an accepted report, is `Failed` with that reason. Each attempt is bound to its turn's operation. It does not count toward the cap
    and does not climb the ladder. The Report tab shows it; Start begins a new attempt in a new
    session. Runs reconciles this on startup through Operations.
 4. **The ladder lives in Runs, not in prompts.** After a critic FAIL, Runs posts the failure into

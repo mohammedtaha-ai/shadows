@@ -386,11 +386,7 @@ impl AppCore {
         );
         // No attempt survives its daemon: settle them before anything is served.
         let recovered = core.runs.recover().await?;
-        tracing::info!(
-            committed = recovered.committed,
-            interrupted = recovered.interrupted,
-            "recovery.runs_settled"
-        );
+        tracing::info!(interrupted = recovered.interrupted, "recovery.runs_settled");
         // The active set is chosen and the workers spawned; `serve`
         // waits for no scan. The index never stops the daemon.
         if let Err(error) = core.code.start(CodeConfig::default()).await {

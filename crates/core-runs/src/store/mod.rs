@@ -34,6 +34,7 @@ type AttemptRow = (
     Option<String>,
     String,
     Option<String>,
+    Option<String>,
 );
 
 pub(super) struct RunsStore {
@@ -50,6 +51,8 @@ pub(crate) struct NewAttempt {
     pub(crate) task: u32,
     pub(crate) model: String,
     pub(crate) writes: Vec<String>,
+    /// The commit HEAD named at Start; `None` on a branch with no commit.
+    pub(crate) start_head: Option<String>,
 }
 
 pub(crate) struct Begun {
@@ -99,8 +102,9 @@ impl RunsStore {
                     sqlx::query(
                         "INSERT INTO run_attempts
                            (id, project_id, workflow_id, version, task, number, thread_id,
-                            model, state, writes_json, started_at, command_id, fingerprint)
-                         VALUES (?,?,?,?,?,?,?,?,'running',?,?,?,?)",
+                            model, state, writes_json, started_at, command_id, fingerprint,
+                            start_head)
+                         VALUES (?,?,?,?,?,?,?,?,'running',?,?,?,?,?)",
                     )
                     .bind(id.as_str())
                     .bind(new.project.as_str())
@@ -114,6 +118,7 @@ impl RunsStore {
                     .bind(&ts)
                     .bind(&new.command_id)
                     .bind(&new.fingerprint)
+                    .bind(&new.start_head)
                     .execute(&mut *conn)
                     .await?;
                     let attempt = Self::load(conn, &id).await?;
@@ -214,7 +219,8 @@ impl RunsStore {
     async fn load(conn: &mut SqliteConnection, id: &AttemptId) -> Result<Attempt, RunsError> {
         let row: Option<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
-                    operation_id, model, state, commit_sha, reason, started_at, ended_at
+                    operation_id, model, state, commit_sha, reason, started_at, ended_at,
+                    report
                  FROM run_attempts WHERE id = ?",
         )
         .bind(id.as_str())
@@ -246,6 +252,7 @@ impl RunsStore {
             reason: row.11,
             started_at: row.12,
             ended_at: row.13,
+            report: row.14,
         })
     }
 
@@ -330,26 +337,42 @@ impl RunsStore {
         Ok(serde_json::from_str(&writes)?)
     }
 
-    /// Records the commit git already holds. A `Running` attempt becomes
-    /// `Committed`; one that left `Running` meanwhile keeps its state and
-    /// still names its commit.
-    pub async fn record_commit(&self, id: &AttemptId, sha: &str) -> Result<(), RunsError> {
-        let (id, sha, ts) = (id.clone(), sha.to_string(), Storage::now());
+    /// The commit HEAD named when the attempt started.
+    pub async fn start_head(&self, id: &AttemptId) -> Result<Option<String>, RunsError> {
+        let head: Option<Option<String>> =
+            sqlx::query_scalar("SELECT start_head FROM run_attempts WHERE id = ?")
+                .bind(id.as_str())
+                .fetch_optional(self.storage.reader())
+                .await?;
+        head.ok_or(RunsError::NotFound)
+    }
+
+    /// Records the accepted commit and report: a `Running` attempt becomes
+    /// `Committed`. Answers whether this call moved it; one that left
+    /// `Running` meanwhile keeps its state.
+    pub async fn record_report(
+        &self,
+        id: &AttemptId,
+        sha: &str,
+        report: &str,
+    ) -> Result<bool, RunsError> {
+        let (id, sha, report) = (id.clone(), sha.to_string(), report.to_string());
+        let ts = Storage::now();
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    sqlx::query(
-                        "UPDATE run_attempts SET commit_sha = ?,
-                           state = CASE WHEN state = 'running' THEN 'committed' ELSE state END,
-                           ended_at = COALESCE(ended_at, ?)
-                         WHERE id = ? AND commit_sha IS NULL",
+                    let moved = sqlx::query(
+                        "UPDATE run_attempts
+                         SET state = 'committed', commit_sha = ?, report = ?, ended_at = ?
+                         WHERE id = ? AND state = 'running'",
                     )
                     .bind(&sha)
+                    .bind(&report)
                     .bind(&ts)
                     .bind(id.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    Ok(())
+                    Ok(moved.rows_affected() == 1)
                 })
             })
             .await
@@ -384,7 +407,8 @@ impl RunsStore {
     ) -> Result<Vec<Attempt>, RunsError> {
         let rows: Vec<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
-                    operation_id, model, state, commit_sha, reason, started_at, ended_at
+                    operation_id, model, state, commit_sha, reason, started_at, ended_at,
+                    report
              FROM run_attempts
              WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
         )

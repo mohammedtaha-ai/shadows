@@ -2,42 +2,26 @@
 use super::RunsStore;
 use crate::RunsError;
 use core_db::{Actor, Storage};
-use core_projects::ProjectId;
 use core_threads::ThreadId;
 
 impl RunsStore {
-    /// Each project with an attempt still `Running`, once, in a stable order.
-    pub async fn running_projects(&self) -> Result<Vec<ProjectId>, RunsError> {
-        let rows: Vec<String> = sqlx::query_scalar(
-            "SELECT DISTINCT project_id FROM run_attempts
-             WHERE state = 'running' ORDER BY project_id",
-        )
-        .fetch_all(self.storage.reader())
-        .await?;
-        Ok(rows.into_iter().map(ProjectId::from_recorded).collect())
-    }
-
-    /// Every `Running` attempt's grant is revoked. One whose commit git holds,
-    /// `(attempt, commit)` in `found`, becomes `Committed` with it; every other
-    /// becomes `Interrupted`. Every attempt still holding its scope releases it,
-    /// because no session of an earlier daemon is left to write. Answers how
-    /// many were committed and how many interrupted.
-    pub async fn settle_running(
-        &self,
-        found: Vec<(String, String)>,
-    ) -> Result<(u32, u32), RunsError> {
+    /// Every `Running` attempt's grant is revoked and the attempt becomes
+    /// `Interrupted`: an accepted report is the only way to `Committed`, and
+    /// none came. Every attempt still holding its scope releases it, because
+    /// no session of an earlier daemon is left to write. Answers how many
+    /// were interrupted.
+    pub async fn settle_running(&self) -> Result<u32, RunsError> {
         let ts = Storage::now();
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let running: Vec<(String, String)> = sqlx::query_as(
-                        "SELECT id, thread_id FROM run_attempts
+                    let running: Vec<String> = sqlx::query_scalar(
+                        "SELECT thread_id FROM run_attempts
                          WHERE state = 'running' ORDER BY started_at, id",
                     )
                     .fetch_all(&mut *conn)
                     .await?;
-                    let mut committed = 0u32;
-                    for (id, thread) in &running {
+                    for thread in &running {
                         core_grants::Grants::revoke_thread_grants_in(
                             conn,
                             &ThreadId::from_recorded(thread.clone()),
@@ -45,19 +29,6 @@ impl RunsStore {
                             &ts,
                         )
                         .await?;
-                        if let Some((_, sha)) = found.iter().find(|(attempt, _)| attempt == id) {
-                            sqlx::query(
-                                "UPDATE run_attempts
-                                 SET state = 'committed', commit_sha = ?, ended_at = ?
-                                 WHERE id = ?",
-                            )
-                            .bind(sha)
-                            .bind(&ts)
-                            .bind(id)
-                            .execute(&mut *conn)
-                            .await?;
-                            committed += 1;
-                        }
                     }
                     sqlx::query(
                         "UPDATE run_attempts SET state = 'interrupted', ended_at = ?
@@ -72,8 +43,7 @@ impl RunsStore {
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
-                    let total = u32::try_from(running.len()).unwrap_or(u32::MAX);
-                    Ok((committed, total - committed))
+                    Ok(u32::try_from(running.len()).unwrap_or(u32::MAX))
                 })
             })
             .await

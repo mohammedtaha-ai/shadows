@@ -70,9 +70,13 @@ pub struct Attempt {
     pub operation_id: Option<OperationId>,
     pub model: String,
     pub state: AttemptState,
-    /// The commit's SHA once the attempt committed.
+    /// The SHA of the commit the executor made and reported, once accepted.
     #[schema(required)]
     pub commit: Option<String>,
+    /// The executor's own account of what it did, ran and found, stored
+    /// with its accepted commit.
+    #[schema(required)]
+    pub report: Option<String>,
     /// Why the attempt failed, when it did.
     #[schema(required)]
     pub reason: Option<String>,
@@ -126,15 +130,6 @@ pub struct Need {
     pub done: bool,
 }
 
-/// What a commit did: the attempt, now `Committed`, the paths it committed,
-/// and the changed paths outside `writes` it left in the folder.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct CommitResult {
-    pub attempt: Attempt,
-    pub files: Vec<String>,
-    pub left: Vec<String>,
-}
-
 /// One file of an attempt's commit: its line counts and its patch, cut at
 /// 2,000 lines with a marker.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
@@ -145,9 +140,8 @@ pub struct FileDiff {
     pub patch: String,
 }
 
-/// What startup recovery found.
+/// What startup recovery found: how many running attempts it interrupted.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RecoverReport {
-    pub committed: u32,
     pub interrupted: u32,
 }

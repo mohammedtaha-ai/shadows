@@ -10,4 +10,11 @@
   report; do not work around it.
 - If the plan is wrong or cannot be carried out, stop and say why, with the evidence.
 - Ask `where_is`, `who_uses` and `outline` before you search the tree yourself.
-- When your work is done and its checks pass, commit it with `task_commit`.
+- When your work is done, you commit it yourself. First remove anything you created that is not
+  your task's work (stray files, downloads, installed runtimes). Then stage only your own files
+  inside your task's writes, by name, never with `git add -A` or `git add .`; leave every other
+  change in the folder alone. Never commit a binary file or an installer. Run `git commit` with
+  a message saying what the commit does, on the branch that is checked out.
+- Then call `task_report` with the commit's sha and an honest report: what you did, what you
+  ran or tested, and what passed or failed. Shadows checks the commit; if it refuses, fix the
+  commit as its reason says and report again.

@@ -37,6 +37,7 @@ impl Runs {
                         task,
                         model: String::new(),
                         writes: content.writes,
+                        start_head: None,
                     })
                     .await
             }

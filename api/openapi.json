@@ -915,7 +915,7 @@
         "description": "One try at a task. `operation_id` is the operation of its turn, absent\nuntil the turn starts.",
         "properties": {
           "commit": {
-            "description": "The commit's SHA once the attempt committed.",
+            "description": "The SHA of the commit the executor made and reported, once accepted.",
             "type": [
               "string",
               "null"
@@ -959,6 +959,13 @@
               "null"
             ]
           },
+          "report": {
+            "description": "The executor's own account of what it did, ran and found, stored\nwith its accepted commit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "started_at": {
             "type": "string"
           },
@@ -994,6 +1001,7 @@
           "model",
           "state",
           "commit",
+          "report",
           "reason",
           "started_at",
           "ended_at"

@@ -3,13 +3,13 @@
 //! runs on `fake_acp`; `wait-for-release` holds its turn until a `release`
 //! file appears in the project folder. `live` runs the real adapter.
 
-#[path = "runs_attempts/commit.rs"]
-mod commit;
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;
 #[path = "runs_attempts/live.rs"]
 mod live;
+#[path = "runs_attempts/report.rs"]
+mod report;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -366,6 +366,15 @@ async fn start_opens_one_attempt_on_an_executor_thread() {
         .await
         .unwrap();
     assert_eq!(kind, "executor");
+    // A reported commit is judged new against the HEAD Start saw.
+    let start_head: Option<String> =
+        sqlx::query_scalar("SELECT start_head FROM run_attempts WHERE id = ?")
+            .bind(attempt.id.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    let head = git(&f.root, &["rev-parse", "HEAD"]);
+    assert_eq!(start_head.as_deref(), Some(head.trim()));
     f.finish().await;
 }
 
@@ -590,7 +599,7 @@ async fn recover_interrupts_running_attempts_without_restarting_them() {
     .await
     .unwrap();
     let report = f.core.runs().recover().await.unwrap();
-    assert_eq!((report.interrupted, report.committed), (1, 0));
+    assert_eq!(report.interrupted, 1);
     let attempt = f
         .core
         .runs()
