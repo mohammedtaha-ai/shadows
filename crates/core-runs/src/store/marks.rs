@@ -27,26 +27,6 @@ impl RunsStore {
         Ok(row)
     }
 
-    /// Every task of the version marked done, ascending.
-    pub(crate) async fn done_tasks(
-        &self,
-        workflow: &WorkflowId,
-        version: i64,
-    ) -> Result<Vec<u32>, RunsError> {
-        let rows: Vec<i64> = sqlx::query_scalar(
-            "SELECT task FROM run_task_marks
-             WHERE workflow_id = ? AND version = ? AND done = 1 ORDER BY task",
-        )
-        .bind(workflow.as_str())
-        .bind(version)
-        .fetch_all(self.storage.reader())
-        .await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|n| u32::try_from(n).ok())
-            .collect())
-    }
-
     /// A replay of the same command with the same request writes nothing, and
     /// with another request is a conflict. The command record keeps every
     /// command, so a later mark of the same task does not forget an earlier one.

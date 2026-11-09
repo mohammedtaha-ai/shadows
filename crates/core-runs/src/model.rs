@@ -2,7 +2,7 @@
 
 use core_db::newtype_id;
 use core_operations::OperationId;
-use core_plans::WorkflowId;
+use core_plans::{TaskParent, WorkflowId};
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
@@ -80,6 +80,36 @@ pub struct TaskRun {
     pub done: bool,
     pub done_at: Option<String>,
     pub latest: Option<Attempt>,
+}
+
+/// A task this one waits on through a `needs` link: a task of the same
+/// version, or of another plan's latest version.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct Need {
+    /// A number for a task of this version; `{ plan_id, task }` for another plan's.
+    pub task: TaskParent,
+    pub title: String,
+    /// Marked done by the person in the version the link reaches.
+    pub done: bool,
+}
+
+/// What a commit did: the attempt, now `Committed`, the paths it committed,
+/// and the changed paths outside `writes` it left in the folder.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct CommitResult {
+    pub attempt: Attempt,
+    pub files: Vec<String>,
+    pub left: Vec<String>,
+}
+
+/// One file of an attempt's commit: its line counts and its patch, cut at
+/// 2,000 lines with a marker.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct FileDiff {
+    pub path: String,
+    pub added: u32,
+    pub removed: u32,
+    pub patch: String,
 }
 
 /// What startup recovery found.

@@ -3,18 +3,20 @@
 //! runs on `fake_acp`; `wait-for-release` holds its turn until a `release`
 //! file appears in the project folder. `live` runs the real adapter.
 
+#[path = "runs_attempts/commit.rs"]
+mod commit;
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;
 #[path = "runs_attempts/live.rs"]
 mod live;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use core_runs::{Attempt, AttemptState, RunsError};
-use cross_plan::{SOURCE, command};
+use cross_plan::{SOURCE, TARGET, TARGET_PLAN, command};
 use serde_json::Value;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::testing::acp;
@@ -50,7 +52,7 @@ fn task(number: u32, writes: &str) -> PlanOp {
 }
 
 /// T1 `lib/**`, T3 `backend/app/**`, T4 `backend/app/Models/**`, T5 `web/**`,
-/// T6 `docs/**` which needs T1.
+/// T6 `docs/**` which needs T1, T7 `api/**` which needs T2 of another plan.
 fn tasks() -> Vec<PlanOp> {
     vec![
         task(1, "lib/**"),
@@ -58,6 +60,7 @@ fn tasks() -> Vec<PlanOp> {
         task(4, "backend/app/Models/**"),
         task(5, "web/**"),
         task(6, "docs/**"),
+        task(7, "api/**"),
         PlanOp::LinkPut {
             link: Link {
                 task: 6,
@@ -67,7 +70,45 @@ fn tasks() -> Vec<PlanOp> {
                 waiting_items: vec![],
             },
         },
+        PlanOp::LinkPut {
+            link: Link {
+                task: 7,
+                after: other_plan_task(),
+                kind: LinkKind::Needs,
+                label: "the backend".into(),
+                waiting_items: vec![],
+            },
+        },
     ]
+}
+
+/// T2 of the other plan, in its latest version.
+fn other_plan_task() -> TaskParent {
+    TaskParent::Plan {
+        plan_id: shadows_core::PlanId::from_literal(TARGET_PLAN),
+        task: 2,
+    }
+}
+
+fn git(root: &Path, args: &[&str]) -> String {
+    let out = std::process::Command::new("git")
+        .current_dir(root)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {:?}", out);
+    String::from_utf8(out.stdout).unwrap()
+}
+
+/// A person's project: a git repository with one commit.
+fn repository(root: &Path) {
+    git(root, &["init", "-q"]);
+    git(root, &["config", "user.email", "runs@example.invalid"]);
+    git(root, &["config", "user.name", "Runs"]);
+    git(root, &["config", "core.autocrlf", "false"]);
+    std::fs::write(root.join("README.md"), "demo\n").unwrap();
+    git(root, &["add", "README.md"]);
+    git(root, &["commit", "-q", "-m", "start"]);
 }
 
 async fn fixture() -> Fixture {
@@ -79,6 +120,7 @@ async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fix
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let root = tmp.path().join("project");
     std::fs::create_dir(&root).unwrap();
+    repository(&root);
     let ctx = |id: &str, kind: &str| CommandContext {
         agent: None,
         principal_kind: "User".into(),
@@ -129,9 +171,42 @@ async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fix
     .execute(storage.reader())
     .await
     .unwrap();
-    cross_plan::approve_roadmap(&storage, project_id, &["source-plan"]).await;
+    sqlx::query(
+        "INSERT INTO plan (id, project_id, state, created_at)
+         VALUES (?, ?, 'Active', '2026-10-04T00:00:00Z')",
+    )
+    .bind(TARGET_PLAN)
+    .bind(project_id)
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO workflow
+           (id, plan_id, state, version, revision, title, goal, written_by_thread,
+            created_at, updated_at)
+         VALUES (?, ?, 'Draft', 1, 0, 'Backend', 'A usable API', ?,
+           '2026-10-04T00:00:00Z', '2026-10-04T00:00:00Z')",
+    )
+    .bind(TARGET)
+    .bind(TARGET_PLAN)
+    .bind(thread_id)
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    cross_plan::approve_roadmap(&storage, project_id, &["source-plan", TARGET_PLAN]).await;
     let workflow = WorkflowId::from_literal(SOURCE);
     let plans = AppCore::plans_for_tests(storage.clone());
+    plans
+        .edit_plan_for_test(
+            &command("target-tasks"),
+            &Writer::Person,
+            None,
+            &WorkflowId::from_literal(TARGET),
+            0,
+            &[task(2, "server/**")],
+        )
+        .await
+        .unwrap();
     plans
         .edit_plan_for_test(
             &command("tasks"),
@@ -282,8 +357,9 @@ async fn start_waits_for_needs_links() {
     let f = fixture().await;
     f.hold();
     let waiting = f.start("s1", 6).await;
+    let one = vec![TaskParent::Local(1)];
     assert!(
-        matches!(&waiting, Err(RunsError::Waiting { tasks }) if tasks == &vec![1]),
+        matches!(&waiting, Err(RunsError::Waiting { tasks }) if tasks == &one),
         "{waiting:?}"
     );
     let marked = f
@@ -315,6 +391,40 @@ async fn start_waits_for_needs_links() {
         "{elsewhere:?}"
     );
     f.finish().await;
+}
+
+/// A `needs` link to another plan's task waits for that task's mark in the
+/// version the link reaches. The adapter is missing, so an attempt that
+/// passed every check is recorded `Failed` without any agent running.
+#[tokio::test]
+async fn start_waits_for_a_needs_link_to_another_plans_task() {
+    let missing = acp::adapter_at(PathBuf::from("no-such-adapter"));
+    let f = fixture_with(true, Some(missing)).await;
+    let waiting = f.start("s1", 7).await;
+    assert!(
+        matches!(&waiting, Err(RunsError::Waiting { tasks }) if tasks == &vec![other_plan_task()]),
+        "{waiting:?}"
+    );
+    let reason = waiting.unwrap_err().to_string();
+    assert!(
+        reason.contains(TARGET_PLAN) && reason.contains("T2"),
+        "{reason}"
+    );
+    let target = WorkflowId::from_literal(TARGET);
+    f.core
+        .runs()
+        .mark_done("m1".into(), &target, 1, 2, true)
+        .await
+        .unwrap();
+    let started = f.start("s2", 7).await.unwrap();
+    assert!(
+        started
+            .reason
+            .as_deref()
+            .is_some_and(|r| r.starts_with("session did not open")),
+        "{started:?}"
+    );
+    f.storage.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -570,5 +680,15 @@ async fn an_executors_first_turn_hears_no_planner_instructions() {
     let blocks = report["blocks"].to_string();
     assert!(!blocks.contains("Planner instructions"), "{blocks}");
     assert!(!blocks.contains("French"), "{blocks}");
+    // Nor the Planner's planning context: the executor reads its task, not the plan.
+    assert!(!blocks.contains("Planning context"), "{blocks}");
+    assert!(!blocks.contains("Stage:"), "{blocks}");
+    let carried: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM invocation_context WHERE thread_id = ?")
+            .bind(attempt.thread_id.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(carried, 0, "planning context was recorded for an executor");
     f.finish().await;
 }

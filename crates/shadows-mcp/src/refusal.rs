@@ -210,6 +210,26 @@ impl From<shadows_core::ProjectLifecycleError> for Refusal {
     }
 }
 
+/// A run's refusal keeps Runs' own code at the start of its text, so the
+/// executor reads which rule refused it and what to do.
+impl From<shadows_core::RunsError> for Refusal {
+    fn from(error: shadows_core::RunsError) -> Self {
+        use shadows_core::RunsError;
+        match error {
+            RunsError::Storage(error) => error.into(),
+            RunsError::CommandConflict => Self::new(
+                ErrorCode::CommandConflict,
+                "the command id was used for another request",
+            ),
+            RunsError::NotFound => Self::scope("no running attempt holds this grant's task"),
+            other => Self::new(
+                ErrorCode::InvalidCommand,
+                format!("{}: {other}", other.code()),
+            ),
+        }
+    }
+}
+
 impl From<shadows_core::EventsError> for Refusal {
     fn from(error: shadows_core::EventsError) -> Self {
         CoreError::from(error).into()

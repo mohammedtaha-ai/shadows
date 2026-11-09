@@ -44,8 +44,14 @@ const PROJECT_TOOLS: [&str; 16] = [
     "workspace_get",
 ];
 
-/// An executor reads its task and the code it needs; commit tools come with B-92.
-const EXECUTOR_TOOLS: [&str; 4] = ["task_context", "where_is", "who_uses", "outline"];
+/// An executor reads its task and the code it needs, and commits its work.
+const EXECUTOR_TOOLS: [&str; 5] = [
+    "task_context",
+    "where_is",
+    "who_uses",
+    "outline",
+    "task_commit",
+];
 
 impl Grants {
     pub fn tools_for(kind: GrantKind) -> &'static [&'static str] {

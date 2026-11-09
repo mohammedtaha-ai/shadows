@@ -481,5 +481,6 @@ tests:
       the first.
 
 # Both tools_for allowlists include task_context, a read with no execution authority.
-# The executor allowlist is task_context, where_is, who_uses and outline; startup and
+# The executor allowlist is task_context, where_is, who_uses, outline and task_commit
+# (Runs::commit, which commits only inside the task's writes); startup and
 # thread removal revoke executor grants with the thread ones (executor_session tests).

@@ -40,7 +40,8 @@ impl Tools {
             + Shadows::code_tool_router()
             + Shadows::turn_tool_router()
             + Shadows::agreement_tool_router()
-            + Shadows::workspace_tool_router();
+            + Shadows::workspace_tool_router()
+            + Shadows::run_tool_router();
         let only = |names: &[&str]| {
             let mut router = every.clone();
             for tool in every.list_all() {

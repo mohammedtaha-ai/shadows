@@ -284,6 +284,64 @@ impl RunsStore {
             .await
     }
 
+    /// The latest attempt of the task `scope` names on `thread`: the one an
+    /// executor grant belongs to.
+    pub(crate) async fn executor_attempt(
+        &self,
+        thread: &ThreadId,
+        scope: &core_grants::TaskScope,
+    ) -> Result<Attempt, RunsError> {
+        let id: Option<String> = sqlx::query_scalar(
+            "SELECT id FROM run_attempts
+             WHERE thread_id = ? AND workflow_id = ? AND version = ? AND task = ?
+             ORDER BY number DESC LIMIT 1",
+        )
+        .bind(thread.as_str())
+        .bind(&scope.workflow)
+        .bind(scope.version)
+        .bind(i64::from(scope.task))
+        .fetch_optional(self.storage.reader())
+        .await?;
+        let id = id.ok_or(RunsError::NotFound)?;
+        self.get(&AttemptId::from_recorded(id)).await
+    }
+
+    /// The `writes` the attempt was started with.
+    pub(crate) async fn writes(&self, id: &AttemptId) -> Result<Vec<String>, RunsError> {
+        let writes: String =
+            sqlx::query_scalar("SELECT writes_json FROM run_attempts WHERE id = ?")
+                .bind(id.as_str())
+                .fetch_optional(self.storage.reader())
+                .await?
+                .ok_or(RunsError::NotFound)?;
+        Ok(serde_json::from_str(&writes)?)
+    }
+
+    /// Records the commit git already holds. A `Running` attempt becomes
+    /// `Committed`; one that left `Running` meanwhile keeps its state and
+    /// still names its commit.
+    pub(crate) async fn record_commit(&self, id: &AttemptId, sha: &str) -> Result<(), RunsError> {
+        let (id, sha, ts) = (id.clone(), sha.to_string(), Storage::now());
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    sqlx::query(
+                        "UPDATE run_attempts SET commit_sha = ?,
+                           state = CASE WHEN state = 'running' THEN 'committed' ELSE state END,
+                           ended_at = COALESCE(ended_at, ?)
+                         WHERE id = ? AND commit_sha IS NULL",
+                    )
+                    .bind(&sha)
+                    .bind(&ts)
+                    .bind(id.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                    Ok(())
+                })
+            })
+            .await
+    }
+
     /// The attempt's session cannot write any more: its scope is free.
     pub(crate) async fn release(&self, id: &AttemptId) -> Result<(), RunsError> {
         let (id, ts) = (id.clone(), Storage::now());

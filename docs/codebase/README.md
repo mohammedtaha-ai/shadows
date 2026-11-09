@@ -171,6 +171,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/plan_tools.rs` | plan MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/agreement_tools.rs` | agreement tool translation | `crates/shadows-mcp/src/agreement_tools.rs` |
 | `crates/shadows-mcp/src/workspace_tools.rs` | workspace read tool translation | `crates/shadows-mcp/src/workspace_tools.rs` |
+| `crates/shadows-mcp/src/run_tools.rs` | task commit tool translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
@@ -190,6 +191,9 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/ready.rs` | the rule for needs links | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/start.rs` | starting an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/commit.rs` | committing an attempt's work | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/diff.rs` | reading an attempt's commit | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/watch.rs` | following a turn to its end | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/recover.rs` | settling attempts at startup | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |

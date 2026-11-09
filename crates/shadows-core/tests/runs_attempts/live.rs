@@ -3,8 +3,6 @@
 //! `API_KEY_MINIMAX` set and `-- --ignored --test-threads=1`.
 use super::*;
 use shadows_agent::profile::ClaudeProfile;
-use std::path::Path;
-use std::process::Command;
 
 const ADAPTER_VERSION: &str = "0.101.0";
 const CLAUDE_VERSION: &str = "2.1.319";
@@ -85,30 +83,9 @@ fn live_adapter() -> LiveAdapter {
     }
 }
 
-fn git(root: &Path, args: &[&str]) -> String {
-    let out = Command::new("git")
-        .current_dir(root)
-        .args(args)
-        .output()
-        .unwrap();
-    assert!(out.status.success(), "git {args:?}: {:?}", out);
-    String::from_utf8(out.stdout).unwrap()
-}
-
-/// A person's project: a git repository with one commit.
-fn repository(root: &Path) {
-    git(root, &["init", "-q"]);
-    git(root, &["config", "user.email", "live@example.invalid"]);
-    git(root, &["config", "user.name", "Live"]);
-    std::fs::write(root.join("README.md"), "demo\n").unwrap();
-    git(root, &["add", "README.md"]);
-    git(root, &["commit", "-q", "-m", "start"]);
-}
-
 async fn live_fixture() -> (Fixture, LiveAdapter) {
     let live = live_adapter();
     let f = fixture_with(true, Some(live.adapter.clone())).await;
-    repository(&f.root);
     (f, live)
 }
 
@@ -187,6 +164,73 @@ async fn live_an_executor_writes_inside_its_task_in_mode_default_and_is_refused_
     f.finish().await;
 }
 
+/// An executor's write boundary holds only in mode `default`: in any other
+/// mode its edits would not reach Shadows to be refused. On a real executor
+/// session, a turn in another mode is refused before anything is written.
+#[tokio::test]
+#[ignore = "live: needs API_KEY_MINIMAX"]
+async fn live_an_executor_turn_in_another_mode_is_refused() {
+    let (f, _live) = live_fixture().await;
+    let project = f.project.clone();
+    let thread = f
+        .storage
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                shadows_core::Threads::create_executor_in(
+                    conn,
+                    &project,
+                    "T5".into(),
+                    "claude-code",
+                )
+                .await
+            })
+        })
+        .await
+        .unwrap();
+    let scope = shadows_core::testing::TaskScope {
+        workflow: SOURCE.into(),
+        version: 1,
+        task: 5,
+    };
+    f.core
+        .harness()
+        .open_executor(&thread, &["web/**".into()], scope, PICKED.into())
+        .await
+        .unwrap();
+    // The modes this session offers besides `default`; Shadows offers no others.
+    for mode in ["acceptEdits", "auto"] {
+        let sent = f
+            .core
+            .turns()
+            .send_with_default_effort(
+                thread.clone(),
+                shadows_core::SendTurn {
+                    command_id: format!("mode-{mode}"),
+                    prompt: "Use the Write tool to create web/x.txt containing A.".into(),
+                    attachments: vec![],
+                    model: PICKED.into(),
+                    mode: mode.into(),
+                    effort: None,
+                    focus: None,
+                    plan: None,
+                    client_tab: None,
+                },
+            )
+            .await;
+        println!("live mode {mode}: {sent:?}");
+        assert!(
+            matches!(sent, Err(shadows_core::TurnsError::ModeNotAllowed(ref m)) if m == mode),
+            "{sent:?}"
+        );
+    }
+    let offered = f.sessions.offered(&thread).await.unwrap();
+    assert_eq!(offered.current.mode, "default");
+    assert!(f.entries_of(&thread).await.is_empty());
+    assert!(!f.root.join("web/x.txt").exists());
+    f.core.harness().release_executor(&thread).await.unwrap();
+    f.finish().await;
+}
+
 #[tokio::test]
 #[ignore = "live: needs API_KEY_MINIMAX"]
 async fn live_stop_ends_a_running_attempt_and_frees_its_scope() {
@@ -257,5 +301,13 @@ async fn live_an_executors_first_turn_hears_no_planner_instructions() {
         .find(|e| e.kind == ThreadEntryKind::UserMessage)
         .expect("the first prompt");
     assert!(!sent.body.contains("PINEAPPLE"), "{}", sent.body);
+    // No planning context was carried to the executor.
+    let carried: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM invocation_context WHERE thread_id = ?")
+            .bind(attempt.thread_id.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(carried, 0);
     f.finish().await;
 }

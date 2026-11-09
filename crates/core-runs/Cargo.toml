@@ -22,6 +22,7 @@ core-threads = { path = "../core-threads" }
 core-turns = { path = "../core-turns" }
 globset = "0.4"
 shadows-agent = { path = "../shadows-agent" }
+shadows-process = { path = "../shadows-process" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }

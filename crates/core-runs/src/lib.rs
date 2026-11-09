@@ -1,14 +1,17 @@
 //! One job: executor attempts at the tasks of an approved plan — their start,
-//! stop, release of scope and recovery. The `Runs` service.
+//! stop, commit, release of scope and recovery. The `Runs` service.
 //!
 //! An attempt is one executor session on one task. It holds its scope, the
 //! `writes` it may change, from Start until its turn has ended and its session
 //! is closed; Start refuses a task whose `writes` may meet a held scope.
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
-//! `ready` the rule for links, `start`, `stop`, `watch` and `recover` the
-//! transitions.
+//! `ready` the rule for links, `git` the git calls, `start`, `stop`, `commit`,
+//! `watch` and `recover` the transitions, `diff` the reading of a commit.
 
+mod commit;
+mod diff;
 mod error;
+mod git;
 mod model;
 mod ready;
 mod recover;
@@ -18,15 +21,19 @@ mod stop;
 mod store;
 mod watch;
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub use error::RunsError;
-pub use model::{Attempt, AttemptId, AttemptState, RecoverReport, TaskRun};
+pub use model::{
+    Attempt, AttemptId, AttemptState, CommitResult, FileDiff, Need, RecoverReport, TaskRun,
+};
 pub use scope::Scope;
 
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;
 use core_plans::{Plans, PlansError, WorkflowId};
+use core_projects::Projects;
 use core_turns::Turns;
 use store::RunsStore;
 
@@ -38,8 +45,27 @@ struct Inner {
     plans: Plans,
     harness: Arc<Harness>,
     turns: Turns,
+    projects: Projects,
+    /// One commit at a time per project folder, by project id.
+    commits: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// Replaces the first prompt, so a test can script the fake adapter.
     prompt: Mutex<Option<String>>,
+    #[cfg(feature = "test-support")]
+    hooks: Mutex<Hooks>,
+}
+
+/// A test's step, given the project folder.
+#[cfg(feature = "test-support")]
+pub type FolderHook = Arc<dyn Fn(&std::path::Path) + Send + Sync>;
+
+/// What a test makes happen inside a commit.
+#[cfg(feature = "test-support")]
+#[derive(Clone, Default)]
+pub struct Hooks {
+    /// Runs in the project folder just before HEAD is moved.
+    pub before_update_ref: Option<FolderHook>,
+    /// The SQLite write after git committed fails.
+    pub fail_record: bool,
 }
 
 /// Attempts at tasks. Cheap to clone: the clones share one state.
@@ -49,14 +75,24 @@ pub struct Runs {
 }
 
 impl Runs {
-    pub fn new(storage: Arc<Storage>, plans: Plans, harness: Arc<Harness>, turns: Turns) -> Self {
+    pub fn new(
+        storage: Arc<Storage>,
+        plans: Plans,
+        harness: Arc<Harness>,
+        turns: Turns,
+        projects: Projects,
+    ) -> Self {
         Self {
             inner: Arc::new(Inner {
                 store: RunsStore::with_storage(storage),
                 plans,
                 harness,
                 turns,
+                projects,
+                commits: Mutex::new(HashMap::new()),
                 prompt: Mutex::new(None),
+                #[cfg(feature = "test-support")]
+                hooks: Mutex::new(Hooks::default()),
             }),
         }
     }
@@ -143,6 +179,25 @@ impl Runs {
             .prompt
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(prompt.to_string());
+    }
+
+    /// Sets what later commits make happen.
+    #[cfg(feature = "test-support")]
+    pub fn set_hooks_for_tests(&self, hooks: Hooks) {
+        *self
+            .inner
+            .hooks
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = hooks;
+    }
+
+    #[cfg(feature = "test-support")]
+    fn hooks(&self) -> Hooks {
+        self.inner
+            .hooks
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     fn first_prompt(&self, task: u32) -> String {

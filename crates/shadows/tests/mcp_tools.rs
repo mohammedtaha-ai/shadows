@@ -748,7 +748,16 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .map(|tool| tool.name.to_string())
         .collect();
     names.sort();
-    assert_eq!(names, ["outline", "task_context", "where_is", "who_uses"]);
+    assert_eq!(
+        names,
+        [
+            "outline",
+            "task_commit",
+            "task_context",
+            "where_is",
+            "who_uses"
+        ]
+    );
     let own = json!({ "workflow_id": workflow, "task_number": 1 });
     assert_eq!(
         ok(&executor, "task_context", own).await["task"]["number"],
@@ -756,6 +765,8 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
     );
     let other = json!({ "workflow_id": workflow, "task_number": 2 });
     refused(&executor, "task_context", other).await;
+    // The grant holds no attempt, so there is nothing of its own to commit.
+    refused(&executor, "task_commit", json!({ "message": "x" })).await;
     let edit = json!({ "workflow_id": workflow, "expected_revision": 1, "ops": [add(3)] });
     let params = rmcp::model::CallToolRequestParams::new("plan_edit")
         .with_arguments(edit.as_object().unwrap().clone());

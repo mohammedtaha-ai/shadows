@@ -311,7 +311,13 @@ async fn an_executor_grant_reads_only_its_own_task() {
 async fn an_executor_grant_lists_only_its_tools() {
     assert_eq!(
         Grants::tools_for(GrantKind::Executor),
-        ["task_context", "where_is", "who_uses", "outline"]
+        [
+            "task_context",
+            "where_is",
+            "who_uses",
+            "outline",
+            "task_commit"
+        ]
     );
 }
 

@@ -1,12 +1,13 @@
 //! One job: starting an attempt — checks, the record, the session and its
 //! first turn.
+use crate::git::Git;
 use crate::model::AttemptState;
 use crate::scope::Scope;
 use crate::store::NewAttempt;
 use crate::{Attempt, Runs, RunsError};
 use core_db::CommandContext;
 use core_grants::TaskScope;
-use core_plans::{PlanState, WorkflowId, WorkflowState};
+use core_plans::{Plan, PlanState, TaskContent, WorkflowId, WorkflowState};
 use core_turns::SendTurn;
 
 /// The permission mode in which a request outside the task's rules is refused.
@@ -35,27 +36,7 @@ impl Runs {
             return Ok(first);
         }
         let plan = self.plan(workflow, version).await?;
-        if plan.plan_state == PlanState::Archived {
-            return Err(RunsError::Archived);
-        }
-        if plan.state != WorkflowState::Frozen {
-            return Err(RunsError::NotFrozen);
-        }
-        if plan.next.is_some() {
-            return Err(RunsError::Superseded);
-        }
-        let content = plan
-            .tasks
-            .iter()
-            .find(|t| t.content.number == task)
-            .ok_or(RunsError::NotFound)?
-            .content
-            .clone();
-        Scope::new(&content.writes).map_err(RunsError::BadScope)?;
-        let waiting = self.waiting_on(&plan, task).await?;
-        if !waiting.is_empty() {
-            return Err(RunsError::Waiting { tasks: waiting });
-        }
+        let content = self.checks(&plan, task).await?;
         let begun = self
             .inner
             .store
@@ -123,8 +104,53 @@ impl Runs {
         self.inner.store.get(&attempt.id).await
     }
 
+    /// What Start checks before it writes anything, in order: the version,
+    /// the task and its patterns, its `needs` links, then the folder: a git
+    /// repository with nothing uncommitted inside the task's `writes`.
+    /// Changes elsewhere in the folder are other tasks' business.
+    pub(crate) async fn checks(&self, plan: &Plan, task: u32) -> Result<TaskContent, RunsError> {
+        if plan.plan_state == PlanState::Archived {
+            return Err(RunsError::Archived);
+        }
+        if plan.state != WorkflowState::Frozen {
+            return Err(RunsError::NotFrozen);
+        }
+        if plan.next.is_some() {
+            return Err(RunsError::Superseded);
+        }
+        let content = plan
+            .tasks
+            .iter()
+            .find(|t| t.content.number == task)
+            .ok_or(RunsError::NotFound)?
+            .content
+            .clone();
+        let matcher = Scope::new(&content.writes).map_err(RunsError::BadScope)?;
+        let waiting = self.waiting_on(plan, task).await?;
+        if !waiting.is_empty() {
+            return Err(RunsError::Waiting { tasks: waiting });
+        }
+        let git = Git::at(&self.folder(&plan.project_id).await?);
+        let prefix = git.prefix().await.ok_or(RunsError::NotGit)?;
+        let dirty: Vec<String> = git
+            .changed(&prefix)
+            .await
+            .map_err(RunsError::Unavailable)?
+            .into_iter()
+            .filter(|path| matcher.admits(path))
+            .collect();
+        if !dirty.is_empty() {
+            return Err(RunsError::DirtyScope { paths: dirty });
+        }
+        Ok(content)
+    }
+
     /// The attempt cannot go on: it fails with `reason` and frees its scope.
-    async fn abandon(&self, attempt: Attempt, reason: String) -> Result<Attempt, RunsError> {
+    pub(crate) async fn abandon(
+        &self,
+        attempt: Attempt,
+        reason: String,
+    ) -> Result<Attempt, RunsError> {
         self.inner
             .store
             .finish(&attempt.id, AttemptState::Failed, Some(reason))

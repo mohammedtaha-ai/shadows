@@ -21,7 +21,8 @@ impl Turns {
             thread,
         )
         .await?;
-        if context.harness == "aylul" {
+        // An executor reads its one task through `task_context`, never the plan around it.
+        if context.harness == "aylul" || context.kind == core_threads::ThreadKind::Executor {
             return Ok(None);
         }
         tracing::debug!(%thread, "planner.context_compiling");

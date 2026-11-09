@@ -161,7 +161,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Done when: the plan's B-91 tests pass, with migration, architecture, codemap and contract checks.
 
 ### B-92 · Git and `task_commit`
-- Status: ready (dispatch only when Mohammed says so)
+- Status: done (commit tests in `shadows-core/tests/runs_attempts/commit.rs`, real git; live mode test passed)
 - Plan: [B-92](plans/2026-11-08-executors.md#b-92-git-and-task_commit).
 - Owner: Runs (git through `shadows-process`); MCP (the tool).
 - Needs: B-91 (done, 8442d973).
@@ -170,7 +170,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Done when: the plan's B-92 tests pass.
 
 ### B-93 · Task attempts over HTTP
-- Status: blocked (B-92)
+- Status: ready
 - Plan: [B-93](plans/2026-11-08-executors.md#b-93-runs-over-http).
 - Owner: `shadows-http` (translation only).
 - Needs: B-92; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).
