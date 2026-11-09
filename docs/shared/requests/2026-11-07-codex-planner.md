@@ -39,6 +39,5 @@ to this request and generated from source before its backend/frontend tasks run.
 
 ## Frontend reply
 
-Accepted by the controller for the planned Core web work. F-97 waits for B-87's
-implemented behavior. Use the server's available modes, reasons and capabilities;
+Built in F-97 (2026-11-09) on B-87's behavior. Use the server's available modes, reasons and capabilities;
 do not add local permission rules. Keep the current conversation layout.

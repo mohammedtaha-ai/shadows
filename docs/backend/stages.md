@@ -170,7 +170,7 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 ### B-88 · Accept Codex in the real Planner
 
-- Status: blocked (F-97)
+- Status: blocked (waits only on Mohammed's real browser run; F-97 is done)
 - Plan: [Acceptance](plans/2026-11-07-codex-app-server.md#b-88-acceptance-and-delivery).
 - Read: §12.14, the Codex plan and the evidence record.
 - Touch: Codex evidence, owner spec §12.14, the Codex plan, this stages file and `docs/frontend/stages.md`.

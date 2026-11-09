@@ -233,14 +233,14 @@ types change for the accepted request; do not edit artifacts by hand. Commit the
 **Interfaces:** Uses the existing harness/session API and stream through their domain hooks;
 no direct provider calls, provider-specific permission inference, or hard-coded model list.
 
-- [ ] Add tests for selecting configured Codex in a draft, the first-send handoff retaining
+- [x] Add tests for selecting configured Codex in a draft, the first-send handoff retaining
   `harness: codex`, the harness lock after a turn, and the server's missing-configuration reason.
-- [ ] Cover per-model effort refresh and rejected model errors. Keep text/settings on a failed
+- [x] Cover per-model effort refresh and rejected model errors. Keep text/settings on a failed
   send and preserve command IDs for equal retries; changing settings makes a new command.
-- [ ] Make labels/refusals describe Core's reported state without a Claude-only Auto hint on
+- [x] Make labels/refusals describe Core's reported state without a Claude-only Auto hint on
   Codex. Test streamed text and tool results once each, unsupported images, no phantom background
   tasks, and the context/rate-limit values supplied by B-87. Keep the existing layout.
-- [ ] From `web/`, run `npx vitest run src/app/conversation/draft.test.tsx
+- [x] From `web/`, run `npx vitest run src/app/conversation/draft.test.tsx
   src/app/conversation/conversation.test.tsx src/app/conversation/composer-bar.test.tsx
   src/app/conversation/context-ring.test.tsx src/app/conversation/background-tasks.test.tsx`,
   `npm run typecheck`, `npm run lint`, `npm run build`, and
