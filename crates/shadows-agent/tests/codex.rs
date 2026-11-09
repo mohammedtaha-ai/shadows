@@ -3,8 +3,26 @@ use shadows_agent::codex::{CodexProgram, Connection};
 use shadows_agent::connection::ConnectionError;
 use shadows_agent::events::HarnessEvent;
 use shadows_process::ProcessHandle;
-use std::{path::PathBuf, time::Duration};
+use std::{path::PathBuf, sync::OnceLock, time::Duration};
 use tokio::sync::mpsc;
+
+/// The fake is built with `test-support` on demand, since `cargo test` alone
+/// never builds a binary whose required feature no test crate enables.
+fn fixture_executable() -> PathBuf {
+    static BIN: OnceLock<PathBuf> = OnceLock::new();
+    BIN.get_or_init(|| {
+        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fake-codex/Cargo.toml");
+        escargot::CargoBuild::new()
+            .manifest_path(manifest)
+            .bin("fake-codex")
+            .features("test-support")
+            .run()
+            .expect("build fake-codex with test-support")
+            .path()
+            .to_owned()
+    })
+    .clone()
+}
 
 struct Peer {
     _process: ProcessHandle,
@@ -15,13 +33,7 @@ struct Peer {
 
 impl Peer {
     async fn start() -> Self {
-        let executable = std::env::current_exe().unwrap();
-        let executable = executable
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join(format!("fake-codex{}", std::env::consts::EXE_SUFFIX));
+        let executable = fixture_executable();
         let cwd = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let setup = SessionSetup {
             mcp: vec![McpServerSpec::Http {

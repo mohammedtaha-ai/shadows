@@ -61,16 +61,6 @@ async fn observe(State(audit): State<Arc<Audit>>, request: Request, next: Next) 
 fn fixture_executable() -> PathBuf {
     static BIN: OnceLock<PathBuf> = OnceLock::new();
     BIN.get_or_init(|| {
-        let executable = std::env::current_exe().unwrap();
-        let path = executable
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join(format!("fake-codex{}", std::env::consts::EXE_SUFFIX));
-        if path.is_file() {
-            return path;
-        }
         let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fake-codex/Cargo.toml");
         escargot::CargoBuild::new()
             .manifest_path(manifest)

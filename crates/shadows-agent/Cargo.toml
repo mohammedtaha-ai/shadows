@@ -23,3 +23,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+# Builds `fake-codex` with `test-support` for `tests/codex.rs`.
+escargot = { workspace = true }

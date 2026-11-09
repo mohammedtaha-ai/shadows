@@ -3709,6 +3709,7 @@ version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
  "base64 0.22.1",
+ "escargot",
  "serde",
  "serde_json",
  "shadows-process",
