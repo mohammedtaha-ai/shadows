@@ -240,3 +240,238 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
   executor tool list); Harness (`executor.txt`); MCP (`task_report` replaces `task_commit`).
 - Design: [§7](specs/2026-11-08-executors-design.md#7-the-write-boundary), amended 2026-11-09.
 - Left: the web shows `report` on the Report tab (a frontend task; `schema.d.ts` is regenerated).
+
+
+## Approved local delivery implementation, 2026-11-09
+
+Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 1 is detailed below by Hamoud; later slices keep their draft pointers until their slice is detailed.
+
+### B-96 · Inventory independent of parser support
+
+- Status: todo
+- Plan: [Task 1](plans/2026-11-09-repository-discovery.md#task-1-b-96-inventory-independent-of-parser-support).
+- Owner: Code.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
+- Needs: none; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-97 · Server catalog and controlled process lifecycle
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 2](plans/2026-11-09-repository-discovery.md#task-2-b-97-server-catalog-and-controlled-process-lifecycle).
+- Owner: Code.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
+- Needs: B-96; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-98 · Verified semantic queries with bounded results
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 3](plans/2026-11-09-repository-discovery.md#task-3-b-98-verified-semantic-queries-with-bounded-results).
+- Owner: Code.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
+- Needs: B-97; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-99 · Repository and LSP APIs reach the Planner
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 4](plans/2026-11-09-repository-discovery.md#task-4-b-99-repository-and-lsp-apis-reach-the-planner).
+- Owner: Code, Grants and adapters.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
+- Needs: B-98; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-100 · Preparation request, scope and persistence
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 1](plans/2026-11-09-project-preparation.md#task-1-b-100-preparation-request-scope-and-persistence).
+- Owner: Runs and Grants.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
+- Needs: B-99; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-101 · Bounded preparation worker and refreshed result
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 2](plans/2026-11-09-project-preparation.md#task-2-b-101-bounded-preparation-worker-and-refreshed-result).
+- Owner: Runs and Harness.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
+- Needs: B-100; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-102 · Preparation HTTP/MCP and observable status
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 3](plans/2026-11-09-project-preparation.md#task-3-b-102-preparation-httpmcp-and-observable-status).
+- Owner: Runs adapters.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
+- Needs: B-101; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-103 · Persist typed file/symbol work
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 1](plans/2026-11-09-detailed-task-contracts.md#task-1-b-103-persist-typed-filesymbol-work).
+- Owner: Plans.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
+- Needs: B-96; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-104 · Resolve producers and consumers in the existing graph
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 2](plans/2026-11-09-detailed-task-contracts.md#task-2-b-104-resolve-producers-and-consumers-in-the-existing-graph).
+- Owner: Plans.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
+- Needs: B-103; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-105 · Minimal accepted decision revisions
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 3](plans/2026-11-09-detailed-task-contracts.md#task-3-b-105-minimal-accepted-decision-revisions).
+- Owner: Design.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
+- Needs: B-104; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-106 · Expose contract editing, context and decisions
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 4](plans/2026-11-09-detailed-task-contracts.md#task-4-b-106-expose-contract-editing-context-and-decisions).
+- Owner: Plans/Design adapters.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
+- Needs: B-105; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-107 · Store a simple brief on each attempt
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 1](plans/2026-11-09-execution-briefs.md#task-1-b-107-store-a-simple-brief-on-each-attempt).
+- Owner: Runs.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
+- Needs: B-102, B-106; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-108 · Readiness from real inputs and current plan state
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 2](plans/2026-11-09-execution-briefs.md#task-2-b-108-readiness-from-real-inputs-and-current-plan-state).
+- Owner: Runs with Plans.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
+- Needs: B-107; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-109 · Task-aware questions and executor tools
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 3](plans/2026-11-09-execution-briefs.md#task-3-b-109-task-aware-questions-and-executor-tools).
+- Owner: Runs, Grants and adapters.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
+- Needs: B-108; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-110 · Bounded source from the reported Git SHA
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 1](plans/2026-11-09-checks-and-critic.md#task-1-b-110-bounded-source-from-the-reported-git-sha).
+- Owner: Runs.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
+- Needs: B-109; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-111 · Run required checks with source provenance
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 2](plans/2026-11-09-checks-and-critic.md#task-2-b-111-run-required-checks-with-source-provenance).
+- Owner: Runs.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
+- Needs: B-110; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-112 · Read-only critic session and one review per result
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 3](plans/2026-11-09-checks-and-critic.md#task-3-b-112-read-only-critic-session-and-one-review-per-result).
+- Owner: Runs, Harness and Grants.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
+- Needs: B-111; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-113 · Evidence-backed outputs and honest task acceptance
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 4](plans/2026-11-09-checks-and-critic.md#task-4-b-113-evidence-backed-outputs-and-honest-task-acceptance).
+- Owner: Runs.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
+- Needs: B-112; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-114 · Expose checks, critic and result detail
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 5](plans/2026-11-09-checks-and-critic.md#task-5-b-114-expose-checks-critic-and-result-detail).
+- Owner: Runs adapters.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 5; no other source paths.
+- Needs: B-113; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 5 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-115 · Retry in the same live session with fresh attempt identity
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 1](plans/2026-11-09-repair-and-acceptance.md#task-1-b-115-retry-in-the-same-live-session-with-fresh-attempt-identity).
+- Owner: Runs and Harness.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
+- Needs: B-114; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-116 · Find the actual Planner and enforce the three-attempt ladder
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 2](plans/2026-11-09-repair-and-acceptance.md#task-2-b-116-find-the-actual-planner-and-enforce-the-three-attempt-ladder).
+- Owner: Plans and Runs.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
+- Needs: B-115; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-117 · Stop obsolete plans and rerun pending evidence
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 3](plans/2026-11-09-repair-and-acceptance.md#task-3-b-117-stop-obsolete-plans-and-rerun-pending-evidence).
+- Owner: Runs with Plans.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
+- Needs: B-116; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### B-118 · Disposable full journey and branch delivery evidence
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 4](plans/2026-11-09-repair-and-acceptance.md#task-4-b-118-disposable-full-journey-and-branch-delivery-evidence).
+- Owner: Controller across existing owners.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
+- Needs: B-117, F-104; accepted shared API/model agreement. 
+- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.

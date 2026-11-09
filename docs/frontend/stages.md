@@ -89,3 +89,78 @@ mockup's `Built` label cannot be used as evidence of completion.
 - Touch: the plan's F-98 file list.
 - Needs: B-93's routes and generated types; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).
 - Done when: the plan's F-98 tests, typecheck, lint, build, codemap and architecture pass.
+
+
+## Approved local delivery UI, 2026-11-09
+
+These tasks are blocked until their named backend API exists; no component implements Core readiness policy.
+
+### F-99 · Files view and server status
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 1](plans/2026-11-09-local-delivery-ui.md#task-1-f-99-files-view-and-server-status).
+- Owner: web API and design UI.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
+- Needs: B-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### F-100 · Preparation status from the Planner's project
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 2](plans/2026-11-09-local-delivery-ui.md#task-2-f-100-preparation-status-from-the-planners-project).
+- Owner: web API and design UI.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
+- Needs: B-102, F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### F-101 · Readable task contract and decision pins
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 3](plans/2026-11-09-local-delivery-ui.md#task-3-f-101-readable-task-contract-and-decision-pins).
+- Owner: web API, task and workflow UI.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
+- Needs: B-106, F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### F-102 · Attempt brief and scoped question results
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 4](plans/2026-11-09-local-delivery-ui.md#task-4-f-102-attempt-brief-and-scoped-question-results).
+- Owner: web API and task UI.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
+- Needs: B-109, F-101; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### F-103 · Check evidence, critic model and acceptance
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 5](plans/2026-11-09-local-delivery-ui.md#task-5-f-103-check-evidence-critic-model-and-acceptance).
+- Owner: web API and task UI.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 5; no other source paths.
+- Needs: B-114, F-102; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Done when: all named RED/GREEN steps and focused verification commands in Task 5 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### F-104 · Repair state and replan controls
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 6](plans/2026-11-09-local-delivery-ui.md#task-6-f-104-repair-state-and-replan-controls).
+- Owner: web API and task UI.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 6; no other source paths.
+- Needs: B-117, F-103; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Done when: all named RED/GREEN steps and focused verification commands in Task 6 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+### F-105 · Browser acceptance of the complete local journey
+
+- Status: blocked (prerequisites below must ship first)
+- Plan: [Task 7](plans/2026-11-09-local-delivery-ui.md#task-7-f-105-browser-acceptance-of-the-complete-local-journey).
+- Owner: Frontend/controller.
+- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
+- Touch: exact Create/Modify/Test file list of Task 7; no other source paths.
+- Needs: B-118, F-104; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Done when: all named RED/GREEN steps and focused verification commands in Task 7 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.

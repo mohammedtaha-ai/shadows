@@ -2,7 +2,9 @@
 
 - **Date:** 2026-10-01
 - **Status:** Draft for owner review. Mohammed confirmed complete local-system
-  scope on 2026-11-09. The written design in 17.0 still awaits his approval.
+  scope on 2026-11-09 and approved 17.0 the same day. 17.0 is what gets built.
+  17.1 to 17.11 are the earlier draft, kept as background: nothing in them is
+  built unless 17.0 or the delivery program names it.
 - **Idea:** `docs/core/vision.md` §§2–5: agents work within explicit task boundaries,
   report evidence when the plan is wrong, and completion is established by
   verification rather than by an agent's claim.
@@ -13,392 +15,243 @@ This section moves a plan from a list of tasks to a contract an executor can
 follow and the runtime can check. Planning, execution, verification and human
 decisions remain distinct kinds of state.
 
-## 17.0 Local delivery revision, 2026-11-09
+## 17.0 Approved local delivery revision, 2026-11-09
 
-This proposed revision incorporates Mohammed's current requirements and the
-built executor path. Scope approval is not written-design approval. After
-approval, 17.0 supersedes conflicting details in 17.1-17.11. Section 17.12
-remains future production work. See the
-[delivery program](../../backend/plans/2026-11-09-local-delivery-program.md).
+Mohammed approved this design with the review corrections on 2026-11-09.
+This section supersedes conflicting machinery in 17.1-17.11, which remains
+earlier design material. Section 17.12 remains future production work.
+The [delivery program](../../backend/plans/2026-11-09-local-delivery-program.md)
+owns task ordering; this section owns behavior.
 
-### Intent and user decisions
+### The required outcome
 
-The Planner plans against the real repository. Shadows shows files already
-installed by the person. Once framework and destination are agreed, prepare
-an absent scaffold before detailed planning continues. Layout follows that
-framework and the person, never a universal folder template.
+Shadows shows the real project files before detailed planning. Existing Laravel
+is recognized; an absent framework scaffold is prepared at the agreed location.
+Tasks then state files to read/create/modify, function/class names, responsibility,
+inputs, returns, errors and behavior. The executor chooses the implementation.
+Shadows retains producer/consumer relationships and supplies the relevant
+contracts with the executor's task, without the parent transcript.
 
-A task specifies files to read and why, files to create/modify, required
-functions/classes, responsibility, inputs, outputs and behavior. The executor
-writes the solution and its tests, not a supplied finished function body.
-Shadows retains producer/consumer relationships; an executor receives the
-contracts needed for its own task, not the whole Planner transcript.
+The local path includes independent checks, a critic and bounded repair.
+A commit/report alone never establishes that an acceptance item passed.
+Use mature LSP servers alongside source and planning facts. Server results
+cannot override task scope or turn a planned function into existing code.
 
-Mohammed confirmed the complete local scope: discovery, detailed contracts,
-execution context, independent checks/evidence, critic and bounded repair.
-This adds no cloud/production, team, manager or editable specialist-dashboard
-requirement to the local path.
+### Corrections approved with this revision
 
-### Baseline and approaches
+- Keep detailed file/symbol contracts in the first delivery sequence.
+- Keep globs as permission boundaries where needed. They never replace the
+  named file work and behavioral brief. A Redis configuration task can name
+  docker/redis/redis.conf while its permitted scope remains docker/**.
+  Framework-generated files may be discovered after preparation.
+- Use one typed Rust/JSON task model with textual language type names and
+  explicit references. Do not build a JSON Schema equivalence/fingerprint engine.
+- Save one execution brief per attempt, identified by existing IDs and plan
+  version/base commit. Do not build a hashed packet compiler or context ledger.
+- Keep existing write-overlap protection. Add source revalidation and a single
+  project verification slot; defer a general read/write lease manager.
+- Read tracked review source from Git by exact SHA/path. Do not copy tracked
+  source into a second snapshot/artifact store or make another checkout.
+- Use the existing plan/Draft state and Runs watcher to stop obsolete work.
+  Do not add a Plans/Runs hold/acknowledgement protocol.
+- Register all 13 requested LSP descriptors. Enable/install only project-needed
+  servers; PHP, Rust and TS are the first real trials. Untested is not ready.
+- Preserve necessary check provenance, cancellation and deduplication, without
+  inventing cost measurements or a universal evidence platform.
 
-Inspected at `cbf2b597` on `fix/first-run`: Code indexes Rust and JS/TS variants,
-not PHP or a complete file inventory. TaskContent has goal, reads, writes,
-acceptance and phases. Task context has selected layout and optional phase
-dependencies, not captured source. Runs owns attempts, held writes, reported
-commits and manual done marks. The executor commits and calls `task_report`;
-Git/path validation is not independent behavioral verification. Critic,
-execution packets and the repair ladder are not built in this path.
+### Owners and constraints
 
-Two approaches were discussed:
+AppCore remains the only composition root. Code owns inventory and language-server use;
+Plans owns task contracts and references; Design owns project decisions and
+shared agreements; Runs owns preparation, attempts, briefs, checks, critic and
+repair. Harness/Grants own session/tool policy; Threads/Turns/Operations keep
+their existing lifecycle. Adapters translate one owner operation. No new service,
+global registry, second HTTP surface, workspace or build cache is required.
+Code does not depend on Plans/Runs. Runs may explicitly depend on Code/Design.
+Source contracts describe implemented behavior only.
 
-1. Rich task prose plus a file browser: smaller change, but relationships,
-   stale definitions and readiness remain interpreted from text.
-2. Structured contracts over existing owners: more storage/API/UI work, but
-   Core can validate references, capture inputs and explain blocked work.
+One build cache per workspace, built over in place. No worktree build,
+CARGO_TARGET_DIR, cargo clean, release/custom profile/target or changed RUSTFLAGS.
+Commit each completed verified task separately. Full gate and whole-branch
+review run once per delivery branch before its PR.
 
-The controller recommends approach 2 for written-design approval because it
-matches the confirmed requirement that Shadows retain these relationships.
-This is task-local detail, not a catalog planning every project file.
+### Repository and ready-made servers
 
-### Ownership
+Code returns a paged relative file inventory independently of parser languages,
+with missing/indexing/ready/incomplete state and visible exclusion reasons.
+Default page size is 100, maximum 200; order is normalized relative path.
+Summarize dependency/build folders. Expose only metadata for secret files,
+never their contents through inventory or code questions. Reject root escapes,
+symlink/junction escapes and stale pages; incomplete scans do not invent deletion.
 
-Start at AppCore. No new service, second composition root or cross-store
-access is proposed. Planned responsibilities stay out of current contracts
-until their implementation ships.
+The [catalog in section 15](2026-09-30-code-index-design.md#proposed-ready-made-server-catalog)
+pins the 13 upstream descriptors. Use async-lsp 0.2.4 as the initial native
+client candidate, through shadows-process for children; verify its Windows/PHP
+trial before claiming support. Its public client constructor and upstream
+example are primary references:
+[MainLoop](https://docs.rs/async-lsp/latest/async_lsp/struct.MainLoop.html),
+[client example](https://github.com/oxalica/async-lsp/blob/main/examples/client_builder.rs).
+It is infrastructure, not product policy. No Serena/GPL implementation is copied.
+The client lives in its own library crate, `shadows-lsp`, beside `shadows-index`.
+It knows no project, grant, task or table. Code owns each project's server
+configuration and the choice between the name index and a server. One client and
+one catalog serve every server; a server gets its own file only when it needs
+code of its own.
 
-| Existing owner | Proposed responsibility |
-|---|---|
-| Code | Inventory, refresh state, file observations and scoped semantic queries through mature LSP clients/servers. |
-| shadows-index | Its existing parser-only tags and explicitly labeled name-based fallback. |
-| Design | Versioned project decisions and existing shared agreements. |
-| Plans | Canonical task contracts, contract pins, dependency validation and owner-thread lookup. |
-| Runs | Preparation attempts, execution packets, leases, checks, review, acceptance and repair. |
-| Harness and Grants | Session policies, scoped tools and captured configuration. |
-| Threads, Turns, Operations | Their existing conversation/turn/operation lifecycle. |
-| HTTP, MCP, web | Translate owner operations and show owner results. |
+Each configured server has an explicit executable/args, workspace root and
+observed capabilities. Use one worker per project/backend, lazy start, bounded
+request timeouts and shutdown on project removal/daemon shutdown. Keep existing
+name-based tags as labeled fallback. Definition/references require a selected
+file/position or unambiguous named symbol; results are checked against current
+source. Incomplete/unsupported/stale differs from absent. Paths and returned
+snippets are filtered before disclosure to the task. A locally authorized LSP
+may analyze workspace dependencies; this is not per-file OS read isolation.
 
-Runs calls Plans, Design and Code through explicit dependencies wired by
-AppCore. A compiler/verifier is a job inside Runs, not another facade.
-Planning `task_context` remains a Plans read. A distinct execution-context
-operation on Runs serves the compiled packet to executor/critic grants; do not
-make Plans depend on Runs or put grant-kind business dispatch in an adapter.
+LSP questions return at most 50 hits and 32 KiB of source, explicitly truncated.
+Refresh document state before query and reject results when source changes
+during lookup or the workspace was removed. Never use a live LSP response as
+proof of what an earlier Git commit contained.
 
-### Repository discovery and preparation
+### Preparation from planning
 
-Inventory is separate from symbol extraction. Code lists relative paths even
-for unsupported languages, with kind, scan identity/time and exclusion reason.
-Inventory is paged; incomplete/stale/unavailable scans remain visible. A failed
-scan does not delete unseen entries. Paths cannot escape the project through
-symlinks/reparse points. Dependency/build trees are summarized by default.
-Secret-bearing entries expose redacted metadata, not their contents. Inventory
-does not become an arbitrary host file-content API. Use a ready-made PHP
-language server for PHP definitions. Preserve the existing parser/name-based
-index as a labeled fallback; a second PHP analysis engine is not a prerequisite.
+The Planner requests preparation after the person agrees to framework setup at
+the exact destination; retain the attributed person message and Planner actor.
+Do not require an extra product-plan task or a new confirmation button.
+Runs records an idempotent preparation attempt and opens a bounded worker
+through Harness. Ordinary Planner sessions keep their tool policy.
 
-The Planner reads inventory and relevant manifests before detailed planning.
-Existing Laravel is adopted, not installed again. Refresh after scaffold or
-external file changes before accepting exact file references. Content reads
-record observations/digests; cached paths alone do not prove current content.
+Permit only missing/empty destinations, within the project and outside held
+writes. Existing nonempty scaffolds are inspected/adopted. The worker uses the
+framework's own scaffold command; no Shadows-generated universal folder layout.
+Keep the agreed destination/** as its product write scope. Refresh inventory
+and return observed file changes, command outcome and optional commit/report.
+No runtime/installer or unrelated file enters a commit. Retry inspects a partial
+destination and requires a new explicit request instead of rerunning blindly.
+Stop/restart preserves partial work and visible interrupted state.
 
-**Controller proposal:** the Planner requests a bounded preparation attempt
-through Runs after the person confirms stack, destination and operation. A
-separate preparation worker performs the setup; ordinary planning sessions
-keep their tool policy. No approved product plan or fake task is needed.
-Capture request identity, destination, model, inventory, output manifest, Git
-result and outcome. Start requires an empty/missing destination and no lease
-conflict. A nonempty destination is inspected, never overwritten. Retry checks
-partial results before doing anything. Cancellation/restart leave inspectable
-state, not automatic cleanup. Refresh inventory before detailed planning resumes.
-Only the worker's own product files enter its commit, never runtimes/installers.
-Normal package caches may be used; this is not OS-level shell containment.
+### The task contract
 
-### Task knowledge and ready-made language servers
+Add optional TaskContent.contract; omitted legacy content serializes exactly
+as before. Its structured fields are file work, symbol work, produced outputs,
+consumed references, steps, invariants, forbidden changes and checks.
+File work records exact path, read/create/modify/delete and purpose. Symbol work
+records stable task-local id, file, kind/name, named inputs with type/meaning,
+return type/meaning, behavior and errors. Types are readable declarations;
+actual compatibility is demonstrated by compilation/tests/review.
 
-**Mohammed's direction, 2026-11-09:** reuse mature LSP implementations alongside
-Shadows' task knowledge. Language-server results can be incomplete or wrong;
-they do not replace the approved contracts, source observations or read scope.
+An output references its symbol id or artifact path and acceptance item numbers.
+A consumer references that output in the same plan version or an exact external
+workflow/version/task, or an existing file/symbol or shared-agreement operation.
+One producer definition is authoritative; a consumer does not copy/override it.
+Validate missing identities, path escapes, duplicate symbols, nonexistent output
+pins, same-project reach and dependency cycles. Required producer references
+participate in the existing dependency graph. Existing shared agreements retain
+their exact operation/version authority.
 
-The official Claude `php-lsp` plugin configures `intelephense --stdio`; the
-plugin does not contain that server. Intelephense documents an independent LSP
-client interface, so the same installed server can be a candidate for Shadows
-without requiring Claude. Use a maintained LSP client library, not a custom
-protocol implementation. Install/configure servers separately, detect existing
-executables explicitly, capture their versions/capabilities and test them before
-reporting availability. Do not attach to Claude's private running process or
-hard-code its plugin-cache paths. Server licensing and free/premium capability
-availability remain distinct from the Claude plugin's license.
+reads/writes remain permission scopes and may contain reviewed globs. Named work
+must fit those scopes. A contract is not permission to expand them. Tasks whose
+main behavior is a function/class must include symbol work; configuration and
+scaffolding tasks may describe artifact work without inventing functions.
+Legacy plans remain readable and executable under their recorded manual policy;
+the UI labels their missing detailed contract. New planning instructions require
+the richer brief. Never mutate Frozen content to upgrade it.
 
-Code owns the local semantic gateway and worker lifecycle behind AppCore.
-This does not select the standalone package's runtime or release architecture.
-Keep its separate CI-3/package decision deferred. L1 starts with a bounded
-PHP/Laravel server/client trial and the already supported Rust/TS behavior;
-choose the concrete client/server combination from measured freshness,
-same-name resolution, lifecycle, licensing and task-scope results before
-committing implementation to it. Mohammed requested the other official catalog
-choices too; [section 15's catalog](2026-09-30-code-index-design.md#proposed-ready-made-server-catalog)
-pins all 13 entries, requirements and enablement checks. Register them as
-on-demand candidates; each backend becomes ready only after its own trial.
-Additional languages use the same backend capability contract, not a new
-product-specific analyzer per language.
+Design keeps minimal immutable decision revisions with rationale, source and
+proposed/accepted/superseded status. Tasks pin relevant accepted revisions.
+Use current section 24 approval attribution; no executor/critic approval tools.
 
-An executor's code question names its attempt/packet, file or qualified symbol,
-and the operation needed. Runs checks the task's allowed reads and supplies
-only authorized query scope to Code through its public API. Code returns
-semantic candidates and provenance; Runs joins them to the packet's source
-observations and Plans' pinned contracts. Keep the dependency one-way: Code
-does not acquire Plans/Runs or a second task-authority database. The planning
-read path is project-scoped under the Planner's existing grant.
+### Execution brief and code questions
 
-Three facts stay distinct in every answer:
+Runs stores a brief once per attempt: exact approved task and referenced
+contracts/decisions, map/standards revisions, base Git SHA and requested model.
+It is keyed by attempt identity, not a new digest system. Missing required
+existing files/symbols refuse Start; intended create paths need not exist.
+Disjoint unrelated file changes do not invalidate every task.
 
-- What checked source currently contains, with file/symbol and content digest.
-- What the selected language server resolved, with backend/version, source
-  observation, capability, candidates and any stale/unsupported state.
-- What the approved task promises, including producer task and implementation
-  evidence. A planned function is not described as an existing definition.
+A task question checks grant, attempt, explicit declared file work and allowed
+read scope, then calls Code and joins the result with Plans' contracts. Return
+source facts, LSP result and planning obligation distinctly. A planned function
+names its producer and state; ambiguous/missing results never fabricate code.
+Out-of-scope results reveal no source. Direct built-in Read/Bash remain subject
+to the existing executor trust boundary; the question API is not an OS sandbox.
 
-For example, a task allowed to read an account repository may ask for a named
-method before using it. Check the file scope first, resolve through LSP, verify
-the returned location/signature against source, then return the bounded relevant
-definition and its pinned contract. An out-of-scope hit does not widen the
-task; withhold its source and request scope resolution. If the method is only
-planned, identify the producer and readiness state. If LSP and checked source
-or the approved signature disagree, return the discrepancy and evidence rather
-than choosing a silent winner. A verified source lookup can be a labeled
-fallback when semantic resolution is unavailable; no result is not proof of
-absence. Name-only and semantic references never share an unlabeled result.
+### Checks and Git-based critic
 
-A server may need an authorized whole-workspace view, including dependencies,
-for analysis. The executor's disclosure/read scope remains narrower and is
-enforced by Shadows on results and source excerpts. Do not claim per-file OS
-read isolation for the LSP process itself. Refresh/synchronize server document
-state for changed files and reject answers from an older workspace generation.
-Critic review still reads captured artifacts, not a live LSP answer substituted
-for the exact candidate source that was checked.
+A check has stable id, executable, argument vector, relative cwd, timeout
+(1..3600 seconds, default 300), acceptance item numbers and optional before
+baseline. No shell-string interpolation is needed for check execution.
+Use shadows-process; record status, exit code, tested HEAD, relevant dirty-path
+observations, bounded redacted output and timestamps. Baseline is optional;
+without one a failure cannot be called pre-existing.
 
-Primary sources checked on 2026-11-09:
-[Claude code intelligence](https://code.claude.com/docs/en/plugins/code-intelligence),
-[official PHP configuration](https://github.com/anthropics/claude-plugins-official/blob/main/.claude-plugin/marketplace.json),
-[Intelephense integration and limitations](https://intelephense.com/docs).
-These establish the candidate integration, not executed Shadows acceptance.
+Run checks in the same folder when no executor in that project can still
+write. A project-local verification slot blocks new starts during the check
+batch; unrelated projects continue. This is not a general file-lease system.
+If HEAD or relevant source changes during a check, mark it inconclusive.
+Required checks must pass. Baseline comparison may inform an explanation but
+does not waive a failing required check or infer equivalence from an exit code.
 
-### Canonical task contract
+Runs exposes bounded git show/diff by candidate SHA to a read-only critic.
+Allow only paths in the task brief plus declared dependency sources. Reject
+escaping/revision-like path input, binary source and missing Git objects.
+Do not use the live working tree as a substitute for the requested SHA.
+When a required source is untracked/external, report missing evidence or
+explicitly record its separate check provenance; never label it Git-verified.
 
-Extend TaskContent rather than maintaining an unversioned parallel brief:
+After checks settle, a built-in critic receives task, exact commit/diff, report
+and check results. It has task_source/task_review tools and no arbitrary shell
+or edits. Review is deduplicated for attempt/commit. Each acceptance item is met,
+not_met or pending on an exact task/check, with evidence. Overall result is
+PASS, PASS_WITH_NOTES, FAIL_IMPLEMENTATION or FAIL_PLAN. Missing review is not PASS.
+Current Committed remains implementation state; checks/review/task acceptance
+are separate records. Legacy manual marks stay visibly manual.
 
-- File operation: task-local identity, exact relative path, action
-  read/create/modify/delete, purpose and optional existing symbol observation.
-  Creation names an intended symbol without claiming it exists.
-- Symbol obligation: owning file operation, qualified function/class name,
-  responsibility, inputs, output shape, behavior, errors and invariants.
-  The executor chooses the internal algorithm. Signature text is not a proof
-  of semantic/type compatibility.
-- Produced contract: stable task-local identity for an operation, value,
-  schema/table or configuration artifact. Not every artifact is a function.
-- Consumed contract: inspected existing source with digest, an exact shared
-  agreement operation, or a named output from a task. Within a plan version
-  use task/output identity; across plans pin exact workflow/version/task/output.
-  There is no implicit latest-version contract pin.
-- Ordered implementation steps, forbidden changes, required capabilities and
-  executable checks, linked to acceptance items.
+An output is accepted only if its associated items are met and associated
+required checks pass for that result. Other items can remain pending. Required
+output dependencies cannot form a proof cycle; split producer conformance from
+later integration checks. A pending task is not shown fully verified.
 
-Plans validates identities, paths/actions, missing outputs, shared-agreement
-operations and task/phase cycles. A required consumed output contributes an
-edge through the existing dependency graph, not a second readiness system.
-Normal executable reads/writes derive from file operations, with exact paths;
-they are not independently editable conflicting fields. Legacy globs remain
-readable. Unknown generated paths require preparation or a reviewed generation
-output resolved before execution, not a broad Modules/** grant.
+### Repair, plan changes and recovery
 
-Readiness requires accepted evidence for a produced contract or explicit
-inspected adoption of existing implementation with checks. A manual done mark
-does not invent verified source. Existing shared agreements remain the owner
-of their operations and are referenced, not duplicated. This permits task-local
-symbols while retaining the structure spec's rejection of a global element model.
+Runs implements initial attempt, one retry in the same live executor session,
+Planner investigation, a directed third attempt, then stop for Mohammed.
+No agent may start a fourth attempt. Keep a new attempt/brief per retry;
+task mutations include attempt id so late reports cannot bind to a newer retry.
+Keep the session idle through checks/review, closing it on terminal result,
+Stop, escalation or loss. Retained idle sessions have no active attempt writes.
 
-Design owns project decisions with immutable revisions, rationale and
-proposed/accepted/superseded states. Tasks pin relevant accepted revisions.
-Approval provenance follows current section 24, including attributed Planner
-approvals where allowed. Executor/critic grants never gain approval tools.
+Plans exposes its existing Draft/current-version state transactionally.
+Runs checks it during serialized Start admission and its active-attempt watcher.
+A new Draft blocks new starts; the watcher stops old attempts and waits for
+confirmed end before releasing their scope. Draft editing can proceed while
+the UI reports stopping; no new-version execution starts until old scopes
+are released. This needs no reciprocal service dependency or separate handshake.
+Approval never restarts attempts automatically. Cross-plan consumers retain
+their exact pins and show stale/unavailable obligations rather than being rewritten.
 
-### Packets, readiness and bounded questions
+Plans::owner_thread finds the actual Planner conversation. A busy owner waits
+durably; missing owner/session stops visibly. Repairs carry findings and exact
+contract references. Pending rechecks run once their prerequisite is accepted,
+with a bounded retry/error state. Restart never invents a PASS or duplicates
+review/repair. Keep Stop plus person replan/retry/abort controls; defer a generic
+PATCH/ROLLBACK action engine and automatic destructive recovery.
 
-Runs compiles an immutable packet through the owners: frozen contract, contract
-pins, decisions, relevant rules, map/standards revisions, selected source
-observations/digests, session configuration, exact scopes, checks and resource
-limits. Canonical serialization uses an established digest library.
-Missing/ambiguous/stale inputs, unresolved dependencies, unsupported required
-capabilities or excess context refuse dispatch with a reason. Read-only tasks
-may have empty writes; this grants no edit permission.
+### Delivery and deferred machinery
 
-Acquire required read/write leases atomically: reads share; writes exclude
-writes and required reads. Confirm process end before release. Keep concurrent
-disjoint tasks in the same folder, without a second checkout/build cache.
-Unmanaged user edits can still occur; changed captured inputs invalidate evidence.
-Targeted questions record path, symbol, digest and matching method within the
-packet's budget. No match means uncertainty. Follow-up evidence does not mutate
-the packet. New attempts get new packets, retaining links to prior evidence and
-intentional prior-attempt edits. Unreported model usage/cost stays unknown;
-enforceable byte/result/turn limits are distinct from token estimates.
+Deliver one slice at a time, in the order the delivery program gives (real files
+and the task contract first), each tried on a real project before the next is
+detailed. The six draft plans with a companion frontend plan cover: repository/LSP,
+preparation, detailed contracts/decisions, execution briefs/questions,
+checks/critic, repair/full local acceptance. Backend APIs precede dependent UI
+tasks. Each phase ends in a browser/log journey, with focused test commits and
+one branch gate. Preserve testing1 and use disposable failure fixtures.
 
-Retain the newer executor boundary honestly: file-tool rules and reported-commit
-scope checks, with unrestricted shell side effects outside OS containment.
-A task requiring unsupported stronger isolation is blocked. Do not claim that
-a prompt or tool permission flag contains every shell filesystem/network effect.
+Deferred: hashed packets, a JSON Schema compatibility engine, general read/write
+leases, tracked-code snapshot storage, the hold/ack protocol, a generic rollback
+engine, cloud/production, teams, manager and editable specialist dashboards.
+These deferrals do not remove detailed contracts, source freshness, truthful
+checks, independent review or bounded repair from this local program.
 
-### Verification, critic and acceptance
-
-Runs stores structured check identity/revision, executable and arguments, cwd,
-nonsecret environment references, declared input/output scopes, timeout,
-expected result and acceptance associations. Run through shadows-process;
-record bounded redacted output, exit/timeout/cancel and artifact digests.
-
-Baseline/post checks use the same folder under input/output leases. Record
-candidate commit and captured inputs. Unexpected input changes are inconclusive.
-Compare pass, regression, pre-existing failure, fixed or unknown only on
-comparable evidence; equal nonzero exit codes do not prove equal failures.
-If a tool cannot identify stable failures, retain inconclusive attribution.
-If a new task creates the test/check itself, record baseline-unavailable rather
-than inventing an earlier result. A passing post-check is still evidence; a
-failing one cannot be excused as pre-existing without a comparable baseline.
-
-Keep Committed as implementation outcome. Checks, review and acceptance are
-separate durable records tied to the attempt/result digest. Dispatch a critic
-after checks settle, with the exact diff, contracts, evidence and report, not
-the executor conversation. Critic has no arbitrary shell/edit tools; checked
-commands are run by Runs. Deduplicate review by attempt/result/policy.
-Each acceptance item has evidence and met/not-met/pending status. Overall
-review is PASS, PASS_WITH_NOTES, FAIL_IMPLEMENTATION or FAIL_PLAN. Failed checks
-cannot be erased by a critic claim; absent review is not PASS.
-
-Required checks plus qualifying review establish acceptance. PASS_WITH_NOTES
-defaults to a person decision. Pending items pin a task/check and durable rerun
-trigger. Dependants proceed only if their required produced contracts have
-passed; the task is not displayed as fully verified while items remain pending.
-Prevent dependency/recheck deadlocks. Legacy done marks stay labeled manual.
-Old Frozen plans remain readable; rich execution uses a new approved version or
-explicit inspected adoption. Distinguish automated, browser, OS and provider proof.
-
-### Bounded repair, gates and recovery
-
-Use the approved executors ladder: initial attempt, retry in the same session,
-Planner investigation, directed third attempt, then stop for Mohammed. Runs
-owns counters and dispatch, so tools cannot authorize a fourth attempt.
-Problem records retain evidence, affected contracts and Planner direction.
-Use Plans::owner_thread; a busy owner waits durably, a missing owner stops with
-a reason. Do not introduce the later manager system or invent cost measurements.
-
-FAIL_PLAN proposes a Draft changing affected tasks. Runs/Plans coordinate
-stopping attempts of that plan and blocking starts; affected cross-plan
-consumers are blocked without rewriting their frozen pins. Approval never
-restarts work automatically. Continue the designated executor session only
-when it still exists; lost sessions remain explicit recovery cases.
-Keep the dependency one-way: Plans records the execution hold with the Draft
-transition and publishes its durable event; Runs observes it, stops attempts,
-then acknowledges the hold through Plans' public API. New Starts check that
-hold in their serialized admission. Draft edits/approval wait until affected
-turns have confirmed their end. A restart resumes this handshake; no
-Plans-to-Runs reference or best-effort event alone provides the barrier.
-
-Person gates bind CONTINUE/REPLAN/PATCH/ROLLBACK/ABORT to exact scope/evidence.
-CONTINUE does not erase a failed required check. PATCH is new bounded work.
-ROLLBACK proposes compensating work, never automatic reset/deletion or an
-assumption that database changes are reversible. Follow section 24's local
-trust boundary: task tools cannot approve, but same-user shell access to HTTP
-is not claimed impossible. Stronger person-origin proof is a distinct prerequisite
-when an operation requires it; an actor field is not proof by itself.
-
-Recovery reconciles attempts/checks/reviews before further dispatch. Lost
-responses cannot duplicate review or acceptance. Unconfirmed process end holds
-leases. Preserve evidence, interruption and unknown outcomes through restart.
-
-### Resolved builder questions
-
-The independent builder check raised five material choices. The following are
-the controller's proposed resolutions for written-design approval:
-
-1. **Preparation authorization.** Use attributed conversation authorization,
-   not a mandatory new confirmation button. The person must have agreed to
-   framework preparation at the exact destination; choosing a technology in
-   isolation is not a generic command grant. Record the source person message,
-   stack/version, destination and preparation operation. The Planner issues the
-   scoped preparation request in its own name under section 24. A replay uses
-   that immutable request; a changed destination or operation is a new request.
-   Inspect/adopt an existing scaffold without running the installer again.
-   An ambiguous request pauses preparation, not read-only discovery/planning.
-
-2. **Repair-session lifetime.** Retain the executor session idle through checks
-   and review, closing it on terminal acceptance, Stop, escalation or loss of
-   the live session. Its stable session credential has no active mutation
-   binding after the turn ends. Runs uses Grants' public transaction method to
-   bind the next attempt/packet only while admitting that retry. Every new
-   executor mutation tool requires attempt identity and packet digest, checked
-   against the active binding. Late reports from a retired attempt are refused;
-   changing active attempts never relabels an old report as a new one. This
-   avoids assuming that an adapter can replace its MCP token inside a session.
-   Old slice-1 sessions retain their current close-on-release behavior until
-   the rich repair path is introduced and tested. Lost sessions require an
-   explicit recovery/new session, never a claim of preserved native history.
-
-3. **Contract compatibility.** A produced operation has one canonical input,
-   output and error shape, expressed with JSON Schema and optional
-   language-qualified type names. Use a maintained schema library for schema
-   validation. Consumers reference that exact operation revision and use its
-   shapes; they do not independently override them. Existing shared OpenAPI
-   operations retain their current authority and exact operation/version pins.
-   If a separate expected shape is declared, require an exact canonical shape
-   fingerprint, conservatively; no inferred subtyping, coercion or semantic
-   equivalence is claimed. A different representation needs an explicitly
-   planned adapter/contract change. Missing pins or unequal declared shapes
-   block approval/readiness. Checking that the actual PHP/Rust implementation
-   satisfies that shape belongs to executable contract tests and review.
-
-4. **Output-specific acceptance.** Each produced contract declares the task's
-   acceptance-item identities and required check identities that establish it.
-   At least one acceptance item and one deterministic check are required for
-   an automatically accepted output. The declared checks must pass and the
-   critic must mark every associated item met against this result digest.
-   No pending/failed item can establish that output. Other task items may stay
-   pending without withholding an independently established output. An
-   inspected existing implementation uses the same evidence association;
-   historical manual marks cannot substitute. Plans validates the combined
-   task/phase/output/check readiness graph, including cycles such as an output
-   whose proof waits for the consumer that needs it. Split producer conformance
-   checks from later consumer integration checks to resolve such a cycle.
-
-5. **Source lifetime for the critic.** Before execution leases release, Runs
-   captures bounded relevant source bytes for declared reads/writes, candidate
-   diff and check artifacts, with digests and source identity. Persist them as
-   immutable run artifacts in Core's data storage, not a second checkout or
-   build cache in the person's project. The critic reads captured source via
-   a Runs operation, not live project Read/Bash tools. Later tasks may edit the
-   live files after capture without changing what was reviewed. A missing
-   required artifact makes review incomplete; supplying it requires a new
-   attributable capture/review and refreshed checks when source equivalence
-   cannot be established. Retention keeps artifacts referenced by acceptance,
-   pending repair or a person gate. Redacted/missing secret source is not
-   silently presented as complete evidence.
-
-### Delivery, builder choices and approval
-
-Eight runnable slices: L1 inventory/LSP, L2 preparation, L3 contracts/decisions,
-L4 packets/readiness, L5 checks/evidence, L6 critic/acceptance, L7 repair/pending
-checks/gates, L8 real local acceptance. L2 and L3 depend on L1; L4 needs both;
-then deliver in order. Each slice gets exact backend/frontend task plans,
-accepted shared requests, focused tests, browser/log acceptance and one branch
-review/full gate. Commit each verified task separately.
-
-The controller proposes the preparation worker, existing-owner allocation,
-exact paths, conservative leases and separate evidence records. These choices
-await written-design approval. Builders choose concrete naming, storage indexes,
-pagination limits and UI placement within current views, not new ownership or
-authority. This program does not add a new workspace or another Cargo cache.
-
-Prove existing/new Laravel discovery, producer/consumer contracts, missing/stale
-symbols, refused broad writes, check/critic/plan failures, pending reruns,
-bounded repair and interruption during each lifecycle. Report automated tests,
-browser fixtures and real harness/OS evidence separately. Detailed implementation
-plans follow written-design approval; no product code is authorized by this draft.
 
 ## 17.1 Scope
 

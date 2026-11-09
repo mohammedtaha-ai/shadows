@@ -1,7 +1,7 @@
 ---
 name: backend-builder
 description: Builds one backend task from docs/backend/stages.md. Started by Hamoud with one line naming the task (B-<n>). Changes only the files the task lists.
-model: sonnet
+model: opus
 effort: low
 tools: LSP, Read, Glob, Bash, Edit, Write
 ---

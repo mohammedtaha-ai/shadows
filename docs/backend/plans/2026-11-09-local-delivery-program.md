@@ -1,198 +1,114 @@
-# Local delivery program: repository to verified task
+# Local delivery implementation program
 
-- Date: 2026-11-09.
-- Status: **design-review draft**; not dispatchable implementation tasks.
-- Scope: Mohammed confirmed the complete local system in conversation.
-- Owner: [section 17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-local-delivery-revision-2026-11-09).
-- Base inspected: `cbf2b597`, `fix/first-run`, initially clean.
+- Approved with review corrections by Mohammed on 2026-11-09; reordered into
+  slices the same day, after his review of the first plans.
+- Planning branch: `codex/local-delivery-plans`, based on `e63002ad`.
+- Implementation has not started.
+- Owner: [approved 17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09).
+- [API/model agreement](../../shared/requests/2026-11-09-local-delivery.md).
 
-## Approach
+## How this program is worked
 
-Use the structured-contract approach described in the owner spec. Detailed
-prose is cheaper, but cannot support the requested deterministic references and
-readiness checks on its own. The proposal and controller choices await written
-design approval; scope confirmation does not imply that approval.
+The work moves one slice at a time. A slice is built, tried on a real Laravel
+project, and only then is the next slice detailed. A later slice may change
+because of what the earlier one showed.
 
-## L1: Repository discovery
+1. **Hamoud details the slice.** He reads the code from `AppCore`, checks the
+   draft plan against it, and writes each task of the slice in
+   [stages.md](../stages.md) in the shape `docs/backend/AGENTS.md` gives. A
+   task names its steps in order, every file it creates or changes, every type
+   with its fields, and every function with its inputs, its return value, its
+   errors and its behavior. The builder writes the bodies and decides nothing
+   else.
+2. **The controller starts `backend-builder`** with one line per task. Tasks
+   that depend on each other go to the same builder, one after another, with no
+   stop between them.
+3. **Hamoud reviews the built tasks** in the same session that planned them, and
+   reports.
+4. **The controller reads the report** and amends this program when the result
+   calls for it.
 
-Result: the person and Planner see existing files, paths, exclusions and scan
-state, with semantic PHP/Laravel queries through a tested ready-made LSP server.
+The six plan files below are draft material for step 1, not builder
+instructions. Where a plan file and a detailed task in `stages.md` disagree,
+the task in `stages.md` is right and the plan file is corrected when its slice
+is detailed.
 
-- Owners: Code for inventory and the LSP gateway; existing shadows-index stays
-  parser-only; adapters; web API/project view.
-- Build on: core-code scan/watch/status/scope, a maintained LSP client library
-  and independently installed language servers. Do not require Claude to run.
-- Work: paged inventory independent of supported languages; safe path traversal;
-  visible excluded/stale/incomplete states; bounded PHP/Laravel LSP trial;
-  select client/server after freshness/isolation/lifecycle and dependency review;
-  capability/configuration/status; Planner access; repository display through
-  current project APIs and events. Preserve labeled fallback results.
-- Proof: inspect a Laravel tree before planning; unsupported files are listed;
-  secrets are metadata-only; incomplete scans do not invent deletions; reject
-  escapes; handle case folding and watcher loss; resolve PHP methods by path;
-  distinguish ambiguous/stale LSP results and same-named symbols. Verify the
-  server integration with its own installed executable, not just plugin metadata.
-- Needs: none. No independent code-intelligence workspace/cache.
+## Slices
 
-L1 includes the complete [13-entry upstream catalog](../../core/specs/2026-09-30-code-index-design.md#proposed-ready-made-server-catalog)
-requested by Mohammed: clangd, C#, Go, Java, Kotlin, Liquid, Lua, PHP, Python,
-Ruby, Rust, Swift and TypeScript/JavaScript. Implementation tasks cover catalog
-registration, per-project language/root selection, executable/runtime detection,
-on-demand installation guidance and per-backend handshake/query acceptance.
-PHP/Laravel, Rust and TypeScript are the first end-to-end trial; the remaining
-entries retain explicit untested/platform-unavailable states until measured.
-Do not equate adding a descriptor with working support, or require all language
-toolchains to be installed on every machine.
+| Slice | Backend tasks | Runnable outcome | Web tasks | Draft material |
+|---|---|---|---|---|
+| 1. Real files and the task contract | B-96, B-99, B-103, B-104, B-106 | The Planner and the person see the files the project really holds. A task names file work and function behavior, and the executor reads that through `task_context`. | F-99 (files view), F-101 | [discovery](2026-11-09-repository-discovery.md), [contracts](2026-11-09-detailed-task-contracts.md) |
+| 2. A real PHP language server | B-97, B-98, B-119 | `Code` answers definition and reference questions from Intelephense, beside the existing name index. | F-99 (server status) | [discovery](2026-11-09-repository-discovery.md) |
+| 3. Framework preparation from planning | B-100 to B-102 | The Planner prepares an agreed empty destination and plans on the files that appear. | F-100 | [preparation](2026-11-09-project-preparation.md) |
+| 4. The attempt brief and task questions | B-107 to B-109 | The executor receives one brief per attempt and asks about code beside its task's obligations. | F-102 | [briefs](2026-11-09-execution-briefs.md) |
+| 5. Checks and the critic | B-110 to B-114 | A task is accepted on recorded checks and a critic that read the exact commit. | F-103 | [checks](2026-11-09-checks-and-critic.md) |
+| 6. Bounded repair and full acceptance | B-115 to B-118 | Failures reach the Planner, retries stay bounded, and the whole journey survives interruption. | F-104, F-105 | [repair](2026-11-09-repair-and-acceptance.md) |
 
-## L2: Planning-time preparation
+The [frontend plan](../../frontend/plans/2026-11-09-local-delivery-ui.md)
+holds F-99 to F-105. A web task waits for its backend API.
 
-Result: request framework setup from planning at the agreed empty destination,
-then continue detailed planning against refreshed real files.
+Slice 1 changes two tasks from the draft:
 
-- Owners: Runs for preparation attempts/Git; Harness/Grants for worker policy;
-  Threads/Turns for the session; Code for refresh; conversation/status UI.
-- Work: exact request and confirmation identity; destination/lease validation;
-  preparation lifecycle; output manifest/Git result; stop/restart/retry;
-  inventory refresh before planning resumes.
-- Proof: adopt existing Laravel without reinstalling; refuse nonempty targets;
-  replay creates one attempt; interrupted installs remain inspectable; retry
-  checks partial files; commit no unrelated file, runtime or installer.
-- Needs: L1. The Planner orchestrates a bounded preparation worker; ordinary
-  planning mode keeps its current shell/edit policy.
+- **B-99** carries only the inventory to HTTP and to the Planner
+  (`project_files`, `project_refresh`). The language-server status and question
+  routes become **B-119** in slice 2.
+- **B-106** exposes the contract without decisions, and updates the executor's
+  instructions so the contract is part of its brief.
 
-## L3: Task contracts and decisions
+## Rulings on the draft
 
-Result: inspect exact file operations, required symbols, behavior, inputs,
-outputs/errors, accepted decisions and producer/consumer pins on a task.
+These hold for every slice. Each is applied to a plan file when its slice is
+detailed.
 
-- Owners: Plans; Design for decisions/shared agreements; adapters and task UI.
-- Work: canonical typed content; validation/serialization; exact contract pins;
-  dependency/phase graph integration; versioned decision provenance; MCP edits;
-  API generation and contract editing/display.
-- Proof: one producer/consumer contract; missing outputs and cycles refused;
-  Frozen content unchanged; revision conflicts atomic; exact action/path
-  scopes; existing shared agreement operations referenced without duplication.
-- Needs: L1. Can be planned independently of L2 after L1 ships.
+- **Tests are real.** A new test uses a real temporary folder, a real Git
+  repository, a real language server and the live adapter (MiniMax, as in
+  `crates/shadows-core/tests/aylul_extensions/live.rs`, ignored unless its key
+  is present). No new fake worker, fake server or `fake-acp` test is written.
+  Existing `fake-acp` tests stay for CI.
+- **Language-server code is a library.** The client that starts a server and
+  asks it lives in a new crate, `shadows-lsp`, beside `shadows-index`. It knows
+  no project, grant, task or table. `Code` owns each project's server
+  configuration and the choice between the name index and the server. One
+  client and one catalog serve every server; a server gets its own file only
+  when it needs code of its own.
+- **Rust symbols are found with the LSP,** as `CLAUDE.md` says. The draft's
+  "use rg, not Serena" line was a remark to one session and is not a rule.
+- **The full gate runs in CI** after the branch is pushed. A task runs its own
+  tests locally.
 
-## L4: Execution packets and readiness
+## Corrections to examine when their slice is detailed
 
-Result: Start explains missing inputs; inspect the exact captured context and
-scope received by a particular attempt.
+- **Slice 3:** whether preparation can be an ordinary executor attempt with the
+  destination as its write scope, in place of a new worker, grant kind, thread
+  kind and table.
+- **Slice 4:** `task_question` refuses a file outside the task's reads while
+  the executor's own Read and Bash are not limited. The boundary is the commit
+  ([executors design](../specs/2026-11-08-executors-design.md), section 7), so
+  the refusal is examined before it is built. `where_is`, `who_uses` and
+  `outline` stay with the executor until then.
+- **Slices 5 and 6:** the critic and the attempt ladder are also described in
+  the [executors design](../specs/2026-11-08-executors-design.md), phases 2
+  and 3. One of the two documents keeps the decision and the other links to it.
+- **Deferred until a task needs them:** project decision revisions (B-105),
+  accepting one output while another item is pending, pending rechecks, and the
+  before/after baseline.
 
-- Owners: Runs with public Plans/Design/Code dependencies; Harness/Grants;
-  task-context/attempt APIs; packet/readiness UI.
-- Work: canonical packet/digest; selected source observations; decision/contract
-  pins; exact derived paths; read/write leases; bounded questions/usage facts;
-  task-authorized semantic questions joining Code results with Plans' contract
-  pins; capability checks; legacy version/adoption behavior.
-- Proof: stale/missing/ambiguous inputs block dispatch; unrelated changes do
-  not invalidate all tasks; conflicting writes/required reads cannot overlap;
-  evidence stays attributable across retries; unknown usage stays unknown;
-  LSP cannot disclose outside task reads, fabricate a planned function as
-  existing, or silently replace a conflicting approved signature.
-- Needs: L2 and L3. Same folder/cache; no OS shell-containment claim.
+## Source and migration reconciliation
 
-## L5: Independent verification and evidence
+Every path the draft plans name was checked against the checkout on 2026-11-09:
+each `Modify` entry exists or is created by an earlier task. The last migration
+is `0053_attempt_report`; the draft reserves 0054 to 0061. A slice numbers its
+own migrations from the last one present when it is detailed. No existing
+migration or Frozen task is rewritten.
 
-Result: inspect baseline/post checks linked to the candidate commit, including
-failed, cancelled, timed-out and inconclusive results.
+## What stays from the accepted corrections
 
-- Owners: Runs; shadows-process for children; adapters and evidence UI.
-- Work: typed check definitions; input/output leases; same-folder comparison;
-  redacted bounded output/artifact digests; diagnostics; restart reconciliation.
-- Proof: new regression versus unchanged failure; equal exit codes with
-  different failures are not equivalent; unexpected input drift invalidates
-  attribution; restart/lost response cannot duplicate checks or manufacture PASS.
-- Needs: L4. task_report remains the executor's report, not correctness proof.
-
-## L6: Critic and acceptance
-
-Result: read independent findings per acceptance item, required check evidence
-and real progress against the exact implementation result.
-
-- Owners: Runs; Harness/Grants; task-review MCP; task/plan progress UI.
-- Work: immutable review input; fixed critic policy/model selection; no
-  arbitrary critic edits/shell; per-item outcomes; evidence-backed produced
-  contracts; pending status; PASS_WITH_NOTES person action.
-- Proof: failed checks cannot become PASS by assertion; review dispatch
-  deduplicates; no review recursion; manual marks labeled; no old review
-  approving unseen changes; pending work not displayed fully verified.
-- Needs: L5. No editable specialist/profile dashboard required.
-
-## L7: Bounded repair and pending checks
-
-Result: failures reach the actual Planner, retries are bounded, exact pending
-dependencies trigger durable rechecks and plan changes stop affected work.
-
-- Owners: Runs; Plans owner-thread/Draft transitions; Threads/Turns delivery;
-  current Design/Grants authority; reports and review-gate UI.
-- Work: failure/problem records; busy/missing owner behavior; retry,
-  investigation and directed third attempt; pending rechecks; replan blocking;
-  person gates; interruption/lost-session reconciliation.
-- Proof: third failure stops; agent cannot authorize fourth attempt; busy owner
-  waits durably; missing owner stops visibly; Draft blocks/stops plan work;
-  cross-plan pins invalidate explicitly; no destructive automatic rollback.
-- Needs: L6. No manager or cross-chat speculative authority.
-
-## L8: Full local acceptance
-
-Result: disposable Laravel journey works in the real browser and harness, and
-documentation records the shipped behavior and limits.
-
-- Owners: controller across existing owners; each fixes its scoped defects.
-- Work: existing/new scaffold; producer/consumer task pair; forced check,
-  critic and plan failures; interrupted preparation/execution/check/review;
-  disjoint concurrency and read/write conflict; documentation reconciliation;
-  whole-branch review and delivery gate.
-- Proof: observe shadows serve, browser outcomes and logs; record environment,
-  harness/model and results. Windows/Linux automated tests are distinct from
-  physical/provider acceptance. Preserve the person's existing testing1;
-  exercise destructive/failure cases only on disposable fixtures.
-- Needs: L7.
-
-## Delivery rules
-
-`L1 -> (L2, L3) -> L4 -> L5 -> L6 -> L7 -> L8`.
-
-The dependency shape does not authorize overlapping writers/builds. Each slice
-has a short-lived branch, focused per-task checks, a separate commit for each
-completed verified task, one branch review and one full gate before its PR.
-Browser/log acceptance precedes recording the slice as delivered.
-
-Detailed plans belong to docs/backend/plans and docs/frontend/plans, with
-accepted shared requests. They must expand current symbols into exact callers,
-contracts, tests and API shapes, and put blocked/ready tasks in the owning
-stages files. This program reserves no B/F numbers, starts no product work and
-marks no current feature as delivered.
-
-## Written-design checkpoint
-
-Review the owner amendment, including preparation-worker, ownership, exact-path
-and evidence-model choices. A brainstorming builder check checks that the design
-can be planned without material guesses. After Mohammed approves that written
-design, invoke writing-plans and produce the dispatchable implementation plans.
-The owner design also resolves the builder check's five material questions:
-attributed preparation authorization, idle repair-session/attempt binding,
-exact contract-shape compatibility, output-specific evidence associations and
-immutable source artifacts for critic reads.
-Independent read-only builder check completed on 2026-11-09. After the five
-resolutions were added, the fix round reported no important unanswered
-questions. This is a design-completeness check, not automated product testing
-or Mohammed's approval of the written design.
-The subsequent LSP/task-knowledge amendment is a further design revision; its
-candidate-server trial remains planned, not a claim that LSP works in Shadows.
-
-## Coverage of the earlier section 17
-
-| Earlier obligation | Delivery |
-|---|---|
-| 17.1-17.2 contract and rationale | L3, using repository facts from L1/L2. |
-| 17.3 decisions and provenance | L3; pinning in L4. |
-| 17.4 readiness, lifecycle and gates | L4, L6 and L7. |
-| 17.5 packets, bounded questions and problems | L4; problem routing in L7. |
-| 17.6 independent evidence and review | L5/L6; repair in L7. |
-| 17.7 web views | Included with the API in each runnable slice. |
-| 17.8 persistence, API and immutable history | Included in each owning slice, with legacy-version handling in L3/L4. |
-| 17.9 staged delivery and 17.10 tests | L1-L8; focused checks per task and real journey in L8. |
-| 17.11 authority and owner-document changes | Current section 24 policy; slice-local amendments and final reconciliation in L8. |
-| 17.12 production operations | Outside the confirmed local-system scope. |
+- Precise file and symbol work stays central. A function task states its name,
+  inputs, returns, behavior and errors; the executor writes its implementation.
+- Permission globs coexist with exact named work.
+- One producer contract with explicit consumers; no schema fingerprints.
+- One stored brief per attempt; no hashed packet compiler or source snapshots.
+- The existing write-overlap check and one project check slot; no lease manager.
+- The critic reads the exact Git SHA and path.
+- Plan state and the Runs watcher stop obsolete attempts; no hold/ack protocol.
+- 13 server descriptors as data; a server is ready only after a real trial.
