@@ -1696,3 +1696,11 @@ background_tasks:
   tested_by: ["shows streamed tasks and stops only the selected task", "the count is hidden while the session has no tasks", "finished tasks are listed under the running ones with their state", "a stop in flight is pending and a refused stop shows its error"]
 
 map_layout_only: "Map proposal fixtures carry parts and layers without starter files; MapPartDetails owns the shared contract inspection."
+
+codex_in_conversation:
+  owner: "Codex uses the existing flow: the CLI menu lists what GET /api/harnesses returns, the draft and session menus draw what Core answers (modes, models, per-model efforts, images, context). The client holds no Codex rule."
+  menu: "An unavailable CLI shows Core's own reason beside its disabled item, such as how to start Shadows with --codex and --codex-home."
+  first_send: "A draft's pick stays through the first send: the thread is created with that harness and the first turn carries the mode Core listed. The harness locks once a turn has run."
+  context: "The ring shows the figures of the newest turn that reported them: Codex reports its last request, so figures are never summed."
+  no_hint: "The refusal row names an unattended mode only when the harness policy has one; Codex lists none."
+  tested_by: ["says why Codex cannot be picked in the words Core gave", "keeps the pick through the first send: the thread is created on Codex with Core’s only mode", "shows the session Core opened: its models, its mode and its images refused", "takes the efforts of the model it switched to from the refreshed session", "locks the CLI once a turn has run", "offers no Auto hint on a refused call: Codex has no unattended mode", "shows the last request Core reported, not a running total", "a Codex conversation shows no background tasks it never reported", "draws a streamed reply and its tool call once when the durable entries arrive"]

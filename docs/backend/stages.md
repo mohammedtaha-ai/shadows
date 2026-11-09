@@ -130,6 +130,54 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Verified on 2026-11-07: the SDK, fake, Core, Harness, Turns and CLI focused tests passed, including the mode, MCP, architecture, code map and contract checks. Formatting, both affected clippy modes and `cargo build -p shadows` passed.
 - Live on 2026-11-07: adapter 0.101.0 and configured Claude Code 2.1.317. MiniMax extension isolation and three Core prompts passed (new acceptEdits, resume auto, fork auto). OpenRouter listed 362 models and MiniMax 9. A temporary daemon logged both version values. The local npm install omitted optional binaries after the bundled Windows executable download stalled; the lockfile still records the optional package.
 
+### B-85 · Prove Codex MCP tools and effective permissions
+
+- Status: done (signed-in Windows permission proof, 2026-11-08)
+- Plan: [Codex app-server](plans/2026-11-07-codex-app-server.md#b-85-prove-tools-and-permissions-first).
+- Owner: Harness, through its existing Grants and planning owners; this task is a throwaway probe, not product implementation.
+- Read: harness controls spec §12.14; `crates/core-harness/contract.yaml`; `crates/core-grants/contract.yaml`; the existing Codex evidence at `41dd19ef`.
+- Touch: `docs/evidence/2026-11-07-codex-app-server-probe.md`, `docs/core/specs/2026-09-24-harness-controls-design.md`, `docs/backend/plans/2026-11-07-codex-app-server.md`, this stages file. Temporary probe source is deleted after evidence is saved.
+- Needs: none. Only this task is initially executable.
+- Verified on Windows with stable 0.167.0: real Planner thread-grant marker and draft, denied approval, read-only MXC write refusal, required-server failure, pending-tool Stop, same-thread continuation with a fresh project grant, and revoked-project-grant write refusal. See the dated Windows evidence for launch details and test boundaries.
+- Isolated launch: the same ChatGPT account signed into the dedicated Shadows `CODEX_HOME`. The regular home was excluded. Forcing the test project untrusted excluded both its original MCP fixture and one inserted after preflight. The exact policy and readback are in §12.14 and the evidence.
+- Done when: real 0.167.0 uses the intended Shadows MCP tools, creates/reads a marked draft, rejects forbidden authority and an old grant, cancels a pending tool call and resumes with fresh authority. Evidence records the exact effective tool/mode policy and secret-absence check. If policy cannot be enforced, leave B-86 blocked and report the measured gap.
+
+### B-86 · Connect Codex through the existing session owner
+
+- Status: done (fixtures, Claude regressions and a real signed-in daemon run, 2026-11-08)
+- Plan: [First real Planner path](plans/2026-11-07-codex-app-server.md#b-86-first-real-planner-path).
+- Owner: Agent owns wire translation; Harness owns sessions/grants; AppCore wires the programs.
+- Read: §12.14, B-85 evidence, Agent/Harness/Turns contracts and the plan's shared interfaces.
+- Touch: the exact create/modify lists under B-86 in the plan, including constructor callers, tests, contracts and code map. Recheck caller scope before dispatch.
+- Needs: B-85; `docs/shared/requests/2026-11-07-codex-planner.md` (accepted).
+- Done when: the managed second transport and AppCore path pass the plan's transport/lifecycle/MCP fixtures and first real tool path; failures revoke grants; Stop confirms its terminal result; Claude regressions pass. Public Codex availability remains disabled until B-87.
+- Verified on 2026-11-08: `shadows-agent --test codex` 6, `shadows-core --test codex_session` 5, `sessions` 12, `acp_connection` 21, `aylul_session` 55, `contracts` 6, `design_migration` 9, `shadows --test harness_config` 5 (two new Codex launch/config tests), `planner_mcp` 24, `architecture` 49 and `codemap` passed; fmt and clippy for the changed crates with and without test support.
+- Live on 2026-11-08: a worktree daemon with `--codex` (native 0.167.0) and the dedicated signed-in home opened a Planner thread (20-tool inventory verified, 8 catalog models, `read-only`). A real `gpt-6.1-sol`/`low` turn called `workspace_get` and `vision_propose`; the API showed the pending proposal. `vision_approve` was refused as a visible refusal and the vision stayed at revision 0. The model declined both shell-write requests under the Planner instructions, so filesystem enforcement still rests on B-85's MXC measurement and the opening's `readOnly` check. Stop during a streamed turn recorded one `Cancelled`. After a daemon restart the same thread resumed and recalled the earlier tool answer. No bearer text appeared in either daemon log or the new rollout. `GET /api/harnesses` still listed Codex as unavailable.
+
+### B-87 · Complete Codex choices, usage and conversation actions
+
+- Status: done (focused checks and a real signed-in daemon run, 2026-11-09)
+- Plan: [Controls](plans/2026-11-07-codex-app-server.md#b-87-complete-controls-and-enable-the-harness).
+- Owner: Agent translates reports; Harness owns choices; Projects owns allowed modes; DB owns the migration catalog.
+- Read: §12.14 and the Agent, Harness, Projects and DB contracts.
+- Touch: the exact B-87 file list in the plan. Confirm the next unused migration number before dispatch.
+- Needs: B-86; the accepted Codex Planner request.
+- Done when: configured Codex is available, per-model effort/mode rules hold, existing authority is not widened by migration, fork/Send now work, and last-request usage is neither cumulative nor counted twice on resume. Run the plan's focused checks.
+- Verified on 2026-11-09: `shadows-core --test codex_session` 16 (11 new B-87 tests), `thread_session` 2, `harness_schema` 5; `shadows-agent` lib 38 and `--test codex` 6; `core-harness --test list` 1; `core-db --test migration_checksums` 1; `shadows --test harness_choices` 13, `harness_effort` 7, `harness_observation` 5, `harness_config` 5, `openapi` 8 (no API change), `architecture` 49 and `codemap`. fmt and clippy for the changed crates with and without test support passed.
+- Migration: `0050_codex_modes.sql`. This branch merges first and keeps 0050 (Mohammed, 2026-11-09); `feature/executors` renumbers its `0050_executor_sessions.sql` and updates the checksum fixture when it merges.
+- Live on 2026-11-09 (native 0.167.0, dedicated home, fresh database): Codex listed available with `read-only`; a new project allowed only `read-only`. The catalog listed 8 models in order with per-model efforts. One turn called `workspace_get` and recorded context 18127/475000 (last request), with five-hour and weekly limits from the real 300/10080-minute windows. The model and effort were remembered only after that turn. Send now steered into a running turn (2 operations, not 3). A fork answered from the source's history while the source's entries stayed unchanged. No bearer text appeared in the daemon logs.
+- Found live and fixed: the opening's `account/rateLimits/read` (about 3.7 s) pushed setup to the 20 s limit, so it now runs in the background. Real `thread/start` reports no effort, so the opening now reports the model's catalog default.
+
+### B-88 · Accept Codex in the real Planner
+
+- Status: todo, after the merge (Mohammed, 2026-11-09: the branch merges without it; Mohammed runs it on `main`)
+- Plan: [Acceptance](plans/2026-11-07-codex-app-server.md#b-88-acceptance-and-delivery).
+- Read: §12.14, the Codex plan and the evidence record.
+- Touch: Codex evidence, owner spec §12.14, the Codex plan, this stages file and `docs/frontend/stages.md`.
+- Needs: B-87 and F-97 merged to `main`. Not a merge blocker for `codex/codex-app-server`.
+- Done when: real daemon/browser/log acceptance covers tools, refusal, Stop, restart/continuation, model/effort controls, fork and Send now; Claude still runs. Full workspace gate stays with CI.
+- Watch during Stop: `Turns::stop` answers the operation as it stands, which may still be `Running` while the watcher writes `Cancelled` (core-turns contract, `stop`); the client takes the ending from the stream. If the browser shows a stale Running row after Stop, the follow-up is to make `stop` wait for `finished_at` as `stop_running` does.
+
 ## Executors, slices 0 and 1
 
 Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. Plan: [slices 0 and 1](plans/2026-11-08-executors.md). Branch

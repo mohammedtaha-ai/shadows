@@ -73,25 +73,26 @@ async fn ending_a_turn_settles_its_unanswered_requests() {
 #[tokio::test]
 async fn disconnecting_settles_requests_before_the_turn_is_collected() {
     use shadows_agent::acp::{SessionSetup, SessionStart};
+    use shadows_agent::connection::ManagedConnection;
     let w = world().await;
     let opened = w.sessions.open(&w.thread).await.unwrap();
-    let other = opened
-        .connection()
+    let ManagedConnection::Acp(connection) = opened.connection() else {
+        panic!("AYLUL opens the ACP connection");
+    };
+    let other = connection
         .start_session(&w.home, SessionStart::New, &SessionSetup::default())
         .await
         .unwrap();
     let op = start_ask(&w, &w.thread).await;
     let ask = waiting(&w, 1).await.remove(0);
     assert!(
-        opened
-            .connection()
+        connection
             .prompt(&other.session_id, "exit", &[])
             .await
             .is_err()
     );
     assert!(matches!(
-        opened
-            .connection()
+        connection
             .answer_permission(&ask.request_id, "allow_once")
             .await,
         Err(shadows_agent::acp::PermissionError::Settled)

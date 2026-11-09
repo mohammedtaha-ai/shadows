@@ -27,7 +27,7 @@ pub struct Choice {
 /// this project"`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct SessionChoices {
-    pub capabilities: crate::acp::PromptCapabilities,
+    pub capabilities: crate::connection::PromptCapabilities,
     pub models: Vec<Choice>,
     pub efforts: Vec<Choice>,
     pub modes: Vec<Choice>,

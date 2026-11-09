@@ -73,7 +73,7 @@ async fn fixture() -> (Fixture, ThreadId) {
 }
 
 #[test]
-fn claude_policy_is_accept_edits_and_auto_and_codex_has_none() {
+fn claude_policy_is_accept_edits_and_auto_and_codex_is_read_only() {
     assert_eq!(
         policy::allowed_modes(policy::CLAUDE_CODE),
         ["acceptEdits", "auto"]
@@ -82,7 +82,8 @@ fn claude_policy_is_accept_edits_and_auto_and_codex_has_none() {
         policy::default_mode(policy::CLAUDE_CODE),
         Some("acceptEdits")
     );
-    assert!(policy::allowed_modes(policy::CODEX).is_empty());
+    assert_eq!(policy::allowed_modes(policy::CODEX), ["read-only"]);
+    assert_eq!(policy::default_mode(policy::CODEX), Some("read-only"));
     assert!(!policy::is_known("gemini"));
 }
 
@@ -182,8 +183,8 @@ async fn a_project_is_created_with_the_policy_modes_and_they_can_be_replaced() {
     assert_eq!(listed[0].allowed_modes["claude-code"], vec!["acceptEdits"]);
     assert_eq!(
         listed[0].allowed_modes["codex"],
-        Vec::<String>::new(),
-        "every known harness is listed, with none allowed"
+        vec!["read-only"],
+        "replacing one harness's modes leaves the others as created"
     );
 
     fx.storage.close().await.unwrap();

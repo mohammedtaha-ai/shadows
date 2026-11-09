@@ -1,8 +1,73 @@
 //! Explicit harness configuration and the pinned adapter's version: the
 //! configuration a harness is started from, not anything it answers.
 
-use shadows::config::{ConfigError, harness_path};
+use shadows::config::{ConfigError, codex_executable, codex_home, harness_path};
+use shadows_agent::codex::CodexProgram;
+use shadows_agent::connection::{McpServerSpec, SessionSetup};
 use shadows_core::testing::adapter_version;
+
+/// Codex is launched from an explicit absolute executable and its own
+/// signed-in home, never the person's regular profile.
+#[test]
+fn codex_paths_are_absolute_and_exist() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(codex_executable(std::path::Path::new("codex.exe")).is_err());
+    assert!(codex_home(std::path::Path::new("codex-home")).is_err());
+    assert!(codex_home(&dir.path().join("missing")).is_err());
+    assert_eq!(codex_home(dir.path()).unwrap(), dir.path());
+    let executable = dir.path().join("codex.exe");
+    std::fs::write(&executable, "").unwrap();
+    assert_eq!(codex_executable(&executable).unwrap(), executable);
+}
+
+/// The bearer is a secret: it must never appear in the child's arguments,
+/// which other local processes can read, only in its environment.
+#[test]
+fn the_codex_grant_reaches_only_the_child_environment() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().join("home");
+    let program = CodexProgram::new(dir.path().join("codex.exe"), home.clone());
+    let grant = "grant-value-for-the-test";
+    let setup = SessionSetup {
+        mcp: vec![McpServerSpec::Http {
+            name: "shadows".into(),
+            url: "http://127.0.0.1:9/mcp".into(),
+            headers: vec![("Authorization".into(), format!("Bearer {grant}"))],
+        }],
+        ..SessionSetup::default()
+    };
+    let spec = program.process_spec(dir.path(), &setup).unwrap();
+    assert!(spec.args.iter().all(|arg| !arg.contains(grant)));
+    let get = |key: &str| {
+        spec.env
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
+    };
+    assert_eq!(get("SHADOWS_CODEX_MCP_TOKEN"), Some(grant));
+    assert_eq!(get("CODEX_HOME"), home.to_str());
+    for setting in [
+        "features.apps=false",
+        "features.plugins=false",
+        "features.hooks=false",
+        "features.multi_agent=false",
+        "web_search=\"disabled\"",
+        "shell_environment_policy.exclude=[\"SHADOWS_CODEX_MCP_TOKEN\"]",
+    ] {
+        assert!(spec.args.iter().any(|arg| arg == setting), "{setting}");
+    }
+    assert!(
+        spec.args
+            .iter()
+            .any(|arg| arg.contains("trust_level=\"untrusted\""))
+    );
+    assert!(
+        program
+            .process_spec(dir.path(), &SessionSetup::default())
+            .is_err(),
+        "no Codex child starts without a Shadows grant"
+    );
+}
 
 /// The harness is resolved from explicit configuration, never from
 /// `PATH`. `claude` is what a PATH lookup looks like when it is spelled as a

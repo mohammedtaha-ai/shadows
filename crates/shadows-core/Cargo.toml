@@ -78,6 +78,8 @@ yaml-rust2 = { workspace = true }
 test-support = ["core-events/test-support", "core-messages/test-support", "core-project-lifecycle/test-support", "core-turns/test-support", "core-plans/test-support", "core-design/test-support", "core-harness/test-support", "core-runs/test-support", "core-operations/test-support", "core-grants/test-support", "core-threads/test-support", "dep:escargot", "shadows-process/test-support", "core-db/test-support", "core-runtime/test-support", "core-secrets/test-support", "core-providers/test-support", "core-projects/test-support", "core-code/test-support"]
 
 [dev-dependencies]
+axum = { workspace = true }
+shadows-mcp = { path = "../shadows-mcp" }
 tempfile = { workspace = true }
 # `tests/contracts.rs` (spec §14.7): the contracts are YAML, the sources Rust.
 syn = { workspace = true }

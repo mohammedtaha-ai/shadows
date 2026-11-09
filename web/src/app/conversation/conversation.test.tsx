@@ -6,7 +6,8 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { threadFixture, userEntry } from '@/test/contract-fixtures'
+import type { ThreadEntry } from '@/api/threads'
+import { agentEntry, runningOperation, threadFixture, toolCardEntry, toolCardFixture, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '@/test/test-app'
 
@@ -141,5 +142,38 @@ describe('a stop the daemon could not carry out', () => {
 
     await act(async () => a.button('Stop again')?.click())
     await until(() => stops === 2)
+  })
+})
+
+describe('Codex replies', () => {
+  it('draws a streamed reply and its tool call once when the durable entries arrive', async () => {
+    const list: ThreadEntry[] = [userEntry('u1', 'read the plan')]
+    const a = app = await startApp('/projects/p1/threads/t1', {
+      ...answers({ operations: [runningOperation()] }),
+      'GET /api/threads/t1': { ...threadFixture, harness: 'codex' },
+      'GET /api/threads/t1/entries': () => Response.json(list),
+    })
+    await until(() => a.sources.some((s) => s.param('thread_id') === 't1'))
+    const stream = a.sources.find((s) => s.param('thread_id') === 't1')!
+    await act(async () => stream.caughtUp(0))
+    await act(async () => stream.emit('delta', JSON.stringify({ op: 'op1', text: 'Reading the plan.' })))
+    await act(async () => stream.emit('tool', JSON.stringify({
+      op: 'op1', id: 'c', tool: 'workspace_get', kind: 'other', title: 'workspace_get', target: null,
+      lines: null, status: 'completed', started_at: '2026-10-31T10:00:00Z',
+    })))
+    await until(() => a.text().includes('Reading the plan.'))
+    await act(async () => {
+      const message = agentEntry('a1', 'Reading the plan.')
+      const call = toolCardEntry('e-c', 'workspace_get', toolCardFixture({ id: 'c', target: null }))
+      list.push(message, call)
+      stream.durable(1, 'ThreadEntryAppended', 'op1', { ordinal: message.ordinal, kind: message.kind })
+      stream.durable(2, 'ThreadEntryAppended', 'op1', { ordinal: call.ordinal, kind: call.kind })
+    })
+    await until(() => a.container.querySelector('[data-entry-kind="tool"]') !== null)
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)))
+    const count = (text: string) => (a.container.textContent?.split(text).length ?? 1) - 1
+    expect(count('Reading the plan.')).toBe(1)
+    expect(a.container.querySelectorAll('[data-entry-kind="tool"]')).toHaveLength(1)
+    expect(count('workspace_get')).toBe(1)
   })
 })

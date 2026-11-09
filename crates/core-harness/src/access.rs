@@ -2,7 +2,12 @@
 use super::{Harness, LeaseError, OpenError, OpenSession};
 use crate::HarnessError;
 use core_threads::ThreadId;
-use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered, events::HarnessEvent};
+use shadows_agent::{
+    TurnSettings,
+    choices::Offered,
+    connection::{ConnectionError, ManagedConnection},
+    events::HarnessEvent,
+};
 use std::{io, time::Duration};
 use tokio::sync::mpsc;
 
@@ -64,7 +69,7 @@ impl Harness {
         opened: &OpenSession,
         config_id: &str,
         value: &str,
-    ) -> Result<Offered, AcpError> {
+    ) -> Result<Offered, ConnectionError> {
         self.sessions
             .set_option(thread, opened, config_id, value)
             .await
@@ -159,7 +164,7 @@ impl super::Harness {
     }
 
     pub(super) fn check_images(
-        connection: &shadows_agent::acp::Connection,
+        connection: &ManagedConnection,
         has_images: bool,
     ) -> Result<(), crate::HarnessError> {
         let caps = connection.prompt_capabilities();

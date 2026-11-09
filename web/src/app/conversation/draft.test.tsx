@@ -4,9 +4,9 @@
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ThreadPlanningAnchor } from '@/api/planning-context'
-import { fakeChoices, planFixture, planListing, threadFixture } from '@/test/contract-fixtures'
-import { answers } from '@/test/fake-daemon'
-import { type TestApp, choose, startApp, typeInto, until } from '@/test/test-app'
+import { claudeHarness, fakeChoices, planFixture, planListing, projectFixture, threadFixture } from '@/test/contract-fixtures'
+import { answers, codexConfigured } from '@/test/fake-daemon'
+import { type TestApp, choose, menuItem, startApp, typeInto, until } from '@/test/test-app'
 
 let open: TestApp | null = null
 afterEach(() => {
@@ -442,4 +442,48 @@ it('the draft keeps staged images when its opened session refuses images', async
   expect(app.calls).not.toContain('POST /api/threads/t1/attachments')
   expect(app.calls).not.toContain('POST /api/threads/t1/turns')
   expect(document.querySelector<HTMLInputElement>('input[type="file"]')?.disabled).toBe(true)
+})
+
+describe('a draft on Codex', () => {
+  const codexThread = { ...threadFixture, harness: 'codex' }
+  const codexChoices = {
+    ...fakeChoices,
+    models: [{ id: 'gpt-5.5', label: 'gpt-5.5', description: null, enabled: true, reason: null }],
+    modes: [{ id: 'read-only', label: 'Read only', description: null, enabled: true, reason: null }],
+    current: { model: 'gpt-5.5', mode: 'read-only', effort: 'medium' },
+  }
+
+  it('says why Codex cannot be picked in the words Core gave', async () => {
+    const app = (open = await startApp('/projects/p1/new', answers()))
+    await until(() => app.button('Claude Code') !== undefined)
+    act(() => app.button('Claude Code')?.click())
+    await until(() => menuItem('Codex') !== undefined)
+    expect(menuItem('Codex')?.getAttribute('aria-disabled')).toBe('true')
+    expect(menuItem('Codex')?.textContent).toContain('Start Shadows with --codex and --codex-home')
+  })
+
+  it('keeps the pick through the first send: the thread is created on Codex with Core’s only mode', async () => {
+    const routes = answers({
+      harnesses: [claudeHarness, codexConfigured],
+      project: { ...projectFixture, allowed_modes: { codex: ['read-only'] } },
+      session: codexChoices,
+    })
+    routes['POST /api/projects/p1/threads'] = () => Response.json(codexThread, { status: 201 })
+    routes['GET /api/threads/t1'] = codexThread
+    routes['GET /api/projects/p1/threads'] = [codexThread]
+    const app = (open = await startApp('/projects/p1/new', routes))
+    await until(() => app.button('Claude Code') !== undefined)
+    await choose(app, 'Claude Code', 'Codex')
+    await until(() => app.button('Read only') !== undefined)
+    typeInto(document.querySelector('textarea')!, 'Read the plan')
+    await until(() => app.button('Send')?.disabled === false)
+    app.button('Send')?.click()
+
+    await until(() => app.path() === '/projects/p1/threads/t1')
+    expect(app.bodies[0]).toMatchObject({ harness: 'codex', command_id: expect.any(String) })
+    expect(app.bodies[1]).toMatchObject({ prompt: 'Read the plan', mode: 'read-only', model: 'gpt-5.5', effort: 'medium' })
+    // The thread page keeps Codex: the lock names it, and no turn asked for Claude Code.
+    await until(() => app.container.textContent?.includes('Codex') === true)
+    expect(app.bodies.filter((b) => (b as { harness?: string }).harness === 'claude-code')).toEqual([])
+  })
 })

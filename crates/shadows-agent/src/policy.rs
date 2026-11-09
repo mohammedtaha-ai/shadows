@@ -11,8 +11,10 @@ use std::collections::BTreeMap;
 
 /// Claude Code, run through the pinned ACP adapter.
 pub const CLAUDE_CODE: &str = "claude-code";
-/// Codex: listed, not yet runnable.
+/// Codex Planner, run through native app-server when explicitly configured.
 pub const CODEX: &str = "codex";
+/// Codex's only measured mode: filesystem read-only, no approval prompts.
+pub const CODEX_READ_ONLY: &str = "read-only";
 
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
 pub const AYLUL: &str = "aylul";
@@ -53,6 +55,13 @@ const CLAUDE_CODE_MODES: [Mode; 2] = [
 
 // The ids are read out of the table above, so a mode is named once.
 const CLAUDE_CODE_MODE_IDS: [&str; CLAUDE_CODE_MODES.len()] = ids(&CLAUDE_CODE_MODES);
+const CODEX_MODES: [Mode; 1] = [Mode {
+    id: CODEX_READ_ONLY,
+    label: "Read only",
+    description: "Codex reads files and uses Shadows planning tools. \
+                  Filesystem writes are refused.",
+}];
+const CODEX_MODE_IDS: [&str; CODEX_MODES.len()] = ids(&CODEX_MODES);
 
 const fn ids<const N: usize>(modes: &[Mode; N]) -> [&'static str; N] {
     let mut out = [""; N];
@@ -69,15 +78,17 @@ const fn ids<const N: usize>(modes: &[Mode; N]) -> [&'static str; N] {
 pub fn modes(kind: &str) -> &'static [Mode] {
     match kind {
         CLAUDE_CODE | AYLUL => &CLAUDE_CODE_MODES,
+        CODEX => &CODEX_MODES,
         _ => &[],
     }
 }
 
 /// The ids of `modes(kind)`, in the same order. Empty for a harness whose
-/// modes are not decided (Codex) or that Shadows does not know.
+/// modes Shadows does not know.
 pub fn allowed_modes(kind: &str) -> &'static [&'static str] {
     match kind {
         CLAUDE_CODE | AYLUL => &CLAUDE_CODE_MODE_IDS,
+        CODEX => &CODEX_MODE_IDS,
         _ => &[],
     }
 }
@@ -96,6 +107,7 @@ pub fn unattended_mode(kind: &str) -> Option<&'static str> {
 pub fn default_mode(kind: &str) -> Option<&'static str> {
     match kind {
         CLAUDE_CODE | AYLUL => Some("acceptEdits"),
+        CODEX => Some(CODEX_READ_ONLY),
         _ => None,
     }
 }
@@ -152,7 +164,12 @@ mod tests {
             }
         }
         assert_eq!(unattended_mode(AYLUL), Some("auto"));
-        assert!(modes(CODEX).is_empty());
+        assert_eq!(allowed_modes(CODEX), [CODEX_READ_ONLY]);
         assert_eq!(unattended_mode(CODEX), None);
+    }
+
+    #[test]
+    fn new_projects_allow_only_codex_read_only() {
+        assert_eq!(default_modes()[CODEX], [CODEX_READ_ONLY]);
     }
 }

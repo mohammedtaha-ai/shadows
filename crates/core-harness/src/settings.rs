@@ -7,13 +7,11 @@
 //! each with the complete set, which becomes the thread's latest offer
 //! (`offers.rs`).
 
-use serde_json::Value;
-
 use super::store::Remembered;
 use super::{LeaseError, OpenSession, Sessions};
 use crate::HarnessError;
 use core_threads::ThreadId;
-use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered};
+use shadows_agent::{TurnSettings, choices::Offered, connection::ConnectionError};
 
 /// Why the session's model or effort was not changed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -57,15 +55,17 @@ impl Sessions {
         opened: &OpenSession,
         config_id: &str,
         value: &str,
-    ) -> Result<Offered, AcpError> {
+    ) -> Result<Offered, ConnectionError> {
         let connection = opened.connection();
-        let answer: Value = tokio::time::timeout(
+        let answer = tokio::time::timeout(
             self.config.setup_wait,
             connection.set_option(&opened.session_id, config_id, value),
         )
         .await
-        .map_err(|_| AcpError::Rpc("the harness did not answer the settings request".into()))??;
-        self.offers.record(thread, &answer).map_err(AcpError::Rpc)
+        .map_err(|_| {
+            ConnectionError::Rpc("the harness did not answer the settings request".into())
+        })??;
+        Ok(self.offers.record(thread, &answer))
     }
 
     /// Sets the session to `model` as soon as a person picks it, so
@@ -172,7 +172,7 @@ impl Sessions {
         opened: &OpenSession,
         offered: Offered,
         effort: Option<&str>,
-    ) -> Result<Offered, AcpError> {
+    ) -> Result<Offered, ConnectionError> {
         let (Some(effort), Some(id)) = (effort, offered.ids.effort.clone()) else {
             return Ok(offered);
         };
@@ -196,7 +196,7 @@ impl Sessions {
         mut offered: Offered,
         mode: &str,
         remembered: Remembered,
-    ) -> Result<(), AcpError> {
+    ) -> Result<(), ConnectionError> {
         if let Some(model) = remembered.model
             && offered.current.model != model
         {
@@ -218,7 +218,7 @@ impl Sessions {
             .await?;
         self.set_mode(thread, opened, offered, mode)
             .await
-            .map_err(|error| AcpError::Rpc(error.to_string()))?;
+            .map_err(|error| ConnectionError::Rpc(error.to_string()))?;
         Ok(())
     }
 
@@ -232,14 +232,14 @@ impl Sessions {
         config_id: &str,
         value: &str,
         offered: bool,
-    ) -> Result<Option<Offered>, AcpError> {
+    ) -> Result<Option<Offered>, ConnectionError> {
         if !offered {
             tracing::info!(config_id, value, "sessions.remembered_not_offered: dropped");
             return Ok(None);
         }
         match self.set_option(thread, opened, config_id, value).await {
             Ok(next) => Ok(Some(next)),
-            Err(AcpError::Rpc(message)) => {
+            Err(ConnectionError::Rpc(message)) => {
                 tracing::info!(config_id, value, %message, "sessions.remembered_refused: dropped");
                 Ok(None)
             }
@@ -261,7 +261,7 @@ impl Sessions {
             .offered(thread)
             .await
             .ok_or("the harness session closed before the turn")?;
-        let refused = |what: &str, value: &str, e: AcpError| format!("{what} {value}: {e}");
+        let refused = |what: &str, value: &str, e: ConnectionError| format!("{what} {value}: {e}");
         offered = self
             .model_for_turn(thread, opened, offered, &settings.model)
             .await
@@ -288,10 +288,11 @@ impl Sessions {
 
 /// A refused `set_option` while a person changes a setting: the harness's own
 /// words, or the session gone.
-fn refused(error: AcpError) -> SettingRefused {
+fn refused(error: ConnectionError) -> SettingRefused {
     match error {
-        AcpError::Rpc(message) => SettingRefused::Harness(message),
-        AcpError::Closed => SettingRefused::Lease(LeaseError::Closed),
+        ConnectionError::Rpc(message) => SettingRefused::Harness(message),
+        ConnectionError::Closed => SettingRefused::Lease(LeaseError::Closed),
+        ConnectionError::Protocol(message) => SettingRefused::Harness(message.into()),
     }
 }
 
@@ -302,7 +303,7 @@ impl Sessions {
         opened: &OpenSession,
         offered: Offered,
         model: &str,
-    ) -> Result<Offered, AcpError> {
+    ) -> Result<Offered, ConnectionError> {
         if offered.current.model == model {
             return Ok(offered);
         }

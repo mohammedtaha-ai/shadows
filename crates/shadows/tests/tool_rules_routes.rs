@@ -59,6 +59,8 @@ async fn world() -> World {
             node_path: "absent".into(),
             adapter_path: "absent".into(),
             harness_path: "absent".into(),
+            codex_path: None,
+            codex_home: None,
             aylul: Some(AylulConfig {
                 home_root: tmp.path().to_owned(),
                 project_slug: "aylul".into(),

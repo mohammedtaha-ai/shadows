@@ -179,7 +179,7 @@ impl Harness {
                 kind: kind.to_string(),
                 label: Self::label(kind).to_string(),
                 available,
-                reason: (!available).then(|| "Coming later".to_string()),
+                reason: (!available).then(|| Sessions::unavailable_reason(kind).to_string()),
                 remembered,
                 limits: self.store.latest_limits(kind).await?,
                 modes: policy::modes(kind)

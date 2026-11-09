@@ -18,6 +18,8 @@ pub struct Config {
     /// carries more than one `claude-code` installation at different versions.
     /// Built through [`harness_path`], which is what enforces that.
     pub harness_path: PathBuf,
+    pub codex_path: Option<PathBuf>,
+    pub codex_home: Option<PathBuf>,
     /// Set in debug mode: the file this run's log lines also go to, which
     /// `serve` prints after its address.
     pub debug_log: Option<PathBuf>,
@@ -107,6 +109,37 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError> {
             raw.to_string_lossy().into_owned(),
         ))
     }
+}
+
+pub fn codex_executable(raw: &Path) -> Result<PathBuf, String> {
+    if !raw.is_absolute() || !raw.is_file() {
+        return Err("Codex executable must be an existing absolute file path".into());
+    }
+    if cfg!(windows)
+        && !raw
+            .extension()
+            .and_then(std::ffi::OsStr::to_str)
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
+    {
+        return Err("On Windows, use the native Codex .exe".into());
+    }
+    Ok(raw.to_path_buf())
+}
+
+pub fn codex_home(raw: &Path) -> Result<PathBuf, String> {
+    if !raw.is_absolute() || !raw.is_dir() {
+        return Err("Codex home must be an existing absolute directory".into());
+    }
+    let user_home = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    let regular = std::env::var_os(user_home)
+        .and_then(|home| PathBuf::from(home).join(".codex").canonicalize().ok());
+    let actual = raw
+        .canonicalize()
+        .map_err(|_| "Codex home cannot be resolved")?;
+    if regular.as_ref() == Some(&actual) {
+        return Err("Use the dedicated Shadows Codex home".into());
+    }
+    Ok(raw.to_path_buf())
 }
 
 pub const PROJECT_SLUG: &str = "aylul";

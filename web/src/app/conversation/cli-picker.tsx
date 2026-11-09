@@ -121,7 +121,7 @@ export function CliMenu({
           {(harnesses ?? []).filter((h) => (h.kind === AYLUL_HARNESS) === assistant).map((h) => (
             <DropdownMenuRadioItem key={h.kind} value={h.kind} disabled={!h.available}>
               <span>{h.label}</span>
-              {!h.available && <span className="text-xs text-muted-foreground">coming</span>}
+              {!h.available && <span className="text-xs text-muted-foreground">{h.reason ?? 'Not available'}</span>}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

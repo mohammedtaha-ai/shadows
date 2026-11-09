@@ -1,0 +1,12 @@
+name: fake-codex
+version: 1
+status: current
+source: crates/fake-codex/src
+purpose: Supply a deterministic Codex app-server peer for transport tests.
+
+modules:
+  main.rs: Respond to test requests over stdio JSONL.
+
+boundaries:
+  - The executable builds only with test-support.
+  - Fixture payloads contain no credentials and exercise no live provider.

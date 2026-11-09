@@ -205,7 +205,7 @@ tests:
   - name: close_waits_for_an_in_flight_transaction_before_closing_readers
     checks: An in-flight write keeps close pending and readers open; transaction completion lets close finish.
   - name: embedded_migrations_match_the_base_catalog
-    checks: All 51 versions, descriptions and SHA-384 checksums match `tests/fixtures/base_migrations.sha384`.
+    checks: All 52 versions, descriptions and SHA-384 checksums match `tests/fixtures/base_migrations.sha384`.
   - name: write_txn_recovers_after_begin_times_out
     checks: An external writer exceeds busy_timeout; the next write succeeds after it releases its lock.
   - name: fingerprints_match_persisted_values
@@ -244,6 +244,7 @@ modules:
   write_observer.rs: Feature-gated committed-write observation
 
 structure_removal_migrations: 0048 removes starter files from Design parts and map versions; 0049 drops structure-write bookkeeping without touching disk.
+codex_modes_migration: 0050 gives each existing non-AYLUL project Codex's `read-only` mode only; no write mode and no other harness's modes change (codex_modes_migrate_without_granting_write_access).
 
 runs_migration: 0052 adds run_attempts (one executor attempt at a task, with the scope it holds until released_at) and run_task_marks (a person's done marks).
 

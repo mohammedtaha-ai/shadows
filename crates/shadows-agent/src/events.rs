@@ -69,7 +69,7 @@ pub enum HarnessEvent {
         rate_limit: Option<Value>,
         cost: Option<UsageCost>,
     },
-    Options(Value),
+    Options(crate::choices::Offered),
     /// The harness's complete `/` list, sent after the session opens
     /// and whenever it changes, between turns too.
     Commands(Vec<SlashCommand>),

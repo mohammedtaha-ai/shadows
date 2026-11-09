@@ -6,7 +6,7 @@ use super::sessions::{OpenError, OpenSession, Sessions};
 use core_threads::ThreadId;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::{
-    acp::{Connection, SessionStart},
+    connection::{ManagedConnection, SessionStart},
     policy,
 };
 use shadows_process::{self as process, ProcessHandle};
@@ -147,8 +147,8 @@ impl Sessions {
             }
             let Opening {
                 cwd,
-                setup,
-                spec,
+                mut setup,
+                acp_spec,
                 aylul_models,
                 aylul_usage,
                 window,
@@ -165,6 +165,28 @@ impl Sessions {
                     .restrict_models(thread, models.clone(), default.clone());
             }
             let selected_model = aylul_models.as_ref().and(remembered.model.clone());
+            let is_codex = context.harness == policy::CODEX;
+            let spec = if let Some(spec) = acp_spec {
+                spec
+            } else {
+                let program = self
+                    .config
+                    .codex
+                    .as_ref()
+                    .ok_or_else(|| OpenError::Start("Codex is not configured".into()))?;
+                setup = self
+                    .setups
+                    .for_opening(thread, &context.project_id, context.kind)
+                    .await
+                    .map_err(OpenError::Start)?;
+                match program.process_spec(&cwd, &setup) {
+                    Ok(spec) => spec,
+                    Err(error) => {
+                        self.forget(thread).await;
+                        return Err(OpenError::Start(error.to_string()));
+                    }
+                }
+            };
             let mut handle = match process::spawn(spec) {
                 Ok(handle) => handle,
                 Err(error) => {
@@ -182,8 +204,9 @@ impl Sessions {
             let setup = async {
                 let connection = tokio::time::timeout_at(
                     deadline,
-                    Connection::open(
+                    ManagedConnection::open(
                         &mut handle,
+                        is_codex,
                         if context.harness == policy::AYLUL {
                             shadows_agent::acp::PermissionPolicy::Ask
                         } else {
@@ -207,7 +230,7 @@ impl Sessions {
                         .await
                         .map_err(|e| e.to_string())?,
                 };
-                let setup = if context.harness == policy::AYLUL {
+                let setup = if context.harness == policy::AYLUL || is_codex {
                     setup
                 } else {
                     self.setups
@@ -217,7 +240,12 @@ impl Sessions {
                 // Grant issuance must finish before a timeout can revoke its held grant.
                 tokio::time::timeout_at(deadline, async {
                     let session = connection
-                        .start_session(&cwd, start, &setup)
+                        .start_session(
+                            &cwd,
+                            start,
+                            &setup,
+                            core_grants::Grants::tools_for(core_grants::GrantKind::Thread),
+                        )
                         .await
                         .map_err(|e| e.to_string())?;
                     let opened = OpenSession {
@@ -227,13 +255,12 @@ impl Sessions {
                         connection,
                         generation: self.generations.fetch_add(1, Ordering::Relaxed),
                     };
-                    let mut offered = self.offers.record(thread, &session.options)?;
+                    let mut offered = self.offers.record(thread, &session.options);
                     if let Some((models, default)) = &aylul_models {
                         if !models.iter().all(|id| offered.offers_model(id)) {
                             return Err("adapter did not offer all provider models".into());
                         }
-                        let raw = shadows_agent::choices::Offered::parse(&session.options)?;
-                        if !models.contains(&raw.current.model) {
+                        if !models.contains(&session.options.current.model) {
                             offered = self
                                 .set_option(thread, &opened, &offered.ids.model, default)
                                 .await

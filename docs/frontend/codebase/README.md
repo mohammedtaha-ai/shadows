@@ -213,7 +213,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/approved-by.tsx` | Attribution line linking to the approving conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/bidi.ts` | Text direction for each block of a reply | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/carried-send.ts` | Store the failed first-send handoff | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/cli-picker.tsx` | Chooses the CLI a conversation runs on | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/cli-picker.tsx` | Chooses the CLI a conversation runs on, showing Core's reason for an unavailable one | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer-bar.tsx` | Flat row of composer menus under the message box | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/composer.tsx` | Compose the message writing surface | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/context-ring.tsx` | Shows the context-usage summary in a ring popover | `web/src/app/conversation/contract.yaml` |
@@ -415,7 +415,7 @@ it is that folder's `contract.yaml`.
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
 | `web/src/test/composer.ts` | Shared session-ready composer fixtures | `web/src/app/conversation/contract.yaml` |
 | `web/src/test/contract-fixtures.ts` | Sample daemon values typed against `schema.d.ts` | `web/src/test/fake-daemon.ts` |
-| `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon | `web/src/test/contract-fixtures.ts` |
+| `web/src/test/fake-daemon.ts` | Route table of a fake one-project daemon, with Codex listed unconfigured or configured | `web/src/test/contract-fixtures.ts` |
 | `web/src/test/fake-event-source.ts` | Test-only EventSource driven frame by frame | `web/src/stream/contract.yaml` |
 | `web/src/test/fake-resize-observer.ts` | Test ResizeObserver resized by hand | `web/src/test/fake-daemon.ts` |
 | `web/src/test/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
