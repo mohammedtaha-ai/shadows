@@ -1,7 +1,8 @@
 # Section 17 — Executable Task Contracts and Evidence
 
 - **Date:** 2026-10-01
-- **Status:** Draft for owner review.
+- **Status:** Draft for owner review. Mohammed confirmed complete local-system
+  scope on 2026-11-09. The written design in 17.0 still awaits his approval.
 - **Idea:** `docs/core/vision.md` §§2–5: agents work within explicit task boundaries,
   report evidence when the plan is wrong, and completion is established by
   verification rather than by an agent's claim.
@@ -11,6 +12,322 @@
 This section moves a plan from a list of tasks to a contract an executor can
 follow and the runtime can check. Planning, execution, verification and human
 decisions remain distinct kinds of state.
+
+## 17.0 Local delivery revision, 2026-11-09
+
+This proposed revision incorporates Mohammed's current requirements and the
+built executor path. Scope approval is not written-design approval. After
+approval, 17.0 supersedes conflicting details in 17.1-17.11. Section 17.12
+remains future production work. See the
+[delivery program](../../backend/plans/2026-11-09-local-delivery-program.md).
+
+### Intent and user decisions
+
+The Planner plans against the real repository. Shadows shows files already
+installed by the person. Once framework and destination are agreed, prepare
+an absent scaffold before detailed planning continues. Layout follows that
+framework and the person, never a universal folder template.
+
+A task specifies files to read and why, files to create/modify, required
+functions/classes, responsibility, inputs, outputs and behavior. The executor
+writes the solution and its tests, not a supplied finished function body.
+Shadows retains producer/consumer relationships; an executor receives the
+contracts needed for its own task, not the whole Planner transcript.
+
+Mohammed confirmed the complete local scope: discovery, detailed contracts,
+execution context, independent checks/evidence, critic and bounded repair.
+This adds no cloud/production, team, manager or editable specialist-dashboard
+requirement to the local path.
+
+### Baseline and approaches
+
+Inspected at `cbf2b597` on `fix/first-run`: Code indexes Rust and JS/TS variants,
+not PHP or a complete file inventory. TaskContent has goal, reads, writes,
+acceptance and phases. Task context has selected layout and optional phase
+dependencies, not captured source. Runs owns attempts, held writes, reported
+commits and manual done marks. The executor commits and calls `task_report`;
+Git/path validation is not independent behavioral verification. Critic,
+execution packets and the repair ladder are not built in this path.
+
+Two approaches were discussed:
+
+1. Rich task prose plus a file browser: smaller change, but relationships,
+   stale definitions and readiness remain interpreted from text.
+2. Structured contracts over existing owners: more storage/API/UI work, but
+   Core can validate references, capture inputs and explain blocked work.
+
+The controller recommends approach 2 for written-design approval because it
+matches the confirmed requirement that Shadows retain these relationships.
+This is task-local detail, not a catalog planning every project file.
+
+### Ownership
+
+Start at AppCore. No new service, second composition root or cross-store
+access is proposed. Planned responsibilities stay out of current contracts
+until their implementation ships.
+
+| Existing owner | Proposed responsibility |
+|---|---|
+| Code | Inventory, refresh state, file observations and supported tags. |
+| shadows-index | PHP tags from one file, without project/database dependencies. |
+| Design | Versioned project decisions and existing shared agreements. |
+| Plans | Canonical task contracts, contract pins, dependency validation and owner-thread lookup. |
+| Runs | Preparation attempts, execution packets, leases, checks, review, acceptance and repair. |
+| Harness and Grants | Session policies, scoped tools and captured configuration. |
+| Threads, Turns, Operations | Their existing conversation/turn/operation lifecycle. |
+| HTTP, MCP, web | Translate owner operations and show owner results. |
+
+Runs calls Plans, Design and Code through explicit dependencies wired by
+AppCore. A compiler/verifier is a job inside Runs, not another facade.
+Planning `task_context` remains a Plans read. A distinct execution-context
+operation on Runs serves the compiled packet to executor/critic grants; do not
+make Plans depend on Runs or put grant-kind business dispatch in an adapter.
+
+### Repository discovery and preparation
+
+Inventory is separate from symbol extraction. Code lists relative paths even
+for unsupported languages, with kind, scan identity/time and exclusion reason.
+Inventory is paged; incomplete/stale/unavailable scans remain visible. A failed
+scan does not delete unseen entries. Paths cannot escape the project through
+symlinks/reparse points. Dependency/build trees are summarized by default.
+Secret-bearing entries expose redacted metadata, not their contents. Inventory
+does not become an arbitrary host file-content API. Add PHP definitions,
+namespaces and methods in shadows-index; references remain labeled by name.
+
+The Planner reads inventory and relevant manifests before detailed planning.
+Existing Laravel is adopted, not installed again. Refresh after scaffold or
+external file changes before accepting exact file references. Content reads
+record observations/digests; cached paths alone do not prove current content.
+
+**Controller proposal:** the Planner requests a bounded preparation attempt
+through Runs after the person confirms stack, destination and operation. A
+separate preparation worker performs the setup; ordinary planning sessions
+keep their tool policy. No approved product plan or fake task is needed.
+Capture request identity, destination, model, inventory, output manifest, Git
+result and outcome. Start requires an empty/missing destination and no lease
+conflict. A nonempty destination is inspected, never overwritten. Retry checks
+partial results before doing anything. Cancellation/restart leave inspectable
+state, not automatic cleanup. Refresh inventory before detailed planning resumes.
+Only the worker's own product files enter its commit, never runtimes/installers.
+Normal package caches may be used; this is not OS-level shell containment.
+
+### Canonical task contract
+
+Extend TaskContent rather than maintaining an unversioned parallel brief:
+
+- File operation: task-local identity, exact relative path, action
+  read/create/modify/delete, purpose and optional existing symbol observation.
+  Creation names an intended symbol without claiming it exists.
+- Symbol obligation: owning file operation, qualified function/class name,
+  responsibility, inputs, output shape, behavior, errors and invariants.
+  The executor chooses the internal algorithm. Signature text is not a proof
+  of semantic/type compatibility.
+- Produced contract: stable task-local identity for an operation, value,
+  schema/table or configuration artifact. Not every artifact is a function.
+- Consumed contract: inspected existing source with digest, an exact shared
+  agreement operation, or a named output from a task. Within a plan version
+  use task/output identity; across plans pin exact workflow/version/task/output.
+  There is no implicit latest-version contract pin.
+- Ordered implementation steps, forbidden changes, required capabilities and
+  executable checks, linked to acceptance items.
+
+Plans validates identities, paths/actions, missing outputs, shared-agreement
+operations and task/phase cycles. A required consumed output contributes an
+edge through the existing dependency graph, not a second readiness system.
+Normal executable reads/writes derive from file operations, with exact paths;
+they are not independently editable conflicting fields. Legacy globs remain
+readable. Unknown generated paths require preparation or a reviewed generation
+output resolved before execution, not a broad Modules/** grant.
+
+Readiness requires accepted evidence for a produced contract or explicit
+inspected adoption of existing implementation with checks. A manual done mark
+does not invent verified source. Existing shared agreements remain the owner
+of their operations and are referenced, not duplicated. This permits task-local
+symbols while retaining the structure spec's rejection of a global element model.
+
+Design owns project decisions with immutable revisions, rationale and
+proposed/accepted/superseded states. Tasks pin relevant accepted revisions.
+Approval provenance follows current section 24, including attributed Planner
+approvals where allowed. Executor/critic grants never gain approval tools.
+
+### Packets, readiness and bounded questions
+
+Runs compiles an immutable packet through the owners: frozen contract, contract
+pins, decisions, relevant rules, map/standards revisions, selected source
+observations/digests, session configuration, exact scopes, checks and resource
+limits. Canonical serialization uses an established digest library.
+Missing/ambiguous/stale inputs, unresolved dependencies, unsupported required
+capabilities or excess context refuse dispatch with a reason. Read-only tasks
+may have empty writes; this grants no edit permission.
+
+Acquire required read/write leases atomically: reads share; writes exclude
+writes and required reads. Confirm process end before release. Keep concurrent
+disjoint tasks in the same folder, without a second checkout/build cache.
+Unmanaged user edits can still occur; changed captured inputs invalidate evidence.
+Targeted questions record path, symbol, digest and matching method within the
+packet's budget. No match means uncertainty. Follow-up evidence does not mutate
+the packet. New attempts get new packets, retaining links to prior evidence and
+intentional prior-attempt edits. Unreported model usage/cost stays unknown;
+enforceable byte/result/turn limits are distinct from token estimates.
+
+Retain the newer executor boundary honestly: file-tool rules and reported-commit
+scope checks, with unrestricted shell side effects outside OS containment.
+A task requiring unsupported stronger isolation is blocked. Do not claim that
+a prompt or tool permission flag contains every shell filesystem/network effect.
+
+### Verification, critic and acceptance
+
+Runs stores structured check identity/revision, executable and arguments, cwd,
+nonsecret environment references, declared input/output scopes, timeout,
+expected result and acceptance associations. Run through shadows-process;
+record bounded redacted output, exit/timeout/cancel and artifact digests.
+
+Baseline/post checks use the same folder under input/output leases. Record
+candidate commit and captured inputs. Unexpected input changes are inconclusive.
+Compare pass, regression, pre-existing failure, fixed or unknown only on
+comparable evidence; equal nonzero exit codes do not prove equal failures.
+If a tool cannot identify stable failures, retain inconclusive attribution.
+If a new task creates the test/check itself, record baseline-unavailable rather
+than inventing an earlier result. A passing post-check is still evidence; a
+failing one cannot be excused as pre-existing without a comparable baseline.
+
+Keep Committed as implementation outcome. Checks, review and acceptance are
+separate durable records tied to the attempt/result digest. Dispatch a critic
+after checks settle, with the exact diff, contracts, evidence and report, not
+the executor conversation. Critic has no arbitrary shell/edit tools; checked
+commands are run by Runs. Deduplicate review by attempt/result/policy.
+Each acceptance item has evidence and met/not-met/pending status. Overall
+review is PASS, PASS_WITH_NOTES, FAIL_IMPLEMENTATION or FAIL_PLAN. Failed checks
+cannot be erased by a critic claim; absent review is not PASS.
+
+Required checks plus qualifying review establish acceptance. PASS_WITH_NOTES
+defaults to a person decision. Pending items pin a task/check and durable rerun
+trigger. Dependants proceed only if their required produced contracts have
+passed; the task is not displayed as fully verified while items remain pending.
+Prevent dependency/recheck deadlocks. Legacy done marks stay labeled manual.
+Old Frozen plans remain readable; rich execution uses a new approved version or
+explicit inspected adoption. Distinguish automated, browser, OS and provider proof.
+
+### Bounded repair, gates and recovery
+
+Use the approved executors ladder: initial attempt, retry in the same session,
+Planner investigation, directed third attempt, then stop for Mohammed. Runs
+owns counters and dispatch, so tools cannot authorize a fourth attempt.
+Problem records retain evidence, affected contracts and Planner direction.
+Use Plans::owner_thread; a busy owner waits durably, a missing owner stops with
+a reason. Do not introduce the later manager system or invent cost measurements.
+
+FAIL_PLAN proposes a Draft changing affected tasks. Runs/Plans coordinate
+stopping attempts of that plan and blocking starts; affected cross-plan
+consumers are blocked without rewriting their frozen pins. Approval never
+restarts work automatically. Continue the designated executor session only
+when it still exists; lost sessions remain explicit recovery cases.
+Keep the dependency one-way: Plans records the execution hold with the Draft
+transition and publishes its durable event; Runs observes it, stops attempts,
+then acknowledges the hold through Plans' public API. New Starts check that
+hold in their serialized admission. Draft edits/approval wait until affected
+turns have confirmed their end. A restart resumes this handshake; no
+Plans-to-Runs reference or best-effort event alone provides the barrier.
+
+Person gates bind CONTINUE/REPLAN/PATCH/ROLLBACK/ABORT to exact scope/evidence.
+CONTINUE does not erase a failed required check. PATCH is new bounded work.
+ROLLBACK proposes compensating work, never automatic reset/deletion or an
+assumption that database changes are reversible. Follow section 24's local
+trust boundary: task tools cannot approve, but same-user shell access to HTTP
+is not claimed impossible. Stronger person-origin proof is a distinct prerequisite
+when an operation requires it; an actor field is not proof by itself.
+
+Recovery reconciles attempts/checks/reviews before further dispatch. Lost
+responses cannot duplicate review or acceptance. Unconfirmed process end holds
+leases. Preserve evidence, interruption and unknown outcomes through restart.
+
+### Resolved builder questions
+
+The independent builder check raised five material choices. The following are
+the controller's proposed resolutions for written-design approval:
+
+1. **Preparation authorization.** Use attributed conversation authorization,
+   not a mandatory new confirmation button. The person must have agreed to
+   framework preparation at the exact destination; choosing a technology in
+   isolation is not a generic command grant. Record the source person message,
+   stack/version, destination and preparation operation. The Planner issues the
+   scoped preparation request in its own name under section 24. A replay uses
+   that immutable request; a changed destination or operation is a new request.
+   Inspect/adopt an existing scaffold without running the installer again.
+   An ambiguous request pauses preparation, not read-only discovery/planning.
+
+2. **Repair-session lifetime.** Retain the executor session idle through checks
+   and review, closing it on terminal acceptance, Stop, escalation or loss of
+   the live session. Its stable session credential has no active mutation
+   binding after the turn ends. Runs uses Grants' public transaction method to
+   bind the next attempt/packet only while admitting that retry. Every new
+   executor mutation tool requires attempt identity and packet digest, checked
+   against the active binding. Late reports from a retired attempt are refused;
+   changing active attempts never relabels an old report as a new one. This
+   avoids assuming that an adapter can replace its MCP token inside a session.
+   Old slice-1 sessions retain their current close-on-release behavior until
+   the rich repair path is introduced and tested. Lost sessions require an
+   explicit recovery/new session, never a claim of preserved native history.
+
+3. **Contract compatibility.** A produced operation has one canonical input,
+   output and error shape, expressed with JSON Schema and optional
+   language-qualified type names. Use a maintained schema library for schema
+   validation. Consumers reference that exact operation revision and use its
+   shapes; they do not independently override them. Existing shared OpenAPI
+   operations retain their current authority and exact operation/version pins.
+   If a separate expected shape is declared, require an exact canonical shape
+   fingerprint, conservatively; no inferred subtyping, coercion or semantic
+   equivalence is claimed. A different representation needs an explicitly
+   planned adapter/contract change. Missing pins or unequal declared shapes
+   block approval/readiness. Checking that the actual PHP/Rust implementation
+   satisfies that shape belongs to executable contract tests and review.
+
+4. **Output-specific acceptance.** Each produced contract declares the task's
+   acceptance-item identities and required check identities that establish it.
+   At least one acceptance item and one deterministic check are required for
+   an automatically accepted output. The declared checks must pass and the
+   critic must mark every associated item met against this result digest.
+   No pending/failed item can establish that output. Other task items may stay
+   pending without withholding an independently established output. An
+   inspected existing implementation uses the same evidence association;
+   historical manual marks cannot substitute. Plans validates the combined
+   task/phase/output/check readiness graph, including cycles such as an output
+   whose proof waits for the consumer that needs it. Split producer conformance
+   checks from later consumer integration checks to resolve such a cycle.
+
+5. **Source lifetime for the critic.** Before execution leases release, Runs
+   captures bounded relevant source bytes for declared reads/writes, candidate
+   diff and check artifacts, with digests and source identity. Persist them as
+   immutable run artifacts in Core's data storage, not a second checkout or
+   build cache in the person's project. The critic reads captured source via
+   a Runs operation, not live project Read/Bash tools. Later tasks may edit the
+   live files after capture without changing what was reviewed. A missing
+   required artifact makes review incomplete; supplying it requires a new
+   attributable capture/review and refreshed checks when source equivalence
+   cannot be established. Retention keeps artifacts referenced by acceptance,
+   pending repair or a person gate. Redacted/missing secret source is not
+   silently presented as complete evidence.
+
+### Delivery, builder choices and approval
+
+Eight runnable slices: L1 inventory/PHP, L2 preparation, L3 contracts/decisions,
+L4 packets/readiness, L5 checks/evidence, L6 critic/acceptance, L7 repair/pending
+checks/gates, L8 real local acceptance. L2 and L3 depend on L1; L4 needs both;
+then deliver in order. Each slice gets exact backend/frontend task plans,
+accepted shared requests, focused tests, browser/log acceptance and one branch
+review/full gate. Commit each verified task separately.
+
+The controller proposes the preparation worker, existing-owner allocation,
+exact paths, conservative leases and separate evidence records. These choices
+await written-design approval. Builders choose concrete naming, storage indexes,
+pagination limits and UI placement within current views, not new ownership or
+authority. This program does not add a new workspace or another Cargo cache.
+
+Prove existing/new Laravel discovery, producer/consumer contracts, missing/stale
+symbols, refused broad writes, check/critic/plan failures, pending reruns,
+bounded repair and interruption during each lifecycle. Report automated tests,
+browser fixtures and real harness/OS evidence separately. Detailed implementation
+plans follow written-design approval; no product code is authorized by this draft.
 
 ## 17.1 Scope
 
