@@ -2,7 +2,8 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { Attempt, TaskRun } from '@/api/runs'
+import { ApiError } from '@/api/error'
+import { type Attempt, type TaskRun, taskRunQuery } from '@/api/runs'
 import { agentEntry, runningOperation, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
@@ -157,6 +158,26 @@ describe('the task page', () => {
     await until(() => a.text().includes('Attempt 1'))
     current = [attempt({ state: 'committed', commit: 'abc123', ended_at: '2026-11-08T10:05:00Z' })]
     await until(() => a.text().includes('abc123'))
+  })
+
+  it('a_task_core_cannot_find_shows_its_message_and_reads_once', async () => {
+    let reads = 0
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: () => {
+        reads += 1
+        return Response.json({ code: 'INVALID_COMMAND', message: 'not found: task or attempt' }, { status: 404 })
+      },
+    })))
+    await until(() => a.text().includes('not found: task or attempt'))
+    expect(a.text()).toContain('INVALID_COMMAND')
+    expect(a.text()).not.toContain('Reading the task')
+    expect(reads).toBe(1)
+    // The app's client retries by default; the read itself must not retry Core's answer.
+    const retry = taskRunQuery('w1', 1, 1).retry
+    expect(typeof retry).toBe('function')
+    const shouldRetry = retry as (failures: number, error: Error) => boolean
+    expect(shouldRetry(0, new ApiError({ kind: 'daemon', status: 404, code: 'INVALID_COMMAND' }, 'not found'))).toBe(false)
+    expect(shouldRetry(0, new ApiError({ kind: 'unreachable' }, 'The daemon is not reachable'))).toBe(true)
   })
 
   it('the_run_keeps_reading_after_the_commit_until_the_turn_ends', async () => {

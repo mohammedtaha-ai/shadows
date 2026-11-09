@@ -42,8 +42,8 @@ groups:
   createGroup: Create a group using the caller's command id.
   sendToGroup: Append a person message using the caller's command id.
 runs:
-  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs.
-  attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs.
+  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs; retry only a lost call (up to 3), never Core's answer.
+  attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs; retry only a lost call (up to 3), never Core's answer.
   startAttempt: Start an attempt on a model using the caller's command id; a refusal's ApiError message is Core's reason.
   stopAttempt: Stop an attempt.
   markTaskDone: Mark a task done or not done using the caller's command id.

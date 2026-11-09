@@ -17,11 +17,17 @@ const runKeys = {
   diff: (attemptId: string) => ['runs', 'diff', attemptId],
 }
 
+/** Core's answer, even a refusal such as a task it cannot find, is final; only a lost call is tried again. */
+function retryLost(failures: number, error: Error): boolean {
+  return failures < 3 && error instanceof ApiError && error.problem.kind === 'unreachable'
+}
+
 /** A task's run state: its marks, latest attempt, needs and whether Start may run. */
 export function taskRunQuery(workflowId: string, version: number, task: number) {
   return queryOptions({
     queryKey: runKeys.task(workflowId, version, task),
     queryFn: () => getTaskRun(workflowId, version, task),
+    retry: retryLost,
     // A running attempt changes without the page asking: read it again until it ends.
     refetchInterval: (query) => (query.state.data?.latest?.state === 'running' ? 2000 : false),
   })
@@ -32,6 +38,7 @@ export function attemptsQuery(workflowId: string, version: number, task: number)
   return queryOptions({
     queryKey: runKeys.attempts(workflowId, version, task),
     queryFn: () => listAttempts(workflowId, version, task),
+    retry: retryLost,
     refetchInterval: (query) => (query.state.data?.[0]?.state === 'running' ? 2000 : false),
   })
 }
