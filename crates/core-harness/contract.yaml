@@ -164,7 +164,8 @@ shapes:
     # "Claude Code", "Codex", "AYLUL", or "Unknown" (`label`).
     label: String
     available: bool
-    # "Coming later" exactly when `available` is false.
+    # Exactly when `available` is false: `Sessions::unavailable_reason`,
+    # the configuration flags for codex, "Coming later" otherwise.
     reason: Option<String>
     # The last turn's model on this harness and that model's remembered
     # effort; never the mode.
@@ -211,6 +212,9 @@ shapes:
     setup_wait: Duration
     # Shadows' `/mcp` as bound; `None` issues no thread grant on opening.
     mcp_url: Option<String>
+    # AppCore's one CodexProgram when `--codex` and `--codex-home` are given;
+    # `None` leaves Codex unavailable.
+    codex: Option<Arc<CodexProgram>>
   OpenSession:
     # Kept across a resume: the harness's own session id.
     session_id: String
@@ -296,7 +300,8 @@ functions:
       signature: "(&self) -> Result<Vec<HarnessInfo>, HarnessError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
       # `latest_limits`, and the modes, initial and unattended mode from policy
-      # alone. Refusals: Storage.
+      # alone. Refusals: Storage. `codex` is available exactly when configured
+      # and always lists its policy mode `read-only` as the initial mode.
     open_session:
       signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError>"
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
@@ -391,7 +396,7 @@ functions:
     offered:
       signature: "(&self, thread: &ThreadId) -> Option<Offered>"
     set_option:
-      signature: "(&self, thread, opened, config_id: &str, value: &str) -> Result<Offered, AcpError>"
+      signature: "(&self, thread, opened, config_id: &str, value: &str) -> Result<Offered, ConnectionError>"
     context_facts:
       signature: "(&self, thread: &ThreadId, invocation: Option<InvocationContext>, stage: String) -> Result<ContextFacts, HarnessError>"
       # Harness forwards the stage fact supplied by Turns; changes are read from private Setups.
@@ -419,7 +424,8 @@ functions:
     harness_available:
       signature: "(&self, kind: &str) -> Result<bool, HarnessError>"
       # Harness delegates to private Sessions in assistant.rs, checking whether a
-      # profile is configured with `policy::is_available_with`. Shared by `list`,
+      # profile is configured with `policy::is_available_with`; `codex` is
+      # available exactly when SessionsConfig::codex is set. Shared by `list`,
       # `open_session`, `open_idle` and `Turns::send` share.
     change_model:
       signature: "(&self, thread, opened, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>"
@@ -445,8 +451,8 @@ functions:
     close_all:
       signature: "(&self) -> io::Result<()>"
     connection:
-      signature: "(&self) -> &Connection"
-      # On `OpenSession`: a turn prompts and cancels through it.
+      signature: "(&self) -> &ManagedConnection"
+      # On `OpenSession`: a turn prompts and cancels through it, ACP or Codex alike.
     prompt_version:
       signature: "() -> &'static str"
       # Harness associated method in setup.rs: the Planner prompt version a turn's
@@ -579,6 +585,25 @@ obligations:
       - deleted_agent_with_live_adapter_is_not_found
       - deleted_agent_slug_is_never_reused
       - delete_agent_removes_its_variables
+  - rule: >
+      A Codex opening issues the thread grant before spawning the configured
+      app-server, passes the bearer only in the child environment, and opens
+      in `read-only` with the grant's tool policy. A failed launch, handshake,
+      inventory check or thread opening revokes that grant and leaves nothing
+      live; a new opening after a close carries a fresh grant while the old
+      one stays refused. Stop settles one Cancelled ending while a tool call
+      is pending, and refused permission requests write nothing.
+    tested_by: [codex_uses_shadows_mcp, codex_resume_rotates_the_grant,
+      codex_failed_setup_revokes_the_grant, codex_refuses_forbidden_authority,
+      codex_stop_during_a_tool_call]
+  - rule: >
+      Configured Codex runs the existing choice, remembering, busy and mode
+      rules: catalog models in order, the selected model's efforts, only a
+      committed turn start remembers, a project without `read-only` refuses
+      the start, and fork and Send now reach the native thread.
+    tested_by: [codex_choices_follow_the_model_catalog, codex_efforts_belong_to_the_selected_model,
+      codex_project_modes_are_enforced, codex_fork_keeps_the_source_unchanged,
+      codex_steer_targets_the_active_turn]
   - rule: Actual openings project only enabled managed items; cached adapters are not reconfigured.
     tested_by: [opening_projects_only_enabled_extensions]
   - rule: Disabled cached plugins remain explicitly false; user-owned content is preserved.
@@ -894,7 +919,9 @@ tests:
   - name: the_harness_list_carries_the_policy_modes
     checks: >
       tests/list.rs: claude-code and aylul list acceptEdits then auto with
-      initial acceptEdits and unattended auto; codex lists [], null, null.
+      initial acceptEdits and unattended auto; unconfigured codex lists
+      read-only, initial read-only, no unattended mode, unavailable with
+      a reason naming --codex.
   - name: idle_choices_report_the_adapters_mode
     checks: Idle choices expose an adapter mode change without overwriting the saved pick.
   - name: picking_auto_without_sending_survives_reopen_and_core_restart

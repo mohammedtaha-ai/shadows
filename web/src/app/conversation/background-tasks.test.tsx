@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
+import { threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { startApp, until, type TestApp } from '@/test/test-app'
 import type { FakeSource } from '@/test/fake-event-source'
@@ -85,4 +86,13 @@ it('a stop in flight is pending and a refused stop shows its error', async () =>
   await act(async () => release(Response.json({ code: 'HARNESS_START_FAILED', message: 'The adapter did not answer.' }, { status: 502 })))
   await until(() => a.text().includes('The adapter did not answer.'))
   expect(a.button('Stop Build')!.disabled).toBe(false)
+})
+
+it('a Codex conversation shows no background tasks it never reported', async () => {
+  const codexThread = { ...threadFixture, harness: 'codex' }
+  const { a, source } = await open({ 'GET /api/threads/t1': codexThread })
+  await act(async () => { source.caughtUp(0); source.emit('tasks', JSON.stringify({ op: null, tasks: [] })) })
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 20)))
+  expect(countButton()).toBeUndefined()
+  expect(a.calls.filter(call => call.includes('/session/tasks/'))).toEqual([])
 })

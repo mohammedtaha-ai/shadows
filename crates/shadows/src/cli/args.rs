@@ -34,6 +34,12 @@ enum Commands {
         /// Absolute entry point of the installed, pinned ACP adapter.
         #[arg(long, value_parser = parse_harness)]
         adapter: PathBuf,
+        /// Absolute path to the native Codex executable.
+        #[arg(long, requires = "codex_home", value_parser = parse_codex)]
+        codex: Option<PathBuf>,
+        /// Dedicated Shadows Codex home with an existing ChatGPT sign-in.
+        #[arg(long, requires = "codex", value_parser = parse_codex_home)]
+        codex_home: Option<PathBuf>,
         /// Write debug logging to stderr and a file under the DB directory.
         #[arg(long)]
         debug: bool,
@@ -79,6 +85,14 @@ fn parse_harness(raw: &str) -> Result<PathBuf, String> {
     config::harness_path(std::path::Path::new(raw)).map_err(|e| e.to_string())
 }
 
+fn parse_codex(raw: &str) -> Result<PathBuf, String> {
+    config::codex_executable(std::path::Path::new(raw))
+}
+
+fn parse_codex_home(raw: &str) -> Result<PathBuf, String> {
+    config::codex_home(std::path::Path::new(raw))
+}
+
 impl Cli {
     pub async fn run(self) -> anyhow::Result<()> {
         match self.command {
@@ -88,6 +102,8 @@ impl Cli {
                 harness,
                 node,
                 adapter,
+                codex,
+                codex_home,
                 debug,
                 allow_origin,
                 aylul_config,
@@ -103,6 +119,8 @@ impl Cli {
                     node_path: node,
                     adapter_path: adapter,
                     harness_path: harness,
+                    codex_path: codex,
+                    codex_home,
                     debug_log: log.as_ref().map(|l| l.path().to_path_buf()),
                     allowed_origins: allow_origin,
                     aylul_config,

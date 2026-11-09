@@ -643,6 +643,8 @@ async fn the_daemon_starts_on_a_database_with_old_parts() {
         node_path: tmp.path().join("node"),
         adapter_path: tmp.path().join("adapter"),
         harness_path: tmp.path().join("harness"),
+        codex_path: None,
+        codex_home: None,
         aylul: None,
     };
     let core = shadows_core::AppCore::start(&config, String::new())

@@ -4,7 +4,7 @@
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { completedOperation, invocationFixture } from '@/test/contract-fixtures'
+import { completedOperation, invocationFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import type { Limits } from '@/stream'
 import { startApp, until } from '@/test/test-app'
@@ -137,5 +137,29 @@ describe('the answering model', () => {
     mounted.push(app.unmount)
     await until(() => app.text().includes('hello'))
     expect(app.text()).not.toContain('Asked for')
+  })
+})
+
+describe('Codex figures', () => {
+  it('shows the last request Core reported, not a running total', async () => {
+    const codexThread = { ...threadFixture, harness: 'codex' }
+    const app = await startApp(
+      '/projects/p1/threads/t1',
+      {
+        ...answers({
+          // Two turns: only the newest one's last-request figures are the context.
+          operations: [
+            completedOperation({ ...invocationFixture, harness_kind: 'codex', context_used: 18127, context_window: 475000 }),
+            completedOperation({ ...invocationFixture, harness_kind: 'codex', context_used: 9000, context_window: 475000 }),
+          ],
+        }),
+        'GET /api/threads/t1': codexThread,
+      },
+    )
+    mounted.push(app.unmount)
+    await until(() => app.button('Context and limits') !== undefined)
+    act(() => app.button('Context and limits')!.click())
+    await until(() => app.text().includes('18.1k / 475k (4%)'))
+    expect(app.text()).not.toContain('27.1k')
   })
 })

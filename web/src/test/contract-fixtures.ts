@@ -52,15 +52,22 @@ export const aylulHarness: HarnessInfo = {
   reason: 'Coming later',
 }
 
+/** Codex as Core lists it when Shadows started without `--codex`: its policy mode, and why it cannot run. */
 export const codexHarness: HarnessInfo = {
   kind: 'codex',
   label: 'Codex',
   available: false,
-  reason: 'Codex is not runnable yet',
+  reason: 'Start Shadows with --codex and --codex-home to use Codex',
   remembered: null,
   limits: null,
-  modes: [],
-  initial_mode: null,
+  modes: [
+    {
+      id: 'read-only',
+      label: 'Read only',
+      description: 'Codex reads files and uses Shadows planning tools. Filesystem writes are refused.',
+    },
+  ],
+  initial_mode: 'read-only',
   unattended_mode: null,
 }
 

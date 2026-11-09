@@ -2,15 +2,21 @@ name: shadows-agent
 version: 1
 status: current
 source: crates/shadows-agent/src
-purpose: Translate one managed adapter's ACP v1 connection into harness operations and events.
+purpose: Translate one managed harness process, ACP v1 or Codex app-server, into harness operations and events.
 
 modules:
-  acp.rs: Public connection and session types.
+  connection.rs: The protocol-neutral managed connection and the session and prompt values it carries.
+  acp.rs: Public ACP connection types, re-exporting the neutral values.
   acp/connection.rs: Transport initialization and ordered inbound dispatch.
   acp/session.rs: Session opening and configuration requests.
   acp/prompt.rs: Prompt, steering and cancellation requests.
   acp/permissions.rs: Settlement of held ACP permission requests.
   acp/mapping.rs: Translation of session updates to HarnessEvent.
+  codex.rs: The configured Codex executable, its process-local Planner launch policy and handshake.
+  codex/connection.rs: Ordered JSONL dispatch for one app-server child.
+  codex/session.rs: Thread opening, MCP inventory verification and native model choices.
+  codex/prompt.rs: Turn start, binding to the acknowledged turn and confirmed interruption.
+  codex/mapping.rs: Translation of the active turn's notifications to HarnessEvent.
   choices.rs: Parsing adapter-provided session configuration.
   claude.rs: Launch specification for the configured Claude adapter.
   policy.rs: Supported harnesses and their allowed modes.
@@ -24,6 +30,44 @@ functions:
   Connection::steer_blocks: Sends the adapter steering extension without starting an idle prompt.
   Connection::stop_task: Requests the adapter to stop one background task.
   Connection::cancel: Refuses held permissions and sends a session cancel notification.
+  ManagedConnection: >
+    A finite ACP or Codex enum with the same session, prompt, option, cancel,
+    steering, task and permission operations. Errors are ConnectionError;
+    Codex answers task stop with an Rpc refusal and holds no permission
+    requests.
+  CodexProgram::new: Holds the configured executable and dedicated Codex home.
+  CodexProgram::process_spec: >
+    `app-server --listen stdio://` with apps, plugins, hooks, multi-agent and
+    web search off, the project forced untrusted, the bearer variable excluded
+    from shells and (Windows) the MXC sandbox. The environment carries
+    CODEX_HOME and the thread grant; arguments never carry the grant.
+  codex::Connection::open: Initializes app-server and refuses a CLI other than 0.167.0.
+  codex::Connection::start_session: >
+    Refuses a dedicated home with MCP configuration or without a ChatGPT
+    sign-in, opens or resumes the thread in read-only with approvalPolicy
+    never and the one required Shadows server, then refuses any inventory
+    beyond the permitted tools. A thread opened without an effort reports its
+    model's catalog default, which Codex applies.
+  codex::Connection::prompt_blocks: >
+    Starts a turn with the selected model and effort and answers only its
+    matching turn/completed. A failed turn is Refused in the provider's own
+    first line, cut before any bearer value; RPC errors carry the same text.
+  codex::Connection::steer_blocks: >
+    Sends turn/steer to the acknowledged running turn (Injected); with none
+    running nothing starts (PromptRequired).
+  codex::Connection::cancel: Interrupts the acknowledged turn; the matching terminal event settles it.
+  codex_fork: SessionStart::Fork opens thread/fork from the source thread, which is never resumed or written.
+  codex_usage: >
+    thread/tokenUsage/updated for the active turn becomes Usage with
+    `last.totalTokens` and `modelContextWindow` (missing or zero is 0,
+    unknown); the turn's TurnUsage sums each request once, skipping repeated
+    reports whose total did not grow. Reports for other turns, including
+    those replayed on resume, are dropped.
+  codex_limits: >
+    account/rateLimits/read, sent in the background at opening so a slow
+    provider never delays setup, and account/rateLimits/updated give
+    the five-hour (300 min) and weekly (10080 min) windows to every Usage as
+    the account-limit report AccountLimits::from_report reads.
 
 obligations:
   - rule: Typed session updates are mapped in dispatch order; unknown kinds can use the raw task fallback.
@@ -31,13 +75,42 @@ obligations:
   - rule: The background task stop is scoped to a session and task id.
     tested_by: [stopping_a_task_asks_the_adapter]
   - rule: A peer RPC failure is distinct from a closed incoming transport.
-    tested_by: [a_server_error_mentioning_connection_closed_is_still_an_rpc_error]
+    tested_by: [a_server_error_mentioning_connection_closed_is_still_an_rpc_error, codex_eof_fails_pending_work]
   - rule: Planner session setup distinguishes an absent tool restriction from an explicit empty list.
     tested_by: [absent_and_empty_tool_policies_are_distinct]
   - rule: The launch specification uses the configured Node, adapter and Claude executable.
     tested_by: [configured_adapter_preserves_launch_identity]
+  - rule: >
+      Codex text streams before its turn completes, split JSONL frames are
+      joined, and unknown notifications are ignored.
+    tested_by: [codex_streams_before_completing, codex_unknown_notifications_are_ignored]
+  - rule: >
+      A Codex turn ends only on its own turn/completed: an interrupt
+      acknowledgment or another turn's terminal event does not settle it.
+    tested_by: [codex_interrupt_waits_for_the_matching_terminal_event,
+      codex_cannot_finish_a_replacement_generation]
+  - rule: Codex approval requests are declined at once and reported as refusals.
+    tested_by: [codex_server_requests_do_not_deadlock]
+  - rule: The Codex grant reaches only the child environment, under the isolation settings.
+    tested_by: [the_codex_grant_reaches_only_the_child_environment]
+  - rule: >
+      Codex models come from every model/list page in order, efforts from the
+      selected model only, and the one mode from policy.
+    tested_by: [codex_choices_follow_the_model_catalog, codex_efforts_belong_to_the_selected_model]
+  - rule: A provider's refusal reaches the person in its own words, without credential text.
+    tested_by: [codex_unavailable_model_reports_its_error]
+  - rule: >
+      The context figure is the last request, never the running total, and a
+      resumed thread's replayed history and usage are not new output.
+    tested_by: [codex_usage_is_last_request_not_cumulative, codex_usage_is_not_double_charged_on_resume,
+      codex_resume_does_not_replay_entries]
+  - rule: Fork and Send now use thread/fork and turn/steer.
+    tested_by: [codex_fork_keeps_the_source_unchanged, codex_steer_targets_the_active_turn]
+  - rule: New projects allow Codex's read-only mode only.
+    tested_by: [new_projects_allow_only_codex_read_only]
 
 boundaries:
   - Process creation and containment belong to shadows-process.
   - Applying Core's remembered mode and selecting the project session belong to core-harness.
   - The SDK owns ACP message definitions. Claude adapter code is installed from npm.
+  - The installed Codex CLI owns the app-server; Shadows never installs or patches it.

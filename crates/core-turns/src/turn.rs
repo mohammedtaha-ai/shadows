@@ -36,7 +36,7 @@ use super::{
 use core_harness::{Forget, Harness, OpenSession};
 use core_threads::{NewThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_agent::{
-    acp::{AcpError, TurnEnd},
+    connection::{ConnectionError, TurnEnd},
     events::{AccountLimits, HarnessEvent, TodoListCard, TodoStatus, TurnObservation},
 };
 use std::sync::{
@@ -443,7 +443,7 @@ impl PlannerTurn {
                     )
                     .await
                 }
-                Err(AcpError::Closed) => {
+                Err(ConnectionError::Closed) => {
                     if let Err(error) = w.sessions.terminate_adapter(&w.thread_id, &w.opened).await
                     {
                         tracing::error!(%error, "planner.dead_adapter_cleanup_failed");
@@ -458,7 +458,11 @@ impl PlannerTurn {
                     )
                     .await
                 }
-                Err(AcpError::Rpc(reason)) => {
+                Err(error) => {
+                    let reason = match error {
+                        ConnectionError::Rpc(reason) => reason,
+                        other => other.to_string(),
+                    };
                     super::store::TurnsStore {
                         storage: w.storage.clone(),
                     }

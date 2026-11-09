@@ -1,6 +1,8 @@
 pub mod acp;
 pub mod choices;
 pub mod claude;
+pub mod codex;
+pub mod connection;
 pub mod events;
 pub mod policy;
 pub mod profile;

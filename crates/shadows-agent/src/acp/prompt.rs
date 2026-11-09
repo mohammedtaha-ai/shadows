@@ -1,53 +1,11 @@
 //! Prompt requests and cancellation.
-use super::{AcpError, Connection};
+use super::{AcpError, Connection, PromptBlock, PromptCapabilities, PromptResult, Steer, TurnEnd};
 use crate::events::TurnUsage;
 use agent_client_protocol::v1::schema::{
     CancelNotification, ContentBlock, PromptRequest, StopReason, TextContent,
 };
 use base64::Engine;
 use serde_json::Value;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TurnEnd {
-    Ended,
-    Cancelled,
-    Refused(String),
-}
-
-/// What `_session/steering` answered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Steer {
-    /// The message went into the running prompt; that prompt answers for it.
-    Injected,
-    /// No prompt was running; nothing was started.
-    PromptRequired,
-}
-
-/// Backend-neutral image input; protocol encoding belongs to Connection.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImageBlock {
-    pub media_type: String,
-    pub bytes: Vec<u8>,
-}
-
-/// Ordered, backend-neutral prompt input.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PromptBlock {
-    Text(String),
-    Image(ImageBlock),
-}
-
-#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, utoipa::ToSchema)]
-pub struct PromptCapabilities {
-    pub image: bool,
-    pub image_reason: Option<String>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct PromptResult {
-    pub end: TurnEnd,
-    pub usage: Option<TurnUsage>,
-}
 
 impl Connection {
     /// The person's text is the first content block; each `context` entry

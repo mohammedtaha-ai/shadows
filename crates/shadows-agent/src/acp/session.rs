@@ -1,5 +1,6 @@
 //! Session opening configuration and option requests.
-use super::{AcpError, Connection};
+use super::{AcpError, Connection, McpServerSpec, Opened, SessionSetup, SessionStart};
+use crate::choices::Offered;
 use agent_client_protocol::v1::schema::{
     EnvVariable, ForkSessionRequest, HttpHeader, McpServer, McpServerHttp, McpServerStdio, Meta,
     NewSessionRequest, ResumeSessionRequest, SessionConfigOptionValue,
@@ -7,65 +8,6 @@ use agent_client_protocol::v1::schema::{
 };
 use serde_json::Value;
 use std::path::Path;
-
-#[derive(Debug, Clone)]
-pub enum SessionStart {
-    New,
-    Resume(String),
-    Fork(String),
-}
-
-/// What a session opens with: sent alike on
-/// `session/new`, `session/resume` and a fork's opening. On a resume Claude
-/// Code keeps the `append` its session was created with, but reads
-/// `mcp_servers` again, so a new adapter's grant reaches it.
-#[derive(Debug, Clone, Default)]
-pub struct SessionSetup {
-    /// MCP servers supplied to the session.
-    pub mcp: Vec<McpServerSpec>,
-    /// Appended to Claude Code's prompt, which is kept (`_meta.systemPrompt`).
-    pub append: Option<String>,
-    /// Pre-approved tools (`_meta.claudeCode.options.allowedTools`).
-    pub allowed_tools: Vec<String>,
-    /// None keeps adapter defaults; Some(empty) explicitly removes built-in tools.
-    pub tools: Option<Vec<String>>,
-    /// Which settings files Claude Code loads (`settingSources`). None leaves
-    /// the Planner rule (`[]` with `tools`); AYLUL sends `["user"]`.
-    pub setting_sources: Option<Vec<String>>,
-}
-
-/// One MCP server configuration. Values are never included in Debug output.
-#[derive(Clone)]
-pub enum McpServerSpec {
-    Http {
-        name: String,
-        url: String,
-        headers: Vec<(String, String)>,
-    },
-    Stdio {
-        name: String,
-        command: String,
-        args: Vec<String>,
-        env: Vec<(String, String)>,
-    },
-}
-
-impl std::fmt::Debug for McpServerSpec {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Http { name, url, .. } => f
-                .debug_struct("Http")
-                .field("name", name)
-                .field("url", url)
-                .finish_non_exhaustive(),
-            Self::Stdio { name, command, .. } => f
-                .debug_struct("Stdio")
-                .field("name", name)
-                .field("command", command)
-                .finish_non_exhaustive(),
-        }
-    }
-}
 
 impl SessionSetup {
     pub(super) fn mcp_servers(&self) -> Vec<McpServer> {
@@ -124,12 +66,6 @@ impl SessionSetup {
         }
         (!meta.is_empty()).then_some(meta)
     }
-}
-
-#[derive(Debug)]
-pub struct Opened {
-    pub session_id: String,
-    pub options: Value,
 }
 
 impl Connection {
@@ -210,7 +146,8 @@ impl Connection {
         self.costs.open(&session_id, fresh);
         Ok(Opened {
             session_id,
-            options: serde_json::to_value(options).unwrap_or(Value::Null),
+            options: Offered::parse(&serde_json::to_value(options).unwrap_or(Value::Null))
+                .map_err(AcpError::Rpc)?,
         })
     }
     pub async fn set_option(
@@ -218,7 +155,7 @@ impl Connection {
         session: &str,
         config_id: &str,
         value: &str,
-    ) -> Result<Value, AcpError> {
+    ) -> Result<Offered, AcpError> {
         let r = self
             .cx
             .send_request(SetSessionConfigOptionRequest::new(
@@ -229,6 +166,7 @@ impl Connection {
             .block_task()
             .await
             .map_err(AcpError::from_rpc)?;
-        Ok(serde_json::to_value(r.config_options).unwrap_or(Value::Null))
+        Offered::parse(&serde_json::to_value(r.config_options).unwrap_or(Value::Null))
+            .map_err(AcpError::Rpc)
     }
 }

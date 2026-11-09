@@ -312,7 +312,14 @@ pattern to follow, not merely an example.
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |
-| `crates/shadows-agent/src/lib.rs` | the ACP client for a harness adapter | `crates/shadows-agent/contract.yaml` |
+| `crates/shadows-agent/src/lib.rs` | the managed harness connections | `crates/shadows-agent/contract.yaml` |
+| `crates/shadows-agent/src/connection.rs` | the protocol-neutral managed connection | `crates/shadows-agent/src/connection.rs` |
+| `crates/shadows-agent/src/codex.rs` | the Codex app-server launch policy | `crates/shadows-agent/src/codex.rs` |
+| `crates/shadows-agent/src/codex/` | private Codex app-server protocol implementation | `crates/shadows-agent/src/codex.rs` |
+| `crates/shadows-agent/src/codex/connection.rs` | ordered Codex JSONL dispatch | `crates/shadows-agent/src/codex.rs` |
+| `crates/shadows-agent/src/codex/session.rs` | Codex thread opening | `crates/shadows-agent/src/codex.rs` |
+| `crates/shadows-agent/src/codex/prompt.rs` | Codex turn lifecycle | `crates/shadows-agent/src/codex.rs` |
+| `crates/shadows-agent/src/codex/mapping.rs` | Codex event translation | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/acp/` | private ACP protocol implementation | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/connection.rs` | ACP transport initialization | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp/session.rs` | ACP session configuration | `crates/shadows-agent/src/acp.rs` |
@@ -352,6 +359,7 @@ pattern to follow, not merely an example.
 | `crates/fake-acp/src/mcp.rs` | calling the session's MCP server | `crates/fake-acp/src/mcp.rs` |
 | `crates/fake-acp/src/steer.rs` | steering a prompt that waits for it | `crates/fake-acp/src/steer.rs` |
 | `crates/fake-acp/src/prompts.rs` | the scripted answers to a prompt | `crates/fake-acp/src/prompts.rs` |
+| `crates/fake-codex/src/main.rs` | test apparatus that no product code links | `crates/fake-codex/contract.yaml` |
 
 The Web client in `web/` is a separate program outside this workspace and this
 map; [`docs/frontend/codebase/README.md`](../frontend/codebase/README.md) is its

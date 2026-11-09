@@ -7,8 +7,8 @@
 
 import { act } from 'react'
 import { describe, expect, it } from 'vitest'
-import { completedOperation, fakeChoices, projectFixture, threadFixture } from '@/test/contract-fixtures'
-import { answers } from '@/test/fake-daemon'
+import { claudeHarness, completedOperation, entryOfKind, fakeChoices, invocationFixture, projectFixture, threadFixture } from '@/test/contract-fixtures'
+import { answers, codexConfigured } from '@/test/fake-daemon'
 import { composer, start, ready, textarea, turnStarts } from '@/test/composer'
 import { choose, menuItem, typeInto, until } from '@/test/test-app'
 
@@ -296,5 +296,70 @@ describe('the composer bar', () => {
     act(() => app.button('Send')?.click())
     await until(() => app.text().includes('auto is not allowed'))
     expect(textarea(app).value).toBe('hi')
+  })
+})
+
+describe('a Codex conversation', () => {
+  const pick = (id: string, label = id) => ({ id, label, description: null, enabled: true, reason: null })
+  const codexThread = { ...threadFixture, harness: 'codex' }
+  const codexProject = { ...projectFixture, allowed_modes: { codex: ['read-only'] } }
+  // Codex lists its own models; each one's efforts come with the session's answer.
+  const codexSession = (model: string) => ({
+    capabilities: { image: false, image_reason: 'Codex takes text only here' },
+    models: [pick('gpt-5.5'), pick('gpt-5.4-mini')],
+    efforts: model === 'gpt-5.5' ? [pick('low'), pick('medium'), pick('xhigh')] : [pick('low'), pick('medium')],
+    modes: [pick('read-only', 'Read only')],
+    current: { model, mode: 'read-only', effort: 'medium' },
+  })
+  const codexDaemon = (extra: Parameters<typeof answers>[0] = {}) => ({
+    ...answers({ project: codexProject, harnesses: [claudeHarness, codexConfigured], session: codexSession('gpt-5.5'), ...extra }),
+    'GET /api/projects/p1/threads': [codexThread],
+    'GET /api/threads/t1': codexThread,
+  })
+  const codexReady = (app: Parameters<typeof ready>[0]) => () =>
+    app.button('gpt-5.5') !== undefined && app.calls.includes('GET /api/threads/t1/operations')
+
+  it('shows the session Core opened: its models, its mode and its images refused', async () => {
+    const app = await start('/projects/p1/threads/t1', codexDaemon())
+    await until(codexReady(app))
+    expect(app.button('Read only')).toBeDefined()
+    expect(app.text()).not.toContain('Auto')
+    act(() => app.button('Add')!.click())
+    await until(() => menuItem('Add photos') !== undefined)
+    expect(menuItem('Add photos')?.getAttribute('aria-disabled')).toBe('true')
+    expect(menuItem('Add photos')?.textContent).toContain('Codex takes text only here')
+  })
+
+  it('takes the efforts of the model it switched to from the refreshed session', async () => {
+    const app = await start('/projects/p1/threads/t1', {
+      ...codexDaemon(),
+      'PUT /api/threads/t1/session/model': async (r: Request) => {
+        const { model } = (await r.json()) as { model: string }
+        return Response.json(codexSession(model))
+      },
+    })
+    await until(codexReady(app))
+    await choose(app, 'gpt-5.5', 'gpt-5.4-mini')
+    await until(() => app.button('gpt-5.4-mini') !== undefined)
+    await until(() => app.button('medium')?.disabled === false)
+    act(() => app.button('medium')!.click())
+    await until(() => menuItem('low') !== undefined)
+    expect(menuItem('xhigh')).toBeUndefined()
+  })
+
+  it('locks the CLI once a turn has run', async () => {
+    const app = await start('/projects/p1/threads/t1', codexDaemon({ operations: [completedOperation(null)] }))
+    await until(() => app.container.querySelector('[aria-label="CLI locked for this conversation"]') !== null)
+    expect(app.container.querySelector('[aria-label="CLI locked for this conversation"]')?.textContent).toBe('Codex')
+  })
+
+  it('offers no Auto hint on a refused call: Codex has no unattended mode', async () => {
+    const app = await start('/projects/p1/threads/t1', codexDaemon({
+      entries: [entryOfKind('r1', 'PermissionRefused', 'write_file src/a.ts')],
+      operations: [{ ...completedOperation({ ...invocationFixture, harness_kind: 'codex', requested_mode: 'read-only' }) }],
+    }))
+    await until(() => app.text().includes('write_file src/a.ts'))
+    expect(app.text()).toContain('refused in Read only')
+    expect(app.text()).not.toContain('would allow it')
   })
 })

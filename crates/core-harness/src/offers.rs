@@ -7,7 +7,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use serde_json::Value;
 use tokio::sync::{broadcast, mpsc};
 
 use core_threads::ThreadId;
@@ -36,9 +35,9 @@ impl Offers {
             .insert(thread.clone(), (models, default));
     }
 
-    /// Parses `options`, keeps it as the thread's latest, and publishes it.
-    pub(super) fn record(&self, thread: &ThreadId, options: &Value) -> Result<Offered, String> {
-        let mut offered = Offered::parse(options)?;
+    /// Keeps the normalized choices as the thread's latest and publishes them.
+    pub(super) fn record(&self, thread: &ThreadId, options: &Offered) -> Offered {
+        let mut offered = options.clone();
         if let Some((models, default)) = self.models.lock().expect("model rules").get(thread) {
             let mut seen = std::collections::BTreeSet::new();
             offered.models.retain(|m| {
@@ -57,7 +56,7 @@ impl Offers {
             .insert(thread.clone(), offered.clone());
         // Nobody watching is not a failure: the next opening answers them.
         let _ = self.changed.send((thread.clone(), offered.clone()));
-        Ok(offered)
+        offered
     }
 
     pub(super) fn get(&self, thread: &ThreadId) -> Option<Offered> {
@@ -90,10 +89,8 @@ impl Offers {
         to: mpsc::UnboundedSender<HarnessEvent>,
     ) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
         move |event| {
-            if let HarnessEvent::Options(options) = &event
-                && let Err(error) = offers.record(&thread, options)
-            {
-                tracing::warn!(thread_id = %thread, %error, "sessions.options_unreadable");
+            if let HarnessEvent::Options(options) = &event {
+                offers.record(&thread, options);
             }
             let _ = to.send(event);
         }

@@ -8,12 +8,14 @@ mod permissions;
 mod prompt;
 mod session;
 
+pub use crate::connection::{
+    ImageBlock, McpServerSpec, Opened, PromptBlock, PromptCapabilities, PromptResult, SessionSetup,
+    SessionStart, Steer, TurnEnd,
+};
 use agent_client_protocol::{Agent, v1::ConnectionTo};
 pub use permissions::{
     PermissionError, PermissionPolicy, PreparedPermissionAnswer, WaitingPermission,
 };
-pub use prompt::{ImageBlock, PromptBlock, PromptCapabilities, PromptResult, Steer, TurnEnd};
-pub use session::{McpServerSpec, Opened, SessionSetup, SessionStart};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AcpError {

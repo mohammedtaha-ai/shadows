@@ -1456,6 +1456,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fake-codex"
+version = "0.1.0"
+dependencies = [
+ "rmcp",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "fancy-regex"
 version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3700,6 +3709,7 @@ version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
  "base64 0.22.1",
+ "escargot",
  "serde",
  "serde_json",
  "shadows-process",
@@ -3717,6 +3727,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
+ "axum",
  "core-agents",
  "core-code",
  "core-db",
@@ -3759,6 +3770,7 @@ dependencies = [
  "shadows-agent",
  "shadows-core",
  "shadows-index",
+ "shadows-mcp",
  "shadows-process",
  "sqlx",
  "syn 2.0.119",

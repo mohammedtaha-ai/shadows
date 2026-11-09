@@ -162,9 +162,11 @@ obligations:
       - "a click after a save uses that save while the project query has not rendered"
 
   - rule: >
-      A harness whose modes are not decided shows that sentence instead of a checklist.
+      A harness whose modes are not decided shows that sentence instead of a checklist;
+      a harness Core lists with modes, Codex's `read-only` included, shows its checklist.
     tested_by:
       - "a harness whose modes are not decided says so instead of a checklist"
+      - "lists Codex with the one mode Core gives it"
 
   - rule: >
       A retry of an unanswered toggle reuses its command id; a toggle after an answered
@@ -330,8 +332,10 @@ tests:
     checks: >
       With React Query's notifications held, the cache holds the PATCH answer but the
       checkbox still shows the old set; the next click sends the set from that answer.
+  - name: "lists Codex with the one mode Core gives it"
+    checks: "The default daemon lists Codex with `read-only`; its Read only checkbox shows and no 'decided' sentence."
   - name: "a harness whose modes are not decided says so instead of a checklist"
-    checks: "Codex shows the 'decided when Codex is enabled' sentence and no checklist."
+    checks: "A listed harness with no modes shows the 'decided when <label> is enabled' sentence and no checklist."
   - name: "links another project, then unlinks it"
     checks: >
       Linking PUTs the id and shows the row with its name, folder and status; the picker is

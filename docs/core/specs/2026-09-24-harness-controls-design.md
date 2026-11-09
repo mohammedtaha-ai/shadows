@@ -15,8 +15,8 @@ On that connection the person chooses, per conversation, which agent CLI runs it
 and, per message, which model, mode and effort; sees how full the context is and
 how much of the account's limits are left; and can copy any message and fork
 from the last one. Model and effort lists come from the harness, so a new model
-appears without a Shadows release. Claude Code only; Codex is listed and not yet
-runnable.
+appears without a Shadows release. Claude Code runs over ACP; Codex runs over its
+own app-server when the daemon is configured for it (§12.14).
 
 ## 12.1 Scope
 
@@ -40,7 +40,7 @@ Out:
 
 | Not in this milestone | Why |
 |---|---|
-| Running Codex | Its adapter (`@agentclientprotocol/codex-acp`) is not measured, and its modes are not decided (§12.4). Listed `available: false`. |
+| Running Codex in Milestone 1 | The direct app-server integration that runs it is owned by §12.14. |
 | Claude's `plan`, `default`, `dontAsk`, `bypassPermissions` modes | Not in Shadows' policy for Claude (§12.4); decided 2026-09-24. Planning is the Planner's own job (§11.6 slice 1). |
 | Asking the person to approve a permission | Still refused for the Planner (§12.2). Built for AYLUL threads: [AYLUL agents and panel §7.8](../../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md). |
 | Fork, edit, or retry from a message before the last | Needs the Context Compiler (§2.11). The fork request already names the entry (§12.9). |
@@ -242,7 +242,7 @@ reports the harness's refusal, in its own words, when a model is chosen
 | Harness | Modes Shadows allows | Default of a new conversation |
 |---|---|---|
 | Claude Code | `acceptEdits`, `auto` | `acceptEdits` |
-| Codex | decided when Codex is enabled | — |
+| Codex | `read-only` (§12.14) | `read-only` |
 
 A mode reaches the menu only if it is in that policy, the harness lists it, and
 the project allows it (§12.5).
@@ -300,7 +300,9 @@ conversations like the model and effort above:
   conversation, removed with the conversation.
 
 **The harness list** itself — which CLIs exist, which run — is Shadows': Claude
-Code (available when its three paths are configured), Codex (not yet).
+Code (available when its three paths are configured), Codex (available when
+`--codex` and `--codex-home` are given; otherwise unavailable with a reason naming
+them, §12.14).
 
 ## 12.5 Allowed modes per project
 
@@ -649,3 +651,155 @@ Phase B
 [ ] one whole-branch review before the PR
 [ ] Mohammed runs the real daemon with the real client and exercises every item above
 ```
+
+## 12.14 Codex over app-server
+
+**Status: built, 2026-11-09; browser acceptance runs on `main` after the merge.**
+Mohammed chose direct Codex app-server integration and a separate harness choice
+for each conversation. This section owns that extension; the ACP-specific
+sections describe Claude. The
+[implementation plan](../../backend/plans/2026-11-07-codex-app-server.md) names
+the work and its acceptance gates. A daemon started with `--codex` and
+`--codex-home` lists Codex as available, with its catalog choices, usage,
+account limits, fork and Send now; without them it reports the configuration it
+needs.
+
+### Scope and ownership
+
+The first delivery adds Codex to project Planner conversations: text streaming,
+Shadows MCP tools, model and reasoning effort choices, cancellation, persistent
+sessions, and reported context/account limits. The existing conversation, turn,
+grant, and planning authorities remain the authorities for Codex too.
+
+`AppCore` constructs the configured programs. `core-harness` selects and owns
+each thread's live session. `shadows-agent` translates the two wire protocols:
+the current `acp/` path for Claude and a new `codex/` path for app-server.
+`shadows-process` continues to own spawning, containment and termination.
+Neither the HTTP adapter nor the frontend owns provider rules or live processes.
+
+There is no Codex ACP adapter, new application composition root, or direct
+frontend connection to Codex. A finite internal connection enum is sufficient;
+no runtime plugin registry or generic provider framework is needed. The shared
+boundary carries normalized choices and existing harness events, not ACP JSON
+masquerading as a second protocol.
+
+The existing harness lock (§12.6) applies. Claude-to-Codex conversation transfer
+and Codex as an AYLUL brain are outside this delivery. New images, background
+tasks, and provider-specific slash commands are not prerequisites; unavailable
+capabilities are reported honestly. Existing visible actions such as fork and
+Send now must either work through Codex's matching methods before release or be
+explicitly disabled through the agreed API, never accepted and silently ignored.
+
+### Configuration and session lifecycle
+
+Use the installed native Codex executable through an explicit absolute optional
+`--codex` configuration path, paired with the absolute `--codex-home` for the
+dedicated Shadows Codex profile. A person signs in once there with their
+existing ChatGPT account through the standard Codex login flow. Absent
+configuration leaves Claude usable and Codex unavailable with an actionable
+reason. A configured missing executable,
+missing login, rejected model, or failed handshake is a visible failure, never
+a fallback to Claude or a fresh conversation.
+
+The baseline is `codex-cli 0.167.0`, verified with the real signed-in account in
+`docs/evidence/2026-11-07-codex-app-server-probe.md` at `41dd19ef`.
+The integration uses schemas generated by that CLI version as its protocol
+reference. A later CLI version is not called verified until its focused checks
+run. Do not install a second CLI or change the person's global Codex settings.
+
+Use one managed app-server per open conversation over `--listen stdio://`.
+Initialize once, then create or resume the stored native thread ID. Reuse the
+existing setup timeout, idle reaper, generation fencing and cancellation timeout.
+`turn/start` acknowledges a start; only the matching `turn/completed` decides the
+terminal result. An interrupt acknowledgment alone is not a stopped turn.
+Unknown notifications do not terminate the dispatcher; malformed relevant
+messages, EOF and RPC errors settle pending work with a failure.
+
+### First permission and tool gate
+
+Before shipping source or enabling the menu, B-85 must prove actual HTTP MCP
+authentication, permitted tool use, denied authority and cancellation during a
+tool call on 0.167.0. Start that proof with `read-only` and `approvalPolicy: never`.
+A model's promise not to write is not permission enforcement.
+
+Only the intended Shadows MCP server and its permitted tools may be inherited
+by a Planner session. The existing grant policy remains authoritative for tool
+writes and person-only approvals. Filesystem read-only does not prohibit an
+authorized planning write through Shadows MCP; test those two boundaries apart.
+
+Pass a thread grant in the child environment and reference its variable with
+`bearer_token_env_var`. Do not put the bearer in process arguments, thread config
+values, saved settings, prompts, invocation records, logs or rollout files.
+Issue the grant through Harness/Grants before constructing the authenticated
+child; revoke it on setup failure, close and replacement. Never expose unrelated
+provider secrets to the Codex child.
+
+The first Codex mode is `read-only`, also the default. App-server opens and
+resumes with `sandbox: "read-only"` and `approvalPolicy: "never"`. Windows
+uses explicit `windows.sandbox="mxc"`, measured with a real command that
+started and was refused a write. Workspace write modes require their own
+policy and enforcement proof before they can be offered.
+
+Use the dedicated `CODEX_HOME` in the child environment. Keep user MCP
+settings in the regular Codex home and the dedicated profile reserved for
+Shadows. Refuse a dedicated home with unexpected MCP configuration before
+opening a thread. Force the canonical project root untrusted with a
+process-level `projects.<root>.trust_level="untrusted"` override, even if
+an existing config trusts it. Disable `features.apps`, `features.plugins`,
+`features.hooks`, `features.multi_agent`, and `web_search` for the child.
+The Windows probe verified that even a project MCP server added after
+preflight did not start. The earlier probe with an editable shared home
+could start a new server in that interval. Checking inventory after open
+remains a verification step and cannot replace isolation before open.
+
+Configure the one Shadows HTTP MCP server as required. Set its
+`enabled_tools` from the thread grant's tool policy, with
+`default_tools_approval_mode="prompt"` and explicit
+`approval_mode="approve"` for the supported non-approval tools. The
+initial Codex path leaves `vision_approve`, `map_approve`, `roadmap_approve`
+and `plan_approve` unapproved. The person's approval actions continue
+through Shadows. Exclude the bearer variable from the shell environment.
+The authenticated Windows evidence, including the tool inventory and
+refusals, is recorded in the linked [probe](../../evidence/2026-11-07-codex-app-server-probe.md#signed-in-shadows-home-on-2026-11-08).
+
+Permission requests that still reach the Planner are refused and shown as
+refusals. Interactive approval support for AYLUL is not extended in this work.
+A revoked grant cannot authorize a later tool write, including after resume;
+a fresh opening uses its freshly issued grant.
+
+### Choices, events and usage
+
+Populate models and per-model efforts from `model/list`; do not hard-code the
+current catalog or treat a listed model as an account entitlement. Apply selected
+settings to the next `turn/start` and preserve the existing remembering and busy
+rules. Report requested values separately from whatever Codex actually reports.
+An idle selection acknowledged locally is not proof of successful inference.
+
+Translate Codex item IDs, text deltas, tool starts/completions, refusals and turn
+endings into the existing event vocabulary in dispatch order. Preserve item
+identity to avoid duplicated final text. A resumed transcript is not emitted as
+new live messages. Replayed usage snapshots must not charge the same turn again.
+
+For the existing last-request context figure, use Codex's reported
+`tokenUsage.last.totalTokens` and `modelContextWindow`, when valid. Cached input
+is already represented in input usage; do not add it again. Never use the
+cumulative `tokenUsage.total` as occupancy or infer a 1M window. Account limits
+come from Codex's reported windows and reset times. Missing values stay unknown;
+token counts do not imply a monetary cost.
+
+### Acceptance
+
+The first runnable path must create/read a planning draft with Codex through
+Shadows' real MCP authority, reject a forbidden write/approval, confirm Stop,
+and continue after a process restart. The browser must show the actual selected
+harness, its offered model/effort, streamed reply, tool results, refusals, and
+reported usage. Claude's existing session and permission behavior must still
+pass its focused regressions. Acceptance is a real daemon/browser/log run in
+addition to protocol fixtures; this section is not marked built from the earlier
+standalone transport probe.
+
+Protocol references: [App-server](https://learn.chatgpt.com/docs/app-server),
+[MCP configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), and
+[configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+The installed CLI's generated schemas and B-85's measurements settle version-specific
+payloads and enforcement; an online example alone does not prove either.

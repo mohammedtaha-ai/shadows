@@ -25,7 +25,12 @@ async fn the_harness_list_carries_the_policy_modes() {
         assert_eq!(list[i]["initial_mode"], "acceptEdits");
         assert_eq!(list[i]["unattended_mode"], "auto");
     }
-    assert_eq!(list[1]["modes"], serde_json::json!([]));
-    assert!(list[1]["initial_mode"].is_null());
+    assert_eq!(list[1]["modes"][0]["id"], "read-only");
+    assert_eq!(list[1]["initial_mode"], "read-only");
     assert!(list[1]["unattended_mode"].is_null());
+    assert_eq!(list[1]["available"], false, "Codex needs its configuration");
+    assert!(
+        list[1]["reason"].as_str().unwrap().contains("--codex"),
+        "the reason says what to configure"
+    );
 }

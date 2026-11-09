@@ -68,6 +68,8 @@ pub async fn app(db_path: std::path::PathBuf) -> anyhow::Result<Arc<AppCore>> {
             node_path: missing.clone(),
             adapter_path: missing.clone(),
             harness_path: missing,
+            codex_path: None,
+            codex_home: None,
             aylul: None,
         },
         "http://127.0.0.1:0/mcp".into(),
